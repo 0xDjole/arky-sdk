@@ -4,8 +4,6 @@ import { SUPPORTED_STORE_CURRENCIES } from "../utils/price";
 const SCOPES = {
   "business_overview": "period",
   "customer_funnel": "period",
-  "outreach_overview": "mixed",
-  "outreach_funnel": "mixed",
   "customer_action_by_country": "period",
   "top_customer_action_pages": "period",
   "entity_status_overview": "current_snapshot",
@@ -14,8 +12,6 @@ const SCOPES = {
   "customers_created": "period",
   "form_submissions_created": "period",
   "carts_abandoned": "period",
-  "campaign_messages_sent": "period",
-  "campaign_messages_received": "period",
   "media_count": "current_snapshot",
   "products_by_status": "current_snapshot",
   "services_by_status": "current_snapshot",
@@ -24,12 +20,8 @@ const SCOPES = {
   "entries_by_status": "current_snapshot",
   "customers_by_status": "current_snapshot",
   "customer_groups_by_status": "current_snapshot",
-  "mailboxes_by_status": "current_snapshot",
-  "campaigns_by_status": "current_snapshot",
-  "campaign_enrollments_by_status": "current_snapshot",
-  "campaign_messages_by_status": "current_snapshot",
-  "support_conversations_by_status": "current_snapshot",
-  "email_templates_by_status": "current_snapshot",
+  "broadcasts_by_status": "current_snapshot",
+  "conversations_by_status": "current_snapshot",
   "forms_by_status": "current_snapshot",
   "categories_by_status": "current_snapshot",
   "carts_by_status": "current_snapshot",
@@ -45,12 +37,8 @@ const STATUS_ENTITIES = {
   "entries_by_status": "entry",
   "customers_by_status": "customer",
   "customer_groups_by_status": "customer_group",
-  "mailboxes_by_status": "mailbox",
-  "campaigns_by_status": "campaign",
-  "campaign_enrollments_by_status": "campaign_enrollment",
-  "campaign_messages_by_status": "campaign_message",
-  "support_conversations_by_status": "support_conversation",
-  "email_templates_by_status": "email_template",
+  "broadcasts_by_status": "broadcast",
+  "conversations_by_status": "conversation",
   "forms_by_status": "form",
   "categories_by_status": "category",
   "carts_by_status": "cart",
@@ -58,122 +46,25 @@ const STATUS_ENTITIES = {
   "order_products_by_status": "order_product_item"
 } as const;
 const STATUSES: Record<string, readonly string[]> = {
-  "product": [
-    "active",
-    "draft",
-    "archived",
-    "deleting"
-  ],
-  "booking_service": [
-    "active",
-    "draft",
-    "archived",
-    "deleting"
-  ],
-  "booking_resource": [
-    "active",
-    "draft",
-    "archived",
-    "deleting"
-  ],
-  "collection": [
-    "active",
-    "draft",
-    "archived"
-  ],
-  "entry": [
-    "active",
-    "draft",
-    "archived"
-  ],
-  "customer": [
-    "active",
-    "archived"
-  ],
-  "customer_group": [
-    "draft",
-    "active",
-    "closed",
-    "archived",
-    "deleting"
-  ],
-  "mailbox": [
-    "active",
-    "draft",
-    "archived"
-  ],
-  "campaign": [
-    "draft",
-    "active",
-    "paused",
-    "completed"
-  ],
-  "campaign_enrollment": [
-    "pending",
-    "active",
-    "replied",
-    "completed",
-    "stopped"
-  ],
-  "campaign_message": [
-    "draft",
-    "submitted",
-    "requested",
-    "processing",
-    "sent",
-    "received",
-    "bounced",
-    "rejected",
-    "failed",
-    "unknown",
-    "cancelled"
-  ],
-  "support_conversation": [
-    "active",
-    "ai_mode",
-    "escalated",
-    "resolved"
-  ],
-  "email_template": [
-    "active",
-    "draft",
-    "archived"
-  ],
-  "form": [
-    "active",
-    "draft",
-    "archived"
-  ],
-  "category": [
-    "active",
-    "draft",
-    "archived"
-  ],
-  "cart": [
-    "active",
-    "abandoned",
-    "converted",
-    "merged",
-    "expired"
-  ],
-  "order": [
-    "pending",
-    "confirmed",
-    "partially_cancelled",
-    "cancelled"
-  ],
-  "order_product_item": [
-    "pending",
-    "confirmed",
-    "cancelled"
-  ]
+  "product": ["active", "draft", "archived", "deleting"],
+  "booking_service": ["active", "draft", "archived", "deleting"],
+  "booking_resource": ["active", "draft", "archived", "deleting"],
+  "collection": ["active", "draft", "archived", "deleting"],
+  "entry": ["active", "draft", "archived", "deleting"],
+  "customer": ["anonymous", "verified"],
+  "customer_group": ["draft", "active", "closed", "archived"],
+  "broadcast": ["draft", "scheduled", "sending", "sent"],
+  "conversation": ["flow", "team", "resolved"],
+  "form": ["active", "draft", "closed"],
+  "category": ["active", "draft", "archived", "deleting"],
+  "cart": ["active", "abandoned", "converted", "superseded", "merged", "expired"],
+  "order": ["pending", "confirmed", "partially_cancelled", "cancelled"],
+  "order_product_item": ["pending", "confirmed", "cancelled"]
 };
 const FEED_CATEGORIES = ["orders", "carts", "submissions", "customers", "customer_groups", "products", "services", "providers", "content", "customer_actions"];
 const CUSTOMER_STAGES = ["visitors", "new_email_known_customers", "new_verified_customers", "buyers"];
-const OUTREACH_STAGES = ["customer_groups", "campaigns", "campaign_enrollments", "campaign_messages_sent", "outreach_bounces", "campaign_messages_received"];
 const BUSINESS_COUNTS = ["visitors", "new_visitors", "new_email_known_customers", "new_verified_customers", "buyers", "orders", "carts", "abandoned_carts"];
 const BUSINESS_RATES = ["visitor_to_known_rate", "visitor_to_buyer_rate", "cart_abandonment_rate"];
-const OUTREACH_COUNTS = ["customer_groups", "active_customer_groups", "mailboxes", "active_mailboxes", "campaigns", "active_campaigns", "campaign_enrollments", "new_campaign_enrollments", "active_campaign_enrollments", "completed_campaign_enrollments", "replied_campaign_enrollments", "campaign_messages_sent", "outreach_bounces", "campaign_messages_received"];
 const HEALTH_COUNTS = ["anonymous_customers", "known_customers", "duplicate_emails", "unknown_country_events", "unknown_device_events"];
 const FEED_COUNTS = ["total", "orders", "submissions", "customers", "customer_groups", "abandoned_carts", "carts", "products", "services", "providers", "content", "customer_actions"];
 const DAY = 86_400_000;
@@ -268,7 +159,7 @@ function feedFact(value: unknown, row: Record<string, unknown>, storeId: string)
   const actions = entity === "customer_action" ? ["recorded"] : entity === "order"
     ? ["created", "updated", "confirmed", "payment_received", "payment_failed", "cancelled", "refunded"]
     : entity === "cart" ? ["created", "updated", "converted", "abandoned"]
-    : entity === "customer" ? ["created", "updated", "archived", "consolidated"]
+    : entity === "customer" ? ["verified", "updated", "erased", "merged"]
     : entity === "form_submission" ? ["created"] : ["created", "updated", "deleted"];
   if (!actions.includes(text(row.action, 64)) || (entity !== "customer_action" && row.event_type !== `${entity}_${row.action}`)) fail("feed event identity mismatch");
   const base = ["store_id", "entity_id"];
@@ -281,9 +172,9 @@ function feedFact(value: unknown, row: Record<string, unknown>, storeId: string)
     if (new TextEncoder().encode(encoded).byteLength > 1024 * 1024) fail("Custom fact exceeds its byte bound");
     const country = text(data.country_code, 2); if (country && !/^[A-Z]{2}$/.test(country)) fail("invalid country code");
     if (!["", "desktop", "mobile", "tablet"].includes(text(data.device_type, 32))) fail("invalid device");
-  } else if (entity === "customer" && row.action === "consolidated") {
-    expected.push("source_customer_id", "target_customer_id", "consolidated_at");
-    identity(data.source_customer_id); identity(data.target_customer_id); timestamp(data.consolidated_at);
+  } else if (entity === "customer" && row.action === "merged") {
+    expected.push("source_customer_id", "target_customer_id", "merged_at");
+    identity(data.source_customer_id); identity(data.target_customer_id); timestamp(data.merged_at);
   } else if (entity === "customer") {
     expected.push("email", "email_verified", "status"); text(data.email, 1024);
     if (typeof data.email_verified !== "boolean") fail("invalid customer verification");
@@ -292,8 +183,8 @@ function feedFact(value: unknown, row: Record<string, unknown>, storeId: string)
     text(data.number, 256); const money = fields(data.payment, ["currency", "total"]); currency(money.currency); integer(money.total);
   } else if (entity === "cart") expected.push("customer_id", "customer_session_id", "status");
   else if (entity === "form_submission") { expected.push("form_id", "customer_id", "customer_session_id"); identity(data.form_id); }
-  else if (entity === "customer_group" && row.action === "deleted") {}
-  else if (["product", "booking_service", "booking_resource", "collection", "entry", "form", "email_template", "category", "customer_group"].includes(entity)) {
+  else if ((entity === "customer_group" && row.action === "deleted") || entity === "email_template") {}
+  else if (["product", "booking_service", "booking_resource", "collection", "entry", "form", "category", "customer_group"].includes(entity)) {
     expected.push("key", "status"); text(data.key, 1024);
     if (entity === "entry") { expected.push("collection_id"); identity(data.collection_id); }
   } else fail("unknown feed fact owner");
@@ -345,8 +236,6 @@ function assertReport(value: unknown, storeId: string): asserts value is Analyti
         else if (Math.abs(decimal(row.average_order_value) - Math.round(revenue / orders * 100) / 100) > 1e-8) fail("average value mismatch");
       } break; }
     case "customer_funnel": { fields(data, ["stages", "visitor_to_known_rate", "visitor_to_buyer_rate"]); stages(data.stages, CUSTOMER_STAGES); rate(data.visitor_to_known_rate); rate(data.visitor_to_buyer_rate); break; }
-    case "outreach_overview": { fields(data, [...OUTREACH_COUNTS, "reply_rate", "bounce_rate"]); counts(data, OUTREACH_COUNTS); rate(data.reply_rate); rate(data.bounce_rate); break; }
-    case "outreach_funnel": { fields(data, ["stages", "reply_rate", "bounce_rate"]); stages(data.stages, OUTREACH_STAGES); rate(data.reply_rate); rate(data.bounce_rate); break; }
     case "customer_action_by_country": { fields(data, ["items"]);
       const seen = new Set<string>();
       for (const item of list(data.items, 1000)) {
@@ -370,8 +259,6 @@ function assertReport(value: unknown, storeId: string): asserts value is Analyti
     case "customers_created": { fields(data, ["value"]); integer(data.value); break; }
     case "form_submissions_created": { fields(data, ["value"]); integer(data.value); break; }
     case "carts_abandoned": { fields(data, ["value"]); integer(data.value); break; }
-    case "campaign_messages_sent": { fields(data, ["value"]); integer(data.value); break; }
-    case "campaign_messages_received": { fields(data, ["value"]); integer(data.value); break; }
     case "media_count": { fields(data, ["value"]); integer(data.value); break; }
     case "products_by_status": { fields(data, ["items"]); statusItems(data.items, "product"); break; }
     case "services_by_status": { fields(data, ["items"]); statusItems(data.items, "booking_service"); break; }
@@ -380,12 +267,8 @@ function assertReport(value: unknown, storeId: string): asserts value is Analyti
     case "entries_by_status": { fields(data, ["items"]); statusItems(data.items, "entry"); break; }
     case "customers_by_status": { fields(data, ["items"]); statusItems(data.items, "customer"); break; }
     case "customer_groups_by_status": { fields(data, ["items"]); statusItems(data.items, "customer_group"); break; }
-    case "mailboxes_by_status": { fields(data, ["items"]); statusItems(data.items, "mailbox"); break; }
-    case "campaigns_by_status": { fields(data, ["items"]); statusItems(data.items, "campaign"); break; }
-    case "campaign_enrollments_by_status": { fields(data, ["items"]); statusItems(data.items, "campaign_enrollment"); break; }
-    case "campaign_messages_by_status": { fields(data, ["items"]); statusItems(data.items, "campaign_message"); break; }
-    case "support_conversations_by_status": { fields(data, ["items"]); statusItems(data.items, "support_conversation"); break; }
-    case "email_templates_by_status": { fields(data, ["items"]); statusItems(data.items, "email_template"); break; }
+    case "broadcasts_by_status": { fields(data, ["items"]); statusItems(data.items, "broadcast"); break; }
+    case "conversations_by_status": { fields(data, ["items"]); statusItems(data.items, "conversation"); break; }
     case "forms_by_status": { fields(data, ["items"]); statusItems(data.items, "form"); break; }
     case "categories_by_status": { fields(data, ["items"]); statusItems(data.items, "category"); break; }
     case "carts_by_status": { fields(data, ["items"]); statusItems(data.items, "cart"); break; }
@@ -454,7 +337,7 @@ export function validateAnalyticsRequest(request: AnalyticsRequest): void {
       if (report.category !== undefined && report.category !== null && !FEED_CATEGORIES.includes(text(report.category, 64))) fail("unknown feed category");
       if ((report.cursor_created_at != null) !== (report.cursor_id != null)) fail("partial feed cursor");
       if (report.cursor_created_at != null) { timestamp(report.cursor_created_at); identity(report.cursor_id); }
-      work += key === "business_overview" || key === "customer_funnel" ? 8 : key === "entity_status_overview" ? 19 : key === "data_health" ? 3 : feed || key === "outreach_overview" || key === "outreach_funnel" ? 2 : 1;
+      work += key === "business_overview" || key === "customer_funnel" ? 8 : key === "entity_status_overview" ? 14 : key === "data_health" ? 3 : feed ? 2 : 1;
     }
   }
   if (total > 64 || work > 128) fail("analytics work bound exceeded");

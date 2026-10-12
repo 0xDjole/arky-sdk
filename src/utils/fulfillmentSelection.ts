@@ -1,7 +1,29 @@
-import type { FulfillmentJob, FulfillmentJobLine, FulfillmentJobMoveLine, FulfillmentUnitSpan } from "../types";
-import type { UnitSpan } from "../types/orderContract";
-import type { Fulfillment, FulfillmentLine } from "../types/fulfillment";
+import type { UnitSpan } from "../types/common";
+import type {
+  Fulfillment,
+  FulfillmentExecution,
+  FulfillmentJob,
+  FulfillmentJobLine,
+  FulfillmentJobMoveLine,
+  FulfillmentLine,
+  FulfillmentUnitSpan,
+} from "../types/fulfillment";
 import { FulfillmentSelectionError } from "../types/fulfillmentSelection";
+
+export function fulfillmentJobLines(job: FulfillmentJob): FulfillmentJobLine[] {
+  return job.type.type === "order_delivery" ? job.type.lines : [job.type.line];
+}
+
+export function fulfillmentExecution(fulfillment: Fulfillment): FulfillmentExecution | null {
+  const status = fulfillment.type.status;
+  if (status.type === "sent" || status.type === "delivered" || status.type === "collected") return status.execution;
+  return null;
+}
+
+function fulfillmentPreparing(fulfillment: Fulfillment): boolean {
+  const status = fulfillment.type.status;
+  return status.type === "preparing" || status.type === "ready";
+}
 
 function checked(spans: UnitSpan[]): UnitSpan[] {
   if (spans.length > 1000) throw new FulfillmentSelectionError("Unit ranges exceed their supported bound.");
@@ -110,25 +132,26 @@ function assignedUnits(line: FulfillmentJobLine): UnitSpan[] {
 }
 
 export function selectFulfillmentUnits(work: FulfillmentJob, lineId: string, quantity: number, history: Fulfillment[]): FulfillmentLine {
-  if (!["open", "in_progress"].includes(work.status.type)) throw new FulfillmentSelectionError("Select released fulfillment work.");
+  if (work.status !== "open" && work.status !== "in_progress") {
+    throw new FulfillmentSelectionError("Select units of a job that is open or in progress.");
+  }
   return { ...selectUnits(work, lineId, quantity, history), selected_units: [], lot_reference: null };
 }
 
 export function selectFulfillmentMoveUnits(work: FulfillmentJob, lineId: string, quantity: number, history: Fulfillment[]): FulfillmentJobMoveLine {
-  if (work.method.type !== "delivery" || work.method.assignment.type !== "assigned") {
-    throw new FulfillmentSelectionError("Only assigned delivery work can move.");
-  }
   return selectUnits(work, lineId, quantity, history);
 }
 
 function selectUnits(work: FulfillmentJob, lineId: string, quantity: number, history: Fulfillment[]): FulfillmentJobMoveLine {
-  if (["completed", "cancelled"].includes(work.status.type)) throw new FulfillmentSelectionError("Finished work has no units to select.");
-  const line = work.lines.find((value) => value.id === lineId);
-  if (!line || !Number.isInteger(quantity) || quantity < 1 || quantity > 4294967295) {
-    throw new FulfillmentSelectionError("Select a valid assigned line and whole quantity.");
+  if (work.status === "completed" || work.status === "cancelled") {
+    throw new FulfillmentSelectionError("A finished job has no units to select.");
   }
-  if (line.source.type === "order_product" && work.order === null) {
-    throw new FulfillmentSelectionError("Product work must name its accepted Order delivery.");
+  const line = fulfillmentJobLines(work).find((value) => value.id === lineId);
+  if (!line || !Number.isInteger(quantity) || quantity < 1 || quantity > 4294967295) {
+    throw new FulfillmentSelectionError("Select a valid line of the job and a whole quantity.");
+  }
+  if (line.source.type === "order_product" && work.type.type !== "order_delivery") {
+    throw new FulfillmentSelectionError("A product line belongs to an order delivery.");
   }
   const assigned = assignedUnits(line);
   const moved = canonical(line.moved_units);
@@ -143,15 +166,14 @@ function selectUnits(work: FulfillmentJob, lineId: string, quantity: number, his
   const dispatched: FulfillmentUnitSpan[] = [];
   const prepared: FulfillmentUnitSpan[] = [];
   for (const fulfillment of history) {
-    const execution = fulfillment.status.type === "fulfilled" ? fulfillment.status.execution : null;
+    const execution = fulfillmentExecution(fulfillment);
     if (fulfillment.store_id !== work.store_id) {
-      throw new FulfillmentSelectionError("Physical history belongs to another Store.");
+      throw new FulfillmentSelectionError("A shipment of another store was given.");
     }
     if (fulfillment.fulfillment_job_id !== work.id) continue;
-    if (!execution && fulfillment.status.type === "cancelled") continue;
-    const preparing = ["preparing", "ready"];
-    if (!execution && !preparing.includes(fulfillment.status.type)) {
-      throw new FulfillmentSelectionError("Unexecuted fulfillment has inconsistent preparation status.");
+    if (!execution && fulfillment.type.status.type === "cancelled") continue;
+    if (!execution && !fulfillmentPreparing(fulfillment)) {
+      throw new FulfillmentSelectionError("A shipment that hasn't left has an unexpected status.");
     }
     for (const item of fulfillment.lines) {
       if (item.fulfillment_job_line_id !== line.id) continue;

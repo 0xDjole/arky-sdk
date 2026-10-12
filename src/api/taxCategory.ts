@@ -1,61 +1,48 @@
-import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
-import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
+import type { DeletedResponse, PaginatedResponse } from "../types/common";
 import type {
-  TaxCategory,
   CreateTaxCategoryParams,
-  UpdateTaxCategoryParams,
-  GetTaxCategoryParams,
-  GetTaxCategoryByKeyParams,
-  FindTaxCategoriesParams,
   DeleteTaxCategoryParams,
+  FindTaxCategoriesParams,
+  TaxCategory,
+  UpdateTaxCategoryParams,
 } from "../types/tax";
+import type { StoreRecordByKeyParams, StoreRecordParams } from "../types/market";
+import { requireId } from "../utils/ids";
+import { segment, storePath, storeRecordPath } from "./paths";
 
-export const createTaxCategoryApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId: string) =>
-    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/tax-categories`;
+const collection = "tax-categories";
 
-  return {
-    create(params: CreateTaxCategoryParams, options?: RequestOptions): Promise<TaxCategory> {
-      const { store_id, ...payload } = params;
-      return apiConfig.httpClient.post<TaxCategory>(basePath(store_id), payload, options);
-    },
-    update(params: UpdateTaxCategoryParams, options?: RequestOptions): Promise<TaxCategory> {
-      const { store_id, id, ...payload } = params;
-      return apiConfig.httpClient.put<TaxCategory>(
-        `${basePath(store_id)}/${encodeURIComponent(id)}`,
-        payload,
-        options,
-      );
-    },
-    get(params: GetTaxCategoryParams, options?: RequestOptions): Promise<TaxCategory> {
-      const { store_id, id } = params;
-      return apiConfig.httpClient.get<TaxCategory>(
-        `${basePath(store_id)}/${encodeURIComponent(id)}`,
-        options,
-      );
-    },
-    getByKey(params: GetTaxCategoryByKeyParams, options?: RequestOptions): Promise<TaxCategory> {
-      const { store_id, key } = params;
-      return apiConfig.httpClient.get<TaxCategory>(`${basePath(store_id)}/by-key/${encodeURIComponent(key)}`, options);
-    },
-    find(
-      params: FindTaxCategoriesParams,
-      options?: RequestOptions,
-    ): Promise<PaginatedResponse<TaxCategory>> {
-      const { store_id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<TaxCategory>>(basePath(store_id), {
-        ...options,
-        params: query,
-      });
-    },
-    delete(params: DeleteTaxCategoryParams, options?: RequestOptions): Promise<TaxCategory> {
-      const { store_id, id, expected_updated_at } = params;
-      return apiConfig.httpClient.delete<TaxCategory>(
-        `${basePath(store_id)}/${encodeURIComponent(id)}`,
-        { ...options, params: { expected_updated_at } },
-      );
-    },
-  };
-};
+export const createTaxCategoryApi = (apiConfig: ApiConfig) => ({
+  find(params: FindTaxCategoriesParams, options?: RequestOptions): Promise<PaginatedResponse<TaxCategory>> {
+    const { store_id, ...query } = params;
+    return apiConfig.httpClient.get<PaginatedResponse<TaxCategory>>(storePath(store_id, collection), { ...options, params: query });
+  },
+
+  get(params: StoreRecordParams, options?: RequestOptions): Promise<TaxCategory> {
+    return apiConfig.httpClient.get<TaxCategory>(storeRecordPath(params.store_id, collection, params.id), options);
+  },
+
+  getByKey(params: StoreRecordByKeyParams, options?: RequestOptions): Promise<TaxCategory> {
+    return apiConfig.httpClient.get<TaxCategory>(storePath(params.store_id, `${collection}/by-key/${segment(params.key)}`), options);
+  },
+
+  create(params: CreateTaxCategoryParams, options?: RequestOptions): Promise<TaxCategory> {
+    requireId(params.id, "tax category");
+    const { store_id, ...body } = params;
+    return apiConfig.httpClient.post<TaxCategory>(storePath(store_id, collection), body, options);
+  },
+
+  update(params: UpdateTaxCategoryParams, options?: RequestOptions): Promise<TaxCategory> {
+    const { store_id, id, ...body } = params;
+    return apiConfig.httpClient.put<TaxCategory>(storeRecordPath(store_id, collection, id), body, options);
+  },
+
+  delete(params: DeleteTaxCategoryParams, options?: RequestOptions): Promise<DeletedResponse> {
+    return apiConfig.httpClient.delete<DeletedResponse>(storeRecordPath(params.store_id, collection, params.id), {
+      ...options,
+      params: { expected_updated_at: params.expected_updated_at },
+    });
+  },
+});

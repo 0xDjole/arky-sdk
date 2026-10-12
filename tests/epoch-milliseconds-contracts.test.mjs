@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createAdmin } from "../dist/admin.js";
-import { buildFormFields, createStorefront } from "../dist/storefront.js";
+import { buildFormAnswers, createStorefront } from "../dist/storefront.js";
 import { MemoryStorage } from "./helpers/durable-request-fixtures.mjs";
 
 const knownInstant = 1_704_164_645_678;
@@ -34,7 +34,6 @@ function browserStorage(context, storage) {
 function adminSession(expiresAt) {
   return {
     id: sessionId,
-    scope: { type: "account" },
     access_token: "account-access",
     refresh_token: "account-refresh",
     access_expires_at: expiresAt,
@@ -56,12 +55,12 @@ function refreshedSession(now) {
 
 function customerSession(instant) {
   return {
-    version: 2,
+    version: 4,
     customer: {
       id: "customer-time",
-      status: { type: "active" },
-      identities: [],
-      categories: [],
+      store_id: storeId,
+      type: { type: "anonymous" },
+      profile: [],
       created_at: instant,
       updated_at: instant,
     },
@@ -78,7 +77,7 @@ function customerSession(instant) {
 
 function customerKey() {
   let key;
-  createStorefront(publishableKey, {
+  createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14",
     apiUrl,
     sessionStorage: {
       getItem(value) { key = value; return null; },
@@ -86,7 +85,7 @@ function customerKey() {
       removeItem() {},
     },
   });
-  assert.match(key, /^arky_customer_session:v2:/);
+  assert.match(key, /^arky_customer_session:v4:/);
   return key;
 }
 
@@ -95,13 +94,13 @@ test("auth cutover ignores old-unit namespaces without changing durable effect r
   browserStorage(context, storage);
   storage.seed("arky_admin_session", JSON.stringify(adminSession(knownInstant)));
   storage.seed("arky_admin_session:v2", JSON.stringify({ version: 2, session: adminSession(knownInstant) }));
-  storage.seed(customerKey().replace(":v2:", ":v1:"), JSON.stringify({ ...customerSession(1_700_000_000), version: 1 }));
-  const durableKey = "arky:audience-checkout:v1:pending-request";
+  storage.seed(customerKey().replace(":v4:", ":v2:"), JSON.stringify({ ...customerSession(1_700_000_000), version: 2 }));
+  const durableKey = "arky:cart-checkout:v4:pending-request";
   storage.seed(durableKey, JSON.stringify({ requestId: "frozen-id", payload: { amount: 200 } }));
   const before = [...storage.values];
   context.mock.method(globalThis, "fetch", () => { throw new Error("No network during initialization"); });
-  const admin = createAdmin({ baseUrl: apiUrl, market: "us" });
-  const customer = createStorefront(publishableKey, { apiUrl, sessionStorage: storage });
+  const admin = createAdmin({ baseUrl: apiUrl });
+  const customer = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, sessionStorage: storage });
   assert.equal(admin.session, null);
   assert.equal(customer.session, null);
   assert.deepEqual([...storage.values], before);
@@ -115,11 +114,11 @@ test("new auth storage preserves signed and early-epoch milliseconds without gue
     storage.seed(adminKey, JSON.stringify(adminSession(instant)));
     const record = customerSession(instant);
     storage.seed(key, JSON.stringify(record));
-    const admin = createAdmin({ baseUrl: apiUrl, market: "us" });
+    const admin = createAdmin({ baseUrl: apiUrl });
     assert.equal(admin.isAuthenticated, true);
-    assert.deepEqual(admin.session, { id: sessionId, email: "operator@example.test", scope: { type: "account" } });
+    assert.deepEqual(admin.session, { id: sessionId, email: "operator@example.test" });
     assert.equal(JSON.parse(storage.getItem(adminKey)).access_expires_at, instant);
-    const storefront = createStorefront(publishableKey, { apiUrl, sessionStorage: storage });
+    const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, sessionStorage: storage });
     assert.equal(storefront.session.customer.created_at, instant);
     assert.equal(JSON.parse(storage.getItem(key)).session.expires_at, instant);
   }
@@ -132,18 +131,18 @@ test("new auth storage rejects wrong envelopes and non-integer or unsafe instant
   for (const instant of [0.5, -0.5, Number.MAX_SAFE_INTEGER + 1, "1704164645678", null]) {
     storage.seed(adminKey, JSON.stringify(adminSession(instant)));
     storage.seed(key, JSON.stringify(customerSession(instant)));
-    assert.equal(createAdmin({ baseUrl: apiUrl, market: "us" }).session, null);
-    assert.equal(createStorefront(publishableKey, { apiUrl, sessionStorage: storage }).session, null);
+    assert.equal(createAdmin({ baseUrl: apiUrl }).session, null);
+    assert.equal(createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, sessionStorage: storage }).session, null);
   }
-  for (const version of [undefined, 1, 3]) {
+  for (const version of [undefined, 1, 2, 3, 5]) {
     storage.seed(adminKey, JSON.stringify({ version, session: adminSession(knownInstant) }));
     storage.seed(key, JSON.stringify({ ...customerSession(knownInstant), version }));
-    assert.equal(createAdmin({ baseUrl: apiUrl, market: "us" }).session, null);
-    assert.equal(createStorefront(publishableKey, { apiUrl, sessionStorage: storage }).session, null);
+    assert.equal(createAdmin({ baseUrl: apiUrl }).session, null);
+    assert.equal(createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, sessionStorage: storage }).session, null);
   }
   for (const id of [undefined, "", "session-time", sessionId.toUpperCase()]) {
     storage.seed(adminKey, JSON.stringify({ ...adminSession(knownInstant), id }));
-    assert.equal(createAdmin({ baseUrl: apiUrl, market: "us" }).session, null);
+    assert.equal(createAdmin({ baseUrl: apiUrl }).session, null);
   }
 });
 
@@ -172,7 +171,7 @@ test("Account expiry compares exact milliseconds including zero and the deadline
     now = clock;
     calls.length = 0;
     storage.seed(adminKey, JSON.stringify(adminSession(expiry)));
-    const admin = createAdmin({ baseUrl: apiUrl, market: "us" });
+    const admin = createAdmin({ baseUrl: apiUrl });
     await admin.store.get({ id: storeId });
     assert.equal(calls.length, shouldRefresh ? 2 : 1);
     assert.equal(calls.at(-1).path, `/v1/stores/${storeId}`);
@@ -196,14 +195,14 @@ test("invalid refreshed expiry fails closed before the protected request", async
     calls.push(String(url));
     return reply();
   });
-  const admin = createAdmin({ baseUrl: apiUrl, market: "us" });
+  const admin = createAdmin({ baseUrl: apiUrl });
   await assert.rejects(admin.store.get({ id: storeId }), /invalid credentials/);
   assert.deepEqual(calls, [`${apiUrl}/v1/auth/refresh`]);
   assert.equal(storage.getItem(adminKey), retained);
   reply = () => jsonResponse({ ...refreshedSession(knownInstant), id: "5f0c3e82-9a14-4d76-b2e8-6c1a7d9f4b30" });
   await assert.rejects(admin.store.get({ id: storeId }), /invalid credentials/);
   assert.equal(storage.getItem(adminKey), retained);
-  reply = () => jsonResponse({ message: "Session revoked", statusCode: 401 }, 401);
+  reply = () => jsonResponse({ message: "Session revoked", status_code: 401 }, 401);
   await assert.rejects(admin.store.get({ id: storeId }), (error) => error.statusCode === 401);
   assert.deepEqual(calls, Array(3).fill(`${apiUrl}/v1/auth/refresh`));
   assert.equal(storage.getItem(adminKey), null);
@@ -221,23 +220,30 @@ test("request duration uses monotonic milliseconds independently of wall-clock m
     wallClock -= 60_000;
     return jsonResponse({ id: "store" });
   });
-  const admin = createAdmin({ baseUrl: apiUrl, market: "us", apiToken: "token" });
+  const admin = createAdmin({ baseUrl: apiUrl, secretKey: "token" });
   let duration;
-  await admin.store.update({ id: storeId, name: "Time contract" }, { onSuccess(result) { duration = result.duration_ms; } });
+  await admin.store.update({ id: storeId, expected_updated_at: knownInstant, name: "Time contract" }, { onSuccess(result) { duration = result.duration_ms; } });
   assert.equal(duration, 7.25);
 });
 
-test("Form date values use exact checked milliseconds while ordinary numbers remain numbers", () => {
-  const schema = [
-    { id: "date", key: "appointment", type: "date", required: true },
-    { id: "number", key: "quantity", type: "number", required: true },
-  ];
+test("form date-time answers use exact checked milliseconds, dates stay calendar days and numbers stay numbers", () => {
+  const form = {
+    questions: [
+      { id: "moment", key: "appointment", type: "date_time", required: true, label: { type: "hidden" } },
+      { id: "day", key: "day", type: "date", required: false, label: { type: "hidden" } },
+      { id: "number", key: "quantity", type: "number", required: true, label: { type: "hidden" }, min: null, max: null },
+    ],
+  };
   for (const value of [-1, 0, 1_700_000_000, knownInstant]) {
-    const fields = buildFormFields(schema, { appointment: value, quantity: 1.5 });
-    assert.equal(fields[0].value, value);
-    assert.equal(fields[1].value, 1.5);
+    const answers = buildFormAnswers(form, { appointment: value, day: "2024-01-02", quantity: 1.5 });
+    assert.equal(answers[0].value, value);
+    assert.equal(answers[1].value, "2024-01-02");
+    assert.equal(answers[2].value, 1.5);
   }
   for (const value of [0.5, Number.MAX_SAFE_INTEGER + 1, "2024-01-02", "1704164645678"]) {
-    assert.throws(() => buildFormFields(schema, { appointment: value, quantity: 1.5 }), /epoch milliseconds/);
+    assert.throws(() => buildFormAnswers(form, { appointment: value, quantity: 1.5 }), /epoch milliseconds/);
+  }
+  for (const value of [knownInstant, "2024-1-2", "02.01.2024"]) {
+    assert.throws(() => buildFormAnswers(form, { appointment: knownInstant, day: value, quantity: 1.5 }), /YYYY-MM-DD/);
   }
 });

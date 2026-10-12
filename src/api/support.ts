@@ -1,820 +1,230 @@
-import { requireStoreId } from "../utils/storeTarget";
-import type { EpochMilliseconds } from "../types/time";
-import type { ApiConfig, StorefrontApiConfig } from "../services/clientTypes";
-import type { RequestOptions, ScheduledMutationOptions } from "../types/api";
-import type { EmailAttachmentReference } from "../types";
-import {
-  pollScheduledResult,
-  prepareScheduledMutation,
-  scheduledObservationOptions,
-} from "../utils/scheduledResult";
+import type { ApiConfig } from "../services/clientTypes";
+import type { HttpClient } from "../types/httpClient";
+import type { RequestOptions } from "../types/api";
+import type { PaginatedResponse } from "../types/common";
+import type {
+  AssignConversationParams,
+  Conversation,
+  ConversationAttachmentLink,
+  ConversationMessage,
+  ConversationReply,
+  CreateSupportFlowParams,
+  DeleteSupportFlowParams,
+  FindConversationMessagesParams,
+  FindConversationsParams,
+  FindSupportFlowsParams,
+  GetConversationAttachmentLinkParams,
+  GetConversationMessageParams,
+  GetConversationParams,
+  GetSupportFlowParams,
+  ReplyConversationParams,
+  ResolveConversationParams,
+  SelectConversationSendingAddressParams,
+  SendConversationMessageParams,
+  StartConversationParams,
+  StorefrontConversation,
+  StorefrontConversationMessage,
+  StorefrontConversationReply,
+  StorefrontConversationStart,
+  StorefrontFindConversationMessagesParams,
+  StorefrontGetConversationMessageParams,
+  StorefrontGetConversationParams,
+  SupportFlow,
+  UpdateSupportFlowParams,
+} from "../types/support";
+import { requireId } from "../utils/ids";
+import { segment, storePath, storeRecordPath } from "./paths";
+import { createConversationNoteApi } from "./note";
 
-export type SupportAgentStatus = { type: "draft" } | { type: "active" } | { type: "archived" };
-export type SupportChannelStatus = { type: "draft" } | { type: "active" } | { type: "disabled" } | { type: "archived" };
-export type SupportConversationStatus = { type: "active" } | { type: "ai_mode" } | { type: "escalated" } | { type: "resolved" };
-export type SupportChannelType = "web" | "email";
-
-export type SupportAgentNode =
-  | {
-      type: "message";
-      text: string;
-      buttons: string[];
-    }
-  | {
-      type: "input";
-      prompt: string;
-      field: string;
-      input_type: "text" | "email" | "phone";
-      validation: string | null;
-    }
-  | {
-      type: "ai_handoff";
-      system_prompt_override: string | null;
-      tools: string[];
-    }
-  | {
-      type: "action";
-      action: SupportAction;
-    };
-
-export type SupportAction =
-  | { type: "end_conversation"; message: string }
-  | { type: "human_handoff" };
-
-export interface SupportAgentEdge {
-  source: string;
-  target: string;
-  trigger: EdgeTrigger;
-}
-
-export type EdgeTrigger =
-  | { type: "button"; label: string }
-  | { type: "input"; field: string }
-  | { type: "default" };
-
-export interface SupportAgentAiConfig {
-  system_prompt: string;
-  tools: string[];
-  max_context_messages: number;
-}
-
-export interface SupportAgent {
-  id: string;
-  key: string;
-  store_id: string;
-  name: string;
-  status: SupportAgentStatus;
-  channel_ids: string[];
-  notes: string | null;
-  created_at: EpochMilliseconds;
-  updated_at: EpochMilliseconds;
-}
-
-export interface SupportAgentDefinition {
-  id: string;
-  store_id: string;
-  support_agent_id: string;
-  entry_node_id: string;
-  nodes: Record<string, SupportAgentNode>;
-  edges: SupportAgentEdge[];
-  ai_config: SupportAgentAiConfig | null;
-  created_at: EpochMilliseconds;
-  updated_at: EpochMilliseconds;
-}
-
-export type SupportChannelConfig =
-  | {
-      type: "web";
-    }
-  | {
-      type: "email";
-      mailbox_id: string;
-    };
-
-export interface SupportChannel {
-  id: string;
-  store_id: string;
-  key: string;
-  name: string;
-  status: SupportChannelStatus;
-  config: SupportChannelConfig;
-  created_at: EpochMilliseconds;
-  updated_at: EpochMilliseconds;
-}
-
-export type SupportConversationChannelContext =
-  | {
-      type: "web";
-      visitor_id: string | null;
-      session_id: string | null;
-    }
-  | {
-      type: "email";
-      thread_id: string;
-      reply_to: string;
-      message_id: string | null;
-      references: string[];
-    };
-
-export interface SupportConversation {
-  id: string;
-  store_id: string;
-  agent_id: string | null;
-  channel_id: string | null;
-  channel_context: SupportConversationChannelContext;
-  current_node_id: string | null;
-  customer_id: string;
-  customer_session_id: string | null;
-  assigned_account_id: string | null;
-  status: SupportConversationStatus;
-  variables: Record<string, unknown>;
-  channel_metadata: Record<string, unknown>;
-  created_at: EpochMilliseconds;
-  updated_at: EpochMilliseconds;
-}
-
-export interface SupportMessage {
-  id: string;
-  store_id: string;
-  conversation_id: string;
-  role: "system" | "user" | "assistant" | "staff" | "action";
-  content: string;
-  buttons: string[] | null;
-  attachments: EmailAttachmentReference[];
-  metadata: Record<string, unknown>;
-  ai_response_status: SupportAiResponseStatus | null;
-  delivery_id: string | null;
-  created_at: EpochMilliseconds;
-  updated_at: EpochMilliseconds;
-}
-
-export type SupportAiResponseStatus =
-  | { type: "requested"; requested_at: EpochMilliseconds }
-  | { type: "processing"; started_at: EpochMilliseconds; deadline_at: EpochMilliseconds }
-  | { type: "succeeded"; completed_at: EpochMilliseconds }
-  | { type: "failed"; completed_at: EpochMilliseconds; error: string }
-  | { type: "unknown"; completed_at: EpochMilliseconds; error: string };
-
-export interface SupportConversationResponse {
-  conversation: SupportConversation;
-  messages: SupportMessage[];
-  messages_cursor: string | null;
-}
-
-export interface SupportConversationStartResponse extends SupportConversationResponse {
-  support_token: string;
-}
-
-export interface StorefrontSupportConversation {
-  id: string;
-  store_id: string;
-  status: SupportConversationStatus;
-  channel_metadata: Record<string, unknown>;
-  created_at: EpochMilliseconds;
-  updated_at: EpochMilliseconds;
-}
-
-export interface StorefrontSupportMessage {
-  id: string;
-  store_id: string;
-  conversation_id: string;
-  role: SupportMessage["role"];
-  content: string;
-  buttons: string[] | null;
-  attachments: EmailAttachmentReference[];
-  metadata: Record<string, unknown>;
-  ai_response_status: SupportAiResponseStatus | null;
-  created_at: EpochMilliseconds;
-  updated_at: EpochMilliseconds;
-}
-
-export interface StorefrontSupportConversationResponse {
-  conversation: StorefrontSupportConversation;
-  messages: StorefrontSupportMessage[];
-  messages_cursor: string | null;
-}
-
-export interface StorefrontSupportConversationStartResponse extends StorefrontSupportConversationResponse {
-  support_token: string;
-}
-
-export interface StartSupportConversationParams {
-  store_id: string;
-  agent_key?: string;
-  channel_id?: string;
-  visitor_id?: string;
-  session_id?: string;
-  channel_metadata?: Record<string, unknown>;
-}
-
-export interface SendSupportMessageParams {
-  message_id: string;
-  store_id: string;
-  conversation_id: string;
-  input: { type: "button"; label: string } | { type: "text"; content: string };
-}
-
-export interface ReceiveSupportChannelMessageParams {
-  store_id: string;
-  channel_id: string;
-  customer_id: string;
-  channel_context: SupportConversationChannelContext;
-  external_message_id?: string;
-  content: string;
-  attachments?: EmailAttachmentReference[];
-  metadata?: Record<string, unknown>;
-  received_at?: EpochMilliseconds;
-}
-
-export interface ReplySupportConversationParams {
-  message_id: string;
-  store_id: string;
-  conversation_id: string;
-  content: string;
-  resolve?: boolean;
-}
-
-export interface ResolveSupportConversationParams {
-  store_id: string;
-  conversation_id: string;
-}
-
-export interface AssignSupportConversationParams {
-  store_id: string;
-  conversation_id: string;
-  account_id?: string | null;
-}
-
-export interface GetSupportConversationParams {
-  store_id: string;
-  conversation_id: string;
-  message_limit?: number;
-  message_cursor?: string;
-}
-
-export interface GetSupportMessageParams {
-  store_id: string;
-  conversation_id: string;
-  message_id: string;
-}
-
-export type StorefrontSendSupportMessageParams = Omit<
-  SendSupportMessageParams,
-  "store_id"
-> & { support_token: string };
-
-export type StorefrontGetSupportConversationParams = Omit<
-  GetSupportConversationParams,
-  "store_id"
-> & { support_token: string };
-
-export type StorefrontGetSupportMessageParams = Omit<
-  GetSupportMessageParams,
-  "store_id"
-> & { support_token: string };
-
-export interface FindSupportConversationsParams {
-  store_id: string;
-  statuses?: SupportConversationStatus["type"][];
-  agent_id?: string;
-  channel_id?: string;
-  channel_type?: SupportChannelType;
-  customer_id?: string;
-  assigned_account_id?: string;
-  query?: string;
-  sort_field?: "created_at" | "updated_at";
-  sort_direction?: "asc" | "desc";
-  limit?: number;
-  cursor?: string;
-}
-
-function supportConversationQuery(
-  params: GetSupportConversationParams,
-): string {
-  const qs = new URLSearchParams();
-  if (params.message_limit !== undefined)
-    qs.set("message_limit", String(params.message_limit));
-  if (params.message_cursor) qs.set("message_cursor", params.message_cursor);
-  return qs.toString();
-}
-
-function supportAiResponsePending(
-  message: Pick<SupportMessage, "ai_response_status">,
-): boolean {
-  const status = message.ai_response_status?.type;
-  return status === "requested" || status === "processing";
-}
-
-function storefrontSupportOptions<T>(
-  supportToken: string,
-  options?: RequestOptions<T>,
-): RequestOptions<T> {
-  if (!/^[0-9a-f]{64}$/.test(supportToken)) {
-    throw new Error(
-      "support_token must be a 64-character lowercase hexadecimal token",
-    );
+function supportTokenOptions<T>(supportToken: string, options?: RequestOptions<T>): RequestOptions<T> {
+  if (typeof supportToken !== "string" || supportToken.length === 0) {
+    throw new Error("A support chat needs the token its start returned");
   }
   const headers = { ...options?.headers };
   for (const name of Object.keys(headers)) {
     if (name.toLowerCase() === "x-arky-support-token") delete headers[name];
   }
+  return { ...options, headers: { ...headers, "X-Arky-Support-Token": supportToken } };
+}
+
+export function createStorefrontSupportApi(httpClient: HttpClient, ensureSession: () => Promise<void>) {
+  const base = "/v1/storefront/conversations";
+  const conversationPath = (id: string) => `${base}/${segment(id)}`;
+
   return {
-    ...options,
-    headers: {
-      ...headers,
-      "X-Arky-Support-Token": supportToken,
+    conversation: {
+      async start(params: StartConversationParams, options?: RequestOptions): Promise<StorefrontConversationStart> {
+        requireId(params.id, "conversation");
+        await ensureSession();
+        return httpClient.post<StorefrontConversationStart>(
+          base,
+          {
+            id: params.id,
+            language: params.language,
+            ...(params.flow_key !== undefined ? { flow_key: params.flow_key } : {}),
+          },
+          options,
+        );
+      },
+
+      async get(params: StorefrontGetConversationParams, options?: RequestOptions): Promise<StorefrontConversation> {
+        await ensureSession();
+        return httpClient.get<StorefrontConversation>(
+          conversationPath(params.conversation_id),
+          supportTokenOptions(params.support_token, options),
+        );
+      },
+
+      async findMessages(
+        params: StorefrontFindConversationMessagesParams,
+        options?: RequestOptions,
+      ): Promise<PaginatedResponse<StorefrontConversationMessage>> {
+        await ensureSession();
+        const { support_token, conversation_id, ...query } = params;
+        return httpClient.get<PaginatedResponse<StorefrontConversationMessage>>(`${conversationPath(conversation_id)}/messages`, {
+          ...supportTokenOptions(support_token, options),
+          params: query,
+        });
+      },
+
+      async getMessage(
+        params: StorefrontGetConversationMessageParams,
+        options?: RequestOptions,
+      ): Promise<StorefrontConversationMessage> {
+        await ensureSession();
+        return httpClient.get<StorefrontConversationMessage>(
+          `${conversationPath(params.conversation_id)}/messages/${segment(params.message_id)}`,
+          supportTokenOptions(params.support_token, options),
+        );
+      },
+
+      async sendMessage(params: SendConversationMessageParams, options?: RequestOptions): Promise<StorefrontConversationReply> {
+        requireId(params.id, "conversation message");
+        await ensureSession();
+        return httpClient.post<StorefrontConversationReply>(
+          `${conversationPath(params.conversation_id)}/messages`,
+          {
+            id: params.id,
+            input: params.input,
+            ...(params.prompt_message_id !== undefined ? { prompt_message_id: params.prompt_message_id } : {}),
+          },
+          supportTokenOptions(params.support_token, options),
+        );
+      },
     },
   };
 }
 
-export function createStorefrontSupportApi(
-  config: Pick<StorefrontApiConfig, "httpClient">,
-  ensureVisitorSession: () => Promise<void>,
-) {
-  const { httpClient } = config;
+export function createAdminSupportApi(apiConfig: ApiConfig) {
+  const conversationPath = (storeId: string, id: string) => storeRecordPath(storeId, "conversations", id);
 
   return {
-    async startConversation(
-      params: Omit<StartSupportConversationParams, "store_id"> = {},
-      opts?: RequestOptions,
-    ): Promise<StorefrontSupportConversationStartResponse> {
-      await ensureVisitorSession();
-      return httpClient.post<StorefrontSupportConversationStartResponse>(
-        "/v1/storefront/support/conversations",
-        {
-          agent_key: params.agent_key,
-          channel_id: params.channel_id,
-          visitor_id: params.visitor_id,
-          session_id: params.session_id,
-          channel_metadata: params.channel_metadata,
-        },
-        opts,
-      );
-    },
-
-    async sendMessage(
-      params: StorefrontSendSupportMessageParams,
-      opts?: ScheduledMutationOptions<StorefrontSupportConversationResponse>,
-    ): Promise<StorefrontSupportConversationResponse> {
-      await ensureVisitorSession();
-      const { support_token, ...request } = params;
-      const path = `/v1/storefront/support/conversations/${request.conversation_id}`;
-      const mutation = prepareScheduledMutation(
-        request,
-        storefrontSupportOptions(support_token, opts),
-      );
-      const requested =
-        await httpClient.post<StorefrontSupportConversationResponse>(
-          `${path}/messages`,
-          {
-          message_id: mutation.body.message_id,
-          input: mutation.body.input,
-        },
-          mutation.options,
-        );
-      await mutation.afterResponse(requested);
-      const requestedMessage =
-        requested.messages.find(
-          (message) => message.id === request.message_id,
-        ) ??
-        (await httpClient.get<StorefrontSupportMessage>(
-          `${path}/messages/${request.message_id}`,
-          scheduledObservationOptions(mutation.options, opts?.signal),
-        ));
-      if (!supportAiResponsePending(requestedMessage)) return requested;
-      await pollScheduledResult(
-        requestedMessage,
-        (observationSignal) =>
-          httpClient.get<StorefrontSupportMessage>(
-            `${path}/messages/${request.message_id}`,
-            scheduledObservationOptions(mutation.options, observationSignal),
-          ),
-        supportAiResponsePending,
-        opts?.signal,
-      );
-      return httpClient.get<StorefrontSupportConversationResponse>(
-        path,
-        scheduledObservationOptions(mutation.options, opts?.signal),
-      );
-    },
-
-    async getConversation(
-      params: StorefrontGetSupportConversationParams,
-      opts?: RequestOptions,
-    ): Promise<StorefrontSupportConversationResponse> {
-      await ensureVisitorSession();
-      const { support_token, ...request } = params;
-      const query = new URLSearchParams();
-      if (request.message_limit !== undefined)
-        query.set("message_limit", String(request.message_limit));
-      if (request.message_cursor) query.set("message_cursor", request.message_cursor);
-      const suffix = query.size ? `?${query}` : "";
-      return httpClient.get<StorefrontSupportConversationResponse>(
-        `/v1/storefront/support/conversations/${request.conversation_id}${suffix}`,
-        storefrontSupportOptions(support_token, opts),
-      );
-    },
-
-    async getMessage(
-      params: StorefrontGetSupportMessageParams,
-      opts?: RequestOptions,
-    ): Promise<StorefrontSupportMessage> {
-      await ensureVisitorSession();
-      const { support_token, ...request } = params;
-      return httpClient.get<StorefrontSupportMessage>(
-        `/v1/storefront/support/conversations/${request.conversation_id}/messages/${request.message_id}`,
-        storefrontSupportOptions(support_token, opts),
-      );
-    },
-  };
-}
-
-export interface CreateSupportAgentParams {
-  store_id: string;
-  key: string;
-  name: string;
-  status?: SupportAgentStatus;
-  entry_node_id: string;
-  nodes: Record<string, SupportAgentNode>;
-  edges: SupportAgentEdge[];
-  ai_config?: SupportAgentAiConfig;
-  channel_ids?: string[];
-  notes?: string | null;
-}
-
-export interface UpdateSupportAgentParams {
-  store_id: string;
-  id: string;
-  name?: string;
-  status?: SupportAgentStatus;
-  channel_ids?: string[];
-  notes?: string | null;
-}
-
-export interface ReplaceSupportAgentDefinitionParams {
-  store_id: string;
-  support_agent_id: string;
-  entry_node_id: string;
-  nodes: Record<string, SupportAgentNode>;
-  edges: SupportAgentEdge[];
-  ai_config?: SupportAgentAiConfig;
-}
-
-export interface CreateSupportChannelParams {
-  store_id: string;
-  key: string;
-  name: string;
-  status?: SupportChannelStatus;
-  config: SupportChannelConfig;
-}
-
-export interface UpdateSupportChannelParams {
-  store_id: string;
-  id: string;
-  key?: string;
-  name?: string;
-  status?: SupportChannelStatus;
-  config?: SupportChannelConfig;
-}
-
-export interface FindSupportChannelsParams {
-  store_id: string;
-  status?: SupportChannelStatus["type"];
-  channel_type?: SupportChannelType;
-  query?: string;
-  sort_field?: "created_at" | "updated_at";
-  sort_direction?: "asc" | "desc";
-  limit?: number;
-  cursor?: string;
-}
-
-export function createAdminSupportApi(config: ApiConfig) {
-  const { httpClient } = config;
-
-  return {
-    channel: {
-      async create(
-        params: CreateSupportChannelParams,
-        opts?: RequestOptions,
-      ): Promise<SupportChannel> {
-        return httpClient.post<SupportChannel>(
-          `/v1/stores/${requireStoreId(params.store_id)}/support/channels`,
-          {
-          key: params.key,
-          name: params.name,
-          status: params.status,
-          config: params.config,
-        },
-          opts,
-        );
+    flow: {
+      find(params: FindSupportFlowsParams, options?: RequestOptions): Promise<PaginatedResponse<SupportFlow>> {
+        const { store_id, ...query } = params;
+        return apiConfig.httpClient.get<PaginatedResponse<SupportFlow>>(storePath(store_id, "support-flows"), {
+          ...options,
+          params: query,
+        });
       },
 
-      async get(
-        params: { store_id: string; id: string },
-        opts?: RequestOptions,
-      ): Promise<SupportChannel> {
-        return httpClient.get<SupportChannel>(
-          `/v1/stores/${requireStoreId(params.store_id)}/support/channels/${params.id}`,
-          opts,
-        );
+      get(params: GetSupportFlowParams, options?: RequestOptions): Promise<SupportFlow> {
+        return apiConfig.httpClient.get<SupportFlow>(storeRecordPath(params.store_id, "support-flows", params.id), options);
       },
 
-      async find(
-        params: FindSupportChannelsParams,
-        opts?: RequestOptions,
-      ): Promise<{ items: SupportChannel[]; cursor?: string }> {
-        const qs = new URLSearchParams();
-        if (params.status) qs.set("status", params.status);
-        if (params.channel_type) qs.set("channel_type", params.channel_type);
-        if (params.query) qs.set("query", params.query);
-        if (params.sort_field) qs.set("sort_field", params.sort_field);
-        if (params.sort_direction) qs.set("sort_direction", params.sort_direction);
-        if (params.limit) qs.set("limit", String(params.limit));
-        if (params.cursor) qs.set("cursor", params.cursor);
-        return httpClient.get<{ items: SupportChannel[]; cursor?: string }>(
-          `/v1/stores/${requireStoreId(params.store_id)}/support/channels?${qs}`,
-          opts,
-        );
+      create(params: CreateSupportFlowParams, options?: RequestOptions): Promise<SupportFlow> {
+        requireId(params.id, "support flow");
+        const { store_id, ...body } = params;
+        return apiConfig.httpClient.post<SupportFlow>(storePath(store_id, "support-flows"), body, options);
       },
 
-      async update(
-        params: UpdateSupportChannelParams,
-        opts?: RequestOptions,
-      ): Promise<SupportChannel> {
-        return httpClient.put<SupportChannel>(
-          `/v1/stores/${requireStoreId(params.store_id)}/support/channels/${params.id}`,
-          {
-          key: params.key,
-          name: params.name,
-          status: params.status,
-          config: params.config,
-        },
-          opts,
-        );
+      update(params: UpdateSupportFlowParams, options?: RequestOptions): Promise<SupportFlow> {
+        const { store_id, id, ...body } = params;
+        return apiConfig.httpClient.put<SupportFlow>(storeRecordPath(store_id, "support-flows", id), body, options);
       },
 
-      async delete(
-        params: { store_id: string; id: string },
-        opts?: RequestOptions,
-      ): Promise<void> {
-        return httpClient.delete<void>(
-          `/v1/stores/${requireStoreId(params.store_id)}/support/channels/${params.id}`,
-          opts,
-        );
-      },
-
-      async receiveMessage(
-        params: ReceiveSupportChannelMessageParams,
-        opts?: RequestOptions,
-      ): Promise<SupportConversationResponse> {
-        return httpClient.post<SupportConversationResponse>(
-          `/v1/stores/${requireStoreId(params.store_id)}/support/channels/${params.channel_id}/messages`,
-          {
-          customer_id: params.customer_id,
-          channel_context: params.channel_context,
-          external_message_id: params.external_message_id,
-          content: params.content,
-          attachments: params.attachments,
-          metadata: params.metadata,
-          received_at: params.received_at,
-        },
-          opts,
-        );
-      },
-    },
-
-    agent: {
-      async create(
-        params: CreateSupportAgentParams,
-        opts?: RequestOptions,
-      ): Promise<SupportAgent> {
-        return httpClient.post<SupportAgent>(
-          `/v1/stores/${requireStoreId(params.store_id)}/support/agents`,
-          {
-          key: params.key,
-          name: params.name,
-          status: params.status,
-          entry_node_id: params.entry_node_id,
-          nodes: params.nodes,
-          edges: params.edges,
-          ai_config: params.ai_config,
-          channel_ids: params.channel_ids,
-          notes: params.notes,
-        },
-          opts,
-        );
-      },
-
-      async get(
-        params: { store_id: string; id: string },
-        opts?: RequestOptions,
-      ): Promise<SupportAgent> {
-        return httpClient.get<SupportAgent>(
-          `/v1/stores/${requireStoreId(params.store_id)}/support/agents/${params.id}`,
-          opts,
-        );
-      },
-
-      async getDefinition(
-        params: { store_id: string; support_agent_id: string },
-        opts?: RequestOptions,
-      ): Promise<SupportAgentDefinition> {
-        return httpClient.get<SupportAgentDefinition>(
-          `/v1/stores/${requireStoreId(params.store_id)}/support/agents/${params.support_agent_id}/definition`,
-          opts,
-        );
-      },
-
-      async replaceDefinition(
-        params: ReplaceSupportAgentDefinitionParams,
-        opts?: RequestOptions,
-      ): Promise<SupportAgentDefinition> {
-        const { store_id, support_agent_id, ...definition } = params;
-        return httpClient.put<SupportAgentDefinition>(
-          `/v1/stores/${requireStoreId(store_id)}/support/agents/${support_agent_id}/definition`,
-          definition,
-          opts,
-        );
-      },
-
-      async find(
-        params: {
-          store_id: string;
-          status?: string;
-          query?: string;
-          sort_field?: "created_at" | "updated_at";
-          sort_direction?: "asc" | "desc";
-          limit?: number;
-          cursor?: string;
-        },
-        opts?: RequestOptions,
-      ): Promise<{ items: SupportAgent[]; cursor?: string }> {
-        const qs = new URLSearchParams();
-        if (params.status) qs.set("status", params.status);
-        if (params.query) qs.set("query", params.query);
-        if (params.sort_field) qs.set("sort_field", params.sort_field);
-        if (params.sort_direction) qs.set("sort_direction", params.sort_direction);
-        if (params.limit) qs.set("limit", String(params.limit));
-        if (params.cursor) qs.set("cursor", params.cursor);
-        return httpClient.get<{ items: SupportAgent[]; cursor?: string }>(
-          `/v1/stores/${requireStoreId(params.store_id)}/support/agents?${qs}`,
-          opts,
-        );
-      },
-
-      async update(
-        params: UpdateSupportAgentParams,
-        opts?: RequestOptions,
-      ): Promise<SupportAgent> {
-        return httpClient.put<SupportAgent>(
-          `/v1/stores/${requireStoreId(params.store_id)}/support/agents/${params.id}`,
-          {
-          name: params.name,
-          status: params.status,
-          channel_ids: params.channel_ids,
-          notes: params.notes,
-        },
-          opts,
-        );
-      },
-
-      async delete(
-        params: { store_id: string; id: string },
-        opts?: RequestOptions,
-      ): Promise<void> {
-        return httpClient.delete<void>(
-          `/v1/stores/${requireStoreId(params.store_id)}/support/agents/${params.id}`,
-          opts,
+      delete(params: DeleteSupportFlowParams, options?: RequestOptions): Promise<{ deleted: boolean }> {
+        return apiConfig.httpClient.delete<{ deleted: boolean }>(
+          storeRecordPath(params.store_id, "support-flows", params.id),
+          { ...options, params: { expected_updated_at: params.expected_updated_at } },
         );
       },
     },
 
     conversation: {
-      async find(
-        params: FindSupportConversationsParams,
-        opts?: RequestOptions,
-      ): Promise<{ items: SupportConversation[]; cursor: string | null }> {
-        const qs = new URLSearchParams();
-        if (params.statuses) qs.set("statuses", JSON.stringify(params.statuses));
-        if (params.agent_id) qs.set("agent_id", params.agent_id);
-        if (params.channel_id) qs.set("channel_id", params.channel_id);
-        if (params.channel_type) qs.set("channel_type", params.channel_type);
-        if (params.customer_id) qs.set("customer_id", params.customer_id);
-        if (params.assigned_account_id) qs.set("assigned_account_id", params.assigned_account_id);
-        if (params.query) qs.set("query", params.query);
-        if (params.sort_field) qs.set("sort_field", params.sort_field);
-        if (params.sort_direction) qs.set("sort_direction", params.sort_direction);
-        if (params.limit !== undefined) qs.set("limit", String(params.limit));
-        if (params.cursor) qs.set("cursor", params.cursor);
-        return httpClient.get<{
-          items: SupportConversation[];
-          cursor: string | null;
-        }>(`/v1/stores/${requireStoreId(params.store_id)}/support/conversations?${qs}`, opts);
-      },
-
-      async get(
-        params: GetSupportConversationParams,
-        opts?: RequestOptions,
-      ): Promise<SupportConversationResponse> {
-        const qs = supportConversationQuery(params);
-        return httpClient.get<SupportConversationResponse>(
-          `/v1/stores/${requireStoreId(params.store_id)}/support/conversations/${params.conversation_id}?${qs}`,
-          opts,
-        );
-      },
-
-      async sendMessage(
-        params: SendSupportMessageParams,
-        opts?: ScheduledMutationOptions<SupportConversationResponse>,
-      ): Promise<SupportConversationResponse> {
-        const path = `/v1/stores/${requireStoreId(params.store_id)}/support/conversations/${params.conversation_id}`;
-        const mutation = prepareScheduledMutation(params, opts);
-        const requested = await httpClient.post<SupportConversationResponse>(
-          `${path}/messages`,
-          {
-          message_id: mutation.body.message_id,
-          input: mutation.body.input,
-        },
-          mutation.options,
-        );
-        await mutation.afterResponse(requested);
-        const requestedMessage =
-          requested.messages.find(
-            (message) => message.id === params.message_id,
-          ) ??
-          (await httpClient.get<SupportMessage>(
-            `${path}/messages/${params.message_id}`,
-            scheduledObservationOptions(mutation.options, opts?.signal),
-          ));
-        if (!supportAiResponsePending(requestedMessage)) return requested;
-        await pollScheduledResult(
-          requestedMessage,
-          (observationSignal) =>
-            httpClient.get<SupportMessage>(
-              `${path}/messages/${params.message_id}`,
-              scheduledObservationOptions(mutation.options, observationSignal),
-            ),
-          supportAiResponsePending,
-          opts?.signal,
-        );
-        const query = supportConversationQuery({
-          store_id: params.store_id,
-          conversation_id: params.conversation_id,
+      find(params: FindConversationsParams, options?: RequestOptions): Promise<PaginatedResponse<Conversation>> {
+        const { store_id, ...query } = params;
+        return apiConfig.httpClient.get<PaginatedResponse<Conversation>>(storePath(store_id, "conversations"), {
+          ...options,
+          params: query,
         });
-        return httpClient.get<SupportConversationResponse>(
-          `${path}?${query}`,
-          scheduledObservationOptions(mutation.options, opts?.signal),
+      },
+
+      get(params: GetConversationParams, options?: RequestOptions): Promise<Conversation> {
+        return apiConfig.httpClient.get<Conversation>(conversationPath(params.store_id, params.conversation_id), options);
+      },
+
+      findMessages(
+        params: FindConversationMessagesParams,
+        options?: RequestOptions,
+      ): Promise<PaginatedResponse<ConversationMessage>> {
+        const { store_id, conversation_id, ...query } = params;
+        return apiConfig.httpClient.get<PaginatedResponse<ConversationMessage>>(
+          `${conversationPath(store_id, conversation_id)}/messages`,
+          { ...options, params: query },
         );
       },
 
-      async getMessage(
-        params: GetSupportMessageParams,
-        opts?: RequestOptions,
-      ): Promise<SupportMessage> {
-        return httpClient.get<SupportMessage>(
-          `/v1/stores/${requireStoreId(params.store_id)}/support/conversations/${params.conversation_id}/messages/${params.message_id}`,
-          opts,
+      getMessage(params: GetConversationMessageParams, options?: RequestOptions): Promise<ConversationMessage> {
+        return apiConfig.httpClient.get<ConversationMessage>(
+          `${conversationPath(params.store_id, params.conversation_id)}/messages/${segment(params.message_id)}`,
+          options,
         );
       },
 
-      async reply(
-        params: ReplySupportConversationParams,
-        opts?: RequestOptions,
-      ): Promise<SupportConversationResponse> {
-        return httpClient.post<SupportConversationResponse>(
-          `/v1/stores/${requireStoreId(params.store_id)}/support/conversations/${params.conversation_id}/reply`,
-          {
-          message_id: params.message_id,
-          content: params.content,
-          resolve: params.resolve,
-        },
-          opts,
+      attachmentLink(
+        params: GetConversationAttachmentLinkParams,
+        options?: RequestOptions,
+      ): Promise<ConversationAttachmentLink> {
+        return apiConfig.httpClient.get<ConversationAttachmentLink>(
+          `${conversationPath(params.store_id, params.conversation_id)}/messages/${segment(params.message_id)}/attachments/${segment(params.sha256)}`,
+          options,
         );
       },
 
-      async resolve(
-        params: ResolveSupportConversationParams,
-        opts?: RequestOptions,
-      ): Promise<SupportConversation> {
-        return httpClient.post<SupportConversation>(
-          `/v1/stores/${requireStoreId(params.store_id)}/support/conversations/${params.conversation_id}/resolve`,
-          undefined,
-          opts,
+      reply(params: ReplyConversationParams, options?: RequestOptions): Promise<ConversationReply> {
+        requireId(params.id, "conversation message");
+        const { store_id, conversation_id, ...body } = params;
+        return apiConfig.httpClient.post<ConversationReply>(
+          `${conversationPath(store_id, conversation_id)}/messages`,
+          body,
+          options,
         );
       },
 
-      async assign(
-        params: AssignSupportConversationParams,
-        opts?: RequestOptions,
-      ): Promise<SupportConversation> {
-        return httpClient.post<SupportConversation>(
-          `/v1/stores/${requireStoreId(params.store_id)}/support/conversations/${params.conversation_id}/assign`,
-          {
-          account_id: params.account_id,
-        },
-          opts,
+      selectSendingAddress(params: SelectConversationSendingAddressParams, options?: RequestOptions): Promise<Conversation> {
+        const { store_id, conversation_id, ...body } = params;
+        return apiConfig.httpClient.post<Conversation>(
+          `${conversationPath(store_id, conversation_id)}/select-sending-address`,
+          body,
+          options,
         );
       },
+
+      resolve(params: ResolveConversationParams, options?: RequestOptions): Promise<Conversation> {
+        return apiConfig.httpClient.post<Conversation>(
+          `${conversationPath(params.store_id, params.conversation_id)}/resolve`,
+          { expected_updated_at: params.expected_updated_at },
+          options,
+        );
+      },
+
+      assign(params: AssignConversationParams, options?: RequestOptions): Promise<Conversation> {
+        const { store_id, conversation_id, ...body } = params;
+        return apiConfig.httpClient.post<Conversation>(`${conversationPath(store_id, conversation_id)}/assign`, body, options);
+      },
+
+      notes: createConversationNoteApi(apiConfig),
     },
   };
 }

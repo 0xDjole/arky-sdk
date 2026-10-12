@@ -37,18 +37,13 @@ export interface RequestErrorContext {
 }
 
 export interface RequestOptions<T = unknown> {
+  order_token?: string;
   headers?: Record<string, string>;
   params?: QueryParams;
   signal?: AbortSignal;
   transformRequest?: (data: unknown) => unknown;
   onSuccess?: (ctx: RequestSuccessContext<T>) => void | Promise<void>;
   onError?: (ctx: RequestErrorContext) => void | Promise<void>;
-}
-
-export interface ScheduledMutationOptions<
-  T = unknown,
-> extends RequestOptions<T> {
-  onScheduledResponse?: (response: T) => void | Promise<void>;
 }
 
 export interface HttpClient {

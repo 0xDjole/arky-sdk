@@ -1,5 +1,5 @@
 import { parseAnalyticsResponse, validateAnalyticsRequest } from "./analyticsContract";
-import { requireStoreId } from "../utils/storeTarget";
+import { storePath } from "./paths";
 import type { EpochMilliseconds } from "../types/time";
 import type { ApiConfig } from "../services/clientTypes";
 import type { RequestOptions } from "../types/api";
@@ -12,8 +12,6 @@ export interface AnalyticsTimeRange {
 export type AnalyticsReportKey =
   | "business_overview"
   | "customer_funnel"
-  | "outreach_overview"
-  | "outreach_funnel"
   | "customer_action_by_country"
   | "top_customer_action_pages"
   | "entity_status_overview"
@@ -22,8 +20,6 @@ export type AnalyticsReportKey =
   | "customers_created"
   | "form_submissions_created"
   | "carts_abandoned"
-  | "campaign_messages_sent"
-  | "campaign_messages_received"
   | "media_count"
   | "products_by_status"
   | "services_by_status"
@@ -32,12 +28,8 @@ export type AnalyticsReportKey =
   | "entries_by_status"
   | "customers_by_status"
   | "customer_groups_by_status"
-  | "mailboxes_by_status"
-  | "campaigns_by_status"
-  | "campaign_enrollments_by_status"
-  | "campaign_messages_by_status"
-  | "support_conversations_by_status"
-  | "email_templates_by_status"
+  | "broadcasts_by_status"
+  | "conversations_by_status"
   | "forms_by_status"
   | "categories_by_status"
   | "carts_by_status"
@@ -165,43 +157,6 @@ export interface CustomerFunnelData {
   visitor_to_buyer_rate: AnalyticsRateData;
 }
 
-export interface OutreachOverviewData {
-  customer_groups: number;
-  active_customer_groups: number;
-  mailboxes: number;
-  active_mailboxes: number;
-  campaigns: number;
-  active_campaigns: number;
-  campaign_enrollments: number;
-  new_campaign_enrollments: number;
-  active_campaign_enrollments: number;
-  completed_campaign_enrollments: number;
-  replied_campaign_enrollments: number;
-  campaign_messages_sent: number;
-  outreach_bounces: number;
-  campaign_messages_received: number;
-  reply_rate: AnalyticsRateData;
-  bounce_rate: AnalyticsRateData;
-}
-
-export interface OutreachFunnelStage {
-  key:
-    | "customer_groups"
-    | "campaigns"
-    | "campaign_enrollments"
-    | "campaign_messages_sent"
-    | "outreach_bounces"
-    | "campaign_messages_received";
-  label: string;
-  value: number;
-}
-
-export interface OutreachFunnelData {
-  stages: OutreachFunnelStage[];
-  reply_rate: AnalyticsRateData;
-  bounce_rate: AnalyticsRateData;
-}
-
 export interface EntityStatusOverviewData {
   entities: Record<AnalyticsStatusEntity, AnalyticsStatusCount[]>;
 }
@@ -266,8 +221,6 @@ export type AnalyticsMetricReportKey =
   | "customers_created"
   | "form_submissions_created"
   | "carts_abandoned"
-  | "campaign_messages_sent"
-  | "campaign_messages_received"
   | "media_count";
 
 export type AnalyticsBreakdownReportKey =
@@ -280,12 +233,8 @@ export type AnalyticsBreakdownReportKey =
   | "entries_by_status"
   | "customers_by_status"
   | "customer_groups_by_status"
-  | "mailboxes_by_status"
-  | "campaigns_by_status"
-  | "campaign_enrollments_by_status"
-  | "campaign_messages_by_status"
-  | "support_conversations_by_status"
-  | "email_templates_by_status"
+  | "broadcasts_by_status"
+  | "conversations_by_status"
   | "forms_by_status"
   | "categories_by_status"
   | "carts_by_status"
@@ -297,8 +246,6 @@ export type AnalyticsCustomerActionReportKey = "recent_customer_action";
 export type AnalyticsCompositeReportKey =
   | "business_overview"
   | "customer_funnel"
-  | "outreach_overview"
-  | "outreach_funnel"
   | "entity_status_overview"
   | "data_health";
 
@@ -307,8 +254,6 @@ export type AnalyticsReportScope = "period" | "current_snapshot" | "mixed";
 export type AnalyticsReport =
   | { key: "business_overview"; scope: "period"; data: BusinessOverviewData }
   | { key: "customer_funnel"; scope: "period"; data: CustomerFunnelData }
-  | { key: "outreach_overview"; scope: "mixed"; data: OutreachOverviewData }
-  | { key: "outreach_funnel"; scope: "mixed"; data: OutreachFunnelData }
   | { key: "customer_action_by_country"; scope: "period"; data: AnalyticsDimensionBreakdownData }
   | { key: "top_customer_action_pages"; scope: "period"; data: AnalyticsDimensionBreakdownData }
   | { key: "entity_status_overview"; scope: "current_snapshot"; data: EntityStatusOverviewData }
@@ -317,8 +262,6 @@ export type AnalyticsReport =
   | { key: "customers_created"; scope: "period"; data: AnalyticsMetricData }
   | { key: "form_submissions_created"; scope: "period"; data: AnalyticsMetricData }
   | { key: "carts_abandoned"; scope: "period"; data: AnalyticsMetricData }
-  | { key: "campaign_messages_sent"; scope: "period"; data: AnalyticsMetricData }
-  | { key: "campaign_messages_received"; scope: "period"; data: AnalyticsMetricData }
   | { key: "media_count"; scope: "current_snapshot"; data: AnalyticsMetricData }
   | { key: "products_by_status"; scope: "current_snapshot"; data: AnalyticsStatusBreakdownData }
   | { key: "services_by_status"; scope: "current_snapshot"; data: AnalyticsStatusBreakdownData }
@@ -327,12 +270,8 @@ export type AnalyticsReport =
   | { key: "entries_by_status"; scope: "current_snapshot"; data: AnalyticsStatusBreakdownData }
   | { key: "customers_by_status"; scope: "current_snapshot"; data: AnalyticsStatusBreakdownData }
   | { key: "customer_groups_by_status"; scope: "current_snapshot"; data: AnalyticsStatusBreakdownData }
-  | { key: "mailboxes_by_status"; scope: "current_snapshot"; data: AnalyticsStatusBreakdownData }
-  | { key: "campaigns_by_status"; scope: "current_snapshot"; data: AnalyticsStatusBreakdownData }
-  | { key: "campaign_enrollments_by_status"; scope: "current_snapshot"; data: AnalyticsStatusBreakdownData }
-  | { key: "campaign_messages_by_status"; scope: "current_snapshot"; data: AnalyticsStatusBreakdownData }
-  | { key: "support_conversations_by_status"; scope: "current_snapshot"; data: AnalyticsStatusBreakdownData }
-  | { key: "email_templates_by_status"; scope: "current_snapshot"; data: AnalyticsStatusBreakdownData }
+  | { key: "broadcasts_by_status"; scope: "current_snapshot"; data: AnalyticsStatusBreakdownData }
+  | { key: "conversations_by_status"; scope: "current_snapshot"; data: AnalyticsStatusBreakdownData }
   | { key: "forms_by_status"; scope: "current_snapshot"; data: AnalyticsStatusBreakdownData }
   | { key: "categories_by_status"; scope: "current_snapshot"; data: AnalyticsStatusBreakdownData }
   | { key: "carts_by_status"; scope: "current_snapshot"; data: AnalyticsStatusBreakdownData }
@@ -365,21 +304,17 @@ export const createAnalyticsApi = (apiConfig: ApiConfig) => {
       request: AnalyticsRequest,
       options: RequestOptions & { store_id: string },
     ): Promise<AnalyticsResponse> {
-      const store_id = requireStoreId(options?.store_id);
+      const { store_id, ...requestOptions } = options;
       const submitted = structuredClone(request);
       validateAnalyticsRequest(submitted);
-      const response = await apiConfig.httpClient.post<unknown>(
-        `/v1/stores/${requireStoreId(store_id)}/analytics`,
-        submitted,
-        options,
-      );
+      const response = await apiConfig.httpClient.post<unknown>(storePath(store_id, "analytics"), submitted, requestOptions);
       return parseAnalyticsResponse(response, submitted, store_id);
     },
   };
 };
 
-export type AnalyticsStatus = "active" | "draft" | "archived" | "deleting" | "closed" | "pending" | "confirmed" | "partially_cancelled" | "cancelled" | "abandoned" | "converted" | "merged" | "expired" | "paused" | "completed" | "replied" | "stopped" | "sent" | "received" | "bounced" | "submitted" | "requested" | "processing" | "rejected" | "failed" | "unknown" | "ai_mode" | "escalated" | "resolved";
-export type AnalyticsStatusEntity = "product" | "booking_service" | "booking_resource" | "collection" | "entry" | "customer" | "customer_group" | "mailbox" | "campaign" | "campaign_enrollment" | "campaign_message" | "support_conversation" | "email_template" | "form" | "category" | "cart" | "order" | "order_product_item";
+export type AnalyticsStatus = "anonymous" | "verified" | "active" | "draft" | "archived" | "deleting" | "closed" | "pending" | "confirmed" | "partially_cancelled" | "cancelled" | "abandoned" | "converted" | "superseded" | "merged" | "expired" | "scheduled" | "sending" | "sent" | "flow" | "team" | "resolved";
+export type AnalyticsStatusEntity = "product" | "booking_service" | "booking_resource" | "collection" | "entry" | "customer" | "customer_group" | "broadcast" | "conversation" | "form" | "category" | "cart" | "order" | "order_product_item";
 export interface AnalyticsStatusCount extends AnalyticsBreakdownItem { key: AnalyticsStatus }
 export interface AnalyticsStatusBreakdownData { items: AnalyticsStatusCount[] }
 export interface AnalyticsDimensionCount extends AnalyticsBreakdownItem { unique_profiles: number; unique_visitors: number }
@@ -388,7 +323,7 @@ export type AnalyticsCustomValue = null | boolean | number | string | AnalyticsC
 export type AnalyticsFeedFactData =
   | { store_id: string; entity_id: string; customer_id: string; customer_session_id: string | null; key: string; data: Record<string, AnalyticsCustomValue>; country_code: string; device_type: string }
   | { store_id: string; entity_id: string; email: string; email_verified: boolean; status: AnalyticsStatus }
-  | { store_id: string; entity_id: string; source_customer_id: string; target_customer_id: string; consolidated_at: EpochMilliseconds }
+  | { store_id: string; entity_id: string; source_customer_id: string; target_customer_id: string; merged_at: EpochMilliseconds }
   | { store_id: string; entity_id: string; customer_id: string; customer_session_id: string | null; number: string; status: AnalyticsStatus; payment: { currency: string; total: number } }
   | { store_id: string; entity_id: string; customer_id: string | null; customer_session_id: string | null; status: AnalyticsStatus }
   | { store_id: string; entity_id: string; key: string; status: AnalyticsStatus }

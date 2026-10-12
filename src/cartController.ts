@@ -1,12 +1,15 @@
-import type { GetCartParams } from "./types/api";
-import type { Cart } from "./types/cart";
-import type { CartApi, CartController, CartControllerInitParams, CartControllerListener, CartControllerState } from "./types/cartController";
-export type * from "./types/cartController";
+import type { EpochMilliseconds } from "./types/time";
+import type { Cart, StorefrontGetCartParams } from "./types/cart";
+import type {
+  CartApi,
+  CartController,
+  CartControllerInitParams,
+  CartControllerListener,
+  CartControllerState,
+} from "./types/cartController";
 
-function hasCartId(params: CartControllerInitParams): params is GetCartParams {
-  return (
-    "id" in params && typeof params.id === "string" && params.id.length > 0
-  );
+function hasCartId(params: CartControllerInitParams): params is StorefrontGetCartParams {
+  return "id" in params && typeof params.id === "string" && params.id.length > 0;
 }
 
 export function createCartController(cartApi: CartApi): CartController {
@@ -34,35 +37,42 @@ export function createCartController(cartApi: CartApi): CartController {
     return state;
   }
 
-  function currentCartId(id?: string): string {
-    const cartId = id || state.cart?.id;
-    if (!cartId) {
-      throw new Error(
-        "Cart has not been initialized and no cart id was provided",
-      );
-    }
-    return cartId;
+  function cartId(id: string | undefined): string {
+    const value = id || state.cart?.id;
+    if (!value) throw new Error("Cart has not been initialized and no cart id was provided");
+    return value;
   }
 
-  async function runCartMutation(
-    operation: () => Promise<Cart>,
-  ): Promise<Cart> {
+  function version(id: string, expected: EpochMilliseconds | undefined): EpochMilliseconds {
+    const value = expected ?? (state.cart && state.cart.id === id ? state.cart.updated_at : undefined);
+    if (value === undefined) {
+      throw new Error("Cart changes need the updated_at of the cart they were made on");
+    }
+    return value;
+  }
+
+  function target(params: { id?: string; expected_updated_at?: EpochMilliseconds }): {
+    id: string;
+    expected_updated_at: EpochMilliseconds;
+  } {
+    const id = cartId(params.id);
+    return { id, expected_updated_at: version(id, params.expected_updated_at) };
+  }
+
+  async function run<T>(operation: () => Promise<T>, apply: (value: T) => Partial<CartControllerState>): Promise<T> {
     setState({ loading: true, error: null });
     try {
-      const cart = await operation();
-      setState({
-        cart,
-        quote: null,
-        checkoutResult: null,
-        loading: false,
-        initialized: true,
-        error: null,
-      });
-      return cart;
+      const value = await operation();
+      setState({ ...apply(value), loading: false, error: null });
+      return value;
     } catch (error) {
       setState({ loading: false, error });
       throw error;
     }
+  }
+
+  function mutate(operation: () => Promise<Cart>): Promise<Cart> {
+    return run(operation, (cart) => ({ cart, quote: null, checkoutResult: null, initialized: true }));
   }
 
   return {
@@ -81,102 +91,63 @@ export function createCartController(cartApi: CartApi): CartController {
     },
 
     init(params, options) {
-      if (state.initialized && state.cart) {
-        return Promise.resolve(state.cart);
-      }
+      if (state.initialized) return Promise.resolve(state.cart);
       return this.refresh(params, options);
     },
 
     refresh(params, options) {
-      return runCartMutation(() =>
-        hasCartId(params)
-          ? cartApi.get(params, options)
-          : cartApi.current(params, options),
-      );
-    },
-
-    addProduct(params, options) {
-      return runCartMutation(() =>
-        cartApi.addProduct(
-          { ...params, id: currentCartId(params.id) },
-          options,
-        ),
-      );
-    },
-
-    addBooking(params, options) {
-      return runCartMutation(() =>
-        cartApi.addBooking(
-          { ...params, id: currentCartId(params.id) },
-          options,
-        ),
-      );
-    },
-
-    addDigital(params, options) {
-      return runCartMutation(() =>
-        cartApi.addDigital(
-          { ...params, id: currentCartId(params.id) },
-          options,
-        ),
-      );
-    },
-
-    addSubscriptionPlan(params, options) {
-      return runCartMutation(() =>
-        cartApi.addSubscriptionPlan({ ...params, id: currentCartId(params.id) }, options),
+      return run<Cart | null>(
+        () => (hasCartId(params) ? cartApi.get(params, options) : cartApi.current(params, options)),
+        (cart) => ({ cart, quote: null, checkoutResult: null, initialized: true }),
       );
     },
 
     update(params, options) {
-      return runCartMutation(() =>
-        cartApi.update({ ...params, id: currentCartId(params.id) }, options),
-      );
+      return mutate(() => cartApi.update({ ...params, ...target(params) }, options));
+    },
+
+    addProduct(params, options) {
+      return mutate(() => cartApi.addProduct({ ...params, ...target(params) }, options));
+    },
+
+    addBooking(params, options) {
+      return mutate(() => cartApi.addBooking({ ...params, ...target(params) }, options));
+    },
+
+    addCustomerGroup(params, options) {
+      return mutate(() => cartApi.addCustomerGroup({ ...params, ...target(params) }, options));
     },
 
     removeItem(params, options) {
-      return runCartMutation(() =>
-        cartApi.removeItem(
-          { ...params, id: currentCartId(params.id) },
-          options,
-        ),
-      );
+      return mutate(() => cartApi.removeItem({ ...params, ...target(params) }, options));
     },
 
     clear(params, options) {
-      return runCartMutation(() =>
-        cartApi.clear({ ...params, id: currentCartId(params.id) }, options),
+      return mutate(() => cartApi.clear({ ...params, ...target(params) }, options));
+    },
+
+    selectShippingMethod(params, options) {
+      return mutate(() => cartApi.selectShippingMethod({ ...params, ...target(params) }, options));
+    },
+
+    quote(params, options) {
+      return run(
+        () => cartApi.quote({ ...params, id: cartId(params.id) }, options),
+        (quote) => ({ quote }),
       );
     },
 
-    async quote(params, options) {
-      setState({ loading: true, error: null });
-      try {
-        const quote = await cartApi.quote(
-          { ...params, id: currentCartId(params.id) },
-          options,
-        );
-        setState({ quote, loading: false, error: null });
-        return quote;
-      } catch (error) {
-        setState({ loading: false, error });
-        throw error;
-      }
-    },
-
-    async checkout(params, options) {
-      setState({ loading: true, error: null });
-      try {
-        const checkoutResult = await cartApi.checkout(
-          { ...params, id: currentCartId(params.id) },
-          options,
-        );
-        setState({ checkoutResult, loading: false, error: null });
-        return checkoutResult;
-      } catch (error) {
-        setState({ loading: false, error });
-        throw error;
-      }
+    checkout(params, options) {
+      return run(
+        () => {
+          const id = cartId(params.cart_id);
+          return cartApi.checkout(
+            { ...params, cart_id: id, expected_updated_at: version(id, params.expected_updated_at) },
+            options,
+          );
+        },
+        (checkoutResult) => ({ checkoutResult }),
+      );
     },
   };
 }

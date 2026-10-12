@@ -1,6 +1,6 @@
-import type { FulfillmentUnitSpan } from "./index";
-import type { InventoryUnit } from "./inventoryUnit";
 import type { EpochMilliseconds } from "./time";
+import type { FulfillmentUnitSpan } from "./fulfillment";
+import type { InventoryUnit } from "./inventory";
 
 export interface FulfillmentUnitSelection {
   fulfillment_job_line_id: string;
@@ -14,7 +14,7 @@ export interface ResolveFulfillmentUnitSlotsParams {
   lines: FulfillmentUnitSelection[];
 }
 
-export interface FulfillmentUnitSlot {
+export interface FulfillmentUnitSlotDetail {
   fulfillment_job_line_id: string;
   fulfillment_unit_index: number;
   inventory_item_id: string;
@@ -26,5 +26,5 @@ export interface FulfillmentUnitSlots {
   fulfillment_job_id: string;
   store_location_id: string;
   updated_at: EpochMilliseconds;
-  slots: FulfillmentUnitSlot[];
+  slots: FulfillmentUnitSlotDetail[];
 }

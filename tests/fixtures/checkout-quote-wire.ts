@@ -1,135 +1,92 @@
+import { epochMilliseconds } from "arky-sdk";
 import type {
-  AcceptedProductMoneyRun,
-  AppliedPriceSnapshot,
-  BookingQuoteLine,
-  CheckoutBookingSnapshot,
-  CheckoutDigitalSnapshot,
-  CheckoutProductSnapshot,
-  SubscriptionEntitlementOrderQuoteLine,
-  SubscriptionOrderQuoteLine,
-  SubscriptionPlanSnapshot,
-  DigitalProductQuoteLine,
-  LineMoneySnapshot,
-  OrderBookingItem,
-  OrderDeliveryGroup,
-  AcceptedDeliveryPricing,
-  AcceptedDeliveryPricingSource,
-  AcceptedDeliveryCalculation,
-  QuotedDeliveryPricing,
-  EventAction,
-  OrderDigitalItem,
-  OrderDigitalSnapshot,
-  OrderItemStatus,
+  CartQuote,
+  LineMoney,
+  OrderBookingSnapshot,
   OrderLinePrice,
-  OrderProductItem,
   OrderProductSnapshot,
-  OrderQuote,
-  PaymentTerms,
-  ProductMoneyTotals,
-  ProductQuoteLine,
-  QuotedProductMoneyRun,
-  TaxLine,
+  ProductMoneyRun,
+  QuoteBookingLine,
+  QuoteCustomerGroupLine,
+  QuoteDelivery,
+  QuoteEntitlementLine,
+  QuoteLine,
+  QuoteMoney,
+  QuoteProductLine,
+  QuotePurchaseAccess,
+  QuoteTotals,
+  CustomerGroupDeliveryTerms,
+  CustomerGroupEntitlement,
+  CustomerGroupOccurrence,
+  CustomerGroupSnapshot,
+  CustomerGroupStart,
+  QuoteBlocker,
 } from "arky-sdk";
-import type {
-  ProductQuoteLine as PublicProductQuoteLine,
-  AcceptedProductMoneyRun as PublicAcceptedProductMoneyRun,
-  CheckoutProductSnapshot as PublicCheckoutProductSnapshot,
-} from "arky-sdk/types";
+import type { QuoteProductLine as PublicQuoteProductLine, CartQuote as PublicCartQuote } from "arky-sdk/types";
 
-type True<T extends true> = T;
-type False<T extends false> = T;
+type Assert<T extends true> = T;
+type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
+type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
 type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
-type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 
 export type CheckoutQuoteWireContracts = [
-  True<RequiredField<SubscriptionPlanSnapshot, "offering_key">>,
-  True<RequiredField<SubscriptionPlanSnapshot, "plan_key">>,
-  True<RequiredField<SubscriptionPlanSnapshot, "entitlements">>,
-  False<"plan_name" extends keyof SubscriptionPlanSnapshot ? true : false>,
-  False<"key" extends keyof SubscriptionPlanSnapshot ? true : false>,
-  True<Same<PublicProductQuoteLine, ProductQuoteLine>>,
-  True<Same<PublicAcceptedProductMoneyRun, AcceptedProductMoneyRun>>,
-  True<Same<PublicCheckoutProductSnapshot, CheckoutProductSnapshot>>,
-  True<RequiredField<ProductQuoteLine, "line_item_id">>,
-  True<RequiredField<BookingQuoteLine, "line_item_id">>,
-  True<RequiredField<DigitalProductQuoteLine, "line_item_id">>,
-  True<RequiredField<DigitalProductQuoteLine, "beneficiary_customer_id">>,
-  True<RequiredField<BookingQuoteLine, "capacity_units">>,
-  True<RequiredField<BookingQuoteLine, "capacity_intervals">>,
-  True<RequiredField<BookingQuoteLine, "reminder_offsets_minutes">>,
-  True<Same<ProductQuoteLine["money"], ProductMoneyTotals>>,
-  True<Same<ProductQuoteLine["money_runs"], QuotedProductMoneyRun[]>>,
-  True<Same<QuotedProductMoneyRun["per_unit"], LineMoneySnapshot>>,
-  False<"unit_price" extends keyof ProductMoneyTotals ? true : false>,
-  False<"id" extends keyof QuotedProductMoneyRun ? true : false>,
-  True<RequiredField<AcceptedProductMoneyRun, "id">>,
-  True<Same<CheckoutProductSnapshot["price"], AppliedPriceSnapshot>>,
-  True<Same<CheckoutDigitalSnapshot["price"], AppliedPriceSnapshot>>,
-  True<Same<CheckoutBookingSnapshot["price"], AppliedPriceSnapshot>>,
-  True<Same<OrderProductSnapshot["price"], OrderLinePrice>>,
-  True<Same<OrderDigitalSnapshot["price"], OrderLinePrice>>,
-  True<Same<OrderQuote["payment_terms"], PaymentTerms | null>>,
-  True<
-    Same<
-      SubscriptionOrderQuoteLine["entitlement_lines"],
-      SubscriptionEntitlementOrderQuoteLine[]
-    >
-  >,
-  True<
-    Same<
-      Extract<SubscriptionEntitlementOrderQuoteLine, { type: "product" }>["money"],
-      ProductMoneyTotals
-    >
-  >,
-  True<RequiredField<OrderProductSnapshot, "source_product_id">>,
-  True<RequiredField<OrderProductSnapshot, "source_variant_id">>,
-  True<RequiredField<OrderDigitalSnapshot, "source_digital_product_id">>,
-  True<null extends OrderProductItem["product_id"] ? true : false>,
-  True<null extends OrderProductItem["variant_id"] ? true : false>,
-  True<null extends OrderBookingItem["booking_offering_id"] ? true : false>,
-  True<null extends OrderBookingItem["booking_resource_id"] ? true : false>,
-  True<null extends OrderDigitalItem["digital_product_id"] ? true : false>,
-  True<
-    null extends Extract<OrderItemStatus, { type: "pending" }>["expires_at"]
-      ? true
-      : false
-  >,
-  False<"completed" extends OrderBookingItem["status"]["type"] ? true : false>,
-  False<"reminders" extends keyof OrderBookingItem ? true : false>,
-  False<"inventory_allocations" extends keyof OrderProductItem ? true : false>,
-  False<"location_allocations" extends keyof OrderProductItem ? true : false>,
-  True<RequiredField<OrderProductItem, "money_runs">>,
-  True<RequiredField<OrderDigitalItem, "access">>,
-  True<RequiredField<LineMoneySnapshot, "tax_assessment">>,
-  True<RequiredField<LineMoneySnapshot, "duty_lines">>,
-  False<"taxable_base" extends keyof LineMoneySnapshot ? true : false>,
-  True<RequiredField<TaxLine, "taxable_base">>,
-  True<RequiredField<TaxLine, "source">>,
-  False<"rate_bps" extends keyof TaxLine ? true : false>,
-  True<RequiredField<OrderDeliveryGroup, "money">>,
-  True<RequiredField<OrderDeliveryGroup, "content">>,
-  True<Same<OrderDeliveryGroup["accepted_pricing"], AcceptedDeliveryPricing>>,
-  True<Same<Extract<QuotedDeliveryPricing, { type: "calculated" }>["pricing"], AcceptedDeliveryPricing>>,
-  True<Same<keyof AcceptedDeliveryPricing, "source_shipping_method_id" | "source_shipping_profile_id" | "selected_market_zone_id" | "source" | "policy_digest" | "customer_subtotal" | "accepted_at" | "rounding_version">>,
-  True<Same<AcceptedDeliveryPricing["source"], AcceptedDeliveryPricingSource>>,
-  True<Same<AcceptedDeliveryPricingSource["type"], "shipping_rate" | "subscription_terms">>,
-  True<Same<keyof Extract<AcceptedDeliveryPricingSource, { type: "shipping_rate" }>, "type" | "source_shipping_rate_id" | "merchandise_basis" | "weight_grams" | "calculation" | "free_above_subtotal">>,
-  True<Same<Extract<AcceptedDeliveryPricingSource, { type: "shipping_rate" }>["calculation"], AcceptedDeliveryCalculation>>,
-  True<Same<Extract<AcceptedDeliveryPricingSource, { type: "shipping_rate" }>["weight_grams"], number | null>>,
-  True<RequiredField<Extract<AcceptedDeliveryPricingSource, { type: "shipping_rate" }>, "free_above_subtotal">>,
-  True<Same<keyof Extract<AcceptedDeliveryPricingSource, { type: "subscription_terms" }>, "type" | "order_subscription_line_item_id" | "delivery_terms_id">>,
-  False<"merchandise_basis" extends keyof AcceptedDeliveryPricing ? true : false>,
-  False<"calculation" extends keyof AcceptedDeliveryPricing ? true : false>,
-  False<"source_shipping_rate_id" extends keyof AcceptedDeliveryPricing ? true : false>,
-  True<[Extract<EventAction, { action: "subscription_renewal_due" }>] extends [never] ? false : true>,
-  True<[Extract<EventAction, { action: "subscription_renewal_collection_due" }>] extends [never] ? false : true>,
+  Assert<Equal<PublicQuoteProductLine, QuoteProductLine>>,
+  Assert<Equal<PublicCartQuote, CartQuote>>,
+  Assert<Equal<QuoteLine["type"], "product" | "booking" | "customer_group">>,
+  Assert<RequiredField<QuoteProductLine, "line_item_id">>,
+  Assert<RequiredField<QuoteBookingLine, "line_item_id">>,
+  Assert<RequiredField<QuoteCustomerGroupLine, "line_item_id">>,
+  Assert<RequiredField<QuoteBookingLine, "capacity_units">>,
+  Assert<RequiredField<QuoteBookingLine, "capacity_intervals">>,
+  Assert<RequiredField<QuoteBookingLine, "reminder_offsets_minutes">>,
+  Assert<Equal<QuoteProductLine["money_runs"], ProductMoneyRun[]>>,
+  Assert<Equal<ProductMoneyRun["money"], LineMoney>>,
+  Assert<Equal<QuoteProductLine["snapshot"], OrderProductSnapshot>>,
+  Assert<Equal<QuoteBookingLine["snapshot"], OrderBookingSnapshot>>,
+  Assert<Equal<OrderProductSnapshot["price"], OrderLinePrice>>,
+  Assert<Equal<OrderLinePrice["type"], "catalog" | "purchase_access" | "manual" | "offer" | "customer_group_allocation">>,
+  Assert<Equal<Extract<OrderLinePrice, { type: "purchase_access" }>["customer_group_member_id"], string | null>>,
+  Assert<Equal<keyof QuoteCustomerGroupLine, "line_item_id" | "group" | "start" | "occurrence" | "entitlements" | "tax_groups" | "deliveries">>,
+  Assert<Equal<QuoteCustomerGroupLine["group"], CustomerGroupSnapshot>>,
+  Assert<Equal<QuoteCustomerGroupLine["start"], CustomerGroupStart>>,
+  Assert<Equal<QuoteCustomerGroupLine["occurrence"], CustomerGroupOccurrence>>,
+  Assert<Equal<QuoteCustomerGroupLine["deliveries"], CustomerGroupDeliveryTerms[]>>,
+  Assert<Equal<CustomerGroupSnapshot["entitlements"], CustomerGroupEntitlement[]>>,
+  Assert<Missing<CustomerGroupSnapshot, "plan_name" | "key" | "offering_key" | "subscription_plan_id">>,
+  Assert<Equal<keyof QuotePurchaseAccess, "grant" | "customer_group_member_id" | "cart_customer_group_line_item_id" | "entitlement_id" | "catalog_id" | "starts_at" | "ends_at" | "limits">>,
+  Assert<Equal<Extract<QuoteBlocker["type"], `customer_group_${string}`>, "customer_group_delivery_required" | "customer_group_shipping_required" | "customer_group_delivery_fee_varies">>,
+  Assert<Equal<Extract<QuoteBlocker["type"], `plan_${string}`>, never>>,
+  Assert<Equal<QuoteEntitlementLine["type"], "product" | "rental" | "purchase_access">>,
+  Assert<Equal<keyof QuoteTotals, "subtotal" | "delivery" | "discount" | "tax" | "total">>,
+  Assert<Equal<CartQuote["totals"], QuoteTotals>>,
+  Assert<Equal<CartQuote["deliveries"], QuoteDelivery[]>>,
+  Assert<Equal<CartQuote["presentation_digest"], string>>,
+  Assert<Equal<CartQuote["language"], string>>,
+  Assert<Equal<CartQuote["suggested_payment_option_id"], string | null>>,
+  Assert<Missing<CartQuote, "payment_terms" | "quote_token" | "expires_at">>,
+  Assert<Missing<QuoteProductLine, "per_unit" | "unit_price">>,
 ];
 
-declare const line: ProductQuoteLine;
-const unitBasis: number = line.money_runs[0].per_unit.unit_price;
-const lineTotal: number = line.money.total;
-// @ts-expect-error A Product's allocated unit runs cannot be replaced by a rounded line price.
-line.money.unit_price;
-// @ts-expect-error Accepted digital content is a retained bundle contract, not live asset IDs.
-declare const assets: OrderDigitalSnapshot["asset_ids"];
-void [unitBasis, lineTotal];
+const from = epochMilliseconds(1_800_000_000_000);
+const to = epochMilliseconds(1_800_003_600_000);
+
+export const awaitingTaxBooking: QuoteBookingLine = {
+  line_item_id: "booking-line",
+  booking_offering_id: "offering",
+  booking_service_id: "service",
+  booking_resource_id: "resource",
+  interval: { from, to },
+  capacity_intervals: [{ from, to }],
+  capacity_units: 1,
+  form_submission_id: null,
+  reminder_offsets_minutes: [60],
+  snapshot: { service_key: "lesson", resource_key: "room", timezone: "Europe/Sarajevo", price: { type: "offer" } },
+  money: { type: "awaiting_tax", unit_price: 4000, discounts: [{ promotion_id: "spring", effect_id: "effect", amount: 500 }], waiting_for: "no_billing_address" },
+  availability: { type: "available", spots: 3 },
+};
+
+export function bookingUnitPrice(money: QuoteMoney): number {
+  return money.type === "taxed" ? money.money.unit_price : money.unit_price;
+}
+
+export const awaitingTaxUnitPrice: number = bookingUnitPrice(awaitingTaxBooking.money);

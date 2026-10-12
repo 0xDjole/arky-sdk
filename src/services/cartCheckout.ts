@@ -1,187 +1,194 @@
-import type { RequestOptions } from "../types/api";
-import type { OrderCheckoutResult } from "../types/index";
-import type {
-  CartCheckoutInput,
-  CartCheckoutRequest,
-  CartCheckoutSubmission,
-  CartCheckoutTransport,
-} from "../types/cartCheckout";
+import { isOrderToken, retainOrderToken } from "../utils/orderToken";
+import type { RequestOptions, RequestSuccessContext } from "../types/httpClient";
+import type { CartQuote, CheckoutAcceptance } from "../types/cart";
+import type { CartCheckoutRequest, CartCheckoutSubmission, CartCheckoutTransport } from "../types/cartCheckout";
 import { CartPresentationChangedError } from "../types/cartCheckout";
-import type { RequestSuccessContext } from "../types/httpClient";
-import type { CheckoutQuote } from "../types/checkout";
-import { checkoutQuoteSources } from "./checkoutSources";
-import { isMonriComponentsAction } from "./monriCheckout";
+import { isCanonicalId } from "../utils/ids";
 import {
   clearDurableRequest,
   DurableRequestStorageError,
   durableRequestPayload,
   getOrCreateDurableRequest,
+  isDefiniteRefusal,
   readDurableRequest,
   withDurableRequestLock,
 } from "../utils/durableRequest";
 
-const label = "Cart Checkout";
-const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-const requestKeys = new Set(["id", "request_id", "locale", "presentation_digest", "sources", "payment_option_id", "return_url", "save_payment_method", "payment_method_terms_version"]);
+const label = "Cart checkout";
 
 function storageKey(scope: string): string {
-  return `arky:commerce-cart-checkout:v1:${encodeURIComponent(scope)}`;
+  return `arky:cart-checkout:v4:${encodeURIComponent(scope)}`;
 }
 
 function record(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-function validPaymentResult(value: unknown, request: CartCheckoutRequest): boolean {
-  if (!record(value) || typeof value.order_id !== "string" || !uuid.test(value.order_id) ||
-    typeof value.number !== "string" || !value.number.length || !record(value.payment_action)) return false;
-  const action = value.payment_action;
-  if (action.type !== "none" && action.type !== "stripe_embedded_checkout" && action.type !== "monri_components") return false;
-  if (value.payment === null) return action.type === "none";
-  const payment = value.payment;
-  if (!record(payment) || typeof payment.id !== "string" || !uuid.test(payment.id) ||
-    payment.order_id !== value.order_id ||
-    !record(payment.route) || typeof payment.route.payment_option_id !== "string" || !uuid.test(payment.route.payment_option_id) ||
-    (request.payment_option_id !== undefined && request.payment_option_id !== payment.route.payment_option_id) ||
-    !["cash_on_delivery", "stripe_checkout", "monri_checkout"].includes(String(payment.route.type)) ||
-    !record(payment.status) || !["pending", "requires_action", "processing", "authorized", "completed", "cancelled", "expired", "failed", "unknown"].includes(String(payment.status.type)) ||
-    !record(payment.reconciliation) || !["clear", "hold"].includes(String(payment.reconciliation.type)) ||
-    (payment.reconciliation.type === "hold" && (!Number.isSafeInteger(payment.reconciliation.opened_at) || Number(payment.reconciliation.opened_at) < 0)) ||
-    !record(payment.amounts) || typeof payment.amounts.currency !== "string" || !/^[a-z]{3}$/.test(payment.amounts.currency) ||
-    ![payment.amounts.total, payment.amounts.authorized, payment.amounts.captured, payment.amounts.capture_pending, payment.amounts.refund_pending, payment.amounts.refunded].every((amount) => Number.isSafeInteger(amount) && Number(amount) >= 0) ||
-    Number(payment.amounts.total) <= 0) return false;
-  if (action.type === "none") return true;
-  if (action.type === "monri_components") {
-    return isMonriComponentsAction(action) && action.payment_id === payment.id &&
-      payment.route.type === "monri_checkout" && payment.route.environment === action.environment &&
-      payment.route.transaction_type === "purchase" && payment.route.transaction_id === null &&
-      payment.route.authorization_void === null && payment.status.type === "requires_action" &&
-      payment.reconciliation.type === "clear" && payment.checkout_expiration === null &&
-      payment.amounts.authorized === 0 && payment.amounts.captured === 0 &&
-      payment.amounts.capture_pending === payment.amounts.total &&
-      payment.amounts.refunded === 0 && payment.amounts.refund_pending === 0;
-  }
-  return payment.route.type === "stripe_checkout" && payment.status.type === "requires_action" &&
-    payment.reconciliation.type === "clear" && payment.checkout_expiration === null &&
-    payment.amounts.captured === 0 && payment.amounts.capture_pending === 0 &&
-    typeof action.publishable_key === "string" && action.publishable_key.length > 0 && action.publishable_key.length <= 4096 &&
-    typeof action.client_secret === "string" && action.client_secret.length > 0 && action.client_secret.length <= 4096 &&
-    typeof action.account_id === "string" && /^acct_[A-Za-z0-9_]+$/.test(action.account_id) &&
-    Number.isSafeInteger(action.expires_at) && Number(action.expires_at) > Date.now() &&
-    action.expires_at === payment.route.checkout_expires_at;
+function text(value: unknown, maximum: number): value is string {
+  return typeof value === "string" && value.length > 0 && value.length <= maximum && value === value.trim();
 }
 
-export function finishCartCheckoutSubmission<Result>(submission: CartCheckoutSubmission<Result>, options?: RequestOptions): Result {
+function checkoutPayment(value: unknown): CartCheckoutRequest["payment"] | null {
+  if (!record(value)) return null;
+  if (value.type === "free" && Object.keys(value).length === 1) return { type: "free" };
+  if (value.type === "on_account" && isCanonicalId(value.payment_option_id)) {
+    return { type: "on_account", payment_option_id: value.payment_option_id };
+  }
+  if (
+    value.type === "payment_option" &&
+    isCanonicalId(value.payment_option_id) &&
+    (value.return_url === null || text(value.return_url, 2048)) &&
+    typeof value.save_payment_method === "boolean" &&
+    (value.payment_method_terms_version === null || text(value.payment_method_terms_version, 256)) &&
+    (!value.save_payment_method || value.payment_method_terms_version !== null)
+  ) {
+    return {
+      type: "payment_option",
+      payment_option_id: value.payment_option_id,
+      return_url: value.return_url as string | null,
+      save_payment_method: value.save_payment_method,
+      payment_method_terms_version: value.payment_method_terms_version as string | null,
+    };
+  }
+  return null;
+}
+
+export function cartCheckoutRequest(input: unknown): CartCheckoutRequest {
+  const payment = record(input) ? checkoutPayment(input.payment) : null;
+  if (
+    !record(input) ||
+    !isCanonicalId(input.order_id) ||
+    !isOrderToken(input.order_token) ||
+    !isCanonicalId(input.cart_id) ||
+    typeof input.expected_updated_at !== "number" ||
+    !Number.isSafeInteger(input.expected_updated_at) ||
+    !text(input.presentation_digest, 256) ||
+    (input.contact_email !== null && !text(input.contact_email, 320)) ||
+    !payment
+  ) {
+    throw new DurableRequestStorageError(
+      "Cart checkout needs the app's order id, the cart id, the cart's updated_at, the reviewed presentation, the contact email or null, and how the order is paid",
+    );
+  }
+  return {
+    order_token: input.order_token as string,
+    order_id: input.order_id as string,
+    cart_id: input.cart_id as string,
+    expected_updated_at: input.expected_updated_at as CartCheckoutRequest["expected_updated_at"],
+    presentation_digest: input.presentation_digest as string,
+    contact_email: input.contact_email as string | null,
+    payment,
+  };
+}
+
+function isCartQuote(value: unknown): value is CartQuote {
+  return (
+    record(value) &&
+    typeof value.presentation_digest === "string" &&
+    value.presentation_digest.length > 0 &&
+    Array.isArray(value.lines) &&
+    Array.isArray(value.deliveries)
+  );
+}
+
+export function cartCheckoutPresentationChanged(error: unknown): unknown {
+  if (
+    !record(error) ||
+    error.statusCode !== 409 ||
+    error.code !== "COMMERCE.PRESENTATION_CHANGED" ||
+    !record(error.response) ||
+    !isCartQuote(error.response.quote)
+  ) {
+    return error;
+  }
+  return new CartPresentationChangedError(error.response.quote);
+}
+
+export function finishCartCheckoutSubmission(
+  submission: CartCheckoutSubmission,
+  options?: RequestOptions,
+): CheckoutAcceptance {
   if (options?.onSuccess && submission.success) {
     const context = submission.success;
-    Promise.resolve().then(() => options.onSuccess?.(context)).catch(() => {});
+    Promise.resolve()
+      .then(() => options.onSuccess?.(context))
+      .catch(() => {});
   }
   return submission.result;
 }
 
-function isCheckoutQuote(value: unknown): value is CheckoutQuote {
-  if (!record(value) || typeof value.presentation_digest !== "string" ||
-    !/^[0-9a-f]{64}$/.test(value.presentation_digest) || !record(value.order)) return false;
-  if (value.sources !== null && (!record(value.sources) ||
-    !record(value.sources.cart) || !Array.isArray(value.sources.converted_lines))) return false;
-  const order = value.order;
-  return (order.locale === null || (typeof order.locale === "string" && order.locale.length > 0)) &&
-    typeof order.presentation_digest === "string" && /^[0-9a-f]{64}$/.test(order.presentation_digest) &&
-    record(order.context) && (order.money === null || record(order.money)) &&
-    [order.product_lines, order.booking_lines, order.digital_lines, order.subscription_lines, order.delivery_groups, order.payment_option_ids].every(Array.isArray);
-}
-
-export function cartCheckoutPresentationChanged(error: unknown): unknown {
-  if (!record(error) || error.statusCode !== 409 || error.code !== "COMMERCE.PRESENTATION_CHANGED" ||
-    !record(error.response) || !record(error.response.quote)) return error;
-  const quote = error.response.quote;
-  return isCheckoutQuote(quote) ? new CartPresentationChangedError(quote) : error;
-}
-
-export function cartCheckoutRequest(input: unknown): CartCheckoutRequest {
-  if (!record(input) || Object.keys(input).some((key) => !requestKeys.has(key)) ||
-    typeof input.id !== "string" || !uuid.test(input.id) ||
-    (typeof input.request_id !== "string" || !uuid.test(input.request_id)) ||
-    typeof input.locale !== "string" || !input.locale.length || input.locale.length > 64 || input.locale !== input.locale.trim() ||
-    typeof input.presentation_digest !== "string" || !/^[0-9a-f]{64}$/.test(input.presentation_digest) ||
-    (input.payment_option_id !== undefined && (typeof input.payment_option_id !== "string" || !uuid.test(input.payment_option_id))) ||
-    (input.return_url !== undefined && (typeof input.return_url !== "string" || input.return_url.length === 0 || input.return_url.length > 2048 || input.return_url !== input.return_url.trim())) ||
-    (input.save_payment_method !== undefined && typeof input.save_payment_method !== "boolean") ||
-    (input.payment_method_terms_version !== undefined && (typeof input.payment_method_terms_version !== "string" ||
-      input.payment_method_terms_version.length === 0 || input.payment_method_terms_version.length > 256 ||
-      input.payment_method_terms_version !== input.payment_method_terms_version.trim() || /[\u0000-\u001f\u007f-\u009f]/.test(input.payment_method_terms_version))) ||
-    (input.save_payment_method === true && (input.payment_option_id === undefined || input.payment_method_terms_version === undefined))
-  ) {
-    throw new DurableRequestStorageError("Cart Checkout requires exact Cart and caller request UUIDs and reviewed locale, presentation digest, provider and return URL");
-  }
-  const sources = checkoutQuoteSources(input.sources);
-  if (sources.cart.cart_id !== input.id) {
-    throw new DurableRequestStorageError("Cart Checkout requires the reviewed source to match this exact Cart");
-  }
-  return {
-    id: input.id,
-    request_id: input.request_id,
-    locale: input.locale,
-    presentation_digest: input.presentation_digest,
-    sources,
-    ...(input.payment_option_id !== undefined ? { payment_option_id: input.payment_option_id } : {}),
-    ...(input.return_url !== undefined ? { return_url: input.return_url } : {}),
-    ...(input.save_payment_method !== undefined ? { save_payment_method: input.save_payment_method } : {}),
-    ...(input.payment_method_terms_version !== undefined ? { payment_method_terms_version: input.payment_method_terms_version } : {}),
-  };
-}
-
-async function submit<Result extends Pick<OrderCheckoutResult, "order_id" | "number" | "payment_action" | "payment">>(
+async function submit(
   request: CartCheckoutRequest,
-  transport: CartCheckoutTransport<Result>,
+  transport: CartCheckoutTransport<CartCheckoutRequest>,
   options?: RequestOptions,
-  onDefiniteRejection?: () => void,
-): Promise<CartCheckoutSubmission<Result>> {
-  let result: Result;
+  onDefiniteRefusal?: () => void,
+): Promise<CartCheckoutSubmission> {
+  let result: CheckoutAcceptance;
   let success: RequestSuccessContext | undefined;
   try {
-    result = await transport.post(request, { ...options, onSuccess: (context) => { success = context; } });
+    result = await transport.post(request, {
+      ...options,
+      onSuccess: (context) => {
+        success = context;
+      },
+    });
   } catch (error) {
-    if (record(error) && error.statusCode === 400) onDefiniteRejection?.();
+    if (isDefiniteRefusal(error)) onDefiniteRefusal?.();
     throw cartCheckoutPresentationChanged(error);
   }
-  if (!validPaymentResult(result, request)) {
-    throw new DurableRequestStorageError("Cart Checkout returned invalid purchase evidence");
+  if (record(result) && result.type === "already_member") {
+    if (!isCanonicalId(result.customer_group_member_id)) {
+      throw new DurableRequestStorageError("Cart checkout did not name the customer group member the buyer already holds");
+    }
+    return { result, success };
   }
-  const order = await transport.getOrder(result.order_id, { signal: options?.signal });
-  const source = record(order) && record(order.source) ? order.source : null;
   if (
-    !record(order) ||
-    order.id !== result.order_id ||
-    source === null ||
-    source.type !== "cart_acceptance" ||
-    source.request_id !== request.request_id ||
-    typeof source.submission_fingerprint !== "string" || !/^[0-9a-f]{64}$/.test(source.submission_fingerprint) ||
-    source.initial_payment_id !== (result.payment ? result.payment.id : null) ||
-    !record(source.cart) || source.cart.cart_id !== request.id ||
-    source.cart.version !== request.sources.cart.version ||
-    !Array.isArray(source.converted_lines) ||
-    !sameConvertedLines(source.converted_lines, request)
+    !record(result) ||
+    result.type !== "placed" ||
+    result.order_id !== request.order_id ||
+    typeof result.number !== "string" ||
+    !record(result.payment_action) ||
+    (result.payment_id !== null && !isCanonicalId(result.payment_id))
   ) {
-    throw new DurableRequestStorageError("Cart Checkout did not confirm its exact accepted Order");
+    throw new DurableRequestStorageError("Cart checkout did not return the order it was asked to place");
+  }
+  const order = await transport.getOrder(result.order_id, { signal: options?.signal, order_token: request.order_token });
+  if (!record(order) || order.id !== request.order_id || order.source.type !== "cart" || order.source.cart_id !== request.cart_id) {
+    throw new DurableRequestStorageError("Cart checkout did not confirm the order placed from this cart");
   }
   return { result, success };
 }
 
-export function sameConvertedLines(convertedLines: unknown[], request: CartCheckoutRequest): boolean {
-  try {
-    const actual = checkoutQuoteSources({ ...request.sources, converted_lines: convertedLines }).converted_lines;
-    if (actual.length !== request.sources.converted_lines.length) return false;
-    const expected = new Map(request.sources.converted_lines.map((line) => [line.cart_line_item.line_item_id, line]));
-    return actual.every((line) => {
-      const accepted = expected.get(line.cart_line_item.line_item_id);
-      return accepted !== undefined && line.cart_line_item.type === accepted.cart_line_item.type &&
-        line.order_line_item.line_item_id === accepted.order_line_item.line_item_id &&
-        line.cart_units.quantity === accepted.cart_units.quantity;
-    });
-  } catch {
-    return false;
-  }
+export async function withCartMutation<T>(scope: string, operation: () => Promise<T>): Promise<T> {
+  if (typeof globalThis.window === "undefined") return operation();
+  const key = storageKey(scope);
+  return withDurableRequestLock(key, label, async () => {
+    if (readDurableRequest(key, label)) {
+      throw new DurableRequestStorageError(
+        "Recover the unfinished cart checkout before changing the cart or starting another purchase",
+      );
+    }
+    return operation();
+  });
+}
+
+export async function checkoutCart(
+  input: CartCheckoutRequest,
+  transport: CartCheckoutTransport<CartCheckoutRequest>,
+  options?: RequestOptions,
+): Promise<CheckoutAcceptance> {
+  const request = cartCheckoutRequest(input);
+  return finishCartCheckoutSubmission(await submit(request, transport, options), options);
+}
+
+export async function retainCartCheckout(scope: string, input: CartCheckoutRequest): Promise<CartCheckoutRequest> {
+  const request = cartCheckoutRequest(input);
+  const key = storageKey(scope);
+  await withDurableRequestLock(key, label, async () => {
+    getOrCreateDurableRequest(key, request, label);
+    retainOrderToken(scope, request.order_id, request.order_token);
+  });
+  return request;
 }
 
 export async function pendingCartCheckout(scope: string): Promise<CartCheckoutRequest | null> {
@@ -193,118 +200,19 @@ export async function pendingCartCheckout(scope: string): Promise<CartCheckoutRe
   });
 }
 
-export async function withCartMutation<T>(scope: string, operation: () => Promise<T>): Promise<T> {
-  if (typeof globalThis.window === "undefined") return operation();
-  const key = storageKey(scope);
-  return withDurableRequestLock(key, label, async () => {
-    if (readDurableRequest(key, label)) {
-      throw new DurableRequestStorageError("Recover the unresolved Cart Checkout before changing the Cart or starting another purchase");
-    }
-    return operation();
-  });
-}
-
-export async function retainCartCheckout(scope: string, input: CartCheckoutInput): Promise<CartCheckoutRequest> {
-  const request = cartCheckoutRequest(input);
-  const key = storageKey(scope);
-  return withDurableRequestLock(key, label, async () => {
-    getOrCreateDurableRequest(key, request, label);
-    return request;
-  });
-}
-
-export async function checkoutCart<Result extends Pick<OrderCheckoutResult, "order_id" | "number" | "payment_action" | "payment">>(
-  input: CartCheckoutInput,
-  transport: CartCheckoutTransport<Result>,
-  options?: RequestOptions,
-): Promise<Result> {
-  const request = cartCheckoutRequest(input);
-  return finishCartCheckoutSubmission(await submit(request, transport, options), options);
-}
-
-export async function recoverCartCheckout<Result extends Pick<OrderCheckoutResult, "order_id" | "number" | "payment_action" | "payment">>(
+export async function recoverCartCheckout(
   scope: string,
-  transport: CartCheckoutTransport<Result>,
+  transport: CartCheckoutTransport<CartCheckoutRequest>,
   options?: RequestOptions,
-): Promise<Result | null> {
+): Promise<CheckoutAcceptance | null> {
   if (typeof globalThis.window === "undefined") return null;
   const key = storageKey(scope);
   return withDurableRequestLock(key, label, async () => {
     const pending = readDurableRequest(key, label);
     if (!pending) return null;
     const request = cartCheckoutRequest(durableRequestPayload(pending));
-    const result = await submit(request, transport, options, () => clearDurableRequest(pending, label));
-    clearDurableRequest(pending, label);
-    return finishCartCheckoutSubmission(result, options);
-  });
-}
-
-export type CartCheckoutCommand = "checkout" | "on_account";
-
-function checkoutCommand(value: unknown): { type: CartCheckoutCommand; request: unknown } {
-  if (!record(value) || Object.keys(value).length !== 2 ||
-    (value.type !== "checkout" && value.type !== "on_account") || !record(value.request)) {
-    throw new DurableRequestStorageError("Cart Checkout has an invalid retained command");
-  }
-  return { type: value.type, request: value.request };
-}
-
-export async function pendingCartCheckoutCommand(scope: string, type: CartCheckoutCommand): Promise<unknown | null> {
-  if (typeof globalThis.window === "undefined") return null;
-  const key = storageKey(scope);
-  return withDurableRequestLock(key, label, async () => {
-    const pending = readDurableRequest(key, label);
-    if (!pending) return null;
-    const command = checkoutCommand(durableRequestPayload(pending));
-    return command.type === type ? command.request : null;
-  });
-}
-
-export async function retainCartCheckoutCommand(scope: string, type: CartCheckoutCommand, request: unknown): Promise<void> {
-  const key = storageKey(scope);
-  return withDurableRequestLock(key, label, async () => {
-    getOrCreateDurableRequest(key, { type, request }, label);
-  });
-}
-
-export async function recoverCartCheckoutCommand<Result>(
-  scope: string,
-  type: CartCheckoutCommand,
-  operation: (request: unknown, onDefiniteRejection: () => void) => Promise<CartCheckoutSubmission<Result>>,
-  options?: RequestOptions,
-): Promise<Result | null> {
-  if (typeof globalThis.window === "undefined") return null;
-  const key = storageKey(scope);
-  return withDurableRequestLock(key, label, async () => {
-    const pending = readDurableRequest(key, label);
-    if (!pending) return null;
-    const command = checkoutCommand(durableRequestPayload(pending));
-    if (command.type !== type) {
-      throw new DurableRequestStorageError("Recover the unresolved Cart Checkout with its retained command before starting another purchase");
-    }
-    const submitted = await operation(command.request, () => clearDurableRequest(pending, label));
+    const submitted = await submit(request, transport, options, () => clearDurableRequest(pending, label));
     clearDurableRequest(pending, label);
     return finishCartCheckoutSubmission(submitted, options);
   });
-}
-
-export async function retainAdminCartCheckout(scope: string, input: CartCheckoutInput): Promise<CartCheckoutRequest> {
-  const request = cartCheckoutRequest(input);
-  await retainCartCheckoutCommand(scope, "checkout", request);
-  return request;
-}
-
-export async function pendingAdminCartCheckout(scope: string): Promise<CartCheckoutRequest | null> {
-  const request = await pendingCartCheckoutCommand(scope, "checkout");
-  return request === null ? null : cartCheckoutRequest(request);
-}
-
-export async function recoverAdminCartCheckout<Result extends Pick<OrderCheckoutResult, "order_id" | "number" | "payment_action" | "payment">>(
-  scope: string,
-  transport: CartCheckoutTransport<Result>,
-  options?: RequestOptions,
-): Promise<Result | null> {
-  return recoverCartCheckoutCommand(scope, "checkout", (input, onDefiniteRejection) => {
-    return submit(cartCheckoutRequest(input), transport, options, onDefiniteRejection);
-  }, options);
 }

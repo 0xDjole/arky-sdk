@@ -1,133 +1,112 @@
-import assert from 'node:assert/strict';
-import test from 'node:test';
-import { createAdmin } from '../dist/admin.js';
-import { createStorefront } from '../dist/storefront.js';
+import assert from "node:assert/strict";
+import test from "node:test";
+import { createAdmin } from "../dist/admin.js";
+import { createStorefront } from "../dist/storefront.js";
+import { apiUrl, errorResponse, publishableKey, recordFetch } from "./helpers/arky-fixtures.mjs";
 
-const STORE_ID = '5c9e1a37-8d24-4f60-b3a5-0e7f2c4d6b18';
-const OTHER_STORE_ID = 'a0d6f2b8-3e51-4c79-9f24-7b1e5a3c8d60';
+const STORE_ID = "5c9e1a37-8d24-4f60-b3a5-0e7f2c4d6b18";
+const OTHER_STORE_ID = "a0d6f2b8-3e51-4c79-9f24-7b1e5a3c8d60";
+const marketId = "4e8b2d61-7c35-4a09-9f1e-2b6d8a0c3e57";
 
-test('Market mutations honor explicit Store scope without sending routing fields as data', async () => {
-  const original = globalThis.fetch;
-  const calls = [];
-  globalThis.fetch = async (url, init) => {
-    calls.push({ url: new URL(url), init });
-    return new Response(JSON.stringify({ id: 'market-id' }), { headers: { 'content-type': 'application/json' } });
-  };
-  try {
-    const api = createAdmin({ baseUrl: 'https://api.example.test', market: 'configured', apiToken: 'arky_api_test' }).store.market;
-    const create = { key: 'europe', currency: 'eur', tax_mode: 'inclusive' };
-    const update = { expected_updated_at: 123, tax_mode: 'exclusive' };
-    for (const store_id of [STORE_ID, OTHER_STORE_ID]) {
-      await api.create({ store_id, ...create });
-      await api.update({ store_id, id: 'market-id', ...update });
-      await api.delete({ store_id, id: 'market-id', expected_updated_at: 124 });
-      const [created, updated, deleted] = calls.slice(-3);
-      assert.equal(created.url.pathname, `/v1/stores/${store_id}/markets`);
-      assert.equal(created.init.method, 'POST');
-      assert.deepEqual(JSON.parse(created.init.body), create);
-      assert.equal(updated.url.pathname, `/v1/stores/${store_id}/markets/market-id`);
-      assert.equal(updated.init.method, 'PUT');
-      assert.deepEqual(JSON.parse(updated.init.body), update);
-      assert.equal(deleted.url.pathname, `/v1/stores/${store_id}/markets/market-id`);
-      assert.equal(deleted.init.method, 'DELETE');
-      assert.equal(deleted.init.body, undefined);
-      assert.deepEqual(Object.fromEntries(deleted.url.searchParams), { expected_updated_at: '124' });
-    }
-    for (const store_id of [undefined, 'default', 'selected']) {
-      await assert.rejects(async () => api.create({ store_id, ...create }), TypeError);
-      await assert.rejects(async () => api.update({ store_id, id: 'market-id', ...update }), TypeError);
-      await assert.rejects(async () => api.delete({ store_id, id: 'market-id', expected_updated_at: 124 }), TypeError);
-    }
-    assert.equal(calls.length, 6);
-    for (const status of [403, 409, 503]) {
-      let count = 0;
-      globalThis.fetch = async () => {
-        count++;
-        return new Response(JSON.stringify({ message: 'failed' }), { status });
-      };
-      await assert.rejects(api.create({ store_id: STORE_ID, ...create }), error => error.statusCode === status);
-      await assert.rejects(api.update({ store_id: STORE_ID, id: 'market-id', ...update }), error => error.statusCode === status);
-      await assert.rejects(api.delete({ store_id: STORE_ID, id: 'market-id', expected_updated_at: 124 }), error => error.statusCode === status);
-      assert.equal(count, 3, 'no implicit mutation replay');
-    }
-  } finally {
-    globalThis.fetch = original;
+function store() {
+  return createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" }).store;
+}
+
+test("market changes use the named store, an app-picked id and the version, without routing fields in the body", async (context) => {
+  let failure = null;
+  const calls = recordFetch(context, () => failure ? errorResponse(failure, "MARKET.REFUSED", "failed") : { id: marketId });
+  const api = store().market;
+  const create = { id: marketId, key: "europe", currency: "eur", tax_mode: "inclusive" };
+  const update = { expected_updated_at: 123, tax_mode: "exclusive", payment_option_ids: ["5b8c1e47-3d29-4a6f-9c15-7e0d2f4a8b31"] };
+  for (const store_id of [STORE_ID, OTHER_STORE_ID]) {
+    await api.create({ store_id, ...create });
+    await api.update({ store_id, id: marketId, ...update });
+    await api.delete({ store_id, id: marketId, expected_updated_at: 124 });
+    assert.deepEqual(calls.slice(-3).map(({ method, path, query, body }) => [method, path, query, body]), [
+      ["POST", `/v1/stores/${store_id}/markets`, {}, create],
+      ["PUT", `/v1/stores/${store_id}/markets/${marketId}`, {}, update],
+      ["DELETE", `/v1/stores/${store_id}/markets/${marketId}`, { expected_updated_at: "124" }, null],
+    ]);
+  }
+  for (const store_id of [undefined, "default", "selected"]) {
+    await assert.rejects(async () => api.create({ store_id, ...create }), TypeError);
+    await assert.rejects(async () => api.update({ store_id, id: marketId, ...update }), TypeError);
+    await assert.rejects(async () => api.delete({ store_id, id: marketId, expected_updated_at: 124 }), TypeError);
+  }
+  await assert.rejects(async () => api.create({ store_id: STORE_ID, ...create, id: "europe" }), {
+    name: "TypeError",
+    message: "The market id must be a canonical UUID v4 picked by the app",
+  });
+  assert.equal(calls.length, 6);
+  for (const status of [403, 409, 503]) {
+    failure = status;
+    const before = calls.length;
+    await assert.rejects(api.create({ store_id: STORE_ID, ...create }), (error) => error.statusCode === status);
+    await assert.rejects(api.update({ store_id: STORE_ID, id: marketId, ...update }), (error) => error.statusCode === status);
+    await assert.rejects(api.delete({ store_id: STORE_ID, id: marketId, expected_updated_at: 124 }), (error) => error.statusCode === status);
+    assert.equal(calls.length - before, 3);
   }
 });
 
-for (const [owner,path,filter] of [
-  ['market','markets',{currency:'eur'}],
-  ['location','locations',{allows_pickup:true}],
-  ['paymentOption','payment-options',{type_name:'stripe'}],
+for (const [owner, path, params] of [
+  ["market", "markets", { key: "trade", currency: "eur", status: "active", sort_field: "updated_at", sort_direction: "asc", limit: 1, cursor: "previous" }],
+  ["location", "locations", { query: "warehouse", status: "archived", sort_field: "key", sort_direction: "asc", limit: 1, cursor: "previous" }],
+  ["paymentOption", "payment-options", { key: "cards", type_name: "stripe", status: "disabled", sort_field: "updated_at", sort_direction: "asc", limit: 1, cursor: "previous" }],
 ]) {
-  test(`${owner} forwards one bounded page and preserves empty continuation`, async () => {
-    const original=globalThis.fetch, calls=[];
-    globalThis.fetch=async(url,init)=>{
-      calls.push({url:new URL(url),init});
-      return new Response(JSON.stringify({items:[],cursor:'next'}),{headers:{'content-type':'application/json'}});
-    };
-    try {
-      const api=createAdmin({baseUrl:'https://api.example.test',market:'configured',apiToken:'arky_api_test'}).store[owner];
-      const params={store_id:STORE_ID,key:'trade',status:'active',sort_field:'updated_at',sort_direction:'asc',limit:1,cursor:'previous',...filter};
-      assert.deepEqual(await api.list(params),{items:[],cursor:'next'});
-      assert.equal(calls.length,1,'no hidden enumeration');
-      assert.equal(calls[0].url.pathname,`/v1/stores/${STORE_ID}/${path}`);
-      for(const [key,value]of Object.entries(params)){
-        if(key!=='store_id') assert.equal(calls[0].url.searchParams.get(key),String(value));
-      }
-      assert.equal(calls[0].url.searchParams.has('store_id'),false);
-      for(const status of [403,409,503]){
-        globalThis.fetch=async()=>new Response(JSON.stringify({message:'failed'}),{status});
-        await assert.rejects(api.list(params),error=>error.statusCode===status);
-      }
-    } finally {globalThis.fetch=original}
+  test(`${owner} lists one bounded page with its filters and keeps the continuation`, async (context) => {
+    let failure = null;
+    const calls = recordFetch(context, () => failure ? errorResponse(failure) : { items: [], cursor: "next" });
+    const api = store()[owner];
+    assert.deepEqual(await api.list({ store_id: STORE_ID, ...params }), { items: [], cursor: "next" });
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].path, `/v1/stores/${STORE_ID}/${path}`);
+    assert.deepEqual(calls[0].query, Object.fromEntries(Object.entries(params).map(([key, value]) => [key, String(value)])));
+    for (const status of [403, 409, 503]) {
+      failure = status;
+      await assert.rejects(api.list({ store_id: STORE_ID, ...params }), (error) => error.statusCode === status);
+    }
   });
 }
 
-test('exact configuration lookup never falls back to search or creation',async()=>{
-  const original=globalThis.fetch,calls=[];
-  globalThis.fetch=async(url,init)=>{calls.push({url:new URL(url),init});return new Response(JSON.stringify({id:'exact'}),{headers:{'content-type':'application/json'}})};
-  try{
-    const api=createAdmin({baseUrl:'https://api.example.test',market:'configured',apiToken:'arky_api_test'}).store;
-    await api.market.getByKey({store_id:STORE_ID,key:'trade'});
-    await api.location.getByKey({store_id:STORE_ID,key:'warehouse'});
-    await api.market.get({store_id:STORE_ID,id:'market-id'});
-    await api.location.get({store_id:STORE_ID,id:'location-id'});
-    await api.paymentOption.getByKey({store_id:STORE_ID,key:'processor'});
-    await api.paymentOption.get({store_id:STORE_ID,id:'exact'});
-    assert.deepEqual(calls.map(call=>call.url.pathname),[
-      `/v1/stores/${STORE_ID}/markets/by-key/trade`,
-      `/v1/stores/${STORE_ID}/locations/by-key/warehouse`,
-      `/v1/stores/${STORE_ID}/markets/market-id`,
-      `/v1/stores/${STORE_ID}/locations/location-id`,
-      `/v1/stores/${STORE_ID}/payment-options/key/processor`,
-      `/v1/stores/${STORE_ID}/payment-options/exact`,
-    ]);
-    assert.ok(calls.every(call=>call.url.search===''&&(call.init.method??'GET')==='GET'));
-    assert.equal('getByType' in api.paymentOption,false);
-    for(const status of [404,409,503]){
-      let count=0;
-      globalThis.fetch=async()=>{count++;return new Response(JSON.stringify({message:'failed'}),{status})};
-      await assert.rejects(api.paymentOption.getByKey({store_id:STORE_ID,key:'processor'}),error=>error.statusCode===status);
-      await assert.rejects(api.market.getByKey({store_id:STORE_ID,key:'trade'}),error=>error.statusCode===status);
-      assert.equal(count,2);
-    }
-  }finally{globalThis.fetch=original}
+test("exact configuration reads never fall back to a search or a create", async (context) => {
+  let failure = null;
+  const calls = recordFetch(context, () => failure ? errorResponse(failure) : { id: "exact" });
+  const api = store();
+  await api.market.getByKey({ store_id: STORE_ID, key: "trade" });
+  await api.location.getByKey({ store_id: STORE_ID, key: "warehouse" });
+  await api.market.get({ store_id: STORE_ID, id: marketId });
+  await api.location.get({ store_id: STORE_ID, id: "location-id" });
+  await api.paymentOption.getByKey({ store_id: STORE_ID, key: "processor" });
+  await api.paymentOption.get({ store_id: STORE_ID, id: "exact" });
+  assert.deepEqual(calls.map((call) => call.path), [
+    `/v1/stores/${STORE_ID}/markets/by-key/trade`,
+    `/v1/stores/${STORE_ID}/locations/by-key/warehouse`,
+    `/v1/stores/${STORE_ID}/markets/${marketId}`,
+    `/v1/stores/${STORE_ID}/locations/location-id`,
+    `/v1/stores/${STORE_ID}/payment-options/key/processor`,
+    `/v1/stores/${STORE_ID}/payment-options/exact`,
+  ]);
+  assert.ok(calls.every((call) => call.url.search === "" && call.method === "GET"));
+  assert.equal("getByType" in api.paymentOption, false);
+  for (const status of [404, 409, 503]) {
+    failure = status;
+    const before = calls.length;
+    await assert.rejects(api.paymentOption.getByKey({ store_id: STORE_ID, key: "processor" }), (error) => error.statusCode === status);
+    await assert.rejects(api.market.getByKey({ store_id: STORE_ID, key: "trade" }), (error) => error.statusCode === status);
+    assert.equal(calls.length - before, 2);
+  }
 });
 
-test('storefront configuration discovery has explicit pages in its resolved scope',async()=>{
-  const original=globalThis.fetch,calls=[];
-  globalThis.fetch=async(url,init)=>{calls.push({url:new URL(url),init});return new Response(JSON.stringify({items:[],cursor:'next'}),{headers:{'content-type':'application/json'}})};
-  try{
-    const api=createStorefront(`arky_pk_${'a'.repeat(42)}A`,{baseUrl:'https://api.example.test',market:'configured'});
-    for(const owner of ['market','location']){
-      const result=await api.store[owner].list({key:'trade',limit:1,cursor:'previous',sort_direction:'asc'});
-      assert.deepEqual(result,{items:[],cursor:'next'});
-      const call=calls.at(-1);
-      assert.equal(call.url.searchParams.get('cursor'),'previous');
-      assert.equal(call.url.searchParams.get('limit'),'1');
-      assert.equal(call.url.searchParams.has('store_id'),false);
-    }
-    assert.equal(calls.length,2);
-  }finally{globalThis.fetch=original}
+test("storefront markets and locations are listed in pages within the publishable key's store, with only the fields the Server knows", async (context) => {
+  const calls = recordFetch(context, () => ({ items: [], cursor: "next" }));
+  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, market: "configured" });
+  for (const owner of ["market", "location"]) {
+    assert.deepEqual(await client.store[owner].list({ key: "trade", sort_field: "updated_at", limit: 1, cursor: "previous", sort_direction: "asc" }), { items: [], cursor: "next" });
+    const call = calls.at(-1);
+    assert.equal(call.path, `/v1/storefront/${owner === "market" ? "markets" : "locations"}`);
+    assert.deepEqual(call.query, { key: "trade", sort_field: "updated_at", limit: "1", cursor: "previous", sort_direction: "asc" });
+    for (const unknown of ["query", "pickup_point", "status", "store_id"]) assert.equal(unknown in call.query, false, unknown);
+    assert.equal(call.headers.get("authorization"), null);
+  }
+  assert.equal(calls.length, 2);
 });

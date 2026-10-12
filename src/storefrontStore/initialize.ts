@@ -1,164 +1,125 @@
-import type { EpochMilliseconds } from "../types/time";
-import type { AcceptCartFutureDeliveriesParams, CartFutureDeliveryQuote, QuoteCartFutureDeliveriesParams } from "../types/cartDelivery";
-
-import type { CatalogReadOptions } from "../types/catalog";
-import type { CartViewScope } from "../types/cartView";
-import { CartSelectionError } from "../types/cartSelection";
-import { copyCartProductPurchase, sanitizePublicCartSubscriptionPlans, sanitizePublicCartDigitalProducts } from "../utils/cartInputs";
-function newDeliveryGroupId(): string {
-  const generated = globalThis.crypto?.randomUUID?.();
-  if (generated) return generated;
-  throw new Error("This runtime cannot generate a Cart delivery group identity");
-}
-import {
-  epochMilliseconds,
-  epochMillisecondsNow,
-  epochMillisecondsToDate,
-} from "../utils/time";
 import { atom, computed, map } from "nanostores";
-import {
-  createStorefront,
-  type StorefrontCustomerSession,
-  type StorefrontIdentifyResult,
-} from "../index";
-import type { StorefrontMarket, StorefrontSetup } from "../api/storefront";
+import type { EpochMilliseconds } from "../types/time";
+import type { RequestOptions } from "../types/api";
 import type {
-  CartPublicLineItemInput,
-  StorefrontCart,
-  StorefrontCollectionEntry,
-  StorefrontForm,
-  StorefrontFormSubmission,
-  StorefrontOrderCheckoutResult,
-  StorefrontCheckoutQuote,
-  StorefrontPage,
-  StorefrontParams,
-  StorefrontProduct,
-  StorefrontProductVariant,
-  StorefrontBookingResource,
-  StorefrontBookingService,
-  StorefrontBookingOffering,
-} from "../types/storefront";
-import type {
-  Address,
-  Block,
   Cart,
-  CartDigitalItem,
-  CartSubscriptionPlanItem,
-  EshopCartItem,
-  CollectionEntry,
-  Form,
-  FormSubmission,
-  OrderCheckoutResult,
-  PaginatedResponse,
-  Product,
-  ProductVariant,
-  BookingResource,
-  BookingService,
-  BookingOffering,
-  ZoneLocation,
-} from "../types";
-import {
-  cartProductItems,
-  cartBookingItems,
-  cartDigitalItems,
-  cartSubscriptionPlanItems,
+  CartBuyer,
+  CartDeliveryGroup,
+  CartCustomerGroupDeliveries,
+  CartLineItem,
+  CartQuote,
+  CheckoutAcceptance,
+  CustomerGroupDeliveryChoices,
+  CustomerGroupDeliveryOffers,
+  StorefrontCartBookingLineItemInput,
+  StorefrontCartCustomerGroupLineItemInput,
+  StorefrontCartLineItemInput,
+  StorefrontCartProductLineItemInput,
+  StorefrontCheckoutCartInput,
+  StorefrontCreateCartParams,
+  StorefrontCurrentCartParams,
 } from "../types/cart";
+import { cartBookingItems, cartCustomerGroupItems, cartProductItems } from "../types/cart";
+import { CartSelectionError } from "../types/cartSelection";
+import type { CatalogReadOptions } from "../types/catalog";
+import type { PostalAddress } from "../types/common";
+import type { Entry } from "../types/content";
+import type { TrackCustomerActionParams } from "../types/customerAction";
+import type { ExperimentUseResponse, UseExperimentParams } from "../types/experiment";
+import type { Form, GetStorefrontFormParams, StorefrontFormSubmission, SubmitFormParams } from "../types/forms";
 import type {
   AvailabilityResponse,
-  CartSubscriptionPlanInput,
-  FindBookingOfferingsParams,
-  GetAvailabilityParams,
-  GetCollectionParams,
-  GetEntriesByIdsParams,
-  GetEntriesParams,
-  GetEntryParams,
-  GetFormParams,
-  GetProductParams,
-  GetProductsParams,
-  GetBookingResourceParams,
-  FindBookingResourcesParams,
-  GetBookingServiceParams,
+  FindStorefrontBookingResourcesParams,
   FindStorefrontBookingServicesParams,
-  CartProductInput,
-  CartDigitalItemInput,
-  RequestOptions,
-  CartBookingInput,
-  SubmitFormParams,
-} from "../types/api";
+  FindStorefrontProductsParams,
+  GetStorefrontAvailabilityParams,
+  StorefrontBookingOffering,
+  StorefrontBookingResource,
+  StorefrontBookingService,
+  StorefrontProduct,
+} from "../types/product";
+import type { PaginatedResponse } from "../types/common";
+import type { StorefrontMarket, StorefrontSetup } from "../types/storefront";
+import { epochMilliseconds, epochMillisecondsNow, epochMillisecondsToDate } from "../utils/time";
+import { createStorefront, type StorefrontClient, type StorefrontCustomerSession } from "../index";
 import type {
-  ExperimentUseResponse,
-  TrackCustomerActionParams,
-  UseExperimentParams,
-} from "../api/storefront";
-import type {
-  ArkyCalendarDay,
-  ArkyContentEntryParams,
-  ArkyCartInput,
-  ArkyCartCheckoutInput,
-  CheckoutContext,
-  ArkyCartStatus,
-  ArkyCartQuoteStore,
-  ArkyContentState,
-  ArkyFormsState,
-  ArkyEshopState,
-  ArkyLastOrder,
   ArkyBookingCartItem,
-  ArkyBookingSlot,
   ArkyBookingServiceState,
-  ArkyStoreContext,
+  ArkyBookingSlot,
+  ArkyCalendarDay,
+  ArkyCartCheckoutInput,
+  ArkyCartStatus,
+  ArkyContentEntryParams,
+  ArkyContentState,
+  ArkyEshopState,
+  ArkyFormsState,
+  ArkyLastOrder,
   ArkyStoreConfig,
+  ArkyStoreContext,
   ArkySubmitFormByKeyParams,
 } from "./types";
 import {
-  createFormEntryFromValues,
-  createFormEntry,
-  createId,
+  bookingServiceName,
+  buildFormAnswers,
   createBookingServiceInitialState,
-  productSlug,
-  formSchemaToBlock,
   formatServiceSlotTime,
   getSlotsForDate,
   hasAvailableSlotsForDate,
-  locationToAddress,
   normalizeTimezoneGroups,
-  productName,
-  bookingResourceName,
   readErrorMessage,
-  bookingServiceName,
-  toCartProducts,
-  toCartBookings,
 } from "./utils";
 
-function initializeStoreCore(
-  publishableKey: string,
-  config: ArkyStoreConfig,
-  scopedClient?: ReturnType<typeof createStorefront>,
-) {
+interface CartScope {
+  customerId: string;
+  isCurrent(): boolean;
+  assertCurrent(): void;
+}
+
+function cartLineInput(line: CartLineItem): StorefrontCartLineItemInput {
+  switch (line.type) {
+    case "product":
+      return {
+        type: "product",
+        id: line.id,
+        product_id: line.product_id,
+        variant_id: line.variant_id,
+        quantity: line.quantity,
+        form_submission_id: line.form_submission_id,
+        purchase: line.purchase,
+      };
+    case "booking":
+      return {
+        type: "booking",
+        id: line.id,
+        booking_offering_id: line.booking_offering_id,
+        requested_interval: { from: line.requested_interval.from, to: line.requested_interval.to },
+        capacity_units: line.capacity_units,
+        form_submission_id: line.form_submission_id,
+      };
+    case "customer_group":
+      return {
+        type: "customer_group",
+        id: line.id,
+        customer_group_id: line.customer_group_id,
+        start: line.start,
+        deliveries: line.deliveries,
+      };
+  }
+}
+
+function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, scopedClient?: StorefrontClient) {
   const client = scopedClient || createStorefront(publishableKey, config);
   const session = atom<StorefrontCustomerSession | null>(client.session);
   const setup = atom<StorefrontSetup | null>(null);
-  const locale = atom(config.locale || client.getLocale());
-  const market_key = atom(config.market || client.getMarket());
+  const locale = atom(client.getLocale());
+  const market_key = atom(client.getMarket());
   const resolvedMarket = atom<StorefrontMarket | null>(null);
-  const market = computed([market_key, resolvedMarket], (marketKey, value) =>
-    marketKey && value?.key === marketKey ? value : null,
-  );
-  const currency = computed(market, (value) => value?.currency || null);
-  const allowed_payment_option_ids = computed(
-    market,
-    (value) => value?.payment_option_ids || [],
-  );
-  const cart = atom<StorefrontCart | null>(null);
-  const product_items = atom<EshopCartItem[]>([]);
-  const booking_items = atom<ArkyBookingCartItem[]>([]);
-  const digital_items = atom<CartDigitalItem[]>([]);
-  const subscription_plan_items = atom<CartSubscriptionPlanItem[]>([]);
-  const quote: ArkyCartQuoteStore = atom<StorefrontCheckoutQuote | null>(null);
-  const promotion_codes = computed(quote, (value) =>
-    (value?.order.money?.promotions ?? []).flatMap((promotion) =>
-      promotion.code === null ? [] : [promotion.code],
-    ),
-  );
+  const market = computed([market_key, resolvedMarket], (key, value) => (key && value?.key === key ? value : null));
+  const currency = computed(market, (value) => value?.currency ?? null);
+  const allowed_payment_option_ids = computed(market, (value) => value?.payment_option_ids ?? []);
+
+  const cart = atom<Cart | null>(null);
+  const quote = atom<CartQuote | null>(null);
   const last_order = atom<ArkyLastOrder | null>(null);
   const cart_status = map<ArkyCartStatus>({
     loading: false,
@@ -168,83 +129,25 @@ function initializeStoreCore(
     error: null,
     quote_error: null,
   });
-
-  function rawProductItemCount(value: StorefrontCart | null): number {
-    return cartProductItems(value).reduce(
-      (total, item) => total + (item.quantity || 0),
-      0,
-    );
-  }
-
-  function rawBookingItemCount(value: StorefrontCart | null): number {
-    return cartBookingItems(value).length;
-  }
-
-  function rawDigitalItemCount(value: StorefrontCart | null): number {
-    return cartDigitalItems(value).length;
-  }
-
-  const product_item_count = computed(
-    [cart, product_items],
-    (cartValue, items) =>
-      Math.max(
-        rawProductItemCount(cartValue),
-        items.reduce((total, item) => total + (item.quantity || 0), 0),
-      ),
-  );
-  const booking_item_count = computed(
-    [cart, booking_items],
-    (cartValue, items) =>
-      Math.max(rawBookingItemCount(cartValue), items.length),
-  );
-  const digital_item_count = computed(
-    [cart, digital_items],
-    (cartValue, items) =>
-      Math.max(rawDigitalItemCount(cartValue), items.length),
-  );
+  const product_items = computed(cart, (value) => cartProductItems(value));
+  const booking_items = computed(cart, (value) => cartBookingItems(value));
+  const customer_group_items = computed(cart, (value) => cartCustomerGroupItems(value));
+  const product_item_count = computed(product_items, (items) => items.reduce((total, item) => total + item.quantity, 0));
   const item_count = computed(
-    [cart, product_item_count, booking_item_count, digital_item_count, subscription_plan_items],
-    (cartValue, products, services, digitalProducts, plans) =>
-      Math.max(
-        cartValue?.item_count || 0,
-        products + services + digitalProducts + plans.length,
-      ),
+    [product_item_count, booking_items, customer_group_items],
+    (products, bookings, groups) => products + bookings.length + groups.length,
   );
-  const snapshot = computed(
-    [cart, product_items, booking_items, digital_items, subscription_plan_items, item_count],
-    (cartValue, products, services, digitalProducts, plans, count) => ({
-      cart: cartValue,
-      product_items: products,
-      booking_items: services,
-      digital_items: digitalProducts,
-      subscription_plan_items: plans,
-      item_count: count,
-    }),
+  const promotion_codes = computed(quote, (value) =>
+    (value?.promotions ?? []).flatMap((promotion) => (promotion.code ? [promotion.code.code] : [])),
   );
-  let cartWriteRevision = 0;
-  let cartContextRevision = 0;
-  let cartContextMarket = client.getMarket();
-  let cartSyncRevision = 0;
-  let cartQuoteRevision = 0;
+
+  let cartParams: StorefrontCurrentCartParams = {};
+  let contextRevision = 0;
+  let cartRevision = 0;
   let sessionRequest: Promise<StorefrontCustomerSession | null> | null = null;
-  let cartRequest: Promise<StorefrontCart> | null = null;
 
-  function nextCartWriteRevision(): number {
-    cartWriteRevision += 1;
-    quote.set(null);
-    return cartWriteRevision;
-  }
-
-  const content_state = map<ArkyContentState>({
-    entries: {},
-    loading: false,
-    error: null,
-  });
-  const forms_state = map<ArkyFormsState>({
-    forms: {},
-    loading: false,
-    error: null,
-  });
+  const content_state = map<ArkyContentState>({ entries: {}, loading: false, error: null });
+  const forms_state = map<ArkyFormsState>({ forms: {}, loading: false, error: null });
   const eshop_state = map<ArkyEshopState>({
     products: [],
     bookingServices: [],
@@ -259,138 +162,12 @@ function initializeStoreCore(
     loading_availability: false,
     error: null,
   });
-  const booking_service_state = map<ArkyBookingServiceState>(
-    createBookingServiceInitialState(),
-  );
+  const booking_service_state = map<ArkyBookingServiceState>(createBookingServiceInitialState());
 
-  function synchronizeSession(): void {
-    const current = client.session;
-    const previous = session.get();
-    const marketChanged = cartContextMarket !== client.getMarket();
-    if (marketChanged) market_key.set(client.getMarket());
-    if (
-      marketChanged || current?.customer.id !== previous?.customer.id ||
-      current?.id !== previous?.id || current?.status !== previous?.status
-    ) {
-      invalidateCartContext();
-    }
-    session.set(current);
-  }
-
-  client.onAuthStateChanged(synchronizeSession);
-  currency.subscribe((value) => booking_service_state.setKey("currency", value));
-  market.subscribe((value) => {
-    const providerIds = value?.payment_option_ids || [];
-    booking_service_state.setKey("availablePaymentOptionIds", providerIds);
-  });
-
-  function currentMarketKey(): string {
-    return (
-      market_key.get() ||
-      client.getMarket() ||
-      ""
-    );
-  }
-
-  function currentLocale(): string {
-    return (
-      locale.get() ||
-      client.getLocale() ||
-      setup.get()?.languages.default ||
-      "en"
-    );
-  }
-
-  let setupRead: Promise<StorefrontSetup> | null = null;
-  let setupReadKey = "";
-  let setupReadRevision = 0;
-
-  function loadSetup(): Promise<StorefrontSetup> {
-    synchronizeSession();
-    const key = client.getMarket();
-    const revision = cartContextRevision;
-    if (setupRead && setupReadKey === key && setupReadRevision === revision) return setupRead;
-    const assertCurrent = () => {
-      if (revision !== cartContextRevision || key !== client.getMarket())
-        throw new CartSelectionError("Customer or Market changed while loading Store configuration");
-    };
-    const request = (async () => {
-      const result = setup.get() ?? await client.getSetup();
-      assertCurrent();
-      const value = key ? await client.store.market.getByKey(key) : null;
-      assertCurrent();
-      if (value && (!value.id || value.key !== key))
-        throw new CartSelectionError("The Market read did not confirm the selected key");
-      setup.set(result);
-      resolvedMarket.set(value);
-      if (!locale.get() && result.languages.default) locale.set(result.languages.default);
-      return result;
-    })();
-    const pending = request.finally(() => { if (setupRead === pending) setupRead = null; });
-    setupReadKey = key;
-    setupReadRevision = revision;
-    setupRead = pending;
-    return pending;
-  }
-
-  async function ensureSession(): Promise<StorefrontCustomerSession | null> {
-    synchronizeSession();
-    if (client.hasSession) return client.session;
-    if (!sessionRequest) {
-      sessionRequest = identify()
-        .then(() => client.session)
-        .finally(() => {
-          sessionRequest = null;
-        });
-    }
-    return sessionRequest;
-  }
-
-  async function identify(
-    params: { email?: string; market?: string } = {},
-  ): Promise<StorefrontIdentifyResult> {
-    if (params.market) setMarket(params.market);
-    const result = await client.customer.identify({
-      ...params,
-      market: params.market || currentMarketKey(),
-    });
-    return result;
-  }
-
-  function setMarket(key: string): void {
-    synchronizeSession();
-    const next = key;
-    const current = currentMarketKey();
-    if (
-      next !== current &&
-      (cart.get()?.item_count || item_count.get()) > 0
-    ) {
-      throw Object.assign(
-        new Error("Market cannot change while the cart contains items"),
-        { code: "CART_MARKET_LOCKED" },
-      );
-    }
-    client.setMarket(next);
-    market_key.set(next);
-    if (next !== current || next !== cartContextMarket) invalidateCartContext();
-  }
-
-  function setLocale(value: string): void {
-    if (value !== currentLocale()) quote.set(null);
-    locale.set(value);
-    client.setLocale(value);
-  }
-
-  function setContext(context: ArkyStoreContext): void {
-    if (context.market !== undefined) setMarket(context.market);
-    if (context.locale !== undefined) setLocale(context.locale);
-  }
-
-  function invalidateCartContext(): void {
-    cartContextRevision += 1;
-    cartContextMarket = client.getMarket();
-    clearLocalCart();
-    last_order.set(null);
+  function clearLocalCart(): void {
+    cartRevision += 1;
+    cart.set(null);
+    quote.set(null);
     cart_status.set({
       loading: false,
       syncing: false,
@@ -401,757 +178,434 @@ function initializeStoreCore(
     });
   }
 
-  async function beginCartOperation(): Promise<CartViewScope> {
-    synchronizeSession();
-    const requestedMarket = currentMarketKey();
-    if (!requestedMarket) throw new CartSelectionError("Select a Market before working with a Cart");
-    const requestedSession = client.session;
-    const requestedRevision = cartContextRevision;
-    await ensureSession();
-    synchronizeSession();
+  function invalidateContext(): void {
+    contextRevision += 1;
+    clearLocalCart();
+    last_order.set(null);
+  }
+
+  function synchronizeSession(): void {
     const current = client.session;
-    if (
-      !current || requestedMarket !== currentMarketKey() ||
-      (requestedSession && requestedRevision !== cartContextRevision)
-    ) {
-      throw new CartSelectionError(
-        "The buyer or Market changed before the Cart operation; reload the current Cart",
-      );
+    const previous = session.get();
+    if (current?.customer.id !== previous?.customer.id || current?.id !== previous?.id) invalidateContext();
+    session.set(current);
+  }
+
+  client.onAuthStateChanged(synchronizeSession);
+  currency.subscribe((value) => booking_service_state.setKey("currency", value));
+  allowed_payment_option_ids.subscribe((ids) => booking_service_state.setKey("availablePaymentOptionIds", [...ids]));
+
+  function requireLocale(): string {
+    const value = locale.get();
+    if (!value) throw new Error("Set the storefront language with setContext({ locale }) first");
+    return value;
+  }
+
+  async function loadSetup(): Promise<StorefrontSetup> {
+    const key = market_key.get();
+    const revision = contextRevision;
+    const result = setup.get() ?? (await client.getSetup());
+    const value = key ? await client.store.market.getByKey(key) : null;
+    if (revision !== contextRevision || key !== market_key.get()) {
+      throw new CartSelectionError("The market changed while the store setup was loading");
     }
-    const revision = cartContextRevision;
-    const activeMarket = client.getMarket();
-    const isCurrent = () => {
-      const active = client.session;
-      return revision === cartContextRevision && active?.id === current.id &&
-        active.customer.id === current.customer.id && active.status === current.status &&
-        client.getMarket() === activeMarket;
-    };
+    if (value && value.key !== key) throw new CartSelectionError("The market read didn't confirm the selected key");
+    setup.set(result);
+    resolvedMarket.set(value);
+    return result;
+  }
+
+  async function ensureSession(): Promise<StorefrontCustomerSession | null> {
+    synchronizeSession();
+    if (client.hasSession) return client.session;
+    if (!sessionRequest) {
+      sessionRequest = client.customer
+        .identify()
+        .then(() => client.session)
+        .finally(() => {
+          sessionRequest = null;
+        });
+    }
+    const result = await sessionRequest;
+    synchronizeSession();
+    return result;
+  }
+
+  function setMarket(key: string): void {
+    if (key !== market_key.get() && item_count.get() > 0) {
+      throw Object.assign(new Error("The market can't change while the cart has items"), { code: "CART_MARKET_LOCKED" });
+    }
+    client.setMarket(key);
+    if (key !== market_key.get()) {
+      market_key.set(key);
+      invalidateContext();
+    }
+  }
+
+  function setLocale(value: string): void {
+    if (value !== locale.get()) quote.set(null);
+    client.setLocale(value);
+    locale.set(client.getLocale());
+  }
+
+  function setContext(context: ArkyStoreContext): void {
+    if (context.market !== undefined) setMarket(context.market);
+    if (context.locale !== undefined) setLocale(context.locale);
+  }
+
+  async function beginCartOperation(): Promise<CartScope> {
+    synchronizeSession();
+    const requestedSession = client.session;
+    const requestedRevision = contextRevision;
+    await ensureSession();
+    const current = client.session;
+    const revision = contextRevision;
+    if (!current || (requestedSession && requestedRevision !== revision)) {
+      throw new CartSelectionError("The buyer or the store context changed; reload the cart");
+    }
+    const isCurrent = () =>
+      revision === contextRevision && client.session?.id === current.id && client.session?.customer.id === current.customer.id;
     return {
       customerId: current.customer.id,
       isCurrent,
       assertCurrent() {
-        if (!isCurrent()) throw new CartSelectionError(
-          "The buyer or Market changed during the Cart operation; reload the current Cart",
-        );
+        if (!isCurrent()) throw new CartSelectionError("The buyer or the store context changed during the cart operation");
       },
     };
   }
 
-  async function ensureCart(): Promise<StorefrontCart> {
-    const scope = await beginCartOperation();
-    if (cartRequest) return cartRequest;
-
-    cart_status.setKey("loading", true);
-    cart_status.setKey("error", null);
-    const refreshRevision = cartWriteRevision;
-    const request = (async () => {
-      const response = await client.eshop.cart.current();
-      await applyCartResponse(response, { ifRevision: refreshRevision, scope });
-      return response;
-    })();
-    cartRequest = request;
-
-    try {
-      return await request;
-    } catch (error) {
-      if (scope.isCurrent()) cart_status.setKey(
-        "error",
-        readErrorMessage(error, "Failed to load cart."),
-      );
-      throw error;
-    } finally {
-      if (cartRequest === request) {
-        cartRequest = null;
-        if (scope.isCurrent()) cart_status.setKey("loading", false);
-      }
-    }
-  }
-
-  async function buildProductCartItem(
-    item: CartProductInput,
-    source: StorefrontCart,
-    isCurrent: () => boolean,
-  ): Promise<EshopCartItem | null> {
-    try {
-      const access = item.purchase.type === "catalog" ? null : await client.eshop.cart.previewAccessProduct({
-        id: source.id, line_item_id: item.id!, variant_id: item.variant_id,
-        quantity: item.quantity, purchase: item.purchase,
-      });
-      if (access && (access.cart_id !== source.id || access.store_id !== source.store_id
-        || access.customer_id !== source.customer_id || access.market_id !== source.market_id
-        || access.sales_channel_id !== source.sales_channel_id || access.line_item_id !== item.id
-        || access.quantity !== item.quantity
-        || (access.company?.company_id ?? null) !== (source.company?.company_id ?? null)
-        || (access.company?.company_location_id ?? null) !== (source.company?.company_location_id ?? null))) {
-        throw new Error("Access product preview changed its Cart or buyer scope");
-      }
-      const [product, variant] = access ? [access.product, access.variant] : await Promise.all([
-        client.eshop.product.get({
-          id: item.product_id,
-          catalog_id: source.catalog_id,
-          company_id: source.company?.company_id ?? undefined,
-          company_location_id: source.company?.company_location_id ?? undefined,
-          include_price: true,
-        }),
-        client.eshop.productVariant.get({
-          product_id: item.product_id,
-          id: item.variant_id,
-          catalog_id: source.catalog_id,
-          company_id: source.company?.company_id ?? undefined,
-          company_location_id: source.company?.company_location_id ?? undefined,
-          include_price: true,
-        }),
-      ]);
-      if (variant.id !== item.variant_id || variant.product_id !== product.id || product.id !== item.product_id) {
-        if (isCurrent()) cart_status.setKey(
-          "error",
-          `Cart product ${item.product_id} references unavailable variant ${item.variant_id}.`,
-        );
-        return null;
-      }
-      return {
-        id: item.id || createId("product"),
-        product_id: product.id,
-        variant_id: variant.id,
-        product_name: productName(product, currentLocale()),
-        product_slug: productSlug(product, currentLocale()),
-        variant_attributes:
-          variant.attributes as EshopCartItem["variant_attributes"],
-        requires_shipping: variant.fulfillment.type === "physical",
-        shipping_profile_id: variant.fulfillment.type === "physical" ? variant.fulfillment.shipping_profile_id : null,
-        price: variant.price,
-        quantity: item.quantity,
-        form_submission_id: item.form_submission_id ?? null,
-        purchase: copyCartProductPurchase(item.purchase),
-        added_at: epochMilliseconds(source.created_at),
-      };
-    } catch (error) {
-      if (isCurrent()) cart_status.setKey(
-        "error",
-        readErrorMessage(
-          error,
-          `Failed to load cart product ${item.product_id}.`,
-        ),
-      );
-      return null;
-    }
-  }
-
-  async function buildBookingCartItems(
-    items: CartBookingInput[],
-  ): Promise<ArkyBookingCartItem[]> {
-    return items.map((item) => ({
-      id: item.id || createId("booking"),
-      booking_offering_id: item.booking_offering_id,
-      requested_interval: item.requested_interval,
-      capacity_units: item.capacity_units,
-      form_submission_id: item.form_submission_id ?? null,
-    }));
-  }
-
-  async function applyCartResponse(
-    response: StorefrontCart,
-    options: { ifRevision: number; scope: CartViewScope },
-  ): Promise<StorefrontCart> {
-    options.scope.assertCurrent();
-    if (response.customer_id !== options.scope.customerId)
-      throw new CartSelectionError("The Cart response belongs to a different Customer");
-    const isCurrent = () => options.scope.isCurrent() && options.ifRevision === cartWriteRevision;
-    if (!isCurrent()) {
-      return cart.get() || response;
-    }
-    cart.set(response);
-    product_items.set([]);
-    booking_items.set([]);
-    digital_items.set([]);
-    subscription_plan_items.set([]);
-    quote.set(null);
-
-    if (response.status.type === "converted") {
-      product_items.set([]);
-      booking_items.set([]);
-      digital_items.set([]);
-      subscription_plan_items.set([]);
-      return response;
-    }
-
-    const cartProducts = cartProductItems(response);
-    const cartBookings = cartBookingItems(response);
-    const cartDigitalProducts = cartDigitalItems(response);
-    if (cartProducts.length > 0 || cartBookings.length > 0) await loadSetup();
-    options.scope.assertCurrent();
-    if (!isCurrent()) return cart.get() || response;
-    const products = await Promise.all(
-      cartProducts.map((item) =>
-        buildProductCartItem(item, response, isCurrent),
-      ),
-    );
-    const services = await buildBookingCartItems(cartBookings);
-    options.scope.assertCurrent();
-    if (!isCurrent()) return cart.get() || response;
-    product_items.set(
-      products.filter((item): item is EshopCartItem => item !== null),
-    );
-    booking_items.set(services);
-    digital_items.set(cartDigitalProducts);
-    subscription_plan_items.set(cartSubscriptionPlanItems(response));
-    return response;
-  }
-
-  function checkoutProducts(input: ArkyCartInput = {}): CartProductInput[] {
-    return toCartProducts(input.product_items || product_items.get());
-  }
-
-  function checkoutBookings(input: ArkyCartInput = {}): CartBookingInput[] {
-    return toCartBookings(input.booking_items || booking_items.get());
-  }
-
-  function checkoutDigitalProducts(
-    input: ArkyCartInput = {},
-  ): CartDigitalItemInput[] {
-    return sanitizePublicCartDigitalProducts(input.digital_items || digital_items.get());
-  }
-
-  function checkoutSubscriptionPlans(input: ArkyCartInput = {}): CartSubscriptionPlanInput[] {
-    return sanitizePublicCartSubscriptionPlans(input.subscription_plan_items ?? subscription_plan_items.get());
-  }
-
-  async function syncCart(
-    input: ArkyCartInput = {},
-    writeRevision?: number,
-    currentScope?: CartViewScope,
-  ): Promise<StorefrontCart> {
-    const scope = currentScope ?? await beginCartOperation();
+  function applyCart(scope: CartScope, value: Cart, revision: number): Cart {
     scope.assertCurrent();
-    const revision = writeRevision ?? nextCartWriteRevision();
-    const syncRevision = ++cartSyncRevision;
-    const isCurrent = () => scope.isCurrent() && revision === cartWriteRevision;
+    if (value.customer_id !== scope.customerId) throw new CartSelectionError("The cart belongs to another customer");
+    if (revision === cartRevision) {
+      cart.set(value);
+      quote.set(null);
+    }
+    return value;
+  }
+
+  function requireCart(): Cart {
+    const value = cart.get();
+    if (!value) throw new CartSelectionError("Load or create the cart first");
+    return value;
+  }
+
+  async function runCartWrite(
+    label: string,
+    operation: (current: Cart) => Promise<Cart>,
+  ): Promise<Cart> {
+    const scope = await beginCartOperation();
+    const revision = ++cartRevision;
     cart_status.setKey("syncing", true);
     cart_status.setKey("error", null);
     try {
-      if (input.delivery_groups !== undefined && input.shipping_address !== undefined)
-        throw new CartSelectionError("Supply delivery groups or a shipping address, not both");
-      const current = cart.get() || (await ensureCart());
-      scope.assertCurrent();
-      const lineItems: CartPublicLineItemInput[] = [
-        ...checkoutProducts(input).map((item) => ({ type: "product" as const, ...item })),
-        ...checkoutBookings(input).map((item) => ({ type: "booking" as const, ...item })),
-        ...checkoutDigitalProducts(input).map((item) => ({
-          type: "digital_product" as const,
-          ...item,
-        })),
-        ...checkoutSubscriptionPlans(input).map((item) => ({
-          type: "subscription_plan" as const,
-          ...item,
-        })),
-      ];
-      const shippingAddress =
-        input.shipping_address === undefined ? undefined : input.shipping_address;
-      const physical = lineItems.filter((item) => item.type === "product");
-      const response = await client.eshop.cart.update({
-        id: current.id,
-        line_items: lineItems,
-        ...(input.delivery_groups !== undefined
-          ? { delivery_groups: input.delivery_groups }
-          : shippingAddress && physical.length
-          ? {
-              delivery_groups: [
-                {
-                  id: newDeliveryGroupId(),
-                  items: physical.map((item) => ({
-                    line_item: { type: "product" as const, line_item_id: item.id as string },
-                    quantity: item.quantity,
-                  })),
-                  destination: { type: "delivery" as const, address: shippingAddress },
-                  shipping_rate_id: null,
-                  quote_acceptance: null,
-                  scheduled_window: null,
-                },
-              ],
-            }
-          : {}),
-        company: input.company,
-        market_id: input.market_id,
-        sales_channel_id: input.sales_channel_id,
-        catalog_id: input.catalog_id,
-        billing_address: input.billing_address,
-        promotion_codes:
-          input.promotion_codes === null
-            ? []
-            : input.promotion_codes,
-      });
-      await applyCartResponse(response, { ifRevision: revision, scope });
-      return response;
+      const value = await operation(requireCart());
+      return applyCart(scope, value, revision);
     } catch (error) {
-      if (isCurrent()) cart_status.setKey(
-        "error",
-        readErrorMessage(error, "Failed to sync cart."),
-      );
+      if (scope.isCurrent()) cart_status.setKey("error", readErrorMessage(error, label));
       throw error;
     } finally {
-      if (scope.isCurrent() && syncRevision === cartSyncRevision) cart_status.setKey("syncing", false);
+      if (scope.isCurrent()) cart_status.setKey("syncing", false);
     }
   }
 
-  async function addProduct(
-    product: StorefrontProduct,
-    variant: StorefrontProductVariant,
-    quantity = 1,
-  ): Promise<StorefrontCart> {
+  async function loadCart(params: StorefrontCurrentCartParams = cartParams): Promise<Cart | null> {
+    cartParams = params;
     const scope = await beginCartOperation();
+    const revision = ++cartRevision;
+    cart_status.setKey("loading", true);
     cart_status.setKey("error", null);
-    const writeRevision = nextCartWriteRevision();
     try {
-      const current = cart.get() || (await ensureCart());
+      const value = await client.eshop.cart.current(params);
       scope.assertCurrent();
-      const response = await client.eshop.cart.addProduct({
-        id: current.id,
-        product: {
-          product_id: product.id,
-          variant_id: variant.id,
-          purchase: { type: "catalog" },
-          quantity,
-        },
-      });
-      await applyCartResponse(response, {
-        ifRevision: writeRevision,
-        scope,
-      });
-      return response;
+      if (revision !== cartRevision) return cart.get();
+      if (!value) {
+        cart.set(null);
+        quote.set(null);
+        return null;
+      }
+      return applyCart(scope, value, revision);
     } catch (error) {
-      if (scope.isCurrent() && writeRevision === cartWriteRevision) cart_status.setKey(
-        "error",
-        readErrorMessage(error, "Failed to add product to cart."),
-      );
+      if (scope.isCurrent()) cart_status.setKey("error", readErrorMessage(error, "The cart couldn't be loaded"));
       throw error;
+    } finally {
+      if (scope.isCurrent()) cart_status.setKey("loading", false);
     }
   }
 
-  async function setProductQuantity(
-    itemId: string,
-    quantity: number,
-  ): Promise<StorefrontCart> {
+  async function createCart(params: StorefrontCreateCartParams): Promise<Cart> {
+    cartParams = { buyer: params.buyer, catalog_id: params.catalog_id };
     const scope = await beginCartOperation();
-    const writeRevision = nextCartWriteRevision();
-    const next = product_items.get().map((item) => {
-      if (item.id !== itemId) return item;
-      const bounded = item.max_stock
-        ? Math.min(Math.max(1, quantity), item.max_stock)
-        : Math.max(1, quantity);
-      return { ...item, quantity: bounded };
-    });
-    product_items.set(next);
-    return syncCart({ product_items: next }, writeRevision, scope);
+    const revision = ++cartRevision;
+    const created = await client.eshop.cart.create(params);
+    return applyCart(scope, created.cart, revision);
   }
 
-  async function removeProduct(itemId: string): Promise<StorefrontCart | null> {
-    const scope = await beginCartOperation();
-    const writeRevision = nextCartWriteRevision();
-    const item = product_items
-      .get()
-      .find((candidate) => candidate.id === itemId);
-    product_items.set(
-      product_items.get().filter((candidate) => candidate.id !== itemId),
+  function updateBody(current: Cart) {
+    return { id: current.id, expected_updated_at: current.updated_at };
+  }
+
+  function addProduct(product: StorefrontCartProductLineItemInput): Promise<Cart> {
+    return runCartWrite("The product couldn't be added to the cart", (current) =>
+      client.eshop.cart.addProduct({ ...updateBody(current), product }),
     );
-    const current = cart.get();
-    if (!current || !item) return null;
-    const response = await client.eshop.cart.removeItem({
-      id: current.id,
-      line_item: { type: "product", line_item_id: item.id },
-    });
-    await applyCartResponse(response, { ifRevision: writeRevision, scope });
-    return response;
   }
 
-  async function addBooking(
-    item: ArkyBookingCartItem,
-  ): Promise<StorefrontCart> {
-    const scope = await beginCartOperation();
-    const writeRevision = nextCartWriteRevision();
-    const next = [...booking_items.get(), item];
-    booking_items.set(next);
-    return syncCart({ booking_items: next }, writeRevision, scope);
+  function addBooking(booking: StorefrontCartBookingLineItemInput): Promise<Cart> {
+    return runCartWrite("The booking couldn't be added to the cart", (current) =>
+      client.eshop.cart.addBooking({ ...updateBody(current), booking }),
+    );
   }
 
-  async function addDigitalProduct(
-    item: CartDigitalItemInput,
-  ): Promise<StorefrontCart> {
-    const scope = await beginCartOperation();
-    const writeRevision = nextCartWriteRevision();
-    const current = cart.get() || (await ensureCart());
-    scope.assertCurrent();
-    const response = await client.eshop.cart.addDigital({
-      id: current.id,
-      digital: sanitizePublicCartDigitalProducts([item])[0],
-    });
-    await applyCartResponse(response, { ifRevision: writeRevision, scope });
-    return response;
+  function addCustomerGroup(customerGroup: StorefrontCartCustomerGroupLineItemInput): Promise<Cart> {
+    return runCartWrite("The group couldn't be added to the cart", (current) =>
+      client.eshop.cart.addCustomerGroup({ ...updateBody(current), customer_group: customerGroup }),
+    );
   }
 
-  async function removeDigitalProduct(
-    itemId: string,
-  ): Promise<StorefrontCart | null> {
-    const scope = await beginCartOperation();
-    const writeRevision = nextCartWriteRevision();
-    const current = cart.get();
-    if (!current) return null;
-    const response = await client.eshop.cart.removeItem({
-      id: current.id,
-      line_item: { type: "digital_product", line_item_id: itemId },
-    });
-    await applyCartResponse(response, { ifRevision: writeRevision, scope });
-    return response;
+  function removeItem(lineItemId: string): Promise<Cart> {
+    return runCartWrite("The item couldn't be removed from the cart", (current) =>
+      client.eshop.cart.removeItem({ ...updateBody(current), line_item_id: lineItemId }),
+    );
   }
 
-  async function addSubscriptionPlan(item: CartSubscriptionPlanInput): Promise<StorefrontCart> {
-    const scope = await beginCartOperation();
-    const writeRevision = nextCartWriteRevision();
-    const current = cart.get() || (await ensureCart());
-    scope.assertCurrent();
-    const response = await client.eshop.cart.addSubscriptionPlan({
-      id: current.id,
-      subscription_plan: sanitizePublicCartSubscriptionPlans([item])[0],
+  function setProductQuantity(lineItemId: string, quantity: number): Promise<Cart> {
+    return runCartWrite("The quantity couldn't be changed", (current) => {
+      if (!Number.isInteger(quantity) || quantity < 1) throw new Error("A cart quantity is a whole number of at least 1");
+      if (!current.line_items.some((line) => line.type === "product" && line.id === lineItemId)) {
+        throw new CartSelectionError("The cart has no such product line");
+      }
+      const lineItems = current.line_items.map((line) => {
+        const input = cartLineInput(line);
+        return input.type === "product" && input.id === lineItemId ? { ...input, quantity } : input;
+      });
+      const holders = current.delivery_groups.flatMap((group) =>
+        group.items.filter((item) => item.line_item.type === "product" && item.line_item.line_item_id === lineItemId),
+      );
+      const deliveryGroups =
+        holders.length === 1
+          ? current.delivery_groups.map((group) => ({
+              ...group,
+              items: group.items.map((item) =>
+                item.line_item.type === "product" && item.line_item.line_item_id === lineItemId ? { ...item, quantity } : item,
+              ),
+            }))
+          : undefined;
+      return client.eshop.cart.update({
+        ...updateBody(current),
+        line_items: lineItems,
+        ...(deliveryGroups ? { delivery_groups: deliveryGroups } : {}),
+      });
     });
-    await applyCartResponse(response, { ifRevision: writeRevision, scope });
-    return response;
+  }
+
+  function setDeliveryGroups(deliveryGroups: CartDeliveryGroup[]): Promise<Cart> {
+    return runCartWrite("The deliveries couldn't be saved", (current) =>
+      client.eshop.cart.update({ ...updateBody(current), delivery_groups: deliveryGroups }),
+    );
+  }
+
+  function setBillingAddress(address: PostalAddress | null): Promise<Cart> {
+    return runCartWrite("The billing address couldn't be saved", (current) =>
+      client.eshop.cart.update({ ...updateBody(current), billing_address: address }),
+    );
+  }
+
+  function setBuyer(buyer: CartBuyer): Promise<Cart> {
+    return runCartWrite("The buyer couldn't be changed", (current) =>
+      client.eshop.cart.update({ ...updateBody(current), buyer }),
+    );
+  }
+
+  function setPromotionCodes(codes: string[]): Promise<Cart> {
+    return runCartWrite("The promotion codes couldn't be saved", (current) =>
+      client.eshop.cart.update({ ...updateBody(current), promotion_codes: codes }),
+    );
+  }
+
+  function selectShippingMethod(shippingMethodId: string): Promise<Cart> {
+    return runCartWrite("The shipping method couldn't be selected", (current) =>
+      client.eshop.cart.selectShippingMethod({ ...updateBody(current), shipping_method_id: shippingMethodId }),
+    );
+  }
+
+  function setFutureDeliveries(customerGroups: CartCustomerGroupDeliveries[]): Promise<Cart> {
+    return runCartWrite("The group deliveries couldn't be saved", (current) =>
+      client.eshop.cart.setFutureDeliveries({ ...updateBody(current), customer_groups: customerGroups }),
+    );
   }
 
   async function quoteFutureDeliveries(
-    input: Pick<QuoteCartFutureDeliveriesParams, "plans">,
+    customerGroups: CustomerGroupDeliveryChoices[],
     options?: RequestOptions,
-  ): Promise<CartFutureDeliveryQuote> {
+  ): Promise<CustomerGroupDeliveryOffers[]> {
     const scope = await beginCartOperation();
-    const current = cart.get() || (await ensureCart());
+    const current = requireCart();
+    requireLocale();
+    const result = await client.eshop.cart.quoteFutureDeliveries({ id: current.id, customer_groups: customerGroups }, options);
     scope.assertCurrent();
-    const revision = cartWriteRevision;
-    const locale = currentLocale();
-    const response = await client.eshop.cart.quoteFutureDeliveries({ id: current.id, plans: input.plans }, options);
-    scope.assertCurrent();
-    if (revision !== cartWriteRevision || locale !== currentLocale() || response.cart.cart_id !== current.id) {
-      throw new CartSelectionError("Cart selections or language changed while reviewing future deliveries; review the current Cart");
-    }
-    return response;
+    return result;
   }
 
-  async function acceptFutureDeliveries(
-    input: Pick<AcceptCartFutureDeliveriesParams, "plans">,
-    options?: RequestOptions,
-  ): Promise<StorefrontCart> {
+  function clearCart(): Promise<Cart> {
+    return runCartWrite("The cart couldn't be cleared", (current) =>
+      client.eshop.cart.clear(updateBody(current)),
+    );
+  }
+
+  async function fetchQuote(options?: RequestOptions): Promise<CartQuote> {
     const scope = await beginCartOperation();
-    const writeRevision = nextCartWriteRevision();
-    const current = cart.get() || (await ensureCart());
-    scope.assertCurrent();
-    const response = await client.eshop.cart.acceptFutureDeliveries({ id: current.id, plans: input.plans }, options);
-    if (response.id !== current.id) throw new CartSelectionError("Future delivery acceptance returned a different Cart");
-    await applyCartResponse(response, { ifRevision: writeRevision, scope });
-    return response;
-  }
-
-  async function removeSubscriptionPlan(itemId: string): Promise<StorefrontCart | null> {
-    const scope = await beginCartOperation();
-    const writeRevision = nextCartWriteRevision();
-    const current = cart.get();
-    if (!current) return null;
-    const response = await client.eshop.cart.removeItem({
-      id: current.id,
-      line_item: { type: "subscription_plan", line_item_id: itemId },
-    });
-    await applyCartResponse(response, { ifRevision: writeRevision, scope });
-    return response;
-  }
-
-  async function removeBooking(itemId: string): Promise<StorefrontCart> {
-    const scope = await beginCartOperation();
-    const writeRevision = nextCartWriteRevision();
-    const next = booking_items.get().filter((item) => item.id !== itemId);
-    booking_items.set(next);
-    return syncCart({ booking_items: next }, writeRevision, scope);
-  }
-
-  async function clearCart(): Promise<StorefrontCart | null> {
-    const scope = await beginCartOperation();
-    const current = cart.get();
-    clearLocalCart();
-    const writeRevision = cartWriteRevision;
-    if (!current) return null;
-    const response = await client.eshop.cart.clear({ id: current.id });
-    await applyCartResponse(response, { ifRevision: writeRevision, scope });
-    return response;
-  }
-
-  function clearLocalCart(): void {
-    nextCartWriteRevision();
-    cartRequest = null;
-    cart_status.setKey("loading", false);
-    product_items.set([]);
-    booking_items.set([]);
-    digital_items.set([]);
-    subscription_plan_items.set([]);
-    cart.set(null);
-    quote.set(null);
-  }
-
-  async function fetchQuote(
-    input: ArkyCartInput = {},
-  ): Promise<StorefrontCheckoutQuote | null> {
-    const scope = await beginCartOperation();
-    const requestedLocale = currentLocale();
-    const quoteRevision = ++cartQuoteRevision;
-    if (
-      checkoutProducts(input).length === 0 &&
-      checkoutBookings(input).length === 0 &&
-      checkoutDigitalProducts(input).length === 0 &&
-      checkoutSubscriptionPlans(input).length === 0
-    ) {
-      quote.set(null);
-      cart_status.setKey("fetching_quote", false);
-      return null;
-    }
+    const current = requireCart();
+    const language = requireLocale();
+    const revision = cartRevision;
     cart_status.setKey("fetching_quote", true);
     cart_status.setKey("quote_error", null);
-    const revision = nextCartWriteRevision();
-    const isCurrent = () => scope.isCurrent() && revision === cartWriteRevision && quoteRevision === cartQuoteRevision && requestedLocale === currentLocale();
     try {
-      const current = await syncCart(input, revision, scope);
+      const value = await client.eshop.cart.quote({ id: current.id }, options);
       scope.assertCurrent();
-      if (!isCurrent()) throw new CartSelectionError("Cart selections or language changed before quoting; review the current Cart");
-      const response = await client.eshop.cart.quote({ id: current.id });
-      scope.assertCurrent();
-      if (!isCurrent()) throw new CartSelectionError("Cart selections or language changed while quoting; review the current Cart");
-      quote.set(response);
-      return response;
+      if (revision !== cartRevision || value.cart_id !== current.id || language !== locale.get()) {
+        throw new CartSelectionError("The cart or the language changed while quoting; quote the current cart");
+      }
+      quote.set(value);
+      return value;
     } catch (error) {
-      if (isCurrent()) {
+      if (scope.isCurrent()) {
         quote.set(null);
-        cart_status.setKey(
-          "quote_error",
-          readErrorMessage(error, "Failed to fetch quote."),
-        );
+        cart_status.setKey("quote_error", readErrorMessage(error, "The quote couldn't be loaded"));
       }
       throw error;
     } finally {
-      if (scope.isCurrent() && quoteRevision === cartQuoteRevision) cart_status.setKey("fetching_quote", false);
+      if (scope.isCurrent()) cart_status.setKey("fetching_quote", false);
     }
   }
 
-  function finalizeCheckout(
-    context: CheckoutContext,
-    response: StorefrontOrderCheckoutResult,
-  ): StorefrontOrderCheckoutResult {
-    nextCartWriteRevision();
-    const current = cart.get();
-    if (current?.id === context.request.id) {
-      cart.set(null);
+  function checkoutRequest(input: ArkyCartCheckoutInput): StorefrontCheckoutCartInput {
+    const current = requireCart();
+    const reviewed = quote.get();
+    if (!reviewed || reviewed.cart_id !== current.id) throw new CartSelectionError("Quote the cart before checkout");
+    if (!reviewed.ready) throw new CartSelectionError("The quote isn't ready: pick shipping and check bookings first");
+    return {
+      order_token: input.order_token,
+      order_id: input.order_id,
+      cart_id: current.id,
+      expected_updated_at: current.updated_at,
+      presentation_digest: reviewed.presentation_digest,
+      contact_email: input.contact_email,
+      payment: input.payment,
+    };
+  }
+
+  function finishCheckout(
+    request: StorefrontCheckoutCartInput,
+    result: CheckoutAcceptance,
+    clearAfter: boolean,
+  ): CheckoutAcceptance {
+    if (result.type === "placed") {
+      const reviewed = quote.get();
+      last_order.set({
+        order_id: result.order_id,
+        number: result.number,
+        cart_id: request.cart_id,
+        payment_id: result.payment_id,
+        payment_action: result.payment_action,
+        total: reviewed && reviewed.cart_id === request.cart_id ? reviewed.totals.total : null,
+        currency: reviewed && reviewed.cart_id === request.cart_id ? reviewed.currency : null,
+        created_at: epochMillisecondsNow(),
+      });
+    } else {
+      last_order.set(null);
     }
-    quote.set(null);
-    last_order.set({
-      order_id: response.order_id,
-      number: response.number,
-      payment_action: response.payment_action,
-      payment: response.payment,
-      product_items: context.product_items,
-      booking_items: context.booking_items,
-      digital_items: context.digital_items,
-      subscription_plan_items: context.subscription_plan_items,
-      shipping_address: context.shipping_address,
-      billing_address: context.billing_address,
-      total: response.payment?.amounts.total ?? 0,
-      currency: response.payment?.amounts.currency ?? null,
-      payment_option_id: context.payment_option_id,
-      created_at: context.created_at,
-    });
-
-    if (response.payment_action.type !== "none") return response;
-
-    if (response.payment === null) {
-      if (context.clear_after_checkout) clearLocalCart();
-      return response;
-    }
-
-    if (
-      context.clear_after_checkout &&
-      ["completed", "cancelled", "expired", "failed"].includes(
-        response.payment.status?.type,
-      )
-    ) {
+    if (clearAfter) {
+      client.eshop.cart.forget(cartParams);
       clearLocalCart();
     }
-    return response;
+    return result;
   }
 
-  async function runCheckout<T>(operation: (scope: CartViewScope) => Promise<T>): Promise<T> {
+  async function runCheckout<T>(operation: (scope: CartScope) => Promise<T>): Promise<T> {
     const scope = await beginCartOperation();
-    if (cart_status.get().processing_checkout)
-      throw new CartSelectionError("A Checkout request is already in progress");
+    if (cart_status.get().processing_checkout) throw new CartSelectionError("A checkout is already running");
     cart_status.setKey("processing_checkout", true);
     cart_status.setKey("error", null);
     try {
-      const response = await operation(scope);
+      const value = await operation(scope);
       scope.assertCurrent();
-      return response;
+      return value;
     } catch (error) {
-      if (scope.isCurrent()) cart_status.setKey("error", readErrorMessage(error, "Checkout failed."));
+      if (scope.isCurrent()) cart_status.setKey("error", readErrorMessage(error, "Checkout failed"));
       throw error;
     } finally {
       if (scope.isCurrent()) cart_status.setKey("processing_checkout", false);
     }
   }
 
-  function reviewedCheckoutContext(input: ArkyCartCheckoutInput): CheckoutContext {
-    if (Object.keys(input).some((key) => !["request_id", "payment_option_id", "return_url", "clear_after_checkout", "save_payment_method", "payment_method_terms_version"].includes(key)))
-      throw new Error("Update and review Cart selections before checkout");
-  const quoteValue = quote.get();
-  if (!quoteValue) throw new Error("Review a Cart quote before checkout");
-  const current = cart.get();
-  if (!current || current.status.type === "converted") throw new Error("Review an active Cart before checkout");
-  if (!quoteValue.sources) throw new Error("Review a saved Cart quote with its converted lines before checkout");
-  const paymentOptionId = input.payment_option_id ?? quoteValue.order.payment_option_id ?? undefined;
-  if (paymentOptionId !== undefined && !quoteValue.order.payment_option_ids.includes(paymentOptionId))
-    throw new Error("The selected payment provider is not available in the reviewed Cart quote");
-  if (!quoteValue.order.locale) throw new Error("Review a Cart quote with a presentation language before checkout");
-  const returnUrl =
-    input.return_url ||
-    (typeof window !== "undefined" ? window.location.href : undefined);
-
-  const context: CheckoutContext = {
-    request: {
-      id: current.id,
-      request_id: input.request_id,
-      locale: quoteValue.order.locale,
-      presentation_digest: quoteValue.presentation_digest,
-      sources: quoteValue.sources,
-      payment_option_id: paymentOptionId,
-      return_url: returnUrl,
-      save_payment_method: input.save_payment_method,
-      payment_method_terms_version: input.payment_method_terms_version,
-    },
-    product_items: product_items.get(),
-    booking_items: booking_items.get(),
-    digital_items: digital_items.get(),
-    subscription_plan_items: cartSubscriptionPlanItems(current),
-    shipping_address: null,
-    billing_address: current.billing_address,
-    payment_option_id: paymentOptionId || null,
-    clear_after_checkout: input.clear_after_checkout !== false,
-    created_at: epochMillisecondsNow(),
-  };
-    return context;
-  }
-
-  async function retainCheckout(input: ArkyCartCheckoutInput) {
-    return runCheckout(async (scope) => {
-      const context = reviewedCheckoutContext(input);
-      const request = await client.eshop.cart.retainCheckout(context.request);
-      scope.assertCurrent();
-      return request;
+  function checkout(input: ArkyCartCheckoutInput): Promise<CheckoutAcceptance> {
+    return runCheckout(async () => {
+      const request = checkoutRequest(input);
+      const result = await client.eshop.cart.checkout(request);
+      return finishCheckout(request, result, input.clear_after_checkout !== false);
     });
   }
 
-  async function checkout(input: ArkyCartCheckoutInput): Promise<StorefrontOrderCheckoutResult> {
-    return runCheckout(async (scope) => {
-      const context = reviewedCheckoutContext(input);
-      const response = await client.eshop.cart.checkout(context.request);
-      scope.assertCurrent();
-      return finalizeCheckout(context, response);
-    });
+  function retainCheckout(input: ArkyCartCheckoutInput): Promise<StorefrontCheckoutCartInput> {
+    return runCheckout(() => client.eshop.cart.retainCheckout(checkoutRequest(input)));
   }
 
-  async function recoverCheckout(): Promise<StorefrontOrderCheckoutResult | null> {
-    return runCheckout(async (scope) => {
+  function recoverCheckout(): Promise<CheckoutAcceptance | null> {
+    return runCheckout(async () => {
       const pending = await client.eshop.cart.pendingCheckout();
-      scope.assertCurrent();
       if (!pending) return null;
-      const response = await client.eshop.cart.recoverCheckout();
-      scope.assertCurrent();
-      if (!response) return null;
-      return finalizeCheckout({
-        request: pending,
-        product_items: [], booking_items: [], digital_items: [], subscription_plan_items: [],
-        shipping_address: null, billing_address: null,
-        payment_option_id: pending.payment_option_id ?? null,
-        clear_after_checkout: false,
-        created_at: epochMillisecondsNow(),
-      }, response);
+      const result = await client.eshop.cart.recoverCheckout();
+      return result ? finishCheckout(pending, result, true) : null;
     });
   }
 
   function bookingServiceCalendar(): ArkyCalendarDay[] {
-    const state = booking_service_state.get();
-    const { currentMonth, selectedDate, availability, selectedBookingResourceId } =
-      state;
+    const { currentMonth, selectedDate, availability, selectedBookingResourceId } = booking_service_state.get();
     const year = currentMonth.getFullYear();
     const monthIndex = currentMonth.getMonth();
     const first = new Date(year, monthIndex, 1);
     const last = new Date(year, monthIndex + 1, 0);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
+    const blank: ArkyCalendarDay = {
+      date: new Date(0),
+      iso: "",
+      available: false,
+      isSelected: false,
+      isInRange: false,
+      isToday: false,
+      blank: true,
+    };
     const cells: ArkyCalendarDay[] = [];
     const pad = (first.getDay() + 6) % 7;
-    for (let i = 0; i < pad; i++) {
-      cells.push({
-        date: new Date(0),
-        iso: "",
-        available: false,
-        isSelected: false,
-        isInRange: false,
-        isToday: false,
-        blank: true,
-      });
-    }
-
+    for (let index = 0; index < pad; index++) cells.push({ ...blank });
     for (let day = 1; day <= last.getDate(); day++) {
       const date = new Date(year, monthIndex, day);
       const iso = `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
       cells.push({
         date,
         iso,
-        available: hasAvailableSlotsForDate(
-          availability,
-          iso,
-          selectedBookingResourceId,
-        ),
+        available: hasAvailableSlotsForDate(availability, iso, selectedBookingResourceId),
         isSelected: iso === selectedDate,
         isInRange: false,
         isToday: date.getTime() === today.getTime(),
         blank: false,
       });
     }
-
     const suffix = (7 - (cells.length % 7)) % 7;
-    for (let i = 0; i < suffix; i++) {
-      cells.push({
-        date: new Date(0),
-        iso: "",
-        available: false,
-        isSelected: false,
-        isInRange: false,
-        isToday: false,
-        blank: true,
-      });
-    }
-
+    for (let index = 0; index < suffix; index++) cells.push({ ...blank });
     return cells;
   }
 
   function computeBookingServiceSlots(dateStr: string): ArkyBookingSlot[] {
-    const state = booking_service_state.get();
-    const {
-      availability,
-      selectedBookingResourceId,
-      timezone,
-      bookingService,
-      bookingOfferings,
-    } = state;
-    return getSlotsForDate(
-      availability,
-      dateStr,
-      selectedBookingResourceId,
-    ).flatMap((slot, index) => {
+    const { availability, selectedBookingResourceId, timezone, bookingService, bookingOfferings } =
+      booking_service_state.get();
+    const language = locale.get();
+    return getSlotsForDate(availability, dateStr, selectedBookingResourceId).flatMap((slot, index) => {
       const offering = bookingOfferings.find(
         (candidate) =>
-          candidate.booking_service_id === bookingService?.id &&
-          candidate.booking_resource_id === slot.bookingResourceId,
+          candidate.booking_service_id === bookingService?.id && candidate.booking_resource_id === slot.bookingResourceId,
       );
       if (!offering || !bookingService) return [];
       return [
@@ -1162,8 +616,8 @@ function initializeStoreCore(
           bookingOfferingId: offering.id,
           from: slot.from,
           to: slot.to,
-          timeText: formatServiceSlotTime(slot.from, slot.to, timezone),
-          dateText: epochMillisecondsToDate(slot.from).toLocaleDateString([], {
+          timeText: formatServiceSlotTime(slot.from, slot.to, timezone, language),
+          dateText: epochMillisecondsToDate(slot.from).toLocaleDateString(language, {
             weekday: "short",
             month: "short",
             day: "numeric",
@@ -1174,156 +628,83 @@ function initializeStoreCore(
     });
   }
 
-  function toBookingCartItem(
-    slot: ArkyBookingSlot,
-    formSubmissionId?: string | null,
-  ): ArkyBookingCartItem {
-    if (
-      !slot.bookingOfferingId ||
-      !Number.isSafeInteger(slot.from) ||
-      !Number.isSafeInteger(slot.to) ||
-      slot.from >= slot.to
-    ) {
-      throw new Error("A booking contains an invalid appointment interval");
-    }
-    return {
-      id: createId("booking"),
-      booking_offering_id: slot.bookingOfferingId,
-      requested_interval: { from: slot.from, to: slot.to },
-      capacity_units: 1,
-      ...(formSubmissionId
-        ? { form_submission_id: formSubmissionId }
-        : {}),
-      booking_service_id: slot.bookingServiceId,
-      booking_resource_id: slot.bookingResourceId,
-      booking_service_name: slot.bookingServiceName,
-      date_text: slot.dateText,
-      time_text: slot.timeText,
-    };
+  function resolveBookingOffering(
+    state: ArkyBookingServiceState,
+    bookingResourceId?: string | null,
+  ): StorefrontBookingOffering | null {
+    const serviceId = state.bookingService?.id;
+    if (!serviceId) return null;
+    const offerings = state.bookingOfferings.filter((offering) => offering.booking_service_id === serviceId);
+    const resourceId = bookingResourceId ?? state.selectedSlot?.bookingResourceId ?? state.selectedBookingResourceId;
+    if (resourceId) return offerings.find((offering) => offering.booking_resource_id === resourceId) || null;
+    return offerings.length === 1 ? offerings[0] : null;
   }
 
-  async function syncBookingCart(
-    items: ArkyBookingCartItem[],
-  ): Promise<StorefrontCart> {
-    try {
-      return await syncCart({
-        product_items: product_items.get(),
-        booking_items: items,
-      });
-    } catch (error) {
-      booking_service_state.setKey(
-        "quoteError",
-        readErrorMessage(error, "Failed to sync booking cart."),
-      );
-      throw error;
-    }
-  }
-
-  function bookingServiceCurrentStepName(): string {
+  function bookingStepName(): string {
     const state = booking_service_state.get();
     if (!state.bookingService) return "";
     if (!state.selectedSlot || !state.dateTimeConfirmed) return "datetime";
     return "review";
   }
 
-  const booking_service_current_step_name = computed(
-    booking_service_state,
-    bookingServiceCurrentStepName,
-  );
+  const booking_service_current_step_name = computed(booking_service_state, bookingStepName);
   const booking_service_can_proceed = computed(booking_service_state, (state) => {
-    const step = bookingServiceCurrentStepName();
-    if (step === "datetime") {
-      return !!(state.selectedDate && state.selectedSlot);
-    }
-    if (step === "review") return true;
-    return false;
+    const step = bookingStepName();
+    if (step === "datetime") return !!(state.selectedDate && state.selectedSlot);
+    return step === "review";
   });
-  const booking_service_month_year = computed(booking_service_state, (state) =>
-    state.currentMonth.toLocaleString(undefined, {
-      month: "long",
-      year: "numeric",
-    }),
+  const booking_service_month_year = computed([booking_service_state, locale], (state, language) =>
+    state.currentMonth.toLocaleString(language || undefined, { month: "long", year: "numeric" }),
   );
-  const booking_chain_start = computed(booking_items, (items) => {
-    if (!items.length) return null;
-    return epochMilliseconds(
-      Math.max(...items.map((item) => item.requested_interval.to)),
-    );
-  });
-  const booking_service_total_steps = computed(booking_service_state, (state) =>
-    state.bookingService ? 2 : 0,
+  const booking_chain_start = computed(booking_items, (items) =>
+    items.length ? epochMilliseconds(Math.max(...items.map((item) => item.requested_interval.to))) : null,
   );
-  const booking_service_steps = computed(booking_service_state, () => ({
-    1: { name: "datetime" },
-    2: { name: "review" },
-  }));
+  const booking_service_total_steps = computed(booking_service_state, (state) => (state.bookingService ? 2 : 0));
+  const booking_service_steps = computed(booking_service_state, () => ({ 1: { name: "datetime" }, 2: { name: "review" } }));
   const booking_service_current_step = computed(
     [booking_service_current_step_name, booking_service_steps],
     (name, steps) => {
-      for (const [idx, step] of Object.entries(steps)) {
-        if (step.name === name) return Number(idx);
-      }
+      for (const [index, step] of Object.entries(steps)) if (step.name === name) return Number(index);
       return 1;
     },
   );
 
-  function formatBookingDateDisplay(value: string | null): string {
-    if (!value) return "";
-    return new Date(value).toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-    });
-  }
-
-  function resolveBookingOffering(
-    state: ArkyBookingServiceState,
-    bookingResourceId?: string | null,
-  ): StorefrontBookingOffering | null {
-    const bookingServiceId = state.bookingService?.id;
-    if (!bookingServiceId) return null;
-    const relationships = state.bookingOfferings.filter(
-      (relationship) => relationship.booking_service_id === bookingServiceId,
-    );
-    const targetBookingResourceId =
-      bookingResourceId ??
-      state.selectedSlot?.bookingResourceId ??
-      state.selectedBookingResourceId;
-    if (targetBookingResourceId) {
-      return (
-        relationships.find(
-          (relationship) =>
-            relationship.booking_resource_id === targetBookingResourceId,
-        ) || null
-      );
-    }
-    return relationships.length === 1 ? relationships[0] : null;
-  }
-
-  let bookingServiceSelectionRevision = 0;
+  let bookingSelectionRevision = 0;
   let bookingAvailabilityRevision = 0;
   let bookingAvailabilityReadRevision = 0;
   let bookingCatalogOptions: CatalogReadOptions = {};
+
+  async function loadBookingAvailability(params: GetStorefrontAvailabilityParams, options?: RequestOptions) {
+    const revision = ++bookingAvailabilityReadRevision;
+    eshop_state.setKey("loading_availability", true);
+    eshop_state.setKey("error", null);
+    try {
+      const response = await client.eshop.bookingService.getAvailability(params, options);
+      if (response.from !== params.from || response.to !== params.to) throw new Error("Availability came back for another time range");
+      if (params.cursor && response.cursor === params.cursor) throw new Error("Availability paging didn't advance");
+      if (revision === bookingAvailabilityReadRevision) eshop_state.setKey("availability", response);
+      return response;
+    } catch (error) {
+      if (revision === bookingAvailabilityReadRevision) {
+        eshop_state.setKey("error", readErrorMessage(error, "Availability couldn't be loaded"));
+      }
+      throw error;
+    } finally {
+      if (revision === bookingAvailabilityReadRevision) eshop_state.setKey("loading_availability", false);
+    }
+  }
+
   const booking_service_controller = {
-    async initialize(): Promise<void> {
-      booking_service_state.setKey(
-        "tzGroups",
-        normalizeTimezoneGroups(client.utils.tzGroups),
-      );
-      await ensureCart();
-      const providerIds = market.get()?.payment_option_ids || [];
-      if (providerIds.length)
-        booking_service_state.setKey("availablePaymentOptionIds", providerIds);
+    initialize(): void {
+      booking_service_state.setKey("tzGroups", normalizeTimezoneGroups(client.utils.tzGroups));
     },
 
-    setTimezone(tz: string): void {
-      booking_service_state.setKey("timezone", tz);
+    setTimezone(timezone: string): void {
+      booking_service_state.setKey("timezone", timezone);
       booking_service_state.setKey("calendar", bookingServiceCalendar());
       const state = booking_service_state.get();
       if (state.selectedDate) {
-        booking_service_state.setKey(
-          "slots",
-          computeBookingServiceSlots(state.selectedDate),
-        );
+        booking_service_state.setKey("slots", computeBookingServiceSlots(state.selectedDate));
         booking_service_state.setKey("selectedSlot", null);
         booking_service_state.setKey("quote", null);
         booking_service_state.setKey("quoteError", null);
@@ -1331,12 +712,12 @@ function initializeStoreCore(
     },
 
     async select(bookingService: StorefrontBookingService, catalogOptions: CatalogReadOptions = {}): Promise<void> {
-      const selectionRevision = ++bookingServiceSelectionRevision;
+      const selectionRevision = ++bookingSelectionRevision;
       bookingAvailabilityRevision += 1;
       bookingAvailabilityReadRevision += 1;
       eshop_state.setKey("loading_availability", false);
       eshop_state.setKey("availability", null);
-      bookingCatalogOptions = { catalog_id: catalogOptions.catalog_id, company_id: catalogOptions.company_id, company_location_id: catalogOptions.company_location_id, include_price: true };
+      bookingCatalogOptions = { ...catalogOptions, include_price: true };
       booking_service_state.set({
         ...booking_service_state.get(),
         bookingService: null,
@@ -1355,47 +736,27 @@ function initializeStoreCore(
         loading: true,
       });
       try {
-        const [fullBookingService, offeringPage] =
-          await Promise.all([
-            client.eshop.bookingService.get({ id: bookingService.id, ...bookingCatalogOptions }),
-            client.eshop.bookingOffering.find({
-              ...bookingCatalogOptions,
-              booking_service_id: bookingService.id,
-              include_price: true,
-              limit: 200,
-            }),
-          ]);
+        const [fullService, offeringPage] = await Promise.all([
+          client.eshop.bookingService.get({ ...bookingCatalogOptions, id: bookingService.id }),
+          client.eshop.bookingOffering.find({ ...bookingCatalogOptions, booking_service_id: bookingService.id, limit: 200 }),
+        ]);
         const ids = [...new Set(offeringPage.items.map((offering) => offering.booking_resource_id))];
-        const bookingResourcePage = ids.length ? await client.eshop.bookingResource.find({
-          ids, limit: 200,
-        }) : { items: [], cursor: null };
-        if (bookingResourcePage.cursor) throw new Error("Resource lookup exceeded its exact ID bound");
-        if (selectionRevision !== bookingServiceSelectionRevision) return;
-
+        const resources = ids.length
+          ? await client.eshop.bookingResource.find({ ids, limit: 200 })
+          : { items: [], cursor: null };
+        if (selectionRevision !== bookingSelectionRevision) return;
         booking_service_state.set({
           ...booking_service_state.get(),
-          bookingService: fullBookingService,
+          bookingService: fullService,
           bookingOfferings: offeringPage.items,
           bookingOfferingsCursor: offeringPage.cursor,
-          bookingResources: bookingResourcePage.items,
-          selectedBookingResourceId: null,
-          availability: null,
-          selectedDate: null,
-          slots: [],
-          selectedSlot: null,
-          currentMonth: new Date(
-            new Date().getFullYear(),
-            new Date().getMonth(),
-            1,
-          ),
+          bookingResources: resources.items,
+          currentMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
           loading: false,
-          dateTimeConfirmed: false,
-          quote: null,
-          quoteError: null,
         });
         await booking_service_controller.loadMonth();
       } catch (error) {
-        if (selectionRevision === bookingServiceSelectionRevision) booking_service_state.setKey("loading", false);
+        if (selectionRevision === bookingSelectionRevision) booking_service_state.setKey("loading", false);
         throw error;
       }
     },
@@ -1405,28 +766,32 @@ function initializeStoreCore(
       if (!state.bookingService || !state.bookingOfferingsCursor || state.loadingOfferings) return;
       const serviceId = state.bookingService.id;
       const cursor = state.bookingOfferingsCursor;
-      const selectionRevision = bookingServiceSelectionRevision;
+      const selectionRevision = bookingSelectionRevision;
       booking_service_state.setKey("loadingOfferings", true);
       try {
         const page = await client.eshop.bookingOffering.find({
           ...bookingCatalogOptions,
-          booking_service_id: serviceId, cursor, limit: 200, include_price: true,
+          booking_service_id: serviceId,
+          cursor,
+          limit: 200,
         });
-        if (page.cursor === cursor) throw new Error("Offering pagination did not advance");
+        if (page.cursor === cursor) throw new Error("Offering paging didn't advance");
         const ids = [...new Set(page.items.map((offering) => offering.booking_resource_id))];
         const resources = ids.length ? await client.eshop.bookingResource.find({ ids, limit: 200 }) : { items: [], cursor: null };
-        if (resources.cursor) throw new Error("Resource lookup exceeded its exact ID bound");
         const current = booking_service_state.get();
-        if (selectionRevision !== bookingServiceSelectionRevision || current.bookingService?.id !== serviceId || current.bookingOfferingsCursor !== cursor) return;
-        booking_service_state.set({ ...current,
+        if (selectionRevision !== bookingSelectionRevision || current.bookingService?.id !== serviceId) return;
+        booking_service_state.set({
+          ...current,
           bookingOfferings: [...new Map([...current.bookingOfferings, ...page.items].map((offering) => [offering.id, offering])).values()],
-          bookingResources: [...new Map([...current.bookingResources, ...resources.items].map((resource) => [resource.id, resource])).values()],
+          bookingResources: [
+            ...new Map([...current.bookingResources, ...resources.items].map((resource) => [resource.id, resource])).values(),
+          ],
           bookingOfferingsCursor: page.cursor,
         });
         booking_service_state.setKey("calendar", bookingServiceCalendar());
         if (current.selectedDate) booking_service_state.setKey("slots", computeBookingServiceSlots(current.selectedDate));
       } finally {
-        if (selectionRevision === bookingServiceSelectionRevision) booking_service_state.setKey("loadingOfferings", false);
+        if (selectionRevision === bookingSelectionRevision) booking_service_state.setKey("loadingOfferings", false);
       }
     },
 
@@ -1440,7 +805,7 @@ function initializeStoreCore(
       const state = booking_service_state.get();
       if (!state.bookingService) return;
       const requestRevision = ++bookingAvailabilityRevision;
-      const selectionRevision = bookingServiceSelectionRevision;
+      const selectionRevision = bookingSelectionRevision;
       booking_service_state.setKey("loading", true);
       if (!cursor) booking_service_state.setKey("availability", null);
       try {
@@ -1455,67 +820,62 @@ function initializeStoreCore(
           to = epochMilliseconds(chainedStart + 31 * 24 * 60 * 60 * 1_000);
         } else {
           const month = state.currentMonth;
-          from = epochMilliseconds(
-            Date.UTC(month.getFullYear(), month.getMonth(), 1),
-          );
-          to = epochMilliseconds(
-            Date.UTC(month.getFullYear(), month.getMonth() + 1, 1),
-          );
+          from = epochMilliseconds(Date.UTC(month.getFullYear(), month.getMonth(), 1));
+          to = epochMilliseconds(Date.UTC(month.getFullYear(), month.getMonth() + 1, 1));
         }
+        const { include_price: _includePrice, ...catalog } = bookingCatalogOptions;
         const availability = await loadBookingAvailability({
-          catalog_id: bookingCatalogOptions.catalog_id,
-          company_id: bookingCatalogOptions.company_id,
-          company_location_id: bookingCatalogOptions.company_location_id,
+          ...catalog,
           booking_service_id: state.bookingService.id,
           from,
           to,
           limit: 20,
           ...(cursor ? { cursor } : {}),
-          ...(state.selectedBookingResourceId
-            ? { booking_resource_id: state.selectedBookingResourceId }
-            : {}),
+          ...(state.selectedBookingResourceId ? { booking_resource_id: state.selectedBookingResourceId } : {}),
         });
-        if (selectionRevision !== bookingServiceSelectionRevision || requestRevision !== bookingAvailabilityRevision) return;
-        if (cursor && availability.cursor === cursor) throw new Error("Availability pagination did not advance");
-        booking_service_state.setKey("availability", cursor && state.availability ? {
-          ...availability,
-          booking_resources: [...new Map([...state.availability.booking_resources, ...availability.booking_resources].map((resource) => [resource.booking_resource_id, resource])).values()],
-        } : availability);
+        if (selectionRevision !== bookingSelectionRevision || requestRevision !== bookingAvailabilityRevision) return;
+        booking_service_state.setKey(
+          "availability",
+          cursor && state.availability
+            ? {
+                ...availability,
+                booking_resources: [
+                  ...new Map(
+                    [...state.availability.booking_resources, ...availability.booking_resources].map((resource) => [
+                      resource.booking_resource_id,
+                      resource,
+                    ]),
+                  ).values(),
+                ],
+              }
+            : availability,
+        );
         booking_service_state.setKey("calendar", bookingServiceCalendar());
         const selectedDate = booking_service_state.get().selectedDate;
         if (selectedDate) booking_service_state.setKey("slots", computeBookingServiceSlots(selectedDate));
       } finally {
-        if (selectionRevision === bookingServiceSelectionRevision && requestRevision === bookingAvailabilityRevision) booking_service_state.setKey("loading", false);
+        if (selectionRevision === bookingSelectionRevision && requestRevision === bookingAvailabilityRevision) {
+          booking_service_state.setKey("loading", false);
+        }
       }
     },
 
     prevMonth(): void {
       const { currentMonth } = booking_service_state.get();
-      booking_service_state.setKey(
-        "currentMonth",
-        new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1),
-      );
+      booking_service_state.setKey("currentMonth", new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
       void booking_service_controller.loadMonth();
     },
 
     nextMonth(): void {
       const { currentMonth } = booking_service_state.get();
-      booking_service_state.setKey(
-        "currentMonth",
-        new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1),
-      );
+      booking_service_state.setKey("currentMonth", new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
       void booking_service_controller.loadMonth();
     },
 
     selectBookingResource(bookingResourceId: string | null): void {
       const state = booking_service_state.get();
-      if (
-        bookingResourceId &&
-        !resolveBookingOffering(state, bookingResourceId)
-      ) {
-        throw new Error(
-          `Booking resource ${bookingResourceId} has no active offering for the selected booking service`,
-        );
+      if (bookingResourceId && !resolveBookingOffering(state, bookingResourceId)) {
+        throw new Error(`Booking resource ${bookingResourceId} has no offering for the selected booking service`);
       }
       booking_service_state.set({
         ...state,
@@ -1532,9 +892,8 @@ function initializeStoreCore(
 
     selectDate(cell: ArkyCalendarDay): void {
       if (cell.blank || !cell.available) return;
-      const state = booking_service_state.get();
       booking_service_state.set({
-        ...state,
+        ...booking_service_state.get(),
         selectedDate: cell.iso,
         slots: computeBookingServiceSlots(cell.iso),
         selectedSlot: null,
@@ -1549,35 +908,17 @@ function initializeStoreCore(
       const state = booking_service_state.get();
       if (slot) {
         if (!state.bookingService || slot.bookingServiceId !== state.bookingService.id) {
-          throw new Error(
-            "The selected slot does not belong to the selected booking service",
-          );
+          throw new Error("The slot doesn't belong to the selected booking service");
         }
-        if (
-          state.selectedBookingResourceId &&
-          slot.bookingResourceId !== state.selectedBookingResourceId
-        ) {
-          throw new Error(
-            "The selected slot does not belong to the selected booking resource",
-          );
+        if (state.selectedBookingResourceId && slot.bookingResourceId !== state.selectedBookingResourceId) {
+          throw new Error("The slot doesn't belong to the selected booking resource");
         }
-        const offering = resolveBookingOffering(
-          state,
-          slot.bookingResourceId,
-        );
+        const offering = resolveBookingOffering(state, slot.bookingResourceId);
         if (!offering || offering.id !== slot.bookingOfferingId) {
-          throw new Error(
-            `Booking resource ${slot.bookingResourceId} has no matching active offering`,
-          );
+          throw new Error(`Booking resource ${slot.bookingResourceId} has no matching offering`);
         }
       }
-      booking_service_state.set({
-        ...state,
-        selectedSlot: slot,
-        dateTimeConfirmed: false,
-        quote: null,
-        quoteError: null,
-      });
+      booking_service_state.set({ ...state, selectedSlot: slot, dateTimeConfirmed: false, quote: null, quoteError: null });
     },
 
     resetDateSelection(): void {
@@ -1605,49 +946,26 @@ function initializeStoreCore(
       }
     },
 
-    async addToCart(
-      explicitSlots?: ArkyBookingSlot[],
-      formSubmissionId?: string | null,
-    ): Promise<void> {
+    async addToCart(items: ArkyBookingCartItem[]): Promise<Cart | null> {
       const state = booking_service_state.get();
-      const slots =
-        explicitSlots || (state.selectedSlot ? [state.selectedSlot] : []);
-      if (slots.length === 0) return;
-      if (
-        !state.bookingService ||
-        slots.some(
-          (slot) => slot.bookingServiceId !== state.bookingService?.id,
-        )
-      ) {
-        throw new Error(
-          "The booking slots do not belong to the selected booking service",
-        );
+      if (!items.length) return cart.get();
+      if (!state.bookingService || items.some((item) => item.slot.bookingServiceId !== state.bookingService?.id)) {
+        throw new Error("The slots don't belong to the selected booking service");
       }
-      const displayName = bookingServiceName(state.bookingService, currentLocale());
-      const nextBookingItems = slots.map((slot) => {
-        const offering = resolveBookingOffering(
-          state,
-          slot.bookingResourceId,
-        );
-        if (!offering || offering.id !== slot.bookingOfferingId) {
-          throw new Error(
-            `Booking resource ${slot.bookingResourceId} has no matching active offering`,
-          );
+      let result: Cart | null = cart.get();
+      for (const item of items) {
+        const offering = resolveBookingOffering(state, item.slot.bookingResourceId);
+        if (!offering || offering.id !== item.slot.bookingOfferingId) {
+          throw new Error(`Booking resource ${item.slot.bookingResourceId} has no matching offering`);
         }
-        return toBookingCartItem(
-          {
-            ...slot,
-            bookingServiceName: displayName,
-            date: slot.dateText,
-          },
-          formSubmissionId,
-        );
-      });
-      const nextItems = [
-        ...booking_items.get(),
-        ...nextBookingItems,
-      ];
-      await syncBookingCart(nextItems);
+        result = await addBooking({
+          id: item.id,
+          booking_offering_id: item.slot.bookingOfferingId,
+          requested_interval: { from: item.slot.from, to: item.slot.to },
+          capacity_units: item.capacity_units ?? 1,
+          form_submission_id: item.form_submission_id ?? null,
+        });
+      }
       booking_service_state.set({
         ...booking_service_state.get(),
         selectedDate: null,
@@ -1656,70 +974,41 @@ function initializeStoreCore(
         dateTimeConfirmed: false,
         quote: null,
         quoteError: null,
+        cartId: result?.id ?? null,
       });
       booking_service_state.setKey("calendar", bookingServiceCalendar());
+      return result;
     },
 
-    async removeFromCart(bookingId: string): Promise<void> {
-      await syncBookingCart(
-        booking_items.get().filter((item) => item.id !== bookingId),
-      );
+    removeFromCart(lineItemId: string): Promise<Cart> {
+      return removeItem(lineItemId);
     },
 
-    async clearCart(): Promise<void> {
-      await syncBookingCart([]);
-    },
-
-    async checkout(
-      requestId: string,
-      paymentOptionId?: string,
-    ): Promise<StorefrontOrderCheckoutResult> {
-      const state = booking_service_state.get();
-      const items = booking_items.get();
-      if (!items.length) throw new Error("Cart is empty");
-      booking_service_state.setKey("loading", true);
-      try {
-        const result = await checkout({
-          request_id: requestId,
-          payment_option_id: paymentOptionId,
-        });
-        booking_service_state.setKey("cartId", cart.get()?.id || null);
-        return result;
-      } finally {
-        booking_service_state.setKey("loading", false);
-      }
-    },
-
-    async fetchQuote(
-      promotionCodes?: string[] | null,
-    ): Promise<StorefrontCheckoutQuote | null> {
-      const items = booking_items.get();
-      if (!items.length) return null;
+    async fetchQuote(): Promise<CartQuote | null> {
+      if (!cart.get() || booking_items.get().length === 0) return null;
       booking_service_state.setKey("fetchingQuote", true);
       booking_service_state.setKey("quoteError", null);
       try {
-        booking_service_state.setKey("promotionCodes", promotionCodes ?? []);
-        const response = await fetchQuote({
-          booking_items: items,
-          promotion_codes: promotionCodes ?? undefined,
-        });
-        booking_service_state.setKey("cartId", cart.get()?.id || null);
-        booking_service_state.setKey("quote", response);
-        const providerIds =
-          response?.order.payment_option_ids ||
-          market.get()?.payment_option_ids ||
-          [];
-        if (providerIds.length)
-          booking_service_state.setKey("availablePaymentOptionIds", providerIds);
-        return response;
+        const value = await fetchQuote();
+        booking_service_state.setKey("cartId", value.cart_id);
+        booking_service_state.setKey("quote", value);
+        booking_service_state.setKey("availablePaymentOptionIds", value.payment_option_ids);
+        return value;
       } catch (error) {
-        booking_service_state.setKey(
-          "quoteError",
-          readErrorMessage(error, "Failed to fetch quote."),
-        );
+        booking_service_state.setKey("quoteError", readErrorMessage(error, "The quote couldn't be loaded"));
         return null;
       } finally {
         booking_service_state.setKey("fetchingQuote", false);
+      }
+    },
+
+    async checkout(input: ArkyCartCheckoutInput): Promise<CheckoutAcceptance> {
+      if (!booking_items.get().length) throw new Error("The cart has no bookings");
+      booking_service_state.setKey("loading", true);
+      try {
+        return await checkout(input);
+      } finally {
+        booking_service_state.setKey("loading", false);
       }
     },
 
@@ -1728,7 +1017,7 @@ function initializeStoreCore(
     },
 
     prevStep(): void {
-      const current = bookingServiceCurrentStepName();
+      const current = bookingStepName();
       if (current === "review") {
         booking_service_state.setKey("dateTimeConfirmed", false);
         return;
@@ -1742,164 +1031,114 @@ function initializeStoreCore(
     },
 
     nextStep(): void {
-      if (
-        bookingServiceCurrentStepName() === "datetime" &&
-        booking_service_can_proceed.get()
-      ) {
+      if (bookingStepName() === "datetime" && booking_service_can_proceed.get()) {
         booking_service_state.setKey("dateTimeConfirmed", true);
       }
     },
 
     getBookingServicePrice(): string {
-      const state = booking_service_state.get();
-      const offering = resolveBookingOffering(state);
-      if (!offering) return "";
+      const offering = resolveBookingOffering(booking_service_state.get());
+      const language = locale.get();
+      if (!offering || !language) return "";
       try {
-        return client.utils.formatPrice(offering.price);
+        return client.utils.formatPrice(offering.price, language);
       } catch {
         return "";
       }
     },
 
-    formatDateDisplay: formatBookingDateDisplay,
-    bookingItemsFromSlots(
-      slots: ArkyBookingSlot[],
-      formSubmissionId?: string | null,
-    ): ArkyBookingCartItem[] {
-      return slots.map((slot) =>
-        toBookingCartItem(slot, formSubmissionId),
-      );
+    formatDateDisplay(value: string | null): string {
+      if (!value) return "";
+      return new Date(`${value}T00:00:00Z`).toLocaleDateString(locale.get() || undefined, {
+        month: "short",
+        day: "numeric",
+        timeZone: "UTC",
+      });
+    },
+
+    bookingServiceName(service: StorefrontBookingService): string {
+      return bookingServiceName(service, requireLocale());
     },
   };
 
-  async function loadEntry(
-    params: ArkyContentEntryParams,
-    options?: RequestOptions,
-  ): Promise<StorefrontCollectionEntry> {
+  async function loadEntry(params: ArkyContentEntryParams, options?: RequestOptions): Promise<Entry> {
     content_state.setKey("loading", true);
     content_state.setKey("error", null);
     try {
-      const { locale: nextLocale, market: nextMarket, ...entryParams } = params;
-      setContext({ locale: nextLocale, market: nextMarket });
-
-      if (entryParams.id) {
-        const entry = await client.content.entry.get(
-          entryParams as GetEntryParams,
-          options,
-        );
-        const cacheKey = entryParams.key || entryParams.id || entry.id;
-        content_state.setKey("entries", {
-          ...content_state.get().entries,
-          [cacheKey]: entry,
-        });
-        return entry;
+      let entry: Entry;
+      let cacheKey: string;
+      if ("id" in params) {
+        entry = await client.content.entry.get({ id: params.id }, options);
+        cacheKey = params.id;
+      } else if ("slug" in params) {
+        const language = requireLocale();
+        const found = await client.content.entry.findBySlug({ collection_id: params.collection_id, slug: params.slug }, options);
+        if (!found) throw new Error("The entry wasn't found");
+        entry = found;
+        cacheKey = `${params.collection_id}:${language}:${params.slug}`;
+      } else {
+        const page = await client.content.entry.find({ collection_id: params.collection_id, key: params.key, limit: 1 }, options);
+        const found = page.items[0];
+        if (!found) throw new Error("The entry wasn't found");
+        entry = found;
+        cacheKey = `${params.collection_id}:${params.key}`;
       }
-
-      if (!entryParams.collection_id || !entryParams.key) {
-        throw new Error(
-          "ArkyContentEntryParams requires id, or collection_id and key",
-        );
-      }
-
-      const result = await client.content.entry.find(
-        {
-          ...entryParams,
-          collection_id: entryParams.collection_id,
-          key: entryParams.key,
-          limit: 1,
-        } as GetEntriesParams,
-        options,
-      );
-      const entry = result.items?.[0];
-      if (!entry) {
-        throw new Error("Content entry not found");
-      }
-      content_state.setKey("entries", {
-        ...content_state.get().entries,
-        [entryParams.key]: entry,
-      });
+      content_state.setKey("entries", { ...content_state.get().entries, [cacheKey]: entry });
       return entry;
     } catch (error) {
-      content_state.setKey(
-        "error",
-        readErrorMessage(error, "Failed to load Content entry."),
-      );
+      content_state.setKey("error", readErrorMessage(error, "The entry couldn't be loaded"));
       throw error;
     } finally {
       content_state.setKey("loading", false);
     }
   }
 
-  function formCacheKey(params: StorefrontParams<GetFormParams>): string {
-    const identifier = params.id
-      ? `id:${params.id}`
-      : params.key
-        ? `key:${params.key}`
-        : "missing";
-    return identifier;
-  }
-
-  async function loadForm(
-    params: StorefrontParams<GetFormParams>,
-    options?: RequestOptions,
-  ): Promise<StorefrontForm> {
+  async function loadForm(params: GetStorefrontFormParams, options?: RequestOptions): Promise<Form> {
     forms_state.setKey("loading", true);
     forms_state.setKey("error", null);
     try {
       const form = await client.forms.get(params, options);
-      const forms = { ...forms_state.get().forms };
-      forms[formCacheKey({ id: form.id })] = form;
-      forms[formCacheKey({ key: form.key })] = form;
-      forms_state.setKey("forms", forms);
+      forms_state.setKey("forms", { ...forms_state.get().forms, [`id:${form.id}`]: form, [`key:${form.key}`]: form });
       return form;
     } catch (error) {
-      forms_state.setKey(
-        "error",
-        readErrorMessage(error, "Failed to load Form."),
-      );
+      forms_state.setKey("error", readErrorMessage(error, "The form couldn't be loaded"));
       throw error;
     } finally {
       forms_state.setKey("loading", false);
     }
   }
 
-  async function submitForm(
-    params: StorefrontParams<SubmitFormParams>,
-    options?: RequestOptions,
-  ): Promise<StorefrontFormSubmission> {
+  function submitForm(params: SubmitFormParams, options?: RequestOptions): Promise<StorefrontFormSubmission> {
     return client.forms.submit(params, options);
   }
 
-  async function submitFormByKey(
-    params: ArkySubmitFormByKeyParams,
-    options?: RequestOptions,
-  ): Promise<StorefrontFormSubmission> {
-    const form = params.presentation;
-    if (!form) throw new Error("Pass the displayed Form presentation before submitting its values");
-    if (form.key !== params.key) {
-      throw new Error("Form presentation key differs from the requested Form");
-    }
-    const entry = createFormEntryFromValues(form, params.values);
-    return submitForm({ id: params.id, form_id: form.id, fields: entry.fields,
-      locale: form.locale, presentation_digest: form.presentation_digest }, options);
+  function submitFormByKey(params: ArkySubmitFormByKeyParams, options?: RequestOptions): Promise<StorefrontFormSubmission> {
+    if (params.form.key !== params.key) throw new Error("The form shown isn't the form named by the key");
+    return submitForm(
+      {
+        form_id: params.form.id,
+        form_updated_at: params.form.updated_at,
+        id: params.id,
+        language: params.language,
+        answers: buildFormAnswers(params.form, params.values),
+      },
+      options,
+    );
   }
 
   async function loadProducts(
-    params: StorefrontParams<Omit<GetProductsParams, "status">> & CatalogReadOptions = {},
+    params: FindStorefrontProductsParams = {},
     options?: RequestOptions,
-  ): Promise<StorefrontPage<StorefrontProduct>> {
+  ): Promise<PaginatedResponse<StorefrontProduct>> {
     eshop_state.setKey("loading_products", true);
     eshop_state.setKey("error", null);
     try {
       const response = await client.eshop.product.find(params, options);
-      eshop_state.setKey("products", response.items || []);
-      eshop_state.setKey("product_cursor", response.cursor || null);
+      eshop_state.setKey("products", response.items);
+      eshop_state.setKey("product_cursor", response.cursor);
       return response;
     } catch (error) {
-      eshop_state.setKey(
-        "error",
-        readErrorMessage(error, "Failed to load products."),
-      );
+      eshop_state.setKey("error", readErrorMessage(error, "Products couldn't be loaded"));
       throw error;
     } finally {
       eshop_state.setKey("loading_products", false);
@@ -1914,14 +1153,11 @@ function initializeStoreCore(
     eshop_state.setKey("error", null);
     try {
       const response = await client.eshop.bookingService.find(params, options);
-      eshop_state.setKey("bookingServices", response.items || []);
-      eshop_state.setKey("booking_service_cursor", response.cursor || null);
+      eshop_state.setKey("bookingServices", response.items);
+      eshop_state.setKey("booking_service_cursor", response.cursor);
       return response;
     } catch (error) {
-      eshop_state.setKey(
-        "error",
-        readErrorMessage(error, "Failed to load booking services."),
-      );
+      eshop_state.setKey("error", readErrorMessage(error, "Booking services couldn't be loaded"));
       throw error;
     } finally {
       eshop_state.setKey("loading_booking_services", false);
@@ -1929,60 +1165,27 @@ function initializeStoreCore(
   }
 
   async function loadBookingResources(
-    params: StorefrontParams<FindBookingResourcesParams> = {},
+    params: FindStorefrontBookingResourcesParams = {},
     options?: RequestOptions,
-  ): Promise<StorefrontPage<BookingResource>> {
+  ): Promise<PaginatedResponse<StorefrontBookingResource>> {
     eshop_state.setKey("loading_booking_resources", true);
     eshop_state.setKey("error", null);
     try {
       const response = await client.eshop.bookingResource.find(params, options);
-      eshop_state.setKey("bookingResources", response.items || []);
-      eshop_state.setKey("booking_resource_cursor", response.cursor || null);
+      eshop_state.setKey("bookingResources", response.items);
+      eshop_state.setKey("booking_resource_cursor", response.cursor);
       return response;
     } catch (error) {
-      eshop_state.setKey(
-        "error",
-        readErrorMessage(error, "Failed to load booking resources."),
-      );
+      eshop_state.setKey("error", readErrorMessage(error, "Booking resources couldn't be loaded"));
       throw error;
     } finally {
       eshop_state.setKey("loading_booking_resources", false);
     }
   }
 
-  async function loadBookingAvailability(
-    params: StorefrontParams<GetAvailabilityParams> & Pick<CatalogReadOptions, "catalog_id" | "company_id" | "company_location_id">,
-    options?: RequestOptions,
-  ) {
-    const revision = ++bookingAvailabilityReadRevision;
-    eshop_state.setKey("loading_availability", true);
-    eshop_state.setKey("error", null);
-    try {
-      const response = await client.eshop.bookingService.getAvailability(
-        params,
-        options,
-      );
-      if (response.from !== params.from || response.to !== params.to) throw new Error("Availability returned a different time range");
-      if (response.cursor !== null && (typeof response.cursor !== "string" || !response.cursor.length)) throw new Error("Availability returned an invalid continuation");
-      if (params.cursor && response.cursor === params.cursor) throw new Error("Availability pagination did not advance");
-      if (revision === bookingAvailabilityReadRevision) eshop_state.setKey("availability", response);
-      return response;
-    } catch (error) {
-      if (revision === bookingAvailabilityReadRevision) eshop_state.setKey(
-          "error", readErrorMessage(error, "Failed to load availability."),
-        );
-      throw error;
-    } finally {
-      if (revision === bookingAvailabilityReadRevision) eshop_state.setKey("loading_availability", false);
-    }
-  }
-
-  async function useExperiment(
-    params: string | UseExperimentParams,
-  ): Promise<ExperimentUseResponse> {
+  async function useExperiment(params: string | UseExperimentParams): Promise<ExperimentUseResponse> {
     await ensureSession();
-    const input = typeof params === "string" ? { key: params } : params;
-    return client.experiments.use(input);
+    return client.experiments.use(typeof params === "string" ? { key: params } : params);
   }
 
   async function trackCustomerAction(params: TrackCustomerActionParams): Promise<void> {
@@ -1994,78 +1197,42 @@ function initializeStoreCore(
     cart,
     product_items,
     booking_items,
-    digital_items,
-    subscription_plan_items,
+    customer_group_items,
     quote_result: quote,
     promotion_codes,
     last_order,
     status: cart_status,
     product_item_count,
-    booking_item_count,
-    digital_item_count,
     item_count,
-    snapshot,
-    load: ensureCart,
-    refresh: (input: ArkyCartInput = {}) => syncCart(input),
+    load: loadCart,
+    create: createCart,
     addProduct,
     setProductQuantity,
-    removeProduct,
     addBooking,
-    removeBooking,
-    addDigital: addDigitalProduct,
-    removeDigital: removeDigitalProduct,
-    addSubscriptionPlan,
-    removeSubscriptionPlan,
+    addCustomerGroup,
+    removeItem,
+    setDeliveryGroups,
+    setBillingAddress,
+    setBuyer,
+    setPromotionCodes,
+    selectShippingMethod,
+    setFutureDeliveries,
+    quoteFutureDeliveries,
     clear: clearCart,
     clearLocal: clearLocalCart,
     quote: fetchQuote,
-    quoteFutureDeliveries,
-    acceptFutureDeliveries,
     checkout,
     retainCheckout,
     pendingCheckout: () => client.eshop.cart.pendingCheckout(),
     recoverCheckout,
-    applyPromoCode(
-      code: string,
-      input: Omit<ArkyCartInput, "promotion_codes"> = {},
-    ): Promise<StorefrontCheckoutQuote | null> {
-      return fetchQuote({ ...input, promotion_codes: [code] });
-    },
-    removePromoCode(input: Omit<ArkyCartInput, "promotion_codes"> = {}): Promise<StorefrontCheckoutQuote | null> {
-      return fetchQuote({ ...input, promotion_codes: [] });
-    },
-    locationToAddress,
-    createFormEntry,
-    buildItems(input: ArkyCartInput = {}) {
-      return {
-        product_items: checkoutProducts(input),
-        booking_items: checkoutBookings(input),
-        digital_items: checkoutDigitalProducts(input),
-        subscription_plan_items: checkoutSubscriptionPlans(input),
-      };
-    },
-    buildProductItems: toCartProducts,
-    buildBookingItems: toCartBookings,
-  };
-
-  const product_store = {
-    get: (
-      params: StorefrontParams<GetProductParams> & CatalogReadOptions,
-      options?: RequestOptions,
-    ) => client.eshop.product.get(params, options),
-    list: loadProducts,
+    paymentAction: (orderId: string) => client.eshop.order.paymentAction({ order_id: orderId }),
   };
 
   const booking_service_store = {
-    get: (
-      params: StorefrontParams<GetBookingServiceParams> & CatalogReadOptions,
-      options?: RequestOptions,
-    ) => client.eshop.bookingService.get(params, options),
+    get: client.eshop.bookingService.get,
+    getByKey: client.eshop.bookingService.getByKey,
     list: loadBookingServices,
-    listOfferings: (
-      params: StorefrontParams<Omit<FindBookingOfferingsParams, "status">> & CatalogReadOptions,
-      options?: RequestOptions,
-    ) => client.eshop.bookingOffering.find(params, options),
+    listOfferings: client.eshop.bookingOffering.find,
     getAvailability: loadBookingAvailability,
     state: booking_service_state,
     current_step_name: booking_service_current_step_name,
@@ -2075,33 +1242,7 @@ function initializeStoreCore(
     total_steps: booking_service_total_steps,
     steps: booking_service_steps,
     current_step: booking_service_current_step,
-    initialize: booking_service_controller.initialize,
-    select: booking_service_controller.select,
-    setTimezone: booking_service_controller.setTimezone,
-    loadMonth: booking_service_controller.loadMonth,
-    loadMoreOfferings: booking_service_controller.loadMoreOfferings,
-    loadMoreAvailability: booking_service_controller.loadMoreAvailability,
-    prevMonth: booking_service_controller.prevMonth,
-    nextMonth: booking_service_controller.nextMonth,
-    selectBookingResource:
-      booking_service_controller.selectBookingResource,
-    selectDate: booking_service_controller.selectDate,
-    selectTimeSlot: booking_service_controller.selectTimeSlot,
-    resetDateSelection: booking_service_controller.resetDateSelection,
-    updateCalendar: booking_service_controller.updateCalendar,
-    findFirstAvailable: booking_service_controller.findFirstAvailable,
-    addToCart: booking_service_controller.addToCart,
-    removeFromCart: booking_service_controller.removeFromCart,
-    clearCart: booking_service_controller.clearCart,
-    getBookingResourcesList:
-      booking_service_controller.getBookingResourcesList,
-    prevStep: booking_service_controller.prevStep,
-    nextStep: booking_service_controller.nextStep,
-    getBookingServicePrice:
-      booking_service_controller.getBookingServicePrice,
-    formatDateDisplay: booking_service_controller.formatDateDisplay,
-    bookingItemsFromSlots:
-      booking_service_controller.bookingItemsFromSlots,
+    ...booking_service_controller,
   };
 
   return {
@@ -2114,13 +1255,15 @@ function initializeStoreCore(
     currency,
     allowed_payment_option_ids,
     customer: {
-      identify,
-      captureEmail: client.customer.captureEmail,
+      identify: client.customer.identify,
       requestCode: client.customer.requestCode,
       verify: client.customer.verify,
+      changeEmail: client.customer.changeEmail,
       refresh: client.customer.refresh,
       logout: client.customer.logout,
       getMe: client.customer.getMe,
+      updateMe: client.customer.updateMe,
+      resubscribe: client.customer.resubscribe,
     },
     onAuthStateChanged: client.onAuthStateChanged,
     get hasSession() {
@@ -2129,30 +1272,21 @@ function initializeStoreCore(
     get isAuthenticated() {
       return client.isAuthenticated;
     },
+    ensureSession,
     setMarket,
     setLocale,
     setContext,
-    getMarket: currentMarketKey,
-    getLocale: currentLocale,
+    getMarket: () => market_key.get(),
+    getLocale: () => locale.get(),
     media: client.media,
     content: {
       state: content_state,
-      collection: {
-        get: (
-          params: StorefrontParams<GetCollectionParams>,
-          options?: RequestOptions,
-        ) => client.content.collection.get(params, options),
-      },
+      collection: client.content.collection,
       entry: {
         get: loadEntry,
-        find: (
-          params: StorefrontParams<GetEntriesParams>,
-          options?: RequestOptions,
-        ) => client.content.entry.find(params, options),
-        findByIds: (
-          params: StorefrontParams<GetEntriesByIdsParams>,
-          options?: RequestOptions,
-        ) => client.content.entry.findByIds(params, options),
+        find: client.content.entry.find,
+        findByIds: client.content.entry.findByIds,
+        findBySlug: client.content.entry.findBySlug,
       },
     },
     forms: {
@@ -2165,35 +1299,32 @@ function initializeStoreCore(
     eshop: {
       state: eshop_state,
       catalog: client.eshop.catalog,
-      digital: client.eshop.digital,
-      product: product_store,
+      product: {
+        get: client.eshop.product.get,
+        getByKey: client.eshop.product.getByKey,
+        list: loadProducts,
+      },
       productVariant: client.eshop.productVariant,
       bookingService: booking_service_store,
       bookingResource: {
-        get: (
-          params: StorefrontParams<GetBookingResourceParams>,
-          options?: RequestOptions,
-        ) => client.eshop.bookingResource.get(params, options),
+        get: client.eshop.bookingResource.get,
         list: loadBookingResources,
       },
       bookingOffering: client.eshop.bookingOffering,
       order: client.eshop.order,
+      library: client.eshop.library,
       return: client.eshop.return,
       rental: client.eshop.rental,
       paymentMethod: client.eshop.paymentMethod,
-      subscription: client.eshop.subscription,
-      checkout: client.eshop.checkout,
+      customerGroup: client.eshop.customerGroup,
+      customerGroupOffering: client.eshop.customerGroupOffering,
+      customerGroupMember: client.eshop.customerGroupMember,
+      minimumProgress: client.eshop.minimumProgress,
       cart: cart_store,
     },
     companies: client.companies,
-    customer_groups: client.customer_groups,
-    customer_group_members: client.customer_group_members,
-    customer_group_email_consents: client.customer_group_email_consents,
-    subscription_plans: client.subscription_plans,
     actions: {
-      track(params: TrackCustomerActionParams) {
-        return trackCustomerAction(params);
-      },
+      track: trackCustomerAction,
       pageView(data: Record<string, unknown> = {}) {
         return trackCustomerAction({ key: "page.view", data });
       },
@@ -2217,11 +1348,7 @@ export type InitializedStore = InitializedStoreCore & {
   withContext(context: ArkyStoreContext): InitializedStore;
 };
 
-function initializeStore(
-  publishableKey: string,
-  config: ArkyStoreConfig,
-  scopedClient?: ReturnType<typeof createStorefront>,
-): InitializedStore {
+function initializeStore(publishableKey: string, config: ArkyStoreConfig, scopedClient?: StorefrontClient): InitializedStore {
   const store = initializeStoreCore(publishableKey, config, scopedClient);
   return Object.assign(store, {
     withContext(context: ArkyStoreContext): InitializedStore {
@@ -2238,10 +1365,7 @@ function initializeStore(
   });
 }
 
-export function initialize(
-  publishableKey: string,
-  options: ArkyStoreConfig = {},
-): InitializedStore {
+export function initialize(publishableKey: string, options: ArkyStoreConfig = {}): InitializedStore {
   return initializeStore(publishableKey, options);
 }
 

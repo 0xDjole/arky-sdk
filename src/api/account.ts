@@ -1,122 +1,43 @@
 import type { ApiConfig } from "../services/clientTypes";
-import type {
-  CreateAccountApiTokenParams,
-  DeleteAccountParams,
-  GetMeParams,
-  ListAccountApiTokensParams,
-  ListAccountSessionsParams,
-  RequestOptions,
-  SearchAccountsParams,
-  UpdatePlatformRoleParams,
-  UpdateAccountApiTokenParams,
-} from "../types/api";
+import type { RequestOptions } from "../types/api";
+import type { PaginatedResponse } from "../types/common";
 import type {
   Account,
-  AccountApiToken,
-  AccountApiTokenCreated,
   AccountSession,
-  PaginatedResponse,
-} from "../types";
+  ListAccountSessionsParams,
+  RevokeAccountSessionParams,
+  SearchAccountsParams,
+} from "../types/account";
+import { segment } from "./paths";
+
+export interface DeleteAccountResult {
+  success: boolean;
+  message: string;
+}
 
 export const createAccountApi = (apiConfig: ApiConfig) => ({
-  async deleteAccount(
-    _params: DeleteAccountParams,
-    options?: RequestOptions,
-  ): Promise<{ success: boolean; message: string }> {
-    return apiConfig.httpClient.delete<{ success: boolean; message: string }>(
-      "/v1/accounts",
-      options,
-    );
-  },
-
-  async getMe(
-    _params: GetMeParams,
-    options?: RequestOptions,
-  ): Promise<Account> {
+  getMe(options?: RequestOptions): Promise<Account> {
     return apiConfig.httpClient.get<Account>("/v1/accounts/me", options);
   },
 
-  async searchAccounts(
-    params: SearchAccountsParams,
-    options?: RequestOptions,
-  ): Promise<PaginatedResponse<Account>> {
-    return apiConfig.httpClient.get<PaginatedResponse<Account>>(
-      "/v1/accounts/search",
-      { ...options, params },
-    );
+  delete(options?: RequestOptions): Promise<DeleteAccountResult> {
+    return apiConfig.httpClient.delete<DeleteAccountResult>("/v1/accounts", options);
   },
 
-  async updatePlatformRole(
-    params: UpdatePlatformRoleParams,
-    options?: RequestOptions,
-  ): Promise<Account> {
-    return apiConfig.httpClient.patch<Account>(
-      "/v1/accounts/platform-role",
-      params,
-      options,
-    );
+  search(params: SearchAccountsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<Account>> {
+    return apiConfig.httpClient.get<PaginatedResponse<Account>>("/v1/accounts/search", { ...options, params });
   },
 
-  async listApiTokens(
-    params: ListAccountApiTokensParams = {},
-    options?: RequestOptions,
-  ): Promise<PaginatedResponse<AccountApiToken>> {
-    return apiConfig.httpClient.get<PaginatedResponse<AccountApiToken>>(
-      "/v1/accounts/me/api-tokens",
-      { ...options, params },
-    );
-  },
+  session: {
+    list(params: ListAccountSessionsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<AccountSession>> {
+      return apiConfig.httpClient.get<PaginatedResponse<AccountSession>>("/v1/accounts/me/sessions", {
+        ...options,
+        params,
+      });
+    },
 
-  async createApiToken(
-    params: CreateAccountApiTokenParams,
-    options?: RequestOptions,
-  ): Promise<AccountApiTokenCreated> {
-    return apiConfig.httpClient.post<AccountApiTokenCreated>(
-      "/v1/accounts/me/api-tokens",
-      params,
-      options,
-    );
-  },
-
-  async updateApiToken(
-    params: UpdateAccountApiTokenParams,
-    options?: RequestOptions,
-  ): Promise<AccountApiToken> {
-    const { id, ...payload } = params;
-    return apiConfig.httpClient.put<AccountApiToken>(
-      `/v1/accounts/me/api-tokens/${id}`,
-      payload,
-      options,
-    );
-  },
-
-  async revokeApiToken(
-    id: string,
-    options?: RequestOptions,
-  ): Promise<boolean> {
-    return apiConfig.httpClient.delete<boolean>(
-      `/v1/accounts/me/api-tokens/${id}`,
-      options,
-    );
-  },
-
-  async listSessions(
-    params: ListAccountSessionsParams = {},
-    options?: RequestOptions,
-  ): Promise<PaginatedResponse<AccountSession>> {
-    return apiConfig.httpClient.get<PaginatedResponse<AccountSession>>(
-      "/v1/accounts/me/sessions",
-      { ...options, params },
-    );
-  },
-
-  async revokeSession(
-    id: string,
-    options?: RequestOptions,
-  ): Promise<boolean> {
-    return apiConfig.httpClient.delete<boolean>(
-      `/v1/accounts/me/sessions/${id}`,
-      options,
-    );
+    revoke(params: RevokeAccountSessionParams, options?: RequestOptions): Promise<boolean> {
+      return apiConfig.httpClient.delete<boolean>(`/v1/accounts/me/sessions/${segment(params.id)}`, options);
+    },
   },
 });

@@ -2,8 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mountCheckoutAction, MonriCheckoutError } from '../dist/index.js';
 
+const paymentId = '3e6b7f70-4d2f-4f0e-9b7b-5d3b6c0a51d2';
 const action = {
-  type: 'monri_components', payment_id: '3e6b7f70-4d2f-4f0e-9b7b-5d3b6c0a51d2',
+  type: 'monri_components',
   environment: 'test', authenticity_token: 'test-token', client_secret: 'test-session-secret', save_card: false,
 };
 const billing = {
@@ -11,7 +12,7 @@ const billing = {
   phone: '+38761123456', country: 'BA', email: 'buyer@example.test',
 };
 
-test('Monri Components uses hosted card entry and one deliberate submit, never browser cash proof', async (t) => {
+test('Monri Components uses hosted card entry for the named payment and one deliberate submit, never browser cash proof', async (t) => {
   const descriptors = new Map(['window', 'document'].map((name) => [name, Object.getOwnPropertyDescriptor(globalThis, name)]));
   let native;
   const target = { isConnected: true, children: [], appendChild(child) { child.parent = this; this.children.push(child); } };
@@ -54,26 +55,29 @@ test('Monri Components uses hosted card entry and one deliberate submit, never b
     }
   });
   const hasCode = (code) => (error) => error instanceof MonriCheckoutError && error.code === code;
-  const setup = (respond = () => ({ result: { status: 'approved', order_number: action.payment_id } })) => {
+  const setup = (respond = () => ({ result: { status: 'approved', order_number: paymentId } })) => {
     native = {
       calls: [], respond, changed: null, tokenizePan: false,
       card: {
-        mount(id) { assert.equal(id, target.children.at(-1).id); assert.match(id, /^arky-monri-/); },
+        mount(id) { assert.equal(id, target.children.at(-1).id); assert.match(id, /^arky-monri-\d+$/); },
         onChange(listener) { native.changed = listener; },
       },
     };
   };
 
   await t.test('invalid actions and insecure origins cannot initialize card entry', async () => {
-    await assert.rejects(mountCheckoutAction({ ...action, merchant_key: 'private' }, target), hasCode('invalid_action'));
+    await assert.rejects(mountCheckoutAction({ ...action, merchant_key: 'private' }, target, {}, paymentId), hasCode('invalid_action'));
     const { save_card: _saveCard, ...withoutSaveCard } = action;
-    await assert.rejects(mountCheckoutAction(withoutSaveCard, target), hasCode('invalid_action'));
-    await assert.rejects(mountCheckoutAction({ ...action, save_card: 'true' }, target), hasCode('invalid_action'));
+    await assert.rejects(mountCheckoutAction(withoutSaveCard, target, {}, paymentId), hasCode('invalid_action'));
+    await assert.rejects(mountCheckoutAction({ ...action, save_card: 'true' }, target, {}, paymentId), hasCode('invalid_action'));
+    await assert.rejects(mountCheckoutAction({ ...action, payment_id: paymentId }, target, {}, paymentId), hasCode('invalid_action'));
+    await assert.rejects(mountCheckoutAction(action, target), /needs the id of the payment it pays/);
+    await assert.rejects(mountCheckoutAction(action, target, {}, ''), /needs the id of the payment it pays/);
     window.location.protocol = 'http:';
-    await assert.rejects(mountCheckoutAction(action, target), hasCode('unavailable'));
+    await assert.rejects(mountCheckoutAction(action, target, {}, paymentId), hasCode('unavailable'));
     window.location.protocol = 'https:';
     document.scripts = [];
-    await assert.rejects(mountCheckoutAction(action, target), hasCode('unavailable'));
+    await assert.rejects(mountCheckoutAction(action, target, {}, paymentId), hasCode('unavailable'));
     document.scripts = [script];
     assert.equal(target.children.length, 0);
   });
@@ -82,7 +86,7 @@ test('Monri Components uses hosted card entry and one deliberate submit, never b
     setup();
     let completed = 0;
     const errors = [];
-    const mounted = await mountCheckoutAction(action, '#payment', { onComplete: () => { completed += 1; }, onValidationError: (error) => errors.push(error) });
+    const mounted = await mountCheckoutAction(action, '#payment', { onComplete: () => { completed += 1; }, onValidationError: (error) => errors.push(error) }, paymentId);
     assert.equal(mounted.type, 'monri_components');
     assert.equal(native.calls.length, 0);
     native.changed({ error: { message: 'untrusted provider payload' } });
@@ -91,7 +95,7 @@ test('Monri Components uses hosted card entry and one deliberate submit, never b
     await assert.rejects(mounted.confirm({ ...billing, fullName: '' }), hasCode('invalid_details'));
     assert.equal(native.calls.length, 0);
     assert.equal(await mounted.confirm({ ...billing, unknown: 'must not be forwarded' }), undefined);
-    assert.deepEqual(native.calls, [{ ...billing, orderInfo: `ARKY payment ${action.payment_id}` }]);
+    assert.deepEqual(native.calls, [{ ...billing, orderInfo: `ARKY payment ${paymentId}` }]);
     assert.equal(completed, 1);
     await assert.rejects(mounted.confirm(billing), hasCode('already_submitted'));
     assert.equal(native.calls.length, 1);
@@ -106,12 +110,12 @@ test('Monri Components uses hosted card entry and one deliberate submit, never b
       () => { throw new Error('private transport body'); },
       () => ({ error: { message: 'private response body' } }),
       () => ({ result: { status: 'approved', order_number: 'different-payment' } }),
-      () => ({ result: { status: 'unknown', order_number: action.payment_id } }),
+      () => ({ result: { status: 'unknown', order_number: paymentId } }),
       () => null,
     ]) {
       setup(respond);
       let completed = 0;
-      const mounted = await mountCheckoutAction(action, target, { onComplete: () => { completed += 1; } });
+      const mounted = await mountCheckoutAction(action, target, { onComplete: () => { completed += 1; } }, paymentId);
       await assert.rejects(mounted.confirm(billing), (error) => hasCode('unknown_result')(error) && !error.message.includes('private'));
       await assert.rejects(mounted.confirm(billing), hasCode('already_submitted'));
       assert.equal(native.calls.length, 1);
@@ -121,9 +125,9 @@ test('Monri Components uses hosted card entry and one deliberate submit, never b
   });
 
   await t.test('definite decline requests the same authoritative read rather than reporting paid', async () => {
-    setup(() => ({ result: { status: 'declined', order_number: action.payment_id } }));
+    setup(() => ({ result: { status: 'declined', order_number: paymentId } }));
     let completed = 0;
-    const mounted = await mountCheckoutAction(action, target, { onComplete: () => { completed += 1; } });
+    const mounted = await mountCheckoutAction(action, target, { onComplete: () => { completed += 1; } }, paymentId);
     assert.equal(await mounted.confirm(billing), undefined);
     assert.equal(completed, 1);
     assert.equal(native.calls.length, 1);
@@ -135,11 +139,11 @@ test('Monri Components uses hosted card entry and one deliberate submit, never b
     let finish;
     setup(() => new Promise((resolve) => { finish = resolve; }));
     let completed = 0;
-    const mounted = await mountCheckoutAction(action, target, { onComplete: () => { completed += 1; } });
+    const mounted = await mountCheckoutAction(action, target, { onComplete: () => { completed += 1; } }, paymentId);
     const pending = mounted.confirm(billing);
     await assert.rejects(mounted.confirm(billing), hasCode('already_submitted'));
     mounted.destroy();
-    finish({ result: { status: 'approved', order_number: action.payment_id } });
+    finish({ result: { status: 'approved', order_number: paymentId } });
     await pending;
     assert.equal(completed, 0);
     assert.equal(native.calls.length, 1);
@@ -150,19 +154,19 @@ test('Monri Components uses hosted card entry and one deliberate submit, never b
     setup();
     native.tokenizePan = true;
     let completed = 0;
-    const mounted = await mountCheckoutAction({ ...action, save_card: true }, target, { onComplete: () => { completed += 1; } });
+    const mounted = await mountCheckoutAction({ ...action, save_card: true }, target, { onComplete: () => { completed += 1; } }, paymentId);
     assert.equal(await mounted.confirm(billing), undefined);
-    assert.deepEqual(native.calls, [{ ...billing, orderInfo: `ARKY payment ${action.payment_id}` }]);
+    assert.deepEqual(native.calls, [{ ...billing, orderInfo: `ARKY payment ${paymentId}` }]);
     assert.equal(completed, 1);
     mounted.destroy();
     assert.equal(target.children.length, 0);
   });
 
   await t.test('a page cannot mix native provider environments or mount into a missing container', async () => {
-    await assert.rejects(mountCheckoutAction({ ...action, environment: 'live' }, target), hasCode('unavailable'));
-    await assert.rejects(mountCheckoutAction(action, '#missing'), hasCode('unavailable'));
+    await assert.rejects(mountCheckoutAction({ ...action, environment: 'live' }, target, {}, paymentId), hasCode('unavailable'));
+    await assert.rejects(mountCheckoutAction(action, '#missing', {}, paymentId), hasCode('unavailable'));
     target.isConnected = false;
-    await assert.rejects(mountCheckoutAction(action, target), hasCode('unavailable'));
+    await assert.rejects(mountCheckoutAction(action, target, {}, paymentId), hasCode('unavailable'));
     assert.equal(target.children.length, 0);
   });
 });

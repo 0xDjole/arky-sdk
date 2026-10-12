@@ -3,7 +3,8 @@ import type {
   FindInventoryItemsParams, GetInventoryItemByKeyParams, FindInventoryMovementsParams,
   InventoryItem, InventoryTracking, InventoryLevel, InventoryStockLevel, InventoryMovement,
   InventoryMovementReason, InventoryQuantity, ChangeSetAsideParams, MoveInventoryParams,
-  ReceiveStockMoveParams, IncomingStock, RecordInventoryMovementParams,
+  ReceiveStockMoveParams, IncomingStock, RecordInventoryMovementParams, ManualInventoryMovementReason,
+  CreateInventoryItemParams, CreateInventoryLevelParams,
 } from "arky-sdk";
 import type {
   InventoryLevel as PublicLevel, InventoryMovement as PublicMovement,
@@ -20,14 +21,11 @@ export type InventoryContracts = [
   True<Same<InventoryMovement, PublicMovement>>,
   True<Same<GetInventoryItemByKeyParams, PublicKeyQuery>>,
   True<Same<keyof InventoryLevel, "id" | "store_id" | "inventory_item_id" | "store_location_id" | "on_hand" | "reserved" | "unavailable" | "available" | "created_at" | "updated_at">>,
-  True<RequiredField<InventoryLevel, "unavailable">>,
-  True<RequiredField<InventoryLevel, "available">>,
   True<Same<keyof InventoryStockLevel["item"], "key" | "sku" | "tracking">>,
   True<Same<InventoryStockLevel["item"]["tracking"], InventoryTracking>>,
   True<Same<InventoryQuantity["type"], "on_hand" | "unavailable">>,
-  True<Same<keyof InventoryMovement, "id" | "store_id" | "inventory_item_id" | "inventory_unit_id" | "store_location_id" | "quantity" | "delta" | "after" | "reason" | "created_at" | "request_id" | "source_line_id">>,
-  True<Same<InventoryMovement["quantity"], InventoryQuantity>>,
-  True<Same<InventoryMovement["inventory_unit_id"], string | null>>,
+  True<Same<keyof InventoryMovement, "id" | "store_id" | "inventory_item_id" | "tracking" | "store_location_id" | "delta" | "after" | "reason" | "action_id" | "created_at">>,
+  True<"request_id" extends keyof InventoryMovement ? false : true>,
   True<Same<keyof Extract<InventoryMovementReason, { type: "dispatched" }>, "type" | "fulfillment_job_id" | "fulfillment_id">>,
   True<Same<NonNullable<FindInventoryMovementsParams["sort_field"]>, "created_at">>,
   True<RequiredField<GetInventoryItemByKeyParams, "key">>,
@@ -38,20 +36,28 @@ export type InventoryContracts = [
   True<Same<Parameters<Api["inventoryLevel"]["makeAvailable"]>[0], ChangeSetAsideParams>>,
   True<Same<Parameters<Api["inventoryLevel"]["move"]>[0], MoveInventoryParams>>,
   True<Same<Parameters<Api["inventoryLevel"]["receiveMove"]>[0], ReceiveStockMoveParams>>,
+  True<RequiredField<ChangeSetAsideParams, "action_id">>,
+  True<RequiredField<ChangeSetAsideParams, "note">>,
+  True<RequiredField<MoveInventoryParams, "action_id">>,
   True<Same<Awaited<ReturnType<Api["inventoryLevel"]["stock"]>>, PaginatedResponse<InventoryStockLevel>>>,
   True<Same<IncomingStock["type"], "counted" | "unit">>,
   True<Same<keyof Extract<IncomingStock, { type: "unit" }>, "type" | "asset_tag">>,
   True<Same<keyof Extract<IncomingStock, { type: "counted" }>, "type" | "from_store_location_id" | "quantity">>,
   True<Same<Parameters<Api["inventoryMovement"]["record"]>[0], RecordInventoryMovementParams>>,
-  True<Same<RecordInventoryMovementParams["reason"]["type"], "receiving" | "adjustment" | "damage">>,
-  True<RequiredField<RecordInventoryMovementParams, "request_id">>,
+  True<Same<RecordInventoryMovementParams["reason"], ManualInventoryMovementReason>>,
+  True<Same<ManualInventoryMovementReason["type"], "receiving" | "adjustment" | "damage">>,
+  True<RequiredField<RecordInventoryMovementParams, "action_id">>,
+  True<RequiredField<RecordInventoryMovementParams, "from_set_aside">>,
   True<RequiredField<FindInventoryMovementsParams, "store_id">>,
+  True<RequiredField<CreateInventoryItemParams, "id">>,
+  True<RequiredField<CreateInventoryLevelParams, "id">>,
+  True<Same<Awaited<ReturnType<Api["inventoryItem"]["delete"]>>, InventoryItem | undefined>>,
   True<"inventoryReservation" extends keyof Api ? false : true>,
 ];
 
 export const combinedMovementQuery: FindInventoryMovementsParams = {
   store_id: "store", inventory_item_id: "item", store_location_id: "location", inventory_unit_id: "unit",
-  request_id: "7c4e1a93-2d58-4b06-9f3e-5a8c0d2b6e19", sort_field: "created_at", sort_direction: "desc", cursor: "next",
+  action_id: "7c4e1a93-2d58-4b06-9f3e-5a8c0d2b6e19", sort_field: "created_at", sort_direction: "desc", cursor: "next",
 };
 
 export const inventoryItemQuery: FindInventoryItemsParams = {

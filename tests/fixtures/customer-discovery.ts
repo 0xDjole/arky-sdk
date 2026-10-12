@@ -1,16 +1,22 @@
 import { createAdmin } from '../../dist/index.js';
-import type { CustomerListItem, FindCustomersParams } from '../../dist/index.js';
+import type { CustomerSearchSnapshot, FindCustomersParams } from '../../dist/index.js';
+
+type Assert<T extends true> = T;
+type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
+type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
 
 declare const admin: ReturnType<typeof createAdmin>;
 const filters: FindCustomersParams = {
-  store_id: '9c2e5b74-1f38-4a6d-8b05-3e7f0a9d6c12', query: 'buyer', has_cart: false, has_customer_action: true, has_verified_email: true,
-  sort_field: 'email', sort_direction: 'asc', cursor: null, limit: 1,
+  store_id: '9c2e5b74-1f38-4a6d-8b05-3e7f0a9d6c12', query: 'buyer', has_cart: false, has_customer_action: true, type: 'verified',
+  sort_field: 'updated_at', sort_direction: 'asc', cursor: null, limit: 1,
 };
-const page: Promise<{ items: CustomerListItem[]; cursor: string | null }> = admin.customers.find(filters);
-// @ts-expect-error Customer discovery has no name sort.
-filters.sort_field = 'name';
-// @ts-expect-error Customer text queries are strings.
-filters.query = 10;
-// @ts-expect-error Status filters are scalar, not root lifecycle values.
-filters.status = { type: 'active' };
+const page: Promise<{ items: CustomerSearchSnapshot[]; cursor: string | null }> = admin.customers.find(filters);
 void page;
+
+export type CustomerDiscoveryContracts = [
+  Assert<Equal<FindCustomersParams['sort_field'], 'id' | 'email' | 'created_at' | 'updated_at' | undefined>>,
+  Assert<Equal<FindCustomersParams['query'], string | undefined>>,
+  Assert<Equal<FindCustomersParams['type'], 'anonymous' | 'verified' | undefined>>,
+  Assert<Missing<FindCustomersParams, 'has_verified_email'>>,
+  Assert<Equal<keyof CustomerSearchSnapshot, 'customer' | 'has_cart' | 'has_customer_action' | 'has_order' | 'latest_order_contact'>>,
+];

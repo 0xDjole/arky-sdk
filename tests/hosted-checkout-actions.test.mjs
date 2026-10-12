@@ -12,14 +12,13 @@ test("the browser checkout surface exposes one mount helper and typed Monri erro
   }
 });
 
-test("mounting a no-op payment action performs no provider or DOM work", async () => {
-  assert.equal(
-    await storefront.mountCheckoutAction({ type: "none" }, "#checkout"),
-    null,
-  );
+test("mounting a no-op payment action performs no provider or DOM work, and Monri card entry needs the payment it pays", async () => {
+  assert.equal(await storefront.mountCheckoutAction({ type: "none" }, "#checkout"), null);
+  const monri = { type: "monri_components", environment: "test", authenticity_token: "token", client_secret: "secret", save_card: false };
+  await assert.rejects(storefront.mountCheckoutAction(monri, "#checkout"), /needs the id of the payment it pays/);
 });
 
-test("browser entrypoints load provider scripts only when a checkout is explicitly mounted", () => {
+test("browser entrypoints load provider scripts only when a checkout is explicitly mounted, with the merchant's own keys", () => {
   for (const entry of ["index", "storefront"]) {
     execFileSync(process.execPath, ["--input-type=module", "-e", `
       import assert from "node:assert/strict";
@@ -49,7 +48,7 @@ test("browser entrypoints load provider scripts only when a checkout is explicit
       };
       const result = await sdk.mountCheckoutAction({
         type: "stripe_embedded_checkout", publishable_key: "pk_test_explicit_mount",
-        account_id: "acct_explicit_mount", client_secret: "cs_explicit_secret", expires_at: 10,
+        client_secret: "cs_explicit_secret", expires_at: 10,
       }, target);
       assert.equal(result.type, "stripe_embedded_checkout");
       assert.equal(initialized, 1);

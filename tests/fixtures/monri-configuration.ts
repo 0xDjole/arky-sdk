@@ -3,25 +3,27 @@ import type { CreateMonriPaymentOptionParams, UpdatePaymentOptionParams, MonriEn
 type Admin = ReturnType<typeof createAdmin>;
 type True<T extends true> = T;
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
-export type MonriResult = True<Same<Awaited<ReturnType<Admin['store']['paymentOption']['monri']['create']>>, PaymentOption>>;
-export type AvailabilityInput = True<Same<Parameters<Admin['store']['paymentOption']['update']>[0], UpdatePaymentOptionParams>>;
-export type AvailabilityResult = True<Same<Awaited<ReturnType<Admin['store']['paymentOption']['update']>>, PaymentOption>>;
-declare const update: UpdatePaymentOptionParams;
-// @ts-expect-error Availability updates cannot replace merchant credentials.
-update.merchant_key;
+type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
+type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
+type MonriOption = Extract<PaymentOption['type'], { type: 'monri' }>;
+
+export type MonriConfigurationContracts = [
+  True<Same<Awaited<ReturnType<Admin['store']['paymentOption']['monri']['create']>>, PaymentOption>>,
+  True<Same<Parameters<Admin['store']['paymentOption']['update']>[0], UpdatePaymentOptionParams>>,
+  True<Same<Awaited<ReturnType<Admin['store']['paymentOption']['update']>>, PaymentOption>>,
+  True<Missing<UpdatePaymentOptionParams, 'merchant_key'>>,
+  True<Missing<MonriOption, 'merchant_key'>>,
+  True<Missing<MonriOption, 'encrypted_merchant_key'>>,
+  True<Missing<MonriOption, 'authenticity_token'>>,
+  True<RequiredField<CreateMonriPaymentOptionParams, 'environment'>>,
+  True<RequiredField<CreateMonriPaymentOptionParams, 'id'>>,
+  True<Same<PaymentOption['status'], 'active' | 'disabled'>>,
+];
+
 export const input: CreateMonriPaymentOptionParams = {
   store_id: 'store', id: 'provider', key: 'cards', blocks: [], environment: 'test',
-  merchant_key: 'submitted-secret', authenticity_token: 'submitted-token', status: { type: 'disabled' },
+  merchant_key: 'submitted-secret', authenticity_token: 'submitted-token', status: 'disabled',
 };
 export const environment: MonriEnvironment = 'live';
 export const config: PaymentOption['type'] = { type: 'monri', environment: 'test' };
 export const filter: Parameters<Admin['store']['paymentOption']['list']>[0] = { store_id: 'store', type_name: 'monri', limit: 1 };
-declare const provider: PaymentOption;
-if (provider.type.type === 'monri') {
-  // @ts-expect-error Merchant credentials are write-only API input, never a response.
-  provider.type.merchant_key;
-  // @ts-expect-error Ciphertext is not a public API field either.
-  provider.type.encrypted_merchant_key;
-}
-// @ts-expect-error Environment selection is explicit and has no production default.
-export const missing: CreateMonriPaymentOptionParams = { store_id: 'store', id: 'p', key: 'cards', blocks: [], merchant_key: 's', authenticity_token: 't', status: { type: 'active' } };

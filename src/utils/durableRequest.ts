@@ -12,6 +12,12 @@ export class DurableRequestStorageError extends Error {
   }
 }
 
+export function isDefiniteRefusal(error: unknown): boolean {
+  if (typeof error !== "object" || error === null || !("statusCode" in error)) return false;
+  const status = error.statusCode;
+  return typeof status === "number" && status >= 400 && status < 500 && status !== 408 && status !== 429;
+}
+
 function unavailable(
   label: string,
   reason: string,

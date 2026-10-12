@@ -1,60 +1,40 @@
+import type { EpochMilliseconds } from "./time";
+import type { RequestOptions } from "./httpClient";
 import type {
-  AddCartBookingParams,
-  AddCartSubscriptionPlanParams,
-  AddCartDigitalProductParams,
-  AddCartProductParams,
-  CheckoutCartParams,
-  ClearCartParams,
-  GetCartParams,
-  GetCurrentCartParams,
-  QuoteCartParams,
-  RemoveCartItemParams,
-  RequestOptions,
-  UpdateCartParams,
-} from "./api";
-import type { OrderCheckoutResult } from "./index";
-import type { Cart } from "./cart";
-import type { CheckoutQuote } from "./checkout";
+  Cart,
+  CartQuote,
+  CheckoutAcceptance,
+  StorefrontAddCartBookingParams,
+  StorefrontAddCartProductParams,
+  StorefrontAddCartCustomerGroupParams,
+  StorefrontCheckoutCartParams,
+  StorefrontClearCartParams,
+  StorefrontCurrentCartParams,
+  StorefrontGetCartParams,
+  StorefrontQuoteCartParams,
+  StorefrontRemoveCartItemParams,
+  StorefrontSelectCartShippingMethodParams,
+  StorefrontUpdateCartParams,
+} from "./cart";
 
 export interface CartApi {
-  current(
-    params?: GetCurrentCartParams,
-    options?: RequestOptions,
-  ): Promise<Cart>;
-  get(params: GetCartParams, options?: RequestOptions): Promise<Cart>;
-  update(params: UpdateCartParams, options?: RequestOptions): Promise<Cart>;
-  addProduct(
-    params: AddCartProductParams,
-    options?: RequestOptions,
-  ): Promise<Cart>;
-  addBooking(
-    params: AddCartBookingParams,
-    options?: RequestOptions,
-  ): Promise<Cart>;
-  addDigital(
-    params: AddCartDigitalProductParams,
-    options?: RequestOptions,
-  ): Promise<Cart>;
-  addSubscriptionPlan(
-    params: AddCartSubscriptionPlanParams,
-    options?: RequestOptions,
-  ): Promise<Cart>;
-  removeItem(
-    params: RemoveCartItemParams,
-    options?: RequestOptions,
-  ): Promise<Cart>;
-  clear(params: ClearCartParams, options?: RequestOptions): Promise<Cart>;
-  quote(params: QuoteCartParams, options?: RequestOptions): Promise<CheckoutQuote>;
-  checkout(
-    params: CheckoutCartParams,
-    options?: RequestOptions,
-  ): Promise<OrderCheckoutResult>;
+  current(params?: StorefrontCurrentCartParams, options?: RequestOptions): Promise<Cart | null>;
+  get(params: StorefrontGetCartParams, options?: RequestOptions): Promise<Cart>;
+  update(params: StorefrontUpdateCartParams, options?: RequestOptions): Promise<Cart>;
+  addProduct(params: StorefrontAddCartProductParams, options?: RequestOptions): Promise<Cart>;
+  addBooking(params: StorefrontAddCartBookingParams, options?: RequestOptions): Promise<Cart>;
+  addCustomerGroup(params: StorefrontAddCartCustomerGroupParams, options?: RequestOptions): Promise<Cart>;
+  removeItem(params: StorefrontRemoveCartItemParams, options?: RequestOptions): Promise<Cart>;
+  clear(params: StorefrontClearCartParams, options?: RequestOptions): Promise<Cart>;
+  selectShippingMethod(params: StorefrontSelectCartShippingMethodParams, options?: RequestOptions): Promise<Cart>;
+  quote(params: StorefrontQuoteCartParams, options?: RequestOptions): Promise<CartQuote>;
+  checkout(params: StorefrontCheckoutCartParams, options?: RequestOptions): Promise<CheckoutAcceptance>;
 }
 
 export interface CartControllerState {
   cart: Cart | null;
-  quote: CheckoutQuote | null;
-  checkoutResult: OrderCheckoutResult | null;
+  quote: CartQuote | null;
+  checkoutResult: CheckoutAcceptance | null;
   loading: boolean;
   initialized: boolean;
   error: unknown;
@@ -62,88 +42,38 @@ export interface CartControllerState {
 
 export type CartControllerListener = (state: CartControllerState) => void;
 
-export type CartControllerInitParams = GetCurrentCartParams | GetCartParams;
-export type CartControllerRefreshParams = GetCurrentCartParams | GetCartParams;
-export type CartControllerUpdateParams = Omit<UpdateCartParams, "id"> & {
+type CartVersioned<T> = Omit<T, "id" | "expected_updated_at"> & {
   id?: string;
+  expected_updated_at?: EpochMilliseconds;
 };
-export type CartControllerAddProductParams = Omit<
-  AddCartProductParams,
-  "id"
-> & {
-  id?: string;
-};
-export type CartControllerAddBookingParams = Omit<
-  AddCartBookingParams,
-  "id"
-> & {
-  id?: string;
-};
-export type CartControllerAddDigitalParams = Omit<
-  AddCartDigitalProductParams,
-  "id"
-> & {
-  id?: string;
-};
-export type CartControllerAddSubscriptionPlanParams = Omit<
-  AddCartSubscriptionPlanParams,
-  "id"
-> & { id?: string };
-export type CartControllerRemoveItemParams = Omit<RemoveCartItemParams, "id"> & {
-  id?: string;
-};
-export type CartControllerClearParams = Omit<ClearCartParams, "id"> & {
-  id?: string;
-};
-export type CartControllerQuoteParams = Omit<QuoteCartParams, "id"> & {
-  id?: string;
-};
-export type CartControllerCheckoutParams = Omit<CheckoutCartParams, "id"> & {
-  id?: string;
+
+export type CartControllerInitParams = StorefrontCurrentCartParams | StorefrontGetCartParams;
+export type CartControllerRefreshParams = StorefrontCurrentCartParams | StorefrontGetCartParams;
+export type CartControllerUpdateParams = CartVersioned<StorefrontUpdateCartParams>;
+export type CartControllerAddProductParams = CartVersioned<StorefrontAddCartProductParams>;
+export type CartControllerAddBookingParams = CartVersioned<StorefrontAddCartBookingParams>;
+export type CartControllerAddCustomerGroupParams = CartVersioned<StorefrontAddCartCustomerGroupParams>;
+export type CartControllerRemoveItemParams = CartVersioned<StorefrontRemoveCartItemParams>;
+export type CartControllerClearParams = CartVersioned<StorefrontClearCartParams>;
+export type CartControllerSelectShippingMethodParams = CartVersioned<StorefrontSelectCartShippingMethodParams>;
+export type CartControllerQuoteParams = Omit<StorefrontQuoteCartParams, "id"> & { id?: string };
+export type CartControllerCheckoutParams = Omit<StorefrontCheckoutCartParams, "cart_id" | "expected_updated_at"> & {
+  cart_id?: string;
+  expected_updated_at?: EpochMilliseconds;
 };
 
 export interface CartController {
   subscribe(listener: CartControllerListener): () => void;
   getState(): CartControllerState;
-  init(
-    params: CartControllerInitParams,
-    options?: RequestOptions,
-  ): Promise<Cart>;
-  refresh(
-    params: CartControllerRefreshParams,
-    options?: RequestOptions,
-  ): Promise<Cart>;
-  addProduct(
-    params: CartControllerAddProductParams,
-    options?: RequestOptions,
-  ): Promise<Cart>;
-  addBooking(
-    params: CartControllerAddBookingParams,
-    options?: RequestOptions,
-  ): Promise<Cart>;
-  addDigital(
-    params: CartControllerAddDigitalParams,
-    options?: RequestOptions,
-  ): Promise<Cart>;
-  update(
-    params: CartControllerUpdateParams,
-    options?: RequestOptions,
-  ): Promise<Cart>;
-  addSubscriptionPlan(params: CartControllerAddSubscriptionPlanParams, options?: RequestOptions): Promise<Cart>;
-  removeItem(
-    params: CartControllerRemoveItemParams,
-    options?: RequestOptions,
-  ): Promise<Cart>;
-  clear(
-    params: CartControllerClearParams,
-    options?: RequestOptions,
-  ): Promise<Cart>;
-  quote(
-    params: CartControllerQuoteParams,
-    options?: RequestOptions,
-  ): Promise<CheckoutQuote>;
-  checkout(
-    params: CartControllerCheckoutParams,
-    options?: RequestOptions,
-  ): Promise<OrderCheckoutResult>;
+  init(params: CartControllerInitParams, options?: RequestOptions): Promise<Cart | null>;
+  refresh(params: CartControllerRefreshParams, options?: RequestOptions): Promise<Cart | null>;
+  update(params: CartControllerUpdateParams, options?: RequestOptions): Promise<Cart>;
+  addProduct(params: CartControllerAddProductParams, options?: RequestOptions): Promise<Cart>;
+  addBooking(params: CartControllerAddBookingParams, options?: RequestOptions): Promise<Cart>;
+  addCustomerGroup(params: CartControllerAddCustomerGroupParams, options?: RequestOptions): Promise<Cart>;
+  removeItem(params: CartControllerRemoveItemParams, options?: RequestOptions): Promise<Cart>;
+  clear(params: CartControllerClearParams, options?: RequestOptions): Promise<Cart>;
+  selectShippingMethod(params: CartControllerSelectShippingMethodParams, options?: RequestOptions): Promise<Cart>;
+  quote(params: CartControllerQuoteParams, options?: RequestOptions): Promise<CartQuote>;
+  checkout(params: CartControllerCheckoutParams, options?: RequestOptions): Promise<CheckoutAcceptance>;
 }

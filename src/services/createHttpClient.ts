@@ -2,8 +2,8 @@ import type { EpochMilliseconds } from "../types/time";
 import { epochMilliseconds, epochMillisecondsNow } from "../utils/time";
 import { buildQueryString, type QueryParams } from "../utils/queryParams";
 
-import type { TokenSet, AuthStorage, RequestSuccessContext, RequestErrorContext, RequestOptions, ScheduledMutationOptions, HttpClient, HttpClientConfig, ServerError, HttpRequestErrorDetails } from "../types/httpClient";
-export type { TokenSet, AuthStorage, RequestSuccessContext, RequestErrorContext, RequestOptions, ScheduledMutationOptions, HttpClient, HttpClientConfig } from "../types/httpClient";
+import type { TokenSet, AuthStorage, RequestSuccessContext, RequestErrorContext, RequestOptions, HttpClient, HttpClientConfig, ServerError, HttpRequestErrorDetails } from "../types/httpClient";
+export type { TokenSet, AuthStorage, RequestSuccessContext, RequestErrorContext, RequestOptions, HttpClient, HttpClientConfig } from "../types/httpClient";
 
 function requestError(
   name: "ApiError" | "NetworkError" | "ParseError" | "AbortError",
@@ -51,8 +51,8 @@ function isValidationError(
 
 function toServerError(value: unknown, statusCode: number): ServerError {
   const payload = isRecord(value) ? value : {};
-  const validationErrors = Array.isArray(payload.validationErrors)
-    ? payload.validationErrors.filter(isValidationError)
+  const validationErrors = Array.isArray(payload.validation_errors)
+    ? payload.validation_errors.filter(isValidationError)
     : [];
 
   return {
@@ -60,7 +60,7 @@ function toServerError(value: unknown, statusCode: number): ServerError {
       typeof payload.message === "string" ? payload.message : "Request failed",
     error: typeof payload.error === "string" ? payload.error : "REQUEST_FAILED",
     statusCode:
-      typeof payload.statusCode === "number" ? payload.statusCode : statusCode,
+      typeof payload.status_code === "number" ? payload.status_code : statusCode,
     validationErrors,
   };
 }
@@ -165,9 +165,10 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
       }
     }
 
+    const multipart = typeof FormData !== "undefined" && body instanceof FormData;
     const headers: Record<string, string> = {
       Accept: "application/json",
-      "Content-Type": "application/json",
+      ...(multipart ? {} : { "Content-Type": "application/json" }),
       ...callerHeaders,
       ...forcedHeaders,
     };
@@ -202,8 +203,9 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
       signal: options?.signal,
     };
     if (!["GET", "DELETE"].includes(method) && body !== undefined) {
-      fetchOptions.body =
-        body instanceof URLSearchParams
+      fetchOptions.body = multipart
+        ? (body as FormData)
+        : body instanceof URLSearchParams
           ? body.toString()
           : JSON.stringify(body);
     }
@@ -234,9 +236,10 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
 
     if (res.status === 401 && !retried) {
       if (cfg.onUnauthorized) {
+        const authorization = Object.entries(headers).find(([name]) => name.toLowerCase() === "authorization")?.[1];
         const recovered = await cfg.onUnauthorized({
-          hadAuthorization: Boolean(tokens?.access_token),
-          authorizationToken: tokens?.access_token || null,
+          hadAuthorization: Boolean(authorization),
+          authorizationToken: authorization?.replace(/^Bearer\s+/i, "") || null,
           path,
         });
         if (recovered) {

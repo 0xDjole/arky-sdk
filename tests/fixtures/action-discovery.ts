@@ -1,11 +1,14 @@
-import { createAdmin } from '../../dist/index.js';
-import type { CustomerAction, FindCustomerActionsParams } from '../../dist/index.js';
+import type { createAdmin } from "arky-sdk/admin";
+import type { CustomerAction, FindCustomerActionsParams, PaginatedResponse } from "arky-sdk";
 
-declare const admin: ReturnType<typeof createAdmin>;
-const filters: FindCustomerActionsParams = { store_id: '0f7c2d4e-5a61-4b8c-9d3e-2f1a6b7c8d90', customer_id: 'customer', limit: 1, cursor: null };
-const page: Promise<{ items: CustomerAction[]; cursor: string | null }> = admin.actions.find(filters);
-// @ts-expect-error Action discovery does not accept private custom data predicates.
-void admin.actions.find({ store_id: '0f7c2d4e-5a61-4b8c-9d3e-2f1a6b7c8d90', data: { private: true } });
-// @ts-expect-error Timeline order is fixed to descending occurrence time.
-void admin.actions.find({ store_id: '0f7c2d4e-5a61-4b8c-9d3e-2f1a6b7c8d90', sort_field: 'updated_at' });
-void page;
+type Assert<T extends true> = T;
+type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
+type Admin = ReturnType<typeof createAdmin>;
+
+export const filters: FindCustomerActionsParams = { store_id: "0f7c2d4e-5a61-4b8c-9d3e-2f1a6b7c8d90", customer_id: "customer", limit: 1, cursor: null };
+
+export type ActionDiscoveryContracts = [
+  Assert<Equal<keyof FindCustomerActionsParams, "store_id" | "customer_id" | "limit" | "cursor">>,
+  Assert<Equal<Parameters<Admin["actions"]["find"]>[0], FindCustomerActionsParams>>,
+  Assert<Equal<Awaited<ReturnType<Admin["actions"]["find"]>>, PaginatedResponse<CustomerAction>>>,
+];

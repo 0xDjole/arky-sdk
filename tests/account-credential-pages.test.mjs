@@ -24,7 +24,7 @@ function installWindow(context) {
 
 function storedLogin(overrides = {}) {
   return {
-    id: loginSessionId, scope: { type: "store", store_id: loginStoreId },
+    id: loginSessionId,
     access_token: "access-current", refresh_token: "refresh-current",
     access_expires_at: Date.now() + 600_000, email: "operator@example.test", ...overrides,
   };
@@ -56,16 +56,16 @@ test("own credential lists forward bounded pages and preserve tagged statuses wi
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     const parsed = new URL(url);
     calls.push({ url: parsed, headers: new Headers(init.headers) });
-    const body = { items: [{ id: "credential", status: { type: "revoked" } }], cursor: parsed.searchParams.has("cursor") ? null : cursor };
+    const body = { items: [{ id: "credential", status: { type: "revoked", revoked_at: 5 } }], cursor: parsed.searchParams.has("cursor") ? null : cursor };
     return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const admin = createAdmin({ baseUrl: "https://credentials.test", apiToken: "arky_account_access_contract" });
-  for (const [api, path] of [[admin.account.apiToken, "api-tokens"], [admin.account.session, "sessions"]]) {
+  const admin = createAdmin({ baseUrl: "https://credentials.test", secretKey: "arky_account_access_contract" });
+  for (const [api, path] of [[admin.account.session, "sessions"]]) {
     const count = calls.length;
     const first = await api.list({ limit: 1 }, { headers: { "X-Trace-Id": "credential-page" } });
     assert.equal(calls.length, count + 1);
     assert.equal(first.cursor, cursor);
-    assert.deepEqual(first.items[0].status, { type: "revoked" });
+    assert.deepEqual(first.items[0].status, { type: "revoked", revoked_at: 5 });
     const next = await api.list({ limit: 1, cursor: first.cursor });
     assert.equal(calls.length, count + 2);
     assert.equal(next.cursor, null);
@@ -78,6 +78,12 @@ test("own credential lists forward bounded pages and preserve tagged statuses wi
   }
 });
 
+test("personal credentials have no API token owner", () => {
+  const admin = createAdmin({ baseUrl: "https://credentials.test", secretKey: "arky_secret" });
+  assert.equal("apiToken" in admin.account, false);
+  assert.equal(typeof admin.store.apiKey.create, "function");
+});
+
 test("Admin logout revokes the exact persisted server Session with its current access credential", async (context) => {
   const storage = installWindow(context);
   const calls = recordFetch(context, (call) => call.method === "DELETE" ? [200, true] : [200, issuedCredentials()]);
@@ -85,8 +91,8 @@ test("Admin logout revokes the exact persisted server Session with its current a
   await admin.account.auth.storeVerify(loginStoreId, { session_id: "pending-login", code: "123456" });
   const persisted = JSON.parse(storage.getItem(logoutStorageKey));
   assert.equal(persisted.id, loginSessionId);
-  assert.deepEqual(persisted.scope, { type: "store", store_id: loginStoreId });
-  assert.deepEqual(admin.session, { id: loginSessionId, email: undefined, scope: { type: "store", store_id: loginStoreId } });
+  assert.deepEqual(Object.keys(persisted).sort(), ["access_expires_at", "access_token", "id", "refresh_token"]);
+  assert.deepEqual(admin.session, { id: loginSessionId, email: undefined });
 
   assert.deepEqual(await admin.logout(), { type: "revoked", session_id: loginSessionId });
   assert.deepEqual(calls.slice(1), [{
@@ -104,8 +110,8 @@ test("a lost, refused or unexpected revocation response clears that login and re
   const storage = installWindow(context);
   const outcomes = [
     () => { throw new TypeError("revocation response was lost"); },
-    () => [500, { message: "Internal error", statusCode: 500 }],
-    () => [401, { message: "Unauthorized", statusCode: 401 }],
+    () => [500, { message: "Internal error", status_code: 500 }],
+    () => [401, { message: "Unauthorized", status_code: 401 }],
     () => [200, false],
   ];
   let outcome = outcomes[0];
@@ -124,13 +130,14 @@ test("a lost, refused or unexpected revocation response clears that login and re
   }
 });
 
-test("logout without a local login is local-only and an API token client revokes nothing", async (context) => {
+test("logout without a local login is local-only and a Secret key client revokes nothing", async (context) => {
   installWindow(context);
   const calls = recordFetch(context, () => [200, true]);
   assert.deepEqual(await createAdmin({ baseUrl: logoutBaseUrl }).logout(), { type: "local_only" });
-  const tokenClient = createAdmin({ baseUrl: logoutBaseUrl, apiToken: "arky_account_access_contract" });
-  assert.deepEqual(await tokenClient.logout(), { type: "api_token" });
+  const tokenClient = createAdmin({ baseUrl: logoutBaseUrl, secretKey: "arky_account_access_contract" });
+  assert.deepEqual(await tokenClient.logout(), { type: "secret_key" });
   assert.equal(tokenClient.isAuthenticated, true);
+  assert.equal(tokenClient.session, null);
   assert.equal(calls.length, 0);
 });
 
@@ -170,5 +177,5 @@ test("a later login survives the completion of an earlier logout", async (contex
   assert.equal(calls.length, 1);
   assert.equal(calls[0].authorization, "Bearer access-current");
   assert.deepEqual(JSON.parse(storage.getItem(logoutStorageKey)), laterLogin);
-  assert.deepEqual(admin.session, { id: laterSessionId, email: "operator@example.test", scope: { type: "store", store_id: loginStoreId } });
+  assert.deepEqual(admin.session, { id: laterSessionId, email: "operator@example.test" });
 });

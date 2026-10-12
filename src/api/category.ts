@@ -1,91 +1,54 @@
-import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
+import type { RequestOptions } from "../types/api";
+import type { PaginatedResponse } from "../types/common";
 import type {
+  Category,
   CreateCategoryParams,
-  UpdateCategoryParams,
   DeleteCategoryParams,
+  FindCategoriesParams,
+  FindCategoryChildrenParams,
   GetCategoryParams,
-  GetCategoriesParams,
-  GetCategoryChildrenParams,
-  RequestOptions,
-} from "../types/api";
-import type { Category } from "../types";
+  UpdateCategoryParams,
+} from "../types/content";
+import { requireId } from "../utils/ids";
+import { storePath, storeRecordPath } from "./paths";
 
-export const createCategoryApi = (apiConfig: ApiConfig) => {
-  return {
-    async createCategory(
-      params: CreateCategoryParams,
-      options?: RequestOptions,
-    ): Promise<Category> {
-      const { store_id, ...payload } = params;
-      const target_store_id = requireStoreId(store_id);
-      return apiConfig.httpClient.post<Category>(
-        `/v1/stores/${requireStoreId(target_store_id)}/categories`,
-        payload,
-        options,
-      );
-    },
+export const createCategoryApi = (apiConfig: ApiConfig) => ({
+  find(params: FindCategoriesParams, options?: RequestOptions): Promise<PaginatedResponse<Category>> {
+    const { store_id, ...query } = params;
+    return apiConfig.httpClient.get<PaginatedResponse<Category>>(storePath(store_id, "categories"), {
+      ...options,
+      params: query,
+    });
+  },
 
-    async updateCategory(
-      params: UpdateCategoryParams,
-      options?: RequestOptions,
-    ): Promise<Category> {
-      const { store_id, id, ...payload } = params;
-      const target_store_id = requireStoreId(store_id);
-      return apiConfig.httpClient.put<Category>(
-        `/v1/stores/${requireStoreId(target_store_id)}/categories/${id}`,
-        payload,
-        options,
-      );
-    },
+  get(params: GetCategoryParams, options?: RequestOptions): Promise<Category> {
+    return apiConfig.httpClient.get<Category>(storeRecordPath(params.store_id, "categories", params.id), options);
+  },
 
-    async deleteCategory(
-      params: DeleteCategoryParams,
-      options?: RequestOptions,
-    ): Promise<boolean> {
-      const target_store_id = requireStoreId(params.store_id);
-      return apiConfig.httpClient.delete<boolean>(
-        `/v1/stores/${requireStoreId(target_store_id)}/categories/${params.id}`,
-        options,
-      );
-    },
+  getChildren(params: FindCategoryChildrenParams, options?: RequestOptions): Promise<PaginatedResponse<Category>> {
+    const { store_id, id, ...query } = params;
+    return apiConfig.httpClient.get<PaginatedResponse<Category>>(`${storeRecordPath(store_id, "categories", id)}/children`, {
+      ...options,
+      params: query,
+    });
+  },
 
-    async getCategory(
-      params: GetCategoryParams,
-      options?: RequestOptions,
-    ): Promise<Category> {
-      const target_store_id = requireStoreId(params.store_id);
-      return apiConfig.httpClient.get<Category>(
-        `/v1/stores/${requireStoreId(target_store_id)}/categories/${params.id}`,
-        options,
-      );
-    },
+  create(params: CreateCategoryParams, options?: RequestOptions): Promise<Category> {
+    requireId(params.id, "category");
+    const { store_id, ...body } = params;
+    return apiConfig.httpClient.post<Category>(storePath(store_id, "categories"), body, options);
+  },
 
-    async getCategories(
-      params: GetCategoriesParams,
-      options?: RequestOptions,
-    ): Promise<{ items: Category[]; cursor: string | null }> {
-      const { store_id, ...queryParams } = params;
-      const target_store_id = requireStoreId(store_id);
-      return apiConfig.httpClient.get<{ items: Category[]; cursor: string | null }>(
-        `/v1/stores/${requireStoreId(target_store_id)}/categories`,
-        {
-          ...options,
-          params: queryParams,
-        }
-      );
-    },
+  update(params: UpdateCategoryParams, options?: RequestOptions): Promise<Category> {
+    const { store_id, id, ...body } = params;
+    return apiConfig.httpClient.put<Category>(storeRecordPath(store_id, "categories", id), body, options);
+  },
 
-    async getCategoryChildren(
-      params: GetCategoryChildrenParams,
-      options?: RequestOptions,
-    ): Promise<{ items: Category[]; cursor: string | null }> {
-      const { id, store_id, ...queryParams } = params;
-      const target_store_id = requireStoreId(store_id);
-      return apiConfig.httpClient.get<{ items: Category[]; cursor: string | null }>(
-        `/v1/stores/${requireStoreId(target_store_id)}/categories/${id}/children`,
-        { ...options, params: queryParams },
-      );
-    },
-  };
-};
+  delete(params: DeleteCategoryParams, options?: RequestOptions): Promise<Category> {
+    return apiConfig.httpClient.delete<Category>(storeRecordPath(params.store_id, "categories", params.id), {
+      ...options,
+      params: { expected_updated_at: params.expected_updated_at },
+    });
+  },
+});

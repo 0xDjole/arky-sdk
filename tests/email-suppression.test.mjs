@@ -5,245 +5,110 @@ import { createStorefront } from "../dist/storefront.js";
 
 const storeId = "c8b7fcf9-d026-483a-a549-c6c9bab678e2";
 const id = "78e6daf8-0253-47ac-956a-75b998f838f0";
-const requestId = "c99c70e6-1e6a-4c54-b4a0-75786cf4f168";
-const version = "577b07c2-7bb3-4c4c-96f7-2531ebccca68";
 const baseUrl = "https://email-restriction-contract.test";
+const actor = { account_id: "2254288f-9778-4e51-8354-20b3d78d2dd4", snapshot: { email: "operator@example.test", credential_type: "session" } };
 const record = {
-  restriction: {
-    id,
-    store_id: storeId,
-    email: "person@example.com",
-    type: "admin_block",
-    status: { type: "active" },
-    changed_by: { type: "admin", account_session_id: null },
-    note: "Operator explanation",
-    created_at: 0,
-    updated_at: 1_800_000_000_123,
-  },
-  version,
+  id,
+  store_id: storeId,
+  email: "person@example.com",
+  type: "block",
+  status: { type: "active", cause: { type: "account", actor, note: "Operator explanation" } },
+  created_at: 0,
+  updated_at: 1_800_000_000_123,
 };
 
 function client() {
-  return createAdmin({ baseUrl }).customers.emailSuppression;
+  return createAdmin({ baseUrl, secretKey: "arky_api_suppressions" }).customers.emailSuppression;
 }
 
 function response(value) {
-  return new Response(JSON.stringify(value), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
+  return new Response(JSON.stringify(value), { status: 200, headers: { "content-type": "application/json" } });
 }
 
-test("Email restrictions use explicit independent commands and retain exact replay/version evidence", async (context) => {
+test("email suppressions are blocked and released by explicit commands with the app's id, a note and the version", async (context) => {
   const calls = [];
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
-    calls.push({
-      url: new URL(url),
-      method: init.method,
-      body: JSON.parse(init.body),
-      headers: new Headers(init.headers),
-    });
+    calls.push({ url: new URL(url), method: init.method, body: JSON.parse(init.body), headers: new Headers(init.headers) });
     return response(record);
   });
   const restrictions = client();
-  const activation = {
-    store_id: storeId,
-    id,
-    email: "person@example.com",
-    request_id: requestId,
-    expected_version: null,
-    note: "Operator explanation",
-  };
-  assert.deepEqual(
-    await restrictions.block(activation, {
-      headers: { "X-Trace-Id": "restriction-test" },
-    }),
-    record,
-  );
+  const activation = { store_id: storeId, id, email: "person@example.com", note: "Operator explanation" };
+  assert.deepEqual(await restrictions.block(activation, { headers: { "X-Trace-Id": "restriction-test" } }), record);
   await restrictions.block(activation);
-  await restrictions.recordUnsubscribe({
-    ...activation,
-    expected_version: version,
-  });
-  const release = {
-    store_id: storeId,
-    id,
-    request_id: requestId,
-    expected_version: version,
-    note: "Recipient requested this change",
-  };
+  await restrictions.recordUnsubscribe({ ...activation, expected_updated_at: 1_800_000_000_123 });
+  const release = { store_id: storeId, id, expected_updated_at: 1_800_000_000_123, note: "Recipient requested this change" };
   await restrictions.unblock(release);
   const override = "a3e9b60e-39cf-4508-8d2a-0b1d63c5f6cd";
   await restrictions.recordResubscribe({ ...release, store_id: override });
   assert.equal(calls.length, 5);
-  assert.deepEqual(
-    calls.map((call) => call.method),
-    Array(5).fill("POST"),
-  );
-  assert.deepEqual(
-    calls.map((call) => call.url.pathname),
-    [
-      `/v1/stores/${storeId}/email-suppressions/block`,
-      `/v1/stores/${storeId}/email-suppressions/block`,
-      `/v1/stores/${storeId}/email-suppressions/record-unsubscribe`,
-      `/v1/stores/${storeId}/email-suppressions/${id}/unblock`,
-      `/v1/stores/${override}/email-suppressions/${id}/record-resubscribe`,
-    ],
-  );
-  const { store_id: _activationStore, ...activationBody } = activation;
+  assert.deepEqual(calls.map((call) => call.method), Array(5).fill("POST"));
+  assert.deepEqual(calls.map((call) => call.url.pathname), [
+    `/v1/stores/${storeId}/email-suppressions/block`,
+    `/v1/stores/${storeId}/email-suppressions/block`,
+    `/v1/stores/${storeId}/email-suppressions/record-unsubscribe`,
+    `/v1/stores/${storeId}/email-suppressions/${id}/unblock`,
+    `/v1/stores/${override}/email-suppressions/${id}/record-resubscribe`,
+  ]);
+  const { store_id: _store, ...activationBody } = activation;
   assert.deepEqual(calls[0].body, activationBody);
   assert.deepEqual(calls[1].body, activationBody);
-  assert.equal(calls[2].body.expected_version, version);
-  assert.deepEqual(calls[3].body, {
-    request_id: requestId,
-    expected_version: version,
-    note: release.note,
-  });
+  assert.deepEqual(calls[2].body, { ...activationBody, expected_updated_at: 1_800_000_000_123 });
+  assert.deepEqual(calls[3].body, { note: release.note, expected_updated_at: release.expected_updated_at });
   assert.equal(calls[0].headers.get("X-Trace-Id"), "restriction-test");
   for (const call of calls) {
-    for (const field of [
-      "type",
-      "status",
-      "changed_by",
-      "store_id",
-      "customer_id",
-      "command_id",
-    ]) {
-      assert.equal(field in call.body, false);
+    for (const field of ["type", "status", "changed_by", "store_id", "customer_id", "request_id", "expected_version"]) {
+      assert.equal(field in call.body, false, field);
     }
   }
-  for (const request_id of [undefined, "operator-request", requestId.toUpperCase()]) {
-    await assert.rejects(restrictions.block({ ...activation, request_id }), { name: "TypeError", message: "A business request requires the caller's canonical UUID-v4 request_id" });
-    await assert.rejects(restrictions.unblock({ ...release, request_id }), TypeError);
+  for (const invented of [undefined, "operator-request", id.toUpperCase()]) {
+    await assert.rejects(async () => restrictions.block({ ...activation, id: invented }), TypeError);
+    await assert.rejects(async () => restrictions.recordUnsubscribe({ ...activation, id: invented }), TypeError);
   }
-  await assert.rejects(restrictions.block({ ...activation, store_id: undefined }), TypeError);
+  await assert.rejects(async () => restrictions.block({ ...activation, store_id: undefined }), TypeError);
   assert.equal(calls.length, 5);
-  for (const method of [
-    "delete",
-    "update",
-    "releaseAll",
-    "sendAnyway",
-    "unsubscribe",
-  ]) {
-    assert.equal(method in restrictions, false);
+  for (const method of ["delete", "update", "releaseAll", "sendAnyway", "unsubscribe"]) {
+    assert.equal(method in restrictions, false, method);
   }
-  const storefront = createStorefront(`arky_pk_${"e".repeat(42)}A`, {
-    apiUrl: baseUrl,
-  });
+  const storefront = createStorefront(`arky_pk_${"e".repeat(42)}A`, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl: baseUrl });
   assert.equal("emailSuppression" in storefront, false);
   assert.equal("emailSuppression" in storefront.customer, false);
 });
 
-test("Email restriction reads preserve independent types, empty filtered-page cursors and millisecond precision", async (context) => {
+test("email suppression reads keep independent types, empty filtered-page cursors and millisecond precision", async (context) => {
   const calls = [];
+  const released = { ...record, id: "c99c70e6-1e6a-4c54-b4a0-75786cf4f168", type: "unsubscribe", status: { type: "released", by: { type: "storefront", customer_session_id: "5d2f1c8b-6a4e-4c39-9b71-2f8e0d47a3c6" } } };
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     calls.push({ url: new URL(url), method: init.method, body: init.body });
-    if (calls.length === 1)
-      return response({ items: [], cursor: "filtered:+/=" });
+    if (calls.length === 1) return response({ items: [], cursor: "filtered:+/=" });
     if (calls.length === 2) return response({ items: [record], cursor: null });
-    if (calls.length === 3)
-      return response({
-        items: [
-          record,
-          {
-            ...record,
-            restriction: {
-              ...record.restriction,
-              id: requestId,
-              type: "unsubscribe",
-              status: { type: "released" },
-            },
-          },
-        ],
-        cursor: null,
-      });
+    if (calls.length === 3) return response({ items: [record, released], cursor: null });
     return response(record);
   });
   const restrictions = client();
-  const first = await restrictions.find({
-    store_id: storeId,
-    type: "admin_block",
-    status: "active",
-  });
+  const first = await restrictions.find({ store_id: storeId, type: "block", status: "active", limit: 50 });
   assert.deepEqual(first, { items: [], cursor: "filtered:+/=" });
   const second = await restrictions.find({ store_id: storeId, limit: 100, cursor: first.cursor });
   assert.deepEqual(second.items, [record]);
-  assert.equal(second.items[0].restriction.created_at, 0);
-  assert.equal(second.items[0].restriction.updated_at, 1_800_000_000_123);
+  assert.equal(second.items[0].created_at, 0);
+  assert.equal(second.items[0].updated_at, 1_800_000_000_123);
   const exact = await restrictions.find({ store_id: storeId, query: "person@example.com" });
   assert.equal(exact.items.length, 2);
+  assert.deepEqual(exact.items[1].status, released.status);
   assert.deepEqual(await restrictions.get({ store_id: storeId, id }), record);
   assert.equal(calls.length, 4);
-  assert.deepEqual(
-    [...calls[0].url.searchParams],
-    [
-      ["limit", "50"],
-      ["type", "admin_block"],
-      ["status", "active"],
-    ],
-  );
-  assert.deepEqual(
-    [...calls[1].url.searchParams],
-    [
-      ["limit", "100"],
-      ["cursor", "filtered:+/="],
-    ],
-  );
-  assert.deepEqual(
-    [...calls[2].url.searchParams],
-    [["query", "person@example.com"]],
-  );
-  assert.equal(
-    calls[3].url.pathname,
-    `/v1/stores/${storeId}/email-suppressions/${id}`,
-  );
-  assert.ok(
-    calls.every((call) => call.method === "GET" && call.body === undefined),
-  );
+  assert.deepEqual([...calls[0].url.searchParams], [["type", "block"], ["status", "active"], ["limit", "50"]]);
+  assert.deepEqual([...calls[1].url.searchParams], [["limit", "100"], ["cursor", "filtered:+/="]]);
+  assert.deepEqual([...calls[2].url.searchParams], [["query", "person@example.com"]]);
+  assert.equal(calls[3].url.pathname, `/v1/stores/${storeId}/email-suppressions/${id}`);
+  assert.ok(calls.every((call) => call.method === "GET" && call.body === undefined));
 });
 
-test("Email restrictions reject ambiguous versions and unbounded reads before making a request", async (context) => {
-  let calls = 0;
-  context.mock.method(globalThis, "fetch", async () => {
-    calls += 1;
-    return response(record);
+test("the SDK does not add paging to an exact email search", async (context) => {
+  const calls = [];
+  context.mock.method(globalThis, "fetch", async (url) => {
+    calls.push(new URL(url));
+    return response({ items: [record], cursor: null });
   });
-  const restrictions = client();
-  await assert.rejects(
-    restrictions.block({
-      store_id: storeId,
-      id,
-      email: "person@example.com",
-      request_id: requestId,
-      note: "Reason",
-    }),
-    /explicit expected_version/,
-  );
-  for (const expected_version of [undefined, null, ""]) {
-    await assert.rejects(
-      restrictions.unblock({
-        store_id: storeId,
-        id,
-        request_id: requestId,
-        expected_version,
-        note: "Reason",
-      }),
-      /current expected_version/,
-    );
-  }
-  for (const limit of [0, -1, 101, 1.5, null, "50", Infinity, NaN]) {
-    await assert.rejects(restrictions.find({ store_id: storeId, limit }), /integer from 1 to 100/);
-  }
-  for (const cursor of ["", null, 5, "é".repeat(1025)]) {
-    await assert.rejects(restrictions.find({ store_id: storeId, cursor }), /1 to 2048 bytes/);
-  }
-  await assert.rejects(
-    restrictions.find({ store_id: storeId, query: "person@example.com", limit: 1 }),
-    /does not accept pagination/,
-  );
-  await assert.rejects(
-    restrictions.find({ store_id: storeId, query: "person@example.com", cursor: "opaque" }),
-    /does not accept pagination/,
-  );
-  assert.equal(calls, 0);
+  await client().find({ store_id: storeId, query: "person@example.com" });
+  assert.deepEqual(Object.fromEntries(calls[0].searchParams), { query: "person@example.com" });
 });

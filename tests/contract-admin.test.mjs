@@ -1,1212 +1,277 @@
-#!/usr/bin/env node
 import assert from "node:assert/strict";
-import { createAdmin } from "../dist/admin.js";
-import {
-  SUPPORTED_STORE_CURRENCIES,
-  convertToMajor,
-  convertToMinor,
-  formatMinor,
-  getCurrencyMinorUnits,
-} from "../dist/utils.js";
+import test from "node:test";
+import { BROADCAST_BLOCK_FIELD_PREFIXES, BROADCAST_FIELDS, createAdmin } from "../dist/admin.js";
+import { SUPPORTED_STORE_CURRENCIES, convertToMajor, convertToMinor, formatMinor, getCurrencyMinorUnits } from "../dist/utils.js";
+import { recordFetch } from "./helpers/arky-fixtures.mjs";
 
 const STORE_ID = "4f2a9c61-7e3b-4d85-a0c9-1b6e8d3f5a27";
-const OTHER_STORE_ID = "b8e1d4a7-2c95-4f36-9d08-6a3c7e1f0b52";
-const API = "http://127.0.0.1:1";
+const API = "https://api.example.test";
 
 const expectedStoreCurrencies = [
-  "USD",
-  "EUR",
-  "GBP",
-  "JPY",
-  "CNY",
-  "CHF",
-  "AUD",
-  "CAD",
-  "HKD",
-  "SGD",
-  "NZD",
-  "KRW",
-  "SEK",
-  "NOK",
-  "DKK",
-  "INR",
-  "MXN",
-  "BRL",
-  "ZAR",
-  "RUB",
-  "TRY",
-  "PLN",
-  "THB",
-  "IDR",
-  "MYR",
-  "PHP",
-  "CZK",
-  "ILS",
-  "AED",
-  "SAR",
-  "HUF",
-  "RON",
-  "BGN",
-  "HRK",
-  "BAM",
-  "RSD",
-  "MKD",
-  "ALL",
+  "usd", "aed", "afn", "all", "amd", "ang", "aoa", "ars", "aud", "awg", "azn", "bam", "bbd", "bdt", "bhd", "bif", "bmd", "bnd", "bob", "brl",
+  "bsd", "bwp", "byn", "bzd", "cad", "cdf", "chf", "clp", "cny", "cop", "crc", "cve", "czk", "djf", "dkk", "dop", "dzd", "egp", "etb", "eur",
+  "fjd", "fkp", "gbp", "gel", "gip", "gmd", "gnf", "gtq", "gyd", "hkd", "hnl", "htg", "huf", "idr", "ils", "inr", "isk", "jmd", "jod", "jpy",
+  "kes", "kgs", "khr", "kmf", "krw", "kwd", "kyd", "kzt", "lak", "lbp", "lkr", "lrd", "lsl", "mad", "mdl", "mga", "mkd", "mmk", "mnt", "mop",
+  "mur", "mvr", "mwk", "mxn", "myr", "mzn", "nad", "ngn", "nio", "nok", "npr", "nzd", "omr", "pab", "pen", "pgk", "php", "pkr", "pln", "pyg",
+  "qar", "ron", "rsd", "rub", "rwf", "sar", "sbd", "scr", "sek", "sgd", "shp", "sle", "sos", "srd", "std", "szl", "thb", "tjs", "tnd", "top",
+  "try", "ttd", "twd", "tzs", "uah", "ugx", "uyu", "uzs", "vnd", "vuv", "wst", "xaf", "xcd", "xcg", "xof", "xpf", "yer", "zar", "zmw",
 ];
 
-assert.deepEqual([...SUPPORTED_STORE_CURRENCIES], expectedStoreCurrencies);
-for (const currency of expectedStoreCurrencies) {
-  const expectedMinorUnits = currency === "JPY" || currency === "KRW" ? 0 : 2;
-  assert.equal(
-    getCurrencyMinorUnits(currency),
-    expectedMinorUnits,
-    `${currency} minor units must match the server currency contract`,
-  );
-}
-assert.equal(getCurrencyMinorUnits(" jpy "), 0);
-assert.equal(getCurrencyMinorUnits("IDR"), 2);
-assert.equal(getCurrencyMinorUnits("HUF"), 2);
-assert.equal(getCurrencyMinorUnits("ALL"), 2);
-assert.equal(convertToMinor(12.34, "USD"), 1234);
-assert.equal(convertToMajor(1234, "USD"), 12.34);
-assert.equal(convertToMinor(100, "JPY"), 100);
-assert.equal(convertToMajor(100, "JPY"), 100);
-assert.equal(convertToMinor(100, "KRW"), 100);
-assert.equal(convertToMajor(100, "KRW"), 100);
-assert.match(formatMinor(100, "JPY"), /100/);
-assert.doesNotMatch(formatMinor(100, "JPY"), /100[.,]00/);
-for (const currency of ["IDR", "HUF", "ALL"]) {
-  assert.equal(convertToMajor(1234, currency), 12.34);
-  assert.equal(convertToMinor(12.34, currency), 1234);
-  assert.match(
-    formatMinor(1234, currency),
-    /12[.,]34/,
-    `${currency} formatting must retain the server's two minor-unit digits`,
-  );
-}
-assert.equal(formatMinor(100, " jpy "), formatMinor(100, "JPY"));
-assert.throws(() => convertToMinor(1, "ZZZ"), /Unsupported currency/);
+const minorUnitExceptions = { bhd: 3, bif: 0, clp: 0, djf: 0, gnf: 0, isk: 0, jod: 3, jpy: 0, kmf: 0, krw: 0, kwd: 3, mga: 0, omr: 3, pyg: 0, rwf: 0, tnd: 3, ugx: 0, vnd: 0, vuv: 0, xaf: 0, xof: 0, xpf: 0 };
 
-const arky = createAdmin({
-  baseUrl: API,
-  apiToken: "contract-token",
-});
-assert.equal("setStoreId" in arky, false);
-assert.equal("getStoreId" in arky, false);
-
-assert.equal(typeof arky.account.auth.code, "function");
-assert.equal(typeof arky.account.auth.verify, "function");
-assert.equal(typeof arky.account.auth.refresh, "function");
-assert.equal(typeof arky.account.auth.storeCode, "function");
-assert.equal(typeof arky.account.auth.storeVerify, "function");
-assert.equal("googleStart" in arky.account.auth, false);
-assert.equal("googleComplete" in arky.account.auth, false);
-assert.equal("update" in arky.account, false);
-assert.equal(typeof arky.account.delete, "function");
-assert.equal(typeof arky.account.getMe, "function");
-assert.equal(typeof arky.account.search, "function");
-assert.equal(typeof arky.account.apiToken.list, "function");
-assert.equal(typeof arky.account.apiToken.create, "function");
-assert.equal(typeof arky.account.apiToken.update, "function");
-assert.equal(typeof arky.account.apiToken.revoke, "function");
-assert.equal(typeof arky.account.session.list, "function");
-assert.equal(typeof arky.account.session.revoke, "function");
-
-assert.equal(typeof arky.store.create, "function");
-assert.equal(typeof arky.store.update, "function");
-assert.equal(typeof arky.store.get, "function");
-assert.equal(typeof arky.store.find, "function");
-assert.equal(typeof arky.store.subscription.getPlans, "function");
-assert.equal(typeof arky.store.subscription.select, "function");
-assert.equal("getCheckout" in arky.store.subscription, false);
-assert.equal(typeof arky.store.subscription.cancel, "function");
-assert.equal(typeof arky.store.subscription.reactivate, "function");
-assert.equal(typeof arky.store.subscription.createPortalSession, "function");
-assert.equal("customer" in arky, false);
-assert.equal(typeof arky.eshop.customerGroupMember.find, "function");
-assert.equal(typeof arky.eshop.customerGroupMember.get, "function");
-assert.equal(typeof arky.eshop.customerGroupMember.join, "function");
-assert.equal(typeof arky.eshop.subscription.find, "function");
-assert.equal(typeof arky.eshop.subscription.get, "function");
-assert.equal(typeof arky.eshop.subscription.findOrders, "function");
-assert.equal(typeof arky.store.member.add, "function");
-assert.equal(typeof arky.store.member.invite, "function");
-assert.equal(typeof arky.store.member.remove, "function");
-assert.equal(typeof arky.store.member.updateRoles, "function");
-assert.equal(typeof arky.store.member.changeStatus, "function");
-assert.equal(typeof arky.store.member.transferOwnership, "function");
-for (const method of ["create", "update", "get", "find", "delete"]) {
-  assert.equal(typeof arky.store.role[method], "function");
-}
-assert.equal("buildHook" in arky.store, false);
-assert.equal(typeof arky.store.webhook.list, "function");
-assert.equal(typeof arky.store.paymentOption.list, "function");
-for (const method of ["setup", "configure", "cancelConfiguration", "getConfigurationChange", "refresh"]) {
-  assert.equal(typeof arky.store.paymentOption.stripe[method], "function");
-}
-for (const removed of ["connect", "getConnection", "openDashboard"]) {
-  assert.equal(removed in arky.store.paymentOption.stripe, false);
-}
-assert.equal("getByType" in arky.store.paymentOption, false);
-assert.equal("delete" in arky.store.paymentOption, false);
-assert.equal(typeof arky.media.replaceContent, "function");
-assert.equal(typeof arky.category.create, "function");
-assert.equal(typeof arky.category.find, "function");
-assert.equal("category" in arky.content, false);
-assert.equal(typeof arky.content.collection.find, "function");
-assert.equal(typeof arky.content.entry.find, "function");
-assert.equal(typeof arky.forms.find, "function");
-assert.equal(typeof arky.notification.template.find, "function");
-assert.equal(typeof arky.actions.find, "function");
-assert.equal("cms" in arky, false);
-assert.equal("crm" in arky, false);
-assert.equal(typeof arky.eshop.digital.product.create, "function");
-assert.equal(typeof arky.eshop.digital.asset.upload, "function");
-
-// Stable keys are looked up in the Store's exact index, not composed into old IDs.
-const contentKeyCalls = [];
-const contentKeyOriginalFetch = globalThis.fetch;
-globalThis.fetch = async (url, init = {}) => {
-  contentKeyCalls.push([String(url), init.method]);
-  return new Response(JSON.stringify({ id: "current-uuid" }), {
-    status: 200, headers: { "content-type": "application/json" },
-  });
+const adminSurface = {
+  "(root)": ["logout", "onAuthStateChanged"],
+  account: ["delete", "getMe", "search"],
+  "account.auth": ["code", "refresh", "storeCode", "storeVerify", "verify"],
+  "account.session": ["list", "revoke"],
+  actions: ["find"],
+  analytics: ["get"],
+  broadcast: ["create", "delete", "find", "get", "preview", "schedule", "send", "test", "unschedule", "update"],
+  category: ["create", "delete", "find", "get", "getChildren", "update"],
+  companies: ["create", "delete", "find", "get", "reviewTaxRegistration", "setPurchasing", "setTax", "submitTaxRegistration", "update"],
+  "companies.location": ["create", "delete", "find", "get", "reviewTaxRegistration", "setFulfillment", "setPurchasing", "setTax", "submitTaxRegistration", "update"],
+  "companies.membership": ["create", "delete", "find", "get", "resendInvite", "update"],
+  "companies.notes": ["create", "delete", "find", "update"],
+  "companies.role": ["create", "delete", "find", "get", "update"],
+  "content.collection": ["create", "delete", "find", "get", "update"],
+  "content.entry": ["create", "delete", "find", "findByIds", "findBySlug", "get", "update"],
+  customers: ["create", "erase", "find", "findSessions", "get", "import", "merge", "previewImport", "revokeAllSessions", "revokeSession", "update"],
+  "customers.emailSuppression": ["block", "find", "get", "recordResubscribe", "recordUnsubscribe", "unblock"],
+  "customers.notes": ["create", "delete", "find", "update"],
+  "eshop.bookingOffering": ["create", "delete", "find", "get", "lookup", "update"],
+  "eshop.bookingResource": ["create", "delete", "find", "get", "getByKey", "update"],
+  "eshop.bookingService": ["create", "delete", "find", "get", "getAvailability", "getByKey", "update"],
+  "eshop.cart": ["addBooking", "addCustomerGroup", "addProduct", "checkout", "checkoutOnAccount", "clear", "create", "find", "get", "paymentAction", "previewAccessProduct", "quote", "quoteFutureDeliveries", "quotePurchase", "removeItem", "selectShippingMethod", "setFutureDeliveries", "update"],
+  "eshop.cart.offer": ["create", "send", "withdraw"],
+  "eshop.catalog": ["copy", "create", "delete", "find", "findPurchasable", "get", "getByKey", "update"],
+  "eshop.catalogAccess": ["create", "delete", "find", "get"],
+  "eshop.catalogItem": ["batch", "create", "delete", "find", "get", "update"],
+  "eshop.customerGroup": ["create", "delete", "find", "get", "getByKey", "update"],
+  "eshop.customerGroupMember": [
+    "assign", "calendar", "cancel", "changePurchaseRequirement", "current", "find", "findOrders", "get",
+    "getRevision", "pause", "purchaseAccess", "purchaseLimits", "purchaseRequirement", "resume", "reviewPurchaseRequirement",
+    "reviewSwitch", "revisions", "revoke", "scheduleEnd", "selectPaymentMethod", "skipNext", "switch",
+    "transferPurchaseRequirement", "withdrawRevision",
+  ],
+  "eshop.customerGroupOffering": ["create", "delete", "find", "get", "getByKey", "update"],
+  "eshop.digitalAsset": ["archive", "find", "get", "upload"],
+  "eshop.fulfillment": ["create", "execute", "find", "get", "markDelivered", "updateTracking"],
+  "eshop.fulfillmentJob": ["decide", "find", "get", "items", "unitSlots"],
+  "eshop.fulfillmentRouting": ["get", "update"],
+  "eshop.inventoryItem": ["create", "delete", "find", "get", "getByKey", "update"],
+  "eshop.inventoryLevel": ["create", "find", "get", "makeAvailable", "move", "receiveMove", "remove", "setAside", "stock"],
+  "eshop.inventoryMovement": ["find", "get", "record"],
+  "eshop.inventoryUnit": ["allocate", "execution", "find", "get", "move", "receive", "unassign", "writeOff"],
+  "eshop.minimumProgress": ["get"],
+  "eshop.order": ["addInvoice", "cancel", "cancelBookingItem", "cancelProductItem", "completeBookingItem", "deleteInvoice", "find", "findBookingItems", "findPayments", "get", "getFinancialSummary", "getPayment", "markBookingItemNoShow", "resendReceipt", "revokeAccess"],
+  "eshop.order.credit": ["create", "find", "get", "void"],
+  "eshop.order.notes": ["create", "delete", "find", "update"],
+  "eshop.payment": ["cancel", "cancelRefund", "createManual", "createRefund", "find", "get", "recordCollection", "recordRefundReceipt", "resolveCharge", "resolveHold", "resolveRefund"],
+  "eshop.paymentMethod": ["cancelSetup", "completeSetup", "consentText", "find", "get", "requestSetup", "revoke", "startSetup"],
+  "eshop.price": ["batch", "create", "delete", "find", "get", "update"],
+  "eshop.product": ["create", "delete", "find", "get", "getByKey", "update"],
+  "eshop.productVariant": ["create", "delete", "find", "get", "update"],
+  "eshop.promotion": ["create", "delete", "find", "get", "getByKey", "update"],
+  "eshop.promotionCode": ["create", "delete", "find", "get", "getByCode", "update"],
+  "notification.incomingWebhook": ["find", "get", "resolve"],
+  "eshop.rental": ["execute", "find", "get"],
+  "eshop.return": ["create", "credit", "destinationOptions", "execute", "find", "get", "inspectionUnit", "orderOptions", "rentalOptions"],
+  experiments: ["complete", "create", "delete", "find", "get", "pause", "results", "resume", "start", "update"],
+  forms: ["assignSubmission", "changeSubmissionStage", "create", "createSubmission", "delete", "deleteSubmission", "find", "findSubmissions", "get", "getSubmission", "getSubmissionFile", "setSubmissionCompany", "update"],
+  "forms.notes": ["create", "delete", "find", "update"],
+  media: ["create", "delete", "find", "get", "replaceContent", "update"],
+  "notification.outgoingEmail": ["find", "get"],
+  "notification.outgoingWebhook": ["find", "get"],
+  "notification.emailAddress": ["activate", "archive", "create", "delete", "find", "get", "update"],
+  "notification.emailProvider": ["connect", "domains", "get"],
+  "notification.template": ["create", "defaults", "delete", "find", "get", "preview", "test", "update"],
+  platform: ["getCurrencies", "getStorePlans", "getWebhookEvents"],
+  "platform.administrator": ["add", "list", "me", "remove"],
+  "platform.resendEvent": ["find", "resolve"],
+  "platform.stripeBillingEvent": ["find", "resolve"],
+  store: ["allowEmailSending", "create", "find", "get", "pauseEmailSending", "requestDeletion", "update"],
+  "store.location": ["create", "delete", "get", "getByKey", "getCountries", "getCountry", "list", "update"],
+  "store.market": ["create", "delete", "get", "getByKey", "list", "update"],
+  "store.member": ["acceptInvite", "add", "changeStatus", "find", "findOwn", "getOwn", "invite", "remove", "transferOwnership", "updateRoles"],
+  "store.paymentOption": ["create", "get", "getByKey", "list", "update"],
+  "store.paymentOption.monri": ["create"],
+  "store.paymentOption.stripe": ["connect", "createWebhook", "refresh", "replaceKeys", "rotateWebhookSecret"],
+  "store.role": ["create", "delete", "find", "get", "update"],
+  "store.salesChannel": ["create", "delete", "find", "get", "getByKey", "update"],
+  "store.shippingMethod": ["create", "delete", "find", "get", "getByKey", "update"],
+  "store.shippingProfile": ["create", "delete", "find", "get", "getByKey", "update"],
+  "store.apiKey": ["create", "delete", "find", "get", "revoke"],
+  "store.emails": ["get", "update"],
+  "store.subscription": ["createPortalSession", "endGrant", "get", "select"],
+  "store.taxCategory": ["create", "delete", "find", "get", "getByKey", "update"],
+  "store.usage": ["find"],
+  "store.webhook": ["create", "delete", "list", "test", "update"],
+  "store.zone": ["create", "delete", "find", "get", "getByKey", "update"],
+  "support.conversation": ["assign", "attachmentLink", "find", "findMessages", "get", "getMessage", "reply", "resolve", "selectSendingAddress"],
+  "support.conversation.notes": ["create", "delete", "find", "update"],
+  "support.flow": ["create", "delete", "find", "get", "update"],
 };
-try {
-  await arky.content.collection.get({ store_id: STORE_ID, key: "articles" });
-  await arky.forms.get({ key: "intake", store_id: OTHER_STORE_ID });
-  await arky.content.collection.get({ store_id: STORE_ID, id: "collection-uuid" });
-  await arky.forms.get({ store_id: STORE_ID, id: "form-uuid" });
-  assert.deepEqual(contentKeyCalls, [
-    [`${API}/v1/stores/${STORE_ID}/collections/by-key/articles`, "GET"],
-    [`${API}/v1/stores/${OTHER_STORE_ID}/forms/by-key/intake`, "GET"],
-    [`${API}/v1/stores/${STORE_ID}/collections/collection-uuid`, "GET"],
-    [`${API}/v1/stores/${STORE_ID}/forms/form-uuid`, "GET"],
-  ]);
-  await assert.rejects(async () => arky.content.collection.get({ key: "articles" }), TypeError);
-  await assert.rejects(async () => arky.forms.get({ store_id: "contract-store", id: "form-uuid" }), TypeError);
-  assert.equal(contentKeyCalls.length, 4);
-} finally {
-  globalThis.fetch = contentKeyOriginalFetch;
-}
 
-const storePlanCalls = [];
-assert.equal("subscription" in arky.eshop.cart, false);
-assert.equal(typeof arky.eshop.subscription.find, "function");
-assert.equal(typeof arky.eshop.subscriptionPlan.create, "function");
-const storePlanOriginalFetch = globalThis.fetch;
-globalThis.fetch = async (url, init = {}) => {
-  const call = {
-    url: String(url),
-    method: init.method || "GET",
-    body: init.body ? JSON.parse(String(init.body)) : null,
+function surfaceOf(client) {
+  const groups = {};
+  const walk = (value, path) => {
+    for (const key of Object.keys(value).sort()) {
+      if (path === "" && key === "utils") continue;
+      const child = value[key];
+      if (typeof child === "function") (groups[path || "(root)"] ??= []).push(key);
+      else if (child && typeof child === "object") walk(child, path ? `${path}.${key}` : key);
+    }
   };
-  storePlanCalls.push(call);
-  const body = { items: [], cursor: null };
-  return new Response(JSON.stringify(body), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
-};
-try {
-  assert.deepEqual(await arky.store.subscription.getPlans(), {
-    items: [],
-    cursor: null,
-  });
-} finally {
-  globalThis.fetch = storePlanOriginalFetch;
+  walk(client, "");
+  return groups;
 }
-assert.deepEqual(
-  storePlanCalls.map(({ url, ...call }) => ({
-    ...call,
-    url: url.replace("http://127.0.0.1:1", ""),
-  })),
-  [{ url: "/v1/stores/plans", method: "GET", body: null }],
-);
 
-const scheduledAdminCalls = [];
-const configurationRequestId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
-const configurationChange = {
-  store_id: STORE_ID,
-  payment_option_id: "provider-scheduled",
-  request_id: configurationRequestId,
-  type: "access",
-  expected_updated_at: 5,
-  accepted_updated_at: 6,
-  accepted_at: 6,
-  account_id: "acct_merchant",
-  livemode: false,
-};
-const selectedSubscription = {
-  id: "d397ff50-690b-4da7-9fb9-17740e535d69",
-  store_id: STORE_ID,
-  plan_access: null,
-  status: { type: "pending" },
-  operation: null,
-  checkout: {
-    id: "018f477d-1cae-4c12-bf12-123456789abc",
-    plan_id: "basic",
-    stripe_price_id: "price-basic",
-    stripe_customer_id: null,
-    trial_end: null,
-    expires_at: 10,
-    status: {
-      type: "open",
-      stripe_checkout_session_id: "cs_subscription_contract",
-    },
-    requested_at: 1,
-    updated_at: 2,
-  },
-  payment_action: {
-    type: "stripe_embedded_checkout",
-    publishable_key: "pk_test_subscription",
-    client_secret: "cs_subscription_secret_contract",
-    expires_at: 10,
-  },
-  trial_started_at: null,
-  created_at: 1,
-  updated_at: 2,
-};
-const scheduledOriginalFetch = globalThis.fetch;
-globalThis.fetch = async (url, init = {}) => {
-  const target = String(url);
-  const method = init.method || "GET";
-  scheduledAdminCalls.push([target, method, init.body ? JSON.parse(String(init.body)) : null]);
-  let body;
-  if (target.endsWith("/payment-options/stripe/provider-scheduled/configuration") && method === "POST") {
-    body = configurationChange;
-  } else if (target.endsWith(`/payment-options/stripe/provider-scheduled/configuration/requests/${configurationRequestId}`) && method === "GET") {
-    body = configurationChange;
-  } else if (target.endsWith("/subscription") && method === "POST") {
-    body = selectedSubscription;
-  } else {
-    throw new Error(`Unexpected scheduled admin request: ${method} ${target}`);
+function admin() {
+  return createAdmin({ baseUrl: API, secretKey: "contract-token" });
+}
+
+test("store currencies and minor units match the Server's currency table, in its order", () => {
+  assert.deepEqual([...SUPPORTED_STORE_CURRENCIES], expectedStoreCurrencies);
+  for (const currency of expectedStoreCurrencies) {
+    assert.equal(getCurrencyMinorUnits(currency), minorUnitExceptions[currency] ?? 2, currency);
   }
-  return new Response(JSON.stringify(body), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
-};
-try {
-  const configured = await arky.store.paymentOption.stripe.configure({
-    store_id: STORE_ID,
-    id: "provider-scheduled",
-    request_id: configurationRequestId,
-    expected_updated_at: 5,
-    configuration: { type: "access", restricted_key: "rk_test_contract", publishable_key: "pk_test_contract" },
-  });
-  assert.deepEqual(configured, configurationChange);
-  assert.deepEqual(await arky.store.paymentOption.stripe.getConfigurationChange({
-    store_id: STORE_ID,
-    id: "provider-scheduled",
-    request_id: configurationRequestId,
-  }), configurationChange);
-  await assert.rejects(async () => arky.store.paymentOption.stripe.configure({
-    store_id: STORE_ID,
-    id: "provider-scheduled",
-    request_id: "operation-one",
-    expected_updated_at: 5,
-    configuration: { type: "access", restricted_key: "rk_test_contract", publishable_key: "pk_test_contract" },
-  }), { name: "TypeError", message: "A business request requires the caller's canonical UUID-v4 request_id" });
-
-  const subscription = await arky.store.subscription.select({
-    store_id: STORE_ID,
-    checkout_id: "018f477d-1cae-4c12-bf12-123456789abc",
-    plan_id: "basic",
-    return_url: "https://admin.test/return",
-  });
-  assert.deepEqual(subscription.status, { type: "pending" });
-  assert.equal(subscription.operation, null);
-  assert.equal(subscription.plan_access, null);
-  assert.equal("provider" in subscription, false);
-  assert.equal(
-    subscription.checkout.id,
-    "018f477d-1cae-4c12-bf12-123456789abc",
-  );
-  assert.equal(subscription.payment_action.type, "stripe_embedded_checkout");
-  assert.equal(
-    subscription.payment_action.client_secret,
-    "cs_subscription_secret_contract",
-  );
-  assert.equal("account_id" in subscription.payment_action, false);
-  assert.equal("stripe_account_id" in subscription.payment_action, false);
-} finally {
-  globalThis.fetch = scheduledOriginalFetch;
-}
-assert.deepEqual(
-  scheduledAdminCalls.map(([url, method, body]) => [
-    url.replace(API, ""),
-    method,
-    body,
-  ]),
-  [
-    [`/v1/stores/${STORE_ID}/payment-options/stripe/provider-scheduled/configuration`, "POST", {
-      request_id: configurationRequestId,
-      expected_updated_at: 5,
-      configuration: { type: "access", restricted_key: "rk_test_contract", publishable_key: "pk_test_contract" },
-    }],
-    [`/v1/stores/${STORE_ID}/payment-options/stripe/provider-scheduled/configuration/requests/${configurationRequestId}`, "GET", null],
-    [`/v1/stores/${STORE_ID}/subscription`, "POST", {
-      checkout_id: "018f477d-1cae-4c12-bf12-123456789abc",
-      plan_id: "basic",
-      return_url: "https://admin.test/return",
-    }],
-  ],
-);
-
-const mediaOriginalFetch = globalThis.fetch;
-let mediaReplacementRequest;
-globalThis.fetch = async (url, init = {}) => {
-  mediaReplacementRequest = { url: String(url), init };
-  return new Response(JSON.stringify({ id: "media-contract" }), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
-};
-try {
-  const replacement = await arky.media.replaceContent({
-    store_id: STORE_ID,
-    media_id: "media-contract",
-    file: new Blob(["replacement"], { type: "text/plain" }),
-  });
-  assert.equal(replacement.id, "media-contract");
-} finally {
-  globalThis.fetch = mediaOriginalFetch;
-}
-assert.equal(
-  mediaReplacementRequest.url,
-  `${API}/v1/stores/${STORE_ID}/media/media-contract/content`,
-);
-assert.equal(mediaReplacementRequest.init.method, "PUT");
-assert.equal(
-  await mediaReplacementRequest.init.body.get("file").text(),
-  "replacement",
-);
-
-assert.equal(typeof arky.social.connections.find, "function");
-assert.equal(typeof arky.social.connections.connect, "function");
-assert.equal(typeof arky.social.connections.disconnect, "function");
-assert.equal(typeof arky.social.posts.find, "function");
-assert.equal(typeof arky.social.posts.create, "function");
-assert.equal(typeof arky.social.posts.get, "function");
-assert.equal(typeof arky.social.posts.cancel, "function");
-assert.equal(typeof arky.social.posts.messages.find, "function");
-assert.equal(typeof arky.social.posts.messages.create, "function");
-assert.equal(typeof arky.social.posts.messages.sync, "function");
-assert.equal("publication" in arky.social, false);
-
-const socialFetchCalls = [];
-const socialOriginalFetch = globalThis.fetch;
-globalThis.fetch = async (url, init = {}) => {
-  socialFetchCalls.push({
-    url: String(url),
-    method: init.method,
-    body: init.body,
-  });
-  return new Response(JSON.stringify({}), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
-};
-try {
-  await arky.social.connections.find({ store_id: STORE_ID });
-  await arky.social.connections.connect({ store_id: STORE_ID, type: "facebook_page" });
-  await arky.social.connections.disconnect({ store_id: STORE_ID, connection_id: "connection-1" });
-  await arky.social.posts.find({
-    store_id: STORE_ID,
-    social_connection_id: "connection-1",
-    limit: 25,
-    cursor: "post-cursor",
-  });
-  await arky.social.posts.create({
-    store_id: STORE_ID,
-    social_connection_id: "connection-1",
-    content: {
-      type: "facebook_page",
-      text: "Exact Social post",
-      media_ids: [],
-      link_url: null,
-    },
-    publish_at: 123,
-  });
-  await arky.social.posts.get({ store_id: STORE_ID, post_id: "post-1" });
-  await arky.social.posts.cancel({ store_id: STORE_ID, post_id: "post-1" });
-  await arky.social.posts.messages.find({
-    store_id: STORE_ID,
-    post_id: "post-1",
-    parent_message_id: "parent-1",
-    limit: 20,
-    cursor: "message-cursor",
-  });
-  await arky.social.posts.messages.create({
-    store_id: STORE_ID,
-    post_id: "post-1",
-    id: "message-1",
-    parent_message_id: "parent-1",
-    text: "Exact Social reply",
-  });
-  await arky.social.posts.messages.sync({
-    store_id: STORE_ID,
-    post_id: "post-1",
-    sync: {
-      type: {
-        type: "top_level",
-        cursor: null,
-        limit: 20,
-      },
-    },
-  });
-} finally {
-  globalThis.fetch = socialOriginalFetch;
-}
-
-assert.deepEqual(
-  socialFetchCalls.map(({ method, url }) => [method, new URL(url).pathname]),
-  [
-    ["GET", `/v1/stores/${STORE_ID}/social/connections`],
-    ["POST", `/v1/stores/${STORE_ID}/social/connections/connect`],
-    [
-      "POST",
-      `/v1/stores/${STORE_ID}/social/connections/connection-1/disconnect`,
-    ],
-    ["GET", `/v1/stores/${STORE_ID}/social/posts`],
-    ["POST", `/v1/stores/${STORE_ID}/social/posts`],
-    ["GET", `/v1/stores/${STORE_ID}/social/posts/post-1`],
-    ["POST", `/v1/stores/${STORE_ID}/social/posts/post-1/cancel`],
-    ["GET", `/v1/stores/${STORE_ID}/social/posts/post-1/messages`],
-    ["POST", `/v1/stores/${STORE_ID}/social/posts/post-1/messages`],
-    ["POST", `/v1/stores/${STORE_ID}/social/posts/post-1/messages/sync`],
-  ],
-);
-assert.deepEqual(JSON.parse(socialFetchCalls[1].body), {
-  type: "facebook_page",
-});
-assert.equal(socialFetchCalls[2].body, undefined);
-assert.equal(new URL(socialFetchCalls[0].url).search, "");
-const socialPostsQuery = new URL(socialFetchCalls[3].url).searchParams;
-assert.equal(socialPostsQuery.get("social_connection_id"), "connection-1");
-assert.equal(socialPostsQuery.get("limit"), "25");
-assert.equal(socialPostsQuery.get("cursor"), "post-cursor");
-assert.deepEqual(JSON.parse(socialFetchCalls[4].body), {
-  social_connection_id: "connection-1",
-  content: {
-    type: "facebook_page",
-    text: "Exact Social post",
-    media_ids: [],
-    link_url: null,
-  },
-  publish_at: 123,
-});
-assert.equal(socialFetchCalls[6].body, undefined);
-const socialMessagesQuery = new URL(socialFetchCalls[7].url).searchParams;
-assert.equal(socialMessagesQuery.get("parent_message_id"), "parent-1");
-assert.equal(socialMessagesQuery.get("limit"), "20");
-assert.equal(socialMessagesQuery.get("cursor"), "message-cursor");
-assert.deepEqual(JSON.parse(socialFetchCalls[8].body), {
-  id: "message-1",
-  parent_message_id: "parent-1",
-  text: "Exact Social reply",
-});
-assert.deepEqual(JSON.parse(socialFetchCalls[9].body), {
-  sync: {
-    type: {
-      type: "top_level",
-      cursor: null,
-      limit: 20,
-    },
-  },
-});
-
-for (const method of ["create", "update", "get", "find", "delete", "activate", "pause", "resendReceipt"]) {
-  assert.equal(typeof arky.automation[method], "function", `Admin automation must expose ${method}`);
-}
-assert.equal(typeof arky.automation.run.find, "function");
-assert.equal(typeof arky.automation.run.get, "function");
-assert.equal("workflow" in arky, false);
-
-const automationFetchCalls = [];
-const originalFetch = globalThis.fetch;
-
-globalThis.fetch = async (url, init = {}) => {
-  automationFetchCalls.push({
-    url: String(url),
-    method: init.method,
-    body: init.body,
-  });
-  return new Response(JSON.stringify({}), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
-};
-
-try {
-  await arky.automation.activate({
-    store_id: STORE_ID,
-    id: "automation-contract",
-    expected_updated_at: 5,
-  });
-  await arky.automation.resendReceipt({
-    store_id: STORE_ID,
-    order_id: "order-contract",
-    request_id: "4c8e1a73-5b29-4d06-9f3a-2e7d0b6c8f15",
-  });
-  await arky.automation.run.find({
-    store_id: STORE_ID,
-    automation_id: "automation-contract",
-    status: "waiting",
-    limit: 10,
-  });
-} finally {
-  globalThis.fetch = originalFetch;
-}
-
-assert.deepEqual(
-  automationFetchCalls.map(({ url, method }) => [url, method]),
-  [
-    [`${API}/v1/stores/${STORE_ID}/automations/automation-contract/activate`, "POST"],
-    [`${API}/v1/stores/${STORE_ID}/automations/receipt-resends`, "POST"],
-    [`${API}/v1/stores/${STORE_ID}/automation-runs?automation_id=automation-contract&status=waiting&limit=10`, "GET"],
-  ],
-);
-assert.deepEqual(JSON.parse(automationFetchCalls[0].body), { expected_updated_at: 5 });
-assert.deepEqual(JSON.parse(automationFetchCalls[1].body), {
-  order_id: "order-contract",
-  request_id: "4c8e1a73-5b29-4d06-9f3a-2e7d0b6c8f15",
-});
-
-assert.equal(typeof arky.support.createAgent, "function");
-assert.equal(typeof arky.support.getAgentDefinition, "function");
-assert.equal(typeof arky.support.replaceAgentDefinition, "function");
-assert.equal(typeof arky.support.findAgents, "function");
-assert.equal(typeof arky.support.findConversations, "function");
-assert.equal(typeof arky.support.replyToConversation, "function");
-
-assert.equal(typeof arky.notification.mailbox.find, "function");
-assert.equal(typeof arky.notification.mailbox.connectGoogle, "function");
-assert.equal(typeof arky.notification.mailbox.disconnect, "function");
-assert.equal("email" in arky.notification, false);
-assert.equal(typeof arky.notification.delivery.find, "function");
-assert.equal(typeof arky.notification.delivery.get, "function");
-assert.equal(typeof arky.notification.delivery.stop, "function");
-for (const removed of ["save", "get", "find", "preview"]) {
-  assert.equal(removed in arky.notification, false);
-}
-
-const mailboxFetchCalls = [];
-globalThis.fetch = async (url, init = {}) => {
-  mailboxFetchCalls.push({
-    url: String(url),
-    method: init.method,
-    body: init.body,
-  });
-  return new Response(
-    JSON.stringify({ authorization_url: "https://oauth.test", state: "state" }),
-    {
-      status: 200,
-      headers: { "content-type": "application/json" },
-    },
-  );
-};
-
-try {
-  await arky.notification.mailbox.connectGoogle({
-    store_id: STORE_ID,
-    key: "founder",
-    from_name: "Founder",
-    sync_enabled: true,
-    sync_interval_seconds: 300,
-  });
-  await arky.notification.mailbox.disconnect({ store_id: STORE_ID, id: "mailbox-id" });
-} finally {
-  globalThis.fetch = originalFetch;
-}
-
-assert.equal(mailboxFetchCalls[0].method, "POST");
-assert.equal(
-  mailboxFetchCalls[0].url,
-  `${API}/v1/stores/${STORE_ID}/mailboxes/google/connect-url`,
-);
-assert.deepEqual(JSON.parse(mailboxFetchCalls[0].body), {
-  key: "founder",
-  from_name: "Founder",
-  sync_enabled: true,
-  sync_interval_seconds: 300,
-});
-assert.equal(mailboxFetchCalls[1].method, "POST");
-assert.equal(
-  mailboxFetchCalls[1].url,
-  `${API}/v1/stores/${STORE_ID}/mailboxes/mailbox-id/disconnect`,
-);
-assert.equal(mailboxFetchCalls[1].body, undefined);
-assert.equal(typeof arky.campaign.find, "function");
-assert.equal(typeof arky.campaign.findEnrollments, "function");
-assert.equal(typeof arky.campaignEnrollment.getConversation, "function");
-assert.equal(typeof arky.campaignMessage.replaceDraft, "function");
-assert.equal(typeof arky.leadResearch.create, "function");
-
-assert.equal("audiences" in arky, false);
-assert.equal(typeof arky.eshop.customerGroupMember.findCommands, "function");
-assert.equal(typeof arky.eshop.subscription.findCommands, "function");
-assert.equal("refunds" in arky.eshop.subscription, false);
-assert.equal("disputes" in arky.eshop.subscription, false);
-assert.equal("getInventory" in arky.eshop.product, false);
-assert.equal(typeof arky.eshop.inventoryLevel.find, "function");
-
-const separateResourceCalls = [];
-globalThis.fetch = async (url, init = {}) => {
-  separateResourceCalls.push({ url: String(url), method: init.method });
-  return new Response(JSON.stringify([]), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
-};
-try {
-  await arky.support.getAgentDefinition({
-    store_id: STORE_ID,
-    support_agent_id: "agent-contract",
-  });
-  await arky.eshop.customerGroupMember.find({
-    store_id: STORE_ID,
-    customer_group_id: "audience-contract",
-  });
-  await arky.eshop.inventoryLevel.find({ store_id: STORE_ID, inventory_item_id: "item-contract", store_location_id: "location-contract" });
-} finally {
-  globalThis.fetch = originalFetch;
-}
-assert.deepEqual(separateResourceCalls, [
-  {
-    method: "GET",
-    url: `${API}/v1/stores/${STORE_ID}/support/agents/agent-contract/definition`,
-  },
-  {
-    method: "GET",
-    url: `${API}/v1/stores/${STORE_ID}/customer-group-members?customer_group_id=audience-contract`,
-  },
-  {
-    method: "GET",
-    url: `${API}/v1/stores/${STORE_ID}/inventory-levels?inventory_item_id=item-contract&store_location_id=location-contract`,
-  },
-]);
-
-assert.equal(typeof arky.eshop.refund.create, "function");
-const subscriptionOrderCalls = [];
-const subscriptionOrders = { items: [], cursor: "next-order-page" };
-globalThis.fetch = async (url, init = {}) => {
-  subscriptionOrderCalls.push({ url: String(url), method: init.method });
-  return new Response(JSON.stringify(subscriptionOrders), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
-};
-try {
-  assert.deepEqual(await arky.eshop.subscription.findOrders({
-    store_id: STORE_ID,
-    id: "history-subscription",
-    limit: 10,
-    cursor: "prior-order-page",
-  }), subscriptionOrders);
-} finally {
-  globalThis.fetch = originalFetch;
-}
-assert.equal(subscriptionOrderCalls.length, 1);
-const subscriptionOrderUrl = new URL(subscriptionOrderCalls[0].url);
-assert.equal(subscriptionOrderCalls[0].method, "GET");
-assert.equal(subscriptionOrderUrl.pathname, `/v1/stores/${STORE_ID}/subscriptions/history-subscription/orders`);
-assert.deepEqual(Object.fromEntries(subscriptionOrderUrl.searchParams), {
-  limit: "10",
-  cursor: "prior-order-page",
-});
-
-assert.equal(arky.eshop.refund.recordCashOnDelivery, undefined);
-assert.equal(typeof arky.eshop.refund.recordMoney, "function");
-assert.equal(typeof arky.eshop.refund.cancelLocal, "function");
-assert.equal(typeof arky.eshop.refund.find, "function");
-assert.equal(typeof arky.eshop.refund.get, "function");
-assert.equal("createRefund" in arky.eshop.order, false);
-assert.equal("getRefunds" in arky.eshop.order, false);
-assert.equal("getRefund" in arky.eshop.order, false);
-assert.equal("recordCashOnDeliveryRefund" in arky.eshop.order, false);
-assert.equal(typeof arky.eshop.payment.get, "function");
-assert.equal(typeof arky.eshop.payment.find, "function");
-assert.equal(typeof arky.eshop.order.getPayment, "function");
-assert.equal(typeof arky.eshop.order.findPayments, "function");
-assert.equal(arky.eshop.order.markCashOnDeliveryPaid, undefined);
-assert.equal(arky.eshop.payment.markCashOnDeliveryPaid, undefined);
-assert.equal(typeof arky.eshop.payment.recordCashOnDeliveryCollection, "function");
-assert.equal(typeof arky.eshop.payment.recordManualCollection, "function");
-assert.equal(typeof arky.eshop.payment.createManual, "function");
-assert.equal(typeof arky.eshop.dispute.find, "function");
-assert.equal(typeof arky.eshop.dispute.get, "function");
-assert.equal(arky.eshop.order.getDisputes, undefined);
-assert.equal(arky.eshop.order.getDispute, undefined);
-for (const removed of ["shipment", "pickup", "shippingLabel", "shippingLabelRefund", "merchantDebit", "merchantDebitReversal"]) {
-  assert.equal(removed in arky.eshop, false);
-}
-assert.equal(typeof arky.eshop.fulfillment.create, "function");
-assert.equal(typeof arky.eshop.fulfillment.execute, "function");
-assert.equal(typeof arky.eshop.fulfillmentJob.find, "function");
-assert.equal(typeof arky.eshop.fulfillmentJob.get, "function");
-assert.equal(typeof arky.eshop.fulfillmentJob.items, "function");
-assert.equal(typeof arky.eshop.fulfillmentJob.unitSlots, "function");
-assert.equal(typeof arky.eshop.fulfillmentJob.decide, "function");
-assert.equal(typeof arky.eshop.fulfillmentRouting.get, "function");
-assert.equal(typeof arky.eshop.fulfillmentRouting.update, "function");
-for (const removed of ["fulfillmentOrder", "fulfillmentPartner", "fulfillmentRoutingPolicy", "priceList", "assortment", "assortmentItem", "catalogEntitlement"]) {
-  assert.equal(removed in arky.eshop, false);
-}
-assert.equal(typeof arky.eshop.catalogItem.create, "function");
-assert.equal(typeof arky.eshop.catalogItem.batch, "function");
-assert.equal(typeof arky.eshop.catalog.copy, "function");
-assert.equal(typeof arky.eshop.catalog.findPurchasable, "function");
-assert.equal(typeof arky.eshop.price.batch, "function");
-assert.equal(typeof arky.eshop.catalogAccess.create, "function");
-assert.equal(typeof arky.eshop.cart.withdrawFirstOrderTerms, "function");
-for (const owner of [arky.eshop.order.notes, arky.customers.notes, arky.companies.notes]) {
-  for (const method of ["find", "create", "update", "delete"]) assert.equal(typeof owner[method], "function");
-}
-assert.equal(typeof arky.notification.template.test, "function");
-assert.equal(typeof arky.eshop.rental.find, "function");
-assert.equal(typeof arky.eshop.rental.execute, "function");
-assert.equal("rentalPlacement" in arky.eshop, false);
-assert.equal(typeof arky.eshop.subscriptionPlanEntitlement.find, "function");
-assert.equal(typeof arky.eshop.subscription.control, "function");
-assert.equal(typeof arky.eshop.orderCredit.create, "function");
-assert.equal(typeof arky.eshop.orderCredit.find, "function");
-assert.equal(typeof arky.store.paymentTerms.create, "function");
-assert.equal("marketSalesChannel" in arky.store, false);
-assert.equal(typeof arky.store.storefrontClient.create, "function");
-
-const fulfillmentCalls = [];
-globalThis.fetch = async (url, init = {}) => {
-  fulfillmentCalls.push({ url: String(url), method: init.method });
-  const body = String(url).includes("/fulfillment-jobs?")
-    ? { items: [], cursor: null }
-    : {};
-  return new Response(JSON.stringify(body), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
-};
-try {
-  await arky.eshop.fulfillmentJob.find({
-    store_id: STORE_ID,
-    order_id: "6ba7b81a-9dad-41d1-80b4-00c04fd430c8",
-    limit: 20,
-  });
-  await arky.eshop.fulfillmentJob.find({
-    store_id: STORE_ID,
-    rental_id: "6ba7b816-9dad-41d1-80b4-00c04fd430c8",
-  });
-  await arky.eshop.fulfillmentJob.get({
-    store_id: STORE_ID,
-    fulfillment_job_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
-  });
-  await arky.eshop.fulfillmentJob.find({
-    store_id: STORE_ID,
-    assignment: "unassigned",
-    limit: 20,
-  });
-} finally {
-  globalThis.fetch = originalFetch;
-}
-assert.deepEqual(
-  fulfillmentCalls.map(({ url, method }) => [url, method]),
-  [
-    [
-      `${API}/v1/stores/${STORE_ID}/fulfillment-jobs?order_id=6ba7b81a-9dad-41d1-80b4-00c04fd430c8&limit=20`,
-      "GET",
-    ],
-    [
-      `${API}/v1/stores/${STORE_ID}/fulfillment-jobs?rental_id=6ba7b816-9dad-41d1-80b4-00c04fd430c8`,
-      "GET",
-    ],
-    [
-      `${API}/v1/stores/${STORE_ID}/fulfillment-jobs/6ba7b813-9dad-41d1-80b4-00c04fd430c8`,
-      "GET",
-    ],
-    [
-      `${API}/v1/stores/${STORE_ID}/fulfillment-jobs?assignment=unassigned&limit=20`,
-      "GET",
-    ],
-  ],
-);
-
-const paymentCalls = [];
-globalThis.fetch = async (url, init = {}) => {
-  paymentCalls.push({
-    url: String(url),
-    method: init.method,
-    body: init.body ? JSON.parse(String(init.body)) : null,
-  });
-  return new Response(JSON.stringify({}), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
-};
-try {
-  await arky.eshop.payment.get({ store_id: STORE_ID, id: "payment-1" });
-  await arky.eshop.payment.find({ store_id: OTHER_STORE_ID, limit: 25, cursor: "next" });
-  await arky.eshop.payment.recordCashOnDeliveryCollection({ store_id: STORE_ID, id: "payment-1", payment_capture_id: "capture-1", money: { amount: 1250, currency: "usd" } });
-  await arky.eshop.payment.recordManualCollection({ store_id: OTHER_STORE_ID, id: "payment-2", payment_capture_id: "capture-2", money: { amount: 900, currency: "eur" }, reference: "bank-receipt" });
-  await arky.eshop.payment.createManual({ store_id: STORE_ID, id: "payment-3", order_id: "order-3", payment_option_id: "provider-3", money: { amount: 500, currency: "usd" }, reference: null });
-} finally {
-  globalThis.fetch = originalFetch;
-}
-assert.deepEqual(
-  paymentCalls.map(({ url, method, body }) => [url, method, body]),
-  [
-    [
-      `${API}/v1/stores/${STORE_ID}/payments/payment-1`,
-      "GET",
-      null,
-    ],
-    [
-      `${API}/v1/stores/${OTHER_STORE_ID}/payments?limit=25&cursor=next`,
-      "GET",
-      null,
-    ],
-    [
-      `${API}/v1/stores/${STORE_ID}/payments/payment-1/cash-on-delivery/collections`,
-      "POST",
-      { payment_capture_id: "capture-1", money: { amount: 1250, currency: "usd" } },
-    ],
-    [
-      `${API}/v1/stores/${OTHER_STORE_ID}/payments/payment-2/manual/collections`, "POST",
-      { payment_capture_id: "capture-2", money: { amount: 900, currency: "eur" }, reference: "bank-receipt" },
-    ],
-    [
-      `${API}/v1/stores/${STORE_ID}/payments/manual`, "POST",
-      { id: "payment-3", order_id: "order-3", payment_option_id: "provider-3", money: { amount: 500, currency: "usd" }, reference: null },
-    ],
-  ],
-);
-
-assert.equal(typeof arky.analytics.get, "function");
-const analyticsCalls = [];
-const analyticsRequest = {
-  time: { from: 86_400_000, to: 172_800_000 },
-  reports: [
-    {
-      key: "recent_customer_action",
-      limit: 100,
-      category: "customer_actions",
-      cursor_created_at: 86_400_000,
-      cursor_id: "fact next",
-    },
-  ],
-};
-const analyticsResponse = {
-  time: { from: 86_400_000, to: 172_800_000 },
-  reports: [
-    {
-      key: "recent_customer_action",
-      scope: "period",
-      data: {
-        items: [],
-        summary: {
-          total: 0, orders: 0, submissions: 0, customers: 0, customer_groups: 0,
-          abandoned_carts: 0, carts: 0, products: 0, services: 0, providers: 0,
-          content: 0, customer_actions: 0, window_start: 86_400_000,
-        },
-        next_cursor: null,
-        meta: { row_count: 0, execution_ms: 3 },
-      },
-    },
-  ],
-};
-globalThis.fetch = async (url, init = {}) => {
-  analyticsCalls.push({
-    url: String(url),
-    method: init.method,
-    body: init.body ? JSON.parse(String(init.body)) : null,
-  });
-  return new Response(
-    JSON.stringify(analyticsResponse),
-    {
-      status: 200,
-      headers: { "content-type": "application/json" },
-    },
-  );
-};
-try {
-  assert.deepEqual(await arky.analytics.get(analyticsRequest, { store_id: OTHER_STORE_ID }), analyticsResponse);
-  await assert.rejects(async () => arky.analytics.get(analyticsRequest, {}), TypeError);
-} finally {
-  globalThis.fetch = originalFetch;
-}
-assert.deepEqual(analyticsCalls, [
-  {
-    url: `${API}/v1/stores/${OTHER_STORE_ID}/analytics`,
-    method: "POST",
-    body: {
-      time: { from: 86_400_000, to: 172_800_000 },
-      reports: [
-        {
-          key: "recent_customer_action",
-          limit: 100,
-          category: "customer_actions",
-          cursor_created_at: 86_400_000,
-          cursor_id: "fact next",
-        },
-      ],
-    },
-  },
-]);
-
-for (const method of ["getCurrencies", "getWebhookEvents"]) {
-  assert.equal(typeof arky.platform[method], "function");
-}
-const platformCalls = [];
-globalThis.fetch = async (url, init = {}) => {
-  platformCalls.push({
-    url: String(url),
-    method: init.method,
-    body: init.body ?? null,
-  });
-  return new Response(JSON.stringify([]), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
-};
-try {
-  await arky.platform.getCurrencies();
-  await arky.platform.getWebhookEvents();
-} finally {
-  globalThis.fetch = originalFetch;
-}
-assert.deepEqual(platformCalls, [
-  {
-    url: "http://127.0.0.1:1/v1/platform/currencies",
-    method: "GET",
-    body: null,
-  },
-  {
-    url: "http://127.0.0.1:1/v1/platform/events",
-    method: "GET",
-    body: null,
-  },
-]);
-
-const automationCoreCalls = [];
-globalThis.fetch = async (url, init = {}) => {
-  automationCoreCalls.push({
-    url: String(url),
-    method: init.method,
-    body: init.body ? JSON.parse(String(init.body)) : null,
-  });
-  const body = init.method === "DELETE"
-    ? true
-    : init.method === "GET" && String(url).includes("?")
-      ? { items: [], cursor: null }
-      : {};
-  return new Response(JSON.stringify(body), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
-};
-const automationSteps = [{ id: "step-wait", type: { type: "wait", minutes: 30 } }];
-try {
-  await arky.automation.create({
-    store_id: STORE_ID,
-    id: "automation-contract",
-    key: "customer_welcome",
-    trigger: { type: "customer_created" },
-    steps: automationSteps,
-    exits: [],
-    active: true,
-  });
-  await arky.automation.update({
-    store_id: OTHER_STORE_ID,
-    id: "automation-contract",
-    expected_updated_at: 7,
-    key: "customer_welcome_v2",
-    trigger: { type: "customer_created" },
-    steps: automationSteps,
-    exits: [{ type: "order_placed" }],
-  });
-  await arky.automation.pause({ store_id: STORE_ID, id: "automation-contract", expected_updated_at: 8 });
-  await arky.automation.delete({ store_id: STORE_ID, id: "automation-contract", expected_updated_at: 9 });
-  await arky.automation.get({ store_id: STORE_ID, id: "automation-contract" });
-  await arky.automation.find({
-    store_id: STORE_ID,
-    status: "active",
-    limit: 20,
-    cursor: "next page",
-  });
-  await arky.automation.run.get({ store_id: STORE_ID, id: "run-contract" });
-} finally {
-  globalThis.fetch = originalFetch;
-}
-assert.deepEqual(automationCoreCalls, [
-  {
-    url: `${API}/v1/stores/${STORE_ID}/automations`,
-    method: "POST",
-    body: {
-      id: "automation-contract",
-      key: "customer_welcome",
-      trigger: { type: "customer_created" },
-      steps: [{ id: "step-wait", type: { type: "wait", minutes: 30 } }],
-      exits: [],
-      active: true,
-    },
-  },
-  {
-    url: `${API}/v1/stores/${OTHER_STORE_ID}/automations/automation-contract`,
-    method: "PUT",
-    body: {
-      expected_updated_at: 7,
-      key: "customer_welcome_v2",
-      trigger: { type: "customer_created" },
-      steps: [{ id: "step-wait", type: { type: "wait", minutes: 30 } }],
-      exits: [{ type: "order_placed" }],
-    },
-  },
-  {
-    url: `${API}/v1/stores/${STORE_ID}/automations/automation-contract/pause`,
-    method: "POST",
-    body: { expected_updated_at: 8 },
-  },
-  {
-    url: `${API}/v1/stores/${STORE_ID}/automations/automation-contract?expected_updated_at=9`,
-    method: "DELETE",
-    body: null,
-  },
-  {
-    url: `${API}/v1/stores/${STORE_ID}/automations/automation-contract`,
-    method: "GET",
-    body: null,
-  },
-  {
-    url: `${API}/v1/stores/${STORE_ID}/automations?status=active&limit=20&cursor=next%20page`,
-    method: "GET",
-    body: null,
-  },
-  {
-    url: `${API}/v1/stores/${STORE_ID}/automation-runs/run-contract`,
-    method: "GET",
-    body: null,
-  },
-]);
-
-for (const method of [
-  "create",
-  "replaceDraft",
-  "deleteDraft",
-  "start",
-  "pause",
-  "resume",
-  "complete",
-  "get",
-  "find",
-  "results",
-]) {
-  assert.equal(
-    typeof arky.experiments[method],
-    "function",
-    `Admin Experiments must expose ${method}`,
-  );
-}
-
-const experimentCalls = [];
-globalThis.fetch = async (url, init = {}) => {
-  experimentCalls.push({
-    url: String(url),
-    method: init.method,
-    body: init.body ? JSON.parse(String(init.body)) : null,
-  });
-  if (init.method === "DELETE") {
-    return new Response(null, { status: 204 });
+  assert.equal(convertToMinor(1.234, "kwd"), 1234);
+  assert.equal(getCurrencyMinorUnits(" JPY "), 0);
+  assert.equal(convertToMinor(12.34, "usd"), 1234);
+  assert.equal(convertToMajor(1234, "usd"), 12.34);
+  assert.equal(convertToMinor(100, "jpy"), 100);
+  assert.equal(convertToMajor(100, "krw"), 100);
+  assert.match(formatMinor(100, "jpy", "en"), /100/);
+  assert.doesNotMatch(formatMinor(100, "jpy", "en"), /100[.,]00/);
+  for (const currency of ["idr", "huf", "all"]) {
+    assert.equal(convertToMajor(1234, currency), 12.34);
+    assert.equal(convertToMinor(12.34, currency), 1234);
+    assert.match(formatMinor(1234, currency, "en"), /12[.,]34/, currency);
   }
-  const body = String(url).includes("?status=")
-    ? { items: [], cursor: null }
-    : {};
-  return new Response(JSON.stringify(body), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
-};
-try {
-  const definition = {
-    key: "homepage_hero",
-    goal_action_key: "lead_submitted",
-    attribution_window_days: 30,
-    variants: [
-      { key: "control", allocation_bps: 5000 },
-      { key: "guided", allocation_bps: 5000 },
-    ],
-  };
-  await arky.experiments.create({ store_id: STORE_ID, ...definition });
-  await arky.experiments.replaceDraft({
-    store_id: OTHER_STORE_ID,
-    experiment_id: "experiment-contract",
-    ...definition,
-    key: "homepage_hero_v2",
-  });
-  for (const method of [
-    "deleteDraft",
-    "start",
-    "pause",
-    "resume",
-    "complete",
-    "get",
-    "results",
+  assert.throws(() => convertToMinor(1, "zzz"), /Unsupported currency/);
+});
+
+test("the Admin client exposes exactly the reviewed future-3 surface", () => {
+  assert.deepEqual(surfaceOf(admin()), adminSurface);
+});
+
+test("deleted features and store switching are absent from the Admin client", () => {
+  const client = admin();
+  for (const removed of ["setStoreId", "getStoreId", "social", "automations", "mailbox", "mailboxes", "campaign", "campaigns", "leadResearch", "cms", "crm", "customer", "commerce"]) {
+    assert.equal(removed in client, false, removed);
+  }
+  for (const removed of [
+    "refund", "capture", "dispute", "digital", "checkout", "subscriptionPlanEntitlement", "customerGroupEmailConsent",
+    "subscription", "subscriptionPlan", "subscriptionOffering",
   ]) {
-    await arky.experiments[method]({ store_id: STORE_ID, experiment_id: "experiment-contract" });
+    assert.equal(removed in client.eshop, false, removed);
   }
-  await arky.experiments.find({
-    store_id: STORE_ID,
-    status: "running",
-    limit: 25,
-    cursor: "next page",
-  });
-} finally {
-  globalThis.fetch = originalFetch;
-}
-assert.deepEqual(experimentCalls, [
-  {
-    url: `${API}/v1/stores/${STORE_ID}/experiments`,
-    method: "POST",
-    body: {
-      key: "homepage_hero",
-      goal_action_key: "lead_submitted",
-      attribution_window_days: 30,
-      variants: [
-        { key: "control", allocation_bps: 5000 },
-        { key: "guided", allocation_bps: 5000 },
-      ],
-    },
-  },
-  {
-    url: `${API}/v1/stores/${OTHER_STORE_ID}/experiments/experiment-contract`,
-    method: "PUT",
-    body: {
-      key: "homepage_hero_v2",
-      goal_action_key: "lead_submitted",
-      attribution_window_days: 30,
-      variants: [
-        { key: "control", allocation_bps: 5000 },
-        { key: "guided", allocation_bps: 5000 },
-      ],
-    },
-  },
-  ...[
-    ["DELETE", ""],
-    ["POST", "/start"],
-    ["POST", "/pause"],
-    ["POST", "/resume"],
-    ["POST", "/complete"],
-    ["GET", ""],
-    ["GET", "/results"],
-  ].map(([method, suffix]) => ({
-    url: `${API}/v1/stores/${STORE_ID}/experiments/experiment-contract${suffix}`,
-    method,
-    body: null,
-  })),
-  {
-    url: `${API}/v1/stores/${STORE_ID}/experiments?status=running&limit=25&cursor=next%20page`,
-    method: "GET",
-    body: null,
-  },
-]);
+  for (const removed of ["buildHook", "paymentTerms", "taxRule", "shippingRate", "marketZone", "storefrontClient"]) assert.equal(removed in client.store, false, removed);
+  for (const removed of ["stop", "emailSender"]) assert.equal(removed in client.notification, false, removed);
+  for (const removed of ["channel", "ai"]) assert.equal(removed in client.support, false, removed);
+  assert.equal("category" in client.content, false);
+  for (const removed of ["getCheckout", "retainSelection", "recoverSelection", "pendingSelection", "cancel", "reactivate", "getPlans"]) {
+    assert.equal(removed in client.store.subscription, false, removed);
+  }
+  for (const removed of ["setup", "configure", "cancelConfiguration", "getConfigurationChange", "openDashboard", "getConnection"]) {
+    assert.equal(removed in client.store.paymentOption.stripe, false, removed);
+  }
+  assert.equal("googleStart" in client.account.auth, false);
+  assert.equal("update" in client.account, false);
+});
 
-console.log("Admin SDK contract test passed.");
+test("broadcasts are created under the app-picked id, scheduled, sent and tested with explicit versions and language", async (context) => {
+  const broadcastId = "6e2b9d41-3c58-4a07-9f1e-2d7c5b0a8e63";
+  const testId = "1a5c8e27-4b39-4d60-a2f7-9e3d0c6b5a18";
+  const calls = recordFetch(context, (call) => call.method === "DELETE" ? { deleted: true } : call.path.endsWith("/broadcasts") && call.method === "GET" ? { items: [], cursor: null } : { id: broadcastId });
+  const api = admin().broadcast;
+  const content = { en: { subject: "Spring box", preheader: null, body: "<p>Hello</p>" } };
+  const audience = { type: "customer_groups", customer_group_ids: ["group"] };
+  const offeringAudience = { type: "customer_group_offering", customer_group_offering_id: "offering" };
+  await api.find({ store_id: STORE_ID, query: "spring", status: "draft", limit: 5 });
+  await api.create({ store_id: STORE_ID, id: broadcastId, key: "spring", audience, sending_address_id: "address", content });
+  await api.update({ store_id: STORE_ID, id: broadcastId, expected_updated_at: 1, content, audience: offeringAudience, sending_address_id: "other-address" });
+  await api.preview({ store_id: STORE_ID, id: broadcastId, language: "en" });
+  await api.test({ store_id: STORE_ID, id: broadcastId, outgoing_email_id: testId, language: "en" });
+  await api.schedule({ store_id: STORE_ID, id: broadcastId, expected_updated_at: 2, send_at: 1_900_000_000_000 });
+  await api.unschedule({ store_id: STORE_ID, id: broadcastId, expected_updated_at: 3 });
+  await api.send({ store_id: STORE_ID, id: broadcastId, expected_updated_at: 4 });
+  await api.delete({ store_id: STORE_ID, id: broadcastId, expected_updated_at: 5 });
+  const base = `/v1/stores/${STORE_ID}/broadcasts`;
+  assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
+    ["GET", base, { query: "spring", status: "draft", limit: "5" }, null],
+    ["POST", base, {}, { id: broadcastId, key: "spring", audience, sending_address_id: "address", content }],
+    ["PUT", `${base}/${broadcastId}`, {}, { expected_updated_at: 1, content, audience: offeringAudience, sending_address_id: "other-address" }],
+    ["POST", `${base}/${broadcastId}/preview`, {}, { language: "en" }],
+    ["POST", `${base}/${broadcastId}/test`, {}, { id: testId, language: "en" }],
+    ["POST", `${base}/${broadcastId}/schedule`, {}, { expected_updated_at: 2, send_at: 1_900_000_000_000 }],
+    ["POST", `${base}/${broadcastId}/unschedule`, {}, { expected_updated_at: 3 }],
+    ["POST", `${base}/${broadcastId}/send`, {}, { expected_updated_at: 4 }],
+    ["DELETE", `${base}/${broadcastId}`, { expected_updated_at: "5" }, null],
+  ]);
+  await assert.rejects(async () => api.create({ store_id: STORE_ID, id: "spring", key: "spring", audience, sending_address_id: "address", content }), TypeError);
+  await assert.rejects(async () => api.test({ store_id: STORE_ID, id: broadcastId, outgoing_email_id: "test-1", language: "en" }), {
+    name: "TypeError",
+    message: "The test email id must be a canonical UUID v4 picked by the app",
+  });
+  assert.equal(calls.length, 9);
+});
+
+test("broadcast merge fields name the member's customer group and offering, and no subscription", () => {
+  assert.deepEqual([...BROADCAST_FIELDS], [
+    "customer.email",
+    "store.name",
+    "customer_group_member.customer_group.key",
+    "customer_group_member.customer_group_offering.key",
+    "unsubscribe_url",
+  ]);
+  assert.deepEqual([...BROADCAST_BLOCK_FIELD_PREFIXES], [
+    "customer.profile.",
+    "customer.blocks.",
+    "customer_group_member.customer_group.blocks.",
+    "customer_group_member.customer_group_offering.blocks.",
+  ]);
+  assert.equal([...BROADCAST_FIELDS, ...BROADCAST_BLOCK_FIELD_PREFIXES].some((field) => field.startsWith("subscription.")), false);
+});
+
+test("sales channels are created under the app-picked id with their markets and edited by version", async (context) => {
+  const channelId = "8d3f1b75-2a46-4c09-b7e2-5f9a1c3d6e40";
+  const calls = recordFetch(context, (call) => call.method === "DELETE" ? { deleted: true } : { id: channelId });
+  const api = admin().store.salesChannel;
+  await api.create({ store_id: STORE_ID, id: channelId, key: "web", market_ids: ["market"], status: { type: "active" } });
+  await api.update({ store_id: STORE_ID, id: channelId, expected_updated_at: 2, market_ids: [], status: { type: "archived" } });
+  await api.delete({ store_id: STORE_ID, id: channelId, expected_updated_at: 3 });
+  assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
+    ["POST", `/v1/stores/${STORE_ID}/sales-channels`, {}, { id: channelId, key: "web", market_ids: ["market"], status: { type: "active" } }],
+    ["PUT", `/v1/stores/${STORE_ID}/sales-channels/${channelId}`, {}, { expected_updated_at: 2, market_ids: [], status: { type: "archived" } }],
+    ["DELETE", `/v1/stores/${STORE_ID}/sales-channels/${channelId}`, { expected_updated_at: "3" }, null],
+  ]);
+  await assert.rejects(async () => api.create({ store_id: STORE_ID, id: "web", key: "web", market_ids: [], status: { type: "active" } }), TypeError);
+  assert.equal(calls.length, 3);
+});
+
+test("platform reads and administrator changes use the platform routes, and a new administrator brings its app-picked id", async (context) => {
+  const administratorId = "2f6a9c13-8b47-4d05-a1e8-7c3b0d5f9e26";
+  const calls = recordFetch(context, (call) => call.path === "/v1/platform/currencies" ? ["eur"] : call.path === "/v1/platform/events" ? [] : call.method === "DELETE" ? true : { items: [], cursor: null });
+  const platform = admin().platform;
+  await platform.getCurrencies();
+  await platform.getWebhookEvents();
+  await platform.getStorePlans();
+  await platform.administrator.list({ cursor: "next" });
+  await platform.administrator.add({ id: administratorId, account_id: "account" });
+  await platform.administrator.remove({ id: administratorId });
+  await platform.stripeBillingEvent.find({ status: "review", limit: 10 });
+  await platform.stripeBillingEvent.resolve({ id: "event/1", expected_updated_at: 4, resolution: "apply" });
+  assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
+    ["GET", "/v1/platform/currencies", {}, null],
+    ["GET", "/v1/platform/events", {}, null],
+    ["GET", "/v1/stores/plans", {}, null],
+    ["GET", "/v1/platform/administrators", { cursor: "next" }, null],
+    ["POST", "/v1/platform/administrators", {}, { id: administratorId, account_id: "account" }],
+    ["DELETE", `/v1/platform/administrators/${administratorId}`, {}, null],
+    ["GET", "/v1/platform/incoming-webhooks/stripe-billing", { status: "review", limit: "10" }, null],
+    ["POST", "/v1/platform/incoming-webhooks/stripe-billing/event%2F1/resolve", {}, { expected_updated_at: 4, resolution: "apply" }],
+  ]);
+  await assert.rejects(async () => platform.administrator.add({ id: "admin", account_id: "account" }), TypeError);
+  assert.equal(calls.length, 8);
+});

@@ -1,451 +1,199 @@
-import { requireStoreId } from "../utils/storeTarget";
-import { createStoreCommerceApi } from "./storeCommerce";
-import type { StoreCustomerWorkspacePresentation, UpdateStoreCustomerWorkspaceParams } from "../types/storeCustomerWorkspace";
-import type { ApiConfig, AdminSessionUpdater } from "../services/clientTypes";
+import type { ApiConfig } from "../services/clientTypes";
+import type { RequestOptions } from "../types/api";
+import type { PaginatedResponse } from "../types/common";
 import type {
+  AllowStoreEmailSendingParams,
+  CreateStorePortalSessionParams,
   CreateStoreParams,
-  UpdateStoreParams,
+  EndStoreGrantParams,
+  FindStoreUsageParams,
+  FindStoresParams,
   GetStoreParams,
-  RequestStoreDeletionParams,
-  GetStoresParams,
   GetStoreSubscriptionParams,
-  CancelStoreSubscriptionParams,
-  ReactivateStoreSubscriptionParams,
-  SelectStoreSubscriptionParams,
-  CreatePortalSessionParams,
-  AddMemberParams,
-  RemoveMemberParams,
-  TransferStoreOwnershipParams,
-  FindStoreMembersParams,
-  FindOwnStoreMembershipsParams,
-  GetOwnStoreMembershipParams,
-  TestWebhookParams,
-  TestWebhookResponse,
-  ListWebhooksParams,
-  CreateWebhookParams,
-  UpdateWebhookParams,
-  DeleteWebhookParams,
-  RequestOptions,
-} from "../types/api";
-import type { StoreDeletionResult } from "../types";
-import type { ChangeStoreMemberStatusParams, UpdateStoreMemberRolesParams } from "../types/storeRole";
-import {
-  DurableRequestStorageError,
-  clearDurableRequest,
-  durableRequestPayload,
-  getOrCreateDurableRequest,
-  readDurableRequest,
-  withDurableRequestLock,
-} from "../utils/durableRequest";
-import type {
+  PauseStoreEmailSendingParams,
+  RequestStoreDeletionParams,
+  SelectStorePlanParams,
   Store,
-  Webhook,
-  PaginatedResponse,
-  StorePlan,
+  StorePortalSession,
   StoreSubscription,
+  StoreSubscriptionSelection,
+  StoreUsageSummary,
+  UpdateStoreParams,
+} from "../types/store";
+import type {
+  AcceptStoreInviteParams,
+  AddStoreMemberParams,
+  ChangeStoreMemberStatusParams,
+  FindOwnStoreMembershipsParams,
+  FindStoreMembersParams,
+  GetOwnStoreMembershipParams,
+  InviteStoreMemberParams,
+  RemoveStoreMemberParams,
   StoreMember,
   StoreMembership,
   StoreMembershipWithStoreName,
-} from "../types";
+  TransferStoreOwnershipParams,
+  UpdateStoreMemberRolesParams,
+} from "../types/storeRole";
+import { requireStoreId } from "../utils/storeTarget";
+import { requireId } from "../utils/ids";
+import { segment, storePath } from "./paths";
 
-type StoreSubscriptionCheckoutRequest = {
-  checkout_id: string;
-  plan_id: string;
-  return_url: string;
-};
+export const createStoreApi = (apiConfig: ApiConfig) => ({
+  create(params: CreateStoreParams, options?: RequestOptions): Promise<Store> {
+    requireId(params.id, "store");
+    return apiConfig.httpClient.post<Store>("/v1/stores", params, options);
+  },
 
-const storeSubscriptionCheckoutLabel = "Store subscription Checkout";
-const canonicalUuidV4 =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+  update(params: UpdateStoreParams, options?: RequestOptions): Promise<Store> {
+    const { id, ...body } = params;
+    return apiConfig.httpClient.put<Store>(`/v1/stores/${requireStoreId(id)}`, body, options);
+  },
 
-function storeSubscriptionCheckoutRequest(params: SelectStoreSubscriptionParams): StoreSubscriptionCheckoutRequest {
-  if (typeof params.checkout_id !== "string" || !canonicalUuidV4.test(params.checkout_id)) {
-    throw new TypeError("Store plan selection requires the caller's canonical UUID-v4 checkout_id");
-  }
-  return { checkout_id: params.checkout_id, plan_id: params.plan_id, return_url: params.return_url };
-}
+  get(params: GetStoreParams, options?: RequestOptions): Promise<Store> {
+    return apiConfig.httpClient.get<Store>(`/v1/stores/${requireStoreId(params.id)}`, options);
+  },
 
-function responseStatusCode(value: unknown): number | null {
-  if (typeof value !== "object" || value === null || !("statusCode" in value)) return null;
-  return typeof value.statusCode === "number" ? value.statusCode : null;
-}
+  find(params: FindStoresParams = {}, options?: RequestOptions): Promise<PaginatedResponse<Store>> {
+    return apiConfig.httpClient.get<PaginatedResponse<Store>>("/v1/stores", { ...options, params });
+  },
 
-function persistedStoreSubscriptionCheckoutRequest(
-  value: unknown,
-): StoreSubscriptionCheckoutRequest {
-  if (
-    typeof value !== "object" ||
-    value === null ||
-    Object.keys(value).sort().join(",") !== "checkout_id,plan_id,return_url" ||
-    typeof (value as Record<string, unknown>).checkout_id !== "string" ||
-    !canonicalUuidV4.test((value as Record<string, string>).checkout_id) ||
-    typeof (value as Record<string, unknown>).plan_id !== "string" ||
-    !(value as Record<string, string>).plan_id ||
-    typeof (value as Record<string, unknown>).return_url !== "string" ||
-    !(value as Record<string, string>).return_url
-  ) {
-    throw new DurableRequestStorageError(
-      `Cannot safely start ${storeSubscriptionCheckoutLabel} because its durable request payload is invalid`,
+  pauseEmailSending(params: PauseStoreEmailSendingParams, options?: RequestOptions): Promise<Store> {
+    return apiConfig.httpClient.post<Store>(
+      storePath(params.store_id, "pause-email-sending"),
+      { expected_updated_at: params.expected_updated_at, reason: params.reason },
+      options,
     );
-  }
-  return value as StoreSubscriptionCheckoutRequest;
-}
+  },
 
-export const createStoreApi = (
-  apiConfig: ApiConfig,
-  _updateSession: AdminSessionUpdater,
-) => {
-  return {
-    ...createStoreCommerceApi(apiConfig),
+  allowEmailSending(params: AllowStoreEmailSendingParams, options?: RequestOptions): Promise<Store> {
+    return apiConfig.httpClient.post<Store>(
+      storePath(params.store_id, "allow-email-sending"),
+      { expected_updated_at: params.expected_updated_at },
+      options,
+    );
+  },
 
-    async createStore(
-      params: CreateStoreParams,
-      options?: RequestOptions,
-    ): Promise<Store> {
-      return apiConfig.httpClient.post<Store>(`/v1/stores`, params, options);
+  requestDeletion(params: RequestStoreDeletionParams, options?: RequestOptions): Promise<Store> {
+    return apiConfig.httpClient.post<Store>(
+      `/v1/stores/${requireStoreId(params.id)}/deletion`,
+      { confirmation: params.confirmation, expected_updated_at: params.expected_updated_at },
+      options,
+    );
+  },
+
+  subscription: {
+    get(params: GetStoreSubscriptionParams, options?: RequestOptions): Promise<StoreSubscription> {
+      return apiConfig.httpClient.get<StoreSubscription>(storePath(params.store_id, "subscription"), options);
     },
 
-    async updateStore(
-      params: UpdateStoreParams,
-      options?: RequestOptions,
-    ): Promise<Store> {
-      return apiConfig.httpClient.put<Store>(
-        `/v1/stores/${requireStoreId(params.id)}`,
-        {
-          name: params.name,
-          default_sales_channel_id: params.default_sales_channel_id,
-          timezone: params.timezone,
-          default_language: params.default_language,
-          supported_languages: params.supported_languages,
-          billing_email: params.billing_email,
-          contact_email: params.contact_email,
-        },
+    select(params: SelectStorePlanParams, options?: RequestOptions): Promise<StoreSubscriptionSelection> {
+      return apiConfig.httpClient.post<StoreSubscriptionSelection>(
+        storePath(params.store_id, "subscription"),
+        { plan_id: params.plan_id, return_url: params.return_url },
         options,
       );
     },
 
-    async getStore(
-      params: GetStoreParams,
-      options?: RequestOptions,
-    ): Promise<Store> {
-      const store_id = requireStoreId(params.id);
-      return apiConfig.httpClient.get<Store>(`/v1/stores/${requireStoreId(store_id)}`, options);
-    },
-
-    async requestDeletion(
-      params: RequestStoreDeletionParams,
-      options?: RequestOptions,
-    ): Promise<StoreDeletionResult> {
-      const store_id = requireStoreId(params.id);
-      return apiConfig.httpClient.post<StoreDeletionResult>(
-        `/v1/stores/${requireStoreId(store_id)}/deletion`,
-        { confirmation: params.confirmation },
-        options,
-      );
-    },
-
-    async getCustomerWorkspace(
-      params: GetStoreParams,
-      options?: RequestOptions,
-    ): Promise<StoreCustomerWorkspacePresentation> {
-      const storeId = requireStoreId(params.id);
-      return apiConfig.httpClient.get<StoreCustomerWorkspacePresentation>(
-        `/v1/stores/${requireStoreId(storeId)}/customer-workspace`, options,
-      );
-    },
-
-    async updateCustomerWorkspace(
-      params: UpdateStoreCustomerWorkspaceParams,
-      options?: RequestOptions,
-    ): Promise<Store> {
-      const storeId = requireStoreId(params.id);
-      return apiConfig.httpClient.put<Store>(
-        `/v1/stores/${requireStoreId(storeId)}/customer-workspace`,
-        { expected_revision: params.expected_revision, customer_workspace: params.customer_workspace }, options,
-      );
-    },
-
-    async getStores(
-      params?: GetStoresParams,
-      options?: RequestOptions,
-    ): Promise<PaginatedResponse<Store>> {
-      return apiConfig.httpClient.get<PaginatedResponse<Store>>(`/v1/stores`, {
-        ...options,
-        params,
-      });
-    },
-
-    async getStorePlans(
-      options?: RequestOptions,
-    ): Promise<PaginatedResponse<StorePlan>> {
-      return apiConfig.httpClient.get<PaginatedResponse<StorePlan>>(
-        "/v1/stores/plans",
-        options,
-      );
-    },
-
-    async selectSubscription(params: SelectStoreSubscriptionParams, options?: RequestOptions): Promise<StoreSubscription> {
-      const storeId = requireStoreId(params.store_id);
-      const payload = storeSubscriptionCheckoutRequest(params);
-      const result = await apiConfig.httpClient.post<StoreSubscription>(`/v1/stores/${storeId}/subscription`, payload, options);
-      if ((result.checkout && result.checkout.id !== payload.checkout_id) || (!result.checkout && result.plan_access?.plan_id !== payload.plan_id)) {
-        throw new DurableRequestStorageError("Store plan selection returned neither its Checkout nor the requested plan access");
-      }
-      return result;
-    },
-
-    async retainSubscriptionSelection(params: SelectStoreSubscriptionParams): Promise<void> {
-      const storeId = requireStoreId(params.store_id);
-      const payload = storeSubscriptionCheckoutRequest(params);
-      const key = `arky:store-subscription-checkout:${storeId}`;
-      await withDurableRequestLock(key, storeSubscriptionCheckoutLabel, async () => {
-        getOrCreateDurableRequest(key, payload, storeSubscriptionCheckoutLabel);
-      });
-    },
-
-    async pendingSubscriptionSelection(params: GetStoreSubscriptionParams): Promise<StoreSubscriptionCheckoutRequest | null> {
-      const key = `arky:store-subscription-checkout:${requireStoreId(params.store_id)}`;
-      return withDurableRequestLock(key, storeSubscriptionCheckoutLabel, async () => {
-        const retained = readDurableRequest(key, storeSubscriptionCheckoutLabel);
-        return retained ? persistedStoreSubscriptionCheckoutRequest(durableRequestPayload(retained)) : null;
-      });
-    },
-
-    async recoverSubscriptionSelection(params: GetStoreSubscriptionParams, options?: RequestOptions): Promise<StoreSubscription | null> {
-      const storeId = requireStoreId(params.store_id);
-      const key = `arky:store-subscription-checkout:${storeId}`;
-      return withDurableRequestLock(key, storeSubscriptionCheckoutLabel, async () => {
-        const retained = readDurableRequest(key, storeSubscriptionCheckoutLabel);
-        if (!retained) return null;
-        const payload = persistedStoreSubscriptionCheckoutRequest(durableRequestPayload(retained));
-        let result: StoreSubscription;
-        try {
-          result = await apiConfig.httpClient.post<StoreSubscription>(`/v1/stores/${storeId}/subscription`, payload, options);
-        } catch (error) {
-          if (responseStatusCode(error) === 400) clearDurableRequest(retained, storeSubscriptionCheckoutLabel);
-          throw error;
-        }
-        if ((result.checkout && result.checkout.id !== payload.checkout_id) || (!result.checkout && result.plan_access?.plan_id !== payload.plan_id)) {
-          throw new DurableRequestStorageError("Recovered plan selection returned neither its Checkout nor the requested plan access");
-        }
-        clearDurableRequest(retained, storeSubscriptionCheckoutLabel);
-        return result;
-      });
-    },
-
-    async getSubscription(
-      params: GetStoreSubscriptionParams,
-      options?: RequestOptions,
-    ): Promise<StoreSubscription> {
-      const store_id = requireStoreId(params.store_id);
-      return apiConfig.httpClient.get<StoreSubscription>(
-        `/v1/stores/${requireStoreId(store_id)}/subscription`,
-        options,
-      );
-    },
-
-    async cancelSubscription(
-      params: CancelStoreSubscriptionParams,
-      options?: RequestOptions,
-    ): Promise<StoreSubscription> {
-      const store_id = requireStoreId(params.store_id);
-      return apiConfig.httpClient.post<StoreSubscription>(
-        `/v1/stores/${requireStoreId(store_id)}/subscription/cancel`,
-        { mode: params.mode },
-        options,
-      );
-    },
-
-    async reactivateSubscription(
-      params: ReactivateStoreSubscriptionParams,
-      options?: RequestOptions,
-    ): Promise<StoreSubscription> {
-      const store_id = requireStoreId(params.store_id);
-      return apiConfig.httpClient.post<StoreSubscription>(
-        `/v1/stores/${requireStoreId(store_id)}/subscription/reactivate`,
-        undefined,
-        options,
-      );
-    },
-
-    async createPortalSession(
-      params: CreatePortalSessionParams,
-      options?: RequestOptions,
-    ): Promise<{ portal_url: string }> {
-      const store_id = requireStoreId(params.store_id);
-      return apiConfig.httpClient.post<{ portal_url: string }>(
-        `/v1/stores/${requireStoreId(store_id)}/subscription/portal`,
+    createPortalSession(params: CreateStorePortalSessionParams, options?: RequestOptions): Promise<StorePortalSession> {
+      return apiConfig.httpClient.post<StorePortalSession>(
+        storePath(params.store_id, "subscription/portal"),
         { return_url: params.return_url },
         options,
       );
     },
 
-    async addMember(
-      params: AddMemberParams,
-      options?: RequestOptions,
-    ): Promise<boolean> {
-      const { store_id, ...payload } = params;
+    endGrant(params: EndStoreGrantParams, options?: RequestOptions): Promise<StoreSubscription> {
+      return apiConfig.httpClient.post<StoreSubscription>(
+        storePath(params.store_id, "subscription/end-grant"),
+        { expected_updated_at: params.expected_updated_at },
+        options,
+      );
+    },
+  },
+
+  usage: {
+    find(params: FindStoreUsageParams, options?: RequestOptions): Promise<StoreUsageSummary> {
+      return apiConfig.httpClient.get<StoreUsageSummary>(storePath(params.store_id, "usage"), options);
+    },
+  },
+
+  member: {
+    add(params: AddStoreMemberParams, options?: RequestOptions): Promise<boolean> {
       return apiConfig.httpClient.post<boolean>(
-        `/v1/stores/${requireStoreId(store_id)}/members`,
-        payload,
+        storePath(params.store_id, "members"),
+        { email: params.email, role_ids: params.role_ids },
         options,
       );
     },
 
-    async inviteUser(
-      params: AddMemberParams,
-      options?: RequestOptions,
-    ): Promise<boolean> {
-      const { store_id, ...payload } = params;
+    invite(params: InviteStoreMemberParams, options?: RequestOptions): Promise<boolean> {
       return apiConfig.httpClient.post<boolean>(
-        `/v1/stores/${requireStoreId(store_id)}/invitation`,
-        payload,
+        storePath(params.store_id, "invitation"),
+        { email: params.email, role_ids: params.role_ids },
         options,
       );
     },
 
-    async updateMemberRoles(
-      params: UpdateStoreMemberRolesParams,
+    find(params: FindStoreMembersParams, options?: RequestOptions): Promise<PaginatedResponse<StoreMember>> {
+      const { store_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<StoreMember>>(storePath(store_id, "members"), {
+        ...options,
+        params: query,
+      });
+    },
+
+    findOwn(
+      params: FindOwnStoreMembershipsParams = {},
       options?: RequestOptions,
-    ): Promise<StoreMembership> {
-      const store_id = requireStoreId(params.store_id);
-      if (!canonicalUuidV4.test(store_id) || !canonicalUuidV4.test(params.account_id)) {
-        throw new TypeError("Member role changes require canonical Store and Account UUIDs");
-      }
+    ): Promise<PaginatedResponse<StoreMembershipWithStoreName>> {
+      return apiConfig.httpClient.get<PaginatedResponse<StoreMembershipWithStoreName>>("/v1/stores/memberships", {
+        ...options,
+        params,
+      });
+    },
+
+    getOwn(params: GetOwnStoreMembershipParams, options?: RequestOptions): Promise<StoreMembershipWithStoreName | null> {
+      return apiConfig.httpClient.get<StoreMembershipWithStoreName | null>(storePath(params.store_id, "membership"), options);
+    },
+
+    acceptInvite(params: AcceptStoreInviteParams, options?: RequestOptions): Promise<StoreMembership> {
+      return apiConfig.httpClient.post<StoreMembership>(
+        storePath(params.store_id, "membership/accept"),
+        { expected_updated_at: params.expected_updated_at },
+        options,
+      );
+    },
+
+    remove(params: RemoveStoreMemberParams, options?: RequestOptions): Promise<boolean> {
+      return apiConfig.httpClient.delete<boolean>(
+        storePath(params.store_id, `members/${segment(requireId(params.account_id, "account"))}`),
+        options,
+      );
+    },
+
+    updateRoles(params: UpdateStoreMemberRolesParams, options?: RequestOptions): Promise<StoreMembership> {
       return apiConfig.httpClient.put<StoreMembership>(
-        `/v1/stores/${store_id}/members/${params.account_id}/roles`,
+        storePath(params.store_id, `members/${segment(requireId(params.account_id, "account"))}/roles`),
         { expected_updated_at: params.expected_updated_at, role_ids: params.role_ids },
         options,
       );
     },
 
-    async changeMemberStatus(
-      params: ChangeStoreMemberStatusParams,
-      options?: RequestOptions,
-    ): Promise<StoreMembership> {
-      const store_id = requireStoreId(params.store_id);
-      if (!canonicalUuidV4.test(store_id) || !canonicalUuidV4.test(params.account_id)) {
-        throw new TypeError("Member status changes require canonical Store and Account UUIDs");
-      }
+    changeStatus(params: ChangeStoreMemberStatusParams, options?: RequestOptions): Promise<StoreMembership> {
       return apiConfig.httpClient.put<StoreMembership>(
-        `/v1/stores/${store_id}/members/${params.account_id}/status`,
+        storePath(params.store_id, `members/${segment(requireId(params.account_id, "account"))}/status`),
         { expected_updated_at: params.expected_updated_at, status: params.status },
         options,
       );
     },
 
-    async transferOwnership(
-      params: TransferStoreOwnershipParams,
-      options?: RequestOptions,
-    ): Promise<Store> {
-      const store_id = requireStoreId(params.store_id);
-      if (!canonicalUuidV4.test(store_id) || !canonicalUuidV4.test(params.account_id)) {
-        throw new TypeError("Ownership transfer requires canonical Store and Account UUIDs");
-      }
+    transferOwnership(params: TransferStoreOwnershipParams, options?: RequestOptions): Promise<Store> {
       return apiConfig.httpClient.post<Store>(
-        `/v1/stores/${store_id}/ownership/transfer`,
-        { account_id: params.account_id },
+        storePath(params.store_id, "ownership/transfer"),
+        { account_id: requireId(params.account_id, "account") },
         options,
       );
     },
-
-    async findMembers(
-      params: FindStoreMembersParams,
-      options?: RequestOptions,
-    ): Promise<PaginatedResponse<StoreMember>> {
-      const { store_id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<StoreMember>>(
-        `/v1/stores/${requireStoreId(store_id)}/members`,
-        {
-          ...options,
-          params: query,
-        },
-      );
-    },
-
-    async findOwnMemberships(
-      params: FindOwnStoreMembershipsParams = {},
-      options?: RequestOptions,
-    ): Promise<PaginatedResponse<StoreMembershipWithStoreName>> {
-      return apiConfig.httpClient.get<PaginatedResponse<StoreMembershipWithStoreName>>(
-        "/v1/stores/memberships",
-        { ...options, params },
-      );
-    },
-
-    async getOwnMembership(
-      params: GetOwnStoreMembershipParams,
-      options?: RequestOptions,
-    ): Promise<StoreMembershipWithStoreName | null> {
-      const storeId = requireStoreId(params.store_id);
-      if (!canonicalUuidV4.test(storeId)) throw new TypeError("Membership lookup requires a canonical Store UUID");
-      return apiConfig.httpClient.get<StoreMembershipWithStoreName | null>(`/v1/stores/${requireStoreId(storeId)}/membership`, options);
-    },
-
-    async removeMember(
-      params: RemoveMemberParams,
-      options?: RequestOptions,
-    ): Promise<boolean> {
-      return apiConfig.httpClient.delete<boolean>(
-        `/v1/stores/${requireStoreId(params.store_id)}/members/${params.account_id}`,
-        options,
-      );
-    },
-
-    async testWebhook(
-      params: TestWebhookParams,
-      options?: RequestOptions,
-    ): Promise<TestWebhookResponse> {
-      return apiConfig.httpClient.post<TestWebhookResponse>(
-        `/v1/stores/${requireStoreId(params.store_id)}/webhooks/test`,
-        { delivery_id: params.delivery_id, webhook_id: params.webhook_id },
-        options,
-      );
-    },
-
-    async listWebhooks(
-      params: ListWebhooksParams,
-      options?: RequestOptions,
-    ): Promise<PaginatedResponse<Webhook>> {
-      const { store_id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<Webhook>>(
-        `/v1/stores/${requireStoreId(store_id)}/webhooks`,
-        { ...options, params: query },
-      );
-    },
-
-    async createWebhook(
-      params: CreateWebhookParams,
-      options?: RequestOptions,
-    ): Promise<Webhook> {
-      const { store_id, ...payload } = params;
-      return apiConfig.httpClient.post<Webhook>(
-        `/v1/stores/${requireStoreId(store_id)}/webhooks`,
-        payload,
-        options,
-      );
-    },
-
-    async updateWebhook(
-      params: UpdateWebhookParams,
-      options?: RequestOptions,
-    ): Promise<Webhook> {
-      const { store_id, id, ...payload } = params;
-      return apiConfig.httpClient.put<Webhook>(
-        `/v1/stores/${requireStoreId(store_id)}/webhooks/${id}`,
-        payload,
-        options,
-      );
-    },
-
-    async deleteWebhook(
-      params: DeleteWebhookParams,
-      options?: RequestOptions,
-    ): Promise<{ deleted: boolean }> {
-      return apiConfig.httpClient.delete<{ deleted: boolean }>(
-        `/v1/stores/${requireStoreId(params.store_id)}/webhooks/${params.id}`,
-        options,
-      );
-    },
-  };
-};
+  },
+});

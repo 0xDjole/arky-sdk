@@ -1,130 +1,58 @@
-import { requireRequestId } from "../utils/requestId";
-import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
-import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
+import type { PaginatedResponse } from "../types/common";
 import type {
   ActivateEmailSuppressionParams,
-  EmailSuppressionRecord,
+  EmailSuppression,
   FindEmailSuppressionsParams,
   GetEmailSuppressionParams,
   ReleaseEmailSuppressionParams,
-} from "../types/emailSuppression";
+} from "../types/customer";
+import { requireId } from "../utils/ids";
+import { storePath, storeRecordPath } from "./paths";
+
+const collection = "email-suppressions";
 
 export const createEmailSuppressionApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId: string) =>
-    `/v1/stores/${requireStoreId(storeId)}/email-suppressions`;
-
-  const activate = (
-    action: "block" | "record-unsubscribe",
-    params: ActivateEmailSuppressionParams,
-    options?: RequestOptions,
-  ): Promise<EmailSuppressionRecord> => {
-      requireRequestId(params.request_id);
-    const { store_id, id, email, request_id, expected_version, note } = params;
-    if (expected_version === undefined) {
-      throw new TypeError("An explicit expected_version or null is required");
-    }
-    return apiConfig.httpClient.post<EmailSuppressionRecord>(
-      `${basePath(store_id)}/${action}`,
-      { id, email, request_id, expected_version, note },
-      options,
-    );
+  const activate = (verb: string, params: ActivateEmailSuppressionParams, options?: RequestOptions) => {
+    requireId(params.id, "email suppression");
+    const { store_id, ...body } = params;
+    return apiConfig.httpClient.post<EmailSuppression>(storePath(store_id, `${collection}/${verb}`), body, options);
   };
 
-  const release = (
-    action: "unblock" | "record-resubscribe",
-    params: ReleaseEmailSuppressionParams,
-    options?: RequestOptions,
-  ): Promise<EmailSuppressionRecord> => {
-      requireRequestId(params.request_id);
-    const { store_id, id, request_id, expected_version, note } = params;
-    if (typeof expected_version !== "string" || expected_version.length === 0) {
-      throw new TypeError(
-        "The current expected_version is required for release",
-      );
-    }
-    return apiConfig.httpClient.post<EmailSuppressionRecord>(
-      `${basePath(store_id)}/${id}/${action}`,
-      { request_id, expected_version, note },
+  const release = (verb: string, params: ReleaseEmailSuppressionParams, options?: RequestOptions) =>
+    apiConfig.httpClient.post<EmailSuppression>(
+      `${storeRecordPath(params.store_id, collection, params.id)}/${verb}`,
+      { note: params.note, expected_updated_at: params.expected_updated_at },
       options,
     );
-  };
 
   return {
-    async find(
-      params: FindEmailSuppressionsParams,
-      options?: RequestOptions,
-    ): Promise<PaginatedResponse<EmailSuppressionRecord>> {
-      const { store_id, query, type, status, cursor } = params;
-      if (query !== undefined) {
-        if (params.limit !== undefined || cursor !== undefined) {
-          throw new RangeError("Exact email search does not accept pagination");
-        }
-        return apiConfig.httpClient.get<
-          PaginatedResponse<EmailSuppressionRecord>
-        >(basePath(store_id), { ...options, params: { query, type, status } });
-      }
-      const limit = params.limit === undefined ? 50 : params.limit;
-      if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
-        throw new RangeError(
-          "Email restriction limit must be an integer from 1 to 100",
-        );
-      }
-      if (
-        cursor !== undefined &&
-        (typeof cursor !== "string" ||
-          cursor.length === 0 ||
-          new TextEncoder().encode(cursor).length > 2048)
-      ) {
-        throw new RangeError(
-          "Email restriction cursor must contain 1 to 2048 bytes",
-        );
-      }
-      return apiConfig.httpClient.get<
-        PaginatedResponse<EmailSuppressionRecord>
-      >(basePath(store_id), {
+    find(params: FindEmailSuppressionsParams, options?: RequestOptions): Promise<PaginatedResponse<EmailSuppression>> {
+      const { store_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<EmailSuppression>>(storePath(store_id, collection), {
         ...options,
-        params: { limit, cursor, type, status },
+        params: query,
       });
     },
 
-    async get(
-      params: GetEmailSuppressionParams,
-      options?: RequestOptions,
-    ): Promise<EmailSuppressionRecord> {
-      return apiConfig.httpClient.get<EmailSuppressionRecord>(
-        `${basePath(params.store_id)}/${params.id}`,
-        options,
-      );
+    get(params: GetEmailSuppressionParams, options?: RequestOptions): Promise<EmailSuppression> {
+      return apiConfig.httpClient.get<EmailSuppression>(storeRecordPath(params.store_id, collection, params.id), options);
     },
 
-    async block(
-      params: ActivateEmailSuppressionParams,
-      options?: RequestOptions,
-    ) {
-      requireRequestId(params.request_id);
+    block(params: ActivateEmailSuppressionParams, options?: RequestOptions): Promise<EmailSuppression> {
       return activate("block", params, options);
     },
-    async recordUnsubscribe(
-      params: ActivateEmailSuppressionParams,
-      options?: RequestOptions,
-    ) {
-      requireRequestId(params.request_id);
+
+    recordUnsubscribe(params: ActivateEmailSuppressionParams, options?: RequestOptions): Promise<EmailSuppression> {
       return activate("record-unsubscribe", params, options);
     },
-    async unblock(
-      params: ReleaseEmailSuppressionParams,
-      options?: RequestOptions,
-    ) {
-      requireRequestId(params.request_id);
+
+    unblock(params: ReleaseEmailSuppressionParams, options?: RequestOptions): Promise<EmailSuppression> {
       return release("unblock", params, options);
     },
-    async recordResubscribe(
-      params: ReleaseEmailSuppressionParams,
-      options?: RequestOptions,
-    ) {
-      requireRequestId(params.request_id);
+
+    recordResubscribe(params: ReleaseEmailSuppressionParams, options?: RequestOptions): Promise<EmailSuppression> {
       return release("record-resubscribe", params, options);
     },
   };

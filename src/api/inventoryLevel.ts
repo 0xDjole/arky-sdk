@@ -1,8 +1,6 @@
-import { requireRequestId } from "../utils/requestId";
-import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
-import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
+import type { PaginatedResponse } from "../types/common";
 import type {
   ChangeSetAsideParams,
   CreateInventoryLevelParams,
@@ -10,82 +8,75 @@ import type {
   GetInventoryLevelParams,
   InventoryLevel,
   InventoryStockLevel,
-  ReceiveStockMoveParams,
   MoveInventoryParams,
+  ReceiveStockMoveParams,
   RemoveInventoryLevelParams,
 } from "../types/inventory";
+import { requireId } from "../utils/ids";
+import { storePath, storeRecordPath } from "./paths";
+
+const collection = "inventory-levels";
 
 export const createInventoryLevelApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId: string) =>
-    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/inventory-levels`;
+  const action = <T>(storeId: string, id: string, verb: string, body: object, options?: RequestOptions) =>
+    apiConfig.httpClient.post<T>(`${storeRecordPath(storeId, collection, id)}/${verb}`, body, options);
 
   return {
-    create(
-      params: CreateInventoryLevelParams,
-      options?: RequestOptions,
-    ): Promise<InventoryLevel> {
-      const { store_id, ...payload } = params;
-      return apiConfig.httpClient.post<InventoryLevel>(basePath(store_id), payload, options);
+    create(params: CreateInventoryLevelParams, options?: RequestOptions): Promise<InventoryLevel> {
+      requireId(params.id, "inventory level");
+      const { store_id, ...body } = params;
+      return apiConfig.httpClient.post<InventoryLevel>(storePath(store_id, collection), body, options);
     },
+
     get(params: GetInventoryLevelParams, options?: RequestOptions): Promise<InventoryLevel> {
-      const { store_id, id } = params;
-      return apiConfig.httpClient.get<InventoryLevel>(
-        `${basePath(store_id)}/${encodeURIComponent(id)}`,
-        options,
-      );
+      return apiConfig.httpClient.get<InventoryLevel>(storeRecordPath(params.store_id, collection, params.id), options);
     },
-    find(
-      params: FindInventoryLevelsParams,
-      options?: RequestOptions,
-    ): Promise<PaginatedResponse<InventoryLevel>> {
+
+    find(params: FindInventoryLevelsParams, options?: RequestOptions): Promise<PaginatedResponse<InventoryLevel>> {
       const { store_id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<InventoryLevel>>(basePath(store_id), {
+      return apiConfig.httpClient.get<PaginatedResponse<InventoryLevel>>(storePath(store_id, collection), {
         ...options,
         params: query,
       });
     },
+
     stock(params: FindInventoryLevelsParams, options?: RequestOptions): Promise<PaginatedResponse<InventoryStockLevel>> {
       const { store_id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<InventoryStockLevel>>(`${basePath(store_id)}/stock`, { ...options, params: query });
+      return apiConfig.httpClient.get<PaginatedResponse<InventoryStockLevel>>(storePath(store_id, `${collection}/stock`), {
+        ...options,
+        params: query,
+      });
     },
+
     setAside(params: ChangeSetAsideParams, options?: RequestOptions): Promise<InventoryLevel> {
-      requireRequestId(params.request_id);
-      const { store_id, id, ...payload } = params;
-      return apiConfig.httpClient.post<InventoryLevel>(
-        `${basePath(store_id)}/${encodeURIComponent(id)}/set-aside`,
-        payload,
-        options,
-      );
+      requireId(params.action_id, "action");
+      const { store_id, id, ...body } = params;
+      return action<InventoryLevel>(store_id, id, "set-aside", body, options);
     },
+
     makeAvailable(params: ChangeSetAsideParams, options?: RequestOptions): Promise<InventoryLevel> {
-      requireRequestId(params.request_id);
-      const { store_id, id, ...payload } = params;
-      return apiConfig.httpClient.post<InventoryLevel>(
-        `${basePath(store_id)}/${encodeURIComponent(id)}/make-available`,
-        payload,
-        options,
-      );
+      requireId(params.action_id, "action");
+      const { store_id, id, ...body } = params;
+      return action<InventoryLevel>(store_id, id, "make-available", body, options);
     },
+
     move(params: MoveInventoryParams, options?: RequestOptions): Promise<InventoryLevel> {
-      requireRequestId(params.request_id);
-      const { store_id, id, ...payload } = params;
-      return apiConfig.httpClient.post<InventoryLevel>(
-        `${basePath(store_id)}/${encodeURIComponent(id)}/move`,
-        payload,
-        options,
-      );
+      requireId(params.action_id, "action");
+      const { store_id, id, ...body } = params;
+      return action<InventoryLevel>(store_id, id, "move", body, options);
     },
+
     receiveMove(params: ReceiveStockMoveParams, options?: RequestOptions): Promise<InventoryLevel> {
-      requireRequestId(params.request_id);
-      const { store_id, id, ...payload } = params;
-      return apiConfig.httpClient.post<InventoryLevel>(`${basePath(store_id)}/${encodeURIComponent(id)}/incoming`, payload, options);
+      requireId(params.action_id, "action");
+      const { store_id, id, ...body } = params;
+      return action<InventoryLevel>(store_id, id, "incoming", body, options);
     },
+
     remove(params: RemoveInventoryLevelParams, options?: RequestOptions): Promise<void> {
-      const { store_id, id, expected_updated_at } = params;
-      return apiConfig.httpClient.delete<void>(
-        `${basePath(store_id)}/${encodeURIComponent(id)}`,
-        { ...options, params: { expected_updated_at } },
-      );
+      return apiConfig.httpClient.delete<void>(storeRecordPath(params.store_id, collection, params.id), {
+        ...options,
+        params: { expected_updated_at: params.expected_updated_at },
+      });
     },
   };
 };

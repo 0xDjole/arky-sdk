@@ -8,7 +8,7 @@ export type AdminLogoutResult =
   | { type: 'revoked'; session_id: string }
   | { type: 'unconfirmed'; session_id: string }
   | { type: 'local_only' }
-  | { type: 'api_token' };
+  | { type: 'secret_key' };
 
 const queues = new Map<string, Promise<unknown>>();
 const changedEvent = 'arky-admin-session-changed';
@@ -27,9 +27,6 @@ function validSession(value: unknown): value is AdminSessionInternal {
     && typeof value.access_token === 'string' && value.access_token.length > 0
     && typeof value.refresh_token === 'string' && value.refresh_token.length > 0
     && isEpochMilliseconds(value.access_expires_at)
-    && record(value.scope)
-    && (value.scope.type === 'account' || (value.scope.type === 'store'
-      && typeof value.scope.store_id === 'string' && uuid.test(value.scope.store_id)))
     && (value.email === undefined || typeof value.email === 'string');
 }
 
@@ -138,7 +135,6 @@ export function createAdminSessionState(baseUrl: string, refreshPath?: string | 
     }
     const result = response.data;
     if (!validSession(result) || result.id !== expected.id
-      || (result.scope.type !== expected.scope.type || (result.scope.type === 'store' && expected.scope.type === 'store' && result.scope.store_id !== expected.scope.store_id))
       || !record(result) || !isEpochMilliseconds(result.refresh_expires_at)
       || !isEpochMilliseconds(result.authenticated_at) || !isEpochMilliseconds(result.created_at)
       || !isEpochMilliseconds(result.updated_at)) {

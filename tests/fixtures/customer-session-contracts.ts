@@ -1,33 +1,41 @@
 import { epochMilliseconds } from 'arky-sdk';
-import type { CustomerSessionIssued, CustomerSessionRecord, CustomerSessionStatus } from 'arky-sdk';
-import { createStorefront, initialize } from 'arky-sdk/storefront';
-import type { CaptureCustomerEmailParams, StorefrontCustomerIdentity } from 'arky-sdk';
+import type { ChangeCustomerEmailParams, CustomerEmailVerification, CustomerMe, CustomerSession, CustomerSessionIssued, CustomerSessionStatus, CustomerSessionType, IdentifyCustomerParams, UpdateCustomerMeParams } from 'arky-sdk';
+import type { StorefrontClient } from 'arky-sdk/storefront';
 
-const capture: CaptureCustomerEmailParams = { email: 'reader@example.test' };
-const storefront = createStorefront('arky_pk_contract');
-const identity: Promise<StorefrontCustomerIdentity> = storefront.customer.captureEmail(capture);
-const initializedIdentity: Promise<StorefrontCustomerIdentity> = initialize('arky_pk_contract').customer.captureEmail(capture);
-void [identity, initializedIdentity];
-// @ts-expect-error Capture ownership comes from the current Customer Session.
-storefront.customer.captureEmail({ email: 'reader@example.test', customer_id: 'someone-else' });
-// @ts-expect-error Capturing an address does not verify it.
-storefront.customer.captureEmail({ email: 'reader@example.test', verified_at: epochMilliseconds(10) });
+type Assert<T extends true> = T;
+type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
+type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
+type Accepts<T, V> = V extends T ? true : false;
 
 const status: CustomerSessionStatus = { type: 'superseded' };
 const visitor: CustomerSessionIssued = {
   id: 'session', customer_id: 'customer', type: 'visitor', status: { type: 'active' },
   token: 'customer_visitor_exact', expires_at: epochMilliseconds(10),
 };
-const record: CustomerSessionRecord = {
-  id: 'session', store_id: 'store', customer_id: 'customer', type: 'visitor',
-  status: { type: 'superseded' }, superseded_at: epochMilliseconds(5), revoked_at: null,
-  expires_at: epochMilliseconds(10), email_verification: null, last_seen_at: null,
+const record: CustomerSession = {
+  id: 'session', store_id: 'store', customer_id: 'customer',
+  type: { type: 'visitor', expires_at: epochMilliseconds(10), email_verification: null },
+  status: { type: 'superseded' }, last_seen_at: epochMilliseconds(5),
   created_at: epochMilliseconds(1), updated_at: epochMilliseconds(5),
 };
-// @ts-expect-error Customer lifecycle status is tagged on the public wire.
-const plainStatus: CustomerSessionStatus = 'active';
-// @ts-expect-error An issued credential is always active.
-const revokedIssued: CustomerSessionIssued = { ...visitor, status: { type: 'revoked' } };
-// @ts-expect-error The response status tag contains no private lifecycle timestamp.
-const timestampInTag: CustomerSessionStatus = { type: 'revoked', revoked_at: epochMilliseconds(5) };
-export type CustomerSessionContracts = [typeof status, typeof visitor, typeof record];
+
+export type CustomerSessionContracts = [
+  Assert<Equal<CustomerSessionStatus['type'], 'active' | 'superseded' | 'revoked'>>,
+  Assert<Accepts<CustomerSessionStatus, 'active'> extends false ? true : false>,
+  Assert<Equal<Extract<CustomerSessionStatus, { type: 'revoked' }>, { type: 'revoked' }>>,
+  Assert<Equal<Extract<CustomerSessionIssued, { type: 'visitor' }>['token'], string>>,
+  Assert<Missing<Extract<CustomerSessionIssued, { type: 'visitor' }>, 'access_token' | 'refresh_token'>>,
+  Assert<Equal<CustomerSessionType['type'], 'visitor' | 'email_authenticated'>>,
+  Assert<Equal<keyof IdentifyCustomerParams, 'customer_id' | 'session_id'>>,
+  Assert<Missing<StorefrontClient['customer'], 'captureEmail'>>,
+  Assert<Missing<CustomerSession, 'superseded_at'>>,
+  Assert<Missing<CustomerSession, 'revoked_at'>>,
+  Assert<Equal<typeof record, CustomerSession>>,
+  Assert<Equal<Extract<CustomerSessionType, { type: 'email_authenticated' }>['email_change'], CustomerEmailVerification | null>>,
+  Assert<Equal<Extract<CustomerSessionType, { type: 'visitor' }>['email_verification'], CustomerEmailVerification | null>>,
+  Assert<Equal<keyof ChangeCustomerEmailParams, 'code'>>,
+  Assert<Equal<Awaited<ReturnType<StorefrontClient['customer']['changeEmail']>>, CustomerMe>>,
+  Assert<Missing<UpdateCustomerMeParams, 'email'>>,
+];
+
+void [status, visitor, record];

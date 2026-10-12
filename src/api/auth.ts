@@ -27,7 +27,6 @@ export const createAuthApi = (
       }
       const next: AdminSessionInternal = {
         id: result.id,
-        scope: result.scope,
         access_token: result.access_token,
         refresh_token: result.refresh_token,
         access_expires_at: result.access_expires_at,

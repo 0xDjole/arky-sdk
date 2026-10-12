@@ -1,73 +1,81 @@
-import type { RequestOptions } from "../types/api";
-import type { CartSelectionContext, CartSelectionScope, CartSelectionTransport, SelectedCart } from "../types/cartSelection";
+import type { RequestOptions } from "../types/httpClient";
+import type {
+  Cart,
+  CartBuyer,
+  CreatedCart,
+  ReorderedCart,
+  StorefrontCreateCartParams,
+  StorefrontCurrentCartParams,
+  StorefrontReorderParams,
+} from "../types/cart";
+import type { CartSelectionContext, CartSelectionTransport, SelectedCart } from "../types/cartSelection";
 import { CartSelectionError } from "../types/cartSelection";
-import type { StorefrontCart, StorefrontCurrentCartParams } from "../types/storefront";
-import { pendingCartCheckout, withCartMutation } from "./cartCheckout";
+import { isCanonicalId, requireId } from "../utils/ids";
+import { withCartMutation } from "./cartCheckout";
 
-function selectedCart(value: string | null): SelectedCart | null {
+type SelectionStorage = NonNullable<CartSelectionContext["storage"]>;
+
+interface FollowedCart {
+  cart: Cart | null;
+  chain: string[];
+}
+
+const closedStatuses = ["converted", "merged", "superseded", "expired"];
+const maxMergedHops = 4;
+
+function buyerKey(buyer: CartBuyer | undefined): string {
+  if (!buyer || buyer.type === "customer") return "customer";
+  if (buyer.type === "company_location") return `company_location:${buyer.company_location_id}`;
+  return `${buyer.type}:${buyer.company_id}`;
+}
+
+function sameBuyer(cart: Cart, buyer: CartBuyer | undefined): boolean {
+  if (!buyer) return true;
+  if (buyer.type === "company_location_selection" && cart.buyer.type === "company_location") return true;
+  return buyerKey(cart.buyer) === buyerKey(buyer);
+}
+
+function readSelection(value: string | null): SelectedCart | null {
   if (value === null) return null;
   try {
     const parsed: unknown = JSON.parse(value);
-    if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed) &&
-      "version" in parsed && parsed.version === 1 &&
-      "id" in parsed && typeof parsed.id === "string" && parsed.id.length > 0 &&
-      "market_id" in parsed && typeof parsed.market_id === "string" && parsed.market_id.length > 0 &&
-      Object.keys(parsed).length === 3) return parsed as SelectedCart;
-  } catch {}
-  throw new CartSelectionError("The selected Cart reference is invalid; it has not been replaced");
-}
-
-function assertCompany(cart: StorefrontCart, params: StorefrontCurrentCartParams): void {
-  if ((params.company?.company_id ?? null) !== (cart.company?.company_id ?? null) ||
-    (params.company?.company_location_id ?? null) !== (cart.company?.company_location_id ?? null)) {
-    throw new CartSelectionError("The selected Cart has a different Company context; update that Cart explicitly");
-  }
-}
-
-function assertCatalog(cart: StorefrontCart, params: StorefrontCurrentCartParams): void {
-  if (typeof cart.catalog_id !== "string" || !cart.catalog_id.length) {
-    throw new CartSelectionError("The response does not name the Cart's Catalog");
-  }
-  if (params.catalog_id !== undefined && cart.catalog_id !== params.catalog_id) {
-    throw new CartSelectionError("The selected Cart uses a different Catalog; update that Cart explicitly");
-  }
-}
-
-function assertSelection(cart: StorefrontCart, params: StorefrontCurrentCartParams): void {
-  assertCompany(cart, params);
-  assertCatalog(cart, params);
-}
-
-async function selectionScope(context: CartSelectionContext, params: StorefrontCurrentCartParams, transport: CartSelectionTransport, options?: RequestOptions): Promise<CartSelectionScope> {
-  const customerId = context.customerId();
-  const market = context.market();
-  if (!market) throw new CartSelectionError("Select a Market before selecting or creating a Cart");
-  if (!customerId || !context.storage) {
-    throw new CartSelectionError("Selecting a Cart requires a Customer session and working session storage");
-  }
-  const assertContext = () => {
-    if (context.customerId() !== customerId || context.market() !== market) {
-      throw new CartSelectionError("The Customer or Market changed while loading the Cart; reload the current context");
+    if (
+      parsed !== null &&
+      typeof parsed === "object" &&
+      !Array.isArray(parsed) &&
+      "version" in parsed &&
+      parsed.version === 3 &&
+      "id" in parsed &&
+      isCanonicalId(parsed.id)
+    ) {
+      return { version: 3, id: parsed.id };
     }
-  };
-  const selectedMarket = await transport.market(market, options);
-  assertContext();
-  if (!selectedMarket.id || selectedMarket.key !== market)
-    throw new CartSelectionError("The Market read did not confirm the selected key");
-  return {
-    key: `arky:selected-cart:v1:${context.namespace}:${encodeURIComponent(customerId)}:${encodeURIComponent(market)}:${encodeURIComponent(params.company?.company_id ?? "")}:${encodeURIComponent(params.company?.company_location_id ?? "")}:${encodeURIComponent(params.catalog_id ?? "")}`,
-    assertContext,
-    assertCart(cart, selected) {
-      assertContext();
-      if (!cart || typeof cart.id !== "string" || !cart.id.length ||
-        cart.customer_id !== customerId || cart.market_id !== selectedMarket.id ||
-        !cart.status || !["active", "abandoned", "converted", "merged", "superseded", "expired"].includes(cart.status.type) ||
-        (selected && (cart.id !== selected.id || cart.market_id !== selected.market_id))) {
-        throw new CartSelectionError("The response does not match the selected Cart and Customer context");
-      }
-      assertSelection(cart, params);
-    },
-  };
+  } catch {}
+  return null;
+}
+
+function readSignIn(value: string | null): string | null {
+  if (value === null) return null;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (
+      parsed !== null &&
+      typeof parsed === "object" &&
+      !Array.isArray(parsed) &&
+      "version" in parsed &&
+      parsed.version === 1 &&
+      "from_customer_id" in parsed &&
+      isCanonicalId(parsed.from_customer_id)
+    ) {
+      return parsed.from_customer_id;
+    }
+  } catch {}
+  return null;
+}
+
+function isGone(error: unknown): boolean {
+  if (typeof error !== "object" || error === null || !("statusCode" in error)) return false;
+  return error.statusCode === 403 || error.statusCode === 404;
 }
 
 export function createCartSelection(
@@ -75,94 +83,264 @@ export function createCartSelection(
   checkoutScope: string,
   transport: CartSelectionTransport,
 ) {
-  const loading = new Map<string, Promise<StorefrontCart>>();
-  const unpersisted = new Map<string, SelectedCart>();
+  function requireStorage(): SelectionStorage {
+    if (!context.storage) {
+      throw new CartSelectionError("Selecting a cart requires working session storage");
+    }
+    return context.storage;
+  }
 
-  function persist(key: string, selection: SelectedCart): void {
-    unpersisted.set(key, selection);
+  function requireCustomerId(): string {
+    const customerId = context.customerId();
+    if (!customerId) {
+      throw new CartSelectionError("Selecting a cart requires a customer session");
+    }
+    return customerId;
+  }
+
+  function selectionKey(customerId: string, params: StorefrontCurrentCartParams): string {
+    return [
+      "arky:selected-cart:v3",
+      context.namespace,
+      encodeURIComponent(customerId),
+      encodeURIComponent(context.market() ?? ""),
+      encodeURIComponent(buyerKey(params.buyer)),
+      encodeURIComponent(params.catalog_id ?? ""),
+    ].join(":");
+  }
+
+  function signInKey(customerId: string): string {
+    return ["arky:cart-sign-in:v1", context.namespace, encodeURIComponent(customerId)].join(":");
+  }
+
+  function tokenKey(cartId: string): string {
+    return ["arky:cart-token:v1", context.namespace, encodeURIComponent(cartId)].join(":");
+  }
+
+  function token(cartId: string): string | null {
+    if (!context.storage) return null;
     try {
-      context.storage!.setItem(key, JSON.stringify(selection));
-      if (context.storage!.getItem(key) !== JSON.stringify(selection)) throw new Error();
+      const value = context.storage.getItem(tokenKey(cartId));
+      return value && value.length > 0 ? value : null;
     } catch {
-      throw new CartSelectionError("The Cart was created but its selection could not be saved; retry on this page without creating another Cart");
+      return null;
     }
-    unpersisted.delete(key);
   }
 
-  async function createSelected(scope: CartSelectionScope, params: StorefrontCurrentCartParams, options?: RequestOptions) {
-    scope.assertContext();
-    const created = await transport.create(params, options);
-    scope.assertCart(created?.cart);
-    if (created.cart.status.type !== "active" || typeof created.recovery_token !== "string" || !created.recovery_token.length) {
-      throw new CartSelectionError("Cart creation did not return a valid creation receipt");
+  function assertCart(cart: Cart, customerId: string | null, params: StorefrontCurrentCartParams): void {
+    if (!cart || typeof cart.id !== "string" || cart.customer_id !== customerId || !sameBuyer(cart, params.buyer)) {
+      throw new CartSelectionError("The cart does not belong to this customer and buyer");
     }
-    assertSelection(created.cart, params);
-    persist(scope.key, { version: 1, id: created.cart.id, market_id: created.cart.market_id });
-    return created;
+    if (params.catalog_id && cart.catalog_id !== params.catalog_id) {
+      throw new CartSelectionError("The selected cart uses a different catalog");
+    }
   }
 
-  function track(key: string, pending: Promise<StorefrontCart>): void {
-    loading.set(key, pending);
-    void pending.finally(() => {
-      if (loading.get(key) === pending) loading.delete(key);
-    }).catch(() => {});
+  function usable(cart: Cart, customerId: string, params: StorefrontCurrentCartParams): boolean {
+    return (
+      cart.customer_id === customerId &&
+      sameBuyer(cart, params.buyer) &&
+      (!params.catalog_id || cart.catalog_id === params.catalog_id) &&
+      !closedStatuses.includes(cart.status.type)
+    );
   }
 
-  async function current(
-    params: StorefrontCurrentCartParams = {},
-    options?: RequestOptions,
-  ): Promise<StorefrontCart> {
-    params = { ...params, ...(params.company ? { company: { ...params.company } } : {}) };
-    const scope = await selectionScope(context, params, transport, options);
-    const { key, assertContext, assertCart } = scope;
-    let pending = loading.get(key);
-    if (!pending) {
-      pending = (async () => {
-        const checkout = await pendingCartCheckout(checkoutScope);
-        assertContext();
-        if (checkout) {
-          const cart = await transport.get(checkout.id, options);
-          assertCart(cart);
-          if (cart.id !== checkout.id) throw new CartSelectionError("The pending Checkout returned a different Cart");
-          return cart;
-        }
-        return withCartMutation(checkoutScope, async () => {
-          assertContext();
-          const retained = unpersisted.get(key);
-          if (retained) persist(key, retained);
-          let selection: SelectedCart | null;
-          try {
-            selection = selectedCart(context.storage!.getItem(key));
-          } catch (error) {
-            if (error instanceof CartSelectionError) throw error;
-            throw new CartSelectionError("The selected Cart could not be read; no replacement was created");
-          }
-          if (selection) {
-            const cart = await transport.get(selection.id, options);
-            assertCart(cart, selection);
-            if (!["converted", "merged", "superseded", "expired"].includes(cart.status.type)) return cart;
-          }
-          return (await createSelected(scope, params, options)).cart;
-        });
-      })();
-      track(key, pending);
+  function select(storage: SelectionStorage, key: string, cartId: string): boolean {
+    try {
+      storage.setItem(key, JSON.stringify({ version: 3, id: cartId }));
+      return true;
+    } catch {
+      return false;
     }
-    const cart = await pending;
-    assertCart(cart);
-    assertSelection(cart, params);
+  }
+
+  function release(storage: SelectionStorage, key: string | null, cartIds: string[]): void {
+    try {
+      if (key !== null) storage.removeItem(key);
+      for (const id of cartIds) storage.removeItem(tokenKey(id));
+    } catch {}
+  }
+
+  function releaseSignIn(storage: SelectionStorage, customerId: string, params: StorefrontCurrentCartParams): void {
+    try {
+      const signedInFrom = readSignIn(storage.getItem(signInKey(customerId)));
+      if (!signedInFrom || signedInFrom === customerId) return;
+      const guestKey = selectionKey(signedInFrom, params);
+      const guest = readSelection(storage.getItem(guestKey));
+      release(storage, guestKey, guest ? [guest.id] : []);
+    } catch {}
+  }
+
+  async function read(id: string, options?: RequestOptions): Promise<Cart | null> {
+    let cart: Cart;
+    try {
+      cart = await transport.get({ id, token: token(id) }, options);
+    } catch (error) {
+      if (isGone(error)) return null;
+      throw error;
+    }
+    if (!cart || cart.id !== id) {
+      throw new CartSelectionError("The cart read returned a different cart");
+    }
     return cart;
   }
 
-  async function create(params: StorefrontCurrentCartParams = {}, options?: RequestOptions) {
-    params = { ...params, ...(params.company ? { company: { ...params.company } } : {}) };
-    const scope = await selectionScope(context, params, transport, options);
-    if (loading.has(scope.key) || unpersisted.has(scope.key)) {
-      throw new CartSelectionError("Finish loading or saving the selected Cart before explicitly creating another");
+  async function follow(start: Cart, options?: RequestOptions): Promise<FollowedCart> {
+    const chain = [start.id];
+    let cart: Cart | null = start;
+    for (let hop = 0; hop < maxMergedHops && cart; hop += 1) {
+      const status = cart.status;
+      if (status.type !== "merged") return { cart, chain };
+      if (!isCanonicalId(status.target_cart_id) || chain.includes(status.target_cart_id)) {
+        return { cart: null, chain };
+      }
+      chain.push(status.target_cart_id);
+      cart = await read(status.target_cart_id, options);
     }
-    const pending = withCartMutation(checkoutScope, () => createSelected(scope, params, options));
-    track(scope.key, pending.then((created) => created.cart));
-    return pending;
+    return { cart: cart && cart.status.type !== "merged" ? cart : null, chain };
   }
 
-  return { current, create };
+  async function followSignIn(
+    storage: SelectionStorage,
+    customerId: string,
+    params: StorefrontCurrentCartParams,
+    key: string,
+    options?: RequestOptions,
+  ): Promise<Cart | null> {
+    const signedInFrom = readSignIn(storage.getItem(signInKey(customerId)));
+    if (!signedInFrom || signedInFrom === customerId) return null;
+    const guestKey = selectionKey(signedInFrom, params);
+    const guest = readSelection(storage.getItem(guestKey));
+    if (!guest) return null;
+    const start = await read(guest.id, options);
+    const followed: FollowedCart = start ? await follow(start, options) : { cart: null, chain: [guest.id] };
+    const cart = followed.cart;
+    if (cart && usable(cart, customerId, params)) {
+      const cartId = cart.id;
+      if (select(storage, key, cartId)) {
+        release(
+          storage,
+          guestKey,
+          followed.chain.filter((id) => id !== cartId),
+        );
+      }
+      return cart;
+    }
+    release(storage, guestKey, followed.chain);
+    return null;
+  }
+
+  async function current(params: StorefrontCurrentCartParams = {}, options?: RequestOptions): Promise<Cart | null> {
+    const storage = requireStorage();
+    const customerId = requireCustomerId();
+    const key = selectionKey(customerId, params);
+    const signedIn = await followSignIn(storage, customerId, params, key, options);
+    if (signedIn) return signedIn;
+    const selection = readSelection(storage.getItem(key));
+    if (!selection) return null;
+    const start = await read(selection.id, options);
+    if (!start) {
+      release(storage, key, [selection.id]);
+      return null;
+    }
+    assertCart(start, customerId, params);
+    const followed = await follow(start, options);
+    const cart = followed.cart;
+    if (cart && usable(cart, customerId, params)) {
+      const cartId = cart.id;
+      if (cartId !== selection.id && select(storage, key, cartId)) {
+        release(
+          storage,
+          null,
+          followed.chain.filter((id) => id !== cartId),
+        );
+      }
+      return cart;
+    }
+    release(storage, key, followed.chain);
+    return null;
+  }
+
+  function keep(
+    storage: SelectionStorage,
+    key: string,
+    customerId: string,
+    params: StorefrontCurrentCartParams,
+    created: CreatedCart,
+  ): void {
+    try {
+      if (created.type === "created") storage.setItem(tokenKey(created.cart.id), created.recovery_token);
+      storage.setItem(key, JSON.stringify({ version: 3, id: created.cart.id }));
+    } catch {
+      throw new CartSelectionError(
+        "The cart was created but its selection could not be saved; retry with the same cart id",
+      );
+    }
+    releaseSignIn(storage, customerId, params);
+  }
+
+  async function create(params: StorefrontCreateCartParams, options?: RequestOptions): Promise<CreatedCart> {
+    requireId(params.id, "cart");
+    const storage = requireStorage();
+    const customerId = requireCustomerId();
+    const selected = { buyer: params.buyer, catalog_id: params.catalog_id };
+    const key = selectionKey(customerId, selected);
+    return withCartMutation(checkoutScope, async () => {
+      const created = await transport.create(params, options);
+      if (!created || !created.cart || created.cart.id !== params.id) {
+        throw new CartSelectionError("Cart creation returned a different cart");
+      }
+      assertCart(created.cart, customerId, selected);
+      keep(storage, key, customerId, selected, created);
+      return created;
+    });
+  }
+
+  async function reorder(params: StorefrontReorderParams, options?: RequestOptions): Promise<ReorderedCart> {
+    requireId(params.id, "cart");
+    const storage = requireStorage();
+    const customerId = requireCustomerId();
+    return withCartMutation(checkoutScope, async () => {
+      const reordered = await transport.reorder(params, options);
+      const created = reordered?.cart;
+      if (!created || !created.cart || created.cart.id !== params.id) {
+        throw new CartSelectionError("The reorder returned a different cart");
+      }
+      const selected = { buyer: params.buyer, catalog_id: created.cart.catalog_id };
+      assertCart(created.cart, customerId, selected);
+      keep(storage, selectionKey(customerId, selected), customerId, selected, created);
+      return reordered;
+    });
+  }
+
+  function forget(params: StorefrontCurrentCartParams = {}): void {
+    const storage = context.storage;
+    if (!storage) return;
+    const customerId = requireCustomerId();
+    const key = selectionKey(customerId, params);
+    try {
+      const selection = readSelection(storage.getItem(key));
+      release(storage, key, selection ? [selection.id] : []);
+    } catch {}
+    releaseSignIn(storage, customerId, params);
+  }
+
+  function signedIn(fromCustomerId: string | null, toCustomerId: string): void {
+    const storage = context.storage;
+    if (
+      !storage ||
+      !isCanonicalId(fromCustomerId) ||
+      !isCanonicalId(toCustomerId) ||
+      fromCustomerId === toCustomerId
+    ) {
+      return;
+    }
+    try {
+      storage.setItem(signInKey(toCustomerId), JSON.stringify({ version: 1, from_customer_id: fromCustomerId }));
+    } catch {}
+  }
+
+  return { current, create, reorder, forget, token, signedIn };
 }
+
+export type CartSelection = ReturnType<typeof createCartSelection>;

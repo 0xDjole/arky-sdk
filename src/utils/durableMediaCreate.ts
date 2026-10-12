@@ -1,4 +1,5 @@
-import type { CreateMediaParams } from "../types/api";
+import type { LocalizedText } from "../types/common";
+import type { CreateMediaParams } from "../types/content";
 import { DurableRequestStorageError } from "./durableRequest";
 
 const databaseName = "arky-durable-requests-v1";
@@ -17,6 +18,7 @@ interface DurableMediaCreate {
 interface FileMediaCreatePayload {
   store_id: string;
   media_id: string;
+  alt: LocalizedText | null;
   type: "file";
   file_name: string;
   mime_type: string;
@@ -28,6 +30,7 @@ interface FileMediaCreatePayload {
 interface UrlMediaCreatePayload {
   store_id: string;
   media_id: string;
+  alt: LocalizedText | null;
   type: "source_url";
   source_url: string;
 }
@@ -172,6 +175,13 @@ function exactKeys(value: Record<string, unknown>, expected: string[]): boolean 
   );
 }
 
+function validAlt(value: unknown): value is LocalizedText | null {
+  return (
+    value === null ||
+    (isRecord(value) && Object.values(value).every((text) => typeof text === "string"))
+  );
+}
+
 function parsePayload(requestJson: string): MediaCreatePayload {
   let value: unknown;
   try {
@@ -188,9 +198,10 @@ function parsePayload(requestJson: string): MediaCreatePayload {
   ) {
     throw unavailable("payload identity is invalid");
   }
+  if (!validAlt(value.alt)) throw unavailable("payload alt text is invalid");
   if (
     value.type === "source_url" &&
-    exactKeys(value, ["store_id", "media_id", "type", "source_url"]) &&
+    exactKeys(value, ["store_id", "media_id", "alt", "type", "source_url"]) &&
     typeof value.source_url === "string" &&
     value.source_url.length > 0
   ) {
@@ -201,6 +212,7 @@ function parsePayload(requestJson: string): MediaCreatePayload {
     exactKeys(value, [
       "store_id",
       "media_id",
+      "alt",
       "type",
       "file_name",
       "mime_type",
@@ -284,7 +296,7 @@ async function payloadFor(
   storeId: string,
   params: CreateMediaParams,
 ): Promise<{ payload: MediaCreatePayload; blob: Blob | null }> {
-  if (!canonicalUuidV4.test(storeId) || !canonicalUuidV4.test(params.media_id)) {
+  if (!canonicalUuidV4.test(storeId) || !canonicalUuidV4.test(params.id)) {
     throw unavailable("identity is not a canonical UUID-v4");
   }
   if (params.file) {
@@ -292,7 +304,8 @@ async function payloadFor(
     return {
       payload: {
         store_id: storeId,
-        media_id: params.media_id,
+        media_id: params.id,
+        alt: params.alt ?? null,
         type: "file",
         file_name: params.file.name,
         mime_type: params.file.type,
@@ -306,7 +319,8 @@ async function payloadFor(
   return {
     payload: {
       store_id: storeId,
-      media_id: params.media_id,
+      media_id: params.id,
+      alt: params.alt ?? null,
       type: "source_url",
       source_url: params.source_url,
     },
@@ -321,7 +335,8 @@ function paramsFrom(
   if (payload.type === "source_url") {
     return {
       store_id: payload.store_id,
-      media_id: payload.media_id,
+      id: payload.media_id,
+      alt: payload.alt,
       source_url: payload.source_url,
     };
   }
@@ -331,7 +346,8 @@ function paramsFrom(
   }
   return {
     store_id: payload.store_id,
-    media_id: payload.media_id,
+    id: payload.media_id,
+    alt: payload.alt,
     file: new FileConstructor([durable.blob], payload.file_name, {
       type: payload.mime_type,
       lastModified: payload.last_modified,
@@ -340,7 +356,7 @@ function paramsFrom(
 }
 
 export function mediaCreateStorageKey(storeId: string): string {
-  return `arky:media-create:v1:${encodeURIComponent(storeId)}`;
+  return `arky:media-create:v2:${encodeURIComponent(storeId)}`;
 }
 
 export async function readPendingMediaCreate(

@@ -5,7 +5,6 @@ import {
 	collectBlockReferences,
 	getBlockContentValue,
 	getBlockTextValue,
-	selectLocalizedObjectText,
 	selectLocalizedText,
 } from '../dist/storefront.js';
 
@@ -22,61 +21,29 @@ test('LocalizedText selects only the requested or explicitly configured default 
 	assert.equal(getBlockTextValue(block, 'sr-Latn-BA'), 'Košulja');
 	assert.equal(getBlockTextValue(block, 'de'), '');
 	assert.equal(getBlockTextValue(block, 'de', 'en'), 'Shirt');
+	assert.equal(getBlockTextValue({ ...block, value: null }, 'en'), '');
 	assert.deepEqual(block.value, translations);
 });
 
 test('LocalizedText is decoded recursively without treating translation keys as Block references', () => {
 	const localized = { id: 'name', key: 'name', type: 'localized_text', value: { en: 'Shirt', de: 'Hemd' } };
 	const entry = { blocks: [{ id: 'items', key: 'items', type: 'array', value: [
-		{ id: 'item', key: 'item', type: 'object', value: { name: localized } }
+		{ id: 'item', key: 'item', type: 'object', value: [localized] },
 	] }] };
 	assert.deepEqual(getBlockContentValue(entry, 'items', 'de'), [{ name: 'Hemd' }]);
 	assert.deepEqual(getBlockContentValue(entry, 'items', 'fr'), [{ name: null }]);
 	assert.deepEqual(getBlockContentValue(entry, 'items', 'fr', 'en'), [{ name: 'Shirt' }]);
-	assert.deepEqual(collectBlockReferences(entry.blocks), { mediaIds: [], entryIds: [], formIds: [], productIds: [], digitalProductIds: [] });
+	assert.deepEqual(collectBlockReferences(entry.blocks), { mediaIds: [], entryIds: [], formIds: [], productIds: [] });
 });
 
-function localizedObject(values) {
-	return {
-		id: 'localized',
-		key: 'title',
-		type: 'object',
-		value: Object.fromEntries(
-			Object.entries(values).map(([locale, value]) => [
-				locale,
-				{ id: locale, key: locale, type: 'text', value },
-			]),
-		),
-	};
-}
-
-test('localized Object/Text blocks follow one explicit fallback order', () => {
-	const value = localizedObject({ bs: 'Bosanski', en: 'English', it: 'Italiano' });
-
-	assert.equal(selectLocalizedObjectText(value, 'it', ['bs', 'en']), 'Italiano');
-	assert.equal(selectLocalizedObjectText(value, 'de', ['bs', 'en']), 'Bosanski');
-	assert.equal(selectLocalizedObjectText(localizedObject({ fr: 'Français' }), 'de', ['en']), 'Français');
-	assert.equal(selectLocalizedObjectText(localizedObject({}), 'de', ['en'], 'Missing'), 'Missing');
-	assert.equal(getBlockTextValue(value, 'bs'), 'Bosanski');
-});
-
-test('localized Object/Markdown blocks and scalar Markdown use the shared decoder', () => {
-	const value = {
-		id: 'localized-markdown',
-		key: 'body',
-		type: 'object',
-		value: {
-			en: { id: 'body-en', key: 'en', type: 'markdown', value: '# Welcome' },
-			it: { id: 'body-it', key: 'it', type: 'markdown', value: '# Benvenuto' },
-		},
-	};
-
-	assert.equal(selectLocalizedObjectText(value, 'it'), '# Benvenuto');
-	assert.equal(getBlockTextValue(value, 'en'), '# Welcome');
+test('LocalizedMarkdown blocks and plain Markdown use the same explicit language rule', () => {
+	const body = { id: 'body', key: 'body', type: 'localized_markdown', value: { en: '# Welcome', it: '# Benvenuto' } };
+	assert.equal(getBlockTextValue(body, 'it'), '# Benvenuto');
+	assert.equal(getBlockTextValue(body, 'de'), '');
+	assert.equal(getBlockTextValue(body, 'de', 'en'), '# Welcome');
+	assert.equal(getBlockContentValue({ blocks: [body] }, 'body', 'it'), '# Benvenuto');
 	assert.equal(
-		getBlockContentValue({
-			blocks: [{ id: 'body', key: 'body', type: 'markdown', value: '# Scalar' }],
-		}, 'body', 'it'),
+		getBlockContentValue({ blocks: [{ id: 'scalar', key: 'scalar', type: 'markdown', value: '# Scalar' }] }, 'scalar', 'it'),
 		'# Scalar',
 	);
 });
@@ -86,29 +53,14 @@ test('block content decodes localized nested objects and repeated values', () =>
 		blocks: [{
 			id: 'info',
 			key: 'info',
-			type: 'array',
+			type: 'object',
 			value: [
-				{
-					id: 'title',
-					key: 'title',
-					type: 'object',
-					value: {
-						en: { id: 'en', key: 'en', type: 'text', value: 'English' },
-						'sr-latn': {
-							id: 'sr-latn',
-							key: 'sr-latn',
-							type: 'text',
-							value: 'Srpski',
-						},
-					},
-				},
+				{ id: 'title', key: 'title', type: 'localized_text', value: { en: 'English', 'sr-latn': 'Srpski' } },
 				{
 					id: 'author',
 					key: 'author',
 					type: 'object',
-					value: {
-						role: { id: 'role', key: 'role', type: 'text', value: 'Developer' },
-					},
+					value: [{ id: 'role', key: 'role', type: 'text', value: 'Developer' }],
 				},
 				{
 					id: 'features',
@@ -130,7 +82,7 @@ test('block content decodes localized nested objects and repeated values', () =>
 	});
 });
 
-test('block content decodes repeated structured array items', () => {
+test('block content decodes repeated structured array items as objects', () => {
 	const entry = {
 		blocks: [{
 			id: 'faq',
@@ -139,23 +91,25 @@ test('block content decodes repeated structured array items', () => {
 			value: [{
 				id: 'faq-one',
 				key: 'item',
-				type: 'array',
+				type: 'object',
 				value: [
 					{ id: 'question', key: 'question', type: 'text', value: 'Why?' },
-					{ id: 'answer', key: 'answer', type: 'text', value: 'Because.' },
+					{ id: 'answer', key: 'answer', type: 'localized_text', value: { en: 'Because.' } },
 				],
 			}],
 		}],
 	};
 
-	assert.deepEqual(getBlockContentValue(entry, 'faq'), [
+	assert.deepEqual(getBlockContentValue(entry, 'faq', 'en'), [
 		{ question: 'Why?', answer: 'Because.' },
 	]);
+	assert.equal(getBlockContentValue(entry, 'missing', 'en'), null);
 });
 
 test('block references are collected recursively by resource type without hydration', () => {
 	const blocks = [
 		{ id: 'hero', key: 'hero', type: 'media', value: 'media-1' },
+		{ id: 'empty', key: 'empty', type: 'media', value: null },
 		{
 			id: 'related',
 			key: 'related',
@@ -168,20 +122,10 @@ test('block references are collected recursively by resource type without hydrat
 					id: 'nested',
 					key: 'nested',
 					type: 'object',
-					value: {
-						download: {
-							id: 'download',
-							key: 'download',
-							type: 'digital_product',
-							value: 'digital-1',
-						},
-						duplicateHero: {
-							id: 'duplicate-hero',
-							key: 'duplicate_hero',
-							type: 'media',
-							value: 'media-1',
-						},
-					},
+					value: [
+						{ id: 'download', key: 'download', type: 'product', value: 'product-2' },
+						{ id: 'duplicate-hero', key: 'duplicate_hero', type: 'media', value: 'media-1' },
+					],
 				},
 			],
 		},
@@ -191,7 +135,6 @@ test('block references are collected recursively by resource type without hydrat
 		mediaIds: ['media-1'],
 		entryIds: ['entry-1'],
 		formIds: ['form-1'],
-		productIds: ['product-1'],
-		digitalProductIds: ['digital-1'],
+		productIds: ['product-1', 'product-2'],
 	});
 });

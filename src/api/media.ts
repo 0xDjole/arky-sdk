@@ -1,78 +1,33 @@
-import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
+import type { RequestOptions } from "../types/api";
+import type { PaginatedResponse } from "../types/common";
 import type {
   CreateMediaParams,
   DeleteMediaParams,
   FindMediaParams,
   GetMediaParams,
+  Media,
   ReplaceMediaContentParams,
-  RequestOptions,
-} from "../types/api";
-import type { Media } from "../types";
+  UpdateMediaParams,
+} from "../types/content";
 import {
   clearPendingMediaCreate,
   getOrCreatePendingMediaCreate,
   mediaCreateStorageKey,
 } from "../utils/durableMediaCreate";
-import {
-  DurableRequestStorageError,
-  withDurableRequestLock,
-} from "../utils/durableRequest";
+import { DurableRequestStorageError, isDefiniteRefusal, withDurableRequestLock } from "../utils/durableRequest";
+import { requireId } from "../utils/ids";
+import { requireStoreId } from "../utils/storeTarget";
+import { storePath, storeRecordPath } from "./paths";
 
 const mediaCreateLabel = "Media create";
-
-function storeId(apiConfig: ApiConfig, explicit?: string): string | undefined {
-  return requireStoreId(explicit);
-}
-
-function mediaPath(
-  apiConfig: ApiConfig,
-  explicitStoreId?: string,
-  mediaId?: string,
-): string {
-  const base = `/v1/stores/${requireStoreId(storeId(apiConfig, explicitStoreId))}/media`;
-  return mediaId ? `${base}/${mediaId}` : base;
-}
-
-async function mediaMultipartRequest(
-  apiConfig: ApiConfig,
-  path: string,
-  formData: FormData,
-  options?: RequestOptions,
-): Promise<Media> {
-  const tokens = apiConfig.authStorage.getTokens();
-  const response = await fetch(`${apiConfig.baseUrl}${path}`, {
-    method: "PUT",
-    body: formData,
-    headers: tokens?.access_token
-      ? { Authorization: `Bearer ${tokens.access_token}` }
-      : undefined,
-    signal: options?.signal,
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => null);
-    const failure = new Error(
-      typeof error === "object" &&
-      error !== null &&
-      "message" in error &&
-      typeof error.message === "string"
-        ? error.message
-        : `Media request failed (${response.status})`,
-    ) as Error & { statusCode?: number };
-    failure.statusCode = response.status;
-    throw failure;
-  }
-  return response.json() as Promise<Media>;
-}
 
 function browserHasDurableStorage(): boolean {
   return typeof globalThis.window !== "undefined";
 }
 
 function responseStatusCode(value: unknown): number | null {
-  if (typeof value !== "object" || value === null || !("statusCode" in value)) {
-    return null;
-  }
+  if (typeof value !== "object" || value === null || !("statusCode" in value)) return null;
   return typeof value.statusCode === "number" ? value.statusCode : null;
 }
 
@@ -82,115 +37,93 @@ function isAmbiguousMediaResult(error: unknown): boolean {
 }
 
 function matchingMedia(media: Media, storeId: string, mediaId: string): boolean {
-  return (
-    typeof media === "object" &&
-    media !== null &&
-    media.id === mediaId &&
-    media.store_id === storeId
-  );
+  return typeof media === "object" && media !== null && media.id === mediaId && media.store_id === storeId;
 }
 
-export const createMediaApi = (apiConfig: ApiConfig) => ({
-  async create(
-    params: CreateMediaParams,
-    options?: RequestOptions,
-  ): Promise<Media> {
-    const targetStoreId = storeId(apiConfig, params.store_id);
-    if (!targetStoreId) {
-      throw new Error("Media create requires an exact Store ID");
-    }
-    const send = (exact: CreateMediaParams) => {
+export const createMediaApi = (apiConfig: ApiConfig) => {
+  const send = (exact: CreateMediaParams, options?: RequestOptions) => {
+    const formData = new FormData();
+    if (exact.file) formData.append("file", exact.file);
+    else formData.append("source_url", exact.source_url);
+    if (exact.alt) formData.append("alt", JSON.stringify(exact.alt));
+    return apiConfig.httpClient.put<Media>(storeRecordPath(exact.store_id, "media", exact.id), formData, options);
+  };
+
+  return {
+    async create(params: CreateMediaParams, options?: RequestOptions): Promise<Media> {
+      const storeId = requireStoreId(params.store_id);
+      requireId(params.id, "media");
+      if (!browserHasDurableStorage()) return send(params, options);
+      const storageKey = mediaCreateStorageKey(storeId);
+      return withDurableRequestLock(storageKey, mediaCreateLabel, async () => {
+        const pending = await getOrCreatePendingMediaCreate(storeId, params);
+        let result: Media;
+        try {
+          result = await send(pending.params, options);
+        } catch (error) {
+          if (isDefiniteRefusal(error)) {
+            await clearPendingMediaCreate(pending.durable);
+            throw error;
+          }
+          if (isAmbiguousMediaResult(error)) {
+            try {
+              const reconciled = await apiConfig.httpClient.get<Media>(
+                storeRecordPath(storeId, "media", pending.params.id),
+              );
+              if (matchingMedia(reconciled, storeId, pending.params.id)) {
+                await clearPendingMediaCreate(pending.durable);
+                return reconciled;
+              }
+            } catch {}
+          }
+          throw error;
+        }
+        if (!matchingMedia(result, storeId, pending.params.id)) {
+          throw new DurableRequestStorageError(
+            `Cannot safely continue ${mediaCreateLabel} because the server returned a different media`,
+          );
+        }
+        await clearPendingMediaCreate(pending.durable);
+        return result;
+      });
+    },
+
+    find(params: FindMediaParams, options?: RequestOptions): Promise<PaginatedResponse<Media>> {
+      const { store_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<Media>>(storePath(store_id, "media"), {
+        ...options,
+        params: query,
+      });
+    },
+
+    get(params: GetMediaParams, options?: RequestOptions): Promise<Media> {
+      return apiConfig.httpClient.get<Media>(storeRecordPath(params.store_id, "media", params.id), options);
+    },
+
+    update(params: UpdateMediaParams, options?: RequestOptions): Promise<Media> {
+      return apiConfig.httpClient.patch<Media>(
+        storeRecordPath(params.store_id, "media", params.id),
+        { expected_updated_at: params.expected_updated_at, alt: params.alt },
+        options,
+      );
+    },
+
+    replaceContent(params: ReplaceMediaContentParams, options?: RequestOptions): Promise<Media> {
       const formData = new FormData();
-      if (exact.file) {
-        formData.append("file", exact.file);
-      } else {
-        formData.append("source_url", exact.source_url);
-      }
-      return mediaMultipartRequest(
-        apiConfig,
-        mediaPath(apiConfig, targetStoreId, exact.media_id),
+      formData.append("expected_updated_at", String(params.expected_updated_at));
+      formData.append("file", params.file);
+      return apiConfig.httpClient.put<Media>(
+        `${storeRecordPath(params.store_id, "media", params.id)}/content`,
         formData,
         options,
       );
-    };
-    if (!browserHasDurableStorage()) return send(params);
+    },
 
-    const storageKey = mediaCreateStorageKey(targetStoreId);
-    return withDurableRequestLock(storageKey, mediaCreateLabel, async () => {
-      const pending = await getOrCreatePendingMediaCreate(targetStoreId, params);
-      let result: Media;
-      try {
-        result = await send(pending.params);
-      } catch (error) {
-        if (isAmbiguousMediaResult(error)) {
-          try {
-            const reconciled = await apiConfig.httpClient.get<Media>(
-              mediaPath(apiConfig, targetStoreId, pending.params.media_id),
-            );
-            if (
-              matchingMedia(reconciled, targetStoreId, pending.params.media_id)
-            ) {
-              await clearPendingMediaCreate(pending.durable);
-              return reconciled;
-            }
-          } catch {
-            // The exact read did not prove the root; retain the request and original error.
-          }
-        }
-        throw error;
-      }
-      if (!matchingMedia(result, targetStoreId, pending.params.media_id)) {
-        throw new DurableRequestStorageError(
-          `Cannot safely continue ${mediaCreateLabel} because Server returned a different Media root`,
-        );
-      }
-      await clearPendingMediaCreate(pending.durable);
-      return result;
-    });
-  },
-
-  async find(
-    params: FindMediaParams,
-    options?: RequestOptions,
-  ): Promise<{ items: Media[]; cursor: string | null }> {
-    const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<{ items: Media[]; cursor: string | null }>(
-      mediaPath(apiConfig, store_id),
-      { ...options, params: query },
-    );
-  },
-
-  async get(
-    params: GetMediaParams,
-    options?: RequestOptions,
-  ): Promise<Media> {
-    return apiConfig.httpClient.get<Media>(
-      mediaPath(apiConfig, params.store_id, params.media_id),
-      options,
-    );
-  },
-
-  async replaceContent(
-    params: ReplaceMediaContentParams,
-    options?: RequestOptions,
-  ): Promise<Media> {
-    const formData = new FormData();
-    formData.append("file", params.file);
-    return mediaMultipartRequest(
-      apiConfig,
-      `${mediaPath(apiConfig, params.store_id, params.media_id)}/content`,
-      formData,
-      options,
-    );
-  },
-
-  async delete(
-    params: DeleteMediaParams,
-    options?: RequestOptions,
-  ): Promise<boolean> {
-    return apiConfig.httpClient.delete<boolean>(
-      mediaPath(apiConfig, params.store_id, params.media_id),
-      options,
-    );
-  },
-});
+    delete(params: DeleteMediaParams, options?: RequestOptions): Promise<Media> {
+      return apiConfig.httpClient.delete<Media>(storeRecordPath(params.store_id, "media", params.id), {
+        ...options,
+        params: { expected_updated_at: params.expected_updated_at },
+      });
+    },
+  };
+};

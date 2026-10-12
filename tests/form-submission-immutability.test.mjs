@@ -1,65 +1,29 @@
-#!/usr/bin/env node
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
+import { ids, recordFetch } from "./helpers/arky-fixtures.mjs";
 
 const STORE_ID = "6d2e8a14-b0c7-4f93-a5d1-3c9e7b0f2a48";
 
-test("FormSubmission is read-only and exposes only explicit deletion", async () => {
-  const arky = createAdmin({
-    baseUrl: "https://api.test",
-    apiToken: "token-contract",
-  });
-  assert.equal("updateSubmission" in arky.forms, false);
+test("FormSubmission answers are read-only and a submission leaves only through a versioned delete", async (context) => {
+  const arky = createAdmin({ baseUrl: "https://api.test", secretKey: "token-contract" });
+  for (const removed of ["updateSubmission", "permanentlyDelete", "restoreSubmission"]) assert.equal(removed in arky.forms, false, removed);
   assert.equal(typeof arky.forms.getSubmission, "function");
   assert.equal(typeof arky.forms.deleteSubmission, "function");
-  assert.equal(typeof arky.forms.permanentlyDelete, "function");
-
-  const calls = [];
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    calls.push({
-      url: String(url),
-      method: init.method || "GET",
-      body: init.body ?? null,
-    });
-    return new Response("true", {
-      status: 200,
-      headers: { "content-type": "application/json" },
-    });
-  };
-  try {
-    assert.equal(
-      await arky.forms.deleteSubmission({
-        store_id: STORE_ID,
-        id: "submission-contract",
-        form_id: "form-contract",
-      }),
-      true,
-    );
-    assert.equal(
-      await arky.forms.permanentlyDelete({ store_id: STORE_ID, id: "form-contract" }),
-      true,
-    );
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-
-  assert.deepEqual(calls, [
+  const calls = recordFetch(context, () => ({ deleted: true }));
+  assert.deepEqual(await arky.forms.deleteSubmission({ store_id: STORE_ID, form_id: ids.form, id: ids.submission, expected_updated_at: 1_700_000_000_123 }), { deleted: true });
+  assert.deepEqual(calls.map(({ href, method, body }) => ({ href, method, body })), [
     {
-      url: `https://api.test/v1/stores/${STORE_ID}/forms/form-contract/submissions/submission-contract`,
-      method: "DELETE",
-      body: null,
-    },
-    {
-      url: `https://api.test/v1/stores/${STORE_ID}/forms/form-contract/permanent`,
+      href: `https://api.test/v1/stores/${STORE_ID}/forms/${ids.form}/submissions/${ids.submission}?expected_updated_at=1700000000123`,
       method: "DELETE",
       body: null,
     },
   ]);
-
-  const declaration = readFileSync(new URL("../dist/index.d.ts", import.meta.url), "utf8");
-  assert.doesNotMatch(declaration, /\bUpdateFormSubmissionParams\b/);
-  assert.doesNotMatch(declaration, /\bupdateSubmission\b/);
+  for (const declarations of ["index.d.ts", "admin.d.ts"]) {
+    const declaration = readFileSync(new URL(`../dist/${declarations}`, import.meta.url), "utf8");
+    assert.doesNotMatch(declaration, /\bUpdateFormSubmissionParams\b/);
+    assert.doesNotMatch(declaration, /\bupdateSubmission\b/);
+    assert.doesNotMatch(declaration, /\bpermanentlyDelete\b/);
+  }
 });

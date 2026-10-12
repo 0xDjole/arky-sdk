@@ -1,40 +1,16 @@
 import type { EpochMilliseconds } from "../types/time";
-import { epochMilliseconds, epochMillisecondsToDate } from "../utils/time";
-import type {
-  Address,
-  Block,
-  EshopCartItem,
-  Form,
-  FormPresentation,
-  FormPresentedSchema,
-  FormEntry,
-  FormField,
-  FormSchema,
-  FormValue,
-  FormValues,
-  GeoLocation,
-  Product,
-  ProductVariant,
-  BookingResource,
-  BookingService,
-  ZoneLocation,
-} from "../types";
+import type { Block } from "../types/block";
+import type { Coordinates } from "../types/common";
+import type { Form, FormAnswerInput, FormQuestion, FormValue, FormValues } from "../types/forms";
 import type {
   AvailabilityResponse,
-  CartProductInput,
-  CartBookingInput,
-} from "../types/api";
-import type {
-  StorefrontProduct,
   StorefrontBookingResource,
   StorefrontBookingService,
-} from "../types/storefront";
+  StorefrontProduct,
+} from "../types/product";
 import { getBlockTextValue } from "../utils/blocks";
-import type {
-  ArkyBookingCartItem,
-  ArkyBookingServiceState,
-  FormInputBlock,
-} from "./types";
+import { epochMillisecondsToDate } from "../utils/time";
+import type { ArkyBookingServiceState } from "./types";
 
 export function readErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error && error.message) return error.message;
@@ -42,153 +18,34 @@ export function readErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-export function createId(prefix: string): string {
-  const cryptoValue = globalThis.crypto;
-  if (cryptoValue && "randomUUID" in cryptoValue)
-    return cryptoValue.randomUUID();
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+export function blockText(blocks: readonly Block[] | undefined, keys: readonly string[], locale: string): string {
+  const block = (blocks || []).find((candidate) => keys.includes(candidate.key));
+  return block ? getBlockTextValue(block, locale) : "";
 }
 
-export function firstLocalized(value: unknown, locale: string): string {
-  if (typeof value === "string") return value;
-  if (!value || typeof value !== "object" || Array.isArray(value)) return "";
-  const record = value as Record<string, unknown>;
-  const localeValue = record[locale];
-  if (typeof localeValue === "string") return localeValue;
-  const englishValue = record.en;
-  if (typeof englishValue === "string") return englishValue;
-  for (const entry of Object.values(record)) {
-    if (typeof entry === "string") return entry;
-  }
-  return "";
+export function productName(product: Pick<StorefrontProduct, "blocks" | "key">, locale: string): string {
+  return blockText(product.blocks, ["name", "title"], locale) || product.key;
 }
 
-export function findBlock(
-  blocks: Block[] | undefined,
-  keys: string[],
-): Block | null {
-  return (blocks || []).find((block) => keys.includes(block.key)) || null;
+export function bookingServiceName(service: Pick<StorefrontBookingService, "blocks" | "key">, locale: string): string {
+  return blockText(service.blocks, ["name", "title"], locale) || service.key;
 }
 
-export function blockText(
-  blocks: Block[] | undefined,
-  keys: string[],
-  locale: string,
-): string {
-  const block = findBlock(blocks, keys);
-  if (!block) return "";
-  return getBlockTextValue(block, locale);
+export function bookingResourceName(resource: Pick<StorefrontBookingResource, "blocks" | "key">, locale: string): string {
+  return blockText(resource.blocks, ["name", "title"], locale) || resource.key;
 }
 
-export function productName(
-  product: StorefrontProduct,
-  locale: string,
-): string {
-  return (
-    blockText(product.blocks, ["name", "title"], locale) ||
-    product.key ||
-    product.id
-  );
+export function productSlug(product: Pick<StorefrontProduct, "slugs">, locale: string): string | null {
+  return product.slugs[locale] ?? null;
 }
 
-export function bookingServiceName(
-  service: StorefrontBookingService,
-  locale: string,
-): string {
-  return (
-    blockText(service.blocks, ["name", "title"], locale) ||
-    service.key ||
-    service.id
-  );
+function questionError(question: FormQuestion, message: string): Error {
+  return new Error(`Invalid value for form question '${question.key}': ${message}`);
 }
 
-export function bookingResourceName(
-  provider: StorefrontBookingResource,
-  locale: string,
-): string {
-  return (
-    blockText(provider.blocks, ["name", "title"], locale) ||
-    provider.key ||
-    provider.id
-  );
-}
-
-export function productSlug(
-  product: Pick<StorefrontProduct, "id" | "slugs">,
-  locale: string,
-): string {
-  return (
-    product.slugs[locale] ||
-    product.slugs.en ||
-    Object.values(product.slugs)[0] ||
-    product.id
-  );
-}
-
-
-export function locationToAddress(location: ZoneLocation): Address {
-  return {
-    country: location.country || "",
-    state: location.state || "",
-    city: location.city || "",
-    postal_code: location.postal_code || "",
-    name: "",
-    street1: "",
-    street2: null,
-  };
-}
-
-export function createFormEntry(
-  formId: string,
-  fields: FormField[],
-): FormEntry {
-  if (!formId.trim()) throw new Error("formId is required");
-  return { form_id: formId, fields };
-}
-
-export function toCartProducts(items: EshopCartItem[]): CartProductInput[] {
-  return items.map((item) => ({
-    id: item.id,
-    product_id: item.product_id,
-    variant_id: item.variant_id,
-    quantity: item.quantity,
-    purchase: { type: "catalog" },
-    ...(item.form_submission_id
-      ? { form_submission_id: item.form_submission_id }
-      : {}),
-  }));
-}
-
-export function toCartBookings(
-  items: ArkyBookingCartItem[],
-): CartBookingInput[] {
-  return items.map((item) => ({
-    id: item.id,
-    booking_offering_id: item.booking_offering_id,
-    requested_interval: item.requested_interval,
-    capacity_units: item.capacity_units,
-    ...(item.form_submission_id
-      ? { form_submission_id: item.form_submission_id }
-      : {}),
-  }));
-}
-
-function formValueError(field: FormSchema | FormPresentedSchema, message: string): Error {
-  return new Error(`Invalid value for form field '${field.key}': ${message}`);
-}
-
-function isValidGeoLocation(value: unknown): value is GeoLocation {
+function isCoordinates(value: unknown): value is Coordinates {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const location = value as GeoLocation;
-  if (
-    location.label !== undefined &&
-    location.label !== null &&
-    typeof location.label !== "string"
-  ) {
-    return false;
-  }
-  const coordinates = location.coordinates;
-  if (!coordinates || typeof coordinates !== "object") return false;
+  const coordinates = value as Coordinates;
   return (
     Number.isFinite(coordinates.lat) &&
     Number.isFinite(coordinates.lon) &&
@@ -199,180 +56,104 @@ function isValidGeoLocation(value: unknown): value is GeoLocation {
   );
 }
 
-function buildFormField(field: FormSchema | FormPresentedSchema, value: FormValue): FormField {
-  const common = { id: field.id, key: field.key };
-  switch (field.type) {
-    case "text":
-      if (typeof value !== "string")
-        throw formValueError(field, "expected text");
-      if (field.required && value.trim().length === 0)
-        throw formValueError(field, "required text is blank");
-      return { ...common, type: "text", value };
-    case "number":
-      if (typeof value !== "number" || !Number.isFinite(value)) {
-        throw formValueError(field, "expected a finite number");
+function isEmpty(value: FormValue): boolean {
+  return (typeof value === "string" && value.trim() === "") || (Array.isArray(value) && value.length === 0);
+}
+
+function answerFor(question: FormQuestion, value: FormValue): FormAnswerInput {
+  const base = { question_id: question.id, key: question.key };
+  switch (question.type) {
+    case "text": {
+      if (typeof value !== "string") throw questionError(question, "expected text");
+      if (question.min_length !== null && value.length < question.min_length) {
+        throw questionError(question, `must be at least ${question.min_length} characters`);
       }
-      if (field.min !== null && field.min !== undefined && value < field.min) {
-        throw formValueError(field, `must be at least ${field.min}`);
+      if (question.max_length !== null && value.length > question.max_length) {
+        throw questionError(question, `must be at most ${question.max_length} characters`);
       }
-      if (field.max !== null && field.max !== undefined && value > field.max) {
-        throw formValueError(field, `must be at most ${field.max}`);
+      if (question.pattern !== null && !new RegExp(question.pattern).test(value)) {
+        throw questionError(question, "doesn't match the expected format");
       }
-      return { ...common, type: "number", value };
+      return { ...base, type: "text", value };
+    }
+    case "email":
+      if (typeof value !== "string") throw questionError(question, "expected email");
+      return { ...base, type: "email", value };
+    case "number": {
+      if (typeof value !== "number" || !Number.isFinite(value)) throw questionError(question, "expected a finite number");
+      if (question.min !== null && value < question.min) throw questionError(question, `must be at least ${question.min}`);
+      if (question.max !== null && value > question.max) throw questionError(question, `must be at most ${question.max}`);
+      return { ...base, type: "number", value };
+    }
     case "boolean":
-      if (typeof value !== "boolean")
-        throw formValueError(field, "expected a boolean");
-      return { ...common, type: "boolean", value };
+      if (typeof value !== "boolean") throw questionError(question, "expected yes or no");
+      return { ...base, type: "boolean", value };
     case "date":
+      if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        throw questionError(question, "expected a day as YYYY-MM-DD");
+      }
+      return { ...base, type: "date", value };
+    case "date_time":
       if (typeof value !== "number" || !Number.isSafeInteger(value)) {
-        throw formValueError(field, "expected signed safe-integer epoch milliseconds");
+        throw questionError(question, "expected a moment in epoch milliseconds");
       }
-      return { ...common, type: "date", value: epochMilliseconds(value) };
+      return { ...base, type: "date_time", value: value as EpochMilliseconds };
     case "geo_location":
-      if (!isValidGeoLocation(value))
-        throw formValueError(field, "expected valid coordinates");
-      return { ...common, type: "geo_location", value };
-    case "select": {
-      if (
-        !Array.isArray(value) ||
-        value.some((item) => typeof item !== "string")
-      ) {
-        throw formValueError(field, "expected a list of options");
+      if (!isCoordinates(value)) throw questionError(question, "expected valid coordinates");
+      return { ...base, type: "geo_location", value: { lat: value.lat, lon: value.lon } };
+    case "select_one":
+      if (typeof value !== "string" || !question.options.some((option) => option.key === value)) {
+        throw questionError(question, "expected one of the options");
       }
-      const selected = value as string[];
-      if (field.required && selected.length === 0)
-        throw formValueError(field, "at least one option is required");
-      if (
-        new Set(selected).size !== selected.length ||
-        selected.some((item) => !field.options.includes(item))
-      ) {
-        throw formValueError(field, "contains an unknown or duplicate option");
+      return { ...base, type: "select_one", option_key: value };
+    case "select_many": {
+      if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
+        throw questionError(question, "expected a list of options");
       }
-      return { ...common, type: "select", value: selected };
+      const keys = value as string[];
+      if (new Set(keys).size !== keys.length || keys.some((key) => !question.options.some((option) => option.key === key))) {
+        throw questionError(question, "contains an unknown or repeated option");
+      }
+      return { ...base, type: "select_many", option_keys: keys };
     }
     case "file": {
-      if (
-        !Array.isArray(value) ||
-        value.some((item) => typeof item !== "string" || item.trim().length === 0)
-      ) {
-        throw formValueError(field, "expected a list of media ids");
+      const FileConstructor = globalThis.File;
+      if (!Array.isArray(value) || !FileConstructor || value.some((item) => !(item instanceof FileConstructor))) {
+        throw questionError(question, "expected a list of files");
       }
-      const mediaIds = value as string[];
-      if (field.required && mediaIds.length === 0)
-        throw formValueError(field, "at least one file is required");
-      if (new Set(mediaIds).size !== mediaIds.length)
-        throw formValueError(field, "contains a duplicate file");
-      if (mediaIds.length > field.max_files)
-        throw formValueError(field, `allows at most ${field.max_files} files`);
-      return { ...common, type: "file", media_ids: mediaIds };
+      const files = value as File[];
+      if (files.length > question.max_files) throw questionError(question, `allows at most ${question.max_files} files`);
+      return { ...base, type: "file", files };
     }
   }
 }
 
-function isEmptyOptionalValue(field: FormSchema | FormPresentedSchema, value: FormValue): boolean {
-  if (field.required) return false;
-  if (field.type === "text") return value === "";
-  if (field.type === "select" || field.type === "file")
-    return Array.isArray(value) && value.length === 0;
-  if (field.type === "geo_location") {
-    return Boolean(
-      value &&
-      typeof value === "object" &&
-      !Array.isArray(value) &&
-      Object.keys(value).length === 0,
-    );
-  }
-  return false;
-}
-
-export function buildFormFields(
-  schema: (FormSchema | FormPresentedSchema)[],
-  values: FormValues,
-): FormField[] {
-  const knownKeys = new Set(schema.map((field) => field.key));
-  const unknownKey = Object.keys(values).find((key) => !knownKeys.has(key));
-  if (unknownKey)
-    throw new Error(
-      `Form field '${unknownKey}' is not defined by the form schema`,
-    );
-
-  const fields: FormField[] = [];
-  for (const field of schema) {
-    const value = values[field.key];
-    if (value === undefined) {
-      if (field.required)
-        throw formValueError(field, "required value is missing");
+export function buildFormAnswers(form: Pick<Form, "questions">, values: FormValues): FormAnswerInput[] {
+  const known = new Set(form.questions.map((question) => question.key));
+  const unknown = Object.keys(values).find((key) => !known.has(key));
+  if (unknown) throw new Error(`Form question '${unknown}' isn't part of the form`);
+  const answers: FormAnswerInput[] = [];
+  for (const question of form.questions) {
+    const value = values[question.key];
+    if (value === undefined || value === null || isEmpty(value)) {
+      if (question.required) throw questionError(question, "an answer is required");
       continue;
     }
-    if (isEmptyOptionalValue(field, value)) continue;
-    fields.push(buildFormField(field, value));
+    answers.push(answerFor(question, value));
   }
-  return fields;
+  return answers;
 }
 
-export function createFormEntryFromValues(
-  form: Pick<Form | FormPresentation, "id" | "schema">,
-  values: FormValues,
-): FormEntry {
-  return createFormEntry(form.id, buildFormFields(form.schema, values));
-}
-
-export function getFormBlockType(field: FormSchema | FormPresentedSchema): string {
-  if (field.key === "email") return "email";
-  if (field.key === "phone") return "phone";
-  if (field.type === "geo_location") return "address";
-  return field.type;
-}
-
-export function getFormBlockValue(field: FormSchema | FormPresentedSchema): FormValue | undefined {
-  if (field.type === "boolean") return false;
-  if (field.type === "select" || field.type === "file") return [];
-  if (field.type === "geo_location") return {};
-  if (field.type === "number" || field.type === "date") return undefined;
-  return "";
-}
-
-export function formSchemaToBlock(field: FormSchema | FormPresentedSchema): FormInputBlock {
-  const min = field.type === "number" ? field.min : undefined;
-  const max = field.type === "number" ? field.max : undefined;
-  const options = field.type === "select" ? field.options : undefined;
-  const maxFiles = field.type === "file" ? field.max_files : undefined;
-  return {
-    id: field.id,
-    key: field.key,
-    type: getFormBlockType(field),
-    properties: {
-      isRequired: field.required,
-      minValues: field.required ? 1 : 0,
-      min,
-      max,
-      options,
-      maxFiles,
-      pattern:
-        field.key === "email"
-          ? "^.+@.+\\..+$"
-          : field.key === "phone"
-            ? "^.{6,20}$"
-            : undefined,
-    },
-    value: getFormBlockValue(field),
-  };
-}
-
-export function formatServiceTime(ts: EpochMilliseconds, tz: string): string {
-  return epochMillisecondsToDate(ts).toLocaleTimeString([], {
+export function formatServiceTime(ts: EpochMilliseconds, tz: string, locale: string): string {
+  return epochMillisecondsToDate(ts).toLocaleTimeString(locale, {
     hour: "2-digit",
     minute: "2-digit",
     timeZone: tz,
   });
 }
 
-export function formatServiceSlotTime(
-  from: EpochMilliseconds,
-  to: EpochMilliseconds,
-  tz: string,
-): string {
-  return `${formatServiceTime(from, tz)} - ${formatServiceTime(to, tz)}`;
+export function formatServiceSlotTime(from: EpochMilliseconds, to: EpochMilliseconds, tz: string, locale: string): string {
+  return `${formatServiceTime(from, tz, locale)} - ${formatServiceTime(to, tz, locale)}`;
 }
 
 export function getSlotsForDate(
@@ -383,21 +164,11 @@ export function getSlotsForDate(
   if (!availability) return [];
   const slots: { from: EpochMilliseconds; to: EpochMilliseconds; bookingResourceId: string }[] = [];
   for (const resource of availability.booking_resources) {
-    if (
-      bookingResourceId &&
-      resource.booking_resource_id !== bookingResourceId
-    ) {
-      continue;
-    }
+    if (bookingResourceId && resource.booking_resource_id !== bookingResourceId) continue;
     const day = resource.days.find((candidate) => candidate.date === dateStr);
     if (!day) continue;
     for (const slot of day.slots) {
-      if (slot.spots > 0)
-        slots.push({
-          from: slot.from,
-          to: slot.to,
-          bookingResourceId: resource.booking_resource_id,
-        });
+      if (slot.spots > 0) slots.push({ from: slot.from, to: slot.to, bookingResourceId: resource.booking_resource_id });
     }
   }
   return slots.sort((a, b) => a.from - b.from);
@@ -410,26 +181,13 @@ export function hasAvailableSlotsForDate(
 ): boolean {
   if (!availability) return false;
   return availability.booking_resources.some((resource) => {
-    if (
-      bookingResourceId &&
-      resource.booking_resource_id !== bookingResourceId
-    ) {
-      return false;
-    }
+    if (bookingResourceId && resource.booking_resource_id !== bookingResourceId) return false;
     const day = resource.days.find((candidate) => candidate.date === dateStr);
     return !!day?.slots.some((slot) => slot.spots > 0);
   });
 }
 
-export const SERVICE_WEEKDAYS = [
-  "Mon",
-  "Tue",
-  "Wed",
-  "Thu",
-  "Fri",
-  "Sat",
-  "Sun",
-];
+export const SERVICE_WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export function createBookingServiceInitialState(): ArkyBookingServiceState {
   return {
@@ -445,10 +203,7 @@ export function createBookingServiceInitialState(): ArkyBookingServiceState {
     selectedDate: null,
     slots: [],
     selectedSlot: null,
-    timezone:
-      typeof window !== "undefined"
-        ? Intl.DateTimeFormat().resolvedOptions().timeZone
-        : "UTC",
+    timezone: typeof window !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC",
     tzGroups: {},
     loading: false,
     weekdays: SERVICE_WEEKDAYS,
@@ -459,7 +214,6 @@ export function createBookingServiceInitialState(): ArkyBookingServiceState {
     dateTimeConfirmed: false,
     availablePaymentOptionIds: [],
     cartId: null,
-    promotionCodes: [],
   };
 }
 
@@ -468,10 +222,7 @@ export function normalizeTimezoneGroups(
 ): Record<string, { zone: string; name: string }[]> {
   const normalized: Record<string, { zone: string; name: string }[]> = {};
   for (const group of groups) {
-    normalized[group.label] = group.zones.map((zone) => ({
-      zone: zone.value,
-      name: zone.label,
-    }));
+    normalized[group.label] = group.zones.map((zone) => ({ zone: zone.value, name: zone.label }));
   }
   return normalized;
 }

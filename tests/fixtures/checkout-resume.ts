@@ -1,22 +1,23 @@
-import type { createAdmin } from 'arky-sdk/admin';
-import type { createStorefront, initialize } from 'arky-sdk/storefront';
-import type { OrderCheckoutResult } from 'arky-sdk';
+import type { createAdmin } from "arky-sdk/admin";
+import type { createStorefront, initialize } from "arky-sdk/storefront";
+import type { CheckoutPaymentAction, GetOrderPaymentActionParams } from "arky-sdk";
+
 type Admin = ReturnType<typeof createAdmin>;
 type Storefront = ReturnType<typeof createStorefront>;
 type Initialized = ReturnType<typeof initialize>;
-type True<T extends true> = T;
-type False<T extends false> = T;
-type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+type Assert<T extends true> = T;
+type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
+type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
+
 export type CheckoutResumeContracts = [
-  True<Same<Parameters<Admin['eshop']['checkout']['resumePayment']>[0], { store_id: string; order_id: string }>>,
-  True<Same<Awaited<ReturnType<Admin['eshop']['checkout']['resumePayment']>>, OrderCheckoutResult>>,
-  False<'get' extends keyof Storefront['eshop']['checkout'] ? true : false>,
-  True<Same<Awaited<ReturnType<Storefront['eshop']['checkout']['resumePayment']>>, OrderCheckoutResult>>,
-  True<Same<Initialized['eshop']['checkout'], Storefront['eshop']['checkout']>>
+  Assert<Equal<Parameters<Admin["eshop"]["cart"]["paymentAction"]>[0], GetOrderPaymentActionParams>>,
+  Assert<Equal<keyof GetOrderPaymentActionParams, "store_id" | "order_id">>,
+  Assert<Equal<Awaited<ReturnType<Admin["eshop"]["cart"]["paymentAction"]>>, CheckoutPaymentAction>>,
+  Assert<Equal<Parameters<Storefront["eshop"]["order"]["paymentAction"]>[0], { order_id: string }>>,
+  Assert<Equal<Awaited<ReturnType<Storefront["eshop"]["order"]["paymentAction"]>>, CheckoutPaymentAction>>,
+  Assert<Equal<Parameters<Initialized["eshop"]["cart"]["paymentAction"]>, [orderId: string]>>,
+  Assert<Equal<Awaited<ReturnType<Initialized["eshop"]["cart"]["paymentAction"]>>, CheckoutPaymentAction>>,
+  Assert<Missing<Admin["eshop"], "checkout">>,
+  Assert<Missing<Storefront["eshop"], "checkout">>,
+  Assert<Equal<CheckoutPaymentAction["type"], "none" | "stripe_embedded_checkout" | "monri_components">>,
 ];
-// @ts-expect-error Storefront scope is server-resolved, not a caller-selected Store.
-export const wrongStore: Parameters<Storefront['eshop']['checkout']['resumePayment']>[0] = { order_id: 'order', store_id: 'other' };
-// @ts-expect-error Resume cannot substitute a new Payment or submitted Cart request.
-export const replacement: Parameters<Admin['eshop']['checkout']['resumePayment']>[0] = { store_id: 'store', order_id: 'order', payment_id: 'replacement' };
-// @ts-expect-error
-export const implicitStore: Parameters<Admin['eshop']['checkout']['resumePayment']>[0] = { order_id: 'order' };

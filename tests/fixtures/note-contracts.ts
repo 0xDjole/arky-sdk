@@ -1,38 +1,52 @@
 import type { createAdmin } from "arky-sdk/admin";
 import type {
-  Note, NoteTarget, NoteTargetType, PaginatedResponse, AccountActor,
-  FindOrderNotesParams, CreateOrderNoteParams, UpdateOrderNoteParams, DeleteOrderNoteParams,
-  FindCustomerNotesParams, CreateCustomerNoteParams, UpdateCustomerNoteParams, DeleteCustomerNoteParams,
-  FindCompanyNotesParams, CreateCompanyNoteParams, UpdateCompanyNoteParams, DeleteCompanyNoteParams,
+  AccountActor,
+  CompanyNoteTarget,
+  CustomerNoteTarget,
+  FormSubmissionNoteTarget,
+  Note,
+  NoteCreateParams,
+  NoteDeleteParams,
+  NotePageParams,
+  NoteTarget,
+  NoteTargetType,
+  NoteUpdateParams,
+  OrderNoteTarget,
+  PaginatedResponse,
+  ConversationNoteTarget,
 } from "arky-sdk";
 
-type Same<A, B> = [A] extends [B] ? [B] extends [A] ? true : false : false;
-type True<T extends true> = T;
+type Assert<T extends true> = T;
+type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
+type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
 type Admin = ReturnType<typeof createAdmin>;
 type OrderNotes = Admin["eshop"]["order"]["notes"];
 type CustomerNotes = Admin["customers"]["notes"];
 type CompanyNotes = Admin["companies"]["notes"];
+type SubmissionNotes = Admin["forms"]["notes"];
+type ConversationNotes = Admin["support"]["conversation"]["notes"];
 
 export type NoteContracts = [
-  True<Same<keyof Note, "id" | "store_id" | "target" | "body" | "actor" | "created_at" | "updated_at">>,
-  True<Same<Note["actor"], AccountActor>>,
-  True<Same<NoteTargetType, "form_submission" | "customer" | "company" | "order">>,
-  True<Same<Extract<NoteTarget, { type: "order" }>, { type: "order"; order_id: string }>>,
-  True<Same<keyof OrderNotes, "find" | "create" | "update" | "delete">>,
-  True<Same<Parameters<OrderNotes["find"]>[0], FindOrderNotesParams>>,
-  True<Same<Parameters<OrderNotes["create"]>[0], CreateOrderNoteParams>>,
-  True<Same<Parameters<OrderNotes["update"]>[0], UpdateOrderNoteParams>>,
-  True<Same<Parameters<OrderNotes["delete"]>[0], DeleteOrderNoteParams>>,
-  True<Same<Parameters<CustomerNotes["find"]>[0], FindCustomerNotesParams>>,
-  True<Same<Parameters<CustomerNotes["create"]>[0], CreateCustomerNoteParams>>,
-  True<Same<Parameters<CustomerNotes["update"]>[0], UpdateCustomerNoteParams>>,
-  True<Same<Parameters<CustomerNotes["delete"]>[0], DeleteCustomerNoteParams>>,
-  True<Same<Parameters<CompanyNotes["find"]>[0], FindCompanyNotesParams>>,
-  True<Same<Parameters<CompanyNotes["create"]>[0], CreateCompanyNoteParams>>,
-  True<Same<Parameters<CompanyNotes["update"]>[0], UpdateCompanyNoteParams>>,
-  True<Same<Parameters<CompanyNotes["delete"]>[0], DeleteCompanyNoteParams>>,
-  True<Same<Awaited<ReturnType<OrderNotes["find"]>>, PaginatedResponse<Note>>>,
-  True<Same<Awaited<ReturnType<CompanyNotes["delete"]>>, Note>>,
-  True<Same<Awaited<ReturnType<Admin["forms"]["createSubmissionNote"]>>, Note>>,
-  True<Same<Awaited<ReturnType<Admin["forms"]["setSubmissionCompany"]>>["company_id"], string | null>>,
+  Assert<Equal<keyof Note, "id" | "store_id" | "target" | "body" | "actor" | "created_at" | "updated_at">>,
+  Assert<Equal<Note["actor"], AccountActor>>,
+  Assert<Equal<NoteTargetType, "form_submission" | "customer" | "company" | "order" | "conversation">>,
+  Assert<Equal<Extract<NoteTarget, { type: "conversation" }>, { type: "conversation"; conversation_id: string }>>,
+  Assert<Equal<ConversationNoteTarget, { store_id: string; conversation_id: string }>>,
+  Assert<Equal<Extract<NoteTarget, { type: "order" }>, { type: "order"; order_id: string }>>,
+  Assert<Equal<keyof OrderNotes, "find" | "create" | "update" | "delete">>,
+  Assert<Equal<Parameters<OrderNotes["find"]>[0], OrderNoteTarget & NotePageParams>>,
+  Assert<Equal<Parameters<OrderNotes["create"]>[0], OrderNoteTarget & NoteCreateParams>>,
+  Assert<Equal<Parameters<OrderNotes["update"]>[0], OrderNoteTarget & NoteUpdateParams>>,
+  Assert<Equal<Parameters<OrderNotes["delete"]>[0], OrderNoteTarget & NoteDeleteParams>>,
+  Assert<Equal<Parameters<CustomerNotes["create"]>[0], CustomerNoteTarget & NoteCreateParams>>,
+  Assert<Equal<Parameters<CompanyNotes["create"]>[0], CompanyNoteTarget & NoteCreateParams>>,
+  Assert<Equal<Parameters<SubmissionNotes["create"]>[0], FormSubmissionNoteTarget & NoteCreateParams>>,
+  Assert<Equal<Parameters<ConversationNotes["create"]>[0], ConversationNoteTarget & NoteCreateParams>>,
+  Assert<Equal<Awaited<ReturnType<OrderNotes["find"]>>, PaginatedResponse<Note>>>,
+  Assert<Equal<Awaited<ReturnType<CompanyNotes["delete"]>>, Note>>,
+  Assert<Equal<Awaited<ReturnType<SubmissionNotes["create"]>>, Note>>,
+  Assert<Equal<keyof NoteCreateParams, "id" | "body">>,
+  Assert<Equal<keyof NoteUpdateParams, "id" | "expected_updated_at" | "body">>,
+  Assert<Missing<Admin["forms"], "createSubmissionNote" | "findSubmissionNotes" | "updateSubmissionNote" | "deleteSubmissionNote">>,
+  Assert<Equal<Awaited<ReturnType<Admin["forms"]["setSubmissionCompany"]>>["company_id"], string | null>>,
 ];

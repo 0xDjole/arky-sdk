@@ -1,20 +1,16 @@
-import type { CheckoutCartParams, RequestOptions } from "./api";
-import type { OrderCheckoutResult } from "./index";
-import type { CheckoutQuote } from "./checkout";
+import type { RequestOptions, RequestSuccessContext } from "./httpClient";
+import type { CartQuote, CheckoutAcceptance, StorefrontCheckoutCartInput } from "./cart";
 import type { Order } from "./order";
-import type { RequestSuccessContext } from "./httpClient";
 
-export type CartCheckoutInput = Omit<CheckoutCartParams, "store_id">;
-export type CartCheckoutRequest = CartCheckoutInput & { request_id: string };
-export type CartAcceptanceProof = Pick<Order, "id" | "source">;
+export type CartCheckoutRequest = StorefrontCheckoutCartInput;
 
-export interface CartCheckoutTransport<Result extends Pick<OrderCheckoutResult, "order_id" | "number" | "payment_action" | "payment">> {
-  post(request: CartCheckoutRequest, options?: RequestOptions): Promise<Result>;
-  getOrder(id: string, options?: RequestOptions): Promise<CartAcceptanceProof>;
+export interface CartCheckoutTransport<Request> {
+  post(request: Request, options?: RequestOptions): Promise<CheckoutAcceptance>;
+  getOrder(id: string, options?: RequestOptions): Promise<Order>;
 }
 
-export interface CartCheckoutSubmission<Result> {
-  result: Result;
+export interface CartCheckoutSubmission {
+  result: CheckoutAcceptance;
   success: RequestSuccessContext | undefined;
 }
 
@@ -30,8 +26,8 @@ export class CartPresentationChangedError extends Error {
     return value instanceof Error && presentationChangedBrand in value;
   }
 
-  constructor(readonly quote: CheckoutQuote) {
-    super("The checkout presentation changed. Review the refreshed quote before accepting.");
+  constructor(readonly quote: CartQuote) {
+    super("The checkout presentation changed. Review the refreshed quote before ordering.");
   }
 }
 

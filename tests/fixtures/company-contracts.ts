@@ -1,78 +1,62 @@
 import type {
   Store,
+  StoreEmailSending,
   CreateStoreParams,
   UpdateStoreParams,
-  InitialMarketInput,
   Market,
   MarketStatus,
-  MarketUsage,
   UpdateMarketParams,
   DeleteMarketParams,
-  CompanyAddress,
-  CompanyProfile,
   CompanyEditableStatus,
   CompanyStatus,
   Company,
-  CompanyUsage,
+  CompanyAccessGrant,
+  CompanyCustomerAccess,
+  CompanyPurchasingPolicy,
   CreateCompanyParams,
-  GetCompanyParams,
   UpdateCompanyParams,
   DeleteCompanyParams,
   FindCompaniesParams,
-  CompanyMembershipEditableStatus,
   CompanyMembershipStatus,
-  CompanyLocationReach,
+  CompanyMembershipGrant,
+  CompanyMembershipScope,
   CompanyMembership,
   CreateCompanyMembershipParams,
-  GetCompanyMembershipParams,
   UpdateCompanyMembershipParams,
   DeleteCompanyMembershipParams,
   FindCompanyMembershipsParams,
   CompanyPermission,
-  CompanyRoleStatus,
   CompanyRole,
-  CompanyRoleUsage,
   CreateCompanyRoleParams,
-  GetCompanyRoleParams,
   UpdateCompanyRoleParams,
-  DeleteCompanyRoleParams,
-  FindCompanyRolesParams,
   CompanyLocationEditableStatus,
   CompanyLocationStatus,
   CompanyLocation,
-  CompanyLocationTaxSettings,
-  CompanyLocationCommercePolicy,
+  CompanyLocationFulfillment,
   CreateCompanyLocationParams,
-  GetCompanyLocationParams,
   UpdateCompanyLocationParams,
   DeleteCompanyLocationParams,
-  FindCompanyLocationsParams,
-  SetCompanyLocationServedFromParams,
-  CustomerGroupEditableStatus,
-  CustomerGroupStatus,
-  CustomerGroup,
-  CustomerGroupUsage,
-  CreateCustomerGroupParams,
-  GetCustomerGroupParams,
-  UpdateCustomerGroupParams,
-  DeleteCustomerGroupParams,
-  FindCustomerGroupsParams,
-  CustomerGroupMember,
-  CustomerGroupAdmission,
-  CustomerGroupMemberType,
-  JoinCustomerGroupParams,
-  GetCustomerGroupMemberParams,
-  FindCustomerGroupMembersParams,
-  GetCurrentCustomerGroupMemberParams,
-  SalesChannelEditableStatus,
-  SalesChannelStatus,
+  SetCompanyLocationFulfillmentParams,
+  SubmitCompanyTaxRegistrationParams,
+  ReviewCompanyTaxRegistrationParams,
+  TaxRegistration,
+  BuyerTax,
+  ApiKeyCreated,
+  DeletedResponse,
   SalesChannel,
-  SalesChannelUsage,
+  SalesChannelStatus,
   CreateSalesChannelParams,
-  GetSalesChannelParams,
   UpdateSalesChannelParams,
-  DeleteSalesChannelParams,
-  FindSalesChannelsParams,
+  ApiKey,
+  ApiKeyStatus,
+  CreateApiKeyParams,
+  FindApiKeysParams,
+  GetApiKeyParams,
+  RevokeApiKeyParams,
+  PaginatedResponse,
+  PostalAddressInput,
+  EpochMilliseconds,
+  Block,
 } from "arky-sdk";
 import type * as PublicTypes from "arky-sdk/types";
 import type { createAdmin } from "arky-sdk/admin";
@@ -83,278 +67,111 @@ type Equal<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
 type Admin = ReturnType<typeof createAdmin>;
 type CompanyApi = Admin["companies"];
-type CompanyMembershipApi = Admin["companies"]["membership"];
-type CompanyRoleApi = Admin["companies"]["role"];
-type CompanyLocationApi = Admin["companies"]["location"];
-type CustomerGroupApi = Admin["eshop"]["customerGroup"];
-type CustomerGroupMemberApi = Admin["eshop"]["customerGroupMember"];
-type SalesChannelApi = Admin["store"]["salesChannel"];
-type MarketApi = Admin["store"]["market"];
+type ApiKeyApi = Admin["store"]["apiKey"];
 
 export type CompanyContracts = [
-  True<Equal<PublicTypes.CompanyLocationReach, CompanyLocationReach>>,
-  True<Equal<CompanyLocationReach, { type: "everywhere" } | { type: "only"; company_location_ids: string[] }>>,
-  True<RequiredField<CompanyMembership, "locations">>,
-  True<RequiredField<CreateCompanyMembershipParams, "locations">>,
-  True<RequiredField<UpdateCompanyMembershipParams, "locations">>,
-  False<"scope" extends keyof CompanyMembership ? true : false>,
-  True<RequiredField<CompanyLocation, "fulfillment_store_location_id">>,
-  True<Equal<CompanyLocation["fulfillment_store_location_id"], string | null>>,
-  True<Equal<Parameters<CompanyLocationApi["setServedFrom"]>[0], SetCompanyLocationServedFromParams>>,
-  True<Equal<Awaited<ReturnType<CompanyLocationApi["setServedFrom"]>>, CompanyLocation>>,
-  True<Equal<SetCompanyLocationServedFromParams["fulfillment_store_location_id"], string | null>>,
-  False<"fulfillment_store_location_id" extends keyof UpdateCompanyLocationParams ? true : false>,
-  True<Equal<CompanyLocation["shipping_address"], CompanyAddress | null>>,
-  True<Equal<UpdateCompanyLocationParams["shipping_address"], CompanyAddress | null>>,
-  True<RequiredField<CompanyLocation, "tax">>,
-  True<RequiredField<CompanyLocation, "commerce">>,
-  True<Equal<CompanyLocation["tax"], CompanyLocationTaxSettings>>,
-  True<Equal<CompanyLocation["commerce"], CompanyLocationCommercePolicy>>,
-  True<Equal<CompanyLocationCommercePolicy["allowed_payment_option_ids"], string[] | null>>,
-  False<"tax" extends keyof UpdateCompanyLocationParams ? true : false>,
-  False<"commerce" extends keyof UpdateCompanyLocationParams ? true : false>,
-  True<"access_digital_products" extends CompanyPermission ? true : false>,
-  True<Equal<NonNullable<FindCompaniesParams["status"]>, CompanyStatus["type"]>>,
-  True<Equal<NonNullable<FindCompaniesParams["sort_field"]>, "created_at" | "updated_at">>,
-  True<Equal<NonNullable<FindCompaniesParams["sort_direction"]>, "asc" | "desc">>,
-  True<RequiredField<CompanyUsage, "group_member_ids">>,
-  True<RequiredField<CompanyUsage, "catalog_access_ids">>,
-  False<"catalog_entitlement_ids" extends keyof CompanyUsage ? true : false>,
-  True<RequiredField<CompanyUsage, "shipping_rate_ids">>,
-  False<"group_edge_ids" extends keyof CompanyUsage ? true : false>,
   True<Equal<PublicTypes.Company, Company>>,
-  True<Equal<Awaited<ReturnType<CompanyApi["create"]>>, Company>>,
-  True<Equal<Awaited<ReturnType<CompanyApi["get"]>>, Company>>,
-  True<
-    Equal<Awaited<ReturnType<CompanyApi["find"]>>["items"][number], Company>
-  >,
-  True<Equal<Awaited<ReturnType<CompanyApi["delete"]>>, Company>>,
-  True<RequiredField<DeleteCompanyParams, "expected_updated_at">>,
-  True<"deleting" extends Company["status"]["type"] ? true : false>,
-  True<Equal<Awaited<ReturnType<CompanyApi["update"]>>, Company>>,
-  True<RequiredField<UpdateCompanyParams, "expected_updated_at">>,
-  True<Equal<Awaited<ReturnType<CompanyApi["usage"]>>, CompanyUsage>>,
-  False<"deleting" extends CompanyEditableStatus["type"] ? true : false>,
-  True<Equal<PublicTypes.CompanyMembership, CompanyMembership>>,
-  True<
-    Equal<
-      Awaited<ReturnType<CompanyMembershipApi["create"]>>,
-      CompanyMembership
-    >
-  >,
-  True<
-    Equal<Awaited<ReturnType<CompanyMembershipApi["get"]>>, CompanyMembership>
-  >,
-  True<
-    Equal<
-      Awaited<ReturnType<CompanyMembershipApi["find"]>>["items"][number],
-      CompanyMembership
-    >
-  >,
-  True<
-    Equal<
-      Awaited<ReturnType<CompanyMembershipApi["delete"]>>,
-      CompanyMembership
-    >
-  >,
-  True<RequiredField<DeleteCompanyMembershipParams, "expected_updated_at">>,
-  True<"deleting" extends CompanyMembership["status"]["type"] ? true : false>,
-  True<
-    Equal<
-      Awaited<ReturnType<CompanyMembershipApi["update"]>>,
-      CompanyMembership
-    >
-  >,
-  True<RequiredField<UpdateCompanyMembershipParams, "expected_updated_at">>,
-  False<
-    "deleting" extends CompanyMembershipEditableStatus["type"] ? true : false
-  >,
-  True<Equal<PublicTypes.CompanyRole, CompanyRole>>,
-  True<Equal<Awaited<ReturnType<CompanyRoleApi["create"]>>, CompanyRole>>,
-  True<Equal<Awaited<ReturnType<CompanyRoleApi["get"]>>, CompanyRole>>,
-  True<
-    Equal<
-      Awaited<ReturnType<CompanyRoleApi["find"]>>["items"][number],
-      CompanyRole
-    >
-  >,
-  True<Equal<Awaited<ReturnType<CompanyRoleApi["delete"]>>, CompanyRole>>,
-  True<RequiredField<DeleteCompanyRoleParams, "expected_updated_at">>,
-  True<"deleting" extends CompanyRole["status"]["type"] ? true : false>,
-  True<Equal<Awaited<ReturnType<CompanyRoleApi["update"]>>, CompanyRole>>,
-  True<RequiredField<UpdateCompanyRoleParams, "expected_updated_at">>,
-  True<Equal<Awaited<ReturnType<CompanyRoleApi["usage"]>>, CompanyRoleUsage>>,
   True<Equal<PublicTypes.CompanyLocation, CompanyLocation>>,
-  True<
-    Equal<Awaited<ReturnType<CompanyLocationApi["create"]>>, CompanyLocation>
-  >,
-  True<Equal<Awaited<ReturnType<CompanyLocationApi["get"]>>, CompanyLocation>>,
-  True<
-    Equal<
-      Awaited<ReturnType<CompanyLocationApi["find"]>>["items"][number],
-      CompanyLocation
-    >
-  >,
-  True<
-    Equal<Awaited<ReturnType<CompanyLocationApi["delete"]>>, CompanyLocation>
-  >,
-  True<RequiredField<DeleteCompanyLocationParams, "expected_updated_at">>,
-  True<"deleting" extends CompanyLocation["status"]["type"] ? true : false>,
-  True<
-    Equal<Awaited<ReturnType<CompanyLocationApi["update"]>>, CompanyLocation>
-  >,
-  True<RequiredField<UpdateCompanyLocationParams, "expected_updated_at">>,
-  False<
-    "deleting" extends CompanyLocationEditableStatus["type"] ? true : false
-  >,
-  True<Equal<PublicTypes.CustomerGroup, CustomerGroup>>,
-  True<Equal<Awaited<ReturnType<CustomerGroupApi["create"]>>, CustomerGroup>>,
-  True<Equal<Awaited<ReturnType<CustomerGroupApi["get"]>>, CustomerGroup>>,
-  True<
-    Equal<
-      Awaited<ReturnType<CustomerGroupApi["find"]>>["items"][number],
-      CustomerGroup
-    >
-  >,
-  True<Equal<Awaited<ReturnType<CustomerGroupApi["delete"]>>, CustomerGroup>>,
-  True<RequiredField<DeleteCustomerGroupParams, "expected_updated_at">>,
-  True<"deleting" extends CustomerGroup["status"]["type"] ? true : false>,
-  True<Equal<Awaited<ReturnType<CustomerGroupApi["update"]>>, CustomerGroup>>,
-  True<RequiredField<UpdateCustomerGroupParams, "expected_updated_at">>,
-  True<
-    Equal<Awaited<ReturnType<CustomerGroupApi["usage"]>>, CustomerGroupUsage>
-  >,
-  False<"deleting" extends CustomerGroupEditableStatus["type"] ? true : false>,
-  True<Equal<PublicTypes.CustomerGroupMember, CustomerGroupMember>>,
-  True<
-    Equal<
-      Awaited<ReturnType<CustomerGroupMemberApi["join"]>>,
-      PublicTypes.CustomerGroupJoinResult
-    >
-  >,
-  True<
-    Equal<
-      Awaited<ReturnType<CustomerGroupMemberApi["get"]>>,
-      CustomerGroupMember
-    >
-  >,
-  True<
-    Equal<
-      Awaited<ReturnType<CustomerGroupMemberApi["find"]>>["items"][number],
-      CustomerGroupMember
-    >
-  >,
-  True<
-    Equal<
-      Awaited<ReturnType<CustomerGroupMemberApi["current"]>>,
-      PublicTypes.CustomerGroupMemberSelf | null
-    >
-  >,
-  True<Equal<CustomerGroupMember["member"], CustomerGroupMemberType>>,
-  False<"administrative_access" extends keyof PublicTypes.CustomerGroupMemberSelf ? true : false>,
-  True<Equal<Awaited<ReturnType<CustomerGroupMemberApi["execute"]>>, PublicTypes.CustomerGroupMemberCommandResponse>>,
-  True<Equal<CustomerGroupMember["admission"], CustomerGroupAdmission>>,
-  True<RequiredField<JoinCustomerGroupParams, "request">>,
-  True<RequiredField<JoinCustomerGroupParams, "request_id">>,
-  False<"command_id" extends keyof JoinCustomerGroupParams ? true : false>,
-  True<RequiredField<GetCustomerGroupMemberParams, "id">>,
-  True<RequiredField<GetCurrentCustomerGroupMemberParams, "customer_group_id">>,
-  False<"store_id" extends keyof FindCustomerGroupMembersParams ? false : true>,
-  False<"create" extends keyof CustomerGroupMemberApi ? true : false>,
-  False<"update" extends keyof CustomerGroupMemberApi ? true : false>,
-  False<"delete" extends keyof CustomerGroupMemberApi ? true : false>,
-  True<Equal<PublicTypes.SalesChannel, SalesChannel>>,
-  True<Equal<Awaited<ReturnType<SalesChannelApi["create"]>>, SalesChannel>>,
-  True<Equal<Awaited<ReturnType<SalesChannelApi["get"]>>, SalesChannel>>,
-  True<
-    Equal<
-      Awaited<ReturnType<SalesChannelApi["find"]>>["items"][number],
-      SalesChannel
-    >
-  >,
-  True<Equal<Awaited<ReturnType<SalesChannelApi["delete"]>>, SalesChannel>>,
-  True<RequiredField<DeleteSalesChannelParams, "expected_updated_at">>,
-  True<"deleting" extends SalesChannel["status"]["type"] ? true : false>,
-  True<Equal<Awaited<ReturnType<SalesChannelApi["update"]>>, SalesChannel>>,
-  True<RequiredField<UpdateSalesChannelParams, "expected_updated_at">>,
-  True<Equal<Awaited<ReturnType<SalesChannelApi["usage"]>>, SalesChannelUsage>>,
-  False<"deleting" extends SalesChannelEditableStatus["type"] ? true : false>,
-  True<RequiredField<CompanyProfile, "registered_address">>,
-  True<RequiredField<CompanyProfile, "legal_name">>,
-  True<RequiredField<CompanyProfile, "contact_email">>,
-  True<null extends CompanyProfile["registered_address"] ? true : false>,
-  True<RequiredField<CompanyAddress, "state">>,
-  True<RequiredField<CompanyAddress, "street2">>,
-  False<undefined extends CompanyAddress["country"] ? true : false>,
-  True<null extends CompanyAddress["country"] ? true : false>,
-  False<"key" extends keyof Company ? true : false>,
-  False<"key" extends keyof UpdateCustomerGroupParams ? true : false>,
-  False<
-    "company_id" extends keyof UpdateCompanyMembershipParams ? true : false
-  >,
-  False<
-    "customer_id" extends keyof UpdateCompanyMembershipParams ? true : false
-  >,
-  False<"status" extends keyof CreateCompanyMembershipParams ? true : false>,
-  False<"company_id" extends keyof UpdateCompanyLocationParams ? true : false>,
-  True<RequiredField<UpdateCompanyLocationParams, "billing_address">>,
-  True<
-    null extends UpdateCompanyLocationParams["billing_address"] ? true : false
-  >,
-  False<"status" extends keyof UpdateCompanyRoleParams ? true : false>,
-  False<"key" extends keyof UpdateCompanyRoleParams ? true : false>,
-  False<"is_system" extends keyof CreateCompanyRoleParams ? true : false>,
-  False<"is_system" extends keyof UpdateCompanyRoleParams ? true : false>,
-  False<"rule_ids" extends keyof CompanyUsage ? true : false>,
-  False<"rule_ids" extends keyof CustomerGroupUsage ? true : false>,
-  False<"listing_ids" extends keyof SalesChannelUsage ? true : false>,
-  False<"status" extends keyof JoinCustomerGroupParams ? true : false>,
-  False<"customer_group_id" extends keyof JoinCustomerGroupParams ? true : false>,
-  False<"key" extends keyof CustomerGroupMember ? true : false>,
-  False<"key" extends keyof UpdateSalesChannelParams ? true : false>,
-  False<
-    null extends DeleteSalesChannelParams["replacement_default_sales_channel_id"]
-      ? true
-      : false
-  >,
-  False<
-    null extends UpdateSalesChannelParams["replacement_default_sales_channel_id"]
-      ? true
-      : false
-  >,
-  False<string extends CompanyPermission ? true : false>,
-  True<"create_subscriptions" extends CompanyPermission ? true : false>,
-  True<"manage_company_subscriptions" extends CompanyPermission ? true : false>,
-  True<Equal<CompanyPermission, "admin" | "place_orders" | "create_subscriptions" | "access_digital_products" | "view_own_orders" | "view_company_orders" | "view_own_subscriptions" | "view_company_subscriptions" | "manage_company" | "manage_addresses" | "manage_members" | "manage_company_subscriptions" | "manage_payment_methods">>,
-  True<Equal<SalesChannel["market_ids"], string[]>>,
-  True<RequiredField<CreateSalesChannelParams, "market_ids">>,
-  True<RequiredField<UpdateSalesChannelParams, "market_ids">>,
-  True<Equal<keyof SalesChannelUsage, "storefront_client_ids" | "more_storefront_clients" | "catalog_access_ids" | "more_catalog_accesses" | "shipping_rate_ids" | "more_shipping_rates" | "cart_ids" | "more_carts" | "is_default">>,
-  True<"marketSalesChannel" extends keyof Admin["store"] ? false : true>,
-  False<"name" extends keyof CompanyRole ? true : false>,
-  False<"name" extends keyof CreateCompanyRoleParams ? true : false>,
-  False<"name" extends keyof UpdateCompanyRoleParams ? true : false>,
-  True<Equal<PublicTypes.InitialMarketInput, InitialMarketInput>>,
-  True<RequiredField<InitialMarketInput, "key">>,
-  True<RequiredField<InitialMarketInput, "currency">>,
-  True<RequiredField<InitialMarketInput, "tax_mode">>,
-  False<"default_market_id" extends keyof UpdateStoreParams ? true : false>,
-  False<
-    null extends UpdateStoreParams["default_sales_channel_id"] ? true : false
-  >,
-  True<Equal<PublicTypes.MarketStatus, MarketStatus>>,
-  True<Equal<Market["status"], MarketStatus>>,
-  True<RequiredField<Market, "status">>,
+  True<Equal<PublicTypes.ApiKey, ApiKey>>,
+  True<Equal<keyof Store, "id" | "name" | "owner_account_id" | "timezone" | "languages" | "status" | "email_sending" | "created_at" | "updated_at">>,
+  True<Equal<Store["status"]["type"], "active" | "deleting">>,
+  True<Equal<Store["email_sending"], StoreEmailSending>>,
+  True<Equal<StoreEmailSending, { type: "allowed" } | { type: "paused"; reason: string }>>,
+  True<RequiredField<CreateStoreParams, "market">>,
+  True<RequiredField<CreateStoreParams, "sales_channel">>,
+  True<RequiredField<UpdateStoreParams, "expected_updated_at">>,
+  False<"billing_email" | "contact_email" | "default_language" | "supported_languages" | "email_sending" extends keyof UpdateStoreParams ? true : false>,
+  True<Equal<Market["payment_option_ids"], string[]>>,
   True<Equal<MarketStatus["type"], "active" | "deleting">>,
-  True<Equal<Awaited<ReturnType<MarketApi["delete"]>>, Market>>,
-  True<Equal<Awaited<ReturnType<MarketApi["usage"]>>, MarketUsage>>,
-  True<Equal<PublicTypes.MarketUsage, MarketUsage>>,
-  True<Equal<keyof MarketUsage, "market_payment_option_ids" | "more_market_payment_options" | "sales_channel_ids" | "more_sales_channels" | "market_zone_ids" | "more_market_zones" | "catalog_ids" | "more_catalogs" | "cart_ids" | "more_carts">>,
-  False<"is_default" extends keyof MarketUsage ? true : false>,
-  True<RequiredField<UpdateMarketParams, "expected_updated_at">>,
+  True<Equal<keyof UpdateMarketParams, "store_id" | "id" | "expected_updated_at" | "tax_mode" | "payment_option_ids">>,
   True<RequiredField<DeleteMarketParams, "expected_updated_at">>,
-  False<"replacement_default_market_id" extends keyof DeleteMarketParams ? true : false>,
-  False<"key" extends keyof UpdateMarketParams ? true : false>,
-  False<"currency" extends keyof UpdateMarketParams ? true : false>,
-  False<"rule_ids" extends keyof MarketUsage ? true : false>,
+  True<Equal<Awaited<ReturnType<Admin["store"]["market"]["delete"]>>, Market>>,
+  False<"usage" extends keyof Admin["store"]["market"] ? true : false>,
+  True<Equal<keyof Company, "id" | "store_id" | "name" | "contact_email" | "tax" | "purchasing" | "blocks" | "status" | "created_at" | "updated_at">>,
+  True<Equal<Company["blocks"], Block[]>>,
+  True<Equal<Company["tax"], BuyerTax>>,
+  True<Equal<Company["purchasing"], CompanyPurchasingPolicy>>,
+  True<Equal<CompanyStatus["type"], "active" | "archived" | "deleting">>,
+  True<Equal<CompanyEditableStatus["type"], "active" | "archived">>,
+  True<Equal<CreateCompanyParams["status"], CompanyEditableStatus>>,
+  True<RequiredField<CreateCompanyParams, "id">>,
+  True<RequiredField<CreateCompanyParams, "contact_email">>,
+  False<RequiredField<CreateCompanyParams, "billing_address">>,
+  True<Equal<CreateCompanyParams["billing_address"], PostalAddressInput | null | undefined>>,
+  True<RequiredField<UpdateCompanyParams, "expected_updated_at">>,
+  True<RequiredField<UpdateCompanyParams, "billing_address">>,
+  True<Equal<UpdateCompanyParams["billing_address"], PostalAddressInput | null>>,
+  True<RequiredField<DeleteCompanyParams, "expected_updated_at">>,
+  True<Equal<Awaited<ReturnType<CompanyApi["delete"]>>, Company>>,
+  True<Equal<NonNullable<FindCompaniesParams["sort_field"]>, "created_at" | "updated_at">>,
+  True<Equal<Parameters<CompanyApi["submitTaxRegistration"]>[0], SubmitCompanyTaxRegistrationParams>>,
+  True<Equal<Awaited<ReturnType<CompanyApi["submitTaxRegistration"]>>, Company>>,
+  True<Equal<Parameters<CompanyApi["reviewTaxRegistration"]>[0], ReviewCompanyTaxRegistrationParams>>,
+  True<Equal<Awaited<ReturnType<CompanyApi["reviewTaxRegistration"]>>, Company>>,
+  True<Equal<CompanyLocation["purchasing"], CompanyPurchasingPolicy>>,
+  True<Equal<CompanyLocation["fulfillment"], CompanyLocationFulfillment>>,
+  True<Equal<CompanyLocation["tax"], BuyerTax>>,
+  False<"commerce" extends keyof CompanyLocation ? true : false>,
+  True<Equal<CompanyLocationStatus["type"], "active" | "archived" | "deleting">>,
+  True<Equal<CreateCompanyLocationParams["status"], CompanyLocationEditableStatus>>,
+  True<RequiredField<CreateCompanyLocationParams, "id">>,
+  True<RequiredField<CreateCompanyLocationParams, "company_id">>,
+  True<RequiredField<UpdateCompanyLocationParams, "expected_updated_at">>,
+  True<RequiredField<DeleteCompanyLocationParams, "expected_updated_at">>,
+  True<Equal<Awaited<ReturnType<CompanyApi["location"]["delete"]>>, CompanyLocation>>,
+  True<Equal<SetCompanyLocationFulfillmentParams["fulfillment"], CompanyLocationFulfillment>>,
+  True<Equal<CompanyLocationFulfillment["type"], "routing" | "served_from">>,
+  True<RequiredField<SubmitCompanyTaxRegistrationParams, "expected_updated_at">>,
+  True<RequiredField<ReviewCompanyTaxRegistrationParams, "review">>,
+  True<Equal<Parameters<CompanyApi["location"]["submitTaxRegistration"]>[0], SubmitCompanyTaxRegistrationParams>>,
+  True<Equal<Awaited<ReturnType<CompanyApi["location"]["reviewTaxRegistration"]>>, CompanyLocation>>,
+  False<"setServedFrom" | "minimumProgress" | "setCommercePolicy" extends keyof CompanyApi["location"] ? true : false>,
+  False<"minimumProgress" extends keyof CompanyApi ? true : false>,
+  True<Equal<keyof CompanyRole, "id" | "store_id" | "key" | "permissions" | "created_at" | "updated_at">>,
+  True<Equal<CompanyRole["permissions"], CompanyPermission[]>>,
+  True<Equal<CompanyPermission,
+    | "admin" | "place_orders" | "join_customer_groups" | "access_digital_products" | "view_own_orders" | "view_company_orders"
+    | "view_own_customer_groups" | "view_company_customer_groups" | "manage_company" | "manage_addresses" | "manage_members"
+    | "manage_company_customer_groups" | "manage_payment_methods">>,
+  True<RequiredField<CreateCompanyRoleParams, "id">>,
+  True<Equal<keyof UpdateCompanyRoleParams, "store_id" | "id" | "expected_updated_at" | "permissions">>,
+  True<RequiredField<UpdateCompanyRoleParams, "expected_updated_at">>,
+  True<Equal<Awaited<ReturnType<CompanyApi["role"]["delete"]>>, DeletedResponse>>,
+  True<Equal<keyof CompanyMembership, "id" | "store_id" | "company_id" | "grants" | "status" | "created_at" | "updated_at">>,
+  True<Equal<CompanyMembership["grants"], CompanyMembershipGrant[]>>,
+  True<Equal<CompanyMembershipGrant, { scope: CompanyMembershipScope; role_ids: string[] }>>,
+  True<Equal<CompanyMembershipScope, { type: "company" } | { type: "company_location"; company_location_id: string }>>,
+  True<Equal<CompanyMembershipStatus["type"], "invited" | "active" | "disabled">>,
+  True<RequiredField<CreateCompanyMembershipParams, "id">>,
+  True<RequiredField<CreateCompanyMembershipParams, "grants">>,
+  False<"locations" | "role_ids" extends keyof CreateCompanyMembershipParams ? true : false>,
+  True<RequiredField<UpdateCompanyMembershipParams, "expected_updated_at">>,
+  True<RequiredField<UpdateCompanyMembershipParams, "grants">>,
+  False<"locations" | "role_ids" extends keyof UpdateCompanyMembershipParams ? true : false>,
+  True<RequiredField<DeleteCompanyMembershipParams, "expected_updated_at">>,
+  True<Equal<Awaited<ReturnType<CompanyApi["membership"]["delete"]>>, DeletedResponse>>,
+  True<"role_id" extends keyof FindCompanyMembershipsParams ? true : false>,
+  True<Equal<keyof CompanyCustomerAccess, "company" | "grants">>,
+  True<Equal<CompanyCustomerAccess["grants"], CompanyAccessGrant[]>>,
+  True<Equal<CompanyAccessGrant, { scope: CompanyMembershipScope; permissions: CompanyPermission[] }>>,
+  True<Equal<SalesChannel["market_ids"], string[]>>,
+  True<Equal<SalesChannelStatus["type"], "active" | "archived">>,
+  True<RequiredField<CreateSalesChannelParams, "id">>,
+  True<RequiredField<UpdateSalesChannelParams, "expected_updated_at">>,
+  True<Equal<keyof ApiKey, "id" | "store_id" | "name" | "type" | "status" | "created_at" | "updated_at">>,
+  True<Equal<Extract<ApiKey["type"], { type: "publishable" }>["sales_channel_id"], string>>,
+  True<Equal<Extract<ApiKey["type"], { type: "publishable" }>["token"], string>>,
+  True<Equal<ApiKeyStatus, { type: "active" } | { type: "revoked"; revoked_at: EpochMilliseconds }>>,
+  True<Equal<keyof CreateApiKeyParams, "store_id" | "id" | "name" | "type">>,
+  False<"publishable_key" | "sales_channel_ids" extends keyof CreateApiKeyParams ? true : false>,
+  True<Equal<keyof ApiKeyApi, "find" | "get" | "create" | "revoke" | "delete">>,
+  True<Equal<Parameters<ApiKeyApi["find"]>[0], FindApiKeysParams>>,
+  True<Equal<Awaited<ReturnType<ApiKeyApi["find"]>>, PaginatedResponse<ApiKey>>>,
+  True<Equal<Parameters<ApiKeyApi["get"]>[0], GetApiKeyParams>>,
+  True<Equal<Parameters<ApiKeyApi["create"]>[0], CreateApiKeyParams>>,
+  True<Equal<Awaited<ReturnType<ApiKeyApi["create"]>>, ApiKeyCreated>>,
+  True<Equal<Parameters<ApiKeyApi["revoke"]>[0], RevokeApiKeyParams>>,
+  True<RequiredField<RevokeApiKeyParams, "expected_updated_at">>,
+  False<"storefrontClient" extends keyof Admin["store"] ? true : false>,
+  True<Equal<UpdateCompanyParams["expected_updated_at"], EpochMilliseconds>>,
 ];

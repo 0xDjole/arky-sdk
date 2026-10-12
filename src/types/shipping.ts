@@ -1,79 +1,23 @@
-import type { Block } from "./index";
-import type { ShippingDeliveryEstimate } from "./quote";
 import type { EpochMilliseconds } from "./time";
+import type { Block } from "./block";
+import type { SortDirection } from "./common";
+
+export interface ShippingProfile {
+  id: string;
+  store_id: string;
+  key: string;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+}
 
 export type ShippingMethodType =
   | { type: "delivery" }
   | { type: "pickup"; store_location_id: string };
 
-export type ShippingMethodEditableStatus =
-  | { type: "active" }
-  | { type: "archived" };
-export type ShippingMethodStatus =
-  ShippingMethodEditableStatus | { type: "deleting" };
-
-export interface ShippingMethod {
-  id: string;
-  store_id: string;
-  key: string;
-  blocks: Block[];
-  type: ShippingMethodType;
-  tax_category_id: string | null;
-  status: ShippingMethodStatus;
-  created_at: EpochMilliseconds;
-  updated_at: EpochMilliseconds;
-}
-
-export interface CreateShippingMethodParams {
-  store_id: string;
-  key: string;
-  blocks: Block[];
-  type: ShippingMethodType;
-  tax_category_id: string | null;
-  status: ShippingMethodEditableStatus;
-}
-
-export interface UpdateShippingMethodParams {
-  store_id: string;
-  id: string;
-  expected_updated_at: EpochMilliseconds;
-  blocks: Block[];
-  type: ShippingMethodType;
-  tax_category_id: string | null;
-  status: ShippingMethodEditableStatus;
-}
-
-export interface GetShippingMethodParams {
-  store_id: string;
-  id: string;
-}
-
-export interface FindShippingMethodsParams {
-  store_id: string;
-  key?:string;
-  location_id?:string;
-  tax_category_id?:string;
-  status?: "active"|"archived"|"deleting";
-  sort_field?: "created_at"|"updated_at";
-  sort_direction?: "asc"|"desc";
-  limit?:number;
-  cursor?:string;
-}
-
-export interface GetShippingMethodByKeyParams {
-  store_id: string;
-  key:string;
-}
-
-export interface DeleteShippingMethodParams {
-  store_id: string;
-  id: string;
-  expected_updated_at: EpochMilliseconds;
-}
-
 export type ShippingRateCondition =
   | { type: "sales_channel"; ids: string[] }
   | { type: "customer_group"; ids: string[] }
+  | { type: "customer_group_offering"; ids: string[] }
   | { type: "company"; ids: string[] }
   | { type: "company_location"; ids: string[] }
   | { type: "minimum_subtotal"; amount: number }
@@ -81,85 +25,111 @@ export type ShippingRateCondition =
   | { type: "minimum_weight_grams"; grams: number }
   | { type: "maximum_weight_grams"; grams: number };
 
-export interface ShippingRateWeightTier {
+export interface ShippingWeightTier {
   up_to_grams: number | null;
   amount: number;
 }
 
-
 export type ShippingRatePricing =
   | { type: "flat"; amount: number; free_above_subtotal: number | null }
-  | {
-      type: "weight_tiered";
-      tiers: ShippingRateWeightTier[];
-      free_above_subtotal: number | null;
-    };
+  | { type: "weight_tiered"; tiers: ShippingWeightTier[]; free_above_subtotal: number | null };
 
-export type ShippingRateEditableStatus =
-  | { type: "active" }
-  | { type: "archived" };
-export type ShippingRateStatus =
-  ShippingRateEditableStatus | { type: "deleting" };
+export interface ShippingDeliveryEstimate {
+  min_business_days: number;
+  max_business_days: number;
+}
 
 export interface ShippingRate {
   id: string;
-  store_id: string;
-  market_zone_id: string;
-  shipping_method_id: string;
+  zone_id: string;
   shipping_profile_id: string;
   conditions: ShippingRateCondition[];
   pricing: ShippingRatePricing;
   delivery_estimate: ShippingDeliveryEstimate | null;
-  status: ShippingRateStatus;
   starts_at: EpochMilliseconds | null;
   ends_at: EpochMilliseconds | null;
+}
+
+export type ShippingTax = { type: "category"; tax_category_id: string } | { type: "follow_goods" };
+
+export type ShippingMethodStatus = { type: "active" } | { type: "archived" };
+
+export interface ShippingMethod {
+  id: string;
+  store_id: string;
+  key: string;
+  blocks: Block[];
+  type: ShippingMethodType;
+  tax: ShippingTax;
+  rates: ShippingRate[];
+  status: ShippingMethodStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
-export interface CreateShippingRateParams {
+export interface FindShippingProfilesParams {
   store_id: string;
-  market_zone_id: string;
-  shipping_method_id: string;
-  shipping_profile_id: string;
-  conditions: ShippingRateCondition[];
-  pricing: ShippingRatePricing;
-  delivery_estimate: ShippingDeliveryEstimate | null;
-  status: ShippingRateEditableStatus;
-  starts_at: EpochMilliseconds | null;
-  ends_at: EpochMilliseconds | null;
+  key?: string;
+  sort_field?: "created_at" | "updated_at";
+  sort_direction?: SortDirection;
+  limit?: number;
+  cursor?: string | null;
 }
 
-export interface UpdateShippingRateParams {
+export interface CreateShippingProfileParams {
+  store_id: string;
+  id: string;
+  key: string;
+}
+
+export interface UpdateShippingProfileParams {
   store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
-  conditions: ShippingRateCondition[];
-  pricing: ShippingRatePricing;
-  delivery_estimate: ShippingDeliveryEstimate | null;
-  status: ShippingRateEditableStatus;
-  starts_at: EpochMilliseconds | null;
-  ends_at: EpochMilliseconds | null;
+  key: string;
 }
 
-export interface GetShippingRateParams {
+export interface DeleteShippingProfileParams {
   store_id: string;
   id: string;
+  expected_updated_at: EpochMilliseconds;
 }
 
-export interface FindShippingRatesParams {
+export interface FindShippingMethodsParams {
   store_id: string;
-  market_zone_id?:string;
-  shipping_method_id?:string;
-  shipping_profile_id?:string;
-  status?: "active"|"archived"|"deleting";
-  sort_field?: "created_at"|"updated_at";
-  sort_direction?: "asc"|"desc";
-  limit?:number;
-  cursor?:string;
+  key?: string;
+  status?: ShippingMethodStatus["type"];
+  type?: ShippingMethodType["type"];
+  store_location_id?: string;
+  sort_field?: "created_at" | "updated_at";
+  sort_direction?: SortDirection;
+  limit?: number;
+  cursor?: string | null;
 }
 
-export interface DeleteShippingRateParams {
+export interface CreateShippingMethodParams {
+  store_id: string;
+  id: string;
+  key: string;
+  blocks: Block[];
+  type: ShippingMethodType;
+  tax: ShippingTax;
+  rates: ShippingRate[];
+  status: ShippingMethodStatus;
+}
+
+export interface UpdateShippingMethodParams {
+  store_id: string;
+  id: string;
+  expected_updated_at: EpochMilliseconds;
+  key?: string;
+  blocks?: Block[];
+  tax?: ShippingTax;
+  rates?: ShippingRate[];
+  status?: ShippingMethodStatus;
+}
+
+export interface DeleteShippingMethodParams {
   store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;

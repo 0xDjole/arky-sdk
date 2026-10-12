@@ -1,105 +1,121 @@
-import assert from 'node:assert/strict';
-import test from 'node:test';
-import { createAdmin } from '../dist/admin.js';
+import assert from "node:assert/strict";
+import test from "node:test";
+import { createAdmin } from "../dist/admin.js";
+import { errorResponse, recordFetch } from "./helpers/arky-fixtures.mjs";
 
-const STORE_ID = '8b2f4d6a-1c93-4e57-a0b8-6d4e2f1c9a35';
+const STORE_ID = "8b2f4d6a-1c93-4e57-a0b8-6d4e2f1c9a35";
+const categoryId = "5c1e7a93-2b48-4d06-9f3e-8a1c6d0b4e27";
+const methodId = "9d4b2e61-7a35-4c08-b1f9-3e6a0c8d5b72";
+const zoneId = "2e8a6c14-9b37-4d50-a2f8-6c1e4b9d0a35";
 
-test('tax-rule writes preserve exact treatments, revisions and explicit schedule boundaries', async () => {
-  const original = globalThis.fetch;
-  const calls = [];
-  globalThis.fetch = async (url, init) => {
-    calls.push({ url: new URL(url), init });
-    return new Response(JSON.stringify({ id: 'rule' }), { headers: { 'content-type': 'application/json' } });
-  };
-  try {
-    const api = createAdmin({ baseUrl: 'https://api.example.test', apiToken: 'arky_api_test' }).store.taxRule;
-    const treatment = { type: 'rates', components: [
-      { id: 'first', title: 'Exact rate', code: 'vat', calculation: { type: 'percentage', rate: { numerator: 1, denominator: 3 }, compound: true } },
-      { id: 'second', title: 'Per item', code: null, calculation: { type: 'fixed_per_unit', unit_amount: { amount: 42, currency: 'eur' } } }
-    ] };
-    await api.create({ store_id: STORE_ID, market_zone_id: 'assignment', tax_category_id: 'category', treatment, status: { type: 'archived' }, starts_at: 1900000000123, ends_at: null });
-    await api.update({ store_id: STORE_ID, id: 'rule', expected_updated_at: 100, treatment, status: { type: 'archived' }, starts_at: null, ends_at: 1900000000456 });
-    assert.equal(calls.length, 2);
-    assert.equal(calls[0].init.method, 'POST');
-    assert.equal(calls[1].init.method, 'PUT');
-    assert.equal(calls[0].url.pathname, `/v1/stores/${STORE_ID}/tax-rules`);
-    assert.equal(calls[1].url.pathname, `/v1/stores/${STORE_ID}/tax-rules/rule`);
-    assert.deepEqual(JSON.parse(calls[0].init.body), { market_zone_id: 'assignment', tax_category_id: 'category', treatment, status: { type: 'archived' }, starts_at: 1900000000123, ends_at: null });
-    assert.deepEqual(JSON.parse(calls[1].init.body), { expected_updated_at: 100, treatment, status: { type: 'archived' }, starts_at: null, ends_at: 1900000000456 });
-  } finally { globalThis.fetch = original; }
+function store() {
+  return createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" }).store;
+}
+
+test("a tax category carries its rules with exact treatments and explicit schedule boundaries", async (context) => {
+  const calls = recordFetch(context, (call) => call.method === "DELETE" ? { deleted: true } : { id: categoryId });
+  const rules = [
+    {
+      id: "rule-1",
+      areas: [{ type: "country", country: "US" }],
+      treatment: {
+        type: "rates",
+        components: [
+          { id: "first", title: "Exact rate", code: "vat", calculation: { type: "percentage", rate: { numerator: 1, denominator: 3 }, compound: true } },
+          { id: "second", title: "Per item", code: null, calculation: { type: "fixed_per_unit", unit_amount: { amount: 42, currency: "eur" } } },
+        ],
+      },
+      starts_at: 1_900_000_000_123,
+      ends_at: null,
+    },
+    { id: "rule-2", areas: [{ type: "country", country: "US" }], treatment: { type: "zero_rated", reason: "Exports" }, starts_at: null, ends_at: 1_900_000_000_456 },
+  ];
+  const api = store().taxCategory;
+  await api.create({ store_id: STORE_ID, id: categoryId, key: "standard", rules });
+  await api.update({ store_id: STORE_ID, id: categoryId, expected_updated_at: 100, rules });
+  assert.deepEqual(await api.delete({ store_id: STORE_ID, id: categoryId, expected_updated_at: 101 }), { deleted: true });
+  assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
+    ["POST", `/v1/stores/${STORE_ID}/tax-categories`, {}, { id: categoryId, key: "standard", rules }],
+    ["PUT", `/v1/stores/${STORE_ID}/tax-categories/${categoryId}`, {}, { expected_updated_at: 100, rules }],
+    ["DELETE", `/v1/stores/${STORE_ID}/tax-categories/${categoryId}`, { expected_updated_at: "101" }, null],
+  ]);
+  assert.equal("taxRule" in store(), false);
 });
 
-test('shipping-rate writes preserve explicit nulls, schedules, prices and revisions', async () => {
-  const original = globalThis.fetch;
-  const calls = [];
-  globalThis.fetch = async (url, init) => {
-    calls.push({ url: new URL(url), init });
-    return new Response(JSON.stringify({ id: 'rate' }), { headers: { 'content-type': 'application/json' } });
-  };
-  try {
-    const api = createAdmin({ baseUrl: 'https://api.example.test', apiToken: 'arky_api_test' }).store.shippingRate;
-    const values = {
-      conditions: [], pricing: { type: 'flat', amount: 495, free_above_subtotal: null },
-      delivery_estimate: null, status: { type: 'active' }, starts_at: null, ends_at: null
-    };
-    const create = { market_zone_id: 'assignment', shipping_method_id: 'method', shipping_profile_id: 'profile', ...values };
-    const update = { ...values, expected_updated_at: 100, starts_at: 1900000000123, ends_at: 1900000000456 };
-    await api.create({ store_id: STORE_ID, ...create });
-    await api.update({ store_id: STORE_ID, id: 'rate', ...update });
-    assert.equal(calls.length, 2);
-    assert.equal(calls[0].url.pathname, `/v1/stores/${STORE_ID}/shipping-rates`);
-    assert.equal(calls[1].url.pathname, `/v1/stores/${STORE_ID}/shipping-rates/rate`);
-    assert.equal(calls[0].init.method, 'POST');
-    assert.equal(calls[1].init.method, 'PUT');
-    assert.deepEqual(JSON.parse(calls[0].init.body), create);
-    assert.deepEqual(JSON.parse(calls[1].init.body), update);
-  } finally { globalThis.fetch = original; }
+test("a shipping method carries its rates with explicit nulls, schedules and prices", async (context) => {
+  const calls = recordFetch(context, () => ({ id: methodId }));
+  const rates = [
+    { id: "rate-1", zone_id: zoneId, shipping_profile_id: "profile", conditions: [], pricing: { type: "flat", amount: 495, free_above_subtotal: null }, delivery_estimate: null, starts_at: null, ends_at: null },
+    {
+      id: "rate-2",
+      zone_id: zoneId,
+      shipping_profile_id: "profile",
+      conditions: [{ type: "minimum_weight_grams", grams: 1000 }],
+      pricing: { type: "weight_tiered", tiers: [{ up_to_grams: 5000, amount: 900 }, { up_to_grams: null, amount: 1500 }], free_above_subtotal: 10_000 },
+      delivery_estimate: { min_business_days: 1, max_business_days: 3 },
+      starts_at: 1_900_000_000_123,
+      ends_at: 1_900_000_000_456,
+    },
+  ];
+  const api = store().shippingMethod;
+  const create = { id: methodId, key: "courier", blocks: [], type: { type: "delivery" }, tax_category_id: categoryId, rates, status: { type: "active" } };
+  await api.create({ store_id: STORE_ID, ...create });
+  await api.update({ store_id: STORE_ID, id: methodId, expected_updated_at: 100, rates, status: { type: "archived" } });
+  assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
+    ["POST", `/v1/stores/${STORE_ID}/shipping-methods`, create],
+    ["PUT", `/v1/stores/${STORE_ID}/shipping-methods/${methodId}`, { expected_updated_at: 100, rates, status: { type: "archived" } }],
+  ]);
+  for (const removed of ["shippingRate", "marketZone"]) assert.equal(removed in store(), false, removed);
 });
 
 const owners = [
-  ['marketZone','market-zones',{market_id:'market',zone_id:'zone'},'lookup'],
-  ['shippingMethod','shipping-methods',{key:'pickup',location_id:'location',tax_category_id:'category'},'Key'],
-  ['shippingRate','shipping-rates',{market_zone_id:'assignment',shipping_method_id:'method',shipping_profile_id:'profile'},null],
-  ['taxRule','tax-rules',{market_zone_id:'assignment',default_only:true},null],
+  ["zone", "zones", { market_id: "market", key: "eu" }],
+  ["shippingMethod", "shipping-methods", { key: "pickup", status: "active", type: "pickup", store_location_id: "location" }],
+  ["shippingProfile", "shipping-profiles", { key: "bulky" }],
+  ["taxCategory", "tax-categories", { key: "reduced" }],
 ];
-for (const [owner,path,scope,exact] of owners) {
-  test(`${owner} preserves combined predicates, exact reads and native deletion responses`,async()=>{
-    const original=globalThis.fetch;
-    const calls=[];
-    globalThis.fetch=async(url,init)=>{
-      calls.push({url:new URL(url),init});
-      return new Response(JSON.stringify({items:[],cursor:'after-stale'}),{headers:{'content-type':'application/json'}});
-    };
-    try {
-      const api=createAdmin({baseUrl:'https://api.example.test',apiToken:'arky_api_test'}).store[owner];
-      const filters={store_id:STORE_ID,...scope,status:'active',sort_field:'updated_at',sort_direction:'asc',limit:50,cursor:'previous'};
-      assert.deepEqual(await api.find(filters),{items:[],cursor:'after-stale'});
-      assert.equal(calls[0].url.pathname,`/v1/stores/${STORE_ID}/${path}`);
-      assert.equal(calls[0].url.searchParams.has('store_id'),false);
-      for(const [key,value]of Object.entries(filters)){
-        if(key!=='store_id')assert.equal(calls[0].url.searchParams.get(key),String(value));
-      }
-      if(exact){
-        const keyInput=exact==='Key'?{key:'pickup'}:scope;
-        await api[exact === "Key" ? "getByKey" : "lookup"]({store_id:STORE_ID,...keyInput});
-        assert.equal(calls[1].url.pathname,`/v1/stores/${STORE_ID}/${path}/${exact==='Key'?'by-key/pickup':'lookup'}`);
-        if(exact==='lookup'){
-          for(const [key,value]of Object.entries(scope))assert.equal(calls[1].url.searchParams.get(key),value);
-        }
-      }
-      for(const status of [403,404,409,503]){
-        let count=0;
-        globalThis.fetch=async()=>{count++;return new Response(JSON.stringify({message:'failed'}),{status});};
-        await assert.rejects(api.find(filters),error=>error.statusCode===status);
-        assert.equal(count,1);
-      }
-      const remove=api.delete;
-      globalThis.fetch=async()=>new Response(null,{status:204});
-      assert.equal(await remove({store_id:STORE_ID,id:'record',expected_updated_at:1}),undefined);
-      globalThis.fetch=async()=>new Response(JSON.stringify({id:'record',status:{type:'deleting'}}),{status:202,headers:{'content-type':'application/json'}});
-      assert.deepEqual(await remove({store_id:STORE_ID,id:'record',expected_updated_at:1}),{id:'record',status:{type:'deleting'}});
-      await assert.rejects(async()=>api.find({...filters,store_id:undefined}),TypeError);
-      await assert.rejects(async()=>remove({store_id:'chosen',id:'record',expected_updated_at:1}),TypeError);
-    }finally{globalThis.fetch=original;}
+
+for (const [owner, path, scope] of owners) {
+  test(`${owner} keeps combined filters, reads by id or key, and deletes with the version`, async (context) => {
+    let failure = null;
+    const calls = recordFetch(context, (call) => {
+      if (failure) return errorResponse(failure);
+      if (call.method === "DELETE") return { deleted: true };
+      return call.path.endsWith(path) ? { items: [], cursor: "after" } : { id: "record" };
+    });
+    const api = store()[owner];
+    const filters = { store_id: STORE_ID, ...scope, sort_field: "updated_at", sort_direction: "asc", limit: 50, cursor: "previous" };
+    assert.deepEqual(await api.find(filters), { items: [], cursor: "after" });
+    await api.get({ store_id: STORE_ID, id: "record/1" });
+    await api.getByKey({ store_id: STORE_ID, key: "by/key" });
+    assert.deepEqual(await api.delete({ store_id: STORE_ID, id: "record", expected_updated_at: 1 }), { deleted: true });
+    assert.deepEqual(calls.map(({ method, path: called, query }) => [method, called, query]), [
+      ["GET", `/v1/stores/${STORE_ID}/${path}`, Object.fromEntries(Object.entries(filters).filter(([key]) => key !== "store_id").map(([key, value]) => [key, String(value)]))],
+      ["GET", `/v1/stores/${STORE_ID}/${path}/record%2F1`, {}],
+      ["GET", `/v1/stores/${STORE_ID}/${path}/by-key/by%2Fkey`, {}],
+      ["DELETE", `/v1/stores/${STORE_ID}/${path}/record`, { expected_updated_at: "1" }],
+    ]);
+    for (const status of [403, 404, 409, 503]) {
+      failure = status;
+      const before = calls.length;
+      await assert.rejects(api.find(filters), (error) => error.statusCode === status);
+      assert.equal(calls.length - before, 1);
+    }
+    await assert.rejects(async () => api.find({ ...filters, store_id: undefined }), TypeError);
+    await assert.rejects(async () => api.delete({ store_id: "chosen", id: "record", expected_updated_at: 1 }), TypeError);
   });
 }
+
+test("zones are created under an app-picked id inside their market and edited by version", async (context) => {
+  const calls = recordFetch(context, () => ({ id: zoneId }));
+  const api = store().zone;
+  const areas = [{ type: "country", country: "BA" }, { type: "postal_code_prefix", country: "HR", prefix: "21" }];
+  await api.create({ store_id: STORE_ID, id: zoneId, market_id: "market", key: "balkans", areas });
+  await api.update({ store_id: STORE_ID, id: zoneId, expected_updated_at: 4, areas: areas.slice(0, 1) });
+  assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
+    ["POST", `/v1/stores/${STORE_ID}/zones`, { id: zoneId, market_id: "market", key: "balkans", areas }],
+    ["PUT", `/v1/stores/${STORE_ID}/zones/${zoneId}`, { expected_updated_at: 4, areas: areas.slice(0, 1) }],
+  ]);
+  await assert.rejects(async () => api.create({ store_id: STORE_ID, id: "balkans", market_id: "market", key: "balkans", areas }), TypeError);
+  assert.equal(calls.length, 2);
+});

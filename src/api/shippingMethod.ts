@@ -1,61 +1,48 @@
-import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
-import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
+import type { DeletedResponse, PaginatedResponse } from "../types/common";
 import type {
-  ShippingMethod,
   CreateShippingMethodParams,
-  UpdateShippingMethodParams,
-  GetShippingMethodParams,
-  GetShippingMethodByKeyParams,
-  FindShippingMethodsParams,
   DeleteShippingMethodParams,
+  FindShippingMethodsParams,
+  ShippingMethod,
+  UpdateShippingMethodParams,
 } from "../types/shipping";
+import type { StoreRecordByKeyParams, StoreRecordParams } from "../types/market";
+import { requireId } from "../utils/ids";
+import { segment, storePath, storeRecordPath } from "./paths";
 
-export const createShippingMethodApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId: string) =>
-    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/shipping-methods`;
+const collection = "shipping-methods";
 
-  return {
-    create(params: CreateShippingMethodParams, options?: RequestOptions): Promise<ShippingMethod> {
-      const { store_id, ...payload } = params;
-      return apiConfig.httpClient.post<ShippingMethod>(basePath(store_id), payload, options);
-    },
-    update(params: UpdateShippingMethodParams, options?: RequestOptions): Promise<ShippingMethod> {
-      const { store_id, id, ...payload } = params;
-      return apiConfig.httpClient.put<ShippingMethod>(
-        `${basePath(store_id)}/${encodeURIComponent(id)}`,
-        payload,
-        options,
-      );
-    },
-    get(params: GetShippingMethodParams, options?: RequestOptions): Promise<ShippingMethod> {
-      const { store_id, id } = params;
-      return apiConfig.httpClient.get<ShippingMethod>(
-        `${basePath(store_id)}/${encodeURIComponent(id)}`,
-        options,
-      );
-    },
-    getByKey(params:GetShippingMethodByKeyParams, options?:RequestOptions):Promise<ShippingMethod> {
-      const {store_id,key}=params;
-      return apiConfig.httpClient.get<ShippingMethod>(`${basePath(store_id)}/by-key/${encodeURIComponent(key)}`,options);
-    },
-    find(
-      params: FindShippingMethodsParams,
-      options?: RequestOptions,
-    ): Promise<PaginatedResponse<ShippingMethod>> {
-      const { store_id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<ShippingMethod>>(basePath(store_id), {
-        ...options,
-        params: query,
-      });
-    },
-    delete(params: DeleteShippingMethodParams, options?: RequestOptions): Promise<ShippingMethod | void> {
-      const { store_id, id, expected_updated_at } = params;
-      return apiConfig.httpClient.delete<ShippingMethod | void>(
-        `${basePath(store_id)}/${encodeURIComponent(id)}`,
-        { ...options, params: { expected_updated_at } },
-      );
-    },
-  };
-};
+export const createShippingMethodApi = (apiConfig: ApiConfig) => ({
+  find(params: FindShippingMethodsParams, options?: RequestOptions): Promise<PaginatedResponse<ShippingMethod>> {
+    const { store_id, ...query } = params;
+    return apiConfig.httpClient.get<PaginatedResponse<ShippingMethod>>(storePath(store_id, collection), { ...options, params: query });
+  },
+
+  get(params: StoreRecordParams, options?: RequestOptions): Promise<ShippingMethod> {
+    return apiConfig.httpClient.get<ShippingMethod>(storeRecordPath(params.store_id, collection, params.id), options);
+  },
+
+  getByKey(params: StoreRecordByKeyParams, options?: RequestOptions): Promise<ShippingMethod> {
+    return apiConfig.httpClient.get<ShippingMethod>(storePath(params.store_id, `${collection}/by-key/${segment(params.key)}`), options);
+  },
+
+  create(params: CreateShippingMethodParams, options?: RequestOptions): Promise<ShippingMethod> {
+    requireId(params.id, "shipping method");
+    const { store_id, ...body } = params;
+    return apiConfig.httpClient.post<ShippingMethod>(storePath(store_id, collection), body, options);
+  },
+
+  update(params: UpdateShippingMethodParams, options?: RequestOptions): Promise<ShippingMethod> {
+    const { store_id, id, ...body } = params;
+    return apiConfig.httpClient.put<ShippingMethod>(storeRecordPath(store_id, collection, id), body, options);
+  },
+
+  delete(params: DeleteShippingMethodParams, options?: RequestOptions): Promise<DeletedResponse> {
+    return apiConfig.httpClient.delete<DeletedResponse>(storeRecordPath(params.store_id, collection, params.id), {
+      ...options,
+      params: { expected_updated_at: params.expected_updated_at },
+    });
+  },
+});

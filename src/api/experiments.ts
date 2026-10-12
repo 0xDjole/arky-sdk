@@ -1,173 +1,77 @@
-import { requireStoreId } from "../utils/storeTarget";
-import type { EpochMilliseconds } from "../types/time";
 import type { ApiConfig } from "../services/clientTypes";
-import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
-
-export type ExperimentStatus =
-  | { type: "draft" }
-  | { type: "running"; started_at: EpochMilliseconds }
-  | { type: "paused"; started_at: EpochMilliseconds; paused_at: EpochMilliseconds }
-  | { type: "completed"; started_at: EpochMilliseconds; completed_at: EpochMilliseconds };
-
-export type ExperimentStatusFilter = ExperimentStatus["type"];
-
-export interface ExperimentVariant {
-  key: string;
-  allocation_bps: number;
-}
-
-export interface Experiment {
-  id: string;
-  store_id: string;
-  key: string;
-  status: ExperimentStatus;
-  goal_action_key: string;
-  attribution_window_days: number;
-  variants: ExperimentVariant[];
-  created_at: EpochMilliseconds;
-  updated_at: EpochMilliseconds;
-}
-
-export interface CreateExperimentParams {
-  store_id: string;
-  key: string;
-  goal_action_key: string;
-  attribution_window_days: number;
-  variants: ExperimentVariant[];
-}
-
-export interface ReplaceDraftExperimentParams {
-  store_id: string;
-  experiment_id: string;
-  key: string;
-  goal_action_key: string;
-  attribution_window_days: number;
-  variants: ExperimentVariant[];
-}
-
-export interface ExperimentLifecycleParams {
-  store_id: string;
-  experiment_id: string;
-}
-
-export type GetExperimentParams = ExperimentLifecycleParams;
-
-export interface FindExperimentsParams {
-  store_id: string;
-  status?: ExperimentStatusFilter;
-  limit?: number;
-  cursor?: string;
-}
-
-export interface ExperimentVariantResult {
-  variant_key: string;
-  allocation_bps: number;
-  eligible_assignments: number;
-  converted_assignments: number;
-  observed_conversion_rate: number | null;
-  excluded_conflicting_customers: number;
-  highest_observed: boolean;
-}
-
-export interface ExperimentResults {
-  experiment: Experiment;
-  variants: ExperimentVariantResult[];
-  freshness_at: EpochMilliseconds;
-  maturing: boolean;
-}
+import type { PaginatedResponse } from "../types/common";
+import type {
+  CreateExperimentParams,
+  DeleteExperimentParams,
+  Experiment,
+  ExperimentActionParams,
+  ExperimentResults,
+  FindExperimentsParams,
+  GetExperimentParams,
+  UpdateExperimentParams,
+} from "../types/experiment";
+import { requireId } from "../utils/ids";
+import { storePath, storeRecordPath } from "./paths";
 
 export const createExperimentsApi = (apiConfig: ApiConfig) => {
-  const base = (storeId: string) =>
-    `/v1/stores/${requireStoreId(storeId)}/experiments`;
-
-  const lifecycle = (
-    action: "start" | "pause" | "resume" | "complete",
-    params: ExperimentLifecycleParams,
-    options?: RequestOptions,
-  ): Promise<Experiment> =>
+  const experimentPath = (storeId: string, id: string) => storeRecordPath(storeId, "experiments", id);
+  const action = (verb: string, params: ExperimentActionParams, options?: RequestOptions) =>
     apiConfig.httpClient.post<Experiment>(
-      `${base(params.store_id)}/${params.experiment_id}/${action}`,
-      undefined,
+      `${experimentPath(params.store_id, params.id)}/${verb}`,
+      { expected_updated_at: params.expected_updated_at },
       options,
     );
 
   return {
-    create(
-      params: CreateExperimentParams,
-      options?: RequestOptions,
-    ): Promise<Experiment> {
-      const { store_id, ...payload } = params;
-      return apiConfig.httpClient.post<Experiment>(
-        base(store_id),
-        payload,
-        options,
-      );
+    find(params: FindExperimentsParams, options?: RequestOptions): Promise<PaginatedResponse<Experiment>> {
+      const { store_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<Experiment>>(storePath(store_id, "experiments"), {
+        ...options,
+        params: query,
+      });
     },
 
-    replaceDraft(
-      params: ReplaceDraftExperimentParams,
-      options?: RequestOptions,
-    ): Promise<Experiment> {
-      const { store_id, experiment_id, ...payload } = params;
-      return apiConfig.httpClient.put<Experiment>(
-        `${base(store_id)}/${experiment_id}`,
-        payload,
-        options,
-      );
+    get(params: GetExperimentParams, options?: RequestOptions): Promise<Experiment> {
+      return apiConfig.httpClient.get<Experiment>(experimentPath(params.store_id, params.id), options);
     },
 
-    deleteDraft(
-      params: ExperimentLifecycleParams,
-      options?: RequestOptions,
-    ): Promise<void> {
-      return apiConfig.httpClient.delete<void>(
-        `${base(params.store_id)}/${params.experiment_id}`,
-        options,
-      );
+    results(params: GetExperimentParams, options?: RequestOptions): Promise<ExperimentResults> {
+      return apiConfig.httpClient.get<ExperimentResults>(`${experimentPath(params.store_id, params.id)}/results`, options);
     },
 
-    start: (params: ExperimentLifecycleParams, options?: RequestOptions) =>
-      lifecycle("start", params, options),
-    pause: (params: ExperimentLifecycleParams, options?: RequestOptions) =>
-      lifecycle("pause", params, options),
-    resume: (params: ExperimentLifecycleParams, options?: RequestOptions) =>
-      lifecycle("resume", params, options),
-    complete: (params: ExperimentLifecycleParams, options?: RequestOptions) =>
-      lifecycle("complete", params, options),
-
-    get(
-      params: GetExperimentParams,
-      options?: RequestOptions,
-    ): Promise<Experiment> {
-      return apiConfig.httpClient.get<Experiment>(
-        `${base(params.store_id)}/${params.experiment_id}`,
-        options,
-      );
+    create(params: CreateExperimentParams, options?: RequestOptions): Promise<Experiment> {
+      requireId(params.id, "experiment");
+      const { store_id, ...body } = params;
+      return apiConfig.httpClient.post<Experiment>(storePath(store_id, "experiments"), body, options);
     },
 
-    find(
-      params: FindExperimentsParams,
-      options?: RequestOptions,
-    ): Promise<PaginatedResponse<Experiment>> {
-      const { store_id, ...queryParams } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<Experiment>>(
-        base(store_id),
-        {
-          ...options,
-          params: queryParams,
-        },
-      );
+    update(params: UpdateExperimentParams, options?: RequestOptions): Promise<Experiment> {
+      const { store_id, id, ...body } = params;
+      return apiConfig.httpClient.put<Experiment>(experimentPath(store_id, id), body, options);
     },
 
-    results(
-      params: GetExperimentParams,
-      options?: RequestOptions,
-    ): Promise<ExperimentResults> {
-      return apiConfig.httpClient.get<ExperimentResults>(
-        `${base(params.store_id)}/${params.experiment_id}/results`,
-        options,
-      );
+    delete(params: DeleteExperimentParams, options?: RequestOptions): Promise<void> {
+      return apiConfig.httpClient.delete<void>(experimentPath(params.store_id, params.id), {
+        ...options,
+        params: { expected_updated_at: params.expected_updated_at },
+      });
+    },
+
+    start(params: ExperimentActionParams, options?: RequestOptions): Promise<Experiment> {
+      return action("start", params, options);
+    },
+
+    pause(params: ExperimentActionParams, options?: RequestOptions): Promise<Experiment> {
+      return action("pause", params, options);
+    },
+
+    resume(params: ExperimentActionParams, options?: RequestOptions): Promise<Experiment> {
+      return action("resume", params, options);
+    },
+
+    complete(params: ExperimentActionParams, options?: RequestOptions): Promise<Experiment> {
+      return action("complete", params, options);
     },
   };
 };

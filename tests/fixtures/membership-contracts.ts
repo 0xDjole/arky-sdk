@@ -1,93 +1,76 @@
 import type {
-  CustomerGroupStatus,
-  CustomerGroupEditableStatus,
-  CustomerGroupCommunication,
-  CustomerGroupJoinPolicy,
-  CustomerGroupAdmission,
-  CustomerGroupAdministrativeAccess,
-  SubscriptionPlanStatus,
-  StorefrontCustomerGroup,
-  StorefrontSubscriptionPlan,
-  UpdateCustomerGroupParams,
-  BookingServiceStatus,
-  BookingResourceStatus,
   BookingOfferingStatus,
-  DigitalProductStatus,
-  EpochMilliseconds,
-  FindStorefrontSubscriptionPlansParams,
-  GetStorefrontSubscriptionPlanParams,
+  BookingResourceStatus,
+  BookingServiceStatus,
+  CommerceParty,
+  CustomerGroup,
+  CustomerGroupEntitlement,
+  CustomerGroupEntitlementType,
+  CustomerGroupMember,
+  CustomerGroupMemberSelf,
+  CustomerGroupMemberStatus,
+  CustomerGroupMemberType,
+  CustomerGroupOffering,
+  CustomerGroupOfferingStatus,
+  CustomerGroupStatus,
+  CustomerGroupTerm,
+  FindStorefrontCustomerGroupsParams,
+  GetStorefrontCustomerGroupParams,
+  PurchaseRequirement,
+  StorefrontCustomerGroup,
+  StorefrontCustomerGroupEntitlement,
+  StorefrontCustomerGroupOffering,
 } from "arky-sdk";
+import type * as Public from "arky-sdk/types";
+import type { createAdmin } from "arky-sdk/admin";
+import type { StorefrontClient } from "arky-sdk/storefront";
 
 type Expect<T extends true> = T;
-type Equal<A, B> =
-  (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2
-    ? true
-    : false;
-type GrantedAdmission = Extract<CustomerGroupAdmission, { type: "granted" }>;
-type RevokedAdmission = Extract<CustomerGroupAdmission, { type: "revoked" }>;
-type EmailCommunication = Extract<
-  CustomerGroupCommunication,
-  { type: "email" }
->;
+type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
+type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
+type Eshop = ReturnType<typeof createAdmin>["eshop"];
 
 export type MembershipContracts = [
-  Expect<Equal<NonNullable<FindStorefrontSubscriptionPlansParams["sort_field"]>, "key" | "created_at" | "price" | "catalog_order">>,
-  Expect<Equal<FindStorefrontSubscriptionPlansParams["include_price"], boolean | undefined>>,
-  Expect<Equal<GetStorefrontSubscriptionPlanParams["subscription_offering_id"], string | undefined>>,
-  Expect<
-    Equal<
-      CustomerGroupStatus["type"],
-      "draft" | "active" | "closed" | "archived" | "deleting"
-    >
-  >,
-  Expect<
-    Equal<
-      CustomerGroupEditableStatus["type"],
-      "draft" | "active" | "closed" | "archived"
-    >
-  >,
-  Expect<
-    Equal<UpdateCustomerGroupParams["status"], CustomerGroupEditableStatus>
-  >,
-  Expect<Equal<CustomerGroupJoinPolicy["type"], "open" | "private">>,
-  Expect<
-    Equal<
-      EmailCommunication["consent_policy"]["type"],
-      "immediate" | "confirmation"
-    >
-  >,
-  Expect<
-    Equal<
-      CustomerGroupAdmission["type"],
-      "requested" | "granted" | "revoked"
-    >
-  >,
-  Expect<Equal<GrantedAdmission["granted_at"], EpochMilliseconds>>,
-  Expect<Equal<RevokedAdmission["reason"], string>>,
-  Expect<
-    Equal<CustomerGroupAdministrativeAccess["expires_at"], EpochMilliseconds | null>
-  >,
-  Expect<
-    Equal<
-      Extract<keyof StorefrontCustomerGroup, "status" | "store_id">,
-      never
-    >
-  >,
-  Expect<Equal<"purchase_allowed" extends keyof StorefrontSubscriptionPlan ? true : false, false>>,
-  Expect<
-    Equal<
-      Extract<keyof StorefrontSubscriptionPlan, "status" | "store_id">,
-      never
-    >
-  >,
-  Expect<
-    Equal<
-      SubscriptionPlanStatus["type"],
-      "draft" | "active" | "closed" | "archived"
-    >
-  >,
-  Expect<Equal<BookingServiceStatus["type"], "draft" | "active" | "archived">>,
-  Expect<Equal<BookingResourceStatus["type"], "draft" | "active" | "archived">>,
-  Expect<Equal<BookingOfferingStatus["type"], "draft" | "active" | "archived">>,
-  Expect<Equal<DigitalProductStatus["type"], "draft" | "active" | "archived">>,
+  Expect<Equal<NonNullable<FindStorefrontCustomerGroupsParams["sort_field"]>, "key" | "created_at" | "price" | "catalog_order">>,
+  Expect<Equal<FindStorefrontCustomerGroupsParams["include_price"], boolean | undefined>>,
+  Expect<Equal<FindStorefrontCustomerGroupsParams["customer_group_offering_id"], string | undefined>>,
+  Expect<Missing<GetStorefrontCustomerGroupParams, "subscription_offering_id" | "customer_group_offering_id">>,
+  Expect<Equal<CustomerGroupStatus["type"], "draft" | "active" | "closed" | "archived">>,
+  Expect<Equal<CustomerGroupOfferingStatus["type"], "draft" | "active" | "closed" | "archived">>,
+  Expect<Equal<keyof CustomerGroup, "id" | "store_id" | "key" | "blocks" | "term" | "entitlements" | "purchase_requirement" | "tax_policies" | "status" | "starts_at" | "ends_at" | "created_at" | "updated_at">>,
+  Expect<Equal<CustomerGroup["term"], CustomerGroupTerm>>,
+  Expect<Equal<CustomerGroup["entitlements"], CustomerGroupEntitlement[]>>,
+  Expect<Equal<CustomerGroup["purchase_requirement"], PurchaseRequirement | null>>,
+  Expect<Missing<CustomerGroup, "communication" | "join_policy" | "name" | "title" | "subscription_offering_id">>,
+  Expect<Equal<keyof CustomerGroupOffering, "id" | "store_id" | "key" | "blocks" | "customer_group_ids" | "status" | "created_at" | "updated_at">>,
+  Expect<Missing<CustomerGroupOffering, "transitions">>,
+  Expect<Equal<keyof StorefrontCustomerGroupOffering, "id" | "key" | "blocks" | "customer_group_ids">>,
+  Expect<Equal<keyof CustomerGroupMember, "id" | "store_id" | "customer_group_id" | "subject" | "type" | "status" | "access_end_at" | "created_at" | "updated_at">>,
+  Expect<Equal<CustomerGroupMember["subject"], CommerceParty>>,
+  Expect<Equal<CustomerGroupMember["type"], CustomerGroupMemberType>>,
+  Expect<Equal<CustomerGroupMember["status"], CustomerGroupMemberStatus>>,
+  Expect<Equal<CustomerGroupMemberStatus["type"], "awaiting_activation" | "active" | "blocked" | "paused" | "cancelled">>,
+  Expect<Equal<CustomerGroupMemberType["type"], "permanent" | "recurring">>,
+  Expect<Missing<CustomerGroupMember, "customer_id" | "order_id" | "purchases">>,
+  Expect<Equal<keyof CustomerGroupMemberSelf, keyof CustomerGroupMember>>,
+  Expect<Missing<Extract<CustomerGroupMemberSelf["status"], { type: "paused" }>, "cause">>,
+  Expect<Equal<keyof Eshop["customerGroup"], "find" | "get" | "getByKey" | "create" | "update" | "delete">>,
+  Expect<Equal<keyof Eshop["customerGroupOffering"], "find" | "get" | "getByKey" | "create" | "update" | "delete">>,
+  Expect<Missing<Eshop["customerGroupMember"], "add" | "remove" | "delete" | "update">>,
+  Expect<Missing<Eshop, "customerGroupEmailConsent" | "subscription" | "subscriptionPlan" | "subscriptionOffering">>,
+  Expect<Missing<StorefrontClient, "customer_groups" | "customer_group_email_consents" | "subscription_plans" | "subscription_offerings">>,
+  Expect<Equal<keyof StorefrontClient["eshop"]["customerGroup"], "find" | "get">>,
+  Expect<Equal<Awaited<ReturnType<StorefrontClient["eshop"]["customerGroup"]["get"]>>, StorefrontCustomerGroup>>,
+  Expect<Equal<Awaited<ReturnType<StorefrontClient["eshop"]["customerGroupOffering"]["get"]>>, StorefrontCustomerGroupOffering>>,
+  Expect<Equal<StorefrontCustomerGroup["entitlements"], StorefrontCustomerGroupEntitlement[]>>,
+  Expect<Equal<keyof StorefrontCustomerGroupEntitlement, "id" | "type">>,
+  Expect<Equal<StorefrontCustomerGroupEntitlement["type"], CustomerGroupEntitlementType>>,
+  Expect<Missing<StorefrontCustomerGroupEntitlement, "allocation_weight">>,
+  Expect<Equal<CustomerGroupEntitlement["allocation_weight"], number>>,
+  Expect<Equal<Public.StorefrontCustomerGroupEntitlement, StorefrontCustomerGroupEntitlement>>,
+  Expect<Missing<StorefrontCustomerGroup, "purchase_allowed">>,
+  Expect<Equal<Extract<keyof StorefrontCustomerGroup, "status" | "store_id">, never>>,
+  Expect<Equal<BookingServiceStatus["type"], "draft" | "active" | "archived" | "deleting">>,
+  Expect<Equal<BookingResourceStatus["type"], "draft" | "active" | "archived" | "deleting">>,
+  Expect<Equal<BookingOfferingStatus["type"], "draft" | "active" | "archived" | "deleting">>,
 ];

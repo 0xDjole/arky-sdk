@@ -2,166 +2,130 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { createStorefront, initialize } from "../dist/storefront.js";
-import { storefrontSessionStorage } from "./helpers/storefront-session-storage.mjs";
+import { apiUrl, ids, publishableKey, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
 
-const baseUrl = "https://api.example.test";
-const publishableKey = `arky_pk_${"c".repeat(43)}`;
-const token = `customer_visitor_${"d".repeat(64)}`;
-const revision = 1700000000000;
 const STORE_ID = "9e4c7a21-3b58-4f06-8d1a-6c2e0b9f5a37";
-const requestId = (index) => `2e7b9d41-${String(index).padStart(4, "0")}-4a36-8c5f-1d9e3b7a0c62`;
-const target = (surface) => (surface === "admin" ? { store_id: STORE_ID } : {});
-const owners = [{ type: "customer", customer_id: "customer" },
-  { type: "company", company_id: "company", company_location_id: null },
-  { type: "company", company_id: "company", company_location_id: "branch" }];
+const methodId = "3c7e1a95-4d28-4b60-9f13-8e2a5d0c7b46";
+const owners = [
+  { type: "customer", customer_id: ids.customer },
+  { type: "company", company_id: ids.company },
+  { type: "company_location", company_location_id: ids.companyLocation },
+];
 
-function client(surface) {
-  if (surface === "admin") return createAdmin({ baseUrl, apiToken: "arky_api_contract" });
-  return (surface === "initialized" ? initialize : createStorefront)(publishableKey, { apiUrl: baseUrl, sessionStorage: storefrontSessionStorage(JSON.stringify({
-    version: 2, customer: { id: "customer", status: { type: "active" }, identities: [], categories: [], created_at: 1, updated_at: 1 },
-    session: { id: "session", customer_id: "customer", type: "visitor", token, status: { type: "active" }, expires_at: 1900000000000 },
-  })) });
+function surfaceApi(surface) {
+  if (surface === "admin") return createAdmin({ baseUrl: apiUrl, secretKey: "arky_api_contract" }).eshop.paymentMethod;
+  const make = surface === "initialized" ? initialize : createStorefront;
+  return make(publishableKey, { apiUrl, sessionStorage: visitorStorage() }).eshop.paymentMethod;
+}
+
+function base(surface) {
+  return surface === "admin" ? `/v1/stores/${STORE_ID}/payment-methods` : "/v1/storefront/payment-methods";
+}
+
+function target(surface) {
+  return surface === "admin" ? { store_id: STORE_ID } : {};
 }
 
 for (const surface of ["admin", "storefront", "initialized"]) {
-  test(`${surface} card update keeps the same subscription, unpaid Order and request across retries`, async () => {
-    const original = globalThis.fetch;
-    const calls = [];
-    const body = { request_id: requestId(1), request: { subscription_id: "subscription", order_id: "unpaid-order", payment_method_id: "replacement-card" } };
-    const request = { ...target(surface), ...body };
-    const before = structuredClone(request);
-    const result = { request_id: body.request_id, accepted_at: revision, closed_payment_id: "declined-payment", payment_id: "collection", amount: { amount: 1200, currency: "usd" } };
-    globalThis.fetch = async (url, init = {}) => {
-      calls.push({ url: new URL(url), method: init.method, headers: new Headers(init.headers), body: JSON.parse(init.body) });
-      return Response.json(result);
-    };
-    try {
-      const api = client(surface).eshop.subscription;
-      assert.deepEqual(await api.updateCard(request), result);
-      assert.deepEqual(await api.updateCard(request), result);
-      assert.deepEqual(request, before);
-      assert.equal(calls.length, 2);
-      await assert.rejects(async () => api.updateCard({ ...request, request_id: "replace-card" }), TypeError);
-      assert.equal(calls.length, 2);
-      const path = surface === "admin" ? `/v1/stores/${STORE_ID}/subscriptions/card` : "/v1/storefront/subscriptions/card";
-      for (const call of calls) {
-        assert.equal(call.url.pathname, path);
-        assert.equal(call.method, "POST");
-        assert.deepEqual(call.body, body);
-        if (surface !== "admin") {
-          assert.equal(call.headers.get("authorization"), `Bearer ${token}`);
-          assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
-        }
-      }
-    } finally { globalThis.fetch = original; }
-  });
-
-  test(`${surface} saved-method setup retains Customer or Company ownership and explicit consent on replay`, async () => {
-    const original = globalThis.fetch;
-    const calls = [];
-    globalThis.fetch = async (url, init = {}) => {
-      const body = JSON.parse(init.body);
-      calls.push({ url: new URL(url), method: init.method, headers: new Headers(init.headers), body });
-      return Response.json({ id: body.request.method_id, owner: body.request.owner, state: { type: "setup_requested" }, provider: null, details: null });
-    };
-    try {
-      const api = client(surface).eshop.paymentMethod;
-      for (const [index, owner] of owners.entries()) {
-        const body = { request_id: requestId(10 + index), accept_storage_and_off_session_use: true,
-          request: { method_id: `method-${index}`, owner, payment_option_id: "card-option", return_url: "https://merchant.example.test/cards", terms_version: "cards-2026-09" } };
-        const request = { ...target(surface), ...body };
-        const before = structuredClone(request);
-        const result = await api.requestSetup(request);
-        assert.deepEqual(await api.requestSetup(request), result);
-        assert.deepEqual(result.owner, owner);
-        assert.equal(result.provider, null);
-        assert.deepEqual(request, before);
-        assert.deepEqual(calls.at(-1).body, body);
-        assert.deepEqual(calls.at(-1).body, calls.at(-2).body);
-        await assert.rejects(async () => api.requestSetup({ ...request, request_id: `request-${index}` }), TypeError);
-      }
-      const path = surface === "admin" ? `/v1/stores/${STORE_ID}/payment-methods/setup` : "/v1/storefront/payment-methods/setup";
-      assert.equal(calls.length, owners.length * 2);
-      assert.ok(calls.every(({ url, method }) => method === "POST" && url.pathname === path && !url.search));
-      if (surface !== "admin") {
-        assert.ok(calls.every(({ headers }) => headers.get("authorization") === `Bearer ${token}` && headers.get("x-arky-publishable-key") === publishableKey));
-      }
-    } finally { globalThis.fetch = original; }
-  });
-
-  test(`${surface} method discovery and commands keep exact owners, identities and revisions`, async () => {
-    const original = globalThis.fetch;
-    const calls = [];
-    const method = { id: "method/id", owner: owners[2], provider: "monri", state: { type: "ready" },
-      details: { type: "card", brand: "visa", last4: "4242", exp_month: 12, exp_year: 2030 } };
-    globalThis.fetch = async (url, init = {}) => {
-      const path = new URL(url);
-      calls.push({ url: path, method: init.method, body: init.body ? JSON.parse(init.body) : null });
-      if (path.pathname.endsWith("/payment-methods")) return Response.json({ items: [], cursor: "next:/+=" });
-      if (path.pathname.endsWith("/setup/start")) return Response.json({ method, setup_intent_id: null, client_secret: null, account_id: null, publishable_key: null });
-      if (path.pathname.endsWith("/revoke")) return Response.json({ request_id: requestId(20), accepted_at: revision, method });
-      return Response.json(method);
-    };
-    try {
-      const api = client(surface).eshop.paymentMethod;
-      const query = { company_id: "company", company_location_id: "branch", limit: 10, cursor: "" };
-      assert.deepEqual(await api.find({ ...target(surface), ...query }), { items: [], cursor: "next:/+=" });
-      assert.equal(calls.length, 1);
-      assert.deepEqual(await api.get({ ...target(surface), id: method.id }), method);
-      const started = await api.startSetup({ ...target(surface), id: method.id });
-      assert.equal(started.client_secret, null);
-      assert.equal(started.account_id, null);
-      assert.deepEqual(await api.completeSetup({ ...target(surface), id: method.id }), method);
-      const request = { ...target(surface), id: method.id, request_id: requestId(20), expected_updated_at: revision, reason: "Card replaced" };
+  test(`${surface} saved-method setup keeps the owner, the app-picked id and the explicit consent`, async (context) => {
+    const calls = recordFetch(context, () => ({ id: methodId }));
+    const api = surfaceApi(surface);
+    for (const owner of owners) {
+      const request = { ...target(surface), id: methodId, owner, payment_option_id: ids.paymentOption, terms_version: "2026-01", accept_storage_and_off_session_use: true };
       const before = structuredClone(request);
-      await api.revoke(request);
-      await api.revoke(request);
+      await api.requestSetup(request);
       assert.deepEqual(request, before);
-      assert.deepEqual(calls.at(-1), calls.at(-2));
-      const base = surface === "admin" ? `/v1/stores/${STORE_ID}/payment-methods` : "/v1/storefront/payment-methods";
-      assert.deepEqual(calls.map(({ url, method }) => [method, url.pathname]), [
-        ["GET", base], ["GET", `${base}/method%2Fid`], ["POST", `${base}/method%2Fid/setup/start`],
-        ["POST", `${base}/method%2Fid/setup/complete`], ["POST", `${base}/method%2Fid/revoke`], ["POST", `${base}/method%2Fid/revoke`],
-      ]);
-      assert.deepEqual(Object.fromEntries(calls[0].url.searchParams), { company_id: "company", company_location_id: "branch", limit: "10", cursor: "" });
-      assert.equal(calls[2].body, null);
-      assert.equal(calls[3].body, null);
-      assert.deepEqual(calls[4].body, { request_id: requestId(20), expected_updated_at: revision, reason: "Card replaced" });
-      await assert.rejects(async () => api.revoke({ ...request, request_id: "revoke-card" }), TypeError);
-      assert.equal(calls.length, 6);
-    } finally { globalThis.fetch = original; }
+    }
+    assert.equal(calls.length, owners.length);
+    calls.forEach((call, index) => {
+      assert.equal(call.method, "POST");
+      assert.equal(call.path, `${base(surface)}/setup`);
+      assert.deepEqual(call.body, { id: methodId, owner: owners[index], payment_option_id: ids.paymentOption, terms_version: "2026-01", accept_storage_and_off_session_use: true });
+      if (surface !== "admin") {
+        assert.equal(call.headers.get("authorization"), `Bearer ${visitorToken}`);
+        assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
+      }
+    });
+    for (const id of [undefined, "card", methodId.toUpperCase()]) {
+      await assert.rejects(async () => api.requestSetup({ ...target(surface), id, owner: owners[0], payment_option_id: ids.paymentOption, terms_version: "2026-01", accept_storage_and_off_session_use: true }), {
+        name: "TypeError",
+        message: "The payment method id must be a canonical UUID v4 picked by the app",
+      });
+    }
+    assert.equal(calls.length, owners.length);
+  });
+
+  test(`${surface} method discovery and setup steps name the method and carry its version`, async (context) => {
+    const calls = recordFetch(context, (call) => call.method === "GET" && call.path === base(surface) ? { items: [], cursor: null } : { id: methodId });
+    const api = surfaceApi(surface);
+    const filters = { company_location_id: ids.companyLocation, limit: 5, cursor: "next" };
+    await api.find({ ...target(surface), ...filters });
+    await api.get({ ...target(surface), id: methodId });
+    await api.startSetup({ ...target(surface), id: methodId });
+    await api.completeSetup({ ...target(surface), id: methodId });
+    await api.cancelSetup({ ...target(surface), id: methodId, expected_updated_at: 5 });
+    await api.revoke({ ...target(surface), id: methodId, expected_updated_at: 6 });
+    const path = `${base(surface)}/${methodId}`;
+    assert.deepEqual(calls.map(({ method, path: called, body }) => [method, called, body]), [
+      ["GET", base(surface), null],
+      ["GET", path, null],
+      ["POST", `${path}/setup/start`, null],
+      ["POST", `${path}/setup/complete`, null],
+      ["POST", `${path}/setup/cancel`, { expected_updated_at: 5 }],
+      ["POST", `${path}/revoke`, { expected_updated_at: 6 }],
+    ]);
+    assert.deepEqual(calls[0].query, { company_location_id: ids.companyLocation, limit: "5", cursor: "next" });
+    assert.ok(calls.every((call) => !call.href.includes("store_id")));
+  });
+
+  test(`${surface} reads a consent text by its terms version`, async (context) => {
+    const text = { terms_version: "2026-01/eu", language: "bs", text: "Pristajem da se kartica čuva." };
+    const calls = recordFetch(context, () => text);
+    const api = surfaceApi(surface);
+    assert.deepEqual(await api.consentText({ ...target(surface), terms_version: "2026-01/eu" }), text);
+    assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
+      ["GET", `${base(surface)}/consent-texts/2026-01%2Feu`, {}, null],
+    ]);
   });
 }
 
+test("the storefront reads the current consent text in the named language before a card is saved", async (context) => {
+  const text = { terms_version: "2026-01", language: "bs", text: "Pristajem da se kartica čuva." };
+  const calls = recordFetch(context, () => text);
+  for (const surface of ["storefront", "initialized"]) {
+    assert.deepEqual(await surfaceApi(surface).currentConsentText({ language: "bs" }), text);
+  }
+  assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
+    ["GET", "/v1/storefront/payment-methods/consent-texts", { language: "bs" }, null],
+    ["GET", "/v1/storefront/payment-methods/consent-texts", { language: "bs" }, null],
+  ]);
+  assert.equal("currentConsentText" in surfaceApi("admin"), false);
+});
 
-for (const surface of ["storefront", "initialized"]) {
-  test(`${surface} subscription self-service keeps customer authentication and exact cancellation replay`, async () => {
-    const original = globalThis.fetch;
-    const calls = [];
-    const subscription = { id: "subscription/id", status: { type: "active" }, updated_at: revision };
-    const request = { request_id: requestId(30), request: { subscription_id: subscription.id, expected_updated_at: revision, type: { type: "cancel", reason: "No more milk deliveries" } } };
-    const before = structuredClone(request);
-    const result = { request_id: request.request_id, accepted_at: revision, subscription: { ...subscription, status: { type: "cancelled", ended_at: revision } } };
-    globalThis.fetch = async (url, init = {}) => {
-      calls.push({ url: new URL(url), method: init.method, headers: new Headers(init.headers), body: init.body ? JSON.parse(init.body) : null });
-      return Response.json(init.method === "POST" ? result : subscription);
-    };
-    try {
-      const api = client(surface).eshop.subscription;
-      assert.deepEqual(await api.current({ id: subscription.id }), subscription);
-      assert.deepEqual(await api.control(request), result);
-      assert.deepEqual(await api.control(request), result);
-      assert.deepEqual(request, before);
-      assert.deepEqual(calls.map(({ url, method }) => [method, url.pathname]), [
-        ["GET", "/v1/storefront/subscriptions/subscription%2Fid"],
-        ["POST", "/v1/storefront/subscriptions/commands"],
-        ["POST", "/v1/storefront/subscriptions/commands"],
-      ]);
-      assert.deepEqual(calls[1].body, before);
-      assert.deepEqual(calls[2].body, before);
-      await assert.rejects(api.control({ ...request, request_id: "cancel-request" }), TypeError);
-      assert.equal(calls.length, 3);
-      assert.ok(calls.every(({ headers }) => headers.get("authorization") === `Bearer ${token}` && headers.get("x-arky-publishable-key") === publishableKey));
-    } finally { globalThis.fetch = original; }
-  });
-}
+test("a storefront card list names exactly the customer, company or location it lists and never a payment option", async (context) => {
+  const calls = recordFetch(context, () => ({ items: [], cursor: null }));
+  const api = surfaceApi("storefront");
+  await api.find({ customer_id: ids.customer });
+  await api.find({ company_id: ids.company, limit: 10 });
+  await api.find();
+  assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
+    ["GET", "/v1/storefront/payment-methods", { customer_id: ids.customer }],
+    ["GET", "/v1/storefront/payment-methods", { company_id: ids.company, limit: "10" }],
+    ["GET", "/v1/storefront/payment-methods", {}],
+  ]);
+  for (const call of calls) assert.equal("payment_option_id" in call.query, false);
+});
+
+test("Admin payment methods may list the cards saved for one payment option", async (context) => {
+  const calls = recordFetch(context, () => ({ items: [], cursor: null }));
+  await surfaceApi("admin").find({ store_id: STORE_ID, payment_option_id: ids.paymentOption, limit: 20 });
+  assert.deepEqual(calls.map(({ path, query }) => [path, query]), [[`/v1/stores/${STORE_ID}/payment-methods`, { payment_option_id: ids.paymentOption, limit: "20" }]]);
+});
+
+test("Admin payment methods refuse a missing store before any request", async (context) => {
+  const calls = recordFetch(context, () => ({ id: methodId }));
+  const api = surfaceApi("admin");
+  await assert.rejects(async () => api.get({ id: methodId }), TypeError);
+  await assert.rejects(async () => api.revoke({ store_id: "store", id: methodId, expected_updated_at: 1 }), TypeError);
+  assert.equal(calls.length, 0);
+});

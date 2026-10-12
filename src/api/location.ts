@@ -1,79 +1,67 @@
-import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
+import type { RequestOptions } from "../types/api";
+import type { PaginatedResponse } from "../types/common";
 import type {
   CreateStoreLocationParams,
-  FindStoreLocationsParams,
-  GetStoreConfigurationByKeyParams,
-  GetStoreConfigurationParams,
   DeleteStoreLocationParams,
-  RequestOptions,
+  FindStoreLocationsParams,
+  LocationCountry,
+  StoreLocation,
+  StoreRecordByKeyParams,
+  StoreRecordParams,
   UpdateStoreLocationParams,
-} from "../types/api";
-import type { StoreLocation, PaginatedResponse } from "../types";
-
-export interface LocationState {
-  code: string;
-  name: string;
-}
-
-export interface LocationCountry {
-  code: string;
-  name: string;
-  states: LocationState[];
-}
+} from "../types/market";
+import { requireId } from "../utils/ids";
+import { segment, storePath, storeRecordPath } from "./paths";
 
 export interface GetCountriesResponse {
   items: LocationCountry[];
   cursor: string | null;
 }
 
-export const createLocationApi = (apiConfig: ApiConfig) => {
-  return {
-    async getCountries(options?: RequestOptions): Promise<GetCountriesResponse> {
-      return apiConfig.httpClient.get<GetCountriesResponse>(`/v1/platform/countries`, options);
-    },
+export const createLocationApi = (apiConfig: ApiConfig) => ({
+  getCountries(options?: RequestOptions): Promise<GetCountriesResponse> {
+    return apiConfig.httpClient.get<GetCountriesResponse>("/v1/platform/countries", options);
+  },
 
-    async getCountry(
-      countryCode: string,
-      options?: RequestOptions,
-    ): Promise<LocationCountry> {
-      return apiConfig.httpClient.get<LocationCountry>(
-        `/v1/platform/countries/${countryCode}`,
-        options,
-      );
-    },
+  getCountry(countryCode: string, options?: RequestOptions): Promise<LocationCountry> {
+    return apiConfig.httpClient.get<LocationCountry>(`/v1/platform/countries/${segment(countryCode)}`, options);
+  },
 
+  list(params: FindStoreLocationsParams, options?: RequestOptions): Promise<PaginatedResponse<StoreLocation>> {
+    const { store_id, ...query } = params;
+    return apiConfig.httpClient.get<PaginatedResponse<StoreLocation>>(storePath(store_id, "locations"), {
+      ...options,
+      params: query,
+    });
+  },
 
-    async list(params: FindStoreLocationsParams, options?: RequestOptions): Promise<PaginatedResponse<StoreLocation>> {
-      const { store_id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<StoreLocation>>(
-        `/v1/stores/${encodeURIComponent(requireStoreId(store_id))}/locations`,
-        { ...options, params: query },
-      );
-    },
+  get(params: StoreRecordParams, options?: RequestOptions): Promise<StoreLocation> {
+    return apiConfig.httpClient.get<StoreLocation>(storeRecordPath(params.store_id, "locations", params.id), options);
+  },
 
-    async getByKey(params: GetStoreConfigurationByKeyParams, options?: RequestOptions): Promise<StoreLocation> {
-      return apiConfig.httpClient.get<StoreLocation>(
-        `/v1/stores/${encodeURIComponent(requireStoreId(params.store_id))}/locations/by-key/${encodeURIComponent(params.key)}`, options,
-      );
-    },
-    async get(params: GetStoreConfigurationParams, options?: RequestOptions): Promise<StoreLocation> {
-      return apiConfig.httpClient.get<StoreLocation>(
-        `/v1/stores/${encodeURIComponent(requireStoreId(params.store_id))}/locations/${encodeURIComponent(params.id)}`,
-        options,
-      );
-    },
+  getByKey(params: StoreRecordByKeyParams, options?: RequestOptions): Promise<StoreLocation> {
+    return apiConfig.httpClient.get<StoreLocation>(
+      storePath(params.store_id, `locations/by-key/${segment(params.key)}`),
+      options,
+    );
+  },
 
-    async create(params: CreateStoreLocationParams, options?: RequestOptions): Promise<StoreLocation> {
-      const { store_id, ...body } = params;
-      return apiConfig.httpClient.post<StoreLocation>(`/v1/stores/${encodeURIComponent(requireStoreId(store_id))}/locations`, body, options);
-    },
-    async update(params: UpdateStoreLocationParams, options?: RequestOptions): Promise<StoreLocation> {
-      const { store_id, id, ...body } = params;
-      return apiConfig.httpClient.put<StoreLocation>(`/v1/stores/${encodeURIComponent(requireStoreId(store_id))}/locations/${encodeURIComponent(id)}`, body, options);
-    },
-    async delete(params: DeleteStoreLocationParams, options?: RequestOptions): Promise<{ deleted: boolean }> {
-      return apiConfig.httpClient.delete<{ deleted: boolean }>(`/v1/stores/${encodeURIComponent(requireStoreId(params.store_id))}/locations/${encodeURIComponent(params.id)}`, options);
-    },
-  };
-};
+  create(params: CreateStoreLocationParams, options?: RequestOptions): Promise<StoreLocation> {
+    requireId(params.id, "location");
+    const { store_id, ...body } = params;
+    return apiConfig.httpClient.post<StoreLocation>(storePath(store_id, "locations"), body, options);
+  },
+
+  update(params: UpdateStoreLocationParams, options?: RequestOptions): Promise<StoreLocation> {
+    const { store_id, id, ...body } = params;
+    return apiConfig.httpClient.put<StoreLocation>(storeRecordPath(store_id, "locations", id), body, options);
+  },
+
+  delete(params: DeleteStoreLocationParams, options?: RequestOptions): Promise<StoreLocation> {
+    return apiConfig.httpClient.delete<StoreLocation>(storeRecordPath(params.store_id, "locations", params.id), {
+      ...options,
+      params: { expected_updated_at: params.expected_updated_at },
+    });
+  },
+});

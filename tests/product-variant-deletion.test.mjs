@@ -12,7 +12,7 @@ test("variant discovery forwards combined parent, exact SKU, lifecycle and order
     return new Response(JSON.stringify({ items: [], cursor: "continue-after-stale" }), { headers: { "content-type": "application/json" } });
   };
   try {
-    const api = createAdmin({ baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).eshop.productVariant;
+    const api = createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop.productVariant;
     const input = { product_id: "product", sku: "a".repeat(255), status: "archived", sort_field: "updated_at", sort_direction: "asc", limit: 200, cursor: "previous" };
     assert.deepEqual(await api.find({ store_id: SELECTED_STORE_ID, ...input }), { items: [], cursor: "continue-after-stale" });
     assert.equal(calls.length, 1);
@@ -28,7 +28,7 @@ test("variant deletion preserves the version and distinguishes accepted deletion
   const id = "5b572371-c4fe-4a59-88c5-a8e704724b13";
   const expected = 1789822000000;
   const value = { id, store_id: storeId, product_id: "467f22db-ff1f-4559-8558-2f27aa1a5aed", sku: null,
-    attributes: [], reference_labels: {}, fulfillment: { type: "none" }, tax_category_id: null,
+    attributes: [], fulfillment: { type: "none" }, tax_category_id: "standard",
     status: { type: "deleting" }, created_at: expected - 1000, updated_at: expected + 1 };
   const calls = [];
   let status = 202;
@@ -37,7 +37,7 @@ test("variant deletion preserves the version and distinguishes accepted deletion
     return status === 204 ? new Response(null, { status }) : new Response(JSON.stringify(value), { status, headers: { "content-type": "application/json" } });
   };
   try {
-    const api = createAdmin({ baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).eshop.productVariant;
+    const api = createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop.productVariant;
     const params = { store_id: storeId, id, expected_updated_at: expected };
     assert.deepEqual(await api.delete(params), value);
     status = 204;
@@ -52,7 +52,7 @@ test("variant deletion preserves the version and distinguishes accepted deletion
     }
     for (const failure of [400, 403, 409, 503]) {
       let requests = 0;
-      globalThis.fetch = async () => { requests += 1; return new Response(JSON.stringify({ message: "Cannot delete" }), { status: failure, headers: { "content-type": "application/json" } }); };
+      globalThis.fetch = async () => { requests += 1; return new Response(JSON.stringify({ message: "Cannot delete", error: "PRODUCT_VARIANT.REFUSED", status_code: failure, validation_errors: [] }), { status: failure, headers: { "content-type": "application/json" } }); };
       await assert.rejects(api.delete(params), (error) => error.statusCode === failure);
       assert.equal(requests, 1);
     }

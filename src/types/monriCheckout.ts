@@ -1,14 +1,3 @@
-import type { MonriEnvironment } from "./index";
-
-export interface MonriComponentsAction {
-  type: "monri_components";
-  payment_id: string;
-  environment: MonriEnvironment;
-  authenticity_token: string;
-  client_secret: string;
-  save_card: boolean;
-}
-
 export interface MonriBuyerDetails {
   fullName: string;
   address: string;

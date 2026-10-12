@@ -1,82 +1,91 @@
 import type {
   Order,
+  OrderBuyer,
+  OrderCollection,
   OrderLineItem,
   OrderSource,
   OrderStatus,
-  UpdateOrderParams,
+  OrderTotals,
+  OrderDeliveryGroup,
+  OrderDeliveryRental,
+  CancelOrderBookingItemParams,
+  CancelOrderProductItemParams,
+  StorefrontCancelOrderBookingItemParams,
+  StorefrontCancelOrderProductItemParams,
+  ResendOrderReceiptParams,
+  Actor,
+  AccountActor,
+  OnAccountApproval,
+  OrderCustomerGroupLineItem,
+  OrderLineItemOrigin,
+  OrderTaxRegistration,
+  OrderBuyerTax,
+  CustomerGroupOccurrence,
+  DeliveryPricing,
+  FindOrdersParams,
 } from "arky-sdk";
+import type { createAdmin } from "arky-sdk/admin";
 import type * as Public from "arky-sdk/types";
 
 type Assert<T extends true> = T;
-type Equal<A, B> =
-  (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2
-    ? true
-    : false;
+type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
-type RequiredNullable<T, K extends keyof T> =
-  {} extends Pick<T, K> ? false : null extends T[K] ? true : false;
+type RequiredNullable<T, K extends keyof T> = {} extends Pick<T, K> ? false : null extends T[K] ? true : false;
 type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
+type OrderApi = ReturnType<typeof createAdmin>["eshop"]["order"];
 
 export type OrderContracts = [
   Assert<Equal<Order, Public.Order>>,
+  Assert<Equal<OrderDeliveryRental, { rental_id: string; newly_shipped_quantity: number }>>,
+  Assert<Equal<OrderDeliveryGroup["rentals"], OrderDeliveryRental[]>>,
+  Assert<RequiredField<OrderDeliveryGroup, "rentals">>,
+  Assert<Missing<OrderDeliveryGroup, "rental_ids">>,
   Assert<Equal<OrderSource, Public.OrderSource>>,
   Assert<Equal<OrderStatus, Public.OrderStatus>>,
-  Assert<
-    Equal<keyof UpdateOrderParams, "id" | "store_id" | "confirm">
-  >,
-  Assert<
-    Equal<
-      OrderStatus,
-      { type: "pending" | "confirmed" | "partially_cancelled" | "cancelled" }
-    >
-  >,
+  Assert<Equal<OrderStatus, "pending" | "confirmed" | "partially_cancelled" | "cancelled">>,
+  Assert<Equal<OrderSource["type"], "cart" | "renewal">>,
+  Assert<Equal<Extract<OrderSource, { type: "cart" }>, { type: "cart"; cart_id: string; placed_by: Actor }>>,
   Assert<RequiredField<Order, "customer_id">>,
-  Assert<RequiredField<Order, "customer_snapshot">>,
-  Assert<RequiredNullable<Order, "company">>,
-  Assert<RequiredNullable<Order, "market_id">>,
-  Assert<RequiredNullable<Order, "sales_channel_id">>,
-  Assert<RequiredField<Order, "market_snapshot">>,
-  Assert<RequiredField<Order, "sales_channel_snapshot">>,
-  Assert<Missing<Order, "company_id">>,
-  Assert<Missing<Order, "company_location_id">>,
-  Assert<Missing<Order, "company_snapshot">>,
-  Assert<Missing<Order, "source_cart_id">>,
-  Assert<Missing<Order, "customer_session_id">>,
+  Assert<RequiredField<Order, "contact">>,
+  Assert<Equal<Order["buyer"], OrderBuyer>>,
+  Assert<Equal<OrderBuyer["type"], "customer" | "company" | "company_location">>,
+  Assert<Equal<Extract<OrderBuyer, { type: "company_location" }>, { type: "company_location"; company_location_id: string; purchase_order_number: string | null; tax: OrderBuyerTax }>>,
+  Assert<Equal<Extract<OrderBuyer, { type: "company" }>, { type: "company"; company_id: string; purchase_order_number: string | null; tax: OrderBuyerTax }>>,
+  Assert<Equal<Actor, { type: "customer"; customer_id: string; customer_session_id: string } | ({ type: "account" } & AccountActor)>>,
+  Assert<Equal<AccountActor["account_id"], string>>,
+  Assert<Equal<Order["collection"], OrderCollection>>,
+  Assert<Equal<OrderCollection["type"], "free" | "payment_option" | "customer_group_member" | "on_account">>,
+  Assert<Equal<Extract<OrderCollection, { type: "on_account" }>["approval"], OnAccountApproval>>,
+  Assert<Equal<OnAccountApproval, { type: "buyer_terms" } | { type: "account"; reason: string }>>,
+  Assert<Equal<Extract<OrderSource, { type: "renewal" }>["order_customer_group_line_item_id"], string>>,
+  Assert<Equal<keyof OrderCustomerGroupLineItem, "id" | "customer_group_member_id" | "revision_id" | "occurrence" | "revocation" | "status" | "tax_groups" | "created_at" | "updated_at">>,
+  Assert<Equal<OrderCustomerGroupLineItem["occurrence"], CustomerGroupOccurrence>>,
+  Assert<Equal<OrderLineItemOrigin, { type: "direct" } | { type: "customer_group"; order_customer_group_line_item_id: string; entitlement_id: string }>>,
+  Assert<Equal<DeliveryPricing["type"], "rate" | "customer_group_delivery_terms">>,
+  Assert<Equal<FindOrdersParams["customer_group_member_id"], string | undefined>>,
+  Assert<Missing<FindOrdersParams, "subscription_id">>,
+  Assert<Equal<Order["market_id"], string>>,
+  Assert<Equal<Order["sales_channel_id"], string>>,
+  Assert<Equal<Order["language"], string>>,
+  Assert<Equal<Order["totals"], OrderTotals>>,
+  Assert<RequiredNullable<Order, "billing_address">>,
+  Assert<Missing<Order, "company">>,
+  Assert<Missing<Order, "customer_snapshot">>,
+  Assert<Missing<Order, "market_snapshot">>,
+  Assert<Missing<Order, "payment_terms">>,
+  Assert<Missing<Order, "money">>,
   Assert<Missing<Order, "product_items">>,
   Assert<Missing<Order, "booking_items">>,
   Assert<Missing<Order, "digital_items">>,
-  Assert<Missing<Order, "audience_items">>,
   Assert<Equal<Order["line_items"], OrderLineItem[]>>,
-  Assert<
-    Equal<
-      Extract<OrderLineItem, { type: "subscription_plan" }>["type"],
-      "subscription_plan"
-    >
-  >,
-  Assert<Equal<Order["source"], OrderSource>>,
-  Assert<Missing<Order, "type">>,
-  Assert<
-    Equal<
-      OrderSource["type"],
-      "cart_acceptance" | "direct" | "subscription"
-    >
-  >,
-  Assert<
-    Equal<
-      Extract<OrderSource, { type: "direct" }>,
-      { type: "direct"; request_id: string }
-    >
-  >,
-  Assert<
-    Equal<
-      Extract<OrderSource, { type: "subscription" }>,
-      { type: "subscription"; order_subscription_line_item_id: string }
-    >
-  >,
-  Assert<
-    Equal<
-      Extract<Order["origin"], { type: "admin" }>["type"],
-      "admin"
-    >
-  >,
+  Assert<Equal<OrderLineItem["type"], "product" | "booking" | "customer_group" | "rental_use" | "purchase_access">>,
+  Assert<Equal<keyof CancelOrderBookingItemParams, "store_id" | "order_id" | "line_item_id" | "credit_id" | "expected_updated_at">>,
+  Assert<Equal<keyof CancelOrderProductItemParams, "store_id" | "order_id" | "line_item_id" | "credit_id" | "expected_updated_at" | "units">>,
+  Assert<Equal<keyof StorefrontCancelOrderBookingItemParams, Exclude<keyof CancelOrderBookingItemParams, "store_id">>>,
+  Assert<Equal<keyof StorefrontCancelOrderProductItemParams, Exclude<keyof CancelOrderProductItemParams, "store_id">>>,
+  Assert<Equal<keyof ResendOrderReceiptParams, "store_id" | "order_id" | "id">>,
+  Assert<Missing<OrderApi, "update">>,
+  Assert<Missing<OrderApi, "getBookingAppointment">>,
+  Assert<Missing<OrderApi, "resumePayment">>,
+  Assert<Missing<OrderApi, "getQuote">>,
 ];

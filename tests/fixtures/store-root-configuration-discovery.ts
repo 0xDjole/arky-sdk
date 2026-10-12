@@ -1,37 +1,52 @@
-import type { createAdmin } from 'arky-sdk/admin';
-import type { createStorefront } from 'arky-sdk/storefront';
-import type { FindMarketsParams, FindStoreLocationsParams, ListPaymentOptionsParams, PaginatedResponse, Market, StoreLocation, PaymentOption } from 'arky-sdk';
+import type { createAdmin } from "arky-sdk/admin";
+import type { createStorefront } from "arky-sdk/storefront";
+import type {
+  FindMarketsParams,
+  FindPaymentOptionsParams,
+  FindStoreLocationsParams,
+  FindStorefrontLocationsParams,
+  FindStorefrontMarketsParams,
+  Market,
+  MarketStatus,
+  PaginatedResponse,
+  PaymentOption,
+  StoreLocation,
+  StoreLocationStatus,
+  StoreRecordParams,
+  StorefrontPaymentOption,
+  StorefrontSetup,
+} from "arky-sdk";
+
 type Admin = ReturnType<typeof createAdmin>;
 type Front = ReturnType<typeof createStorefront>;
-type True<T extends true> = T;
-type Same<A,B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+type Assert<T extends true> = T;
+type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
+type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
+
 export type ConfigurationPages = [
-  True<Same<Awaited<ReturnType<Admin['store']['market']['list']>>,PaginatedResponse<Market>>>,
-  True<Same<Awaited<ReturnType<Admin['store']['location']['list']>>,PaginatedResponse<StoreLocation>>>,
-  True<Same<Awaited<ReturnType<Admin['store']['paymentOption']['list']>>,PaginatedResponse<PaymentOption>>>
+  Assert<Equal<Awaited<ReturnType<Admin["store"]["market"]["list"]>>, PaginatedResponse<Market>>>,
+  Assert<Equal<Awaited<ReturnType<Admin["store"]["location"]["list"]>>, PaginatedResponse<StoreLocation>>>,
+  Assert<Equal<Awaited<ReturnType<Admin["store"]["paymentOption"]["list"]>>, PaginatedResponse<PaymentOption>>>,
+  Assert<Equal<Parameters<Admin["store"]["market"]["get"]>[0], StoreRecordParams>>,
+  Assert<Equal<Parameters<Admin["store"]["location"]["get"]>[0], StoreRecordParams>>,
+  Assert<Equal<NonNullable<FindMarketsParams["status"]>, MarketStatus["type"]>>,
+  Assert<Equal<NonNullable<FindStoreLocationsParams["status"]>, StoreLocationStatus["type"]>>,
+  Assert<Equal<NonNullable<Parameters<Front["store"]["market"]["list"]>[0]>, FindStorefrontMarketsParams>>,
+  Assert<Equal<NonNullable<Parameters<Front["store"]["location"]["list"]>[0]>, FindStorefrontLocationsParams>>,
+  Assert<Missing<FindStorefrontMarketsParams, "store_id" | "status">>,
+  Assert<Missing<FindStorefrontLocationsParams, "store_id" | "status" | "query" | "pickup_point">>,
+  Assert<Equal<keyof FindStorefrontLocationsParams, "key" | "sort_field" | "sort_direction" | "limit" | "cursor">>,
+  Assert<Equal<Parameters<Front["store"]["market"]["getByKey"]>[0], string>>,
 ];
-export const market: FindMarketsParams = {store_id:'store',currency:'eur',status:'deleting',limit:1,cursor:'opaque'};
-export const location: FindStoreLocationsParams = {store_id:'store',allows_pickup:false,status:'archived',sort_field:'updated_at'};
-export const provider: ListPaymentOptionsParams = {store_id:'store',type_name:'stripe',status:'disabled',cursor:'opaque'};
-export const exactMarket: Parameters<Admin['store']['market']['get']>[0] = {store_id:'store',id:'market'};
-export const exactLocation: Parameters<Admin['store']['location']['get']>[0] = {store_id:'store',id:'location'};
-// @ts-expect-error Exact reads use the explicit scope/id parameter object
-export const unscopedLocationArgument: Parameters<Admin['store']['location']['get']>[0] = 'location';
-// @ts-expect-error Market has no archived status
-export const invalidMarket: FindMarketsParams = {store_id:'store',status:'archived'};
-// @ts-expect-error Public context supplies Store identity, not the query
-export const publicStore: Parameters<Front['store']['market']['list']>[0] = {store_id:'foreign'};
-// @ts-expect-error Public browsing only exposes active locations
-export const publicStatus: Parameters<Front['store']['location']['list']>[0] = {status:'deleting'};
-type Setup = Awaited<ReturnType<Front['getSetup']>>;
-export type PublicMarketSelection = [
-  True<'default_market' extends keyof Setup ? false : true>,
-  True<Same<Setup['languages']['default'], string | null>>
+
+export type PublicSetup = [
+  Assert<Equal<Awaited<ReturnType<Front["getSetup"]>>, StorefrontSetup>>,
+  Assert<Equal<keyof StorefrontSetup, "name" | "timezone" | "languages" | "payment_options">>,
+  Assert<Equal<StorefrontSetup["languages"], string[]>>,
+  Assert<Equal<StorefrontSetup["payment_options"], StorefrontPaymentOption[]>>,
+  Assert<Missing<StorefrontPaymentOption, "configuration" | "status" | "store_id">>,
 ];
-declare const setup: Setup;
-// @ts-expect-error Setup carries only its exact default, never an unbounded Market list.
-setup.markets;
-// @ts-expect-error Public setup never exposes Stripe connection/consent evidence.
-setup.payment_options[0].configuration;
-// @ts-expect-error Exact public lookup takes only the key; Store comes from the public client.
-export const scopedPublicKey: Parameters<Front['store']['market']['getByKey']>[0] = {store_id:'foreign',key:'retail'};
+
+export const market: FindMarketsParams = { store_id: "5c9e1a37-8d24-4f60-b3a5-0e7f2c4d6b18", currency: "eur", status: "active", limit: 1, cursor: "opaque" };
+export const location: FindStoreLocationsParams = { store_id: market.store_id, query: "warehouse", status: "archived", sort_field: "updated_at" };
+export const provider: FindPaymentOptionsParams = { store_id: market.store_id, type_name: "stripe", status: "disabled", cursor: "opaque" };

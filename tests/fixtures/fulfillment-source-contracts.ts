@@ -1,48 +1,44 @@
-import type { FulfillmentJobLineSource, RentalIssueReplacement } from 'arky-sdk';
-import type { RentalIssueReplacement as PublicReplacement } from 'arky-sdk/types';
+import type {
+  ActOnFulfillmentJobParams,
+  ActOnFulfillmentParams,
+  CreateFulfillmentParams,
+  FulfillmentAction,
+  FulfillmentJobAction,
+  FulfillmentJobLineSource,
+  FulfillmentJobType,
+  RentalIssueReplacement,
+  RoutingAssign,
+} from "arky-sdk";
+import type { RentalIssueReplacement as PublicReplacement } from "arky-sdk/types";
 
-type Same<A, B> = [A] extends [B] ? [B] extends [A] ? true : false : false;
-type True<T extends true> = T;
+type Assert<T extends true> = T;
+type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
+type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
 type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
-type Absent<T, K extends string> = K extends keyof T ? false : true;
-type RentalIssue = Extract<FulfillmentJobLineSource, { type: 'rental_issue' }>;
-type OrderProduct = Extract<FulfillmentJobLineSource, { type: 'order_product' }>;
+type RentalIssue = Extract<FulfillmentJobLineSource, { type: "rental_issue" }>;
+type OrderProduct = Extract<FulfillmentJobLineSource, { type: "order_product" }>;
+type Replacement = Extract<FulfillmentJobType, { type: "rental_replacement" }>;
 
-export type RentalIssueContract = [
-  True<Same<FulfillmentJobLineSource['type'], 'order_product' | 'rental_issue'>>,
-  True<Same<keyof RentalIssue, 'type' | 'rental_id' | 'terms_revision_id' | 'replacement'>>,
-  True<Same<RentalIssue['replacement'], RentalIssueReplacement | null>>,
-  True<RequiredField<RentalIssue, 'replacement'>>,
-  True<Same<keyof RentalIssueReplacement, 'predecessor_inventory_unit_id' | 'predecessor_fulfillment_job_line_id' | 'predecessor_fulfillment_unit_index' | 'overlap_authorized'>>,
-  True<RequiredField<RentalIssueReplacement, 'overlap_authorized'>>,
-  True<Same<RentalIssueReplacement['overlap_authorized'], boolean>>,
-  True<Same<RentalIssueReplacement, PublicReplacement>>,
-  True<Absent<RentalIssue, 'replaces_placement_id'>>,
-  True<Absent<RentalIssue, 'product_id'>>,
-  True<Absent<RentalIssue, 'inventory_unit_id'>>,
-  True<Absent<RentalIssue, 'order_id'>>,
-  True<Absent<RentalIssue, 'order_unit_spans'>>,
-  True<Absent<OrderProduct, 'rental_id'>>,
-  True<Same<keyof OrderProduct, 'type' | 'order_product_line_item_id' | 'order_unit_spans'>>,
+export type FulfillmentSourceContract = [
+  Assert<Equal<FulfillmentJobLineSource["type"], "order_product" | "rental_issue">>,
+  Assert<Equal<keyof RentalIssue, "type" | "rental_id" | "revision_id">>,
+  Assert<Equal<keyof OrderProduct, "type" | "order_product_line_item_id" | "order_unit_spans">>,
+  Assert<Missing<RentalIssue, "replacement" | "terms_revision_id" | "order_id">>,
+  Assert<Equal<Replacement["replacement"], RentalIssueReplacement>>,
+  Assert<Equal<keyof RentalIssueReplacement, "predecessor_inventory_unit_id" | "predecessor_fulfillment_job_line_id" | "predecessor_fulfillment_unit_index" | "overlap_authorized">>,
+  Assert<Equal<RentalIssueReplacement, PublicReplacement>>,
+  Assert<Equal<FulfillmentAction["type"], "ready" | "fulfill" | "cancel">>,
+  Assert<Equal<keyof ActOnFulfillmentParams, "store_id" | "fulfillment_id" | "expected_updated_at" | "action" | "tracking" | "lot_references">>,
+  Assert<Missing<ActOnFulfillmentParams, "request_id">>,
+  Assert<RequiredField<CreateFulfillmentParams, "id">>,
+  Assert<Missing<CreateFulfillmentParams, "request_id" | "fulfillment_id">>,
+  Assert<Equal<FulfillmentJobAction["type"], "move" | "split" | "hand_back" | "hold" | "release_hold">>,
+  Assert<Equal<Extract<FulfillmentJobAction, { type: "split" }>["fulfillment_job_id"], string>>,
+  Assert<Missing<ActOnFulfillmentJobParams, "request_id">>,
+  Assert<Equal<RoutingAssign["type"], "manual" | "automatic">>,
 ];
 
-const issue: FulfillmentJobLineSource = {
-  type: 'rental_issue', rental_id: 'rental', terms_revision_id: 'revision', replacement: null,
-};
-const replacement: FulfillmentJobLineSource = {
-  ...issue,
-  replacement: {
-    predecessor_inventory_unit_id: 'old-unit',
-    predecessor_fulfillment_job_line_id: 'delivered-line',
-    predecessor_fulfillment_unit_index: 0,
-    overlap_authorized: false,
-  },
-};
-
 function sourceIdentity(source: FulfillmentJobLineSource): string {
-  if (source.type === 'rental_issue') {
-    return source.replacement?.predecessor_inventory_unit_id ?? source.rental_id;
-  }
-  return source.order_product_line_item_id;
+  return source.type === "rental_issue" ? source.rental_id : source.order_product_line_item_id;
 }
-void [issue, replacement, sourceIdentity];
+void sourceIdentity;

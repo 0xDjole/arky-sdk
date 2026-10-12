@@ -20,7 +20,7 @@ test("platform discovery keeps sorting and opaque continuation without hidden pa
       status: 200, headers: { "content-type": "application/json" },
     });
   });
-  const admin = createAdmin({ baseUrl, apiToken: "arky_account_access_contract" });
+  const admin = createAdmin({ baseUrl, secretKey: "arky_account_access_contract" });
   const stores = { query: "Workspace", limit: 1, sort_field: "name", sort_direction: "desc" };
   assert.deepEqual(await admin.store.find(stores), { items: [], cursor });
   assert.equal(calls.length, 1);
@@ -40,14 +40,14 @@ test("membership permissions use an exact Store read while own discovery preserv
   const cursor = "memberships:/+==";
   const membership = { id: "member", store_id: storeId, store_name: "Contract Store", account_id: accountId, role_ids: [roleId],
     access: { permissions: [{ type: "fulfillment", locations: { type: "only", store_location_ids: [locationA] } }] }, status: { type: "active" },
-    invited_by_account_id: null, invited_at: null, invitation_delivery_id: null, joined_at: 1, created_at: 1, updated_at: 1 };
+    created_at: 1, updated_at: 1 };
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     const parsed = new URL(url);
     calls.push({ url: parsed, method: init.method ?? "GET", headers: new Headers(init.headers) });
     const body = parsed.pathname.endsWith("/membership") ? membership : { items: [], cursor: parsed.searchParams.has("cursor") ? null : cursor };
     return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const admin = createAdmin({ baseUrl, apiToken: "arky_account_access_contract" });
+  const admin = createAdmin({ baseUrl, secretKey: "arky_account_access_contract" });
   assert.deepEqual(await admin.store.member.getOwn({ store_id: storeId }, { headers: { "X-Trace-Id": "permission" } }), membership);
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url.pathname, `/v1/stores/${storeId}/membership`);
@@ -59,29 +59,29 @@ test("membership permissions use an exact Store read while own discovery preserv
   assert.equal(calls[2].url.pathname, "/v1/stores/memberships");
   assert.ok(calls.every(({ method }) => method === "GET"));
   for (const store_id of [undefined, "slug", storeId.toUpperCase()]) {
-    await assert.rejects(admin.store.member.getOwn({ store_id }), { name: "TypeError", message: "A Store target must be an explicit canonical UUID-v4" });
+    await assert.rejects(async () => admin.store.member.getOwn({ store_id }), { name: "TypeError", message: "A Store target must be an explicit canonical UUID-v4" });
   }
   assert.equal(calls.length, 3);
 });
 
-test("store roles use exact routes, versioned updates and deletion acceptance", async (context) => {
+test("store roles are created under an app-picked id and use exact routes, versioned updates and versioned deletes", async (context) => {
   const role = { id: roleId, store_id: storeId, key: "warehouse", permissions: [{ type: "inventory", locations: { type: "everywhere" } }],
-    status: { type: "active" }, created_at: 1, updated_at: 2 };
+    created_at: 1, updated_at: 2 };
   const calls = [];
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     const parsed = new URL(url);
     calls.push({ url: parsed, method: init.method ?? "GET", body: init.body ? JSON.parse(String(init.body)) : null });
     const body = init.method === "DELETE"
-      ? { ...role, status: { type: "deleting" } }
+      ? { deleted: true }
       : (init.method ?? "GET") === "GET" && parsed.pathname.endsWith("/roles") ? { items: [role], cursor: null } : role;
     return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const admin = createAdmin({ baseUrl, apiToken: "arky_account_access_contract" });
-  assert.deepEqual(await admin.store.role.create({ store_id: storeId, key: role.key, permissions: role.permissions }), role);
+  const admin = createAdmin({ baseUrl, secretKey: "arky_account_access_contract" });
+  assert.deepEqual(await admin.store.role.create({ store_id: storeId, id: roleId, key: role.key, permissions: role.permissions }), role);
   await admin.store.role.update({ store_id: storeId, id: roleId, expected_updated_at: 2, key: "picker", permissions: [{ type: "fulfillment", locations: { type: "only", store_location_ids: [locationA] } }] });
   await admin.store.role.get({ store_id: storeId, id: roleId });
   assert.deepEqual(await admin.store.role.find({ store_id: storeId, limit: 20 }), { items: [role], cursor: null });
-  assert.equal((await admin.store.role.delete({ store_id: storeId, id: roleId, expected_updated_at: 3 })).status.type, "deleting");
+  assert.deepEqual(await admin.store.role.delete({ store_id: storeId, id: roleId, expected_updated_at: 3 }), { deleted: true });
   assert.deepEqual(calls.map(({ url, method }) => [method, url.pathname + url.search]), [
     ["POST", `/v1/stores/${storeId}/roles`],
     ["PUT", `/v1/stores/${storeId}/roles/${roleId}`],
@@ -89,8 +89,13 @@ test("store roles use exact routes, versioned updates and deletion acceptance", 
     ["GET", `/v1/stores/${storeId}/roles?limit=20`],
     ["DELETE", `/v1/stores/${storeId}/roles/${roleId}?expected_updated_at=3`],
   ]);
-  assert.deepEqual(calls[0].body, { key: "warehouse", permissions: role.permissions });
+  assert.deepEqual(calls[0].body, { id: roleId, key: "warehouse", permissions: role.permissions });
   assert.deepEqual(calls[1].body, { expected_updated_at: 2, key: "picker", permissions: [{ type: "fulfillment", locations: { type: "only", store_location_ids: [locationA] } }] });
+  await assert.rejects(async () => admin.store.role.create({ store_id: storeId, id: "warehouse", key: role.key, permissions: role.permissions }), {
+    name: "TypeError",
+    message: "The role id must be a canonical UUID v4 picked by the app",
+  });
+  assert.equal(calls.length, 5);
 });
 
 test("members are added, invited and re-roled by role ids", async (context) => {
@@ -99,7 +104,7 @@ test("members are added, invited and re-roled by role ids", async (context) => {
     calls.push({ url: new URL(url), method: init.method ?? "GET", body: init.body ? JSON.parse(String(init.body)) : null });
     return new Response(JSON.stringify(String(url).endsWith("/roles") ? { id: "member", role_ids: [roleId] } : true), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const admin = createAdmin({ baseUrl, apiToken: "arky_account_access_contract" });
+  const admin = createAdmin({ baseUrl, secretKey: "arky_account_access_contract" });
   await admin.store.member.add({ store_id: storeId, email: "picker@example.test", role_ids: [roleId] });
   await admin.store.member.invite({ store_id: storeId, email: "packer@example.test", role_ids: [roleId] });
   await admin.store.member.updateRoles({ store_id: storeId, account_id: accountId, expected_updated_at: 5, role_ids: [roleId] });
@@ -108,14 +113,13 @@ test("members are added, invited and re-roled by role ids", async (context) => {
     ["POST", `/v1/stores/${storeId}/invitation`, { email: "packer@example.test", role_ids: [roleId] }],
     ["PUT", `/v1/stores/${storeId}/members/${accountId}/roles`, { expected_updated_at: 5, role_ids: [roleId] }],
   ]);
-  await assert.rejects(admin.store.member.updateRoles({ store_id: storeId, account_id: "slug", expected_updated_at: 5, role_ids: [] }), /canonical Store and Account UUIDs/);
+  await assert.rejects(async () => admin.store.member.updateRoles({ store_id: storeId, account_id: "slug", expected_updated_at: 5, role_ids: [] }), { name: "TypeError", message: /account id must be a canonical UUID/ });
   assert.equal(calls.length, 3);
 });
 
 test("the owner transfers the Store and members are paused and resumed by status", async (context) => {
   const store = { id: storeId, name: "Contract Store", owner_account_id: accountId };
-  const membership = { id: "member", store_id: storeId, account_id: accountId, role_ids: [roleId], status: { type: "disabled" },
-    invited_by_account_id: null, invited_at: null, invitation_delivery_id: null, joined_at: 1, created_at: 1, updated_at: 6 };
+  const membership = { id: "member", store_id: storeId, account_id: accountId, role_ids: [roleId], status: { type: "disabled" }, created_at: 1, updated_at: 6 };
   const calls = [];
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     const parsed = new URL(url);
@@ -123,7 +127,7 @@ test("the owner transfers the Store and members are paused and resumed by status
     const body = parsed.pathname.endsWith("/ownership/transfer") ? store : membership;
     return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const admin = createAdmin({ baseUrl, apiToken: "arky_account_access_contract" });
+  const admin = createAdmin({ baseUrl, secretKey: "arky_account_access_contract" });
   assert.deepEqual(await admin.store.member.transferOwnership({ store_id: storeId, account_id: accountId }), store);
   assert.deepEqual(await admin.store.member.changeStatus({ store_id: storeId, account_id: accountId, expected_updated_at: 5, status: { type: "disabled" } }), membership);
   await admin.store.member.changeStatus({ store_id: storeId, account_id: accountId, expected_updated_at: 6, status: { type: "active" } });
@@ -132,10 +136,11 @@ test("the owner transfers the Store and members are paused and resumed by status
     ["PUT", `/v1/stores/${storeId}/members/${accountId}/status`, { expected_updated_at: 5, status: { type: "disabled" } }],
     ["PUT", `/v1/stores/${storeId}/members/${accountId}/status`, { expected_updated_at: 6, status: { type: "active" } }],
   ]);
-  await assert.rejects(admin.store.member.transferOwnership({ store_id: storeId, account_id: "slug" }), /Ownership transfer requires canonical Store and Account UUIDs/);
-  await assert.rejects(admin.store.member.changeStatus({ store_id: storeId, account_id: accountId.toUpperCase(), expected_updated_at: 6, status: { type: "active" } }), /Member status changes require canonical Store and Account UUIDs/);
+  await assert.rejects(async () => admin.store.member.transferOwnership({ store_id: storeId, account_id: "slug" }), { name: "TypeError", message: /account id must be a canonical UUID/ });
+  await assert.rejects(async () => admin.store.member.changeStatus({ store_id: storeId, account_id: accountId.toUpperCase(), expected_updated_at: 6, status: { type: "active" } }), { name: "TypeError", message: /account id must be a canonical UUID/ });
+  await assert.rejects(async () => admin.store.member.remove({ store_id: storeId, account_id: "slug" }), TypeError);
   assert.equal(calls.length, 3);
-  assert.equal("transferOwnership" in createStorefront(`arky_pk_${"o".repeat(42)}A`, { apiUrl: baseUrl }), false);
+  assert.equal("transferOwnership" in createStorefront(`arky_pk_${"o".repeat(42)}A`, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl: baseUrl }), false);
   assert.equal("buildHook" in admin.store, false);
 });
 
@@ -172,15 +177,65 @@ test("own workspace discovery retains each Store name and access without public 
   const memberships = ["First Store", "Second Store"].map((store_name, index) => ({
     id: `membership-${index}`, store_id: index === 0 ? storeId : accountId, store_name, account_id: accountId,
     role_ids: [roleId], access: { permissions: [{ type: "orders" }] }, status: { type: "active" },
-    invited_by_account_id: null, invited_at: null, invitation_delivery_id: null,
-    joined_at: 1, created_at: 1, updated_at: 1,
+    created_at: 1, updated_at: 1,
   }));
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     calls.push({ path: new URL(url).pathname, method: init.method ?? "GET" });
     return Response.json({ items: memberships, cursor: null });
   });
-  const admin = createAdmin({ baseUrl, apiToken: "arky_account_access_contract" });
+  const admin = createAdmin({ baseUrl, secretKey: "arky_account_access_contract" });
   const page = await admin.store.member.findOwn({ limit: 20 });
   assert.deepEqual(page.items.map(({ store_name }) => store_name), ["First Store", "Second Store"]);
   assert.deepEqual(calls, [{ path: "/v1/stores/memberships", method: "GET" }]);
+});
+
+test("an invite is resent by inviting again, names its expiry, and is accepted with the membership version", async (context) => {
+  const expiresAt = 1_800_000_000_000;
+  const invited = { id: "member", store_id: storeId, store_name: "Contract Store", account_id: accountId, role_ids: [roleId], access: { permissions: [] }, status: { type: "invited", expires_at: expiresAt }, created_at: 1, updated_at: 2 };
+  const accepted = { id: "member", store_id: storeId, account_id: accountId, role_ids: [roleId], status: { type: "active" }, created_at: 1, updated_at: 3 };
+  const calls = [];
+  context.mock.method(globalThis, "fetch", async (url, init = {}) => {
+    const parsed = new URL(url);
+    const call = { url: parsed, method: init.method ?? "GET", body: init.body ? JSON.parse(String(init.body)) : null };
+    calls.push(call);
+    const body = parsed.pathname.endsWith("/invitation") ? true : parsed.pathname.endsWith("/membership/accept") ? accepted : invited;
+    return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+  });
+  const admin = createAdmin({ baseUrl, secretKey: "arky_account_access_contract" });
+  const invite = { store_id: storeId, email: "packer@example.test", role_ids: [roleId] };
+  assert.equal(await admin.store.member.invite(invite), true);
+  assert.equal(await admin.store.member.invite(invite), true);
+  const own = await admin.store.member.getOwn({ store_id: storeId });
+  assert.deepEqual(own.status, { type: "invited", expires_at: expiresAt });
+  assert.deepEqual(await admin.store.member.acceptInvite({ store_id: storeId, expected_updated_at: own.updated_at }), accepted);
+  assert.deepEqual(calls.map(({ url, method, body }) => [method, url.pathname, body]), [
+    ["POST", `/v1/stores/${storeId}/invitation`, { email: "packer@example.test", role_ids: [roleId] }],
+    ["POST", `/v1/stores/${storeId}/invitation`, { email: "packer@example.test", role_ids: [roleId] }],
+    ["GET", `/v1/stores/${storeId}/membership`, null],
+    ["POST", `/v1/stores/${storeId}/membership/accept`, { expected_updated_at: 2 }],
+  ]);
+  for (const store_id of [undefined, "slug", storeId.toUpperCase()]) {
+    await assert.rejects(async () => admin.store.member.acceptInvite({ store_id, expected_updated_at: 2 }), { name: "TypeError", message: "A Store target must be an explicit canonical UUID-v4" });
+  }
+  assert.equal(calls.length, 4);
+});
+
+test("a store's email sending is paused with a reason and allowed again, each with the store version", async (context) => {
+  const paused = { id: storeId, name: "Contract Store", owner_account_id: accountId, email_sending: { type: "paused", reason: "Bounce rate review" }, updated_at: 5 };
+  const allowed = { ...paused, email_sending: { type: "allowed" }, updated_at: 6 };
+  const calls = [];
+  context.mock.method(globalThis, "fetch", async (url, init = {}) => {
+    const parsed = new URL(url);
+    calls.push({ url: parsed, method: init.method ?? "GET", body: init.body ? JSON.parse(String(init.body)) : null });
+    return new Response(JSON.stringify(parsed.pathname.endsWith("/pause-email-sending") ? paused : allowed), { status: 200, headers: { "content-type": "application/json" } });
+  });
+  const admin = createAdmin({ baseUrl, secretKey: "arky_account_access_contract" });
+  assert.deepEqual((await admin.store.pauseEmailSending({ store_id: storeId, expected_updated_at: 4, reason: "Bounce rate review" })).email_sending, paused.email_sending);
+  assert.deepEqual((await admin.store.allowEmailSending({ store_id: storeId, expected_updated_at: 5 })).email_sending, { type: "allowed" });
+  assert.deepEqual(calls.map(({ url, method, body }) => [method, url.pathname + url.search, body]), [
+    ["POST", `/v1/stores/${storeId}/pause-email-sending`, { expected_updated_at: 4, reason: "Bounce rate review" }],
+    ["POST", `/v1/stores/${storeId}/allow-email-sending`, { expected_updated_at: 5 }],
+  ]);
+  await assert.rejects(async () => admin.store.pauseEmailSending({ store_id: "store", expected_updated_at: 4, reason: "x" }), TypeError);
+  assert.equal(calls.length, 2);
 });

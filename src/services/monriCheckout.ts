@@ -1,6 +1,6 @@
 import type { EmbeddedCheckoutCallbacks, EmbeddedCheckoutMount } from "../types/embeddedCheckout";
-import type { MonriEnvironment } from "../types/index";
-import type { MonriBrowserFactory, MonriBuyerDetails, MonriComponentsAction } from "../types/monriCheckout";
+import type { MonriComponentsAction, MonriEnvironment } from "../types/payment";
+import type { MonriBrowserFactory, MonriBuyerDetails } from "../types/monriCheckout";
 import { MonriCheckoutError } from "../types/monriCheckout";
 
 let loaded: { environment: MonriEnvironment; factory: Promise<MonriBrowserFactory> } | undefined;
@@ -11,8 +11,7 @@ const visible = (value: unknown, maximum: number): value is string =>
 export function isMonriComponentsAction(value: unknown): value is MonriComponentsAction {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const action = value as Record<string, unknown>;
-  return Object.keys(action).length === 6 && action.type === "monri_components" &&
-    typeof action.payment_id === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(action.payment_id) &&
+  return Object.keys(action).length === 5 && action.type === "monri_components" &&
     (action.environment === "test" || action.environment === "live") &&
     visible(action.authenticity_token, 512) && visible(action.client_secret, 128) &&
     typeof action.save_card === "boolean";
@@ -87,18 +86,24 @@ function record(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+let monriHostSequence = 0;
+
 export async function mountMonriCheckoutAction(
   action: MonriComponentsAction,
+  paymentId: string,
   location: string | HTMLElement,
   callbacks: EmbeddedCheckoutCallbacks,
 ): Promise<Extract<EmbeddedCheckoutMount, { type: "monri_components" }>> {
-  if (!isMonriComponentsAction(action)) throw new MonriCheckoutError("invalid_action", "The Monri payment action is invalid.");
-  const accepted = { ...action };
+  if (!isMonriComponentsAction(action) || typeof paymentId !== "string" || !paymentId.length) {
+    throw new MonriCheckoutError("invalid_action", "The Monri payment action is invalid.");
+  }
+  const accepted = { ...action, environment: action.environment as MonriEnvironment, payment_id: paymentId };
   const factory = await loadMonri(accepted.environment);
   const target = typeof location === "string" ? document.querySelector<HTMLElement>(location) : location;
   if (!target || !target.isConnected) throw new MonriCheckoutError("unavailable", "The payment form container is unavailable.");
   const host = document.createElement("div");
-  host.id = `arky-monri-${globalThis.crypto.randomUUID()}`;
+  monriHostSequence += 1;
+  host.id = `arky-monri-${monriHostSequence}`;
   target.appendChild(host);
   let disposed = false;
   let submitted = false;

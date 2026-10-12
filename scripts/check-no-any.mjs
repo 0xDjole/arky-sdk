@@ -106,7 +106,7 @@ function main() {
   );
 
   if (total > 0) {
-    console.error("Use proper types and inject `market: apiConfig.market` instead of hardcoding.");
+    console.error("Use proper types and pass the market key explicitly.");
     process.exit(1);
   }
 }

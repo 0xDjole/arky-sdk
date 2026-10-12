@@ -1,163 +1,134 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
+import { recordFetch } from "./helpers/arky-fixtures.mjs";
 
 const baseUrl = "https://api.example.test";
 const storeId = "6b0e4a28-9d73-4c15-a8f2-3e7c1d5b9a64";
-const requestId = (index) => `8a3d5f17-${String(index).padStart(4, "0")}-4b29-9e61-0c4f7a2d8b35`;
-const fulfillmentId = "fulfillment/id";
-const revision = 1700000000000;
+const fulfillmentId = "8a3d5f17-1000-4b29-9e61-0c4f7a2d8b35";
+const splitJobId = "4c7e2a91-5d38-4b06-a1f9-8e3c6b0d2a57";
+const revision = 1_700_000_000_000;
 
-async function capture(response, request) {
-  const originalFetch = globalThis.fetch;
-  const calls = [];
-  globalThis.fetch = async (url, init = {}) => {
-    calls.push({ url: String(url), method: init.method, body: init.body === undefined ? undefined : JSON.parse(String(init.body)) });
-    return new Response(JSON.stringify(response), { headers: { "content-type": "application/json" } });
-  };
-  try {
-    const api = createAdmin({ baseUrl, apiToken: "contract-token" });
-    return { calls, result: await request(api) };
-  } finally { globalThis.fetch = originalFetch; }
+function eshop() {
+  return createAdmin({ baseUrl, secretKey: "contract-token" }).eshop;
 }
 
-test("Warehouse slot resolution carries exact work positions and selected physical units", async () => {
-  const work = "work/id";
+test("warehouse slot resolution carries exact job positions and returns the selected physical units", async (context) => {
   const lines = [{ fulfillment_job_line_id: "line", unit_spans: [{ first_unit: 2, quantity: 1 }] }];
   const slots = {
-    fulfillment_job_id: work, store_location_id: "location", updated_at: revision,
-    slots: [{ fulfillment_job_line_id: "line", fulfillment_unit_index: 2,
-      inventory_item_id: "item", inventory_item_key: "camera", inventory_unit: null }],
+    fulfillment_job_id: "work/id",
+    store_location_id: "location",
+    updated_at: revision,
+    slots: [{ fulfillment_job_line_id: "line", fulfillment_unit_index: 2, inventory_item_id: "item", inventory_item_key: "camera", inventory_unit: null }],
   };
-  const result = await capture(slots, (api) => api.eshop.fulfillmentJob.unitSlots({
-    store_id: storeId, fulfillment_job_id: work, expected_updated_at: revision, lines,
-  }));
-  assert.deepEqual(result.result, slots);
-  assert.deepEqual(result.calls, [{
-    url: `${baseUrl}/v1/stores/${storeId}/fulfillment-jobs/work%2Fid/unit-slots`,
-    method: "POST", body: { expected_updated_at: revision, lines },
-  }]);
-});
-
-test("Fulfillment preparation preserves exact selections, lot references and creation identity", async () => {
-  const lines = [{ fulfillment_job_line_id: "line", unit_spans: [{ first_unit: 3, quantity: 1 }],
-    selected_units: [{ fulfillment_unit_index: 3, inventory_unit_id: "physical-unit" }], lot_reference: "milk-batch-42" }];
-  const request = { request_id: requestId(1), fulfillment_id: fulfillmentId, fulfillment_job_id: "work", lines };
-  const before = structuredClone(request);
-  const reply = { request_id: request.request_id, id: fulfillmentId, status: { type: "preparing" }, lines, tracking: null, delivered_at: null };
-  const { calls, result } = await capture(reply, async (api) => {
-    await api.eshop.fulfillment.create({ ...request, store_id: storeId });
-    await assert.rejects(async () => api.eshop.fulfillment.create(request), TypeError);
-    await assert.rejects(async () => api.eshop.fulfillment.create({ ...request, store_id: storeId, request_id: "fulfillment-request" }), TypeError);
-    await assert.rejects(api.eshop.fulfillment.create({ ...request, store_id: storeId, fulfillment_id: "another-fulfillment" }), /did not match/);
-    return api.eshop.fulfillment.create({ ...request, store_id: storeId });
-  });
-  assert.deepEqual(result, reply);
-  assert.deepEqual(request, before);
-  assert.deepEqual(calls[0], calls[2]);
-  assert.deepEqual(calls.map((call) => call.body), [request, { ...request, fulfillment_id: "another-fulfillment" }, request]);
-  assert.deepEqual(calls.map((call) => call.url), Array(3).fill(`${baseUrl}/v1/stores/${storeId}/fulfillments`));
-  assert.ok(calls.every((call) => call.method === "POST"));
-});
-
-test("Fulfillment control replays the same command, revision, tracking and lot evidence", async () => {
-  const actions = [{ type: "ready" }, { type: "cancel" }, { type: "fulfill", late_reason: null },
-    { type: "fulfill", late_reason: "Customer agreed to a later collection" }];
-  const tracking = { carrier: "Courier", number: "TRACK-42", url: "https://tracking.example.test/42" };
-  await capture({ id: fulfillmentId }, async (api) => {
-    assert.deepEqual(Object.keys(api.eshop.fulfillment).sort(), ["create", "execute", "find", "get", "markDelivered", "updateTracking"]);
-    for (const removed of ["shipment", "pickup", "shippingLabel", "shippingLabelRefund", "merchantDebit", "merchantDebitReversal", "invoice"]) {
-      assert.equal(removed in api.eshop, false);
-    }
-  });
-  for (const [index, action] of actions.entries()) {
-    const body = { request_id: requestId(10 + index), expected_updated_at: revision, action,
-      ...(action.type === "fulfill" ? { tracking, lot_references: [{ fulfillment_job_line_id: "line", lot_reference: "batch-42" }] } : {}) };
-    const request = { store_id: storeId, fulfillment_id: fulfillmentId, ...body };
-    const before = structuredClone(request);
-    const reply = { id: fulfillmentId, status: action.type === "fulfill"
-      ? { type: "fulfilled", execution: { request_id: body.request_id } } : { type: action.type === "cancel" ? "cancelled" : "ready" } };
-    const { calls, result } = await capture(reply, async (api) => {
-      const first = await api.eshop.fulfillment.execute(request);
-      const replayed = await api.eshop.fulfillment.execute(request);
-      assert.deepEqual(replayed, first);
-      return replayed;
-    });
-    assert.deepEqual(request, before);
-    assert.deepEqual(result, reply);
-    assert.deepEqual(calls, [0, 1].map(() => ({
-      url: `${baseUrl}/v1/stores/${storeId}/fulfillments/fulfillment%2Fid/commands`, method: "POST", body,
-    })));
-  }
-});
-
-test("Fulfillment tracking and delivery confirmation carry the loaded revision", async () => {
-  const tracking = { carrier: "Courier", number: "TRACK-42", url: null };
-  const delivered_at = revision + 1000;
-  const reply = { id: fulfillmentId, tracking, delivered_at };
-  const { calls, result } = await capture(reply, async (api) => {
-    await api.eshop.fulfillment.updateTracking({ store_id: storeId, fulfillment_id: fulfillmentId, expected_updated_at: revision, tracking });
-    return api.eshop.fulfillment.markDelivered({ store_id: storeId, fulfillment_id: fulfillmentId, expected_updated_at: revision + 1, delivered_at });
-  });
-  assert.deepEqual(result, reply);
-  assert.deepEqual(calls, [
-    { url: `${baseUrl}/v1/stores/${storeId}/fulfillments/fulfillment%2Fid/tracking`, method: "POST", body: { expected_updated_at: revision, tracking } },
-    { url: `${baseUrl}/v1/stores/${storeId}/fulfillments/fulfillment%2Fid/delivered`, method: "POST", body: { expected_updated_at: revision + 1, delivered_at } },
+  const calls = recordFetch(context, () => slots);
+  assert.deepEqual(await eshop().fulfillmentJob.unitSlots({ store_id: storeId, fulfillment_job_id: "work/id", expected_updated_at: revision, lines }), slots);
+  assert.deepEqual(calls.map(({ href, method, body }) => ({ href, method, body })), [
+    { href: `${baseUrl}/v1/stores/${storeId}/fulfillment-jobs/work%2Fid/unit-slots`, method: "POST", body: { expected_updated_at: revision, lines } },
   ]);
 });
 
-test("Warehouse job decisions carry the request, revision and exact command", async () => {
-  const scope = { store_id: storeId, fulfillment_job_id: "work/id", expected_updated_at: revision };
+test("a fulfillment is prepared under the app-picked id with exact unit selections and lot references", async (context) => {
+  const lines = [{ fulfillment_job_line_id: "line", unit_spans: [{ first_unit: 3, quantity: 1 }], selected_units: [{ fulfillment_unit_index: 3, inventory_unit_id: "physical-unit" }], lot_reference: "milk-batch-42" }];
+  const request = { id: fulfillmentId, fulfillment_job_id: "work", lines };
+  const before = structuredClone(request);
+  const reply = { id: fulfillmentId, lines, type: { type: "delivery", tracking: null, status: { type: "preparing" } } };
+  const calls = recordFetch(context, () => reply);
+  assert.deepEqual(await eshop().fulfillment.create({ ...request, store_id: storeId }), reply);
+  assert.deepEqual(request, before);
+  assert.deepEqual(calls.map(({ href, method, body }) => ({ href, method, body })), [
+    { href: `${baseUrl}/v1/stores/${storeId}/fulfillments`, method: "POST", body: request },
+  ]);
+  await assert.rejects(async () => eshop().fulfillment.create(request), TypeError);
+  await assert.rejects(async () => eshop().fulfillment.create({ ...request, store_id: storeId, id: "fulfillment-1" }), {
+    name: "TypeError",
+    message: "The fulfillment id must be a canonical UUID v4 picked by the app",
+  });
+  assert.equal(calls.length, 1);
+});
+
+test("a fulfillment action carries the loaded version, the tracking and the lot references", async (context) => {
+  const calls = recordFetch(context, () => ({ id: fulfillmentId }));
+  const api = eshop().fulfillment;
+  assert.deepEqual(Object.keys(api).sort(), ["create", "execute", "find", "get", "markDelivered", "updateTracking"]);
+  for (const removed of ["shipment", "pickup", "shippingLabel", "shippingLabelRefund", "merchantDebit", "merchantDebitReversal", "invoice"]) {
+    assert.equal(removed in eshop(), false, removed);
+  }
+  const tracking = { carrier: "Courier", number: "TRACK-42", url: "https://tracking.example.test/42" };
+  const actions = [
+    [{ type: "ready" }, null, []],
+    [{ type: "cancel" }, null, []],
+    [{ type: "fulfill", timing: { type: "on_time" } }, tracking, [{ fulfillment_job_line_id: "line", lot_reference: "batch-42" }]],
+    [{ type: "fulfill", timing: { type: "late", reason: "Customer agreed to a later collection" } }, null, []],
+  ];
+  for (const [action, trackingValue, lotReferences] of actions) {
+    const request = { store_id: storeId, fulfillment_id: "fulfillment/id", expected_updated_at: revision, action, tracking: trackingValue, lot_references: lotReferences };
+    const before = structuredClone(request);
+    await api.execute(request);
+    assert.deepEqual(request, before);
+    assert.deepEqual(calls.at(-1).body, { expected_updated_at: revision, action, tracking: trackingValue, lot_references: lotReferences });
+    assert.equal(calls.at(-1).href, `${baseUrl}/v1/stores/${storeId}/fulfillments/fulfillment%2Fid/commands`);
+  }
+  assert.equal(calls.length, actions.length);
+});
+
+test("tracking changes and delivery confirmation carry the loaded version", async (context) => {
+  const tracking = { carrier: "Courier", number: "TRACK-42", url: null };
+  const delivered_at = revision + 1000;
+  const calls = recordFetch(context, () => ({ id: fulfillmentId }));
+  await eshop().fulfillment.updateTracking({ store_id: storeId, fulfillment_id: "fulfillment/id", expected_updated_at: revision, tracking });
+  await eshop().fulfillment.markDelivered({ store_id: storeId, fulfillment_id: "fulfillment/id", expected_updated_at: revision + 1, delivered_at });
+  assert.deepEqual(calls.map(({ href, method, body }) => ({ href, method, body })), [
+    { href: `${baseUrl}/v1/stores/${storeId}/fulfillments/fulfillment%2Fid/tracking`, method: "POST", body: { expected_updated_at: revision, tracking } },
+    { href: `${baseUrl}/v1/stores/${storeId}/fulfillments/fulfillment%2Fid/delivered`, method: "POST", body: { expected_updated_at: revision + 1, delivered_at } },
+  ]);
+});
+
+test("warehouse job decisions carry the job version and the exact action, and a split brings its app-picked job id", async (context) => {
+  const calls = recordFetch(context, () => ({ id: "work/id" }));
+  const api = eshop().fulfillmentJob;
   const lines = [{ fulfillment_job_line_id: "line", unit_spans: [{ first_unit: 2, quantity: 3 }] }];
   const actions = [
-    { type: "assign", store_location_id: "warehouse" },
-    { type: "move", to_store_location_id: "destination", lines },
+    { type: "move", to_store_location_id: "destination" },
+    { type: "split", fulfillment_job_id: splitJobId, to_store_location_id: "destination", lines },
     { type: "hand_back", note: "Staff will fulfill" },
     { type: "hold", note: "Awaiting customer confirmation" },
     { type: "release_hold", hold_id: "hold/id" },
   ];
-  for (const [index, action] of actions.entries()) {
-    const request = { ...scope, request_id: requestId(20 + index), action };
+  for (const action of actions) {
+    const request = { store_id: storeId, fulfillment_job_id: "work/id", expected_updated_at: revision, action };
     const before = structuredClone(request);
-    const { calls, result } = await capture({ id: "work/id" }, async (api) => {
-      await api.eshop.fulfillmentJob.decide(request);
-      return api.eshop.fulfillmentJob.decide(request);
-    });
-    assert.deepEqual(result, { id: "work/id" });
+    await api.decide(request);
     assert.deepEqual(request, before);
-    assert.deepEqual(calls, [0, 1].map(() => ({
-      url: `${baseUrl}/v1/stores/${storeId}/fulfillment-jobs/work%2Fid/decisions`,
-      method: "POST", body: { expected_updated_at: revision, request_id: requestId(20 + index), action },
-    })));
-    const rejected = await capture({ id: "work/id" }, async (api) => {
-      await assert.rejects(async () => api.eshop.fulfillmentJob.decide({ ...request, request_id: "decision" }), TypeError);
-    });
-    assert.equal(rejected.calls.length, 0);
+    assert.deepEqual(calls.at(-1).body, { expected_updated_at: revision, action });
+    assert.equal(calls.at(-1).href, `${baseUrl}/v1/stores/${storeId}/fulfillment-jobs/work%2Fid/decisions`);
   }
-  await capture({}, async (api) => {
-    assert.deepEqual(Object.keys(api.eshop.fulfillmentJob).sort(), ["decide", "find", "get", "items", "unitSlots"]);
-    for (const removed of ["fulfillmentOrder", "fulfillmentPartner", "fulfillmentRoutingPolicy"]) {
-      assert.equal(removed in api.eshop, false);
-    }
+  await assert.rejects(async () => api.decide({ store_id: storeId, fulfillment_job_id: "work/id", expected_updated_at: revision, action: { ...actions[1], fulfillment_job_id: "split-1" } }), {
+    name: "TypeError",
+    message: "The fulfillment job id must be a canonical UUID v4 picked by the app",
   });
+  assert.equal(calls.length, actions.length);
+  assert.deepEqual(Object.keys(api).sort(), ["decide", "find", "get", "items", "unitSlots"]);
+  for (const removed of ["fulfillmentOrder", "fulfillmentPartner", "fulfillmentRoutingPolicy"]) assert.equal(removed in eshop(), false, removed);
 });
 
-test("Warehouse discovery sends the complete job filter and leaves continuation to the caller", async () => {
-  const query = { store_id: storeId, store_location_id: "warehouse", inventory_item_id: "milk", status: "scheduled",
-    scheduled_from: revision, scheduled_to: revision + 86400000, sort_field: "scheduled_at", sort_direction: "asc", limit: 20, cursor: "" };
+test("warehouse discovery sends the complete job filter and leaves the continuation to the caller", async (context) => {
   const response = { items: [], cursor: "next:/+=" };
-  const { calls, result } = await capture(response, (api) => api.eshop.fulfillmentJob.find(query));
-  assert.deepEqual(result, response);
-  assert.equal(calls.length, 1);
-  const url = new URL(calls[0].url);
-  assert.equal(calls[0].method, "GET");
-  assert.equal(url.pathname, `/v1/stores/${storeId}/fulfillment-jobs`);
-  const { store_id, ...filters } = query;
-  assert.equal(store_id, storeId);
-  assert.deepEqual(Object.fromEntries(url.searchParams), Object.fromEntries(Object.entries(filters).map(([key, value]) => [key, String(value)])));
+  const calls = recordFetch(context, (call) => call.path.endsWith("/items") ? [] : response);
+  const query = { store_id: storeId, order_id: "order", rental_id: "rental", store_location_id: "warehouse", hold: "out_of_stock", inventory_item_id: "milk", status: "scheduled", scheduled_from: revision, scheduled_to: revision + 86_400_000, sort_field: "scheduled_at", sort_direction: "asc", limit: 20, cursor: "" };
+  assert.deepEqual(await eshop().fulfillmentJob.find(query), response);
+  await eshop().fulfillmentJob.get({ store_id: storeId, fulfillment_job_id: "work/id" });
+  await eshop().fulfillmentJob.items({ store_id: storeId, fulfillment_job_id: "work/id" });
+  const { store_id: _store, ...filters } = query;
+  assert.equal(calls[0].path, `/v1/stores/${storeId}/fulfillment-jobs`);
+  assert.deepEqual(calls[0].query, Object.fromEntries(Object.entries(filters).map(([key, value]) => [key, String(value)])));
+  assert.deepEqual(calls.slice(1).map((call) => [call.method, call.path]), [
+    ["GET", `/v1/stores/${storeId}/fulfillment-jobs/work%2Fid`],
+    ["GET", `/v1/stores/${storeId}/fulfillment-jobs/work%2Fid/items`],
+  ]);
 });
 
-test("Fulfillment routing reads and replaces the Store's one routing record", async () => {
+test("fulfillment routing reads and replaces the store's one routing record", async (context) => {
   const rule = {
     id: "3c9e1a57-2b84-4d60-9f13-7a5c0e2d8b46",
     key: "domestic",
@@ -165,20 +136,15 @@ test("Fulfillment routing reads and replaces the Store's one routing record", as
     target: { location_ids: ["warehouse-a", "warehouse-b"], assign: { type: "automatic", pick: { type: "most_stock" }, split: { type: "when_needed" } } },
     status: { type: "active" },
   };
-  const otherwise = { location_ids: [], assign: { type: "staff" } };
-  const routing = { store_id: storeId, rules: [rule], otherwise, created_at: revision, updated_at: revision + 1 };
-  const read = await capture(routing, (api) => api.eshop.fulfillmentRouting.get({ store_id: storeId }));
-  assert.deepEqual(read.result, routing);
-  assert.deepEqual(read.calls, [{ url: `${baseUrl}/v1/stores/${storeId}/fulfillment-routing`, method: "GET", body: undefined }]);
-  const written = await capture(routing, (api) => api.eshop.fulfillmentRouting.update({ store_id: storeId, expected_updated_at: revision, rules: [rule], otherwise }));
-  assert.deepEqual(written.result, routing);
-  assert.deepEqual(written.calls, [{
-    url: `${baseUrl}/v1/stores/${storeId}/fulfillment-routing`,
-    method: "PUT",
-    body: { expected_updated_at: revision, rules: [rule], otherwise },
-  }]);
-  await capture(routing, async (api) => {
-    await assert.rejects(async () => api.eshop.fulfillmentRouting.get({ store_id: "store" }), TypeError);
-    assert.deepEqual(Object.keys(api.eshop.fulfillmentRouting).sort(), ["get", "update"]);
-  });
+  const otherwise = { location_ids: [], assign: { type: "manual" } };
+  const routing = { id: "routing", store_id: storeId, rules: [rule], otherwise, created_at: revision, updated_at: revision + 1 };
+  const calls = recordFetch(context, () => routing);
+  assert.deepEqual(await eshop().fulfillmentRouting.get({ store_id: storeId }), routing);
+  assert.deepEqual(await eshop().fulfillmentRouting.update({ store_id: storeId, expected_updated_at: revision, rules: [rule], otherwise }), routing);
+  assert.deepEqual(calls.map(({ href, method, body }) => ({ href, method, body })), [
+    { href: `${baseUrl}/v1/stores/${storeId}/fulfillment-routing`, method: "GET", body: null },
+    { href: `${baseUrl}/v1/stores/${storeId}/fulfillment-routing`, method: "PUT", body: { expected_updated_at: revision, rules: [rule], otherwise } },
+  ]);
+  await assert.rejects(async () => eshop().fulfillmentRouting.get({ store_id: "store" }), TypeError);
+  assert.deepEqual(Object.keys(eshop().fulfillmentRouting).sort(), ["get", "update"]);
 });

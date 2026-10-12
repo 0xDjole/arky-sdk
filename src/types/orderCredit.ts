@@ -1,48 +1,34 @@
-import type { AccountActor } from "./accountActor";
-import type { Money } from "./index";
 import type { EpochMilliseconds } from "./time";
+import type { AccountActor, Actor, Currency, SortDirection } from "./common";
+
+export type OrderCreditSource =
+  | { type: "cancellation"; by: Actor }
+  | { type: "return"; return_id: string }
+  | { type: "account"; actor: AccountActor; reason: string }
+  | { type: "system"; reason: string };
 
 export type CreditTarget =
   | { type: "product"; line_item_id: string; unit_index: number }
   | { type: "booking"; line_item_id: string }
-  | { type: "digital"; line_item_id: string }
-  | { type: "subscription_plan"; line_item_id: string }
   | { type: "rental_use"; line_item_id: string }
   | { type: "purchase_access"; line_item_id: string }
   | { type: "delivery"; delivery_group_id: string };
 
-export type OrderCreditSource =
-  | { type: "cancellation" }
-  | { type: "return"; return_id: string }
-  | { type: "account"; actor: AccountActor; reason: string; private_note: string | null }
-  | { type: "system"; reason: string };
-
-export type OrderCreditStatus =
-  | { type: "active" }
-  | { type: "voided"; voided_at: EpochMilliseconds; actor: AccountActor };
-
 export interface DiscountReversal {
-  source_discount_allocation_id: string;
+  promotion_id: string;
+  effect_id: string;
   amount: number;
 }
 
-export interface TaxComponentReversal {
-  source_tax_line_id: string;
-  amount: number;
-}
-
-export interface DutyComponentReversal {
-  source_duty_line_id: string;
+export interface TaxReversal {
+  component_id: string;
   amount: number;
 }
 
 export interface CreditMoney {
   subtotal_reduction: number;
   discount_reversals: DiscountReversal[];
-  tax_reversals: TaxComponentReversal[];
-  duty_reversals: DutyComponentReversal[];
-  total: number;
-  calculation_policy_version: string;
+  tax_reversals: TaxReversal[];
 }
 
 export interface OrderCreditAllocation {
@@ -51,27 +37,29 @@ export interface OrderCreditAllocation {
   money: CreditMoney;
 }
 
+export type OrderCreditStatus =
+  | { type: "active" }
+  | { type: "voided"; voided_at: EpochMilliseconds; actor: AccountActor };
+
 export interface OrderCredit {
   id: string;
   store_id: string;
   order_id: string;
-  request_id: string;
   source: OrderCreditSource;
   allocations: OrderCreditAllocation[];
-  money: Money;
   status: OrderCreditStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
+  currency: Currency;
+  total: number;
 }
 
 export interface CreateOrderCreditParams {
   store_id: string;
   order_id: string;
-  credit_id: string;
-  request_id: string;
+  id: string;
   targets: CreditTarget[];
   reason: string;
-  private_note: string | null;
 }
 
 export interface GetOrderCreditParams {
@@ -80,12 +68,19 @@ export interface GetOrderCreditParams {
   credit_id: string;
 }
 
+export interface VoidOrderCreditParams {
+  store_id: string;
+  order_id: string;
+  credit_id: string;
+  expected_updated_at: EpochMilliseconds;
+}
+
 export interface FindOrderCreditsParams {
   store_id: string;
   order_id?: string;
   updated_at_from?: EpochMilliseconds;
   sort_field?: "created_at" | "updated_at";
-  sort_direction?: "asc" | "desc";
+  sort_direction?: SortDirection;
   limit?: number;
-  cursor?: string;
+  cursor?: string | null;
 }

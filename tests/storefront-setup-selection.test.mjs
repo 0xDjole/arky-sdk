@@ -1,119 +1,115 @@
-import assert from 'node:assert/strict';
-import { afterEach, test } from 'node:test';
-import { createStorefront, initialize } from '../dist/storefront.js';
+import assert from "node:assert/strict";
+import test from "node:test";
+import { createStorefront, initialize } from "../dist/storefront.js";
+import { apiUrl, publishableKey, recordFetch } from "./helpers/arky-fixtures.mjs";
 
-const originalFetch = globalThis.fetch;
-afterEach(() => { globalThis.fetch = originalFetch; });
-const key = `arky_pk_${'a'.repeat(42)}A`;
-const apiUrl = 'https://api.example.test';
-const market = (key, currency = 'eur') => ({ id: `id-${key}`, key, currency, tax_mode: 'exclusive', payment_option_ids: [`provider-${key}`] });
+const market = (key, currency = "eur") => ({ id: `id-${key}`, key, currency, tax_mode: "exclusive", payment_option_ids: [`provider-${key}`] });
 const setup = () => ({
-  commerce: { type: 'ready', default_sales_channel_id: 'channel' },
-  timezone: 'UTC', languages: { default: null, available: [] },
-  payment_options: [{ id: 'provider-retail', key: 'manual', type: 'manual', blocks: [] }],
-  support: { email: null }, readiness: { commerce: true }
+  name: "Store",
+  timezone: "UTC",
+  languages: ["en"],
+  payment_options: [{ id: "provider-retail", key: "manual", type: "manual", blocks: [] }],
 });
 
-test('setup carries no Market, while explicit selected configuration is one exact read', async () => {
-  const calls = [];
-  globalThis.fetch = async (url, init) => {
-    calls.push({ path: new URL(url).pathname, method: init.method });
-    if (calls.at(-1).path === '/v1/storefront') return Response.json(setup());
-    if (calls.at(-1).path === '/v1/storefront/markets/by-key/trade') return Response.json(market('trade', 'usd'));
-    throw new Error(`Unexpected request: ${url}`);
-  };
-  const store = initialize(key, { apiUrl, market: 'trade' });
-  const [first, second] = await Promise.all([store.store.load(), store.store.load()]);
-  assert.deepEqual(first, setup());
-  assert.equal(first, second);
-  assert.equal('markets' in first, false);
-  assert.equal('default_market' in first, false);
-  assert.equal(store.getMarket(), 'trade');
-  assert.deepEqual(store.market.get(), market('trade', 'usd'));
-  assert.equal(store.currency.get(), 'usd');
-  assert.deepEqual(store.allowed_payment_option_ids.get(), ['provider-trade']);
-  assert.deepEqual(calls.map(call => call.path), ['/v1/storefront', '/v1/storefront/markets/by-key/trade']);
-  assert.ok(calls.every(call => call.method === 'GET'));
+test("the setup carries no market, and the selected market is one exact read by key", async (context) => {
+  const calls = recordFetch(context, (call) => {
+    if (call.path === "/v1/storefront") return setup();
+    if (call.path === "/v1/storefront/markets/by-key/trade") return market("trade", "usd");
+    throw new Error(`Unexpected request: ${call.path}`);
+  });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, market: "trade" });
+  const loaded = await store.store.load();
+  assert.deepEqual(loaded, setup());
+  assert.equal("markets" in loaded, false);
+  assert.equal("default_market" in loaded, false);
+  assert.equal(store.getMarket(), "trade");
+  assert.deepEqual(store.market.get(), market("trade", "usd"));
+  assert.equal(store.currency.get(), "usd");
+  assert.deepEqual(store.allowed_payment_option_ids.get(), ["provider-trade"]);
+  assert.deepEqual(calls.map((call) => [call.method, call.path]), [
+    ["GET", "/v1/storefront"],
+    ["GET", "/v1/storefront/markets/by-key/trade"],
+  ]);
+  await store.store.load();
+  assert.deepEqual(calls.map((call) => call.path).slice(2), ["/v1/storefront/markets/by-key/trade"]);
 });
 
-test('without an explicit Market, setup loads without inventing one and Cart work requires a selection', async () => {
-  const calls = [];
-  globalThis.fetch = async (url) => { calls.push(new URL(url).pathname); return Response.json(setup()); };
-  const store = initialize(key, { apiUrl, sessionStorage: { getItem: () => null, setItem() {}, removeItem() {} } });
+test("without an explicit market the setup loads without inventing one, and a malformed market key is refused up front", async (context) => {
+  const calls = recordFetch(context, () => setup());
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl });
   assert.deepEqual(await store.store.load(), setup());
   assert.equal(store.market.get(), null);
   assert.equal(store.currency.get(), null);
   assert.deepEqual(store.allowed_payment_option_ids.get(), []);
-  assert.equal(store.getMarket(), '');
-  await assert.rejects(store.eshop.cart.load(), { name: 'CartSelectionError', message: 'Select a Market before working with a Cart' });
-  assert.deepEqual(calls, ['/v1/storefront']);
-  for (const selected of ['Retail', ' retail', 'retail market']) {
-    assert.throws(() => initialize(key, { apiUrl, market: selected }), /Market must be a valid exact key/);
-    assert.throws(() => createStorefront(key, { apiUrl, market: selected }), /Market must be a valid exact key/);
+  assert.equal(store.getMarket(), "");
+  assert.deepEqual(calls.map((call) => call.path), ["/v1/storefront"]);
+  for (const selected of ["Retail", "retail market", "retail\tmarket"]) {
+    assert.throws(() => initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, market: selected }), /market must be a valid exact key/);
+    assert.throws(() => createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, market: selected }), /market must be a valid exact key/);
   }
 });
 
-test('late exact Market selection cannot replace a newer context or its currency/providers', async () => {
-  let release, started;
-  const waiting = new Promise(resolve => { release = resolve; });
-  const requested = new Promise(resolve => { started = resolve; });
-  globalThis.fetch = async (url) => {
-    const path = new URL(url).pathname;
-    if (path === '/v1/storefront') return Response.json(setup());
-    if (path.endsWith('/old')) { started(); await waiting; return Response.json(market('old', 'jpy')); }
-    if (path.endsWith('/new')) return Response.json(market('new', 'usd'));
-    throw new Error(`Unexpected request: ${url}`);
-  };
-  const store = initialize(key, { apiUrl, market: 'old' });
-  const pending = store.store.load();
-  const rejected = assert.rejects(pending, /Customer or Market changed/);
+test("a late market read can't replace a newer market selection or its currency and payment options", async (context) => {
+  let release;
+  let started;
+  const waiting = new Promise((resolve) => {
+    release = resolve;
+  });
+  const requested = new Promise((resolve) => {
+    started = resolve;
+  });
+  recordFetch(context, async (call) => {
+    if (call.path === "/v1/storefront") return setup();
+    if (call.path.endsWith("/old")) {
+      started();
+      await waiting;
+      return market("old", "jpy");
+    }
+    if (call.path.endsWith("/new")) return market("new", "usd");
+    throw new Error(`Unexpected request: ${call.path}`);
+  });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, market: "old" });
+  const rejected = assert.rejects(store.store.load(), /market changed while the store setup was loading/);
   await requested;
-  store.setMarket('new');
+  store.setMarket("new");
   assert.equal(store.market.get(), null);
   assert.deepEqual(store.allowed_payment_option_ids.get(), []);
   await store.store.load();
   release();
   await rejected;
-  assert.equal(store.market.get().key, 'new');
-  assert.equal(store.currency.get(), 'usd');
-  assert.deepEqual(store.allowed_payment_option_ids.get(), ['provider-new']);
+  assert.equal(store.market.get().key, "new");
+  assert.equal(store.currency.get(), "usd");
+  assert.deepEqual(store.allowed_payment_option_ids.get(), ["provider-new"]);
 });
 
-test('failed or mismatched exact selection never falls back to default or a discovery page', async () => {
-  const calls = [];
+test("a failed or mismatched market read never falls back to another market", async (context) => {
   let failure = true;
-  globalThis.fetch = async (url) => {
-    const path = new URL(url).pathname;
-    calls.push(path);
-    if (path === '/v1/storefront') return Response.json(setup());
-    if (path.endsWith('/trade')) return failure ? Response.json({ message: 'unavailable' }, { status: 503 }) : Response.json(market('wrong'));
-    throw new Error(`Unexpected request: ${url}`);
-  };
-  const store = initialize(key, { apiUrl, market: 'trade' });
-  await assert.rejects(store.store.load());
+  const calls = recordFetch(context, (call) => {
+    if (call.path === "/v1/storefront") return setup();
+    if (call.path.endsWith("/trade")) {
+      return failure
+        ? Response.json({ message: "unavailable", error: "GENERAL.UNAVAILABLE", status_code: 503, validation_errors: [] }, { status: 503 })
+        : market("wrong");
+    }
+    throw new Error(`Unexpected request: ${call.path}`);
+  });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, market: "trade" });
+  await assert.rejects(store.store.load(), (error) => error.statusCode === 503);
   assert.equal(store.market.get(), null);
   failure = false;
-  await assert.rejects(store.store.load(), /selected key/);
-  assert.equal(store.currency.get(), null);
-  assert.ok(calls.every(path => path === '/v1/storefront' || path === '/v1/storefront/markets/by-key/trade'));
-});
-
-test('uninitialized Store setup remains available without inventing a Market', async () => {
-  let calls = 0;
-  globalThis.fetch = async () => { calls++; return Response.json({ ...setup(), commerce: { type: 'uninitialized' }, readiness: { commerce: false } }); };
-  const store = initialize(key, { apiUrl });
-  await store.store.load();
+  await assert.rejects(store.store.load(), /didn't confirm the selected key/);
   assert.equal(store.market.get(), null);
   assert.equal(store.currency.get(), null);
-  assert.equal(calls, 1);
+  assert.ok(calls.every((call) => call.path === "/v1/storefront" || call.path === "/v1/storefront/markets/by-key/trade"));
 });
 
-test('exact Market key lookup encodes the key and performs no session creation', async () => {
-  const calls = [];
-  globalThis.fetch = async (url, init) => { calls.push({ url: new URL(url), init }); return Response.json(market('retail')); };
-  const client = createStorefront(key, { apiUrl });
-  await client.store.market.getByKey('a/b');
+test("a market read by key encodes the key and creates no session", async (context) => {
+  const calls = recordFetch(context, () => market("retail"));
+  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl });
+  await client.store.market.getByKey("a/b");
   assert.equal(calls.length, 1);
-  assert.equal(calls[0].url.pathname, '/v1/storefront/markets/by-key/a%2Fb');
-  assert.equal(calls[0].init.method, 'GET');
+  assert.equal(calls[0].path, "/v1/storefront/markets/by-key/a%2Fb");
+  assert.equal(calls[0].method, "GET");
+  assert.equal(calls[0].headers.get("authorization"), null);
+  assert.equal(client.hasSession, false);
 });

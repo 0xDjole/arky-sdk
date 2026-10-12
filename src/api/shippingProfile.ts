@@ -1,72 +1,48 @@
-import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
-import type { PaginatedResponse } from "../types";
 import type { RequestOptions } from "../types/api";
+import type { DeletedResponse, PaginatedResponse } from "../types/common";
 import type {
-  ShippingProfile,
   CreateShippingProfileParams,
-  UpdateShippingProfileParams,
-  GetShippingProfileParams,
-  GetShippingProfileByKeyParams,
-  FindShippingProfilesParams,
   DeleteShippingProfileParams,
-} from "../types/shippingProfile";
+  FindShippingProfilesParams,
+  ShippingProfile,
+  UpdateShippingProfileParams,
+} from "../types/shipping";
+import type { StoreRecordByKeyParams, StoreRecordParams } from "../types/market";
+import { requireId } from "../utils/ids";
+import { segment, storePath, storeRecordPath } from "./paths";
 
-export const createShippingProfileApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId: string) =>
-    `/v1/stores/${encodeURIComponent(requireStoreId(storeId))}/shipping-profiles`;
+const collection = "shipping-profiles";
 
-  return {
-    create(
-      params: CreateShippingProfileParams,
-      options?: RequestOptions,
-    ): Promise<ShippingProfile> {
-      const { store_id, ...payload } = params;
-      return apiConfig.httpClient.post<ShippingProfile>(basePath(store_id), payload, options);
-    },
-    update(
-      params: UpdateShippingProfileParams,
-      options?: RequestOptions,
-    ): Promise<ShippingProfile> {
-      const { store_id, id, ...payload } = params;
-      return apiConfig.httpClient.put<ShippingProfile>(
-        `${basePath(store_id)}/${encodeURIComponent(id)}`,
-        payload,
-        options,
-      );
-    },
-    get(params: GetShippingProfileParams, options?: RequestOptions): Promise<ShippingProfile> {
-      const { store_id, id } = params;
-      return apiConfig.httpClient.get<ShippingProfile>(
-        `${basePath(store_id)}/${encodeURIComponent(id)}`,
-        options,
-      );
-    },
-    getByKey(params: GetShippingProfileByKeyParams, options?: RequestOptions): Promise<ShippingProfile> {
-      const { store_id, key } = params;
-      return apiConfig.httpClient.get<ShippingProfile>(
-        `${basePath(store_id)}/by-key/${encodeURIComponent(key)}`, options,
-      );
-    },
-    find(
-      params: FindShippingProfilesParams,
-      options?: RequestOptions,
-    ): Promise<PaginatedResponse<ShippingProfile>> {
-      const { store_id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<ShippingProfile>>(basePath(store_id), {
-        ...options,
-        params: query,
-      });
-    },
-    delete(
-      params: DeleteShippingProfileParams,
-      options?: RequestOptions,
-    ): Promise<ShippingProfile> {
-      const { store_id, id, expected_updated_at } = params;
-      return apiConfig.httpClient.delete<ShippingProfile>(
-        `${basePath(store_id)}/${encodeURIComponent(id)}`,
-        { ...options, params: { expected_updated_at } },
-      );
-    },
-  };
-};
+export const createShippingProfileApi = (apiConfig: ApiConfig) => ({
+  find(params: FindShippingProfilesParams, options?: RequestOptions): Promise<PaginatedResponse<ShippingProfile>> {
+    const { store_id, ...query } = params;
+    return apiConfig.httpClient.get<PaginatedResponse<ShippingProfile>>(storePath(store_id, collection), { ...options, params: query });
+  },
+
+  get(params: StoreRecordParams, options?: RequestOptions): Promise<ShippingProfile> {
+    return apiConfig.httpClient.get<ShippingProfile>(storeRecordPath(params.store_id, collection, params.id), options);
+  },
+
+  getByKey(params: StoreRecordByKeyParams, options?: RequestOptions): Promise<ShippingProfile> {
+    return apiConfig.httpClient.get<ShippingProfile>(storePath(params.store_id, `${collection}/by-key/${segment(params.key)}`), options);
+  },
+
+  create(params: CreateShippingProfileParams, options?: RequestOptions): Promise<ShippingProfile> {
+    requireId(params.id, "shipping profile");
+    const { store_id, ...body } = params;
+    return apiConfig.httpClient.post<ShippingProfile>(storePath(store_id, collection), body, options);
+  },
+
+  update(params: UpdateShippingProfileParams, options?: RequestOptions): Promise<ShippingProfile> {
+    const { store_id, id, ...body } = params;
+    return apiConfig.httpClient.put<ShippingProfile>(storeRecordPath(store_id, collection, id), body, options);
+  },
+
+  delete(params: DeleteShippingProfileParams, options?: RequestOptions): Promise<DeletedResponse> {
+    return apiConfig.httpClient.delete<DeletedResponse>(storeRecordPath(params.store_id, collection, params.id), {
+      ...options,
+      params: { expected_updated_at: params.expected_updated_at },
+    });
+  },
+});

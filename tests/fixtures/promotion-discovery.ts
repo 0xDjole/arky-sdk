@@ -1,13 +1,49 @@
-import { createAdmin } from "arky-sdk/admin";
-import { epochMilliseconds } from "arky-sdk";
-import type { Promotion, PromotionCode, GetPromotionByKeyParams, GetPromotionCodeByCodeParams, FindPromotionsParams, FindPromotionCodesParams } from "arky-sdk/types";
-const admin = createAdmin({ market: "configured-market", baseUrl: "https://api.example.test", apiToken: "arky_api_test" });
-const policyQuery: FindPromotionsParams = { store_id: "store", key: "sale", status: "deleting", limit: 20 };
-const codeQuery: FindPromotionCodesParams = { store_id: "store", promotion_id: "promotion", code: "SALE", status: "archived", cursor: "opaque", limit: 20 };
-const policyKey: GetPromotionByKeyParams = { store_id: "store", key: "sale" };
-const codeKey: GetPromotionCodeByCodeParams = { store_id: "store", code: "SALE" };
-const policy: Promise<Promotion> = admin.eshop.promotion.getByKey(policyKey);
-const code: Promise<PromotionCode> = admin.eshop.promotionCode.getByCode(codeKey);
-const deleted: Promise<Promotion | undefined> = admin.eshop.promotion.delete({ store_id: "store", id: "id", expected_updated_at: epochMilliseconds(1) });
-const deletedCode: Promise<PromotionCode | undefined> = admin.eshop.promotionCode.delete({ store_id: "store", id: "id", expected_updated_at: epochMilliseconds(1) });
-void [policy, code, deleted, deletedCode, admin.eshop.promotion.find(policyQuery), admin.eshop.promotionCode.find(codeQuery)];
+import type { createAdmin } from "arky-sdk/admin";
+import type {
+  CreatePromotionCodeParams,
+  CreatePromotionParams,
+  FindPromotionCodesParams,
+  FindPromotionsParams,
+  GetPromotionByKeyParams,
+  GetPromotionCodeByCodeParams,
+  PaginatedResponse,
+  Promotion,
+  PromotionCode,
+  PromotionEditableStatus,
+  PromotionEffect,
+  PromotionSchedule,
+  PromotionCondition,
+  PromotionStatus,
+  PromotionTarget,
+  ShippingRateCondition,
+} from "arky-sdk/types";
+
+type Assert<T extends true> = T;
+type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
+type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
+type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
+type Eshop = ReturnType<typeof createAdmin>["eshop"];
+
+export type PromotionContracts = [
+  Assert<Equal<Parameters<Eshop["promotion"]["getByKey"]>[0], GetPromotionByKeyParams>>,
+  Assert<Equal<Parameters<Eshop["promotionCode"]["getByCode"]>[0], GetPromotionCodeByCodeParams>>,
+  Assert<Equal<Awaited<ReturnType<Eshop["promotion"]["find"]>>, PaginatedResponse<Promotion>>>,
+  Assert<Equal<Awaited<ReturnType<Eshop["promotionCode"]["find"]>>, PaginatedResponse<PromotionCode>>>,
+  Assert<Equal<Awaited<ReturnType<Eshop["promotion"]["delete"]>>, Promotion | undefined>>,
+  Assert<Equal<Awaited<ReturnType<Eshop["promotionCode"]["delete"]>>, PromotionCode | undefined>>,
+  Assert<Equal<NonNullable<FindPromotionsParams["status"]>, PromotionStatus["type"]>>,
+  Assert<Equal<keyof FindPromotionCodesParams, "store_id" | "promotion_id" | "code" | "status" | "limit" | "cursor">>,
+  Assert<RequiredField<CreatePromotionParams, "id">>,
+  Assert<RequiredField<CreatePromotionCodeParams, "id">>,
+  Assert<Equal<CreatePromotionParams["status"], PromotionEditableStatus>>,
+  Assert<Equal<Extract<PromotionStatus, { type: "deleting" }>, Exclude<PromotionStatus, PromotionEditableStatus>>>,
+  Assert<Equal<CreatePromotionParams["schedule"], PromotionSchedule>>,
+  Assert<Missing<CreatePromotionParams, "starts_at" | "ends_at">>,
+  Assert<Equal<PromotionSchedule["type"], "always" | "scheduled">>,
+  Assert<Equal<PromotionTarget["type"], "products" | "product_variants" | "booking_services" | "customer_group_offerings" | "customer_groups" | "catalogs" | "categories" | "all_eligible_items">>,
+  Assert<Equal<Extract<PromotionTarget, { type: "customer_group_offerings" }>, { type: "customer_group_offerings"; customer_group_offering_ids: string[] }>>,
+  Assert<Equal<Extract<PromotionTarget, { type: "customer_groups" }>, { type: "customer_groups"; customer_group_ids: string[] }>>,
+  Assert<Equal<Extract<PromotionCondition, { type: "customer_group_offering" }>, { type: "customer_group_offering"; ids: string[] }>>,
+  Assert<Equal<Extract<ShippingRateCondition, { type: "customer_group_offering" }>, { type: "customer_group_offering"; ids: string[] }>>,
+  Assert<Equal<PromotionEffect["type"], "item_percentage" | "item_fixed" | "order_percentage" | "order_fixed" | "delivery_percentage" | "delivery_fixed" | "buy_x_get_y">>,
+];

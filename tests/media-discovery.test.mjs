@@ -12,9 +12,9 @@ test('Media discovery preserves combined filters, ordering and empty-page contin
     return new Response(JSON.stringify({ items: [], cursor: calls.length === 1 ? 'media:+/=' : null }),
       { headers: { 'content-type': 'application/json' } });
   });
-  const api = createAdmin({ baseUrl: 'https://media.test' }).media;
-  const filters = { query: 'invoice', ids: ['media-a', 'media-b'], mime_type: 'application', limit: 1,
-    sort_field: 'original_file_name', sort_direction: 'asc' };
+  const api = createAdmin({ baseUrl: 'https://media.test', secretKey: 'arky_api_media' }).media;
+  const filters = { query: 'invoice', ids: ['media-a', 'media-b'], type: 'document', limit: 1,
+    sort_field: 'file_name', sort_direction: 'asc' };
   const first = await api.find({ store_id: STORE_ID, ...filters });
   assert.deepEqual(first, { items: [], cursor: 'media:+/=' });
   assert.deepEqual(await api.find({ store_id: STORE_ID, ...filters, cursor: first.cursor }), { items: [], cursor: null });
@@ -38,7 +38,7 @@ test('Storefront Media reference batches remain exact and preserve request order
     calls.push({ url: new URL(url), method: init.method });
     return new Response(JSON.stringify(roots), { headers: { 'content-type': 'application/json' } });
   });
-  const api = createStorefront(`arky_pk_${'m'.repeat(42)}A`, { apiUrl: 'https://media.test' });
+  const api = createStorefront(`arky_pk_${'m'.repeat(42)}A`, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl: 'https://media.test' });
   assert.deepEqual(await api.media.findByIds({ ids: ['second', 'first'] }), roots);
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url.pathname, '/v1/storefront/media');

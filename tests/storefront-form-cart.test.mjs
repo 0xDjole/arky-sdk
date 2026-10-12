@@ -2,559 +2,255 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { initialize } from "../dist/storefront.js";
-import { storefrontSessionStorage } from "./helpers/storefront-session-storage.mjs";
+import {
+  SessionStorage,
+  apiUrl,
+  cartRecord,
+  customerRecord,
+  ids,
+  publishableKey,
+  recordFetch,
+  sessionResult,
+  visitorSession,
+  visitorStorage,
+  visitorToken,
+} from "./helpers/arky-fixtures.mjs";
 
-const apiUrl = "https://api.example.test";
-const publishableKey = `arky_pk_${"f".repeat(42)}A`;
-const visitorToken = `customer_visitor_${"f".repeat(64)}`;
+const customerBuyer = { type: "customer" };
 
-function jsonResponse(body, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json" },
+const contactForm = {
+  id: ids.form,
+  store_id: ids.store,
+  key: "contact-form",
+  questions: [
+    { id: "q-name", key: "name", type: "text", required: true, label: { type: "shown", text: { it: "Nome" } }, min_length: null, max_length: null, pattern: null },
+    { id: "q-age", key: "age", type: "number", required: false, label: { type: "hidden" }, min: null, max: null },
+    { id: "q-member", key: "member", type: "boolean", required: false, label: { type: "hidden" } },
+    { id: "q-location", key: "location", type: "geo_location", required: false, label: { type: "hidden" } },
+    { id: "q-note", key: "note", type: "text", required: false, label: { type: "hidden" }, min_length: null, max_length: null, pattern: null },
+    { id: "q-topics", key: "topics", type: "select_many", required: false, label: { type: "hidden" }, options: [{ key: "sales", label: { it: "Vendite" } }] },
+  ],
+  stages: [{ id: "new", key: "new" }],
+  status: { type: "active" },
+  created_at: 1,
+  updated_at: 1,
+};
+
+function storedSessionOf(storage) {
+  const [key] = storage.keys("arky_customer_session:v4:");
+  return key ? JSON.parse(storage.getItem(key)) : null;
+}
+
+function submissionOf(call) {
+  assert.ok(call.body instanceof FormData);
+  return JSON.parse(call.body.get("submission"));
+}
+
+test("the store loads its setup and confirms the selected market before it exposes currency and payment options", async (context) => {
+  const setupRecord = { name: "Bottega", timezone: "Europe/Rome", languages: ["it", "en"], payment_options: [] };
+  const market = { id: ids.market, key: "ita", currency: "eur", tax_mode: "exclusive", payment_option_ids: [ids.paymentOption] };
+  let marketKey = "ita";
+  const calls = recordFetch(context, (call) => {
+    if (call.path === "/v1/storefront") return setupRecord;
+    if (call.path === "/v1/storefront/markets/by-key/ita") return { ...market, key: marketKey };
+    throw new Error(`Unexpected setup request: ${call.method} ${call.path}`);
   });
-}
-
-function memoryStorage() {
-  const values = new Map();
-  return {
-    values,
-    adapter: {
-      getItem: (key) => values.get(key) ?? null,
-      setItem: (key, value) => values.set(key, value),
-      removeItem: (key) => values.delete(key),
-    },
-  };
-}
-
-function customer(email = null) {
-  return {
-    id: "customer-form-contract",
-    status: { type: "active" },
-    identities: email
-      ? [
-          {
-            id: "identity-form-contract",
-            type: "email",
-            email,
-            verified_at: null,
-            created_at: 1,
-          },
-        ]
-      : [],
-    categories: [],
-    created_at: 1,
-    updated_at: 1,
-  };
-}
-
-function identifyResponse(email = null) {
-  return {
-    customer: customer(email),
-    session: {
-      id: "visitor-session-form-contract",
-      customer_id: "customer-form-contract",
-      type: "visitor",
-      token: visitorToken,
-      status: { type: "active" },
-      expires_at: 10_000,
-    },
-  };
-}
-
-function storedVisitorSession() {
-  const { customer: customerRecord, session } = identifyResponse();
-  return JSON.stringify({ version: 2, customer: customerRecord, session });
-}
-
-function form() {
-  return {
-    id: "form-contact",
-    key: "contact-form",
-    locale: "it",
-    presentation_digest: "a".repeat(64),
-    schema: [
-      { id: "field-name", key: "name", type: "text", required: true, question: null },
-      { id: "field-age", key: "age", type: "number", required: false, question: null, min: null, max: null },
-      { id: "field-member", key: "member", type: "boolean", required: false, question: null },
-      {
-        id: "field-location",
-        key: "location",
-        type: "geo_location",
-        required: false,
-        question: null,
-      },
-    ],
-  };
-}
-
-test("a fresh cart load confirms the selected Market and Store setup before loading persisted product references", async () => {
-  const calls = [];
-  const store = initialize(publishableKey, {
-    apiUrl,
-    market: "ita",
-    sessionStorage: storefrontSessionStorage(storedVisitorSession()),
-  });
-  const cart = {
-    id: "cart-hydration-contract",
-    store_id: "store-form-contract",
-    customer_id: "customer-form-contract",
-    company: null,
-    sales_channel_id: "channel-form-contract",
-    status: { type: "active" },
-    origin: {
-      type: "storefront",
-      customer_id: "customer-form-contract",
-      customer_session_id: "visitor-session-form-contract",
-    },
-    market_id: "market-ita",
-    catalog_id: "catalog-ita",
-    line_items: [
-      {
-        type: "product",
-        id: "line-hydration-contract",
-        product_id: "product-hydration-contract",
-        variant_id: "variant-hydration-contract",
-        quantity: 1,
-        form_submission_id: "form-submission-hydration-contract",
-        price_override: null,
-        purchase: { type: "catalog" },
-      },
-    ],
-    delivery_groups: [],
-    billing_address: null,
-    promotion_code_ids: [],
-    purchase_order_number: null,
-    item_count: 1,
-    last_action_at: 1,
-    abandoned_at: null,
-    created_at: 0,
-    updated_at: 1,
-  };
-  const setup = {
-    timezone: "Europe/Rome",
-    languages: { default: "it", available: ["it"] },
-    commerce: { type: "ready", default_sales_channel_id: "channel-form-contract" },
-    payment_options: [],
-    support: { email: "support@example.test" },
-    readiness: { commerce: true },
-  };
-  const market = {
-    id: "market-ita",
-    key: "ita",
-    currency: "eur",
-    tax_mode: "exclusive",
-    payment_option_ids: [],
-  };
-  const product = {
-    id: "product-hydration-contract",
-    key: "hydrated-product",
-    slugs: { it: "prodotto-idratato" },
-    blocks: [
-      {
-        id: "product-name",
-        key: "name",
-        type: "object",
-        value: {
-          it: {
-            id: "product-name-it",
-            key: "it",
-            type: "text",
-            value: "Prodotto idratato",
-          },
-        },
-      },
-    ],
-    categories: [],
-    variants: [
-      {
-        id: "variant-hydration-contract",
-        sku: null,
-        price: {
-          unit_price: { amount: 1250, currency: "eur" },
-          compare_at: null,
-          tax_mode: "exclusive",
-          min_quantity: 1,
-          max_quantity: null,
-          priced_at: 1,
-        },
-        attributes: [],
-        reference_labels: {},
-        fulfillment: { type: "none" },
-        tax_category_id: null,
-        status: { type: "active" },
-        product_id: "product-hydration-contract",
-      },
-    ],
-    status: { type: "active" },
-    created_at: 1,
-    updated_at: 1,
-  };
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    const call = {
-      url: String(url),
-      method: init.method,
-      authorization: new Headers(init.headers).get("authorization"),
-      market: new Headers(init.headers).get("x-arky-market"),
-    };
-    calls.push(call);
-    if (call.url.endsWith("/carts")) return jsonResponse({ cart, recovery_token: "cart-recovery-token" });
-    if (call.url === `${apiUrl}/v1/storefront`) return jsonResponse(setup);
-    if (call.url === `${apiUrl}/v1/storefront/markets/by-key/ita`) return jsonResponse(market);
-    if (new URL(call.url).pathname.endsWith("/products/product-hydration-contract")) {
-      const { variants, status, created_at, updated_at, ...card } = product;
-      return jsonResponse({ ...card, price: variants[0].price });
-    }
-    if (new URL(call.url).pathname.endsWith("/products/product-hydration-contract/variants/variant-hydration-contract")) {
-      return jsonResponse(product.variants[0]);
-    }
-    throw new Error(
-      `Unexpected cart hydration request: ${call.method} ${call.url}`,
-    );
-  };
-
-  try {
-    assert.equal((await store.eshop.cart.load()).id, cart.id);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-
-  assert.deepEqual(
-    calls.map((call) => call.url),
-    [
-      `${apiUrl}/v1/storefront/markets/by-key/ita`,
-      `${apiUrl}/v1/storefront/carts`,
-      `${apiUrl}/v1/storefront`,
-      `${apiUrl}/v1/storefront/markets/by-key/ita`,
-      `${apiUrl}/v1/storefront/products/product-hydration-contract?catalog_id=catalog-ita&include_price=true`,
-      `${apiUrl}/v1/storefront/products/product-hydration-contract/variants/variant-hydration-contract?catalog_id=catalog-ita&include_price=true`,
-    ],
-  );
-  assert.equal(
-    calls.every((call) => call.authorization === `Bearer ${visitorToken}` && call.market === "ita"),
-    true,
-  );
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, market: "ita", locale: "it", sessionStorage: visitorStorage() });
+  assert.deepEqual(await store.store.load(), setupRecord);
   assert.deepEqual(store.market.get(), market);
   assert.equal(store.currency.get(), "eur");
-  assert.deepEqual(store.eshop.cart.product_items.get(), [
-    {
-      id: "line-hydration-contract",
-      product_id: product.id,
-      variant_id: "variant-hydration-contract",
-      product_name: "Prodotto idratato",
-      product_slug: "prodotto-idratato",
-      variant_attributes: [],
-      requires_shipping: false,
-      shipping_profile_id: null,
-      price: {
-        unit_price: { amount: 1250, currency: "eur" },
-        compare_at: null,
-        tax_mode: "exclusive",
-        min_quantity: 1,
-        max_quantity: null,
-        priced_at: 1,
-      },
-      quantity: 1,
-      purchase: { type: "catalog" },
-      form_submission_id: "form-submission-hydration-contract",
-      added_at: 0,
-    },
+  assert.deepEqual(store.allowed_payment_option_ids.get(), [ids.paymentOption]);
+  assert.deepEqual(store.setup.get(), setupRecord);
+  assert.deepEqual(calls.map(({ method, path }) => [method, path]), [
+    ["GET", "/v1/storefront"],
+    ["GET", "/v1/storefront/markets/by-key/ita"],
   ]);
-  assert.equal(store.eshop.cart.status.get().error, null);
-  assert.equal(store.getMarket(), "ita");
-  assert.equal(store.getLocale(), "it");
+  for (const call of calls) {
+    assert.equal(call.headers.get("x-arky-market"), "ita");
+    assert.equal(call.headers.get("x-arky-locale"), "it");
+    assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
+  }
+  marketKey = "deu";
+  const other = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, market: "ita", sessionStorage: visitorStorage() });
+  await assert.rejects(other.store.load(), /didn't confirm the selected key/);
+  assert.equal(other.market.get(), null);
+  assert.equal(other.currency.get(), null);
+  assert.equal(other.setup.get(), null);
 });
 
-test("submitByKey reads anonymously, identifies lazily, and submits no Store routing fields", async () => {
-  const storage = memoryStorage();
-  const store = initialize(publishableKey, {
-    apiUrl,
-    locale: "it",
-    market: "ita",
-    sessionStorage: storage.adapter,
+test("a fresh visitor's first cart load identifies once and reads no cart, and a create then selects the new cart", async (context) => {
+  const storage = new SessionStorage();
+  const line = { type: "product", id: ids.line, product_id: ids.product, variant_id: ids.variant, quantity: 2, form_submission_id: ids.submission, price_override: null, purchase: { type: "catalog" } };
+  const cart = cartRecord({ line_items: [line] });
+  const calls = recordFetch(context, (call) => {
+    if (call.path === "/v1/storefront/customer/identify") return sessionResult();
+    if (call.method === "POST" && call.path === "/v1/storefront/carts") return { type: "created", cart, recovery_token: "cart-recovery-token" };
+    if (call.method === "GET" && call.path === `/v1/storefront/carts/${ids.cart}`) return cart;
+    throw new Error(`Unexpected cart request: ${call.method} ${call.path}`);
   });
-  const calls = [];
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    const call = {
-      url: String(url),
-      method: init.method,
-      body: init.body ? JSON.parse(String(init.body)) : null,
-      headers: new Headers(init.headers),
-    };
-    calls.push(call);
-    if (call.url.endsWith("/forms/contact-form")) return jsonResponse(form());
-    if (call.url.endsWith("/customer/identify"))
-      return jsonResponse(identifyResponse());
-    if (call.url.endsWith("/forms/form-contact/submissions")) {
-      return jsonResponse({
-        id: "submission-contact",
-        form_id: "form-contact",
-        fields: call.body.fields,
-      });
-    }
-    throw new Error(`Unexpected form request: ${call.method} ${call.url}`);
-  };
+  const firstPage = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, market: "ita", sessionStorage: storage });
+  assert.equal(await firstPage.eshop.cart.load({ buyer: customerBuyer, catalog_id: ids.catalog }), null);
+  assert.equal(firstPage.eshop.cart.status.get().error, null);
+  assert.equal(firstPage.hasSession, true);
+  assert.deepEqual(calls.map(({ method, path }) => [method, path]), [["POST", "/v1/storefront/customer/identify"]]);
+  assert.equal((await firstPage.eshop.cart.create({ id: ids.cart, buyer: customerBuyer, catalog_id: ids.catalog })).id, ids.cart);
+  const { type: _type, ...productItem } = line;
+  assert.deepEqual(firstPage.eshop.cart.product_items.get(), [productItem]);
+  assert.equal(firstPage.eshop.cart.item_count.get(), 2);
 
-  try {
-    const presentation = await store.forms.get({ key: "contact-form" });
-    const result = await store.forms.submitByKey({ id: "submission-contact",
-      key: "contact-form",
-      presentation,
-      values: {
-        name: "Jane",
-        age: 32,
-        member: false,
-        location: {
-          coordinates: { lat: 43.8563, lon: 18.4131 },
-          label: "Sarajevo",
-        },
-      },
-    });
-    assert.equal(result.id, "submission-contact");
-  } finally {
-    globalThis.fetch = originalFetch;
+  const reloaded = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, market: "ita", sessionStorage: storage });
+  assert.equal(reloaded.hasSession, true);
+  assert.equal((await reloaded.eshop.cart.load({ buyer: customerBuyer, catalog_id: ids.catalog })).id, ids.cart);
+  assert.deepEqual(reloaded.eshop.cart.cart.get(), cart);
+  assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
+    ["POST", "/v1/storefront/customer/identify", { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }],
+    ["POST", "/v1/storefront/carts", { id: ids.cart, buyer: customerBuyer, catalog_id: ids.catalog }],
+    ["GET", `/v1/storefront/carts/${ids.cart}`, null],
+  ]);
+  assert.equal(calls[0].headers.get("authorization"), null);
+  assert.equal(calls[1].headers.get("authorization"), `Bearer ${visitorToken}`);
+  assert.equal(calls[2].headers.get("authorization"), `Bearer ${visitorToken}`);
+  assert.equal(calls[2].headers.get("x-arky-cart-token"), "cart-recovery-token");
+  for (const call of calls) {
+    assert.equal(call.headers.get("x-arky-market"), "ita");
+    assert.equal(call.headers.has("x-arky-sales-channel"), false);
   }
+  const stored = storedSessionOf(storage);
+  assert.equal(stored.version, 4);
+  assert.equal(stored.session.token, visitorToken);
+});
 
-  assert.deepEqual(
-    calls.map(({ method, url }) => [method, url]),
-    [
-      ["GET", `${apiUrl}/v1/storefront/forms/contact-form`],
-      ["POST", `${apiUrl}/v1/storefront/customer/identify`],
-      ["POST", `${apiUrl}/v1/storefront/forms/form-contact/submissions`],
-    ],
-  );
+test("a cart operation that starts with a session still refuses when the store context changes underneath it", async (context) => {
+  let releaseRead;
+  const reading = new Promise((resolve) => {
+    releaseRead = resolve;
+  });
+  recordFetch(context, async (call) => {
+    if (call.method === "POST" && call.path === "/v1/storefront/carts") return { type: "created", cart: cartRecord(), recovery_token: "cart-recovery-token" };
+    if (call.method === "GET" && call.path === `/v1/storefront/carts/${ids.cart}`) {
+      await reading;
+      return cartRecord();
+    }
+    throw new Error(`Unexpected cart request: ${call.method} ${call.path}`);
+  });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, sessionStorage: visitorStorage() });
+  await store.eshop.cart.create({ id: ids.cart, buyer: customerBuyer, catalog_id: ids.catalog });
+  const loading = store.eshop.cart.load({ buyer: customerBuyer, catalog_id: ids.catalog });
+  await new Promise((resolve) => setImmediate(resolve));
+  store.setContext({ market: "deu" });
+  releaseRead();
+  await assert.rejects(loading, /changed during the cart operation/);
+  assert.equal(store.eshop.cart.cart.get(), null);
+});
+
+test("submitByKey reads the form anonymously, identifies lazily and submits only given answers as multipart with no store routing", async (context) => {
+  const storage = new SessionStorage();
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, locale: "it", market: "ita", sessionStorage: storage });
+  const calls = recordFetch(context, (call) => {
+    if (call.method === "GET" && call.path === "/v1/storefront/forms/contact-form") return contactForm;
+    if (call.path === "/v1/storefront/customer/identify") return sessionResult();
+    if (call.path === `/v1/storefront/forms/${ids.form}/submissions`) {
+      return { id: ids.submission, form_id: ids.form, language: "it", answers: submissionOf(call).answers, stage_id: "new", created_at: 2, updated_at: 2 };
+    }
+    throw new Error(`Unexpected form request: ${call.method} ${call.path}`);
+  });
+  const form = await store.forms.get({ key: "contact-form" });
+  assert.equal(store.forms.state.get().forms[`key:contact-form`], form);
+  assert.equal(store.forms.state.get().forms[`id:${ids.form}`], form);
+  const result = await store.forms.submitByKey({
+    id: ids.submission,
+    key: "contact-form",
+    form,
+    language: "it",
+    values: { name: "Jane", age: 32, member: false, location: { lat: 43.8563, lon: 18.4131 }, note: "   ", topics: [] },
+  });
+  assert.equal(result.stage_id, "new");
+  assert.deepEqual(calls.map(({ method, path }) => [method, path]), [
+    ["GET", "/v1/storefront/forms/contact-form"],
+    ["POST", "/v1/storefront/customer/identify"],
+    ["POST", `/v1/storefront/forms/${ids.form}/submissions`],
+  ]);
   assert.equal(calls[0].headers.get("authorization"), null);
   assert.equal(calls[2].headers.get("authorization"), `Bearer ${visitorToken}`);
   assert.equal(calls[2].headers.get("x-arky-locale"), "it");
   assert.equal(calls[2].headers.get("x-arky-market"), "ita");
-  assert.deepEqual(calls[1].body, {});
-  assert.deepEqual(calls[2].body, {
-    id: "submission-contact",
-    presentation_digest: "a".repeat(64),
-    fields: [
-      { id: "field-name", key: "name", type: "text", value: "Jane" },
-      { id: "field-age", key: "age", type: "number", value: 32 },
-      { id: "field-member", key: "member", type: "boolean", value: false },
-      {
-        id: "field-location",
-        key: "location",
-        type: "geo_location",
-        value: {
-          coordinates: { lat: 43.8563, lon: 18.4131 },
-          label: "Sarajevo",
-        },
-      },
+  assert.equal(calls[2].headers.get("content-type"), null);
+  assert.deepEqual(calls[1].body, { customer_id: ids.customer, session_id: ids.session });
+  assert.deepEqual(submissionOf(calls[2]), {
+    id: ids.submission,
+    form_updated_at: contactForm.updated_at,
+    language: "it",
+    answers: [
+      { question_id: "q-name", key: "name", type: "text", value: "Jane" },
+      { question_id: "q-age", key: "age", type: "number", value: 32 },
+      { question_id: "q-member", key: "member", type: "boolean", value: false },
+      { question_id: "q-location", key: "location", type: "geo_location", value: { lat: 43.8563, lon: 18.4131 } },
     ],
   });
-  assert.equal(JSON.stringify(calls).includes("store_id"), false);
-  assert.deepEqual([...storage.values.values()], [storedVisitorSession()]);
+  assert.deepEqual([...calls[2].body.keys()], ["submission"]);
+  assert.equal(calls.some((call) => call.href.includes("store_id")), false);
+  assert.equal(storedSessionOf(storage).version, 4);
 });
 
-test("submitByKey validates the displayed schema before identifying or submitting", async () => {
-  const storage = memoryStorage();
-  const store = initialize(publishableKey, {
-    apiUrl,
-    sessionStorage: storage.adapter,
+test("submitByKey checks the shown form before identifying or submitting, and a whitespace-only required answer is missing", async (context) => {
+  const storage = new SessionStorage();
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, sessionStorage: storage });
+  const calls = recordFetch(context, (call) => {
+    if (call.method === "GET") return contactForm;
+    throw new Error(`Validation must not issue ${call.method} ${call.path}`);
   });
-  const calls = [];
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    calls.push({ url: String(url), method: init.method });
-    if ((init.method || "GET") === "GET") return jsonResponse(form());
-    throw new Error(`Validation must not issue ${init.method} ${url}`);
-  };
-
-  try {
-    const presentation = await store.forms.get({ key: "contact-form" });
-    await assert.rejects(
-      store.forms.submitByKey({ id: "submission-contact",
-        key: "contact-form",
-        presentation,
-        values: { name: "Jane", unknown: "no" },
-      }),
-      /not defined by the form schema/,
-    );
-    await assert.rejects(
-      store.forms.submitByKey({ id: "submission-contact", key: "contact-form", presentation, values: {} }),
-      /required value is missing/,
-    );
-    await assert.rejects(
-      store.forms.submitByKey({ id: "submission-contact",
-        key: "contact-form",
-        presentation,
-        values: { name: 42 },
-      }),
-      /expected text/,
-    );
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-
-  assert.equal(calls.length, 1);
-  assert.equal(
-    calls.every((call) => call.method === "GET"),
-    true,
-  );
-  assert.equal(storage.values.size, 0);
+  const form = await store.forms.get({ id: ids.form });
+  const request = { id: ids.submission, key: "contact-form", form, language: "it" };
+  await assert.rejects(async () => store.forms.submitByKey({ ...request, values: { name: "Jane", unknown: "no" } }), /'unknown' isn't part of the form/);
+  await assert.rejects(async () => store.forms.submitByKey({ ...request, values: {} }), /'name': an answer is required/);
+  await assert.rejects(async () => store.forms.submitByKey({ ...request, values: { name: "   " } }), /'name': an answer is required/);
+  await assert.rejects(async () => store.forms.submitByKey({ ...request, values: { name: 42 } }), /'name': expected text/);
+  await assert.rejects(async () => store.forms.submitByKey({ ...request, values: { name: "Jane", topics: ["sales", "sales"] } }), /'topics': contains an unknown or repeated option/);
+  assert.deepEqual(calls.map(({ method, path }) => [method, path]), [["GET", `/v1/storefront/forms/${ids.form}`]]);
+  assert.equal(storedSessionOf(storage), null);
+  assert.equal(store.hasSession, false);
 });
 
-test("email identity attachment remains an explicit first-visit identify operation", async () => {
-  const storage = memoryStorage();
-  const store = initialize(publishableKey, {
-    apiUrl,
-    sessionStorage: storage.adapter,
-  });
-  const calls = [];
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    const body = JSON.parse(String(init.body));
-    calls.push({ url: String(url), body });
-    return jsonResponse(identifyResponse(body.email));
-  };
-
-  try {
-    assert.equal("identifyEmailIfMissing" in store.customer, false);
-    const result = await store.customer.identify({
-      email: "person@example.com",
-    });
-    assert.equal(result.customer.identities[0].email, "person@example.com");
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-
-  assert.equal(calls.length, 1);
-  assert.deepEqual(calls[0].body, { email: "person@example.com" });
-  assert.equal(calls[0].url, `${apiUrl}/v1/storefront/customer/identify`);
-});
-
-test("a page reload reuses the stored Visitor without identifying again", async () => {
-  const storage = memoryStorage();
-  const calls = [];
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    const request = {
-      url: String(url),
-      authorization: new Headers(init.headers).get("authorization"),
-      body: init.body ? JSON.parse(String(init.body)) : null,
-    };
-    calls.push(request);
-    if (request.url.endsWith("/customer/identify") && !request.authorization) {
-      return jsonResponse(identifyResponse());
-    }
-    if (request.url.endsWith("/markets/by-key/ita")) {
-      return jsonResponse({ id: "market-ita", key: "ita", currency: "eur", tax_mode: "exclusive", payment_option_ids: [] });
-    }
-    if (request.url.endsWith("/carts") || request.url.endsWith("/carts/cart-reload-contract")) {
-      const cart = {
-        id: "cart-reload-contract",
-        store_id: "store-form-contract",
-        customer_id: "customer-form-contract",
-        company: null,
-        sales_channel_id: "channel-form-contract",
-        status: { type: "active" },
-        origin: {
-          type: "storefront",
-          customer_id: "customer-form-contract",
-          customer_session_id: "visitor-session-form-contract",
-        },
-        market_id: "market-ita",
-        catalog_id: "catalog-ita",
-        line_items: [],
-        delivery_groups: [],
-        billing_address: null,
-        promotion_code_ids: [],
-        purchase_order_number: null,
-        item_count: 0,
-        last_action_at: 1,
-        abandoned_at: null,
-        created_at: 1,
-        updated_at: 1,
-      };
-      return jsonResponse(request.url.endsWith("/carts") ? { cart, recovery_token: "cart-recovery-token" } : cart);
-    }
-    throw new Error(`Unexpected reload request: ${request.url}`);
-  };
-
-  try {
-    const firstPage = initialize(publishableKey, {
-      apiUrl,
-      market: "ita",
-      sessionStorage: storage.adapter,
-    });
-    await firstPage.eshop.cart.load();
-
-    const reloadedPage = initialize(publishableKey, {
-      apiUrl,
-      market: "ita",
-      sessionStorage: storage.adapter,
-    });
-    await reloadedPage.eshop.cart.load();
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-
-  assert.deepEqual(
-    calls.map(({ url, authorization, body }) => [
-      url.slice(apiUrl.length),
-      authorization,
-      body,
-    ]),
-    [
-      ["/v1/storefront/customer/identify", null, {}],
-      ["/v1/storefront/markets/by-key/ita", `Bearer ${visitorToken}`, null],
-      ["/v1/storefront/carts", `Bearer ${visitorToken}`, {}],
-      ["/v1/storefront/markets/by-key/ita", `Bearer ${visitorToken}`, null],
-      ["/v1/storefront/carts/cart-reload-contract", `Bearer ${visitorToken}`, null],
+test("a raw storefront submission stays stateful and sends only the id, the loaded form's version, the language and the given answers", async (context) => {
+  const storage = new SessionStorage();
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, locale: "it", sessionStorage: storage });
+  const calls = recordFetch(context, (call) => call.path === "/v1/storefront/customer/identify"
+    ? sessionResult()
+    : { id: ids.submission, form_id: ids.form, language: "it", answers: [], stage_id: "new", created_at: 2, updated_at: 2 });
+  await store.forms.submit({
+    form_id: ids.form,
+    form_updated_at: 1_700_000_000_123,
+    id: ids.submission,
+    language: "it",
+    answers: [
+      { type: "text", question_id: "q-name", key: "name", value: "Hello" },
+      { type: "text", question_id: "q-note", key: "note", value: "  " },
+      { type: "select_many", question_id: "q-topics", key: "topics", option_keys: [] },
+      { type: "file", question_id: "q-files", key: "files", files: [] },
     ],
-  );
-  const stored = JSON.parse([...storage.values.values()][0]);
-  assert.equal(stored.version, 2);
-  assert.equal(stored.session.token, visitorToken);
+  });
+  assert.deepEqual(calls.map(({ method, path }) => [method, path]), [
+    ["POST", "/v1/storefront/customer/identify"],
+    ["POST", `/v1/storefront/forms/${ids.form}/submissions`],
+  ]);
+  assert.deepEqual(submissionOf(calls[1]), {
+    id: ids.submission,
+    form_updated_at: 1_700_000_000_123,
+    language: "it",
+    answers: [{ type: "text", question_id: "q-name", key: "name", value: "Hello" }],
+  });
+  await assert.rejects(async () => store.forms.submit({ form_id: ids.form, form_updated_at: 1, id: "submission-raw", language: "it", answers: [] }), TypeError);
+  assert.equal(calls.length, 2);
 });
 
-test("raw form submission remains stateful and keeps only caller form fields", async () => {
-  const storage = memoryStorage();
-  const store = initialize(publishableKey, {
-    apiUrl,
-    locale: "it",
-    sessionStorage: storage.adapter,
-  });
-  const calls = [];
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    calls.push({ url: String(url), body: JSON.parse(String(init.body)) });
-    if (String(url).endsWith("/customer/identify")) {
-      return jsonResponse(identifyResponse());
-    }
-    return jsonResponse({
-      id: "submission-raw",
-      ...JSON.parse(String(init.body)),
-    });
-  };
-
-  try {
-    await store.forms.submit({
-      id: "submission-raw", locale: "it", presentation_digest: "b".repeat(64),
-      form_id: "form-raw",
-      fields: [
-        { id: "field-raw", key: "message", type: "text", value: "Hello" },
-      ],
-    });
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-
-  assert.deepEqual(
-    calls.map((call) => call.url),
-    [
-      `${apiUrl}/v1/storefront/customer/identify`,
-      `${apiUrl}/v1/storefront/forms/form-raw/submissions`,
-    ],
-  );
-  assert.deepEqual(calls[1].body, {
-    id: "submission-raw", presentation_digest: "b".repeat(64),
-    fields: [{ id: "field-raw", key: "message", type: "text", value: "Hello" }],
-  });
+test("Visitor identify sends only the application-picked IDs and does not claim a contact address", async (context) => {
+  const storage = new SessionStorage();
+  const store = initialize(publishableKey, { apiUrl, sessionStorage: storage });
+  const calls = recordFetch(context, () => ({ customer: customerRecord(), session: visitorSession() }));
+  const identity = { customer_id: ids.customer, session_id: ids.session };
+  const result = await store.customer.identify(identity);
+  assert.deepEqual(result.customer.type, { type: "anonymous" });
+  assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [["POST", "/v1/storefront/customer/identify", identity]]);
+  assert.equal("captureEmail" in store.customer, false);
+  assert.equal("email" in storedSessionOf(storage).customer, false);
 });

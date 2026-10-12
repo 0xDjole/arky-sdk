@@ -1,117 +1,36 @@
 import assert from "node:assert/strict";
-import { afterEach, test } from "node:test";
+import test from "node:test";
 import { initialize } from "../dist/storefront.js";
-import { storefrontSessionStorage } from "./helpers/storefront-session-storage.mjs";
-import { checkoutSources } from "./helpers/checkout-sources.mjs";
+import { ExclusiveLockManager, MemoryStorage } from "./helpers/durable-request-fixtures.mjs";
 import {
-  ExclusiveLockManager,
-  MemoryStorage,
-} from "./helpers/durable-request-fixtures.mjs";
+  apiUrl,
+  cartRecord,
+  checkoutRequest,
+  customerRecord,
+  ids,
+  installGlobal,
+  publishableKey,
+  quoteRecord,
+  recordFetch,
+  visitorSession,
+  visitorStorage,
+} from "./helpers/arky-fixtures.mjs";
 
-const apiUrl = "https://api.example.test";
-const publishableKey = `arky_pk_${"a".repeat(42)}A`;
-const cartId = "9f1b6e23-e2ea-4ab9-a1b7-eaaf550ddf41";
-const secondId = "2b815d21-78be-431a-b49c-0d5d62c87823";
-const checkoutRequestId = "6c3a9e17-2f58-4d04-b1e6-8a7d0c5f3b92";
-const originals = new Map(
-  ["fetch", "window", "localStorage", "navigator"].map((name) => [
-    name,
-    Object.getOwnPropertyDescriptor(globalThis, name),
-  ]),
-);
-afterEach(() => {
-  for (const [name, descriptor] of originals) {
-    if (descriptor) Object.defineProperty(globalThis, name, descriptor);
-    else delete globalThis[name];
-  }
-});
+const customerBuyer = { type: "customer" };
+const productLine = {
+  type: "product",
+  id: ids.line,
+  product_id: ids.product,
+  variant_id: ids.variant,
+  quantity: 1,
+  form_submission_id: null,
+  price_override: null,
+  purchase: { type: "catalog" },
+};
+const otherVisitorToken = `customer_visitor_${"w".repeat(64)}`;
 
-function session(customerId = "customer-a") {
-  return {
-    customer: {
-      id: customerId,
-      status: { type: "active" },
-      identities: [],
-      categories: [],
-      created_at: 1,
-      updated_at: 1,
-    },
-    session: {
-      id: `session-${customerId}`,
-      customer_id: customerId,
-      type: "visitor",
-      token: `customer_visitor_${(customerId === "customer-a" ? "a" : "b").repeat(64)}`,
-      status: { type: "active" },
-      expires_at: 1900000000000,
-    },
-  };
-}
-
-function cart(overrides = {}) {
-  return {
-    id: cartId,
-    customer_id: "customer-a",
-    company: null,
-    market_id: "market-a",
-    catalog_id: "catalog-a",
-    sales_channel_id: "channel-a",
-    status: { type: "active" },
-    origin: {
-      type: "storefront",
-      customer_id: "customer-a",
-      customer_session_id: "session-customer-a",
-    },
-    line_items: [],
-    delivery_groups: [],
-    billing_address: null,
-    promotion_code_ids: [],
-    purchase_order_number: null,
-    item_count: 0,
-    last_action_at: 1,
-    abandoned_at: null,
-    created_at: 1,
-    updated_at: 1,
-    ...overrides,
-  };
-}
-
-function setup(respond) {
-  const storage = storefrontSessionStorage(
-    JSON.stringify({ version: 2, ...session() }),
-  );
-  const calls = [];
-  globalThis.fetch = async (url, init = {}) => {
-    const call = {
-      path: new URL(url).pathname,
-      method: init.method,
-      body: init.body ? JSON.parse(init.body) : null,
-      headers: new Headers(init.headers),
-    };
-    calls.push(call);
-    if (call.path.endsWith("/customer/identify"))
-      return Response.json(session("customer-b"));
-    if (call.path === "/v1/storefront")
-      return Response.json({
-        timezone: "UTC",
-        languages: { default: "en", available: ["en", "de"] },
-        commerce: { type: "ready", default_sales_channel_id: "channel-a" },
-        payment_options: [],
-        support: { email: null },
-        readiness: { commerce: true },
-      });
-    if (call.path === "/v1/storefront/markets/by-key/market-a")
-      return Response.json({ id: "market-a", key: "market-a", currency: "eur", tax_mode: "exclusive", payment_option_ids: [] });
-    if (call.path === "/v1/storefront/markets/by-key/market-b")
-      return Response.json({ id: "market-b", key: "market-b", currency: "usd", tax_mode: "exclusive", payment_option_ids: [] });
-    return respond(call);
-  };
-  const store = initialize(publishableKey, {
-    apiUrl,
-    locale: "en",
-    market: "market-a",
-    sessionStorage: storage,
-  });
-  return { store, storage, calls };
+function otherBuyer() {
+  return { customer: customerRecord(ids.otherCustomer), session: visitorSession(ids.otherCustomer, ids.otherSession, otherVisitorToken) };
 }
 
 function gate() {
@@ -126,372 +45,168 @@ function gate() {
   return { release, enter, waiting, started };
 }
 
-test("Cart helper saves explicit delivery identities, rates and schedules without manufacturing another group", async () => {
+function storeWithCart(options = {}) {
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, locale: "en", market: "market-a", sessionStorage: visitorStorage(), ...options });
+  store.eshop.cart.cart.set(cartRecord({ line_items: [productLine] }));
+  return store;
+}
+
+test("the store saves delivery groups exactly as given, with the loaded cart's id and version, and never makes up another group", async (context) => {
   const group = {
     id: "8b79e7c7-7e98-4962-a245-7836a7774054",
-    items: [{ line_item: { type: "product", line_item_id: "line-a" }, quantity: 1 }],
+    items: [{ line_item: { type: "product", line_item_id: ids.line }, quantity: 1 }],
     destination: { type: "pickup", store_location_id: "location-a" },
-    shipping_rate_id: "rate-a",
-    quote_acceptance: null,
-    scheduled_window: { type: "absolute", from: 1800000000000, to: 1800003600000 },
+    shipping: { shipping_method_id: "method-a", rate_id: "rate-a" },
+    timing: { type: "window", from: 1_800_000_000_000, to: 1_800_003_600_000 },
   };
-  let saved = cart({ line_items: [productLine], item_count: 1 });
-  const { store, calls } = setup((call) => {
-    if (call.path === "/v1/storefront/carts")
-      return Response.json({ cart: saved, recovery_token: "private" });
-    if (call.path === "/v1/storefront/products/product-a")
-      return Response.json(product());
-    if (call.path === "/v1/storefront/products/product-a/variants/variant-a")
-      return Response.json({ ...product().variants[0], fulfillment: { type: "physical", shipping_profile_id: "profile-a", inventory_requirements: [], backorder: { type: "disallow" } } });
-    if (call.method === "PUT") {
-      saved = { ...saved, ...call.body };
-      return Response.json(saved);
-    }
-    throw new Error(`Unexpected request ${call.path}`);
+  let version = 1_700_000_000_001;
+  const calls = recordFetch(context, (call) => {
+    version += 1;
+    return cartRecord({ line_items: [productLine], delivery_groups: call.body.delivery_groups ?? [], updated_at: version });
   });
-  await store.eshop.cart.load();
-  await store.eshop.cart.refresh({ delivery_groups: [group] });
-  assert.equal(store.eshop.cart.product_items.get()[0].shipping_profile_id, "profile-a");
-  assert.deepEqual(calls.find((call) => call.method === "PUT").body.delivery_groups, [group]);
+  const store = storeWithCart();
+  await store.eshop.cart.setDeliveryGroups([group]);
   assert.deepEqual(store.eshop.cart.cart.get().delivery_groups, [group]);
-  await store.eshop.cart.refresh();
-  assert.equal(Object.hasOwn(calls.filter((call) => call.method === "PUT").at(-1).body, "delivery_groups"), false);
-  await store.eshop.cart.refresh({ delivery_groups: [] });
-  assert.deepEqual(calls.filter((call) => call.method === "PUT").at(-1).body.delivery_groups, []);
-  const before = calls.length;
-  await assert.rejects(store.eshop.cart.refresh({ delivery_groups: [group], shipping_address: null }), /not both/);
-  assert.equal(calls.length, before);
+  await store.eshop.cart.setDeliveryGroups([]);
+  await store.eshop.cart.setBillingAddress(null);
+  assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
+    ["PUT", `/v1/storefront/carts/${ids.cart}`, { expected_updated_at: 1_700_000_000_001, delivery_groups: [group] }],
+    ["PUT", `/v1/storefront/carts/${ids.cart}`, { expected_updated_at: 1_700_000_000_002, delivery_groups: [] }],
+    ["PUT", `/v1/storefront/carts/${ids.cart}`, { expected_updated_at: 1_700_000_000_003, billing_address: null }],
+  ]);
 });
 
-test("Cart edits preserve promotion identities without submitting them as coupon codes", async () => {
-  const promotionId = "292e102d-c879-4813-925a-e508ab7015e5";
-  let saved = cart({ promotion_code_ids: [promotionId], line_items: [productLine], item_count: 1 });
-  const { store, calls } = setup((call) => {
-    if (call.path === "/v1/storefront/carts")
-      return Response.json({ cart: saved, recovery_token: "private" });
-    if (call.path === "/v1/storefront/products/product-a")
-      return Response.json(product());
-    if (call.path === "/v1/storefront/products/product-a/variants/variant-a")
-      return Response.json(product().variants[0]);
-    if (call.method === "PUT") {
-      if (Object.hasOwn(call.body, "promotion_codes")) {
-        assert.deepEqual(call.body.promotion_codes, []);
-        saved = { ...saved, promotion_code_ids: [] };
-      }
-      return Response.json(saved);
-    }
-    if (call.path.endsWith("/quote"))
-      return Response.json({
-        sources: checkoutSources(cartId),
-        presentation_digest: "a".repeat(64),
-        order: {
-          locale: "en",
-          money: { promotions: saved.promotion_code_ids.length ? [{ code: "SAVE10" }, { code: null }] : [] },
-        },
-      });
-    throw new Error(`Unexpected request ${call.path}`);
-  });
-  await store.eshop.cart.load();
-  assert.deepEqual(store.eshop.cart.promotion_codes.get(), []);
-  await store.eshop.cart.quote({ delivery_groups: [] });
-  assert.deepEqual(store.eshop.cart.promotion_codes.get(), ["SAVE10"]);
-  store.setLocale("de");
+test("promotion codes come from the reviewed quote, drop with a language change, and are only sent when the buyer sets them", async (context) => {
+  const promotions = [
+    { promotion_id: "promotion", promotion_key: "spring", code: { promotion_code_id: "code", code: "SAVE10" } },
+    { promotion_id: "automatic", promotion_key: "auto", code: null },
+  ];
+  const calls = recordFetch(context, (call) => call.path.endsWith("/quote") ? quoteRecord({ promotions }) : cartRecord({ line_items: [productLine], updated_at: 1_700_000_000_002 }));
+  const store = storeWithCart();
   assert.deepEqual(store.eshop.cart.promotion_codes.get(), []);
   await store.eshop.cart.quote();
   assert.deepEqual(store.eshop.cart.promotion_codes.get(), ["SAVE10"]);
-  await store.eshop.cart.refresh({ billing_address: null });
-  assert.deepEqual(store.eshop.cart.cart.get().promotion_code_ids, [promotionId]);
+  store.setLocale("de");
+  assert.equal(store.eshop.cart.quote_result.get(), null);
   assert.deepEqual(store.eshop.cart.promotion_codes.get(), []);
-  for (const call of calls.filter((call) => call.method === "PUT"))
-    assert.equal(Object.hasOwn(call.body, "promotion_codes"), false);
-  await store.eshop.cart.removePromoCode();
-  assert.deepEqual(store.eshop.cart.cart.get().promotion_code_ids, []);
-  assert.deepEqual(store.eshop.cart.promotion_codes.get(), []);
-  assert.deepEqual(calls.filter((call) => call.method === "PUT").at(-1).body.promotion_codes, []);
+  await store.eshop.cart.quote();
+  assert.deepEqual(store.eshop.cart.promotion_codes.get(), ["SAVE10"]);
+  await store.eshop.cart.setBillingAddress(null);
+  assert.equal(store.eshop.cart.quote_result.get(), null);
+  await store.eshop.cart.setPromotionCodes([]);
+  const puts = calls.filter((call) => call.method === "PUT");
+  assert.equal(Object.hasOwn(puts[0].body, "promotion_codes"), false);
+  assert.deepEqual(puts[1].body, { expected_updated_at: 1_700_000_000_002, promotion_codes: [] });
+  const quotes = calls.filter((call) => call.path.endsWith("/quote"));
+  assert.deepEqual(quotes.map((call) => [call.body, call.headers.get("x-arky-locale")]), [[{}, "en"], [{}, "de"]]);
 });
 
-for (const permitted of [true, false]) {
-  test(`Cart checkout ${permitted ? "retains a permitted alternative" : "rejects an unquoted"} payment provider`, async () => {
-    const durable = new MemoryStorage();
-    for (const [name, value] of [
-      ["window", { location: { href: "https://merchant.example/checkout" } }],
-      ["localStorage", durable],
-      ["navigator", { locks: new ExclusiveLockManager() }],
-    ]) Object.defineProperty(globalThis, name, { configurable: true, writable: true, value });
-    const suggested = "79f91663-1603-4b63-9953-42316875906e";
-    const selected = "01c2af6e-ad1d-445f-a818-a135d9abca0a";
-    const { store, calls } = setup((call) => {
-      assert.equal(call.path, "/v1/storefront/carts/accept");
-      throw new TypeError("response lost");
-    });
-    store.eshop.cart.cart.set(cart());
-    store.eshop.cart.quote_result.set({
-      sources: checkoutSources(cartId),
-      presentation_digest: "a".repeat(64),
-      order: { locale: "en", payment_option_id: suggested, payment_option_ids: permitted ? [suggested, selected] : [suggested] },
-    });
-    const input = { request_id: checkoutRequestId, payment_option_id: selected };
-    await assert.rejects(
-      store.eshop.cart.checkout(input),
-      permitted ? /response lost/ : /not available in the reviewed Cart quote/,
-    );
-    const posts = () => calls.filter((call) => call.path.endsWith("/carts/accept"));
-    assert.equal(posts().length, permitted ? 1 : 0);
-    assert.equal(await store.eshop.cart.pendingCheckout(), null);
-    if (permitted) {
-      assert.equal(posts()[0].body.payment_option_id, selected);
-      assert.equal(posts()[0].body.request_id, checkoutRequestId);
-      assert.equal((await store.eshop.cart.retainCheckout(input)).payment_option_id, selected);
-      assert.equal((await store.eshop.cart.pendingCheckout()).payment_option_id, selected);
-      await assert.rejects(store.eshop.cart.recoverCheckout(), /response lost/);
-      assert.equal(posts().length, 2);
-      assert.deepEqual(posts()[1].body, posts()[0].body);
-      assert.equal((await store.eshop.cart.pendingCheckout()).request_id, checkoutRequestId);
-    } else {
-      await assert.rejects(store.eshop.cart.retainCheckout(input), /not available in the reviewed Cart quote/);
-      assert.equal(await store.eshop.cart.pendingCheckout(), null);
-      assert.equal(posts().length, 0);
+test("a market change clears the selected cart view, and a late read for the old market can't reset the new load", async (context) => {
+  const reads = new Map([[ids.cart, gate()], [ids.otherCart, gate()]]);
+  const calls = recordFetch(context, async (call) => {
+    if (call.method === "POST") {
+      const id = call.body.id;
+      return { type: "created", cart: cartRecord({ id, catalog_id: ids.catalog }), recovery_token: `token-${id}` };
     }
+    const id = call.path.split("/").at(-1);
+    reads.get(id).enter();
+    await reads.get(id).waiting;
+    return cartRecord({ id });
   });
-}
-
-const productLine = {
-  type: "product",
-  id: "line-a",
-  product_id: "product-a",
-  variant_id: "variant-a",
-  quantity: 1,
-  form_submission_id: null,
-  price_override: null,
-  purchase: { type: "catalog" },
-};
-function product() {
-  return {
-    id: "product-a",
-    key: "product-a",
-    blocks: [],
-    slugs: {},
-    categories: [],
-    variants: [
-      {
-        id: "variant-a",
-        product_id: "product-a",
-        sku: null,
-        price: null,
-        attributes: [],
-        reference_labels: {},
-        fulfillment: { type: "none" },
-        status: { type: "active" },
-      },
-    ],
-    status: { type: "active" },
-    created_at: 1,
-    updated_at: 1,
-  };
-}
-
-test("Market changes clear the selected empty Cart view and a late old load cannot reset the new loading state", async () => {
-  const old = gate();
-  const next = gate();
-  const { store, calls } = setup(async (call) => {
-    assert.equal(call.path, "/v1/storefront/carts");
-    const isOld = call.headers.get("x-arky-market") === "market-a";
-    const request = isOld ? old : next;
-    request.enter();
-    await request.waiting;
-    return Response.json({
-      cart: cart(isOld ? {} : { id: secondId, market_id: "market-b" }),
-      recovery_token: "private",
-    });
-  });
-  const first = store.eshop.cart.load();
-  const rejected = assert.rejects(
-    first,
-    /Customer or Market changed|buyer or Market changed/,
-  );
-  await old.started;
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, locale: "en", market: "market-a", sessionStorage: visitorStorage() });
+  await store.eshop.cart.create({ id: ids.cart, buyer: customerBuyer, catalog_id: ids.catalog });
   store.setMarket("market-b");
-  const second = store.eshop.cart.load();
-  await next.started;
-  old.release();
+  await store.eshop.cart.create({ id: ids.otherCart, buyer: customerBuyer, catalog_id: ids.catalog });
+  store.setMarket("market-a");
+  const first = store.eshop.cart.load({ buyer: customerBuyer, catalog_id: ids.catalog });
+  const rejected = assert.rejects(first, /changed during the cart operation/);
+  await reads.get(ids.cart).started;
+  store.setMarket("market-b");
+  assert.equal(store.eshop.cart.cart.get(), null);
+  const second = store.eshop.cart.load({ buyer: customerBuyer, catalog_id: ids.catalog });
+  await reads.get(ids.otherCart).started;
+  reads.get(ids.cart).release();
   await rejected;
   assert.equal(store.eshop.cart.cart.get(), null);
   assert.equal(store.eshop.cart.status.get().loading, true);
   assert.equal(store.eshop.cart.status.get().error, null);
-  next.release();
-  assert.equal((await second).id, secondId);
-  assert.equal(store.eshop.cart.cart.get().id, secondId);
+  reads.get(ids.otherCart).release();
+  assert.equal((await second).id, ids.otherCart);
+  assert.equal(store.eshop.cart.cart.get().id, ids.otherCart);
   assert.equal(store.eshop.cart.status.get().loading, false);
-  assert.deepEqual(calls.map((call) => [call.path, call.headers.get("x-arky-market")]), [
-    ["/v1/storefront/markets/by-key/market-a", "market-a"],
-    ["/v1/storefront/carts", "market-a"],
-    ["/v1/storefront/markets/by-key/market-b", "market-b"],
-    ["/v1/storefront/carts", "market-b"],
+  assert.deepEqual(calls.map((call) => [call.method, call.path, call.headers.get("x-arky-market")]), [
+    ["POST", "/v1/storefront/carts", "market-a"],
+    ["POST", "/v1/storefront/carts", "market-b"],
+    ["GET", `/v1/storefront/carts/${ids.cart}`, "market-a"],
+    ["GET", `/v1/storefront/carts/${ids.otherCart}`, "market-b"],
   ]);
 });
 
-test("late product hydration cannot repopulate a different buyer's Cart or report an old read failure", async () => {
-  const hydration = gate();
-  const { store } = setup(async (call) => {
-    if (call.path === "/v1/storefront/carts") {
-      const next = call.headers.get("authorization").includes("b".repeat(64));
-      return Response.json({
-        cart: cart(
-          next
-            ? { id: secondId, customer_id: "customer-b" }
-            : { line_items: [productLine], item_count: 1 },
-        ),
-        recovery_token: "private",
-      });
-    }
-    if (call.path.endsWith("/products/product-a/variants/variant-a")) return Response.json(product().variants[0]);
-    if (call.path.endsWith("/products/product-a")) {
-      hydration.enter();
-      await hydration.waiting;
-      return Response.json(
-        { message: "Old buyer cannot read this product" },
-        { status: 403 },
-      );
-    }
-    throw new Error(`Unexpected request ${call.path}`);
-  });
-  const first = store.eshop.cart.load();
-  const rejected = assert.rejects(first, /buyer or Market changed/);
-  await hydration.started;
-  await store.customer.identify();
+test("a cart with items keeps its market until it is emptied, and the store has no sales channel to switch", () => {
+  const store = storeWithCart();
+  assert.throws(() => store.setMarket("market-b"), (error) => error.code === "CART_MARKET_LOCKED");
+  for (const removed of ["setSalesChannel", "getSalesChannel", "sales_channel_key"]) assert.equal(removed in store, false, removed);
+  store.setMarket("market-a");
+  store.eshop.cart.cart.set(cartRecord());
+  store.setMarket("market-b");
+  assert.equal(store.getMarket(), "market-b");
   assert.equal(store.eshop.cart.cart.get(), null);
-  assert.equal(store.eshop.cart.item_count.get(), 0);
-  assert.equal((await store.eshop.cart.load()).id, secondId);
-  hydration.release();
-  await rejected;
-  assert.equal(store.eshop.cart.cart.get().customer_id, "customer-b");
-  assert.deepEqual(store.eshop.cart.product_items.get(), []);
-  assert.equal(store.eshop.cart.status.get().error, null);
-});
-
-test("a newer Cart write wins over an older product hydration without changing buyer context", async () => {
-  const hydration = gate();
-  const { store } = setup(async (call) => {
-    if (call.path === "/v1/storefront/carts")
-      return Response.json({
-        cart: cart({ line_items: [productLine], item_count: 1 }),
-        recovery_token: "private",
-      });
-    if (call.path.endsWith("/products/product-a/variants/variant-a")) return Response.json(product().variants[0]);
-    if (call.path.endsWith("/products/product-a")) {
-      hydration.enter();
-      await hydration.waiting;
-      return Response.json(product());
-    }
-    if (call.method === "PUT" && call.path.endsWith(`/carts/${cartId}`))
-      return Response.json(cart({ updated_at: 2 }));
-    throw new Error(`Unexpected request ${call.path}`);
-  });
-  const first = store.eshop.cart.load();
-  await hydration.started;
-  await store.eshop.cart.refresh({ product_items: [] });
-  hydration.release();
-  await first;
-  assert.equal(store.eshop.cart.cart.get().updated_at, 2);
-  assert.deepEqual(store.eshop.cart.product_items.get(), []);
-  assert.equal(store.eshop.cart.item_count.get(), 0);
 });
 
 for (const change of ["buyer", "language"]) {
-  test(`a quote finishing after a ${change} change cannot become the reviewed quote`, async () => {
+  test(`a quote finishing after a ${change} change can't become the reviewed quote`, async (context) => {
     const quote = gate();
-    const line = {
-      type: "digital_product",
-      id: "digital-line",
-      digital_product_id: "digital-a",
-      beneficiary_customer_id: "customer-a",
-      form_submission_id: null,
-      price_override: null,
-    };
-    const { store, calls } = setup(async (call) => {
-      if (call.path === "/v1/storefront/carts")
-        return Response.json({
-          cart: cart({ line_items: [line], item_count: 1 }),
-          recovery_token: "private",
-        });
-      if (call.method === "PUT")
-        return Response.json(
-          cart({ line_items: [line], item_count: 1, updated_at: 2 }),
-        );
-      if (call.path.endsWith("/quote")) {
-        quote.enter();
-        await quote.waiting;
-        return Response.json({
-          sources: checkoutSources(cartId),
-          presentation_digest: "a".repeat(64),
-          order: { locale: "en" },
-        });
-      }
-      throw new Error(`Unexpected request ${call.path}`);
+    const calls = recordFetch(context, async (call) => {
+      if (call.path === "/v1/storefront/customer/identify") return otherBuyer();
+      quote.enter();
+      await quote.waiting;
+      return quoteRecord();
     });
-    await store.eshop.cart.load();
+    const store = storeWithCart();
     const pending = store.eshop.cart.quote();
-    const rejected = assert.rejects(
-      pending,
-      /buyer or Market changed|selections or language changed/,
-    );
+    const rejected = assert.rejects(pending, change === "buyer" ? /changed during the cart operation/ : /language changed while quoting/);
     await quote.started;
-    if (change === "buyer") await store.customer.identify();
+    if (change === "buyer") await store.customer.identify({ customer_id: ids.otherCustomer, session_id: ids.otherSession });
     else store.setLocale("de");
     quote.release();
     await rejected;
     assert.equal(store.eshop.cart.quote_result.get(), null);
     assert.equal(store.eshop.cart.status.get().fetching_quote, false);
-    assert.equal(store.eshop.cart.status.get().quote_error, null);
-    assert.equal(
-      calls.filter((call) => call.path.endsWith("/carts/accept")).length,
-      0,
-    );
+    if (change === "buyer") {
+      assert.equal(store.eshop.cart.cart.get(), null);
+      assert.equal(store.eshop.cart.status.get().quote_error, null);
+    } else {
+      assert.equal(store.eshop.cart.cart.get().id, ids.cart);
+      assert.match(store.eshop.cart.status.get().quote_error, /language changed while quoting/);
+    }
+    assert.equal(calls.filter((call) => call.path.endsWith("/carts/accept")).length, 0);
   });
 }
 
-test("identity and Market invalidation leave the unresolved Checkout request byte-for-byte intact", async () => {
+test("a buyer or market change leaves an unresolved checkout request byte for byte", async (context) => {
   const durable = new MemoryStorage();
-  for (const [name, value] of [
-    ["window", globalThis],
-    ["localStorage", durable],
-    ["navigator", { locks: new ExclusiveLockManager() }],
-  ]) {
-    Object.defineProperty(globalThis, name, {
-      configurable: true,
-      writable: true,
-      value,
-    });
-  }
-  const { store, calls } = setup((call) => {
+  installGlobal(context, "window", globalThis);
+  installGlobal(context, "localStorage", durable);
+  installGlobal(context, "navigator", { locks: new ExclusiveLockManager() });
+  const calls = recordFetch(context, (call) => {
+    if (call.path === "/v1/storefront/customer/identify") return otherBuyer();
     assert.equal(call.path, "/v1/storefront/carts/accept");
     throw new TypeError("response lost");
   });
-  const request = {
-    id: cartId,
-    request_id: "8c1d4f5a-3f0b-4a7d-8f52-5c0f2b7a91d4",
-    locale: "en",
-    presentation_digest: "a".repeat(64),
-    sources: checkoutSources(cartId),
-  };
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, locale: "en", market: "market-a", sessionStorage: visitorStorage() });
+  const request = checkoutRequest();
   await store.client.eshop.cart.retainCheckout(request);
-  await assert.rejects(
-    store.client.eshop.cart.recoverCheckout(),
-    /response lost/,
-  );
+  await assert.rejects(store.client.eshop.cart.recoverCheckout(), /response lost/);
   const pending = await store.eshop.cart.pendingCheckout();
-  assert.equal(pending.request_id, request.request_id);
-  const key = `arky:commerce-cart-checkout:v1:${encodeURIComponent(`storefront:${apiUrl}:${publishableKey}`)}`;
+  assert.deepEqual(pending, request);
+  const key = `arky:cart-checkout:v4:${encodeURIComponent(`storefront:${apiUrl}:${publishableKey}`)}`;
   const retained = durable.getItem(key);
   assert.ok(retained);
   store.setMarket("market-b");
-  await store.customer.identify();
+  await store.customer.identify({ customer_id: ids.otherCustomer, session_id: ids.otherSession });
   assert.equal(store.eshop.cart.cart.get(), null);
   assert.equal(store.eshop.cart.last_order.get(), null);
   assert.equal(durable.getItem(key), retained);
   assert.deepEqual(await store.eshop.cart.pendingCheckout(), pending);
-  assert.equal(
-    calls.filter((call) => call.path.endsWith("/carts/accept")).length,
-    1,
-  );
+  assert.equal(calls.filter((call) => call.path.endsWith("/carts/accept")).length, 1);
 });

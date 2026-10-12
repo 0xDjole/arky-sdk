@@ -1,243 +1,187 @@
-import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
+import type { HttpClient } from "../types/httpClient";
+import type { RequestOptions } from "../types/api";
+import type { DeletedResponse, PaginatedResponse } from "../types/common";
 import type {
-  CreateFormParams,
-  UpdateFormParams,
-  DeleteFormParams,
-  PermanentlyDeleteFormParams,
-  GetFormParams,
-  GetFormsParams,
-  GetFormsByIdsParams,
-  GetFormSubmissionsParams,
-  GetFormSubmissionParams,
-  DeleteFormSubmissionParams,
-  GetFormPresentationParams,
-  CreateStaffFormSubmissionParams,
-  ChangeFormSubmissionStageParams,
   AssignFormSubmissionParams,
-  CreateFormSubmissionNoteParams,
-  FindFormSubmissionNotesParams,
-  UpdateFormSubmissionNoteParams,
-  DeleteFormSubmissionNoteParams,
-  SetFormSubmissionCompanyParams,
-  RequestOptions,
-} from "../types/api";
-import type {
-  AdminFormSubmission,
+  ChangeFormSubmissionStageParams,
+  CreateFormParams,
+  CreateFormSubmissionParams,
+  DeleteFormParams,
+  DeleteFormSubmissionParams,
+  FindFormsParams,
+  FindFormSubmissionsParams,
   Form,
-  FormPresentation,
-  PaginatedResponse,
-} from "../types";
-import type { Note } from "../types/note";
+  FormAnswerInput,
+  FormSubmission,
+  FormSubmissionFileLink,
+  GetFormParams,
+  GetFormSubmissionFileParams,
+  GetFormSubmissionParams,
+  GetStorefrontFormParams,
+  SetFormSubmissionCompanyParams,
+  StorefrontFormSubmission,
+  SubmitFormParams,
+  UpdateFormParams,
+} from "../types/forms";
+import { requireId } from "../utils/ids";
+import { segment, storePath, storeRecordPath } from "./paths";
+
+const MAX_FORM_FILE_BYTES = 10 * 1024 * 1024;
+const MAX_FORM_SUBMISSION_FILES = 20;
+const MAX_FORM_SUBMISSION_FILE_BYTES = 50 * 1024 * 1024;
+
+function isGiven(answer: FormAnswerInput): boolean {
+  if ((answer.type === "text" || answer.type === "email")) return answer.value.trim() !== "";
+  if (answer.type === "select_many") return answer.option_keys.length > 0;
+  if (answer.type === "file") return answer.files.length > 0;
+  return true;
+}
+
+function requireFormFiles(files: File[]): void {
+  if (files.length > MAX_FORM_SUBMISSION_FILES) {
+    throw new Error(`A form submission carries at most ${MAX_FORM_SUBMISSION_FILES} files`);
+  }
+  let total = 0;
+  for (const file of files) {
+    if (file.size < 1 || file.size > MAX_FORM_FILE_BYTES) {
+      throw new Error(`The file '${file.name}' must be between 1 byte and 10 MiB`);
+    }
+    if (!file.name) throw new Error("Every form file needs a file name");
+    total += file.size;
+  }
+  if (total > MAX_FORM_SUBMISSION_FILE_BYTES) throw new Error("A form submission's files are at most 50 MiB together");
+}
+
+export function formSubmissionBody(submission: Record<string, unknown>, answers: FormAnswerInput[]): FormData {
+  const formData = new FormData();
+  const files: Array<{ name: string; file: File }> = [];
+  const wireAnswers = answers.filter(isGiven).map((answer) => {
+    if (answer.type !== "file") return answer;
+    const parts = answer.files.map((file) => {
+      const name = `file-${files.length}`;
+      files.push({ name, file });
+      return name;
+    });
+    return { type: "file", question_id: answer.question_id, key: answer.key, parts };
+  });
+  requireFormFiles(files.map((part) => part.file));
+  formData.append("submission", JSON.stringify({ ...submission, answers: wireAnswers }));
+  for (const part of files) formData.append(part.name, part.file, part.file.name);
+  return formData;
+}
 
 export const createFormsApi = (apiConfig: ApiConfig) => {
+  const submissionPath = (storeId: string, formId: string, id: string) =>
+    `${storeRecordPath(storeId, "forms", formId)}/submissions/${segment(id)}`;
+
   return {
-    async createForm(params: CreateFormParams, options?: RequestOptions): Promise<Form> {
-      const { store_id, ...payload } = params;
-      const target_store_id = requireStoreId(store_id);
-      return apiConfig.httpClient.post<Form>(
-        `/v1/stores/${requireStoreId(target_store_id)}/forms`,
-        payload,
-        options
-      );
+    find(params: FindFormsParams, options?: RequestOptions): Promise<PaginatedResponse<Form>> {
+      const { store_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<Form>>(storePath(store_id, "forms"), { ...options, params: query });
     },
 
-    async updateForm(params: UpdateFormParams, options?: RequestOptions): Promise<Form> {
-      const { store_id, id, ...payload } = params;
-      const target_store_id = requireStoreId(store_id);
-      return apiConfig.httpClient.put<Form>(
-        `/v1/stores/${requireStoreId(target_store_id)}/forms/${params.id}`,
-        payload,
-        options
-      );
+    get(params: GetFormParams, options?: RequestOptions): Promise<Form> {
+      const path =
+        "id" in params
+          ? storeRecordPath(params.store_id, "forms", params.id)
+          : storePath(params.store_id, `forms/by-key/${segment(params.key)}`);
+      return apiConfig.httpClient.get<Form>(path, options);
     },
 
-    async deleteForm(params: DeleteFormParams, options?: RequestOptions): Promise<boolean> {
-      const target_store_id = requireStoreId(params.store_id);
-      return apiConfig.httpClient.delete<boolean>(
-        `/v1/stores/${requireStoreId(target_store_id)}/forms/${params.id}`,
-        options
-      );
+    create(params: CreateFormParams, options?: RequestOptions): Promise<Form> {
+      requireId(params.id, "form");
+      const { store_id, ...body } = params;
+      return apiConfig.httpClient.post<Form>(storePath(store_id, "forms"), body, options);
     },
 
-    async permanentlyDeleteForm(
-      params: PermanentlyDeleteFormParams,
-      options?: RequestOptions
-    ): Promise<boolean> {
-      const target_store_id = requireStoreId(params.store_id);
-      return apiConfig.httpClient.delete<boolean>(
-        `/v1/stores/${requireStoreId(target_store_id)}/forms/${params.id}/permanent`,
-        options
-      );
+    update(params: UpdateFormParams, options?: RequestOptions): Promise<Form> {
+      const { store_id, id, ...body } = params;
+      return apiConfig.httpClient.put<Form>(storeRecordPath(store_id, "forms", id), body, options);
     },
 
-    async getForm(params: GetFormParams, options?: RequestOptions): Promise<Form> {
-      const target_store_id = requireStoreId(params.store_id);
-      let identifier: string;
-      if (params.id) {
-        identifier = encodeURIComponent(params.id);
-      } else if (params.key) {
-        identifier = `by-key/${encodeURIComponent(params.key)}`;
-      } else {
-        throw new Error("GetFormParams requires id or key");
-      }
-
-      return apiConfig.httpClient.get<Form>(
-        `/v1/stores/${requireStoreId(target_store_id)}/forms/${identifier}`,
-        options
-      );
+    delete(params: DeleteFormParams, options?: RequestOptions): Promise<DeletedResponse> {
+      return apiConfig.httpClient.delete<DeletedResponse>(storeRecordPath(params.store_id, "forms", params.id), {
+        ...options,
+        params: { expected_updated_at: params.expected_updated_at },
+      });
     },
 
-    async getForms(params: GetFormsParams, options?: RequestOptions): Promise<{ items: Form[]; cursor: string | null }> {
-      const { store_id, ...queryParams } = params;
-      const target_store_id = requireStoreId(store_id);
-      return apiConfig.httpClient.get<{ items: Form[]; cursor: string | null }>(
-        `/v1/stores/${requireStoreId(target_store_id)}/forms`,
-        {
-          ...options,
-          params: queryParams,
-        }
-      );
+    findSubmissions(params: FindFormSubmissionsParams, options?: RequestOptions): Promise<PaginatedResponse<FormSubmission>> {
+      const { store_id, form_id, ...query } = params;
+      const path = form_id === undefined
+        ? storePath(store_id, "forms/submissions")
+        : `${storeRecordPath(store_id, "forms", form_id)}/submissions`;
+      return apiConfig.httpClient.get<PaginatedResponse<FormSubmission>>(path, { ...options, params: query });
     },
 
-    async getFormsByIds(params: GetFormsByIdsParams, options?: RequestOptions): Promise<{ items: Form[]; cursor: null }> {
-      const target_store_id = requireStoreId(params.store_id);
-      return apiConfig.httpClient.get<{ items: Form[]; cursor: null }>(
-        `/v1/stores/${requireStoreId(target_store_id)}/forms`,
-        { ...options, params: { ids: params.ids } }
-      );
+    getSubmission(params: GetFormSubmissionParams, options?: RequestOptions): Promise<FormSubmission> {
+      return apiConfig.httpClient.get<FormSubmission>(submissionPath(params.store_id, params.form_id, params.id), options);
     },
 
-    async getSubmissions(params: GetFormSubmissionsParams, options?: RequestOptions): Promise<{ items: AdminFormSubmission[]; cursor: string | null }> {
-      const { store_id, ...queryParams } = params;
-      const target_store_id = requireStoreId(store_id);
-      return apiConfig.httpClient.get<{ items: AdminFormSubmission[]; cursor: string | null }>(
-        `/v1/stores/${requireStoreId(target_store_id)}/forms/submissions`,
-        { ...options, params: queryParams }
+    createSubmission(params: CreateFormSubmissionParams, options?: RequestOptions): Promise<FormSubmission> {
+      requireId(params.id, "form submission");
+      const body = formSubmissionBody(
+        { id: params.id, customer_id: params.customer_id, language: params.language },
+        params.answers,
       );
-    },
-
-    async getSubmission(params: GetFormSubmissionParams, options?: RequestOptions): Promise<AdminFormSubmission> {
-      const target_store_id = requireStoreId(params.store_id);
-      return apiConfig.httpClient.get<AdminFormSubmission>(
-        `/v1/stores/${requireStoreId(target_store_id)}/forms/${params.form_id}/submissions/${params.id}`,
-        options
-      );
-    },
-
-    async getPresentation(
-      params: GetFormPresentationParams,
-      options?: RequestOptions,
-    ): Promise<FormPresentation> {
-      return apiConfig.httpClient.get<FormPresentation>(
-        `/v1/stores/${requireStoreId(params.store_id)}/forms/${encodeURIComponent(params.id)}/presentation`,
-        { ...options, params: { locale: params.locale } },
-      );
-    },
-
-    async createSubmission(
-      params: CreateStaffFormSubmissionParams,
-      options?: RequestOptions,
-    ): Promise<AdminFormSubmission> {
-      const { store_id, form_id, ...payload } = params;
-      return apiConfig.httpClient.post<AdminFormSubmission>(
-        `/v1/stores/${requireStoreId(store_id)}/forms/${encodeURIComponent(form_id)}/submissions`,
-        payload,
+      return apiConfig.httpClient.post<FormSubmission>(
+        `${storeRecordPath(params.store_id, "forms", params.form_id)}/submissions`,
+        body,
         options,
       );
     },
 
-    async changeSubmissionStage(
-      params: ChangeFormSubmissionStageParams,
-      options?: RequestOptions,
-    ): Promise<AdminFormSubmission> {
-      const { store_id, form_id, id, ...payload } = params;
-      return apiConfig.httpClient.post<AdminFormSubmission>(
-        `/v1/stores/${requireStoreId(store_id)}/forms/${encodeURIComponent(form_id)}/submissions/${encodeURIComponent(id)}/stage`,
-        payload,
+    changeSubmissionStage(params: ChangeFormSubmissionStageParams, options?: RequestOptions): Promise<FormSubmission> {
+      if (params.note) requireId(params.note.id, "note");
+      const { store_id, form_id, id, ...body } = params;
+      return apiConfig.httpClient.post<FormSubmission>(`${submissionPath(store_id, form_id, id)}/stage`, body, options);
+    },
+
+    assignSubmission(params: AssignFormSubmissionParams, options?: RequestOptions): Promise<FormSubmission> {
+      return apiConfig.httpClient.put<FormSubmission>(
+        `${submissionPath(params.store_id, params.form_id, params.id)}/assignee`,
+        { assignee_account_id: params.assignee_account_id },
         options,
       );
     },
 
-    async assignSubmission(
-      params: AssignFormSubmissionParams,
-      options?: RequestOptions,
-    ): Promise<AdminFormSubmission> {
-      const { store_id, form_id, id, assignee_account_id } = params;
-      return apiConfig.httpClient.put<AdminFormSubmission>(
-        `/v1/stores/${requireStoreId(store_id)}/forms/${encodeURIComponent(form_id)}/submissions/${encodeURIComponent(id)}/assignee`,
-        { assignee_account_id },
+    setSubmissionCompany(params: SetFormSubmissionCompanyParams, options?: RequestOptions): Promise<FormSubmission> {
+      return apiConfig.httpClient.put<FormSubmission>(
+        `${submissionPath(params.store_id, params.form_id, params.id)}/company`,
+        { company_id: params.company_id },
         options,
       );
     },
 
-    async setSubmissionCompany(
-      params: SetFormSubmissionCompanyParams,
-      options?: RequestOptions,
-    ): Promise<AdminFormSubmission> {
-      const { store_id, form_id, id, company_id } = params;
-      return apiConfig.httpClient.put<AdminFormSubmission>(
-        `/v1/stores/${requireStoreId(store_id)}/forms/${encodeURIComponent(form_id)}/submissions/${encodeURIComponent(id)}/company`,
-        { company_id },
+    getSubmissionFile(params: GetFormSubmissionFileParams, options?: RequestOptions): Promise<FormSubmissionFileLink> {
+      return apiConfig.httpClient.get<FormSubmissionFileLink>(
+        `${submissionPath(params.store_id, params.form_id, params.id)}/files/${segment(params.sha256)}`,
         options,
       );
     },
 
-    async createSubmissionNote(
-      params: CreateFormSubmissionNoteParams,
-      options?: RequestOptions,
-    ): Promise<Note> {
-      const { store_id, form_id, form_submission_id, ...payload } = params;
-      return apiConfig.httpClient.post<Note>(
-        `/v1/stores/${requireStoreId(store_id)}/forms/${encodeURIComponent(form_id)}/submissions/${encodeURIComponent(form_submission_id)}/notes`,
-        payload,
-        options,
-      );
-    },
-
-    async findSubmissionNotes(
-      params: FindFormSubmissionNotesParams,
-      options?: RequestOptions,
-    ): Promise<PaginatedResponse<Note>> {
-      const { store_id, form_id, form_submission_id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<Note>>(
-        `/v1/stores/${requireStoreId(store_id)}/forms/${encodeURIComponent(form_id)}/submissions/${encodeURIComponent(form_submission_id)}/notes`,
-        { ...options, params: query },
-      );
-    },
-
-    async updateSubmissionNote(
-      params: UpdateFormSubmissionNoteParams,
-      options?: RequestOptions,
-    ): Promise<Note> {
-      const { store_id, form_id, form_submission_id, id, expected_updated_at, body } = params;
-      return apiConfig.httpClient.put<Note>(
-        `/v1/stores/${requireStoreId(store_id)}/forms/${encodeURIComponent(form_id)}/submissions/${encodeURIComponent(form_submission_id)}/notes/${encodeURIComponent(id)}`,
-        { expected_updated_at, body },
-        options,
-      );
-    },
-
-    async deleteSubmissionNote(
-      params: DeleteFormSubmissionNoteParams,
-      options?: RequestOptions,
-    ): Promise<Note> {
-      const { store_id, form_id, form_submission_id, id, expected_updated_at } = params;
-      return apiConfig.httpClient.delete<Note>(
-        `/v1/stores/${requireStoreId(store_id)}/forms/${encodeURIComponent(form_id)}/submissions/${encodeURIComponent(form_submission_id)}/notes/${encodeURIComponent(id)}`,
-        { ...options, params: { expected_updated_at } },
-      );
-    },
-
-    async deleteSubmission(
-      params: DeleteFormSubmissionParams,
-      options?: RequestOptions
-    ): Promise<boolean> {
-      const target_store_id = requireStoreId(params.store_id);
-      return apiConfig.httpClient.delete<boolean>(
-        `/v1/stores/${requireStoreId(target_store_id)}/forms/${params.form_id}/submissions/${params.id}`,
-        options
-      );
+    deleteSubmission(params: DeleteFormSubmissionParams, options?: RequestOptions): Promise<DeletedResponse> {
+      return apiConfig.httpClient.delete<DeletedResponse>(submissionPath(params.store_id, params.form_id, params.id), {
+        ...options,
+        params: { expected_updated_at: params.expected_updated_at },
+      });
     },
   };
 };
+
+export const createStorefrontFormsApi = (httpClient: HttpClient) => ({
+  get(params: GetStorefrontFormParams, options?: RequestOptions): Promise<Form> {
+    const identifier = "id" in params ? params.id : params.key;
+    return httpClient.get<Form>(`/v1/storefront/forms/${segment(identifier)}`, options);
+  },
+
+  submit(params: SubmitFormParams, options?: RequestOptions): Promise<StorefrontFormSubmission> {
+    requireId(params.id, "form submission");
+    const body = formSubmissionBody(
+      { id: params.id, form_updated_at: params.form_updated_at, language: params.language, ...(params.bot_check_token !== undefined ? { bot_check_token: params.bot_check_token } : {}) },
+      params.answers,
+    );
+    return httpClient.post<StorefrontFormSubmission>(`/v1/storefront/forms/${segment(params.form_id)}/submissions`, body, options);
+  },
+});

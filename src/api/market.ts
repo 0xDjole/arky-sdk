@@ -1,74 +1,47 @@
-import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
+import type { RequestOptions } from "../types/api";
+import type { PaginatedResponse } from "../types/common";
 import type {
   CreateMarketParams,
-  FindMarketsParams,
-  GetStoreConfigurationByKeyParams,
-  GetStoreConfigurationParams,
   DeleteMarketParams,
-  RequestOptions,
+  FindMarketsParams,
+  Market,
+  StoreRecordByKeyParams,
+  StoreRecordParams,
   UpdateMarketParams,
-} from "../types/api";
-import type { Market, MarketUsage, PaginatedResponse } from "../types";
+} from "../types/market";
+import { requireId } from "../utils/ids";
+import { segment, storePath, storeRecordPath } from "./paths";
 
-export const createMarketApi = (apiConfig: ApiConfig) => {
-  const basePath = (storeId: string) =>
-    `/v1/stores/${requireStoreId(storeId)}/markets`;
-  return {
-    async list(params: FindMarketsParams, options?: RequestOptions): Promise<PaginatedResponse<Market>> {
-      const { store_id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<Market>>(basePath(store_id), { ...options, params: query });
-    },
+export const createMarketApi = (apiConfig: ApiConfig) => ({
+  list(params: FindMarketsParams, options?: RequestOptions): Promise<PaginatedResponse<Market>> {
+    const { store_id, ...query } = params;
+    return apiConfig.httpClient.get<PaginatedResponse<Market>>(storePath(store_id, "markets"), { ...options, params: query });
+  },
 
-    async getByKey(params: GetStoreConfigurationByKeyParams, options?: RequestOptions): Promise<Market> {
-      return apiConfig.httpClient.get<Market>(`${basePath(params.store_id)}/by-key/${encodeURIComponent(params.key)}`, options);
-    },
-    async get(params: GetStoreConfigurationParams, options?: RequestOptions): Promise<Market> {
-      return apiConfig.httpClient.get<Market>(
-        `${basePath(params.store_id)}/${encodeURIComponent(params.id)}`,
-        options,
-      );
-    },
+  get(params: StoreRecordParams, options?: RequestOptions): Promise<Market> {
+    return apiConfig.httpClient.get<Market>(storeRecordPath(params.store_id, "markets", params.id), options);
+  },
 
-    async usage(params: GetStoreConfigurationParams, options?: RequestOptions): Promise<MarketUsage> {
-      return apiConfig.httpClient.get<MarketUsage>(
-        `${basePath(params.store_id)}/${encodeURIComponent(params.id)}/usage`,
-        options,
-      );
-    },
+  getByKey(params: StoreRecordByKeyParams, options?: RequestOptions): Promise<Market> {
+    return apiConfig.httpClient.get<Market>(storePath(params.store_id, `markets/by-key/${segment(params.key)}`), options);
+  },
 
-    async create(
-      params: CreateMarketParams,
-      options?: RequestOptions,
-    ): Promise<Market> {
-      const { store_id, ...payload } = params;
-      return apiConfig.httpClient.post<Market>(basePath(store_id), payload, options);
-    },
+  create(params: CreateMarketParams, options?: RequestOptions): Promise<Market> {
+    requireId(params.id, "market");
+    const { store_id, ...body } = params;
+    return apiConfig.httpClient.post<Market>(storePath(store_id, "markets"), body, options);
+  },
 
-    async update(
-      params: UpdateMarketParams,
-      options?: RequestOptions,
-    ): Promise<Market> {
-      const { id, store_id, ...payload } = params;
-      return apiConfig.httpClient.put<Market>(
-        `${basePath(store_id)}/${encodeURIComponent(id)}`,
-        payload,
-        options,
-      );
-    },
+  update(params: UpdateMarketParams, options?: RequestOptions): Promise<Market> {
+    const { store_id, id, ...body } = params;
+    return apiConfig.httpClient.put<Market>(storeRecordPath(store_id, "markets", id), body, options);
+  },
 
-    async delete(
-      params: DeleteMarketParams,
-      options?: RequestOptions,
-    ): Promise<Market> {
-      const { id, store_id, ...query } = params;
-      return apiConfig.httpClient.delete<Market>(
-        `${basePath(store_id)}/${encodeURIComponent(id)}`,
-        {
-          ...options,
-          params: query,
-        },
-      );
-    },
-  };
-};
+  delete(params: DeleteMarketParams, options?: RequestOptions): Promise<Market> {
+    return apiConfig.httpClient.delete<Market>(storeRecordPath(params.store_id, "markets", params.id), {
+      ...options,
+      params: { expected_updated_at: params.expected_updated_at },
+    });
+  },
+});

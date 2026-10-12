@@ -1,215 +1,104 @@
-import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
+import type { RequestOptions } from "../types/api";
+import type { PaginatedResponse } from "../types/common";
 import type {
-  RequestOptions,
   CreateCustomerParams,
-  UpdateCustomerParams,
-  GetCustomerParams,
-  ArchiveCustomerParams,
+  Customer,
+  CustomerSearchSnapshot,
+  CustomerSession,
+  EraseCustomerParams,
+  MergeCustomerParams,
+  FindCustomerSessionsParams,
   FindCustomersParams,
-  FindCustomerIdentitiesParams,
-  CustomerIdentityCommandParams,
+  GetCustomerParams,
   ImportCustomersParams,
-  ImportCustomersPreviewParams,
   ImportCustomersPreviewResult,
   ImportCustomersResult,
-  FindCustomerSessionsParams,
-  RevokeCustomerSessionParams,
   RevokeAllCustomerSessionsParams,
-  ResolveOrReserveCustomerEmailParams,
-  ResolveOrReserveCustomerEmailResult,
-} from "../types/api";
-import type {
-  Customer,
-  CustomerIdentity,
-  CustomerListItem,
-  CustomerSessionRecord,
-  PaginatedResponse,
-} from "../types";
+  RevokeCustomerSessionParams,
+  UpdateCustomerParams,
+} from "../types/customer";
+import { requireId } from "../utils/ids";
+import { segment, storePath, storeRecordPath } from "./paths";
 
-export const createCustomersApi = (apiConfig: ApiConfig) => ({
-  async resolveOrReserveEmail(
-    params: ResolveOrReserveCustomerEmailParams,
-    options?: RequestOptions,
-  ): Promise<ResolveOrReserveCustomerEmailResult> {
-    const { store_id, ...payload } = params;
-    return apiConfig.httpClient.post<ResolveOrReserveCustomerEmailResult>(
-      `/v1/stores/${requireStoreId(store_id)}/customers/resolve-or-reserve`,
-      payload,
-      options,
-    );
-  },
+export const createCustomersApi = (apiConfig: ApiConfig) => {
+  const customerPath = (storeId: string, id: string) => storeRecordPath(storeId, "customers", id);
 
-  async create(
-    params: CreateCustomerParams,
-    options?: RequestOptions,
-  ): Promise<Customer> {
-    const { store_id, ...payload } = params;
-    return apiConfig.httpClient.post<Customer>(
-      `/v1/stores/${requireStoreId(store_id)}/customers`,
-      payload,
-      options,
-    );
-  },
-
-  async get(
-    params: GetCustomerParams,
-    options?: RequestOptions,
-  ): Promise<Customer> {
-    return apiConfig.httpClient.get<Customer>(
-      `/v1/stores/${requireStoreId(params.store_id)}/customers/${params.id}`,
-      options,
-    );
-  },
-
-  async identities(
-    params: FindCustomerIdentitiesParams,
-    options?: RequestOptions,
-  ): Promise<PaginatedResponse<CustomerIdentity>> {
-    const query = new URLSearchParams();
-    if (params.limit !== undefined) query.set("limit", String(params.limit));
-    if (params.cursor !== undefined) query.set("cursor", params.cursor);
-    if (params.status !== undefined) query.set("status", params.status);
-    if (params.verified !== undefined) query.set("verified", String(params.verified));
-    return apiConfig.httpClient.get<PaginatedResponse<CustomerIdentity>>(
-      `/v1/stores/${requireStoreId(params.store_id)}/customers/${params.customer_id}/identities${query.size ? `?${query}` : ""}`,
-      options,
-    );
-  },
-
-  async getIdentity(params: CustomerIdentityCommandParams, options?: RequestOptions): Promise<CustomerIdentity> {
-    return apiConfig.httpClient.get<CustomerIdentity>(
-      `/v1/stores/${requireStoreId(params.store_id)}/customers/${params.customer_id}/identities/${params.identity_id}`,
-      options,
-    );
-  },
-
-  async revokeIdentity(params: CustomerIdentityCommandParams, options?: RequestOptions): Promise<CustomerIdentity> {
-    return apiConfig.httpClient.post<CustomerIdentity>(
-      `/v1/stores/${requireStoreId(params.store_id)}/customers/${params.customer_id}/identities/${params.identity_id}/revoke`,
-      undefined, options,
-    );
-  },
-
-  async find(
-    params: FindCustomersParams,
-    options?: RequestOptions,
-  ): Promise<PaginatedResponse<CustomerListItem>> {
-    const store_id = requireStoreId(params.store_id);
-    const queryParams: Record<string, unknown> = {};
-
-    if (params?.ids && params.ids.length > 0)
-      queryParams.ids = JSON.stringify(params.ids);
-    if (params?.limit !== undefined) queryParams.limit = params.limit;
-    if (params?.cursor) queryParams.cursor = params.cursor;
-    if (params?.query) queryParams.query = params.query;
-    if (params?.category_query)
-      queryParams.category_query = params.category_query;
-    if (params?.status) queryParams.status = params.status;
-    if (params?.has_verified_email !== undefined)
-      queryParams.has_verified_email = params.has_verified_email;
-    if (params?.has_customer_action !== undefined)
-      queryParams.has_customer_action = params.has_customer_action;
-    if (params?.has_cart !== undefined)
-      queryParams.has_cart = params.has_cart;
-    if (params?.sort_field) queryParams.sort_field = params.sort_field;
-    if (params?.sort_direction)
-      queryParams.sort_direction = params.sort_direction;
-
-    return apiConfig.httpClient.get<PaginatedResponse<CustomerListItem>>(
-      `/v1/stores/${requireStoreId(store_id)}/customers`,
-      {
+  return {
+    find(params: FindCustomersParams, options?: RequestOptions): Promise<PaginatedResponse<CustomerSearchSnapshot>> {
+      const { store_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<CustomerSearchSnapshot>>(storePath(store_id, "customers"), {
         ...options,
-        params: queryParams,
-      },
-    );
-  },
+        params: query,
+      });
+    },
 
-  async update(
-    params: UpdateCustomerParams,
-    options?: RequestOptions,
-  ): Promise<Customer> {
-    const { id, store_id, ...body } = params;
-    return apiConfig.httpClient.patch<Customer>(
-      `/v1/stores/${requireStoreId(store_id)}/customers/${id}`,
-      body,
-      options,
-    );
-  },
+    get(params: GetCustomerParams, options?: RequestOptions): Promise<Customer> {
+      return apiConfig.httpClient.get<Customer>(customerPath(params.store_id, params.id), options);
+    },
 
-  async archive(
-    params: ArchiveCustomerParams,
-    options?: RequestOptions,
-  ): Promise<Customer> {
-    const store_id = requireStoreId(params.store_id);
-    return apiConfig.httpClient.post<Customer>(
-      `/v1/stores/${requireStoreId(store_id)}/customers/${params.id}/archive`,
-      undefined,
-      options,
-    );
-  },
+    create(params: CreateCustomerParams, options?: RequestOptions): Promise<Customer> {
+      requireId(params.id, "customer");
+      const { store_id, ...body } = params;
+      return apiConfig.httpClient.post<Customer>(storePath(store_id, "customers"), body, options);
+    },
 
-  import: async (
-    params: ImportCustomersParams,
-    options?: RequestOptions,
-  ): Promise<ImportCustomersResult> => {
-    const { store_id, ...payload } = params;
-    const target_store_id = requireStoreId(store_id);
-    return apiConfig.httpClient.post<ImportCustomersResult>(
-      `/v1/stores/${requireStoreId(target_store_id)}/customers/import`,
-      payload,
-      options,
-    );
-  },
+    update(params: UpdateCustomerParams, options?: RequestOptions): Promise<Customer> {
+      const { store_id, id, ...body } = params;
+      return apiConfig.httpClient.patch<Customer>(customerPath(store_id, id), body, options);
+    },
 
-  previewImport: async (
-    params: ImportCustomersPreviewParams,
-    options?: RequestOptions,
-  ): Promise<ImportCustomersPreviewResult> => {
-    const { store_id, ...payload } = params;
-    const target_store_id = requireStoreId(store_id);
-    return apiConfig.httpClient.post<ImportCustomersPreviewResult>(
-      `/v1/stores/${requireStoreId(target_store_id)}/customers/import/preview`,
-      payload,
-      options,
-    );
-  },
+    erase(params: EraseCustomerParams, options?: RequestOptions): Promise<Customer> {
+      return apiConfig.httpClient.post<Customer>(
+        `${customerPath(params.store_id, params.id)}/erase`,
+        { expected_updated_at: params.expected_updated_at },
+        options,
+      );
+    },
 
-  async findSessions(
-    params: FindCustomerSessionsParams,
-    options?: RequestOptions,
-  ): Promise<PaginatedResponse<CustomerSessionRecord>> {
-    const store_id = requireStoreId(params.store_id);
-    const queryParams: Record<string, unknown> = {};
-    if (params.limit !== undefined) queryParams.limit = params.limit;
-    if (params.cursor) queryParams.cursor = params.cursor;
-    return apiConfig.httpClient.get<PaginatedResponse<CustomerSessionRecord>>(
-      `/v1/stores/${requireStoreId(store_id)}/customers/${params.customer_id}/sessions`,
-      { ...options, params: queryParams },
-    );
-  },
+    merge(params: MergeCustomerParams, options?: RequestOptions): Promise<Customer> {
+      requireId(params.target_customer_id, "customer");
+      return apiConfig.httpClient.post<Customer>(`${customerPath(params.store_id, params.id)}/merge`, {
+        target_customer_id: params.target_customer_id, expected_updated_at: params.expected_updated_at,
+      }, options);
+    },
 
-  async revokeSession(
-    params: RevokeCustomerSessionParams,
-    options?: RequestOptions,
-  ): Promise<{ success: boolean }> {
-    const store_id = requireStoreId(params.store_id);
-    return apiConfig.httpClient.post<{ success: boolean }>(
-      `/v1/stores/${requireStoreId(store_id)}/customers/${params.customer_id}/sessions/${params.session_id}/revoke`,
-      undefined,
-      options,
-    );
-  },
+    import(params: ImportCustomersParams, options?: RequestOptions): Promise<ImportCustomersResult> {
+      const { store_id, ...body } = params;
+      return apiConfig.httpClient.post<ImportCustomersResult>(storePath(store_id, "customers/import"), body, options);
+    },
 
-  async revokeAllSessions(
-    params: RevokeAllCustomerSessionsParams,
-    options?: RequestOptions,
-  ): Promise<{ success: boolean }> {
-    const store_id = requireStoreId(params.store_id);
-    return apiConfig.httpClient.post<{ success: boolean }>(
-      `/v1/stores/${requireStoreId(store_id)}/customers/${params.customer_id}/sessions/revoke`,
-      undefined,
-      options,
-    );
-  },
-});
+    previewImport(params: ImportCustomersParams, options?: RequestOptions): Promise<ImportCustomersPreviewResult> {
+      const { store_id, ...body } = params;
+      return apiConfig.httpClient.post<ImportCustomersPreviewResult>(
+        storePath(store_id, "customers/import/preview"),
+        body,
+        options,
+      );
+    },
+
+    findSessions(params: FindCustomerSessionsParams, options?: RequestOptions): Promise<PaginatedResponse<CustomerSession>> {
+      const { store_id, customer_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<CustomerSession>>(`${customerPath(store_id, customer_id)}/sessions`, {
+        ...options,
+        params: query,
+      });
+    },
+
+    revokeSession(params: RevokeCustomerSessionParams, options?: RequestOptions): Promise<{ success: boolean }> {
+      return apiConfig.httpClient.post<{ success: boolean }>(
+        `${customerPath(params.store_id, params.customer_id)}/sessions/${segment(params.session_id)}/revoke`,
+        undefined,
+        options,
+      );
+    },
+
+    revokeAllSessions(params: RevokeAllCustomerSessionsParams, options?: RequestOptions): Promise<{ success: boolean }> {
+      return apiConfig.httpClient.post<{ success: boolean }>(
+        `${customerPath(params.store_id, params.customer_id)}/sessions/revoke`,
+        undefined,
+        options,
+      );
+    },
+  };
+};

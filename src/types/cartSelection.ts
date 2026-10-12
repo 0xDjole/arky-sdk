@@ -1,33 +1,33 @@
-import type { RequestOptions } from "./api";
-import type { CreatedCart } from "./cart";
-import type { StorefrontCart, StorefrontCurrentCartParams, StorefrontMarket } from "./storefront";
+import type { RequestOptions } from "./httpClient";
+import type {
+  Cart,
+  CreatedCart,
+  ReorderedCart,
+  StorefrontCreateCartParams,
+  StorefrontGetCartParams,
+  StorefrontReorderParams,
+} from "./cart";
 
 export interface CartSelectionContext {
   namespace: string;
   storage: {
     getItem(key: string): string | null;
     setItem(key: string, value: string): void;
+    removeItem(key: string): void;
   } | null;
   customerId(): string | null;
-  market(): string;
+  market(): string | null;
 }
 
 export interface SelectedCart {
-  version: 1;
+  version: 3;
   id: string;
-  market_id: string;
-}
-
-export interface CartSelectionScope {
-  key: string;
-  assertContext(): void;
-  assertCart(cart: StorefrontCart, selected?: SelectedCart): void;
 }
 
 export interface CartSelectionTransport {
-  market(key: string, options?: RequestOptions): Promise<StorefrontMarket>;
-  get(id: string, options?: RequestOptions): Promise<StorefrontCart>;
-  create(params: StorefrontCurrentCartParams, options?: RequestOptions): Promise<CreatedCart>;
+  get(params: StorefrontGetCartParams, options?: RequestOptions): Promise<Cart>;
+  create(params: StorefrontCreateCartParams, options?: RequestOptions): Promise<CreatedCart>;
+  reorder(params: StorefrontReorderParams, options?: RequestOptions): Promise<ReorderedCart>;
 }
 
 export class CartSelectionError extends Error {

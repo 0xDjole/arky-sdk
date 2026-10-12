@@ -374,3 +374,16 @@ test("durable requests never reuse an in-memory fallback after durable storage c
   assert.equal(firstStorage.getItem(storageKey) !== null, true);
   assert.equal(secondStorage.getItem(storageKey) !== null, true);
 });
+
+test("a definite refusal is any 4xx except a timeout or throttle; server and network failures stay ambiguous", async () => {
+  const { isDefiniteRefusal } = await importDurableRequests();
+  for (const statusCode of [400, 401, 403, 404, 409, 410, 422, 499]) {
+    assert.equal(isDefiniteRefusal({ statusCode }), true, String(statusCode));
+  }
+  for (const statusCode of [408, 429, 500, 502, 503, 200, 302]) {
+    assert.equal(isDefiniteRefusal({ statusCode }), false, String(statusCode));
+  }
+  for (const error of [null, undefined, "409", new TypeError("network lost"), { statusCode: "409" }, { status: 409 }]) {
+    assert.equal(isDefiniteRefusal(error), false, String(error));
+  }
+});

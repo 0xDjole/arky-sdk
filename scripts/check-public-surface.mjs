@@ -3,1344 +3,191 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { customerEmailClaimContactOffsets } from "./customer-email-claim-vocabulary.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, "..");
 const sourceDir = resolve(root, "src");
 
 const removedIdentifiers = [
-  "createCmsApi",
-  "createFormApi",
-  "createActivityAdminApi",
-  "createAudienceApi",
-  "ActivityTimelineParams",
-  "ArkyCmsEntryParams",
-  "ArkyCmsState",
-  "QuoteItemInput",
-  "CheckoutItemInput",
-  "InviteUserParams",
-  "OrderUpdateItem",
-  "GetStoreMediaParams2",
-  "GeoLocationValue",
+  "AccountApiToken",
+  "StorefrontKey",
+  "CustomerEmail",
+  "CustomerStatus",
+  "EmailDomain",
+  "NotificationType",
+  "createNotificationApi",
+  "createStorefrontKeyApi",
+  "MessageDelivery",
+  "createMessageDeliveryApi",
+  "Campaign",
+  "CampaignStatus",
+  "CampaignEnrollment",
+  "CampaignMessage",
+  "createCampaignApi",
+  "Mailbox",
   "MailboxProvider",
-  "CampaignEnrollmentStepExecutionOutcome",
-  "CampaignEnrollmentDraft",
-  "ShippingAddress",
-  "BuildHookType",
-  "Location",
-  "CreateLocationParams",
-  "UpdateLocationParams",
-  "DeleteLocationParams",
-  "StoreEmails",
-  "StoreLifecycle",
-  "StoreUsagePeriod",
-  "oldKey",
-  "mountStripe",
-  "AccountLifecycle",
-  "AccountUpdateResponse",
-  "AuthCodeVerifyParams",
-  "GoogleAuthCompleteParams",
-  "GoogleAuthStartResponse",
-  "LoginAccountParams",
-  "UpdateAccountContactParams",
-  "googleComplete",
-  "googleStart",
-  "updateAccount",
-  "PaymentMethodType",
-  "PaymentProviderType",
-  "StoreSubscriptionPayment",
-  "StoreSubscriptionBillingStatus",
-  "GetStoreSubscriptionCheckoutParams",
-  "getSubscriptionCheckout",
-  "getAvailableStock",
-  "getFirstAvailableFCId",
-  "BookingProvider",
-  "ProviderSchedule",
-  "ServiceProvider",
-  "ServiceStatus",
-  "ProviderStatus",
-  "SlotRange",
-  "ProviderAvailability",
-  "CreateServiceParams",
-  "UpdateServiceParams",
-  "DeleteServiceParams",
-  "GetServiceParams",
-  "GetServicesParams",
-  "CreateProviderParams",
-  "UpdateProviderParams",
-  "DeleteProviderParams",
-  "GetProviderParams",
-  "GetProvidersParams",
-  "CreateServiceProviderParams",
-  "UpdateServiceProviderParams",
-  "DeleteServiceProviderParams",
-  "FindServiceProvidersParams",
-  "getOrderBookings",
-  "findProviders",
-  "selectProvider",
-  "ArkyServiceStore",
-  "ArkyServiceState",
-  "ArkyServiceSlot",
-  "DigitalCatalogStatus",
-  "DigitalPrice",
-  "OrderPaymentType",
-  "ProviderOrderPayment",
-  "OrderRefundType",
-  "OrderRefundAllocation",
-  "ProviderOrderDispute",
-  "OrderDispute",
-  "FindOrderDisputesParams",
-  "GetOrderDisputeParams",
-  "Discount",
-  "Condition",
-  "ShippoLabelStatus",
-  "ShippoLabel",
-  "ShippoLabelRefundStatus",
-  "ShippoLabelRefund",
-  "OrderShipment",
-  "OrderShipmentLine",
-  "OrderShipmentStatus",
-  "CreateOrderShipmentParams",
-  "CancelOrderShipmentParams",
-  "DispatchOrderShipmentParams",
-  "FindOrderShipmentsParams",
-  "GetOrderShipmentParams",
-  "OrderPickup",
-  "OrderPickupLine",
-  "OrderPickupStatus",
-  "OrderPickupCommand",
-  "CreateOrderPickupParams",
-  "ExecuteOrderPickupParams",
-  "FindOrderPickupsParams",
-  "GetOrderPickupParams",
-  "replaces_placement_id",
-  "findFulfillmentOrders",
-  "getFulfillmentOrder",
-  "resolveFulfillmentUnitSlots",
-  "resolveUnitSlots",
-  "ProviderOrderShipmentCharge",
-  "OrderShipmentCharge",
-  "OrderShipmentChargeDirection",
-  "OrderShipmentChargeStatus",
-  "OrderShipmentChargeType",
-  "RetryOrderShipmentParams",
-  "RequestShippoLabelRefundParams",
-  "RetryShippoLabelRefundParams",
-  "FindOrderShipmentChargesParams",
-  "GetOrderShipmentChargeParams",
-  "RetryOrderShipmentChargeParams",
-  "Action",
-  "ActionData",
-  "ActionContext",
-  "ActionLocation",
-  "ActionDevice",
-  "ActionSession",
-  "SocialActionAuthor",
-  "FindActionsParams",
-  "TimelineParams",
-  "StorefrontAction",
-  "TrackActionParams",
-  "CommonActionKey",
-  "AnalyticsActionReportKey",
-  "ActionFeedCategory",
-  "ActionFeedItem",
-  "ActionFeedSummary",
-  "ActionFeedCursor",
-  "ActionFeedData",
-  "createActionAdminApi",
-  "createActionApi",
-  "COMMON_ACTION_KEYS",
-  "UpdateFormSubmissionParams",
-  "updateSubmission",
-  "CartProduct",
-  "CartBooking",
-  "CartDigitalProduct",
-  "CartDigitalProductInput",
-  "TrustedCartDigitalProductInput",
-  "OrderProduct",
-  "OrderDigitalProduct",
-  "OrderDigitalProductSnapshot",
-  "OrderProductStatus",
-  "OrderProductFulfillmentStatus",
-  "OrderFulfillmentStatus",
-  "OrderFulfillmentSummary",
-  "ShippingLine",
-  "OrderTaxSnapshot",
-  "OrderTaxLine",
-  "OrderTaxScope",
-  "CancelOrderProductParams",
-  "AudiencePromotionUsageStatus",
-  "TextBlockProperties",
-  "MarkdownBlockProperties",
-  "NumberBlockProperties",
-  "ContainerBlockProperties",
-  "MediaBlockProperties",
-  "EntryBlockProperties",
-  "ResourceBlockProperties",
-  "GeoLocationBlockProperties",
-  "getOrderProducts",
-  "getOrderDigitalProducts",
-  "cancelOrderProduct",
-  "EmailDelivery",
-  "EmailDeliveryError",
-  "EmailDeliveryErrorKind",
-  "EmailDeliveryStatus",
-  "EmailDeliveryType",
-  "EmailSendRequest",
-  "EmailSendResult",
-  "EmailSendDeliveryResult",
-  "GetEmailDeliveryParams",
-  "RetryEmailDeliveryParams",
-  "createInventoryReservationApi",
-  "InventoryReservation",
-  "ProductInventory",
-  "ProductInventoryInput",
-  "VariantWithInventory",
-  "ReservationUnitProgress",
-  "OrderProductLocationAllocation",
-  "InventoryUnitItemSnapshot",
+  "createMailboxApi",
+  "Automation",
+  "AutomationRun",
+  "createAutomationApi",
+  "LeadResearch",
+  "createLeadResearchApi",
+  "SocialConnection",
+  "SocialPost",
+  "SocialMessage",
+  "createSocialApi",
+  "MarketZone",
+  "createMarketZoneApi",
+  "MarketPaymentOption",
+  "createMarketPaymentOptionApi",
+  "TaxRuleStatus",
+  "createTaxRuleApi",
+  "ShippingRateStatus",
+  "createShippingRateApi",
+  "createPaymentTermsApi",
+  "CustomerIdentity",
+  "StorefrontCustomerIdentity",
+  "CustomerGroupEmailConsent",
+  "CustomerGroupConsentEvent",
+  "createCustomerGroupEmailConsentApi",
+  "OrderBooking",
+  "OrderCancellationDecision",
+  "PaymentCapture",
+  "PaymentDispute",
+  "PaymentRefund",
+  "createRefundApi",
+  "createPaymentDisputeApi",
+  "ProviderNotification",
+  "SupportAgent",
+  "SupportAgentDefinition",
+  "SubscriptionChange",
+  "SubscriptionPlanEntitlementStatus",
+  "createSubscriptionPlanEntitlementApi",
+  "DigitalProduct",
+  "StorefrontDigitalProduct",
+  "createDigitalApi",
+  "StoreCommerce",
+  "StoreCustomerWorkspace",
+  "FirstOrderTerms",
+  "ReferenceIndexEntry",
+  "OrderCheckoutResult",
+  "CheckoutQuote",
+  "captureEmail",
+  "requireRequestId",
+  "createSubscriptionApi",
+  "createSubscriptionPlanApi",
+  "createSubscriptionOfferingApi",
+  "SubscriptionPlan",
+  "SubscriptionOffering",
+  "SubscriptionRevision",
+  "addSubscriptionPlan",
+  "EmailSender",
+  "createEmailSenderApi",
+  "StopNotificationParams",
+  "SupportChannel",
+  "SupportAutoReply",
+  "StorefrontClientRegistration",
+  "createStorefrontClientApi",
+  "Payer",
+  "PayerBranches",
+  "CompanyLocationReach",
+  "AllowedPaymentOptions",
 ];
 
-const removedIdentifierPattern = new RegExp(
-  `\\b(?:${removedIdentifiers.join("|")})\\b`,
-  "g",
-);
-const forbiddenProviderOperationPattern = /\bprovider(?:_|-)?operations?\b/gi;
-const removedGenericEmailRoutePattern =
-  /\/v1\/notifications\/email(?:-deliveries)?\b/g;
-const removedCategoryVocabularyPattern =
-  /Taxonom|taxonom/g;
-const removedCommercePaymentVocabularyPattern = new RegExp(
-  "\\b(?:payment_method_key|payment_methods|setup_status|platform_debits_authorized)\\b",
-  "g",
-);
-const removedPaymentNamingPattern =
-  /\b(?:PaymentProvider\w*|MarketPaymentProvider\w*|CustomerPaymentMethod\w*|OrderPaymentCapture|ShipmentUnitBinding|getByBinding|\w+ByBindingParams|payment_provider\w*|market_payment_provider\w*|customer_payment_method\w*|order_payment_id|order_payment_capture_id|order_refund_id|payer_customer_id|unit_bindings|metadata_binding_status)\b|payment-providers|customer-payment-methods|\/by-binding|by-configuration/g;
-const removedProductContractPatterns = [
-  /export interface ProductVariant\s*\{[^}]*\bweight\??:/g,
-  /export interface Product\s*\{[^}]*\bslug\??:/g,
-  /export interface (?:Create|Update)ProductVariantInput\s*\{[^}]*\bweight\??:/g,
-  /export interface (?:Create|Update)ProductParams\s*\{[^}]*\bslug\??:/g,
-];
-const removedDigitalContractPatterns = [
-  /export interface (?:DigitalProduct|StorefrontDigitalProduct|DigitalLibraryItem|DigitalLibraryProduct)\s*\{[^}]*\bslug\??:/g,
-  /export interface (?:Create|Update)DigitalProductParams\s*\{[^}]*\bslug\??:/g,
-  /\/digital-products\/assets\b/g,
-];
-const removedBookingContractPatterns = [
-  /export interface (?:BookingService|BookingResource)\s*\{[^}]*\bslug\??:/g,
-  /export interface (?:Create|Update)Booking(?:Service|Resource)Params\s*\{[^}]*\bslug\??:/g,
-  /export interface UpdateOrderParams\s*\{[^}]*\bbooking_items\??:/g,
-];
-const removedOrderPaymentContractPatterns = [
-  /export interface OrderPayment\s*\{[^}]*\b(?:version|type|amount|currency|paid_amount|refund_pending_amount|refunded_amount|marked_paid_by_account_id|checkout_expires_at|processing_started_at|processing_claim_id|processing_deadline_at)\??:/g,
-  /export interface OrderCheckoutResult\s*\{[^}]*\bpayment:\s*OrderPayment\s*;/g,
-  /export interface Order\s*\{[^}]*\bpayment_id:\s*string\s*;/g,
-];
-const removedOrderRefundContractPatterns = [
-  /export interface OrderRefund\s*\{[^}]*\b(?:version|type|amount|currency)\??:/g,
-  /export type RefundAllocation\s*=[^;]*\b(?:order_product_id|order_booking_id|order_digital_product_id|shipping_line_id)\b/g,
-  /export interface CreateOrderRefundResponse\s*\{[^}]*\bamount\??:/g,
-];
-const removedPaymentDisputeContractPatterns = [
-  /export interface PaymentDispute\s*\{[^}]*\b(?:version|amount|currency)\??:/g,
-  /export interface PaymentDispute\s*\{[^}]*\bstatus\?:/g,
-  /export type PaymentDisputeProvider\s*=[^;]*\btransaction_id\b/g,
-];
-const removedBookingVocabularyPattern =
-  /\b(?:working_days|specific_dates|min_advance|max_advance|slot_interval|provider_key|booking_provider_id)\b|service-providers|order_booking\./g;
-const removedPromotionVocabularyPattern =
-  /\b(?:items_percentage|items_fixed|min_order_amount|date_range|max_uses_per_user|discount_application_id|starts_at_from|starts_at_to|expires_at_from|expires_at_to)\b|type:\s*["']services["']|\bbps\b/g;
-const removedBookingQuotaFeaturePattern =
-  /export type SubscriptionPlanFeatureType\s*=[^;]*\|\s*["'](?:services|providers)["'][^;]*;/g;
-const removedShippingProviderVocabularyPattern =
-  /\b(?:Shippo[A-Za-z0-9_]*|managed_account_id|shippo_account_id|shippo_token)\b/g;
-const removedShippingContractPatterns = [
-  /export interface FulfillmentOrderLine\s*\{[^}]*\b(?:order_product_id|remaining_quantity)\??:/g,
-  /export interface FulfillmentOrder\s*\{[^}]*\b(?:version|location_id)\??:/g,
-  /export interface ShippingRateLine\s*\{[^}]*\border_product_id\??:/g,
-  /export interface ShipmentLine\s*\{[^}]*\b(?:order_product_id|order_product_line_item_id|quantity)\??:/g,
-  /export interface Shipment\s*\{[^}]*\b(?:order_id|version|location_id|shippo_label|attempt_count|provider)\??:/g,
-  /export interface Pickup\s*\{[^}]*\border_id\??:/g,
-  /export interface (?:Create|Get|Dispatch)ShipmentParams\s*\{[^}]*\border_id\??:/g,
-  /export interface (?:Create|Execute|Get)PickupParams\s*(?:extends[^{]*)?\{[^}]*\border_id\??:/g,
-  /export interface (?:GetFulfillmentOrderParams|ResolveFulfillmentUnitSlotsParams)\s*\{[^}]*\border_id\??:/g,
-  /\/orders\/\$\{[^}]+\}\/(?:shipments|pickups|fulfillment-orders)\b/g,
-  /export interface AcceptedDeliveryPricing\s*\{[^}]*\b(?:source_shipping_rate_id|merchandise_basis|weight_grams|calculation|free_above_subtotal)\??:/g,
-  /export interface ShippingLabel(?:Refund|Charge|ChargeRefund)?\s*\{[^}]*\b(?:version|transaction_id|refund_id|postage_amount|fee_amount|currency|attempt_count|provider)\??:/g,
-  /export interface ShippingRate\s*\{[^}]*\b(?:amount|currency)\??:/g,
-  /\/shippo-label\b|\/shipments\/[^\s`"']+\/retry\b|\/charges(?:\/|`|"|')/g,
-];
-const removedGroupOwnedSubscriptionPattern =
-  /\bCustomerGroup(?:Plan|PlanBenefit|Subscription|SubscriptionRevision)\w*\b|\bcustomer_group_(?:plan|subscription)\w*\b|\bmembership_allocation_weight\b|\bname_block_id\b/g;
-const removedCrmActionVocabularyPattern =
-  /\b(?:has_action|action_id|opportunity_action_id|action_by_country|top_action_pages|recent_action)\b|\b(?:crmApi|storefrontApi|client)\.action\b/g;
-const removedCustomerVocabularyPatterns = [
-  /\b(?:Contact|ContactChannel|ContactSession|StorefrontContact)\b/g,
-  /\bcontact_id\b|\/contacts\b|\.crm\.contact\b/g,
-  /\/v1\/storefront\/(?:account|crm\/contact)\b/g,
-  /\/v1\/storefront\/customer\/code\b/g,
-  /\b(?:challenge_id|verification_challenge|crm_contacts)\b/g,
-  /\b(?:identifyEmailIfMissing|identifyContactEmailIfMissing|identifyCustomerEmailIfMissing)\b/g,
-  /\bcontact_funnel\b|\bcontacts_by_status\b/g,
-  /["']contact(?:\.created|\.updated)?["']|\bmaximum_uses_per_contact\b/g,
-  /\barky_vst_/g,
-];
-const removedActivityMutationPattern =
-  /export interface Activity\s*\{[^}]*\bupdated_at\??:/g;
-const removedCartOrderContractPatterns = [
-  /export interface Cart\s*\{[^}]*\bforms\??:/g,
-  /export interface Order\s*\{[^}]*\b(?:version|verified|forms|fulfillment_status|fulfillment_summary)\??:/g,
-  /\bcustomer_verified_at_checkout\b/g,
-  /export interface AudiencePromotionSnapshot\s*\{[^}]*\busage_status\??:/g,
-  /export type CheckoutPaymentAction\s*=(?:(?!\nexport\s)[\s\S])*?\bstripe_account_id\??:(?:(?!\nexport\s)[\s\S])*/g,
-  /["']order_product\./g,
-  /["']order_digital_product\./g,
-  /\/orders\/\$\{params\.order_id\}\/products(?:\/|`)/g,
-  /\/orders\/\$\{params\.order_id\}\/digital-products(?:\/|`)/g,
-];
-const removedSocialContractPatterns = [
-  /\bSocialPublication(?:Comment|Effect|Metric)?\b/g,
-  /\bSocialCommentReply\b/g,
-  /\bSocialOAuthAttempt\b/g,
-  /\/publications(?:\/|`|"|')/g,
-];
-const removedArkyMissingVocabularyPattern =
-  /\b(?:Workflow\w*|workflow\w*|FulfillmentOrder\w*|fulfillment_order\w*|FulfillmentPartner\w*|fulfillment_partner\w*|PriceList\w*|price_list\w*|Assortment\w*|assortment\w*|CatalogEntitlement\w*|catalog_entitlement\w*|LocationOperator|PriceScope|price_scope|CompanyMembershipScope|FormSubmissionProcessing|ProcessFormSubmissionParams|processSubmission|SystemTemplateKey|EmailTemplateType|NotificationDelivery\w*|createNotificationApi|purchase_allowed|is_pickup_location)\b|fulfillment-orders|fulfillment-partners|price-lists|catalog-entitlements|notification-deliveries|\/workflows\b/g;
-const removedFutureOneVocabularyPattern =
-  /\b(?:MarketSalesChannel\w*|marketSalesChannel\w*|market_sales_channel\w*|BuildHook\w*|buildHook\w*|build_hook\w*|only_location|FormSubmissionNote|priced)\b|market-sales-channels|build-hooks/g;
-const exportedDeclarationPattern =
-  /\bexport\s+(?:declare\s+)?(?:type|interface|class|enum|function|const|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)\b/g;
+const removedIdentifierPattern = new RegExp(`\\b(?:${removedIdentifiers.join("|")})\\b`, "g");
+const inventedIdPattern = /\b(?:randomUUID|uuidv4|nanoid)\s*\(/g;
 
 function listTypeScriptFiles(directory) {
   const files = [];
   for (const entry of readdirSync(directory)) {
     const path = join(directory, entry);
-    const metadata = statSync(path);
-    if (metadata.isDirectory()) {
-      files.push(...listTypeScriptFiles(path));
-    } else if (entry.endsWith(".ts")) {
-      files.push(path);
-    }
+    if (statSync(path).isDirectory()) files.push(...listTypeScriptFiles(path));
+    else if (entry.endsWith(".ts")) files.push(path);
   }
   return files;
+}
+
+function stripComments(source) {
+  return source.replace(/\/\*[\s\S]*?\*\//g, (match) => match.replace(/[^\n]/g, " ")).replace(/(^|[^:])\/\/[^\n]*/g, "$1");
 }
 
 function lineNumberAt(source, offset) {
   return source.slice(0, offset).split("\n").length;
 }
 
-function report(file, source, offset, message) {
-  console.error(
-    `${relative(root, file)}:${lineNumberAt(source, offset)}: ${message}`,
-  );
-}
-
 let failures = 0;
 
+function report(file, source, offset, message) {
+  console.error(`${relative(root, file)}:${lineNumberAt(source, offset)}: ${message}`);
+  failures++;
+}
+
 for (const file of listTypeScriptFiles(sourceDir)) {
-  const source = readFileSync(file, "utf8");
-  const emailClaimContactOffsets = customerEmailClaimContactOffsets(source);
-
+  const source = stripComments(readFileSync(file, "utf8"));
   for (const match of source.matchAll(removedIdentifierPattern)) {
-    report(file, source, match.index, `removed public name ${match[0]}`);
-    failures++;
+    report(file, source, match.index ?? 0, `${match[0]} belongs to a record or call the plan deleted`);
   }
-
-  for (const match of source.matchAll(forbiddenProviderOperationPattern)) {
-    report(
-      file,
-      source,
-      match.index,
-      `removed provider-operation name ${match[0]}`,
-    );
-    failures++;
-  }
-
-  for (const match of source.matchAll(removedGenericEmailRoutePattern)) {
-    report(
-      file,
-      source,
-      match.index,
-      `removed generic email route ${match[0]}`,
-    );
-    failures++;
-  }
-
-  for (const match of source.matchAll(removedCategoryVocabularyPattern)) {
-    report(
-      file,
-      source,
-      match.index,
-      `removed Category/Block vocabulary ${match[0]}`,
-    );
-    failures++;
-  }
-
-  for (const match of source.matchAll(
-    removedCommercePaymentVocabularyPattern,
-  )) {
-    report(
-      file,
-      source,
-      match.index,
-      `removed Commerce payment field ${match[0]}`,
-    );
-    failures++;
-  }
-
-  for (const match of source.matchAll(removedPaymentNamingPattern)) {
-    report(file, source, match.index, `removed payment or binding name ${match[0]}`);
-    failures++;
-  }
-
-  for (const pattern of removedProductContractPatterns) {
-    for (const match of source.matchAll(pattern)) {
-      report(
-        file,
-        source,
-        match.index,
-        "removed Product/Inventory contract field",
-      );
-      failures++;
-    }
-  }
-
-  for (const pattern of removedDigitalContractPatterns) {
-    for (const match of source.matchAll(pattern)) {
-      report(
-        file,
-        source,
-        match.index,
-        "removed Digital Product/Asset contract",
-      );
-      failures++;
-    }
-  }
-
-  for (const pattern of removedBookingContractPatterns) {
-    for (const match of source.matchAll(pattern)) {
-      report(
-        file,
-        source,
-        match.index,
-        "removed Booking Service/Resource slug field",
-      );
-      failures++;
-    }
-  }
-
-  for (const pattern of removedOrderPaymentContractPatterns) {
-    for (const match of source.matchAll(pattern)) {
-      report(file, source, match.index, "removed Order Payment contract field");
-      failures++;
-    }
-  }
-
-  for (const pattern of removedOrderRefundContractPatterns) {
-    for (const match of source.matchAll(pattern)) {
-      report(file, source, match.index, "removed Order Refund contract field");
-      failures++;
-    }
-  }
-
-  for (const pattern of removedPaymentDisputeContractPatterns) {
-    for (const match of source.matchAll(pattern)) {
-      report(
-        file,
-        source,
-        match.index,
-        "removed Payment Dispute contract field",
-      );
-      failures++;
-    }
-  }
-
-  for (const match of source.matchAll(removedBookingVocabularyPattern)) {
-    report(file, source, match.index, `removed booking vocabulary ${match[0]}`);
-    failures++;
-  }
-
-  for (const match of source.matchAll(removedPromotionVocabularyPattern)) {
-    report(
-      file,
-      source,
-      match.index,
-      `removed Promotion vocabulary ${match[0]}`,
-    );
-    failures++;
-  }
-
-  for (const match of source.matchAll(removedBookingQuotaFeaturePattern)) {
-    report(file, source, match.index, "removed Booking quota feature key");
-    failures++;
-  }
-
-  for (const match of source.matchAll(
-    removedShippingProviderVocabularyPattern,
-  )) {
-    report(
-      file,
-      source,
-      match.index,
-      `provider-specific Shipping vocabulary ${match[0]}`,
-    );
-    failures++;
-  }
-
-  for (const pattern of removedShippingContractPatterns) {
-    for (const match of source.matchAll(pattern)) {
-      report(file, source, match.index, "removed Shipping contract");
-      failures++;
-    }
-  }
-
-  for (const match of source.matchAll(removedGroupOwnedSubscriptionPattern)) {
-    report(file, source, match.index, `removed group-owned subscription or name-block vocabulary ${match[0]}`);
-    failures++;
-  }
-
-  for (const match of source.matchAll(removedCrmActionVocabularyPattern)) {
-    report(
-      file,
-      source,
-      match.index,
-      `removed CRM Action vocabulary ${match[0]}`,
-    );
-    failures++;
-  }
-
-  for (const pattern of removedCustomerVocabularyPatterns) {
-    for (const match of source.matchAll(pattern)) {
-      if (emailClaimContactOffsets.has(match.index) && /^["']contact["']$/.test(match[0])) continue;
-      report(
-        file,
-        source,
-        match.index,
-        `removed Customer vocabulary ${match[0]}`,
-      );
-      failures++;
-    }
-  }
-
-  for (const match of source.matchAll(removedActivityMutationPattern)) {
-    report(file, source, match.index, "immutable Activity exposes updated_at");
-    failures++;
-  }
-
-  for (const pattern of removedCartOrderContractPatterns) {
-    for (const match of source.matchAll(pattern)) {
-      report(file, source, match.index, "removed Cart/Order checkout contract");
-      failures++;
-    }
-  }
-
-  for (const pattern of removedSocialContractPatterns) {
-    for (const match of source.matchAll(pattern)) {
-      report(file, source, match.index, `removed Social contract ${match[0]}`);
-      failures++;
-    }
-  }
-
-  for (const match of source.matchAll(removedArkyMissingVocabularyPattern)) {
-    report(file, source, match.index, `removed workflow, fulfillment-order, price-list, assortment or entitlement vocabulary ${match[0]}`);
-    failures++;
-  }
-
-  for (const match of source.matchAll(removedFutureOneVocabularyPattern)) {
-    report(file, source, match.index, `removed market-channel pair, build hook, only-location, submission note or priced vocabulary ${match[0]}`);
-    failures++;
-  }
-
-  for (const match of source.matchAll(exportedDeclarationPattern)) {
-    const name = match[1];
-    if (!/\d$/.test(name)) continue;
-    report(file, source, match.index, `numbered public declaration ${name}`);
-    failures++;
+  for (const match of source.matchAll(inventedIdPattern)) {
+    report(file, source, match.index ?? 0, "the SDK never invents ids; the app picks them");
   }
 }
 
-const activityTypesFile = resolve(sourceDir, "types/index.ts");
-const activityTypesSource = readFileSync(activityTypesFile, "utf8");
-const apiTypesFile = resolve(sourceDir, "types/api.ts");
-const apiTypesSource = readFileSync(apiTypesFile, "utf8");
-const supportTypesFile = resolve(sourceDir, "api/support.ts");
-const supportTypesSource = readFileSync(supportTypesFile, "utf8");
-const storefrontApiFile = resolve(sourceDir, "api/storefront.ts");
-const storefrontApiSource = readFileSync(storefrontApiFile, "utf8");
-const customersApiFile = resolve(sourceDir, "api/customers.ts");
-const customersApiSource = readFileSync(customersApiFile, "utf8");
-const indexFile = resolve(sourceDir, "index.ts");
-const indexSource = readFileSync(indexFile, "utf8");
-
-const propertylessBlockNames = [
-  "TextBlock",
-  "LocalizedTextBlock",
-  "MarkdownBlock",
-  "NumberBlock",
-  "BooleanBlock",
-  "DateBlock",
-  "GeoLocationBlock",
-  "MediaBlock",
-  "EntryBlock",
-  "FormBlock",
-  "ProductBlock",
-  "DigitalProductBlock",
-  "ArrayBlock",
-  "ObjectBlock",
-];
-for (const name of propertylessBlockNames) {
-  const contract = activityTypesSource.match(
-    new RegExp(
-      `export interface ${name}\\s+extends BlockBase\\s*\\{([\\s\\S]*?)\\n\\}`,
-    ),
-  );
-  if (!contract || /\n\s*properties\??:/.test(contract[1])) {
-    report(
-      activityTypesFile,
-      activityTypesSource,
-      contract?.index ?? 0,
-      `${name} must exist without value-side properties`,
-    );
-    failures++;
-  }
+function read(path) {
+  const file = resolve(sourceDir, path);
+  return { file, source: readFileSync(file, "utf8") };
 }
 
-const markdownBlockContract = activityTypesSource.match(
-  /export interface MarkdownBlock\s+extends BlockBase\s*\{([\s\S]*?)\n\}/,
-);
-if (
-  !markdownBlockContract ||
-  !/\n\s*value:\s*string\s*\|\s*null;/.test(markdownBlockContract[1])
-) {
-  report(
-    activityTypesFile,
-    activityTypesSource,
-    markdownBlockContract?.index ?? 0,
-    "MarkdownBlock must expose one nullable scalar string",
-  );
-  failures++;
+function requirePattern(path, pattern, message) {
+  const { file, source } = read(path);
+  if (!pattern.test(source)) report(file, source, 0, message);
 }
 
-const localizedTextBlockContract = activityTypesSource.match(
-  /export interface LocalizedTextBlock\s+extends BlockBase\s*\{([\s\S]*?)\n\}/,
-);
-if (!localizedTextBlockContract ||
-  !/\n\s*type:\s*"localized_text";/.test(localizedTextBlockContract[1]) ||
-  !/\n\s*value:\s*LocalizedText\s*\|\s*null;/.test(localizedTextBlockContract[1]) ||
-  !/export type LocalizedText\s*=\s*Record<string,\s*string>;/.test(activityTypesSource)) {
-  report(activityTypesFile, activityTypesSource, localizedTextBlockContract?.index ?? 0,
-    "LocalizedTextBlock must retain its locale-to-string map with a required nullable value");
-  failures++;
+function forbidPattern(path, pattern, message) {
+  const { file, source } = read(path);
+  const match = source.match(pattern);
+  if (match) report(file, source, match.index ?? 0, message);
 }
 
-for (const typeName of ["BlockType", "BlockSchemaType"]) {
-  const contract = activityTypesSource.match(
-    new RegExp(`export type ${typeName}\\s*=([\\s\\S]*?);`),
-  );
-  if (!contract || !/\|\s*["']form["']/.test(contract[1])) {
-    report(
-      activityTypesFile,
-      activityTypesSource,
-      contract?.index ?? 0,
-      `${typeName} must include form`,
-    );
-    failures++;
-  }
-}
+requirePattern("api/notification.ts", /export const createOutgoingEmailApi\b/, "outgoing email history has its own surface");
+requirePattern("api/notification.ts", /export const createOutgoingWebhookApi\b/, "outgoing webhook history has its own surface");
+requirePattern("api/notification.ts", /export const createEmailProviderApi\b/, "email provider exposes live domain discovery");
+requirePattern("api/notification.ts", /export const createEmailAddressApi\b/, "email addresses replace email senders and support channels");
+requirePattern("api/broadcast.ts", /export const createBroadcastApi\b/, "broadcasts replace campaigns");
+requirePattern("api/support.ts", /support-flows/, "support flows replace support agents");
+requirePattern("api/payment.ts", /incoming-webhooks/, "incoming webhooks have a dedicated history");
+requirePattern("api/platform.ts", /\/v1\/platform\/administrators\/me/, "platform administrators read their own record");
+forbidPattern("index.ts", /X-Arky-Sales-Channel/i, "a storefront request sells through its key's channel and names none");
+requirePattern("index.ts", /"X-Arky-Locale"/, "storefront requests name their language");
+requirePattern("api/storefront.ts", /export interface RequestCustomerCodeParams\s*\{\s*id:\s*string;\s*email:\s*string;\s*language:\s*string;\s*\}/,
+  "a sign-in code request requires exactly id, email and language");
+requirePattern("api/storefront.ts", /\/customer\/request-code`,\s*\{\s*id:\s*params\.id,\s*email:\s*params\.email,\s*language:\s*params\.language\s*,?\s*\}/,
+  "a sign-in code request posts only the caller's id, email and explicit language");
+forbidPattern("types/market.ts", /export interface CreateStorefrontKeyParams\s*\{[^}]*publishable_key/,
+  "Arky generates the publishable key; the create carries none");
+requirePattern("api/order.ts", /resend-receipt`,\s*\{\s*id:\s*params\.id\s*\}/, "a receipt resend posts only the app's id");
+forbidPattern("types/storeRole.ts", /"contact"/, "store permissions use \"email\"");
+requirePattern("api/store.ts", /storePath\(params\.store_id, "usage"\)/, "the owner's billing screen reads the store's usage");
+requirePattern("api/store.ts", /"subscription\/end-grant"/, "platform administrators end a granted plan");
+requirePattern("api/customerGroup.ts", /\/purchase-access`/, "staff read a customer group member's purchase access");
+requirePattern("api/return.ts", /\/execute`/, "return actions post to the return's execute route");
+requirePattern("api/return.ts", /\/credit`/, "a received return is credited through its own route");
+requirePattern("api/payment.ts", /\/resolve-charge`/, "a team member settles an unknown Monri card charge");
+requirePattern("api/media.ts", /isDefiniteRefusal\(error\)/, "a refused upload releases the saved media create");
+requirePattern("services/createHttpClient.ts", /payload\.validation_errors/, "the Server sends validation_errors in snake_case");
+forbidPattern("types/forms.ts", /export interface StorefrontFormSubmission \{[^}]*\bstage:/, "the storefront submission copy carries stage_id");
+forbidPattern("api/storefront.ts", /\/quote`,\s*\{\s*language/, "storefront quotes take their language from X-Arky-Locale");
+requirePattern("services/cartSelection.ts", /target_cart_id/, "a signed-in customer's cart selection follows the merged guest cart");
+requirePattern("api/storefront.ts", /cartSelection\.signedIn\(/, "verify records the sign-in so the cart selection can follow the merged guest cart");
+requirePattern("api/storefront.ts", /cartSelection\.reorder\(/, "a reordered cart becomes the cart selection, as a created one does");
+requirePattern("types/customerGroup.ts", /export interface StorefrontCustomerGroup \{[^}]*\bentitlements: StorefrontCustomerGroupEntitlement\[\];/, "the storefront group card lists the card copy of its entitlements");
+forbidPattern("types/customerGroup.ts", /export interface StorefrontCustomerGroupEntitlement \{[^}]*\ballocation_weight\b/, "the storefront group card hides allocation_weight");
+requirePattern("types/customerGroup.ts", /export interface SwitchCustomerGroupMemberParams extends CustomerGroupMemberActionParams \{[^}]*\bcatalog_id\?: string;/, "a group switch may name the catalog it is priced from");
+forbidPattern("types/customerGroup.ts", /export interface SwitchCustomerGroupMemberParams extends CustomerGroupMemberActionParams \{[^}]*\brentals\b/, "rentals move by one rule when the new terms start; a switch names none");
 
-const customerActionContract = activityTypesSource.match(
-  /export interface CustomerAction\s*\{([\s\S]*?)\n\}/,
-);
-if (
-  !customerActionContract ||
-  !/\n\s*customer_id:\s*string;/.test(customerActionContract[1]) ||
-  !/\n\s*origin:\s*CustomerActionOrigin;/.test(customerActionContract[1]) ||
-  !/\n\s*type:\s*CustomerActionType;/.test(customerActionContract[1]) ||
-  !/\n\s*occurred_at:\s*EpochMilliseconds;/.test(customerActionContract[1]) ||
-  /\n\s*(?:payload|description|canonical_customer_id|customer_session_id):/.test(
-    customerActionContract[1],
-  )
-) {
-  report(
-    activityTypesFile,
-    activityTypesSource,
-    customerActionContract?.index ?? 0,
-    "CustomerAction must expose Customer, origin, type, and occurred_at without payload, description, a canonical alias, or a top-level Session",
-  );
-  failures++;
+for (const route of ["categories", "products", "booking-services"]) {
+  requirePattern("api/storefront.ts", new RegExp(`\\$\\{base\\}/${route}/by-key/`), `storefront ${route} are read by key through their by-key route`);
 }
-
-for (const typeName of ["FormSubmission"]) {
-  const contract = activityTypesSource.match(
-    new RegExp(`export interface ${typeName}\\s*\\{([\\s\\S]*?)\\n\\}`),
-  );
-  if (
-    !contract ||
-    !/\n\s*source:\s*FormSubmissionSource;/.test(contract[1]) ||
-    !/\n\s*locale:\s*string;/.test(contract[1]) ||
-    /\n\s*(?:customer_session_id|authentication|processing):/.test(contract[1])
-  ) {
-    report(
-      activityTypesFile,
-      activityTypesSource,
-      contract?.index ?? 0,
-      `${typeName} must expose its customer or staff source and locale, without top-level Session or processing fields`,
-    );
-    failures++;
-  }
-}
-
-const formFieldContract = activityTypesSource.match(
-  /export type FormField\s*=([\s\S]*?);\n/,
-);
-if (
-  !formFieldContract ||
-  !/type:\s*"file";\s*media_ids:\s*string\[\]/.test(formFieldContract[1])
-) {
-  report(activityTypesFile, activityTypesSource, formFieldContract?.index ?? 0,
-    "File answers must carry media_ids, not value");
-  failures++;
-}
-
-const storeMembershipContract = activityTypesSource.match(
-  /export interface StoreMembership\s*\{([\s\S]*?)\n\}/,
-);
-if (
-  !storeMembershipContract ||
-  !/\n\s*role_ids:\s*string\[\];/.test(storeMembershipContract[1]) ||
-  !/\n\s*status:\s*StoreMembershipStatus;/.test(storeMembershipContract[1]) ||
-  /\n\s*(?:access|role):/.test(storeMembershipContract[1])
-) {
-  report(activityTypesFile, activityTypesSource, storeMembershipContract?.index ?? 0,
-    "StoreMembership must name its store roles by id and carry its status, not an inline access or owner role");
-  failures++;
-}
-
-const storeMembershipStatusContract = activityTypesSource.match(
-  /export type StoreMembershipStatus\s*=([\s\S]*?);/,
-);
-if (
-  !storeMembershipStatusContract ||
-  !["invited", "active", "disabled"].every((status) =>
-    new RegExp(`type:\\s*"${status}"`).test(storeMembershipStatusContract[1]))
-) {
-  report(activityTypesFile, activityTypesSource, storeMembershipStatusContract?.index ?? 0,
-    "StoreMembershipStatus must be invited, active or disabled");
-  failures++;
-}
-
-const storeContract = activityTypesSource.match(
-  /export interface Store\s*\{([\s\S]*?)\n\}/,
-);
-if (!storeContract || !/\n\s*owner_account_id:\s*string;/.test(storeContract[1])) {
-  report(activityTypesFile, activityTypesSource, storeContract?.index ?? 0,
-    "Store must name its owner account");
-  failures++;
-}
-
-const salesChannelTypesFile = resolve(sourceDir, "types/salesChannel.ts");
-const salesChannelTypesSource = readFileSync(salesChannelTypesFile, "utf8");
-for (const typeName of ["SalesChannel", "CreateSalesChannelParams", "UpdateSalesChannelParams"]) {
-  const contract = salesChannelTypesSource.match(
-    new RegExp(`export interface ${typeName}\\s*\\{([\\s\\S]*?)\\n\\}`),
-  );
-  if (!contract || !/\n\s*market_ids:\s*string\[\];/.test(contract[1])) {
-    report(salesChannelTypesFile, salesChannelTypesSource, contract?.index ?? 0,
-      `${typeName} must list its markets in a required market_ids`);
-    failures++;
-  }
-}
-
-const priceTypesFile = resolve(sourceDir, "types/price.ts");
-const priceTypesSource = readFileSync(priceTypesFile, "utf8");
-const priceContract = priceTypesSource.match(/export interface Price\s*\{([\s\S]*?)\n\}/);
-if (!priceContract || ![
-  /\n\s*sellable:\s*SellableRef;/,
-  /\n\s*starts_at:\s*EpochMilliseconds\s*\|\s*null;/,
-  /\n\s*ends_at:\s*EpochMilliseconds\s*\|\s*null;/,
-].every((field) => field.test(priceContract[1]))) {
-  report(priceTypesFile, priceTypesSource, priceContract?.index ?? 0,
-    "Price must name its sellable and its validity window");
-  failures++;
-}
-
-const catalogAccessTypesFile = resolve(sourceDir, "types/catalogAccess.ts");
-const catalogAccessTypesSource = readFileSync(catalogAccessTypesFile, "utf8");
-for (const typeName of ["CatalogAccess", "CreateCatalogAccessParams"]) {
-  const contract = catalogAccessTypesSource.match(
-    new RegExp(`export interface ${typeName}\\s*\\{([\\s\\S]*?)\\n\\}`),
-  );
-  if (!contract ||
-    !/\n\s*channels:\s*CatalogChannels;/.test(contract[1]) ||
-    !/\n\s*level:\s*CatalogAccessLevel;/.test(contract[1])) {
-    report(catalogAccessTypesFile, catalogAccessTypesSource, contract?.index ?? 0,
-      `${typeName} must carry its channels and access level`);
-    failures++;
-  }
-}
-
-const storeLocationContract = activityTypesSource.match(
-  /export interface StoreLocation\s*\{([\s\S]*?)\n\}/,
-);
-if (
-  !storeLocationContract ||
-  !/\n\s*allows_pickup:\s*boolean;/.test(storeLocationContract[1]) ||
-  /\n\s*operator\??:/.test(storeLocationContract[1])
-) {
-  report(activityTypesFile, activityTypesSource, storeLocationContract?.index ?? 0,
-    "StoreLocation must expose allows_pickup and no operator");
-  failures++;
-}
-
-const cartTypesFile = resolve(sourceDir, "types/cart.ts");
-const cartTypesSource = readFileSync(cartTypesFile, "utf8");
-const cartContract = cartTypesSource.match(/export interface Cart\s*\{([\s\S]*?)\n\}/);
-const requiredCartFields = [
-  /\borigin:\s*PurchaseOrigin;/,
-  /\bstatus:\s*CartStatus;/,
-  /\bmarket_id:\s*string;/,
-  /\bcatalog_id:\s*string;/,
-  /\bsales_channel_id:\s*string;/,
-  /\bcustomer_id:\s*string;/,
-  /\bcompany:\s*CartCompanyContext\s*\|\s*null;/,
-  /\bline_items:\s*CartLineItem\[\];/,
-  /\bdelivery_groups:\s*CartDeliveryGroup\[\];/,
-  /\bpromotion_code_ids:\s*string\[\];/,
-];
-if (!cartContract || requiredCartFields.some((field) => !field.test(cartContract[1])) ||
-  /\b(?:market|customer_session_id|created_by_account_id|token|promo_code|converted_order_id|shipping_address|payment_option_id|shipping_method_id|product_items|booking_items|digital_items|customer_group_plan_items|company_id|company_location_id)\??:/.test(cartContract[1])) {
-  report(cartTypesFile, cartTypesSource, cartContract?.index ?? 0,
-    "Cart must expose its buyer/context IDs, tagged status/provenance and one typed line item array without legacy aliases");
-  failures++;
-}
-
-const quoteTypesFile = resolve(sourceDir, "types/quote.ts");
-const quoteTypesSource = readFileSync(quoteTypesFile, "utf8");
-const quoteContract = quoteTypesSource.match(/export interface OrderQuote\s*\{([\s\S]*?)\n\}/);
-if (!quoteContract || [
-  /\bcontext:\s*PurchaseQuoteContext;/,
-  /\blocale:\s*string\s*\|\s*null;/,
-  /\bpresentation_digest:\s*string;/,
-  /\bsubscription_lines:\s*SubscriptionOrderQuoteLine\[\];/,
-  /\bdelivery_groups:\s*QuotedDeliveryGroup\[\];/,
-  /\bseller:\s*SellerSnapshot;/,
-  /\bpayment_option_id:\s*string\s*\|\s*null;/,
-].some((field) => !field.test(quoteContract[1])) || /invoice/i.test(quoteContract[1])) {
-  report(quoteTypesFile, quoteTypesSource, quoteContract?.index ?? 0,
-    "OrderQuote must expose reviewed presentation, resolved buyer/context and every typed line family");
-  failures++;
-}
-
-const orderTypesFile = resolve(sourceDir, "types/order.ts");
-const orderTypesSource = readFileSync(orderTypesFile, "utf8");
-const orderContract = orderTypesSource.match(
-  /export interface Order\s*\{([\s\S]*?)\n\}/,
-);
-const requiredOrderFields = [
-  /\borigin:\s*PurchaseOriginSnapshot;/,
-  /\bsource:\s*OrderSource;/,
-  /\bstatus:\s*OrderStatus;/,
-  /\bcustomer_id:\s*string;/,
-  /\bcustomer_snapshot:\s*PurchaseCustomerSnapshot;/,
-  /\blocale:\s*string;/,
-  /\bcompany:\s*OrderCompanyContext\s*\|\s*null;/,
-  /\bmarket_snapshot:\s*MarketSnapshot;/,
-  /\bsales_channel_snapshot:\s*SalesChannelSnapshot;/,
-  /\bline_items:\s*OrderLineItem\[\];/,
-  /\bdelivery_groups:\s*OrderDeliveryGroup\[\];/,
-  /\bseller:\s*SellerSnapshot;/,
-  /\bcollection_policy:\s*CollectionPolicySnapshot;/,
-  /\bpayment_authorization:\s*CheckoutPaymentAuthorization;/,
-  ...["market_id", "sales_channel_id"].map(
-    (field) => new RegExp(`\\b${field}:\\s*string\\s*\\|\\s*null;`),
-  ),
-];
-if (
-  !orderContract ||
-  requiredOrderFields.some((field) => !field.test(orderContract[1])) ||
-  /\b(?:customer_session_id|source_cart_id|invoice_policy)\??:/.test(orderContract[1])
-) {
-  report(
-    orderTypesFile,
-    orderTypesSource,
-    orderContract?.index ?? 0,
-    "Order must retain source/origin, buyer/channel snapshots, nullable current links and all four item families without duplicate Session or Cart fields",
-  );
-  failures++;
-}
-
-const bookingItemContract = activityTypesSource.match(
-  /export interface OrderBookingItem\s*\{([\s\S]*?)\n\}/,
-);
-if (
-  !bookingItemContract ||
-  /\b(?:customer_session_id|reminders)\??:/.test(bookingItemContract[1]) ||
-  !/\bstatus:\s*OrderItemStatus;/.test(bookingItemContract[1])
-) {
-  report(
-    activityTypesFile,
-    activityTypesSource,
-    bookingItemContract?.index ?? 0,
-    "OrderBookingItem must retain commercial status and inherited purchase origin, not appointment reminders or duplicate CustomerSession provenance",
-  );
-  failures++;
-}
-
-const appointmentFile = join(sourceDir, "types/orderBooking.ts");
-const appointmentSource = readFileSync(appointmentFile, "utf8");
-const appointmentContract = appointmentSource.match(/export interface OrderBooking\s*\{([\s\S]*?)\n\}/);
-const appointmentFields = [...(appointmentContract?.[1] ?? "").matchAll(/\b(\w+)\??:/g)].map(match => match[1]).sort();
-const requiredAppointmentFields = ["id", "store_id", "order_id", "order_booking_line_item_id", "booking_resource_id", "source_booking_resource_id", "interval", "status", "reminders", "created_at", "updated_at"].sort();
-if (!appointmentContract || JSON.stringify(appointmentFields) !== JSON.stringify(requiredAppointmentFields) ||
-    !/\bstatus:\s*OrderBookingStatus;/.test(appointmentContract[1]) ||
-    !/\bbooking_resource_id:\s*string\s*\|\s*null;/.test(appointmentContract[1]) ||
-    !/\breminders:\s*BookingReminderScheduleItem\[\];/.test(appointmentContract[1])) {
-  report(appointmentFile, appointmentSource, appointmentContract?.index ?? 0,
-    "OrderBooking must match the independent execution root, without accepted money or presentation fields");
-  failures++;
-}
-
-const orderUpdateContract = apiTypesSource.match(
-  /export interface UpdateOrderParams\s*\{([\s\S]*?)\n\}/,
-);
-const orderUpdateFields = [
-  ...(orderUpdateContract?.[1] ?? "").matchAll(/\b(\w+)\??:/g),
-].map((match) => match[1]);
-if (
-  !orderUpdateContract ||
-  orderUpdateFields.length !== 3 ||
-  orderUpdateFields.some(
-    (field) => !["id", "store_id", "confirm"].includes(field),
-  )
-) {
-  report(
-    apiTypesFile,
-    apiTypesSource,
-    orderUpdateContract?.index ?? 0,
-    "Order updates accept only routing identity and confirmation; cancellation uses its dedicated command",
-  );
-  failures++;
-}
-
-const socialMessageContract = activityTypesSource.match(
-  /export interface SocialMessage\s*\{([\s\S]*?)\n\}/,
-);
-if (
-  !socialMessageContract ||
-  !/\n\s*type:\s*SocialMessageType;/.test(socialMessageContract[1]) ||
-  !/\n\s*root_message_id:\s*string;/.test(socialMessageContract[1])
-) {
-  report(
-    activityTypesFile,
-    activityTypesSource,
-    socialMessageContract?.index ?? 0,
-    "SocialMessage must expose its type and exact root Message",
-  );
-  failures++;
-}
-
-const supportConversationContract = supportTypesSource.match(
-  /export interface SupportConversation\s*\{([\s\S]*?)\n\}/,
-);
-if (
-  !supportConversationContract ||
-  !/\n\s*customer_id:\s*string;/.test(supportConversationContract[1]) ||
-  !/\n\s*customer_session_id:\s*string\s*\|\s*null;/.test(
-    supportConversationContract[1],
-  )
-) {
-  report(
-    supportTypesFile,
-    supportTypesSource,
-    supportConversationContract?.index ?? 0,
-    "SupportConversation must expose required Customer and nullable immutable CustomerSession provenance",
-  );
-  failures++;
-}
-
-const receiveSupportMessageContract = supportTypesSource.match(
-  /export interface ReceiveSupportChannelMessageParams\s*\{([\s\S]*?)\n\}/,
-);
-if (
-  !receiveSupportMessageContract ||
-  !/\n\s*customer_id:\s*string;/.test(receiveSupportMessageContract[1])
-) {
-  report(
-    supportTypesFile,
-    supportTypesSource,
-    receiveSupportMessageContract?.index ?? 0,
-    "trusted inbound Support messages must require Customer provenance",
-  );
-  failures++;
-}
-
-if (
-  !/\|\s*\{\s*type:\s*["']customer\.archived["']\s*\}/.test(
-    activityTypesSource,
-  )
-) {
-  report(
-    activityTypesFile,
-    activityTypesSource,
-    0,
-    "WebhookEventSubscription must include customer.archived",
-  );
-  failures++;
-}
-
-if (
-  !/export const createCustomersApi\b/.test(customersApiSource) ||
-  !/\/customers\b/.test(customersApiSource) ||
-  /\bAudience\w*\b|\/audiences\b/.test(customersApiSource)
-) {
-  report(
-    customersApiFile,
-    customersApiSource,
-    0,
-    "api/customers.ts must exclusively own Admin Customer CRUD, import, and Sessions",
-  );
-  failures++;
-}
-
-if (
-  /\bcrmApi\b|createCustomerApi|\bcms\s*:|\bcrm\s*:|\bworkflow\s*:/.test(
-    indexSource,
-  ) ||
-  !/createCustomersApi\s*\}\s*from\s*["']\.\/api\/customers["']/.test(
-    indexSource,
-  ) ||
-  !/createSubscriptionOfferingApi\s*\}\s*from\s*["']\.\/api\/subscriptionOffering["']/.test(
-    indexSource,
-  ) ||
-  !/createSubscriptionPlanApi\s*\}\s*from\s*["']\.\/api\/subscriptionPlan["']/.test(
-    indexSource,
-  ) ||
-  !/createCustomerGroupMemberApi\s*\}\s*from\s*["']\.\/api\/customerGroupMember["']/.test(
-    indexSource,
-  ) ||
-  !/createSubscriptionPlanEntitlementApi\s*\}\s*from\s*["']\.\/api\/subscriptionPlanEntitlement["']/.test(
-    indexSource,
-  ) ||
-  !/createMarketPaymentOptionApi\s*\}\s*from\s*["']\.\/api\/marketPaymentOption["']/.test(
-    indexSource,
-  ) ||
-  !/createFulfillmentJobApi\s*\}\s*from\s*["']\.\/api\/fulfillmentJob["']/.test(
-    indexSource,
-  ) ||
-  !/createAutomationApi\s*\}\s*from\s*["']\.\/api\/automation["']/.test(
-    indexSource,
-  ) ||
-  !/createStoreRoleApi\s*\}\s*from\s*["']\.\/api\/storeRole["']/.test(
-    indexSource,
-  ) ||
-  !/createCatalogItemApi\s*\}\s*from\s*["']\.\/api\/catalogItem["']/.test(
-    indexSource,
-  ) ||
-  !/createCatalogAccessApi\s*\}\s*from\s*["']\.\/api\/catalogAccess["']/.test(
-    indexSource,
-  ) ||
-  !/createMessageDeliveryApi\s*\}\s*from\s*["']\.\/api\/messageDelivery["']/.test(
-    indexSource,
-  ) ||
-  !/createRentalApi\s*\}\s*from\s*["']\.\/api\/rental["']/.test(indexSource) ||
-  /createRentalPlacementApi|\/api\/rentalPlacement/.test(indexSource) ||
-  /createOrderInvoiceApi|\/api\/orderInvoice|\/invoices/.test(indexSource) ||
-  !/\bcontent\s*:\s*\{/.test(indexSource) ||
-  !/\bforms\s*:\s*\{/.test(indexSource) ||
-  !/\bactions\s*:/.test(indexSource) ||
-  !/\bautomation\s*:/.test(indexSource) ||
-  !/\bsupport\s*:/.test(indexSource)
-) {
-  report(
-    indexFile,
-    indexSource,
-    0,
-    "index wiring must expose direct owner APIs, including automations, without CMS or CRM bundles",
-  );
-  failures++;
-}
-
-if (
-  !/apiConfig\.publishableKeyHttpClient\.post<RefreshResponse>\(/.test(
-    storefrontApiSource,
-  )
-) {
-  report(
-    storefrontApiFile,
-    storefrontApiSource,
-    0,
-    "Customer refresh must use the publishable-key-only HTTP client",
-  );
-  failures++;
-}
-
-for (const typeName of [
-  "ImportCustomersParams",
-  "ImportCustomersPreviewParams",
-]) {
-  const contract = apiTypesSource.match(
-    new RegExp(`export interface ${typeName}\\s*\\{([\\s\\S]*?)\\n\\}`),
-  );
-  if (
-    !contract ||
-    !/\n\s*rows:\s*ImportCustomerRowInput\[\];/.test(contract[1]) ||
-    /\b(?:csv|spreadsheet_base64|sheet_name|email_column|field_mappings)\b/.test(
-      contract[1],
-    )
-  ) {
-    report(
-      apiTypesFile,
-      apiTypesSource,
-      contract?.index ?? 0,
-      `${typeName} must use the row-only Customer import contract`,
-    );
-    failures++;
-  }
-}
-
-const importCustomerRowContract = apiTypesSource.match(
-  /export interface ImportCustomerRowInput\s*\{([\s\S]*?)\n\}/,
-);
-if (
-  !importCustomerRowContract ||
-  !/\n\s*categories:\s*CategoryEntry\[\];/.test(
-    importCustomerRowContract[1],
-  ) ||
-  /\b(?:fields|lead_description)\b/.test(importCustomerRowContract[1])
-) {
-  report(
-    apiTypesFile,
-    apiTypesSource,
-    importCustomerRowContract?.index ?? 0,
-    "ImportCustomerRowInput must contain Customer-owned categories only",
-  );
-  failures++;
-}
-
-const storefrontVisitorSessionContract = storefrontApiSource.match(
-  /export type StorefrontVisitorSessionRecord\s*=\s*\{([\s\S]*?)\n\};/,
-);
-if (
-  !storefrontVisitorSessionContract ||
-  !/\n\s*type:\s*["']visitor["'];/.test(storefrontVisitorSessionContract[1]) ||
-  !/\n\s*email_verification:\s*CustomerEmailVerification;/.test(
-    storefrontVisitorSessionContract[1],
-  ) ||
-  /\b(?:token|access_token|refresh_token)\b/.test(
-    storefrontVisitorSessionContract[1],
-  )
-) {
-  report(
-    storefrontApiFile,
-    storefrontApiSource,
-    storefrontVisitorSessionContract?.index ?? 0,
-    "request-code must return a safe discriminated Visitor session without credentials",
-  );
-  failures++;
-}
-
-const requestCodeResponseContract = storefrontApiSource.match(
-  /export type RequestCodeResponse\s*=\s*\{([\s\S]*?)\n\};/,
-);
-if (
-  !requestCodeResponseContract ||
-  !/\n\s*session:\s*StorefrontVisitorSessionRecord;/.test(
-    requestCodeResponseContract[1],
-  ) ||
-  !/\n\s*email_verification:\s*\{/.test(requestCodeResponseContract[1])
-) {
-  report(
-    storefrontApiFile,
-    storefrontApiSource,
-    requestCodeResponseContract?.index ?? 0,
-    "RequestCodeResponse must expose the safe Visitor session and email_verification",
-  );
-  failures++;
-}
-
-const checkoutPaymentActionContract = activityTypesSource.match(
-  /export type CheckoutPaymentAction\s*=([\s\S]*?)(?=\nexport\s)/,
-);
-if (
-  !checkoutPaymentActionContract ||
-  !/\n\s*account_id:\s*string;/.test(checkoutPaymentActionContract[1]) ||
-  /connected_account_id/.test(checkoutPaymentActionContract[1])
-) {
-  report(
-    activityTypesFile,
-    activityTypesSource,
-    checkoutPaymentActionContract?.index ?? 0,
-    "Stripe CheckoutPaymentAction must require the merchant account_id",
-  );
-  failures++;
-}
-
-const storeSubscriptionCheckoutActionContract = activityTypesSource.match(
-  /export type StoreSubscriptionCheckoutAction\s*=([\s\S]*?)(?=\nexport\s)/,
-);
-if (
-  !storeSubscriptionCheckoutActionContract ||
-  /account_id/.test(storeSubscriptionCheckoutActionContract[1])
-) {
-  report(
-    activityTypesFile,
-    activityTypesSource,
-    storeSubscriptionCheckoutActionContract?.index ?? 0,
-    "Store subscription Checkout action pays Arky's own account and carries no merchant account",
-  );
-  failures++;
-}
-
-const storeSubscriptionContract = activityTypesSource.match(
-  /export interface StoreSubscription\s*\{([\s\S]*?)\n\}/,
-);
-if (
-  !storeSubscriptionContract ||
-  !/\n\s*checkout:\s*StoreSubscriptionCheckout\s*\|\s*null;/.test(
-    storeSubscriptionContract[1],
-  ) ||
-  !/\n\s*payment_action:\s*StoreSubscriptionCheckoutAction;/.test(
-    storeSubscriptionContract[1],
-  )
-) {
-  report(
-    activityTypesFile,
-    activityTypesSource,
-    storeSubscriptionContract?.index ?? 0,
-    "StoreSubscription must expose its embedded Checkout and distinct Checkout action",
-  );
-  failures++;
-}
-
-const fulfillmentJobTypesFile = resolve(sourceDir, "types/fulfillmentJob.ts");
-const fulfillmentJobTypesSource = readFileSync(fulfillmentJobTypesFile, "utf8");
-const rentalIssueContract = fulfillmentJobTypesSource.match(
-  /export type FulfillmentJobLineSource\s*=([\s\S]*?)\n\n/,
-);
-if (
-  !rentalIssueContract ||
-  !/type:\s*"rental_issue";[^}]*\breplacement:\s*RentalIssueReplacement\s*\|\s*null;/.test(
-    rentalIssueContract[1],
-  ) ||
-  !/export interface RentalIssueReplacement\s*\{[^}]*\bpredecessor_inventory_unit_id:\s*string;[^}]*\bpredecessor_fulfillment_job_line_id:\s*string;[^}]*\bpredecessor_fulfillment_unit_index:\s*number;[^}]*\boverlap_authorized:\s*boolean;/.test(
-    activityTypesSource,
-  ) ||
-  /predecessor_placement_id/.test(activityTypesSource)
-) {
-  report(fulfillmentJobTypesFile, fulfillmentJobTypesSource, rentalIssueContract?.index ?? 0,
-    "Rental issue work must name its nullable typed replacement, never a bare predecessor field");
-  failures++;
-}
-
-const orderContractFile = resolve(sourceDir, "types/orderContract.ts");
-const orderContractSource = readFileSync(orderContractFile, "utf8");
-const deliveryGroupContract = orderContractSource.match(
-  /export interface OrderDeliveryGroup\s*\{([\s\S]*?)\n\}/,
-);
-if (
-  !deliveryGroupContract ||
-  !/\n\s*rental_items:\s*OrderDeliveryGroupRentalItem\[\];/.test(deliveryGroupContract[1])
-) {
-  report(orderContractFile, orderContractSource, deliveryGroupContract?.index ?? 0,
-    "OrderDeliveryGroup must carry its accepted initial rental issue promises");
-  failures++;
-}
-
-const quotedDeliveryContract = quoteTypesSource.match(
-  /export interface QuotedDeliveryGroup\s*\{([\s\S]*?)\n\}/,
-);
-if (
-  !quotedDeliveryContract ||
-  !/\n\s*rental_items:\s*CartDeliveryRentalAssignment\[\];/.test(quotedDeliveryContract[1])
-) {
-  report(quoteTypesFile, quoteTypesSource, quotedDeliveryContract?.index ?? 0,
-    "QuotedDeliveryGroup must quote included rental deliveries beside Product units");
-  failures++;
-}
-
-const inventoryTypesFile = resolve(sourceDir, "types/inventory.ts");
-const inventoryTypesSource = readFileSync(inventoryTypesFile, "utf8");
-const movementReasonContract = inventoryTypesSource.match(
-  /export type InventoryMovementReason\s*=([\s\S]*?);\n\n/,
-);
-if (
-  !movementReasonContract ||
-  !/\{\s*type:\s*"dispatched";\s*fulfillment_job_id:\s*string;\s*fulfillment_id:\s*string\s*\}/.test(movementReasonContract[1]) ||
-  /"fulfillment"|"rental_issue"|"transfer_in"|"transfer_out"/.test(movementReasonContract[1])
-) {
-  report(inventoryTypesFile, inventoryTypesSource, movementReasonContract?.index ?? 0,
-    "Outbound stock rows name the job and the fulfillment that took the goods out");
-  failures++;
-}
-
-const acceptedPricingContract = orderContractSource.match(
-  /export interface AcceptedDeliveryPricing\s*\{([\s\S]*?)\n\}/,
-);
-const acceptedPricingSourceContract = orderContractSource.match(
-  /export type AcceptedDeliveryPricingSource\s*=([\s\S]*?)\n\s*\};/,
-);
-if (
-  !acceptedPricingContract ||
-  !/\n\s*source:\s*AcceptedDeliveryPricingSource;/.test(acceptedPricingContract[1]) ||
-  !acceptedPricingSourceContract ||
-  !/type:\s*"shipping_rate";[^}]*\bcalculation:\s*AcceptedDeliveryCalculation;/.test(acceptedPricingSourceContract[1]) ||
-  !/type:\s*"subscription_terms";[^}]*\border_subscription_line_item_id:\s*string;[^}]*\bdelivery_terms_id:\s*string;/.test(acceptedPricingSourceContract[1])
-) {
-  report(orderContractFile, orderContractSource, acceptedPricingContract?.index ?? 0,
-    "Accepted delivery pricing must name its ShippingRate or accepted subscription-terms source");
-  failures++;
-}
-
-const planTypesFile = resolve(sourceDir, "types/subscriptionPlan.ts");
-const planTypesSource = readFileSync(planTypesFile, "utf8");
-if (!/type:\s*"recurring";[^}]*\bcommitment:\s*SubscriptionCommitment\s*\|\s*null;/.test(planTypesSource)) {
-  report(planTypesFile, planTypesSource, 0,
-    "Recurring plan terms must carry a required nullable commitment");
-  failures++;
-}
-
-const catalogTypesFile = resolve(sourceDir, "types/catalog.ts");
-const catalogTypesSource = readFileSync(catalogTypesFile, "utf8");
-const purchasableContract = catalogTypesSource.match(
-  /export type FindPurchasableCatalogsParams\s*=\s*\{([\s\S]*?)\n\}\s*&/,
-);
-if (
-  !purchasableContract ||
-  !["store_id", "market_id", "sales_channel_id", "customer_id"].every((field) =>
-    new RegExp(`\\n\\s*${field}:\\s*string;`).test(purchasableContract[1]),
-  )
-) {
-  report(catalogTypesFile, catalogTypesSource, purchasableContract?.index ?? 0,
-    "FindPurchasableCatalogsParams must name the store, market, sales channel and customer");
-  failures++;
-}
-const storefrontCatalogContract = catalogTypesSource.match(
-  /export interface StorefrontCatalog\s*\{([\s\S]*?)\n\}/,
-);
-if (
-  !storefrontCatalogContract ||
-  !/\n\s*id:\s*string;/.test(storefrontCatalogContract[1]) ||
-  !/\n\s*key:\s*string;/.test(storefrontCatalogContract[1]) ||
-  !/\n\s*level:\s*CatalogAccessLevel;/.test(storefrontCatalogContract[1])
-) {
-  report(catalogTypesFile, catalogTypesSource, storefrontCatalogContract?.index ?? 0,
-    "StorefrontCatalog must carry the catalog id, key and the buyer's access level");
-  failures++;
-}
-const catalogApiFile = resolve(sourceDir, "api/catalog.ts");
-const catalogApiSource = readFileSync(catalogApiFile, "utf8");
-if (!/\bfindPurchasable\(/.test(catalogApiSource) || !/\/purchasable`/.test(catalogApiSource)) {
-  report(catalogApiFile, catalogApiSource, 0,
-    "The Admin catalog API must read a buyer's purchasable catalogs");
-  failures++;
-}
-if (!/\bcatalog:\s*\{\s*find\(/.test(storefrontApiSource) || !/\$\{base\}\/catalogs`/.test(storefrontApiSource)) {
-  report(storefrontApiFile, storefrontApiSource, 0,
-    "The storefront must read the buyer's catalogs through eshop.catalog.find");
-  failures++;
-}
+forbidPattern("api/storefront.ts", /"key" in params \? params\.key : params\.slug/, "the plain storefront category read takes an id or a slug, never a key");
 
 if (failures > 0) {
   console.error(`Found ${failures} public SDK surface issue(s).`);

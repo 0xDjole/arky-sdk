@@ -1,234 +1,81 @@
-#!/usr/bin/env node
 import assert from "node:assert/strict";
-import { checkoutSources } from "./helpers/checkout-sources.mjs";
-import { storefrontSessionStorage } from "./helpers/storefront-session-storage.mjs";
 import test from "node:test";
 
 import { initialize as initializeFromRoot } from "../dist/index.js";
 import { createStorefront, initialize } from "../dist/storefront.js";
+import {
+  apiUrl,
+  cartRecord,
+  errorResponse,
+  ids,
+  placedAcceptance,
+  placedOrder,
+  publishableKey,
+  quoteRecord,
+  recordFetch,
+  visitorStorage,
+  visitorToken,
+} from "./helpers/arky-fixtures.mjs";
 
-const apiUrl = "https://api.example.test";
-const publishableKey = `arky_pk_${"c".repeat(43)}`;
-const visitorToken = `customer_visitor_${"c".repeat(64)}`;
-const cashOnDeliveryProviderId = "2f0a5d3c-9a1e-4b7e-8f4c-6c2a1b3d5e70";
-const stripeProviderId = "5b8c1e47-3d29-4a6f-9c15-7e0d2f4a8b31";
-const contractCartId = "c4f2a9e1-6b83-4d57-9e02-1a7c5d8f3b46";
-const checkoutRequestId = "0f6d2b84-3a71-4c59-9e28-5b1c7f4a0d63";
-
-function jsonResponse(body, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json" },
-  });
-}
-
-function sessionStorage(token = visitorToken) {
-  return storefrontSessionStorage(JSON.stringify({
-    version: 2,
-    customer: {
-      id: "customer-contract",
-      status: { type: "active" },
-      identities: [],
-      categories: [],
-      created_at: 1,
-      updated_at: 1,
-    },
-    session: {
-      id: "visitor-session-contract",
-      customer_id: "customer-contract",
-      type: "visitor",
-      token,
-      status: { type: "active" },
-      expires_at: 10_000,
-    },
-  }));
-}
-
-function setup() {
-  return {
-    timezone: "Europe/Rome",
-    languages: { default: "it", available: ["it", "en"] },
-    commerce: { type: "ready", default_sales_channel_id: "channel-contract" },
-    payment_options: [
-      { id: cashOnDeliveryProviderId, key: "cash", type: "cash_on_delivery", blocks: [] },
-      { id: stripeProviderId, key: "card", type: "stripe", blocks: [] },
-    ],
-    support: { email: "support@example.test" },
-    readiness: { commerce: true },
-  };
-}
-
-function cartSnapshot(itemCount = 0, lineItems = []) {
-  return {
-    id: contractCartId,
-    store_id: "store-contract",
-    customer_id: "customer-contract",
-    company: null,
-    sales_channel_id: "channel-contract",
-    status: { type: "active" },
-    origin: {
-      type: "storefront",
-      customer_id: "customer-contract",
-      customer_session_id: "customer-session-contract",
-    },
-    market_id: "market-ita",
-    catalog_id: "catalog-ita",
-    line_items: lineItems,
-    delivery_groups: [],
-    billing_address: null,
-    promotion_code_ids: [],
-    purchase_order_number: null,
-    item_count: itemCount,
-    last_action_at: 1,
-    abandoned_at: null,
-    created_at: 1,
-    updated_at: 1,
-  };
-}
-
-function acceptedOrder(requestId, orderId = orderContractId, initialPaymentId = paymentContractId) {
-  return {
-    id: orderId,
-    source: {
-      type: "cart_acceptance",
-      request_id: requestId,
-      submission_fingerprint: "f".repeat(64),
-      initial_payment_id: initialPaymentId,
-      cart: checkoutSources(contractCartId).cart,
-      converted_lines: checkoutSources(contractCartId).converted_lines,
-    },
-  };
-}
-
-function quoteSnapshot(paymentOptionId = cashOnDeliveryProviderId) {
-  return {
-    sources: checkoutSources(contractCartId),
-    presentation_digest: "e".repeat(64),
-    order: {
-    context: {},
-    seller: {},
-    timezone: "Europe/Rome",
-    payment_terms: null,
-    purchase_order_number: null,
-    locale: "it",
-    presentation_digest: "d".repeat(64),
-    delivery_quote_version: "v1",
-    product_lines: [],
-    booking_lines: [],
-    digital_lines: [],
-    subscription_lines: [],
-    delivery_groups: [],
-    payment_option_id: paymentOptionId,
-    payment_option_ids: [cashOnDeliveryProviderId, stripeProviderId],
-    money: null,
-    },
-  };
-}
-
-const orderContractId = "8a3e6f21-47bd-4c90-b5e3-0d7f19c4a8b2";
-const paymentContractId = "f17c0b95-2e4d-4a83-9b6c-31d5e8a70f24";
-
-function payment(status, providerType = "cash_on_delivery", total = 1250, orderId = orderContractId) {
-  const paymentOptionId =
-    providerType === "stripe" ? stripeProviderId : cashOnDeliveryProviderId;
-  return {
-    id: paymentContractId,
-    store_id: "store-contract",
-    order_id: orderId,
-    payer: { type: "customer", customer_id: "customer-contract" },
-      route:
-      providerType === "stripe"
-        ? {
-            type: "stripe_checkout",
-            payment_option_id: paymentOptionId,
-            checkout_expires_at: 1_800_000_000_000,
-            checkout_session_id: "checkout-contract",
-            payment_intent_id: "payment-intent-contract",
-          }
-        : {
-            type: "cash_on_delivery",
-            payment_option_id: paymentOptionId,
-            marked_paid_by_account_id:
-              status === "completed" ? "account-operator" : null,
-          },
-    status: { type: status },
-    checkout_expiration: null,
-    amounts: {
-      currency: "eur",
-      total,
-      authorized: 0,
-      captured: status === "completed" ? total : 0,
-      capture_pending: 0,
-      refund_pending: 0,
-      refunded: 0,
-    },
-    request_id: "payment-request-contract",
-    reconciliation: { type: "clear" },
-    completed_at: status === "completed" ? 2 : null,
-    created_at: 1,
-    updated_at: 2,
-    safe_error: null,
-  };
-}
+const productLine = {
+  type: "product",
+  id: ids.line,
+  product_id: ids.product,
+  variant_id: ids.variant,
+  quantity: 1,
+  form_submission_id: null,
+  price_override: null,
+  purchase: { type: "catalog" },
+};
 
 function checkoutStore() {
-  const store = initialize(publishableKey, {
-    apiUrl,
-    market: "ita",
-    sessionStorage: sessionStorage(),
-  });
-  const cart = cartSnapshot(1);
-  store.eshop.cart.cart.set(cart);
-  store.eshop.cart.product_items.set([
-    {
-      id: "line-retry",
-      product_id: "product-retry",
-      variant_id: "variant-retry",
-      quantity: 1,
-      form_submission_id: null,
-      price_override: null,
-    },
-  ]);
-  store.eshop.cart.quote_result.set(quoteSnapshot());
-  return { store, cart };
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, market: "ita", locale: "it", sessionStorage: visitorStorage() });
+  store.eshop.cart.cart.set(cartRecord({ line_items: [productLine] }));
+  store.eshop.cart.quote_result.set(quoteRecord());
+  return store;
 }
 
-function completedCheckout() {
-  return {
-    order_id: "1d4b7a02-9c63-4e18-8f52-b307a6d91c48",
-    number: "1005",
-    payment_action: { type: "none" },
-    payment: payment("completed", "cash_on_delivery", 1250, "1d4b7a02-9c63-4e18-8f52-b307a6d91c48"),
-  };
+function cardPayment() {
+  return { type: "payment_option", payment_option_id: ids.paymentOption, return_url: "https://shop.example.test/checkout/complete", save_payment_method: false, payment_method_terms_version: null };
 }
 
-test("initialize is the production root API and exposes the module facade without Store switching", () => {
+test("initialize is the root API and exposes the module facade without store switching", () => {
   const rootStore = initializeFromRoot(publishableKey, { locale: "it" });
-  const store = initialize(publishableKey, { locale: "it", market: "ita" });
-
-  assert.equal(typeof rootStore.content.entry.get, "function");
-  assert.equal(typeof rootStore.media.findByIds, "function");
-  assert.equal(typeof rootStore.content.entry.findByIds, "function");
-  assert.equal(typeof rootStore.forms.get, "function");
-  assert.equal(typeof rootStore.forms.submitByKey, "function");
-  assert.equal(typeof rootStore.actions.track, "function");
-  assert.equal(typeof rootStore.category.get, "function");
-  assert.equal("category" in rootStore.content, false);
-  assert.equal("cms" in rootStore, false);
-  assert.equal("crm" in rootStore, false);
-  assert.equal(typeof store.eshop.cart.load, "function");
-  assert.equal("payment" in store.eshop.cart, false);
-  assert.equal(typeof store.setContext, "function");
-  assert.equal(typeof store.withContext, "function");
-  assert.equal("getStoreId" in store, false);
-  assert.equal("forStore" in store, false);
-  assert.equal("marketForLocale" in store, false);
-  assert.equal("audiences" in store, false);
-  assert.equal(typeof store.customer_groups.get, "function");
-  assert.equal(typeof store.subscription_plans.find, "function");
-  assert.equal(store.session.get(), null);
-  assert.equal(store.isAuthenticated, false);
-
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", locale: "it", market: "ita" });
+  for (const facade of [rootStore, store]) {
+    assert.equal(typeof facade.content.entry.get, "function");
+    assert.equal(typeof facade.media.findByIds, "function");
+    assert.equal(typeof facade.content.entry.findByIds, "function");
+    assert.equal(typeof facade.forms.get, "function");
+    assert.equal(typeof facade.forms.submitByKey, "function");
+    assert.equal(typeof facade.actions.track, "function");
+    assert.equal(typeof facade.category.get, "function");
+    assert.equal(typeof facade.category.getByKey, "function");
+    assert.equal(typeof facade.eshop.cart.load, "function");
+    assert.equal(typeof facade.eshop.cart.paymentAction, "function");
+    assert.equal(typeof facade.eshop.customerGroup.find, "function");
+    assert.equal(typeof facade.eshop.customerGroup.get, "function");
+    assert.equal(typeof facade.eshop.customerGroupOffering.get, "function");
+    assert.equal(typeof facade.eshop.customerGroupMember.find, "function");
+    assert.equal(typeof facade.eshop.minimumProgress.get, "function");
+    assert.equal(typeof facade.eshop.cart.addCustomerGroup, "function");
+    assert.equal(typeof facade.customer.changeEmail, "function");
+    assert.equal(typeof facade.setContext, "function");
+    assert.equal(typeof facade.withContext, "function");
+    for (const removed of [
+      "getStoreId", "forStore", "marketForLocale", "audiences", "customer_groups", "customer_group_members", "customer_group_email_consents", "cms", "crm",
+      "subscription_plans", "subscription_offerings", "setSalesChannel", "getSalesChannel", "sales_channel_key",
+    ]) {
+      assert.equal(removed in facade, false, removed);
+    }
+    for (const removed of ["subscription", "subscriptionPlan", "subscriptionOffering"]) assert.equal(removed in facade.eshop, false, removed);
+    for (const removed of ["addSubscriptionPlan", "subscription_plan_items"]) assert.equal(removed in facade.eshop.cart, false, removed);
+    assert.equal("category" in facade.content, false);
+    assert.equal("payment" in facade.eshop.cart, false);
+    assert.equal("digital" in facade.eshop, false);
+    assert.equal(facade.session.get(), null);
+    assert.equal(facade.isAuthenticated, false);
+  }
   const scoped = store.withContext({ locale: "en" });
   assert.equal(store.getLocale(), "it");
   assert.equal(store.getMarket(), "ita");
@@ -236,467 +83,155 @@ test("initialize is the production root API and exposes the module facade withou
   assert.equal(scoped.getMarket(), "ita");
 });
 
-test("storefront reference batches use explicit typed endpoints", async () => {
-  const storefront = createStorefront(publishableKey, { apiUrl });
-  const calls = [];
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    calls.push({ url: String(url), method: init.method || "GET" });
-    return jsonResponse({ items: [], cursor: null });
-  };
-
-  try {
-    await storefront.media.findByIds({ ids: ["media-1", "media-2"] });
-    await storefront.content.entry.findByIds({ ids: ["entry-1"] });
-    await storefront.eshop.product.find({ ids: ["product-1"] });
-    await storefront.eshop.digital.find({ ids: ["digital-1"] });
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-
-  assert.equal(calls.length, 4);
-  assert.deepEqual(
-    calls.map((call) => new URL(call.url).pathname),
-    [
-      "/v1/storefront/media",
-      "/v1/storefront/entries",
-      "/v1/storefront/products",
-      "/v1/storefront/digital-products",
-    ],
-  );
-  assert.deepEqual(
-    calls.map((call) => JSON.parse(new URL(call.url).searchParams.get("ids"))),
-    [["media-1", "media-2"], ["entry-1"], ["product-1"], ["digital-1"]],
-  );
-  assert.ok(calls.every((call) => call.method === "GET"));
-});
-
-test("digital cart selection preserves its exact content Block without accepting browser prices or labels", async () => {
-  const store = initialize(publishableKey, {
-    apiUrl,
-    market: "ita",
-    locale: "it",
-    sessionStorage: sessionStorage(),
-  });
-  const selection = {
-    id: "7c891cbf-a3da-4bb3-b1da-3a9277efc65e",
-    digital_product_id: "ab30ad23-c8ca-47fc-a9c6-33ad6bf6827f",
-    beneficiary_customer_id: "ba7818b2-1bd2-4025-87b7-fc9f97052186",
-    form_submission_id: null,
-  };
-  const cart = cartSnapshot(1, [{ type: "digital_product", ...selection, price_override: null }]);
-  store.eshop.cart.cart.set(cart);
-  const calls = [];
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    calls.push({ url: String(url), body: JSON.parse(String(init.body || "{}")) });
-    return jsonResponse(cart);
-  };
-  const untrusted = {
-    ...selection,
-    price_override: { amount: 1, currency: "EUR", reason: "Browser override" },
-    name_block_id: "Browser-chosen block",
-    display_name: "Browser wording",
-    product_name: "Another browser wording",
-  };
-  try {
-    await store.eshop.cart.addDigital(untrusted);
-    await store.eshop.cart.refresh({ digital_items: [untrusted] });
-    await store.client.eshop.cart.addDigital({ id: cart.id, digital: untrusted });
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-  const writes = calls.filter((call) => call.url.includes(`/carts/${cart.id}`));
-  assert.equal(writes.length, 3);
-  assert.deepEqual(writes[0].body.digital, selection);
-  assert.deepEqual(writes[1].body.line_items, [{ type: "digital_product", ...selection }]);
-  assert.deepEqual(writes[2].body.digital, selection);
-  assert.deepEqual(store.eshop.cart.buildItems().digital_items, [selection]);
-  assert.deepEqual(store.eshop.cart.digital_items.get(), [
-    { ...selection, price_override: null },
+test("storefront reference batches use their typed endpoints with the ids JSON-encoded", async (context) => {
+  const calls = recordFetch(context, () => ({ items: [], cursor: null }));
+  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl });
+  await storefront.media.findByIds({ ids: ["media-1", "media-2"] });
+  await storefront.content.entry.findByIds({ ids: ["entry-1"] });
+  await storefront.eshop.product.find({ ids: [ids.product], catalog_id: ids.catalog });
+  assert.deepEqual(calls.map((call) => [call.method, call.path, JSON.parse(call.query.ids)]), [
+    ["GET", "/v1/storefront/media", ["media-1", "media-2"]],
+    ["GET", "/v1/storefront/entries", ["entry-1"]],
+    ["GET", "/v1/storefront/products", [ids.product]],
   ]);
+  assert.equal(calls[2].query.catalog_id, ids.catalog);
 });
 
-test("market and locale remain independent and a populated cart fails closed on market changes", () => {
-  const store = initialize(publishableKey, { locale: "it", market: "ita" });
+test("market and locale stay independent, a cart with items locks its market, and the storefront key alone gives the channel", () => {
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", locale: "it", market: "ita" });
   store.setContext({ locale: "en" });
   assert.equal(store.getLocale(), "en");
   assert.equal(store.getMarket(), "ita");
-
-  store.eshop.cart.cart.set(cartSnapshot(1));
-  assert.throws(
-    () => store.setContext({ market: "bih" }),
-    (error) => error.code === "CART_MARKET_LOCKED",
-  );
+  store.eshop.cart.cart.set(cartRecord({ line_items: [productLine] }));
+  assert.throws(() => store.setContext({ market: "bih" }), (error) => error.code === "CART_MARKET_LOCKED");
   assert.equal(store.getMarket(), "ita");
-  assert.equal(store.eshop.cart.cart.get().id, contractCartId);
+  for (const removed of ["setSalesChannel", "getSalesChannel"]) assert.equal(removed in store, false, removed);
+  assert.equal(store.eshop.cart.cart.get().id, ids.cart);
+  store.setContext({ market: "ita", locale: "bs" });
+  assert.equal(store.getLocale(), "bs");
 });
 
-test("high-level checkout uses keyless routes, visitor authorization, and Store-ID-free bodies", async () => {
-  const store = initialize(publishableKey, {
-    apiUrl,
-    market: "ita",
-    locale: "it",
-    sessionStorage: sessionStorage(),
-  });
-  const cart = cartSnapshot(1);
-  store.eshop.cart.cart.set(cart);
-  store.eshop.cart.product_items.set([
-    {
-      id: "line-contract",
-      product_id: "product-contract",
-      variant_id: "variant-contract",
-      quantity: 1,
-      form_submission_id: null,
-      price_override: null,
-    },
+test("checkout from the store sends the reviewed cart through keyless routes with visitor authorization and no store, market or language in the body", async (context) => {
+  const calls = recordFetch(context, (call) => call.path === "/v1/storefront/carts/accept" ? placedAcceptance() : placedOrder());
+  const store = checkoutStore();
+  await assert.rejects(store.eshop.cart.checkout({ order_id: "order-1", contact_email: null, payment: cardPayment() }), /needs the app's order id/);
+  assert.equal(calls.length, 0);
+  const answer = await store.eshop.cart.checkout({ order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), contact_email: "buyer@example.test", payment: cardPayment() });
+  assert.deepEqual(answer, placedAcceptance());
+  assert.deepEqual(calls.map((call) => [call.method, call.path]), [
+    ["POST", "/v1/storefront/carts/accept"],
+    ["GET", `/v1/storefront/orders/${ids.order}`],
   ]);
-  store.eshop.cart.quote_result.set(quoteSnapshot(cashOnDeliveryProviderId));
-  const order = {
-    order_id: "8a3e6f21-47bd-4c90-b5e3-0d7f19c4a8b2",
-    number: "1001",
-    payment_action: { type: "none" },
-    payment: payment("completed"),
-  };
-  const calls = [];
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    calls.push({
-      url: String(url),
-      body: init.body ? JSON.parse(String(init.body)) : null,
-      headers: new Headers(init.headers),
-    });
-    return String(url).endsWith("/carts/accept")
-      ? jsonResponse(order)
-      : jsonResponse(acceptedOrder(calls[0].body.request_id, order.order_id));
-  };
-
-  try {
-    await assert.rejects(
-      store.eshop.cart.checkout({ payment_option_id: cashOnDeliveryProviderId }),
-      { name: "TypeError", message: "A business request requires the caller's canonical UUID-v4 request_id" },
-    );
-    assert.equal(calls.length, 0);
-    assert.deepEqual(
-      await store.eshop.cart.checkout({
-        request_id: checkoutRequestId,
-        payment_option_id: cashOnDeliveryProviderId,
-      }),
-      order,
-    );
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-
-  assert.deepEqual(
-    calls.map((call) => call.url),
-    [
-      `${apiUrl}/v1/storefront/carts/accept`,
-      `${apiUrl}/v1/storefront/orders/${order.order_id}`,
-    ],
-  );
+  assert.deepEqual(calls[0].body, {
+    order_id: ids.order,
+    order_token: "arky_ot_" + "A".repeat(43),
+    cart_id: ids.cart,
+    expected_updated_at: cartRecord().updated_at,
+    presentation_digest: quoteRecord().presentation_digest,
+    contact_email: "buyer@example.test",
+    payment: cardPayment(),
+  });
+  assert.equal(calls[1].body, null);
   for (const call of calls) {
     assert.equal(call.headers.get("authorization"), `Bearer ${visitorToken}`);
     assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
-    assert.equal(JSON.stringify(call.body).includes("store_id"), false);
-    assert.equal(call.body !== null && "market" in call.body, false);
+    assert.equal(call.headers.get("x-arky-locale"), "it");
+    assert.equal(call.headers.get("x-arky-market"), "ita");
+    assert.equal(call.href.includes("store_id"), false);
   }
-  assert.equal(calls[0].body.payment_option_id, cashOnDeliveryProviderId);
-  assert.equal(calls[0].body.request_id, checkoutRequestId);
-  assert.equal("id" in calls[0].body, false);
-  assert.equal("locale" in calls[0].body, false);
-  assert.equal(calls[0].body.presentation_digest, quoteSnapshot().presentation_digest);
-  assert.equal(calls[1].body, null);
+  assert.equal(store.eshop.cart.cart.get(), null);
+  const lastOrder = store.eshop.cart.last_order.get();
+  assert.deepEqual({ ...lastOrder, created_at: 0 }, {
+    order_id: ids.order,
+    number: "1001",
+    cart_id: ids.cart,
+    payment_id: null,
+    payment_action: { type: "none" },
+    total: 2500,
+    currency: "eur",
+    created_at: 0,
+  });
 });
 
-test("zero-total checkout accepts a null payment and clears stale cart state", async () => {
-  const { store, cart } = checkoutStore();
-  const selectedItems = store.eshop.cart.product_items.get();
-  const zeroTotalResult = {
-    order_id: "6e91c58d-0a34-47bf-92d1-c8b5f3072e19",
-    number: "1000",
-    payment_action: { type: "none" },
-    payment: null,
-  };
-  const originalFetch = globalThis.fetch;
-  let requestId;
-  globalThis.fetch = async (url, init = {}) => {
-    if (String(url).endsWith("/carts/accept")) {
-      requestId = JSON.parse(init.body).request_id;
-      return jsonResponse(zeroTotalResult);
-    }
-    return jsonResponse(acceptedOrder(requestId, zeroTotalResult.order_id, null));
-  };
-
-  try {
-    assert.deepEqual(
-      await store.eshop.cart.checkout({ request_id: checkoutRequestId }),
-      zeroTotalResult,
-    );
-    assert.equal(requestId, checkoutRequestId);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-
+test("a free checkout needs no payment option and still clears the stale cart state", async (context) => {
+  recordFetch(context, (call) => call.path === "/v1/storefront/carts/accept" ? placedAcceptance({ number: "1000" }) : placedOrder({ number: "1000" }));
+  const store = checkoutStore();
+  store.eshop.cart.quote_result.set(quoteRecord({ totals: { subtotal: 0, delivery: 0, discount: 0, tax: 0, total: 0 } }));
+  const answer = await store.eshop.cart.checkout({ order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), contact_email: null, payment: { type: "free" } });
+  assert.equal(answer.type, "placed");
   assert.equal(store.eshop.cart.cart.get(), null);
   assert.deepEqual(store.eshop.cart.product_items.get(), []);
-  assert.deepEqual(store.eshop.cart.last_order.get(), {
-    order_id: "6e91c58d-0a34-47bf-92d1-c8b5f3072e19",
-    number: "1000",
-    payment_action: { type: "none" },
-    payment: null,
-    product_items: selectedItems,
-    booking_items: [],
-    digital_items: [],
-    subscription_plan_items: [],
-    shipping_address: null,
-    billing_address: null,
-    total: 0,
-    currency: null,
-    payment_option_id: cashOnDeliveryProviderId,
-    created_at: store.eshop.cart.last_order.get().created_at,
-  });
+  assert.equal(store.eshop.cart.last_order.get().total, 0);
+  assert.equal(store.eshop.cart.quote_result.get(), null);
 });
 
-test("checkout failures do not create client-side recovery state", async () => {
-  const { store, cart } = checkoutStore();
-  const completed = completedCheckout();
-  const checkoutInput = { request_id: checkoutRequestId, payment_option_id: cashOnDeliveryProviderId };
-  const calls = [];
-  const requestIds = [];
-  let checkoutCalls = 0;
-  let requestId;
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    calls.push({ url: String(url), method: init.method || "GET" });
-    if (!String(url).endsWith("/carts/accept")) return jsonResponse(acceptedOrder(requestId, completed.order_id));
-    requestId = JSON.parse(init.body).request_id;
-    requestIds.push(requestId);
-    checkoutCalls += 1;
-    if (checkoutCalls === 1) throw new Error("response connection was lost");
-    return jsonResponse(completed);
-  };
-
-  try {
-    await assert.rejects(store.eshop.cart.checkout(checkoutInput));
-    assert.deepEqual(await store.eshop.cart.checkout(checkoutInput), completed);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-
-  assert.deepEqual(
-    calls.map(({ method, url }) => [method, url]),
-    [
-      ["POST", `${apiUrl}/v1/storefront/carts/accept`],
-      ["POST", `${apiUrl}/v1/storefront/carts/accept`],
-      ["GET", `${apiUrl}/v1/storefront/orders/${completed.order_id}`],
-    ],
-  );
-  assert.equal(store.eshop.cart.last_order.get().order_id, completed.order_id);
-  assert.deepEqual(requestIds, [checkoutRequestId, checkoutRequestId]);
+test("checkout refuses before posting without a reviewed, ready quote for this cart", async (context) => {
+  const calls = recordFetch(context, () => placedAcceptance());
+  const store = checkoutStore();
+  const input = { order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), contact_email: null, payment: cardPayment() };
+  store.eshop.cart.quote_result.set(null);
+  await assert.rejects(store.eshop.cart.checkout(input), /Quote the cart before checkout/);
+  store.eshop.cart.quote_result.set(quoteRecord({ cart_id: ids.otherCart }));
+  await assert.rejects(store.eshop.cart.checkout(input), /Quote the cart before checkout/);
+  store.eshop.cart.quote_result.set(quoteRecord({ ready: false, blockers: [{ type: "billing_address_required" }] }));
+  await assert.rejects(store.eshop.cart.checkout(input), /The quote isn't ready/);
+  assert.equal(calls.length, 0);
+  assert.equal(store.eshop.cart.status.get().processing_checkout, false);
 });
 
-test("checkout returns the synchronous POST response without polling", async () => {
-  const store = initialize(publishableKey, {
-    apiUrl,
-    market: "ita",
-    sessionStorage: sessionStorage(),
+test("outside a browser a lost checkout keeps no recovery state, and the retry sends the same app-picked order id", async (context) => {
+  let accepts = 0;
+  const calls = recordFetch(context, (call) => {
+    if (call.path !== "/v1/storefront/carts/accept") return placedOrder();
+    accepts += 1;
+    if (accepts === 1) throw new TypeError("response connection was lost");
+    return placedAcceptance();
   });
-  const cart = cartSnapshot(1);
-  store.eshop.cart.cart.set(cart);
-  store.eshop.cart.product_items.set([
-    {
-      id: "line-scheduled",
-      product_id: "product-scheduled",
-      variant_id: "variant-scheduled",
-      quantity: 1,
-      form_submission_id: null,
-      price_override: null,
-    },
+  const store = checkoutStore();
+  const input = { order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), contact_email: null, payment: cardPayment() };
+  await assert.rejects(store.eshop.cart.checkout(input), /connection was lost/);
+  assert.equal(await store.eshop.cart.pendingCheckout(), null);
+  assert.deepEqual(await store.eshop.cart.checkout(input), placedAcceptance());
+  assert.deepEqual(calls.map((call) => [call.method, call.path, call.body?.order_id ?? null]), [
+    ["POST", "/v1/storefront/carts/accept", ids.order],
+    ["POST", "/v1/storefront/carts/accept", ids.order],
+    ["GET", `/v1/storefront/orders/${ids.order}`, null],
   ]);
-  store.eshop.cart.quote_result.set(quoteSnapshot(stripeProviderId));
-  let checkoutCalls = 0;
-  let paymentObservationCalls = 0;
-  let requestId;
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    const target = String(url);
-    if (/\/orders\/[^/]+\/payments\//.test(target)) {
-      paymentObservationCalls += 1;
-      return jsonResponse(payment("completed", "stripe"));
-    }
-    if (!target.endsWith("/carts/accept")) {
-      return jsonResponse(acceptedOrder(requestId, "3c7f2e10-b854-4d69-a0e7-59f1b6c4d823"));
-    }
-    assert.equal(init.method, "POST");
-    requestId = JSON.parse(init.body).request_id;
-    checkoutCalls += 1;
-    return jsonResponse({
-      order_id: "3c7f2e10-b854-4d69-a0e7-59f1b6c4d823",
-        number: "1002",
-      payment_action: { type: "none" },
-      payment: payment("processing", "stripe", 1250, "3c7f2e10-b854-4d69-a0e7-59f1b6c4d823"),
-    });
-  };
-
-  try {
-    const result = await store.eshop.cart.checkout({
-      request_id: checkoutRequestId,
-      payment_option_id: stripeProviderId,
-    });
-    assert.equal(result.payment.status.type, "processing");
-    assert.equal(checkoutCalls, 1);
-    assert.equal(paymentObservationCalls, 0);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+  assert.equal(store.eshop.cart.last_order.get().order_id, ids.order);
 });
 
-test("explicit payment resume targets the accepted Order without submitting a Cart", async () => {
-  const storefront = createStorefront(publishableKey, { apiUrl, sessionStorage: sessionStorage() });
-  const calls = [];
-  const originalFetch = globalThis.fetch;
-  const result = completedCheckout();
-  globalThis.fetch = async (url, init = {}) => {
-    calls.push({ url: String(url), method: init.method || "GET", body: init.body, headers: new Headers(init.headers) });
-    return jsonResponse(result);
-  };
-  try {
-    assert.deepEqual(await storefront.eshop.checkout.resumePayment({ order_id: result.order_id }), result);
-  } finally { globalThis.fetch = originalFetch; }
-  assert.deepEqual(calls.map(({ url, method }) => ({ url, method })), [
-    { url: `${apiUrl}/v1/storefront/orders/${result.order_id}/payment-action`, method: "POST" },
-  ]);
-  assert.equal(calls[0].body, undefined);
-  assert.ok(calls.every(({ headers }) => headers.get("authorization") === `Bearer ${visitorToken}`));
-});
-
-test("storefront order payment lookup is an authenticated exact GET", async () => {
-  const exactOrderId = "9b05d3a7-1f26-4c8e-b743-2a6e0d59f71c";
-  const storefront = createStorefront(publishableKey, {
-    apiUrl,
-    sessionStorage: sessionStorage(),
-  });
-  const observedResult = payment("unknown", "stripe", 1250, exactOrderId);
-  const calls = [];
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    calls.push({
-      url: String(url),
-      method: init.method || "GET",
-      headers: new Headers(init.headers),
-    });
-    return jsonResponse(observedResult);
-  };
-
-  try {
-    assert.deepEqual(
-      await storefront.eshop.order.getPayment({ order_id: exactOrderId, payment_id: observedResult.id }),
-      observedResult,
-    );
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-
+test("a refused checkout is propagated once and leaves the cart in place", async (context) => {
+  const calls = recordFetch(context, () => errorResponse(422, "CART.NOT_READY", "Pick shipping first"));
+  const store = checkoutStore();
+  await assert.rejects(store.eshop.cart.checkout({ order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), contact_email: null, payment: cardPayment() }), (error) => error.statusCode === 422 && error.code === "CART.NOT_READY");
   assert.equal(calls.length, 1);
-  assert.equal(
-    calls[0].url,
-    `${apiUrl}/v1/storefront/orders/${exactOrderId}/payments/${observedResult.id}`,
-  );
-  assert.equal(calls[0].method, "GET");
-  assert.equal(calls[0].headers.get("authorization"), `Bearer ${visitorToken}`);
+  assert.equal(store.eshop.cart.cart.get().id, ids.cart);
+  assert.equal(store.eshop.cart.last_order.get(), null);
+  assert.equal(store.eshop.cart.status.get().error, "Pick shipping first");
 });
 
-test("storefront Payment history keeps exact Order scope, filters and continuation without processing money", async () => {
-  const orderId = "9b05d3a7-1f26-4c8e-b743-2a6e0d59f71c";
-  const storefront = createStorefront(publishableKey, { apiUrl, sessionStorage: sessionStorage() });
-  const calls = [];
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    calls.push({ url: new URL(url), method: init.method || "GET", headers: new Headers(init.headers) });
-    return jsonResponse({ items: [], cursor: "next+/=" });
-  };
-  try {
-    assert.deepEqual(await storefront.eshop.order.findPayments({
-      order_id: orderId, status: "unknown", sort_field: "updated_at", sort_direction: "asc", limit: 25, cursor: "previous+/=",
-    }), { items: [], cursor: "next+/=" });
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0].method, "GET");
-  assert.equal(calls[0].url.pathname, `/v1/storefront/orders/${orderId}/payments`);
-  assert.deepEqual(Object.fromEntries(calls[0].url.searchParams), {
-    status: "unknown", sort_field: "updated_at", sort_direction: "asc", limit: "25", cursor: "previous+/=",
-  });
-  assert.equal(calls[0].headers.get("authorization"), `Bearer ${visitorToken}`);
+test("a card checkout hands back the embedded Stripe action without navigating", async (context) => {
+  const action = { type: "stripe_embedded_checkout", publishable_key: "pk_test_order", client_secret: "cs_order_secret_exact", expires_at: 1_800_000_000_000 };
+  recordFetch(context, (call) => call.path === "/v1/storefront/carts/accept" ? placedAcceptance({ payment_id: ids.payment, payment_action: action }) : placedOrder());
+  const store = checkoutStore();
+  const answer = await store.eshop.cart.checkout({ order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), contact_email: null, payment: cardPayment() });
+  assert.deepEqual(answer.payment_action, action);
+  assert.equal("account_id" in answer.payment_action, false);
+  assert.deepEqual(store.eshop.cart.last_order.get().payment_action, action);
+  assert.equal(store.eshop.cart.last_order.get().payment_id, ids.payment);
 });
 
-test("card checkout returns an embedded Stripe action without navigating", async () => {
-  const store = initialize(publishableKey, {
-    apiUrl,
-    market: "ita",
-    sessionStorage: sessionStorage(),
-  });
-  const cart = {
-    ...cartSnapshot(1),
-    payment_option_id: stripeProviderId,
-  };
-  store.eshop.cart.cart.set(cart);
-  store.eshop.cart.product_items.set([
-    {
-      id: "line-hosted",
-      product_id: "product-hosted",
-      variant_id: "variant-hosted",
-      quantity: 1,
-      form_submission_id: null,
-      price_override: null,
-    },
+test("payment resume asks the placed order for its payment action, and payments are read exactly", async (context) => {
+  const calls = recordFetch(context, (call) => call.path.endsWith("/payment-action") ? { type: "none" } : call.path.endsWith("/payments") ? [] : { id: ids.payment });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, sessionStorage: visitorStorage() });
+  assert.deepEqual(await store.eshop.cart.paymentAction(ids.order), { type: "none" });
+  await store.eshop.order.getPayment({ order_id: ids.order, payment_id: ids.payment });
+  await store.eshop.order.findPayments({ order_id: ids.order });
+  assert.deepEqual(calls.map((call) => [call.method, call.path, call.body]), [
+    ["POST", `/v1/storefront/orders/${ids.order}/payment-action`, null],
+    ["GET", `/v1/storefront/orders/${ids.order}/payments/${ids.payment}`, null],
+    ["GET", `/v1/storefront/orders/${ids.order}/payments`, null],
   ]);
-  store.eshop.cart.quote_result.set(quoteSnapshot(stripeProviderId));
-  let checkoutCalls = 0;
-  let checkoutBody;
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    if (!String(url).endsWith("/carts/accept")) return jsonResponse(acceptedOrder(checkoutBody.request_id, "47e2b16c-8d05-4f31-9a6b-e35c7f018d92"));
-    checkoutCalls += 1;
-    checkoutBody = JSON.parse(String(init.body));
-    return jsonResponse({
-      order_id: "47e2b16c-8d05-4f31-9a6b-e35c7f018d92",
-        number: "1004",
-      payment_action: {
-        type: "stripe_embedded_checkout",
-        publishable_key: "pk_test_order",
-        client_secret: "cs_order_secret_exact",
-        account_id: "acct_order",
-        expires_at: 1_800_000_000_000,
-      },
-      payment: payment("requires_action", "stripe", 1250, "47e2b16c-8d05-4f31-9a6b-e35c7f018d92"),
-    });
-  };
-
-  try {
-    const result = await store.eshop.cart.checkout({
-      request_id: checkoutRequestId,
-      payment_option_id: stripeProviderId,
-      return_url: "https://shop.example.test/checkout/complete",
-    });
-    assert.equal(result.payment_action.type, "stripe_embedded_checkout");
-    assert.equal(result.payment_action.client_secret, "cs_order_secret_exact");
-    assert.equal(result.payment_action.account_id, "acct_order");
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-
-  assert.equal(checkoutCalls, 1);
-  assert.equal(checkoutBody.request_id, checkoutRequestId);
-  const { request_id, ...reviewed } = checkoutBody;
-  assert.deepEqual(reviewed, {
-    sources: quoteSnapshot().sources,
-    presentation_digest: quoteSnapshot().presentation_digest,
-    payment_option_id: stripeProviderId,
-    return_url: "https://shop.example.test/checkout/complete",
-  });
-  assert.equal(store.eshop.cart.cart.get(), null);
-  assert.equal(store.eshop.cart.last_order.get().order_id, "47e2b16c-8d05-4f31-9a6b-e35c7f018d92");
+  assert.ok(calls.every((call) => call.headers.get("authorization") === `Bearer ${visitorToken}`));
+  assert.equal("checkout" in createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl }).eshop, false);
 });

@@ -18,7 +18,7 @@ for (const [owner, path, filters] of [
       return new Response(JSON.stringify({ items: [], cursor: 'after-stale' }), { headers: { 'content-type': 'application/json' } });
     };
     try {
-      const api = createAdmin({ baseUrl: 'https://api.example.test', apiToken: 'arky_api_test' }).eshop[owner];
+      const api = createAdmin({ baseUrl: 'https://api.example.test', secretKey: 'arky_secret_test' }).eshop[owner];
       const input = { store_id: STORE_ID, ...filters, limit: 50, cursor: 'previous' };
       assert.deepEqual(await api.find(input), { items: [], cursor: 'after-stale' });
       assert.equal(calls[0].url.pathname, `/v1/stores/${STORE_ID}/${path}`);

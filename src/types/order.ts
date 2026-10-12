@@ -1,207 +1,632 @@
-import type { OrderPurchaseAccessItem } from "./purchaseAccess";
-import type { OrderSubscriptionTaxPolicy, OrderSubscriptionTaxGroup } from "./subscriptionTax";
-import type {
-  CompanySnapshot,
-  OrderSubscriptionPlanItem,
-  PurchaseCustomerSnapshot,
-  PurchaseOrigin,
-  SalesChannelSnapshot,
-} from "./commerce";
-import type {
-  Address,
-  Currency,
-  OrderBookingItem,
-  OrderDigitalItem,
-  OrderItemStatus,
-  OrderMoney,
-  OrderProductItem,
-} from "./index";
 import type { EpochMilliseconds } from "./time";
-import type { FirstOrderTerms } from "./firstOrderTerms";
-import type { CheckoutCartVersion, ConvertedCartLine } from "./checkout";
-import type { OrderLineItemOrigin } from "./orderLineItem";
-import type { LineMoneySnapshot } from "./orderMoney";
-import type { OrderProductSnapshot } from "./orderSnapshot";
 import type {
-  CheckoutPaymentAuthorization,
-  CollectionPolicySnapshot,
-  CompanyLocationSnapshot,
-  MarketSnapshot,
-  OrderDeliveryGroup,
-  PaymentTermsSnapshot,
-  PromotionRedemption,
-  PurchaseOriginSnapshot,
-  ReconciliationState,
-  RenewalRecovery,
-  SellerSnapshot,
-} from "./orderContract";
+  AccountActor,
+  Actor,
+  CompanyPartyQuery,
+  Currency,
+  PostalAddress,
+  SortDirection,
+  TaxMode,
+  TaxRate,
+  UnitSpan,
+} from "./common";
+import type { PaymentTerms } from "./company";
+import type { InventoryTracking } from "./inventory";
+import type { BackorderPolicy } from "./product";
+import type { ShippingDeliveryEstimate } from "./shipping";
+import type { CustomerGroupOccurrence } from "./customerGroup";
+
+export type RenewalRecoveryStatus = "recovering" | "exhausted" | "resolved";
+
+export interface RenewalRecovery {
+  first_failure_at: EpochMilliseconds;
+  retries_started: number;
+  status: RenewalRecoveryStatus;
+}
 
 export type OrderSource =
+  | { type: "cart"; cart_id: string; placed_by: Actor }
   | {
-      type: "cart_acceptance";
-      request_id: string;
-      submission_fingerprint: string;
-      initial_payment_id: string | null;
-      cart: CheckoutCartVersion;
-      converted_lines: ConvertedCartLine[];
-      first_order_terms: FirstOrderTerms | null;
+      type: "renewal";
+      order_customer_group_line_item_id: string;
+      recovery: RenewalRecovery | null;
+    };
+
+export interface OrderContact {
+  email: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  phone: string | null;
+}
+
+export interface OrderTaxRegistration {
+  country: string;
+  region: string | null;
+  identifier: string;
+}
+
+export type OrderBuyerTax =
+  | { type: "standard"; registrations: OrderTaxRegistration[] }
+  | { type: "reverse_charge"; registration: OrderTaxRegistration }
+  | { type: "exempt"; reason: string };
+
+export type OrderBuyer =
+  | { type: "customer" }
+  | {
+      type: "company";
+      company_id: string;
+      purchase_order_number: string | null;
+      tax: OrderBuyerTax;
     }
-  | { type: "direct"; request_id: string }
-  | { type: "subscription"; order_subscription_line_item_id: string };
+  | {
+      type: "company_location";
+      company_location_id: string;
+      purchase_order_number: string | null;
+      tax: OrderBuyerTax;
+    };
 
-export type OrderSourceFilter = OrderSource["type"];
+export type OnAccountApproval = { type: "buyer_terms" } | { type: "account"; reason: string };
 
-export interface OrderRentalUseItem {
-  rental_id: string;
+export type OrderCollection =
+  | { type: "free" }
+  | { type: "payment_option"; payment_option_id: string }
+  | { type: "customer_group_member" }
+  | {
+      type: "on_account";
+      payment_option_id: string;
+      terms: PaymentTerms;
+      due_at: EpochMilliseconds;
+      approval: OnAccountApproval;
+    };
+
+export type OrderCancellationReason =
+  | "rejected"
+  | "contact_cancelled"
+  | "payment_failed"
+  | "expired"
+  | "refunded"
+  | "other";
+
+export type OrderLineItemStatus =
+  | { type: "pending"; expires_at: EpochMilliseconds }
+  | { type: "confirmed" }
+  | { type: "cancelled"; reason: OrderCancellationReason };
+
+export type OrderLineItemOrigin =
+  | { type: "direct" }
+  | { type: "customer_group"; order_customer_group_line_item_id: string; entitlement_id: string };
+
+export interface OrderAccessRevocation {
+  actor: AccountActor;
+  effective_at: EpochMilliseconds;
+  reason: string;
+}
+
+export interface OrderVariantOption {
+  key: string;
+  value: string;
+}
+
+export interface OrderInventoryRequirementSnapshot {
+  inventory_item_id: string;
+  inventory_item_key: string;
+  quantity: number;
+  weight_grams: number | null;
+  tracking: InventoryTracking;
+  sku: string | null;
+}
+
+export type OrderDigitalContent =
+  | { type: "accepted_assets"; asset_ids: string[] }
+  | { type: "current_bundle" };
+
+export type OrderProductFulfillmentSnapshot =
+  | { type: "none" }
+  | {
+      type: "physical";
+      inventory_requirements: OrderInventoryRequirementSnapshot[];
+      backorder: BackorderPolicy;
+    }
+  | {
+      type: "digital";
+      content: OrderDigitalContent;
+      revocation: OrderAccessRevocation | null;
+    };
+
+export type OrderLinePrice =
+  | { type: "catalog"; price_id: string; catalog_id: string }
+  | {
+      type: "purchase_access";
+      price_id: string;
+      catalog_id: string;
+      customer_group_member_id: string | null;
+    }
+  | { type: "manual"; catalog_id: string; actor: AccountActor; reason: string }
+  | { type: "offer" }
+  | { type: "customer_group_allocation" };
+
+export interface OrderProductSnapshot {
+  product_key: string;
+  variant_sku: string | null;
+  options: OrderVariantOption[];
+  price: OrderLinePrice;
+  fulfillment: OrderProductFulfillmentSnapshot;
+}
+
+export interface LineDiscount {
+  promotion_id: string;
+  effect_id: string;
+  amount: number;
+}
+
+export type TaxLineCalculation =
+  | { type: "percentage"; rate: TaxRate; compound: boolean }
+  | { type: "fixed_per_unit"; unit_amount: number };
+
+export interface TaxLine {
+  component_id: string;
+  code: string | null;
+  title: string;
+  calculation: TaxLineCalculation;
+  amount: number;
+}
+
+export type LineTaxTreatment =
+  | { type: "rates"; lines: TaxLine[] }
+  | { type: "not_collecting"; reason: string }
+  | { type: "not_taxable"; reason: string }
+  | { type: "zero_rated"; reason: string }
+  | { type: "exempt"; reason: string }
+  | { type: "buyer_override"; kind: BuyerTaxTreatmentKind };
+
+export type BuyerTaxTreatmentKind = { type: "reverse_charge" } | { type: "exempt" };
+
+export type DeliveryTaxSource =
+  | { type: "own"; tax_category_id: string; rule_id: string; treatment: LineTaxTreatment }
+  | { type: "group_share"; tax_group_id: string; treatment: LineTaxTreatment }
+  | { type: "buyer_override"; tax_category_id: string; kind: BuyerTaxTreatmentKind };
+
+export interface DeliveryTaxPart {
+  line_item_id: string;
+  span: UnitSpan;
+  discounted_base_amount: number;
+  tax: DeliveryTaxSource;
+}
+
+export type LineTax =
+  | { type: "own"; tax_category_id: string; rule_id: string; treatment: LineTaxTreatment }
+  | { type: "group_share"; tax_group_id: string; treatment: LineTaxTreatment }
+  | { type: "buyer_override"; tax_category_id: string; kind: BuyerTaxTreatmentKind }
+  | { type: "follow_goods"; parts: DeliveryTaxPart[] };
+
+export interface LineMoney {
+  unit_price: number;
+  discounts: LineDiscount[];
+  tax: LineTax;
+}
+
+export type TaxPlace =
+  | { type: "delivery"; delivery_group_id: string }
+  | { type: "billing" };
+
+export interface ProductMoneyRun {
+  span: UnitSpan;
+  taxed_at: TaxPlace;
+  money: LineMoney;
+}
+
+export interface OrderProductLineItem {
   id: string;
   origin: OrderLineItemOrigin;
-  snapshot: OrderProductSnapshot;
+  product_id: string;
+  variant_id: string;
   quantity: number;
-  status: OrderItemStatus;
-  money: LineMoneySnapshot;
+  cancelled_units: UnitSpan[];
+  form_submission_id: string | null;
+  snapshot: OrderProductSnapshot;
+  status: OrderLineItemStatus;
+  money_runs: ProductMoneyRun[];
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
-export interface OrderCompanyContext {
-  company_id: string | null;
-  company_location_id: string | null;
-  company_snapshot: CompanySnapshot;
-  company_location_snapshot: CompanyLocationSnapshot;
+export interface OrderTimeRange {
+  from: EpochMilliseconds;
+  to: EpochMilliseconds;
+}
+
+export interface OrderBookingSnapshot {
+  service_key: string;
+  resource_key: string;
+  timezone: string;
+  price: OrderLinePrice;
+}
+
+export type OrderBookingAttendance = "upcoming" | "attended" | "no_show";
+
+export interface OrderBookingLineItem {
+  id: string;
+  booking_offering_id: string;
+  booking_service_id: string;
+  booking_resource_id: string;
+  interval: OrderTimeRange;
+  capacity_intervals: OrderTimeRange[];
+  capacity_units: number;
+  form_submission_id: string | null;
+  snapshot: OrderBookingSnapshot;
+  status: OrderLineItemStatus;
+  attendance: OrderBookingAttendance;
+  money: LineMoney;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+}
+
+export type OrderTaxGroupSource =
+  | { type: "rule"; rule_id: string }
+  | { type: "buyer_override"; kind: BuyerTaxTreatmentKind };
+
+export interface OrderTaxGroup {
+  id: string;
+  tax_category_id: string;
+  source: OrderTaxGroupSource;
+  quantity: number;
+}
+
+export interface OrderCustomerGroupLineItem {
+  id: string;
+  customer_group_member_id: string;
+  revision_id: string;
+  occurrence: CustomerGroupOccurrence;
+  revocation: OrderAccessRevocation | null;
+  status: OrderLineItemStatus;
+  tax_groups: OrderTaxGroup[];
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+}
+
+export interface OrderRentalUseLineItem {
+  id: string;
+  rental_id: string;
+  origin: OrderLineItemOrigin;
+  snapshot: OrderProductSnapshot;
+  quantity: number;
+  status: OrderLineItemStatus;
+  money: LineMoney;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+}
+
+export interface OrderPurchaseAccessLineItem {
+  id: string;
+  order_customer_group_line_item_id: string;
+  entitlement_id: string;
+  revocation: OrderAccessRevocation | null;
+  status: OrderLineItemStatus;
+  money: LineMoney;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export type OrderLineItem =
-  | { type: "product" } & OrderProductItem
-  | { type: "booking" } & OrderBookingItem
-  | { type: "digital_product" } & OrderDigitalItem
-  | { type: "subscription_plan" } & OrderSubscriptionPlanItem
-  | { type: "rental_use" } & OrderRentalUseItem
-  | { type: "purchase_access" } & OrderPurchaseAccessItem;
+  | ({ type: "product" } & OrderProductLineItem)
+  | ({ type: "booking" } & OrderBookingLineItem)
+  | ({ type: "customer_group" } & OrderCustomerGroupLineItem)
+  | ({ type: "rental_use" } & OrderRentalUseLineItem)
+  | ({ type: "purchase_access" } & OrderPurchaseAccessLineItem);
 
-export type OrderStatus = {
-  type: "pending" | "confirmed" | "partially_cancelled" | "cancelled";
-};
+export type OrderLineItemType = OrderLineItem["type"];
+
+export type OrderDeliveryDestination =
+  | { type: "delivery"; address: PostalAddress }
+  | { type: "pickup"; store_location_id: string; address: PostalAddress };
+
+export type DeliveryPricing =
+  | { type: "rate"; rate_id: string }
+  | { type: "customer_group_delivery_terms"; delivery_terms_id: string };
+
+export type FulfillmentTiming =
+  | { type: "asap" }
+  | { type: "window"; from: EpochMilliseconds; to: EpochMilliseconds };
+
+export interface OrderDeliveryRental {
+  rental_id: string;
+  newly_shipped_quantity: number;
+}
+
+export interface OrderDeliveryGroup {
+  id: string;
+  destination: OrderDeliveryDestination;
+  shipping_method_id: string;
+  shipping_profile_id: string;
+  pricing: DeliveryPricing;
+  timing: FulfillmentTiming;
+  delivery_estimate: ShippingDeliveryEstimate | null;
+  rentals: OrderDeliveryRental[];
+  money: LineMoney;
+}
+
+export interface OrderPromotionCode {
+  promotion_code_id: string;
+  code: string;
+}
+
+export interface OrderPromotion {
+  promotion_id: string;
+  promotion_key: string;
+  code: OrderPromotionCode | null;
+}
+
+export type OrderStatus = "pending" | "confirmed" | "partially_cancelled" | "cancelled";
+
+export interface MoneyTotals {
+  subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
+}
+
+export interface OrderLineTotals extends MoneyTotals {
+  line_item_id: string;
+}
+
+export interface OrderDeliveryTotals extends MoneyTotals {
+  delivery_group_id: string;
+}
+
+export interface OrderTotals {
+  subtotal: number;
+  delivery: number;
+  discount: number;
+  tax: number;
+  total: number;
+  line_items: OrderLineTotals[];
+  delivery_groups: OrderDeliveryTotals[];
+}
+
+export type OrderInvoiceType = "invoice" | "credit_note";
+
+export interface OrderInvoice {
+  id: string;
+  type: OrderInvoiceType;
+  number: string;
+  url: string;
+  created_at: EpochMilliseconds;
+}
+
+export interface AddOrderInvoiceParams {
+  store_id: string;
+  order_id: string;
+  id: string;
+  type: OrderInvoiceType;
+  number: string;
+  url: string;
+  expected_updated_at: EpochMilliseconds;
+}
+
+export interface DeleteOrderInvoiceParams {
+  store_id: string;
+  order_id: string;
+  invoice_id: string;
+  expected_updated_at: EpochMilliseconds;
+}
 
 export interface Order {
   id: string;
   number: string;
+  invoices: OrderInvoice[];
   store_id: string;
   source: OrderSource;
   customer_id: string;
-  customer_snapshot: PurchaseCustomerSnapshot;
-  locale: string;
-  company: OrderCompanyContext | null;
-  payment_terms: PaymentTermsSnapshot | null;
-  purchase_order_number: string | null;
-  market_id: string | null;
-  market_snapshot: MarketSnapshot;
-  sales_channel_id: string | null;
-  sales_channel_snapshot: SalesChannelSnapshot;
-  origin: PurchaseOriginSnapshot;
-  status: OrderStatus;
+  contact: OrderContact;
+  buyer: OrderBuyer;
+  market_id: string;
+  sales_channel_id: string;
+  tax_mode: TaxMode;
+  collection: OrderCollection;
   line_items: OrderLineItem[];
-  subscription_tax_policies: OrderSubscriptionTaxPolicy[];
-  subscription_tax_groups: OrderSubscriptionTaxGroup[];
-  money: OrderMoney;
   delivery_groups: OrderDeliveryGroup[];
-  billing_address: Address | null;
+  currency: Currency;
+  promotions: OrderPromotion[];
+  billing_address: PostalAddress | null;
+  language: string;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
-  accepted_at: EpochMilliseconds;
-  seller: SellerSnapshot;
-  renewal_recovery: RenewalRecovery | null;
-  reconciliation: ReconciliationState;
-  collection_policy: CollectionPolicySnapshot;
-  promotion_redemptions: PromotionRedemption[];
-  payment_authorization: CheckoutPaymentAuthorization;
+  status: OrderStatus;
+  totals: OrderTotals;
 }
 
-
-export function orderProductItems(order: Pick<Order, "line_items"> | null): OrderProductItem[] {
-  return (order?.line_items ?? [])
-    .filter((item): item is OrderLineItem & { type: "product" } => item.type === "product")
-    .map(({ type: _type, ...item }) => item);
+export interface OrderBookingItem {
+  store_id: string;
+  order_id: string;
+  order_number: string;
+  customer_id: string;
+  contact: OrderContact;
+  line: OrderBookingLineItem;
 }
 
-export function orderBookingItems(order: Pick<Order, "line_items"> | null): OrderBookingItem[] {
-  return (order?.line_items ?? [])
-    .filter((item): item is OrderLineItem & { type: "booking" } => item.type === "booking")
-    .map(({ type: _type, ...item }) => item);
+export type OrderSourceFilter = "cart" | "renewal";
+
+export type OrderItemStatusFilter = "pending" | "confirmed" | "cancelled";
+
+export type OrderBookingStatusFilter = "pending" | "confirmed" | "completed" | "no_show" | "cancelled";
+
+export interface FindOrdersParams {
+  store_id: string;
+  customer_id?: string;
+  company_id?: string;
+  company_location_id?: string;
+  customer_group_member_id?: string;
+  statuses?: OrderStatus[];
+  sources?: OrderSourceFilter[];
+  product_statuses?: OrderItemStatusFilter[];
+  booking_statuses?: OrderBookingStatusFilter[];
+  product_ids?: string[];
+  booking_service_ids?: string[];
+  booking_resource_ids?: string[];
+  from?: EpochMilliseconds;
+  to?: EpochMilliseconds;
+  query?: string;
+  sort_field?: "number" | "created_at" | "updated_at" | "status" | "price";
+  sort_direction?: SortDirection;
+  created_at_from?: EpochMilliseconds;
+  created_at_to?: EpochMilliseconds;
+  updated_at_from?: EpochMilliseconds;
+  limit?: number;
+  cursor?: string | null;
 }
 
-export function orderDigitalItems(order: Pick<Order, "line_items"> | null): OrderDigitalItem[] {
-  return (order?.line_items ?? [])
-    .filter(
-      (item): item is OrderLineItem & { type: "digital_product" } =>
-        item.type === "digital_product",
-    )
-    .map(({ type: _type, ...item }) => item);
+export interface GetOrderParams {
+  store_id: string;
+  id: string;
 }
 
-export function orderSubscriptionPlanItems(
-  order: Pick<Order, "line_items"> | null,
-): OrderSubscriptionPlanItem[] {
-  return (order?.line_items ?? [])
-    .filter(
-      (item): item is OrderLineItem & { type: "subscription_plan" } =>
-        item.type === "subscription_plan",
-    )
-    .map(({ type: _type, ...item }) => item);
+export interface FindOrderBookingItemsParams {
+  store_id: string;
+  customer_id?: string;
+  booking_service_ids?: string[];
+  booking_resource_ids?: string[];
+  statuses?: OrderBookingStatusFilter[];
+  from?: EpochMilliseconds;
+  to?: EpochMilliseconds;
+  query?: string;
+  sort_direction?: SortDirection;
+  limit?: number;
+  cursor?: string | null;
 }
 
-export function orderRentalUseItems(
-  order: Pick<Order, "line_items"> | null,
-): OrderRentalUseItem[] {
-  return (order?.line_items ?? [])
-    .filter((item): item is OrderLineItem & { type: "rental_use" } => item.type === "rental_use")
-    .map(({ type: _type, ...item }) => item);
+export interface RevokeOrderAccessParams {
+  store_id: string;
+  id: string;
+  expected_updated_at: EpochMilliseconds;
+  line_item_id: string;
+  effective_at: EpochMilliseconds;
+  reason: string;
 }
 
-export function orderPurchaseAccessItems(
-  order: Pick<Order, "line_items"> | null,
-): OrderPurchaseAccessItem[] {
-  return (order?.line_items ?? [])
-    .filter((item): item is OrderLineItem & { type: "purchase_access" } => item.type === "purchase_access")
-    .map(({ type: _type, ...item }) => item);
+export interface CancelOrderBookingItemParams {
+  store_id: string;
+  order_id: string;
+  line_item_id: string;
+  credit_id: string;
+  expected_updated_at: EpochMilliseconds;
 }
 
-export type OrderFinancialConcern =
-  | { type: "unapplied_monri_evidence"; receipt_id: string }
-  | { type: "monri_review"; receipt_id: string }
-  | { type: "order_hold" }
-  | { type: "payment_hold"; payment_id: string }
-  | { type: "payment_evidence"; payment_id: string }
-  | { type: "payment_projection"; payment_id: string }
-  | { type: "unapplied_capture_evidence"; receipt_id: string }
-  | { type: "capture_review"; receipt_id: string }
-  | { type: "dispute_review"; dispute_id: string }
-  | { type: "unapplied_dispute_evidence"; dispute_id: string }
-  | { type: "refund_review"; refund_id: string }
-  | { type: "unapplied_refund_evidence"; receipt_id: string }
-  | { type: "unattributed_refund_evidence"; receipt_id: string }
-  | { type: "credit_refund_allocation"; order_credit_id: string; allocation_id: string }
-  | { type: "principal_capacity_conflict" }
-  | { type: "refund_reservations_exceed_excess" }
-  | { type: "provider_refund_created_debt" };
+export interface CancelOrderProductItemParams {
+  store_id: string;
+  order_id: string;
+  line_item_id: string;
+  credit_id: string;
+  expected_updated_at: EpochMilliseconds;
+  units: UnitSpan[];
+}
 
-export interface OrderFinancialSummary {
-  currency: Currency;
-  accepted: number;
-  active_credit: number;
-  obligation: number;
-  captured: number;
-  refunded: number;
-  finalized_lost_principal: number;
-  net_collections: number;
-  outstanding: number;
-  excess: number;
-  capture_pending: number;
-  refund_pending: number;
-  dispute_encumbered: number;
-  concerns: OrderFinancialConcern[];
+export interface CancelOrderParams {
+  store_id: string;
+  order_id: string;
+  expected_updated_at: EpochMilliseconds;
+}
+
+export interface MarkOrderBookingItemParams {
+  store_id: string;
+  order_id: string;
+  line_item_id: string;
+  expected_updated_at: EpochMilliseconds;
+}
+
+export interface ResendOrderReceiptParams {
+  store_id: string;
+  order_id: string;
+  id: string;
 }
 
 export interface GetOrderFinancialSummaryParams {
   store_id: string;
   id: string;
+}
+
+export type OrderFinancialConcern =
+  | { type: "payment_hold"; payment_id: string }
+  | { type: "payment_unknown"; payment_id: string }
+  | { type: "refund_unknown"; payment_id: string; refund_id: string }
+  | { type: "open_dispute"; payment_id: string; dispute_id: string }
+  | { type: "excess_collection" };
+
+export interface OrderFinancialSummary {
+  currency: Currency;
+  total: number;
+  active_credit: number;
+  due: number;
+  paid: number;
+  refunded: number;
+  refund_pending: number;
+  disputed: number;
+  net_paid: number;
+  outstanding: number;
+  excess: number;
+  concerns: OrderFinancialConcern[];
+}
+
+export interface GetOrderPaymentParams {
+  store_id: string;
+  order_id: string;
+  payment_id: string;
+}
+
+export interface FindOrderPaymentsParams {
+  store_id: string;
+  order_id: string;
+}
+
+export type StorefrontFindOrdersParams = CompanyPartyQuery &
+  Omit<FindOrdersParams, "store_id" | "customer_id" | "company_id" | "company_location_id">;
+
+export interface StorefrontGetOrderParams {
+  id: string;
+}
+
+export interface StorefrontCancelOrderBookingItemParams {
+  order_id: string;
+  line_item_id: string;
+  credit_id: string;
+  expected_updated_at: EpochMilliseconds;
+}
+
+export type StorefrontCancelOrderProductItemParams = Omit<CancelOrderProductItemParams, "store_id">;
+
+export interface StorefrontOrderPaymentParams {
+  order_id: string;
+  payment_id: string;
+}
+
+export interface StorefrontFindOrderPaymentsParams {
+  order_id: string;
+}
+
+export function orderLineItemsOfType<T extends OrderLineItemType>(
+  order: Pick<Order, "line_items"> | null,
+  type: T,
+): Extract<OrderLineItem, { type: T }>[] {
+  return (order?.line_items ?? []).filter(
+    (item): item is Extract<OrderLineItem, { type: T }> => item.type === type,
+  );
+}
+
+export function orderProductItems(order: Pick<Order, "line_items"> | null) {
+  return orderLineItemsOfType(order, "product");
+}
+
+export function orderBookingItems(order: Pick<Order, "line_items"> | null) {
+  return orderLineItemsOfType(order, "booking");
+}
+
+export function orderCustomerGroupItems(order: Pick<Order, "line_items"> | null) {
+  return orderLineItemsOfType(order, "customer_group");
+}
+
+export function orderRentalUseItems(order: Pick<Order, "line_items"> | null) {
+  return orderLineItemsOfType(order, "rental_use");
+}
+
+export function orderPurchaseAccessItems(order: Pick<Order, "line_items"> | null) {
+  return orderLineItemsOfType(order, "purchase_access");
 }

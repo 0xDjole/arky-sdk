@@ -1,49 +1,77 @@
-import assert from 'node:assert/strict';
-import test from 'node:test';
-import { createAdmin } from '../dist/admin.js';
+import assert from "node:assert/strict";
+import test from "node:test";
+import { createAdmin, WEBHOOK_UNIT_EVENT_TYPES } from "../dist/admin.js";
+import { recordFetch } from "./helpers/arky-fixtures.mjs";
 
-const STORE_ID = 'e7b39c05-4a18-4d62-9f3e-8c1a5b2d7f90';
+const STORE_ID = "e7b39c05-4a18-4d62-9f3e-8c1a5b2d7f90";
+const hookId = "1c7e3a95-6b28-4d40-8f13-9a2e5c0d7b64";
+const testId = "5d9b1f37-2a84-4c60-b3e7-8f1a6c4d0e29";
 
-test('hook discovery carries native controls and preserves empty-page cursors', async context => {
-  const calls = [];
-  context.mock.method(globalThis, 'fetch', async (url, init = {}) => {
-    calls.push({ url: new URL(url), init });
-    return new Response(JSON.stringify({ items: [], cursor: 'opaque:+/=' }), {
-      headers: { 'content-type': 'application/json' },
-    });
-  });
-  const store = createAdmin({ baseUrl: 'https://hooks.test' }).store;
-  assert.equal('buildHook' in store, false);
-  const params = { store_id: STORE_ID, query: 'lookup', status: 'disabled', sort_field: 'updated_at', sort_direction: 'asc', limit: 1 };
-  const page = await store.webhook.list(params);
-  assert.deepEqual(page, { items: [], cursor: 'opaque:+/=' });
-  assert.deepEqual(await store.webhook.list({ ...params, cursor: page.cursor }), page);
+function store() {
+  return createAdmin({ baseUrl: "https://hooks.test", secretKey: "arky_api_hooks" }).store;
+}
+
+test("webhook discovery carries its native filters and keeps the empty-page continuation", async (context) => {
+  const calls = recordFetch(context, () => ({ items: [], cursor: "opaque:+/=" }));
+  const api = store();
+  assert.equal("buildHook" in api, false);
+  const params = { store_id: STORE_ID, query: "lookup", status: "disabled", sort_field: "updated_at", sort_direction: "asc", limit: 1 };
+  const page = await api.webhook.list(params);
+  assert.deepEqual(page, { items: [], cursor: "opaque:+/=" });
+  assert.deepEqual(await api.webhook.list({ ...params, cursor: page.cursor }), page);
   assert.equal(calls.length, 2);
   for (const [index, call] of calls.entries()) {
-    assert.equal(call.init.method, 'GET');
-    assert.equal(call.init.body, undefined);
-    assert.equal(call.url.pathname, `/v1/stores/${STORE_ID}/webhooks`);
-    assert.deepEqual(Object.fromEntries(call.url.searchParams), {
-      query: 'lookup', status: 'disabled', sort_field: 'updated_at', sort_direction: 'asc', limit: '1',
-      ...(index % 2 ? { cursor: 'opaque:+/=' } : {}),
-    });
+    assert.equal(call.method, "GET");
+    assert.equal(call.body, null);
+    assert.equal(call.path, `/v1/stores/${STORE_ID}/webhooks`);
+    assert.deepEqual(call.query, { query: "lookup", status: "disabled", sort_field: "updated_at", sort_direction: "asc", limit: "1", ...(index === 1 ? { cursor: "opaque:+/=" } : {}) });
   }
 });
 
-test('hook writes preserve tagged statuses and type-tagged scoped subscriptions', async context => {
-  const calls = [];
-  context.mock.method(globalThis, 'fetch', async (url, init = {}) => {
-    const body = JSON.parse(init.body);
-    calls.push({ url: new URL(url), body });
-    return new Response(JSON.stringify({ id: 'hook', ...body }), { headers: { 'content-type': 'application/json' } });
-  });
-  const store = createAdmin({ baseUrl: 'https://hooks.test' }).store;
-  const events = [{ type: 'entry.updated', collection_id: 'collection', key: null }, { type: 'order.created' }];
-  const created = await store.webhook.create({ store_id: STORE_ID, url: 'https://receiver.test', events, headers: {}, secret: 'secret', status: { type: 'active' } });
+test("webhook writes keep tagged statuses and scoped event types, carry the app-picked id and the version", async (context) => {
+  const calls = recordFetch(context, (call) => call.method === "DELETE" ? { deleted: true } : { id: hookId, ...(call.body ?? {}) });
+  const api = store().webhook;
+  const events = [
+    { type: "entry.updated", collections: { type: "all" }, entries: { type: "only", keys: ["guide"] } },
+    { type: "form_submission.created", forms: { form_ids: ["form-one", "form-two"] } },
+    { type: "order.created" },
+    { type: "customer_group_member.renewed" },
+  ];
+  const created = await api.create({ store_id: STORE_ID, id: hookId, url: "https://receiver.test", events, headers: {}, secret: "secret", status: { type: "active" } });
   assert.deepEqual(created.events, events);
-  assert.deepEqual(created.status, { type: 'active' });
-  await store.webhook.update({ store_id: STORE_ID, id: created.id, status: { type: 'disabled' } });
-  assert.deepEqual(calls.slice(1).map(call => call.body), [{ status: { type: 'disabled' } }]);
-  assert.deepEqual(calls.map(call => call.url.pathname), [`/v1/stores/${STORE_ID}/webhooks`, `/v1/stores/${STORE_ID}/webhooks/hook`]);
-  assert.equal('store_id' in calls[0].body, false);
+  await api.update({ store_id: STORE_ID, id: hookId, expected_updated_at: 2, status: { type: "disabled" } });
+  await api.delete({ store_id: STORE_ID, id: hookId, expected_updated_at: 3 });
+  await api.test({ store_id: STORE_ID, id: testId, webhook_id: hookId });
+  assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
+    ["POST", `/v1/stores/${STORE_ID}/webhooks`, {}, { id: hookId, url: "https://receiver.test", events, headers: {}, secret: "secret", status: { type: "active" } }],
+    ["PUT", `/v1/stores/${STORE_ID}/webhooks/${hookId}`, {}, { expected_updated_at: 2, status: { type: "disabled" } }],
+    ["DELETE", `/v1/stores/${STORE_ID}/webhooks/${hookId}`, { expected_updated_at: "3" }, null],
+    ["POST", `/v1/stores/${STORE_ID}/webhooks/test`, {}, { id: testId, webhook_id: hookId }],
+  ]);
+  await assert.rejects(async () => api.create({ store_id: STORE_ID, id: "hook", url: "https://receiver.test", events, headers: {}, secret: "s", status: { type: "active" } }), TypeError);
+  await assert.rejects(async () => api.test({ store_id: STORE_ID, id: "test", webhook_id: hookId }), {
+    name: "TypeError",
+    message: "The test post id must be a canonical UUID v4 picked by the app",
+  });
+  assert.equal(calls.length, 4);
+});
+
+test("the webhook event list carries the nine customer group member events and none of the retired subscription or hand-kept member events", () => {
+  const memberEvents = [
+    "customer_group_member.activated",
+    "customer_group_member.paused",
+    "customer_group_member.resumed",
+    "customer_group_member.cancelled",
+    "customer_group_member.renewed",
+    "customer_group_member.payment_failed",
+    "customer_group_member.switched",
+    "customer_group_member.next_purchase_skipped",
+    "customer_group_member.payment_method_changed",
+  ];
+  assert.equal(WEBHOOK_UNIT_EVENT_TYPES.length, 87);
+  assert.equal(new Set(WEBHOOK_UNIT_EVENT_TYPES).size, WEBHOOK_UNIT_EVENT_TYPES.length);
+  assert.deepEqual(WEBHOOK_UNIT_EVENT_TYPES.filter((event) => event.startsWith("customer_group_member.")), memberEvents);
+  for (const kept of ["customer_group.created", "customer_group.updated"]) assert.ok(WEBHOOK_UNIT_EVENT_TYPES.includes(kept), kept);
+  for (const retired of ["customer_group.member_added", "customer_group.member_removed"]) assert.equal(WEBHOOK_UNIT_EVENT_TYPES.includes(retired), false, retired);
+  assert.deepEqual(WEBHOOK_UNIT_EVENT_TYPES.filter((event) => event.startsWith("subscription.")), []);
 });

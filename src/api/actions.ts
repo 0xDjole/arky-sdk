@@ -1,21 +1,15 @@
-import { requireStoreId } from "../utils/storeTarget";
 import type { ApiConfig } from "../services/clientTypes";
-import type { FindCustomerActionsParams, RequestOptions } from "../types/api";
-import type { CustomerAction, PaginatedResponse } from "../types";
+import type { RequestOptions } from "../types/api";
+import type { PaginatedResponse } from "../types/common";
+import type { CustomerAction, FindCustomerActionsParams } from "../types/customerAction";
+import { storePath } from "./paths";
 
 export const createActionsApi = (apiConfig: ApiConfig) => ({
-  async find(
-    params: FindCustomerActionsParams,
-    options?: RequestOptions,
-  ): Promise<PaginatedResponse<CustomerAction>> {
-    const store_id = requireStoreId(params.store_id);
-    const queryParams: Record<string, unknown> = {};
-    if (params.customer_id) queryParams.customer_id = params.customer_id;
-    if (params.limit !== undefined) queryParams.limit = params.limit;
-    if (params.cursor) queryParams.cursor = params.cursor;
-    return apiConfig.httpClient.get<PaginatedResponse<CustomerAction>>(
-      `/v1/stores/${requireStoreId(store_id)}/actions`,
-      { ...options, params: queryParams },
-    );
+  find(params: FindCustomerActionsParams, options?: RequestOptions): Promise<PaginatedResponse<CustomerAction>> {
+    const { store_id, ...query } = params;
+    return apiConfig.httpClient.get<PaginatedResponse<CustomerAction>>(storePath(store_id, "actions"), {
+      ...options,
+      params: query,
+    });
   },
 });

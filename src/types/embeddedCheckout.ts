@@ -1,13 +1,14 @@
 import type { StripeEmbeddedCheckout, StripeEmbeddedCheckoutOptions } from "@stripe/stripe-js";
-import type { CheckoutPaymentAction, StoreSubscriptionCheckoutAction } from "./index";
+import type { CheckoutPaymentAction } from "./payment";
+import type { StoreSubscriptionPaymentAction } from "./store";
 import type { MonriBuyerDetails } from "./monriCheckout";
 
 export type StripeEmbeddedCheckoutAction = Extract<
-  CheckoutPaymentAction | StoreSubscriptionCheckoutAction,
+  CheckoutPaymentAction | StoreSubscriptionPaymentAction,
   { type: "stripe_embedded_checkout" }
 >;
 
-export type EmbeddedCheckoutAction = CheckoutPaymentAction | StoreSubscriptionCheckoutAction;
+export type EmbeddedCheckoutAction = CheckoutPaymentAction | StoreSubscriptionPaymentAction;
 
 export interface EmbeddedCheckoutCallbacks {
   onComplete?: StripeEmbeddedCheckoutOptions["onComplete"];

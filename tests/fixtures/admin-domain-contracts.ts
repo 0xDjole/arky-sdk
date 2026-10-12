@@ -1,24 +1,34 @@
 import { createAdmin } from 'arky-sdk';
-import type { AccountSessionScope, StoreCustomerWorkspacePresentation } from 'arky-sdk';
+import type { AdminSession, CreateAdminConfig, CreateStoreParams, RequestPendingAccountSessionParams } from 'arky-sdk';
 import type * as Public from 'arky-sdk/types';
+
+type Assert<T extends true> = T;
+type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
+type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
+type Admin = ReturnType<typeof createAdmin>;
 
 const store_id = 'a4219f3b-50b1-4a78-902b-d7264ae027a9';
 const admin = createAdmin({ baseUrl: 'https://api.example.test' });
-// @ts-expect-error Store selection belongs to each operation.
-createAdmin({ baseUrl: 'https://api.example.test', storeId: store_id });
-const scope: AccountSessionScope | undefined = admin.session?.scope;
-const workspace: Promise<StoreCustomerWorkspacePresentation> = admin.store.customerWorkspace.get({ id: store_id });
-const publicWorkspace: Promise<Public.StoreCustomerWorkspacePresentation> = workspace;
 admin.account.auth.storeCode(store_id, { email: 'invited@example.test' });
 admin.account.auth.storeVerify(store_id, { session_id: 'pending', code: '123456' });
-void [scope, workspace, publicWorkspace];
-// @ts-expect-error The removed feature has no client API.
-admin.store.adminDomain;
-// @ts-expect-error The removed feature has no client API.
-admin.store.branding;
-// @ts-expect-error No retired domain type is exported.
-type RemovedDomain = Public.StoreAdminDomain;
-// @ts-expect-error No retired branding type is exported.
-type RemovedBranding = Public.StoreBranding;
-// @ts-expect-error A caller cannot select credential scope in a code request.
-admin.account.auth.storeCode(store_id, { email: 'owner@example.com', scope: { type: 'account' } });
+
+export type AdminDomainContracts = [
+  Assert<Equal<keyof AdminSession, 'id' | 'email'>>,
+  Assert<Missing<AdminSession, 'scope'>>,
+  Assert<Missing<CreateAdminConfig, 'storeId'>>,
+  Assert<Missing<CreateAdminConfig, 'market'>>,
+  Assert<Missing<CreateAdminConfig, 'locale'>>,
+  Assert<Equal<keyof RequestPendingAccountSessionParams, 'email'>>,
+  Assert<Missing<Admin['store'], 'adminDomain'>>,
+  Assert<Missing<Admin['store'], 'branding'>>,
+  Assert<Missing<Admin['store'], 'customerWorkspace'>>,
+  Assert<Missing<Admin['store'], 'commerce'>>,
+  Assert<Missing<Admin, 'setStoreId'>>,
+  Assert<Missing<Admin, 'getMarket'>>,
+  Assert<Equal<keyof CreateStoreParams, 'id' | 'name' | 'timezone' | 'languages' | 'market' | 'sales_channel' | 'location_address'>>,
+  Assert<Equal<CreateStoreParams, Public.CreateStoreParams>>,
+  Assert<Missing<Public.Store, 'billing_email'>>,
+  Assert<Missing<Public.Store, 'contact_email'>>,
+  Assert<Missing<Public.Store, 'default_language'>>,
+  Assert<Equal<Public.Store['languages'], string[]>>,
+];

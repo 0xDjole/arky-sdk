@@ -4,8 +4,6 @@ import type { AuthStorage, HttpClient } from "./createHttpClient";
 export interface ApiConfig {
   httpClient: HttpClient;
   baseUrl: string;
-  market?: string;
-  locale: string;
   authStorage: AuthStorage;
 }
 
@@ -14,14 +12,11 @@ export interface StorefrontApiConfig {
   publishableKeyHttpClient: HttpClient;
   apiUrl: string;
   publishableKey: string;
-  market: string;
-  locale: string;
   authStorage: AuthStorage;
 }
 
 export interface AdminSessionInternal {
   id: string;
-  scope: import('../types').AccountSessionScope;
   access_token: string;
   refresh_token: string;
   access_expires_at: EpochMilliseconds;
