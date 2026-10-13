@@ -139,7 +139,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
     method: string,
     path: string,
     body?: unknown,
-    options?: RequestOptions<T>,
+    options?: RequestOptions<T> & { body?: unknown },
     retried = false,
   ): Promise<T> {
     if (!retried && options?.transformRequest) {
@@ -202,7 +202,11 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
       headers,
       signal: options?.signal,
     };
-    if (!["GET", "DELETE"].includes(method) && body !== undefined) {
+    if (
+      method !== "GET" &&
+      body !== undefined &&
+      (method !== "DELETE" || options?.body !== undefined)
+    ) {
       fetchOptions.body = multipart
         ? (body as FormData)
         : body instanceof URLSearchParams
@@ -341,7 +345,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
       request<T>("PUT", path, body, opts),
     patch: <T>(path: string, body: unknown, opts?: RequestOptions<T>) =>
       request<T>("PATCH", path, body, opts),
-    delete: <T>(path: string, opts?: RequestOptions<T>) =>
-      request<T>("DELETE", path, undefined, opts),
+    delete: <T>(path: string, opts?: RequestOptions<T> & { body?: unknown }) =>
+      request<T>("DELETE", path, opts?.body, opts),
   };
 }

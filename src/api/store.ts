@@ -168,7 +168,11 @@ export const createStoreApi = (apiConfig: ApiConfig) => ({
     remove(params: RemoveStoreMemberParams, options?: RequestOptions): Promise<boolean> {
       return apiConfig.httpClient.delete<boolean>(
         storePath(params.store_id, `members/${segment(requireId(params.id, "membership"))}`),
-        { ...options, params: { expected_updated_at: params.expected_updated_at } },
+        {
+          ...options,
+          params: undefined,
+          body: { expected_updated_at: params.expected_updated_at },
+        },
       );
     },
 

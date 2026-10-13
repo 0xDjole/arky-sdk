@@ -81,7 +81,9 @@ test("store roles are created under an app-picked id and use exact routes, versi
   await admin.store.role.update({ store_id: storeId, id: roleId, expected_updated_at: 2, key: "picker", permissions: [{ type: "fulfillment", locations: { type: "only", store_location_ids: [locationA] } }] });
   await admin.store.role.get({ store_id: storeId, id: roleId });
   assert.deepEqual(await admin.store.role.find({ store_id: storeId, limit: 20 }), { items: [role], cursor: null });
-  assert.deepEqual(await admin.store.role.delete({ store_id: storeId, id: roleId, expected_updated_at: 3 }), { deleted: true });
+  assert.deepEqual(await admin.store.role.delete({ store_id: storeId, id: roleId, expected_updated_at: 3 }, {
+    transformRequest: () => ({ unexpected_body: true }),
+  }), { deleted: true });
   assert.deepEqual(calls.map(({ url, method }) => [method, url.pathname + url.search]), [
     ["POST", `/v1/stores/${storeId}/roles`],
     ["PUT", `/v1/stores/${storeId}/roles/${roleId}`],
@@ -91,6 +93,7 @@ test("store roles are created under an app-picked id and use exact routes, versi
   ]);
   assert.deepEqual(calls[0].body, { id: roleId, key: "warehouse", permissions: role.permissions });
   assert.deepEqual(calls[1].body, { expected_updated_at: 2, key: "picker", permissions: [{ type: "fulfillment", locations: { type: "only", store_location_ids: [locationA] } }] });
+  assert.equal(calls[4].body, null);
   await assert.rejects(async () => admin.store.role.create({ store_id: storeId, id: "warehouse", key: role.key, permissions: role.permissions }), {
     name: "TypeError",
     message: "The role id must be a canonical UUID v4 picked by the app",
@@ -243,16 +246,96 @@ test("a store's email sending is paused with a reason and allowed again, each wi
   assert.equal(calls.length, 2);
 });
 
-test("membership removal sends the exact read version without account-address substitution", async (context) => {
+test("membership removal sends the exact read version in JSON and preserves request options", async (context) => {
   const calls = [];
+  const successes = [];
+  const transformed = [];
+  const controller = new AbortController();
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
-    calls.push({ url: new URL(url), method: init.method });
-    return Response.json(true);
+    calls.push({
+      url: new URL(url),
+      method: init.method,
+      body: init.body ? JSON.parse(String(init.body)) : null,
+      headers: new Headers(init.headers),
+      signal: init.signal,
+    });
+    return Response.json(calls.length === 1, {
+      headers: { "x-request-id": `membership-removal-${calls.length}` },
+    });
   });
   const admin = createAdmin({ baseUrl, secretKey: "arky_account_access_contract" });
-  assert.equal(await admin.store.member.remove({ store_id: storeId, id: roleId, expected_updated_at: 7 }), true);
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0].method, "DELETE");
-  assert.equal(calls[0].url.pathname, `/v1/stores/${storeId}/members/${roleId}`);
-  assert.deepEqual(Object.fromEntries(calls[0].url.searchParams), { expected_updated_at: "7" });
+  const options = {
+    headers: { "X-Trace-Id": "membership-removal" },
+    signal: controller.signal,
+    params: { expected_updated_at: 99 },
+    transformRequest: (body) => {
+      transformed.push(body);
+      return body;
+    },
+    onSuccess: (result) => { successes.push(result); },
+    onError: () => { assert.fail("A successful removal must not invoke onError"); },
+  };
+  assert.equal(await admin.store.member.remove({ store_id: storeId, id: roleId, expected_updated_at: 7 }, options), true);
+  assert.equal(await admin.store.member.remove({ store_id: storeId, id: roleId, expected_updated_at: 8 }, options), false);
+  assert.deepEqual(calls.map(({ url, method, body }) => [method, url.pathname + url.search, body]), [
+    ["DELETE", `/v1/stores/${storeId}/members/${roleId}`, { expected_updated_at: 7 }],
+    ["DELETE", `/v1/stores/${storeId}/members/${roleId}`, { expected_updated_at: 8 }],
+  ]);
+  for (const call of calls) {
+    assert.equal(call.headers.get("Content-Type"), "application/json");
+    assert.equal(call.headers.get("X-Trace-Id"), "membership-removal");
+    assert.equal(call.headers.get("Authorization"), "Bearer arky_account_access_contract");
+    assert.equal(call.signal, controller.signal);
+  }
+  assert.deepEqual(transformed, [{ expected_updated_at: 7 }, { expected_updated_at: 8 }]);
+  assert.deepEqual(successes.map(({ data, method, url, status, request_id }) => [data, method, url, status, request_id]), [
+    [true, "DELETE", `${baseUrl}/v1/stores/${storeId}/members/${roleId}`, 200, "membership-removal-1"],
+    [false, "DELETE", `${baseUrl}/v1/stores/${storeId}/members/${roleId}`, 200, "membership-removal-2"],
+  ]);
+  assert.deepEqual(options.params, { expected_updated_at: 99 });
+});
+
+test("membership removal preserves native authority and version refusals", async (context) => {
+  const responses = [
+    { status: 403, error: "GENERAL.FORBIDDEN", message: "Forbidden" },
+    { status: 409, error: "GENERAL.CONFLICT", message: "The membership changed" },
+  ];
+  const calls = [];
+  const failures = [];
+  context.mock.method(globalThis, "fetch", async (url, init = {}) => {
+    calls.push({
+      url: new URL(url),
+      method: init.method,
+      body: init.body ? JSON.parse(String(init.body)) : null,
+    });
+    const response = responses[calls.length - 1];
+    return Response.json({
+      error: response.error,
+      message: response.message,
+      status_code: response.status,
+      validation_errors: [],
+    }, { status: response.status });
+  });
+  const admin = createAdmin({ baseUrl, secretKey: "arky_account_access_contract" });
+  for (const response of responses) {
+    await assert.rejects(admin.store.member.remove({ store_id: storeId, id: roleId, expected_updated_at: 7 }, {
+      onSuccess: () => { assert.fail("A refused removal must not invoke onSuccess"); },
+      onError: (failure) => { failures.push(failure); },
+    }), (error) => {
+      assert.equal(error.name, "ApiError");
+      assert.equal(error.code, response.error);
+      assert.equal(error.statusCode, response.status);
+      assert.equal(error.message, response.message);
+      assert.equal(error.method, "DELETE");
+      assert.equal(error.url, `${baseUrl}/v1/stores/${storeId}/members/${roleId}`);
+      return true;
+    });
+  }
+  assert.deepEqual(calls.map(({ url, method, body }) => [method, url.pathname + url.search, body]), responses.map(() => [
+    "DELETE", `/v1/stores/${storeId}/members/${roleId}`, { expected_updated_at: 7 },
+  ]));
+  assert.deepEqual(failures.map(({ method, url, status, response }) => [method, url, status, response.error]), [
+    ["DELETE", `${baseUrl}/v1/stores/${storeId}/members/${roleId}`, 403, "GENERAL.FORBIDDEN"],
+    ["DELETE", `${baseUrl}/v1/stores/${storeId}/members/${roleId}`, 409, "GENERAL.CONFLICT"],
+  ]);
 });

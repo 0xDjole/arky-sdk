@@ -50,7 +50,7 @@ const STATUSES: Record<string, readonly string[]> = {
   "booking_service": ["active", "draft", "archived", "deleting"],
   "booking_resource": ["active", "draft", "archived", "deleting"],
   "collection": ["active", "draft", "archived", "deleting"],
-  "entry": ["active", "draft", "archived", "deleting"],
+  "entry": ["active", "scheduled", "draft", "archived", "deleting"],
   "customer": ["anonymous", "verified"],
   "customer_group": ["draft", "active", "closed", "archived"],
   "broadcast": ["draft", "scheduled", "sending", "sent"],
