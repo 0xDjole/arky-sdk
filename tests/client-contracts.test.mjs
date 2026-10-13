@@ -247,18 +247,19 @@ test("admin Order reads by customer and cancels product units under the app's cr
   });
   const client = admin();
   await client.eshop.order.find({ store_id: storeId, customer_id: ids.customer });
-  const request = { store_id: otherStoreId, order_id: "order/one", line_item_id: "line/one", credit_id: ids.credit, expected_updated_at: 1789990000000, units: [{ first_unit: 1, quantity: 2 }, { first_unit: 5, quantity: 1 }] };
+  const request = { store_id: otherStoreId, order_id: "order/one", line_item_id: "line/one", credit_id: ids.credit, expected_updated_at: 1789990000000, notify_customer: false, units: [{ first_unit: 1, quantity: 2 }, { first_unit: 5, quantity: 1 }] };
   await assert.rejects(client.eshop.order.cancelProductItem(request), (error) => error.statusCode === 503);
   assert.deepEqual(await client.eshop.order.cancelProductItem(request), { id: ids.order });
   assert.equal(calls.length, 3);
   assert.deepEqual(calls[1].body, calls[2].body);
   assert.deepEqual(calls.map((call) => [call.method, call.href, call.body]), [
     ["GET", `${baseUrl}/v1/stores/${storeId}/orders?customer_id=${ids.customer}`, null],
-    ["POST", `${baseUrl}/v1/stores/${otherStoreId}/orders/order%2Fone/product-items/line%2Fone/cancel`, { credit_id: ids.credit, expected_updated_at: 1789990000000, units: request.units }],
-    ["POST", `${baseUrl}/v1/stores/${otherStoreId}/orders/order%2Fone/product-items/line%2Fone/cancel`, { credit_id: ids.credit, expected_updated_at: 1789990000000, units: request.units }],
+    ["POST", `${baseUrl}/v1/stores/${otherStoreId}/orders/order%2Fone/product-items/line%2Fone/cancel`, { credit_id: ids.credit, expected_updated_at: 1789990000000, notify_customer: false, units: request.units }],
+    ["POST", `${baseUrl}/v1/stores/${otherStoreId}/orders/order%2Fone/product-items/line%2Fone/cancel`, { credit_id: ids.credit, expected_updated_at: 1789990000000, notify_customer: false, units: request.units }],
   ]);
   await assert.rejects(async () => client.eshop.order.cancelProductItem({ ...request, credit_id: "cancellation-command" }), TypeError);
   await assert.rejects(async () => client.eshop.order.cancelProductItem({ ...request, store_id: "store/one" }), TypeError);
+  await assert.rejects(async () => client.eshop.order.cancelProductItem({ ...request, notify_customer: undefined }), TypeError);
   assert.equal(calls.length, 3);
   for (const removed of ["getProducts", "getDigitalProducts", "cancelProduct", "resumePayment"]) {
     assert.equal(removed in client.eshop.order, false, removed);
@@ -269,13 +270,14 @@ test("admin Order reads by customer and cancels product units under the app's cr
 test("a pending order is cancelled with the version and a receipt is resent under the app's notification id", async (context) => {
   const calls = recordFetch(context, () => ({ id: ids.order }));
   const client = admin();
-  await client.eshop.order.cancel({ store_id: storeId, order_id: ids.order, expected_updated_at: 9 });
+  await client.eshop.order.cancel({ store_id: storeId, order_id: ids.order, expected_updated_at: 9, notify_customer: true });
   await client.eshop.order.resendReceipt({ store_id: storeId, order_id: ids.order, id: ids.payment, expected_updated_at: 9 });
   assert.deepEqual(calls.map((call) => [call.method, call.path, call.body]), [
-    ["POST", `/v1/stores/${storeId}/orders/${ids.order}/cancel`, { expected_updated_at: 9 }],
+    ["POST", `/v1/stores/${storeId}/orders/${ids.order}/cancel`, { expected_updated_at: 9, notify_customer: true }],
     ["POST", `/v1/stores/${storeId}/orders/${ids.order}/resend-receipt`, { id: ids.payment, expected_updated_at: 9 }],
   ]);
   await assert.rejects(async () => client.eshop.order.resendReceipt({ store_id: storeId, order_id: ids.order, id: "receipt-1", expected_updated_at: 9 }), TypeError);
+  await assert.rejects(async () => client.eshop.order.cancel({ store_id: storeId, order_id: ids.order, expected_updated_at: 9 }), TypeError);
   assert.equal(calls.length, 2);
 });
 

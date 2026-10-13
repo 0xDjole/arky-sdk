@@ -7,11 +7,13 @@ import type {
   CommerceParty,
   CommercePartyQuery,
   CompanyPartyQuery,
+  Currency,
   PostalAddress,
   SortDirection,
   TimeRange,
 } from "./common";
 import type { OrderDeliveryDestination } from "./order";
+import type { CustomerGroupDeliveryRateOffer } from "./cart";
 import type { CatalogPriceFilter, StorefrontPrice } from "./product";
 import type { CatalogReadOptions } from "./catalog";
 
@@ -24,7 +26,8 @@ export interface RecurringCadence {
 
 export type RenewalExhaustionAction = { type: "pause" } | { type: "cancel" };
 
-export type UnpaidRenewalDisposition = { type: "retain_debt" } | { type: "cancel_unfulfilled" };
+export type UnpaidRenewalDisposition =
+  { type: "retain_debt" } | { type: "cancel_unfulfilled" };
 
 export type CustomerGroupCommitmentEndAction =
   | { type: "renew" }
@@ -57,15 +60,19 @@ export type CustomerGroupProductQuantity =
 export type CustomerGroupDeliverySchedule =
   | { type: "none"; quantity: number }
   | { type: "once"; quantity: number; offset_days: number; window_days: number }
-  | { type: "repeating"; cadence: RecurringCadence; quantity: CustomerGroupProductQuantity; offset_days: number; window_days: number };
+  | {
+      type: "repeating";
+      cadence: RecurringCadence;
+      quantity: CustomerGroupProductQuantity;
+      offset_days: number;
+      window_days: number;
+    };
 
 export type PurchaseLimitPeriodPolicy =
-  | { type: "billing_period" }
-  | { type: "calendar_month"; timezone: string };
+  { type: "billing_period" } | { type: "calendar_month"; timezone: string };
 
 export type PurchaseLimitRestoration =
-  | { type: "cancellation_only" }
-  | { type: "cancellation_and_accepted_return" };
+  { type: "cancellation_only" } | { type: "cancellation_and_accepted_return" };
 
 export interface PurchaseLimitDefinition {
   id: string;
@@ -81,7 +88,12 @@ export type CustomerGroupEntitlementType =
       variant_ids: string[];
       delivery: CustomerGroupDeliverySchedule;
     }
-  | { type: "rental"; variant_id: string; quantity: number; tax_category_id: string }
+  | {
+      type: "rental";
+      variant_id: string;
+      quantity: number;
+      tax_category_id: string;
+    }
   | {
       type: "purchase_access";
       variant_ids: string[];
@@ -101,7 +113,8 @@ export interface PurchaseRequirementVariant {
   contribution_per_unit: number;
 }
 
-export type PurchaseRequirementScope = { type: "per_location" } | { type: "company_wide" };
+export type PurchaseRequirementScope =
+  { type: "per_location" } | { type: "company_wide" };
 
 export interface PurchaseRequirement {
   minimum_quantity: number;
@@ -110,8 +123,7 @@ export interface PurchaseRequirement {
 }
 
 export type CustomerGroupTaxGroupQuantity =
-  | { type: "package" }
-  | { type: "entitlement"; entitlement_id: string };
+  { type: "package" } | { type: "entitlement"; entitlement_id: string };
 
 export interface CustomerGroupTaxGroup {
   id: string;
@@ -248,14 +260,27 @@ export type CustomerGroupMemberBlockCause =
   | { type: "tax_policy_mismatch"; tax_policy_id: string };
 
 export type CustomerGroupMemberPauseCause =
-  | { type: "requested"; resumes_at: EpochMilliseconds | null; by: Actor; reason: string }
+  | {
+      type: "requested";
+      resumes_at: EpochMilliseconds | null;
+      by: Actor;
+      reason: string;
+    }
   | { type: "renewal_unpaid"; order_id: string };
 
 export type CustomerGroupMemberStatus =
   | { type: "awaiting_activation" }
   | { type: "active" }
-  | { type: "blocked"; cause: CustomerGroupMemberBlockCause; blocked_at: EpochMilliseconds }
-  | { type: "paused"; cause: CustomerGroupMemberPauseCause; paused_at: EpochMilliseconds }
+  | {
+      type: "blocked";
+      cause: CustomerGroupMemberBlockCause;
+      blocked_at: EpochMilliseconds;
+    }
+  | {
+      type: "paused";
+      cause: CustomerGroupMemberPauseCause;
+      paused_at: EpochMilliseconds;
+    }
   | { type: "cancelled"; ended_at: EpochMilliseconds };
 
 export type CustomerGroupMemberStatusName = CustomerGroupMemberStatus["type"];
@@ -293,8 +318,16 @@ export type CustomerGroupMemberSelfPauseCause =
 export type CustomerGroupMemberSelfStatus =
   | { type: "awaiting_activation" }
   | { type: "active" }
-  | { type: "blocked"; cause: CustomerGroupMemberBlockCause; blocked_at: EpochMilliseconds }
-  | { type: "paused"; cause: CustomerGroupMemberSelfPauseCause; paused_at: EpochMilliseconds }
+  | {
+      type: "blocked";
+      cause: CustomerGroupMemberBlockCause;
+      blocked_at: EpochMilliseconds;
+    }
+  | {
+      type: "paused";
+      cause: CustomerGroupMemberSelfPauseCause;
+      paused_at: EpochMilliseconds;
+    }
   | { type: "cancelled"; ended_at: EpochMilliseconds };
 
 export interface CustomerGroupMemberSelf {
@@ -362,12 +395,15 @@ export interface CustomerGroupMemberProductChoices {
 }
 
 export type CustomerGroupMemberRevisionChange =
-  | { type: "amend_terms" }
-  | { type: "purchase_requirement" };
+  { type: "amend_terms" } | { type: "purchase_requirement" };
 
 export type CustomerGroupMemberRevisionOrigin =
   | { type: "initial" }
-  | { type: "change"; previous_revision_id: string; change: CustomerGroupMemberRevisionChange };
+  | {
+      type: "change";
+      previous_revision_id: string;
+      change: CustomerGroupMemberRevisionChange;
+    };
 
 export type CustomerGroupMemberTermsSource =
   | { type: "revision"; source_revision_id: string }
@@ -385,7 +421,12 @@ export type CustomerGroupMemberSchedule =
 
 export type CustomerGroupMemberRevisionStatus =
   | { type: "accepted" }
-  | { type: "withdrawn"; by: Actor; reason: string; withdrawn_at: EpochMilliseconds };
+  | {
+      type: "withdrawn";
+      by: Actor;
+      reason: string;
+      withdrawn_at: EpochMilliseconds;
+    };
 
 export interface CustomerGroupMemberRevision {
   id: string;
@@ -441,20 +482,22 @@ export interface CustomerGroupMemberCurrentSelf {
 }
 
 export type CustomerGroupMemberSelfRevisionChange =
-  | { type: "amend_terms" }
-  | { type: "purchase_requirement" };
+  { type: "amend_terms" } | { type: "purchase_requirement" };
 
 export type CustomerGroupMemberSelfRevisionOrigin =
   | { type: "initial" }
-  | { type: "change"; previous_revision_id: string; change: CustomerGroupMemberSelfRevisionChange };
+  | {
+      type: "change";
+      previous_revision_id: string;
+      change: CustomerGroupMemberSelfRevisionChange;
+    };
 
 export type CustomerGroupMemberSelfTermsSource =
   | { type: "revision"; source_revision_id: string }
   | { type: "snapshot"; terms: CustomerGroupMemberSelfAcceptedTerms };
 
 export type CustomerGroupMemberSelfRevisionStatus =
-  | { type: "accepted" }
-  | { type: "withdrawn"; withdrawn_at: EpochMilliseconds };
+  { type: "accepted" } | { type: "withdrawn"; withdrawn_at: EpochMilliseconds };
 
 export interface CustomerGroupMemberRevisionSelf {
   id: string;
@@ -756,13 +799,35 @@ export interface StorefrontChangeCustomerGroupMemberTermsParams extends Storefro
   reason: string;
 }
 
+export interface StorefrontGetCustomerGroupMemberDeliveryOptionsParams extends Omit<
+  StorefrontChangeCustomerGroupMemberTermsParams,
+  "reason"
+> {
+  revision_id: string;
+  delivery_id: string;
+  language: string;
+}
+
+export interface CustomerGroupMemberDeliveryOptions {
+  customer_group_member: CustomerGroupMemberSelf;
+  revision_id: string;
+  delivery_id: string;
+  language: string;
+  currency: Currency;
+  destination: OrderDeliveryDestination;
+  offers: CustomerGroupDeliveryRateOffer[];
+}
+
 export interface StorefrontGetCustomerGroupMemberProductChoicesParams extends StorefrontCustomerGroupMemberActionParams {
   entitlement_id: string;
   revision_id: string;
   language: string;
 }
 
-export type GetStorefrontCustomerGroupProductChoicesParams = Omit<CatalogReadOptions, "include_price"> & {
+export type GetStorefrontCustomerGroupProductChoicesParams = Omit<
+  CatalogReadOptions,
+  "include_price"
+> & {
   identifier: string;
   entitlement_id: string;
   quantity: number;
@@ -840,18 +905,30 @@ export interface StorefrontFindCustomerGroupMemberPurchaseAccessParams {
   cursor?: string | null;
 }
 
-export type StorefrontCustomerGroupMemberActionParams = Omit<CustomerGroupMemberActionParams, "store_id">;
+export type StorefrontCustomerGroupMemberActionParams = Omit<
+  CustomerGroupMemberActionParams,
+  "store_id"
+>;
 
-export type StorefrontPauseCustomerGroupMemberParams = Omit<PauseCustomerGroupMemberParams, "store_id">;
+export type StorefrontPauseCustomerGroupMemberParams = Omit<
+  PauseCustomerGroupMemberParams,
+  "store_id"
+>;
 
-export type StorefrontSkipNextCustomerGroupMemberPurchaseParams = Omit<SkipNextCustomerGroupMemberPurchaseParams, "store_id">;
+export type StorefrontSkipNextCustomerGroupMemberPurchaseParams = Omit<
+  SkipNextCustomerGroupMemberPurchaseParams,
+  "store_id"
+>;
 
 export type StorefrontSelectCustomerGroupMemberPaymentMethodParams = Omit<
   SelectCustomerGroupMemberPaymentMethodParams,
   "store_id"
 >;
 
-export type StorefrontSwitchCustomerGroupMemberParams = Omit<SwitchCustomerGroupMemberParams, "store_id">;
+export type StorefrontSwitchCustomerGroupMemberParams = Omit<
+  SwitchCustomerGroupMemberParams,
+  "store_id"
+>;
 
 export type StorefrontWithdrawCustomerGroupMemberRevisionParams = Omit<
   WithdrawCustomerGroupMemberRevisionParams,

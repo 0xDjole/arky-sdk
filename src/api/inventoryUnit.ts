@@ -49,13 +49,6 @@ export const createInventoryUnitApi = (apiConfig: ApiConfig) => ({
     );
   },
 
-  fulfillmentId(params: GetInventoryUnitParams, options?: RequestOptions): Promise<string | null> {
-    return apiConfig.httpClient.get<string | null>(
-      `${storeRecordPath(params.store_id, collection, params.id)}/fulfillment-id`,
-      options,
-    );
-  },
-
   setAside(params: ChangeInventoryUnitSetAsideParams, options?: RequestOptions): Promise<InventoryUnit> {
     requireId(params.action_id, "action");
     const { store_id, id, ...body } = params;

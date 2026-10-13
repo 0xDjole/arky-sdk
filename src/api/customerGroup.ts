@@ -19,10 +19,12 @@ import type {
   CustomerGroupMemberChangeSelf,
   CustomerGroupMemberCurrent,
   CustomerGroupMemberCurrentSelf,
+  CustomerGroupMemberDeliveryOptions,
   CustomerGroupMemberProductChoices,
   CustomerGroupProductChoices,
   GetStorefrontCustomerGroupProductChoicesParams,
   StorefrontGetCustomerGroupMemberProductChoicesParams,
+  StorefrontGetCustomerGroupMemberDeliveryOptionsParams,
   CustomerGroupMemberPurchaseAccessPage,
   CustomerGroupMemberPurchaseLimitUsage,
   CustomerGroupMemberPurchaseRequirement,
@@ -78,41 +80,79 @@ import { requireId } from "../utils/ids";
 import { segment, storePath, storeRecordPath } from "./paths";
 
 export const createCustomerGroupApi = (apiConfig: ApiConfig) => ({
-  find(params: FindCustomerGroupsParams, options?: RequestOptions): Promise<PaginatedResponse<CustomerGroup>> {
+  find(
+    params: FindCustomerGroupsParams,
+    options?: RequestOptions,
+  ): Promise<PaginatedResponse<CustomerGroup>> {
     const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<PaginatedResponse<CustomerGroup>>(storePath(store_id, "customer-groups"), {
-      ...options,
-      params: query,
-    });
+    return apiConfig.httpClient.get<PaginatedResponse<CustomerGroup>>(
+      storePath(store_id, "customer-groups"),
+      {
+        ...options,
+        params: query,
+      },
+    );
   },
 
-  get(params: GetCustomerGroupParams, options?: RequestOptions): Promise<CustomerGroup> {
-    return apiConfig.httpClient.get<CustomerGroup>(storeRecordPath(params.store_id, "customer-groups", params.id), options);
-  },
-
-  getByKey(params: GetCustomerGroupByKeyParams, options?: RequestOptions): Promise<CustomerGroup> {
+  get(
+    params: GetCustomerGroupParams,
+    options?: RequestOptions,
+  ): Promise<CustomerGroup> {
     return apiConfig.httpClient.get<CustomerGroup>(
-      storePath(params.store_id, `customer-groups/by-key/${segment(params.key)}`),
+      storeRecordPath(params.store_id, "customer-groups", params.id),
       options,
     );
   },
 
-  create(params: CreateCustomerGroupParams, options?: RequestOptions): Promise<CustomerGroup> {
+  getByKey(
+    params: GetCustomerGroupByKeyParams,
+    options?: RequestOptions,
+  ): Promise<CustomerGroup> {
+    return apiConfig.httpClient.get<CustomerGroup>(
+      storePath(
+        params.store_id,
+        `customer-groups/by-key/${segment(params.key)}`,
+      ),
+      options,
+    );
+  },
+
+  create(
+    params: CreateCustomerGroupParams,
+    options?: RequestOptions,
+  ): Promise<CustomerGroup> {
     requireId(params.id, "customer group");
     const { store_id, ...body } = params;
-    return apiConfig.httpClient.post<CustomerGroup>(storePath(store_id, "customer-groups"), body, options);
+    return apiConfig.httpClient.post<CustomerGroup>(
+      storePath(store_id, "customer-groups"),
+      body,
+      options,
+    );
   },
 
-  update(params: UpdateCustomerGroupParams, options?: RequestOptions): Promise<CustomerGroup> {
+  update(
+    params: UpdateCustomerGroupParams,
+    options?: RequestOptions,
+  ): Promise<CustomerGroup> {
     const { store_id, id, ...body } = params;
-    return apiConfig.httpClient.put<CustomerGroup>(storeRecordPath(store_id, "customer-groups", id), body, options);
+    return apiConfig.httpClient.put<CustomerGroup>(
+      storeRecordPath(store_id, "customer-groups", id),
+      body,
+      options,
+    );
   },
 
-  delete(params: DeleteCustomerGroupParams, options?: RequestOptions): Promise<void> {
-    return apiConfig.httpClient.delete<void>(storeRecordPath(params.store_id, "customer-groups", params.id), {
-      ...options,
-      params: { expected_updated_at: params.expected_updated_at },
-    });
+  delete(
+    params: DeleteCustomerGroupParams,
+    options?: RequestOptions,
+  ): Promise<void> {
+    return apiConfig.httpClient.delete<void>(
+      storeRecordPath(params.store_id, "customer-groups", params.id),
+      {
+        ...options,
+        params: { expected_updated_at: params.expected_updated_at },
+      },
+    );
   },
 });
 
@@ -128,27 +168,46 @@ export const createCustomerGroupOfferingApi = (apiConfig: ApiConfig) => ({
     );
   },
 
-  get(params: GetCustomerGroupOfferingParams, options?: RequestOptions): Promise<CustomerGroupOffering> {
+  get(
+    params: GetCustomerGroupOfferingParams,
+    options?: RequestOptions,
+  ): Promise<CustomerGroupOffering> {
     return apiConfig.httpClient.get<CustomerGroupOffering>(
       storeRecordPath(params.store_id, "customer-group-offerings", params.id),
       options,
     );
   },
 
-  getByKey(params: GetCustomerGroupOfferingByKeyParams, options?: RequestOptions): Promise<CustomerGroupOffering> {
+  getByKey(
+    params: GetCustomerGroupOfferingByKeyParams,
+    options?: RequestOptions,
+  ): Promise<CustomerGroupOffering> {
     return apiConfig.httpClient.get<CustomerGroupOffering>(
-      storePath(params.store_id, `customer-group-offerings/by-key/${segment(params.key)}`),
+      storePath(
+        params.store_id,
+        `customer-group-offerings/by-key/${segment(params.key)}`,
+      ),
       options,
     );
   },
 
-  create(params: CreateCustomerGroupOfferingParams, options?: RequestOptions): Promise<CustomerGroupOffering> {
+  create(
+    params: CreateCustomerGroupOfferingParams,
+    options?: RequestOptions,
+  ): Promise<CustomerGroupOffering> {
     requireId(params.id, "customer group offering");
     const { store_id, ...body } = params;
-    return apiConfig.httpClient.post<CustomerGroupOffering>(storePath(store_id, "customer-group-offerings"), body, options);
+    return apiConfig.httpClient.post<CustomerGroupOffering>(
+      storePath(store_id, "customer-group-offerings"),
+      body,
+      options,
+    );
   },
 
-  update(params: UpdateCustomerGroupOfferingParams, options?: RequestOptions): Promise<CustomerGroupOffering> {
+  update(
+    params: UpdateCustomerGroupOfferingParams,
+    options?: RequestOptions,
+  ): Promise<CustomerGroupOffering> {
     const { store_id, id, ...body } = params;
     return apiConfig.httpClient.put<CustomerGroupOffering>(
       storeRecordPath(store_id, "customer-group-offerings", id),
@@ -157,19 +216,34 @@ export const createCustomerGroupOfferingApi = (apiConfig: ApiConfig) => ({
     );
   },
 
-  delete(params: DeleteCustomerGroupOfferingParams, options?: RequestOptions): Promise<void> {
-    return apiConfig.httpClient.delete<void>(storeRecordPath(params.store_id, "customer-group-offerings", params.id), {
-      ...options,
-      params: { expected_updated_at: params.expected_updated_at },
-    });
+  delete(
+    params: DeleteCustomerGroupOfferingParams,
+    options?: RequestOptions,
+  ): Promise<void> {
+    return apiConfig.httpClient.delete<void>(
+      storeRecordPath(params.store_id, "customer-group-offerings", params.id),
+      {
+        ...options,
+        params: { expected_updated_at: params.expected_updated_at },
+      },
+    );
   },
 });
 
 export const createCustomerGroupMemberApi = (apiConfig: ApiConfig) => {
-  const memberPath = (storeId: string, id: string) => storeRecordPath(storeId, "customer-group-members", id);
-  const action = <T>(params: CustomerGroupMemberActionParams, verb: string, options?: RequestOptions) => {
+  const memberPath = (storeId: string, id: string) =>
+    storeRecordPath(storeId, "customer-group-members", id);
+  const action = <T>(
+    params: CustomerGroupMemberActionParams,
+    verb: string,
+    options?: RequestOptions,
+  ) => {
     const { store_id, id, ...body } = params;
-    return apiConfig.httpClient.post<T>(`${memberPath(store_id, id)}/${verb}`, body, options);
+    return apiConfig.httpClient.post<T>(
+      `${memberPath(store_id, id)}/${verb}`,
+      body,
+      options,
+    );
   };
 
   return {
@@ -184,18 +258,37 @@ export const createCustomerGroupMemberApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    get(params: GetCustomerGroupMemberParams, options?: RequestOptions): Promise<CustomerGroupMember> {
-      return apiConfig.httpClient.get<CustomerGroupMember>(memberPath(params.store_id, params.id), options);
+    get(
+      params: GetCustomerGroupMemberParams,
+      options?: RequestOptions,
+    ): Promise<CustomerGroupMember> {
+      return apiConfig.httpClient.get<CustomerGroupMember>(
+        memberPath(params.store_id, params.id),
+        options,
+      );
     },
 
-    assign(params: AssignCustomerGroupMemberParams, options?: RequestOptions): Promise<CustomerGroupMember> {
+    assign(
+      params: AssignCustomerGroupMemberParams,
+      options?: RequestOptions,
+    ): Promise<CustomerGroupMember> {
       requireId(params.id, "customer group member");
       const { store_id, ...body } = params;
-      return apiConfig.httpClient.post<CustomerGroupMember>(storePath(store_id, "customer-group-members"), body, options);
+      return apiConfig.httpClient.post<CustomerGroupMember>(
+        storePath(store_id, "customer-group-members"),
+        body,
+        options,
+      );
     },
 
-    current(params: GetCustomerGroupMemberParams, options?: RequestOptions): Promise<CustomerGroupMemberCurrent> {
-      return apiConfig.httpClient.get<CustomerGroupMemberCurrent>(`${memberPath(params.store_id, params.id)}/current`, options);
+    current(
+      params: GetCustomerGroupMemberParams,
+      options?: RequestOptions,
+    ): Promise<CustomerGroupMemberCurrent> {
+      return apiConfig.httpClient.get<CustomerGroupMemberCurrent>(
+        `${memberPath(params.store_id, params.id)}/current`,
+        options,
+      );
     },
 
     revisions(
@@ -203,7 +296,9 @@ export const createCustomerGroupMemberApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<PaginatedResponse<CustomerGroupMemberRevision>> {
       const { store_id, id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<CustomerGroupMemberRevision>>(`${memberPath(store_id, id)}/revisions`, {
+      return apiConfig.httpClient.get<
+        PaginatedResponse<CustomerGroupMemberRevision>
+      >(`${memberPath(store_id, id)}/revisions`, {
         ...options,
         params: query,
       });
@@ -219,12 +314,18 @@ export const createCustomerGroupMemberApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    findOrders(params: FindCustomerGroupMemberPageParams, options?: RequestOptions): Promise<PaginatedResponse<Order>> {
+    findOrders(
+      params: FindCustomerGroupMemberPageParams,
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<Order>> {
       const { store_id, id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<Order>>(`${memberPath(store_id, id)}/orders`, {
-        ...options,
-        params: query,
-      });
+      return apiConfig.httpClient.get<PaginatedResponse<Order>>(
+        `${memberPath(store_id, id)}/orders`,
+        {
+          ...options,
+          params: query,
+        },
+      );
     },
 
     purchaseRequirement(
@@ -243,10 +344,12 @@ export const createCustomerGroupMemberApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<PaginatedResponse<CustomerGroupMemberPurchaseLimitUsage>> {
       const { store_id, id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<CustomerGroupMemberPurchaseLimitUsage>>(
-        `${memberPath(store_id, id)}/purchase-limits`,
-        { ...options, params: query },
-      );
+      return apiConfig.httpClient.get<
+        PaginatedResponse<CustomerGroupMemberPurchaseLimitUsage>
+      >(`${memberPath(store_id, id)}/purchase-limits`, {
+        ...options,
+        params: query,
+      });
     },
 
     purchaseAccess(
@@ -254,33 +357,57 @@ export const createCustomerGroupMemberApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<CustomerGroupMemberPurchaseAccessPage> {
       const { store_id, id, ...query } = params;
-      return apiConfig.httpClient.get<CustomerGroupMemberPurchaseAccessPage>(`${memberPath(store_id, id)}/purchase-access`, {
-        ...options,
-        params: query,
-      });
+      return apiConfig.httpClient.get<CustomerGroupMemberPurchaseAccessPage>(
+        `${memberPath(store_id, id)}/purchase-access`,
+        {
+          ...options,
+          params: query,
+        },
+      );
     },
 
-    calendar(params: GetCustomerGroupMemberParams, options?: RequestOptions): Promise<CustomerGroupMemberCalendar> {
-      return apiConfig.httpClient.get<CustomerGroupMemberCalendar>(`${memberPath(params.store_id, params.id)}/calendar`, options);
+    calendar(
+      params: GetCustomerGroupMemberParams,
+      options?: RequestOptions,
+    ): Promise<CustomerGroupMemberCalendar> {
+      return apiConfig.httpClient.get<CustomerGroupMemberCalendar>(
+        `${memberPath(params.store_id, params.id)}/calendar`,
+        options,
+      );
     },
 
-    cancel(params: CancelCustomerGroupMemberParams, options?: RequestOptions): Promise<CustomerGroupMember> {
+    cancel(
+      params: CancelCustomerGroupMemberParams,
+      options?: RequestOptions,
+    ): Promise<CustomerGroupMember> {
       return action<CustomerGroupMember>(params, "cancel", options);
     },
 
-    scheduleEnd(params: ScheduleCustomerGroupMemberEndParams, options?: RequestOptions): Promise<CustomerGroupMember> {
+    scheduleEnd(
+      params: ScheduleCustomerGroupMemberEndParams,
+      options?: RequestOptions,
+    ): Promise<CustomerGroupMember> {
       return action<CustomerGroupMember>(params, "schedule-end", options);
     },
 
-    pause(params: PauseCustomerGroupMemberParams, options?: RequestOptions): Promise<CustomerGroupMember> {
+    pause(
+      params: PauseCustomerGroupMemberParams,
+      options?: RequestOptions,
+    ): Promise<CustomerGroupMember> {
       return action<CustomerGroupMember>(params, "pause", options);
     },
 
-    resume(params: CustomerGroupMemberActionParams, options?: RequestOptions): Promise<CustomerGroupMember> {
+    resume(
+      params: CustomerGroupMemberActionParams,
+      options?: RequestOptions,
+    ): Promise<CustomerGroupMember> {
       return action<CustomerGroupMember>(params, "resume", options);
     },
 
-    skipNext(params: SkipNextCustomerGroupMemberPurchaseParams, options?: RequestOptions): Promise<CustomerGroupMember> {
+    skipNext(
+      params: SkipNextCustomerGroupMemberPurchaseParams,
+      options?: RequestOptions,
+    ): Promise<CustomerGroupMember> {
       return action<CustomerGroupMember>(params, "skip-next", options);
     },
 
@@ -288,14 +415,28 @@ export const createCustomerGroupMemberApi = (apiConfig: ApiConfig) => {
       params: SelectCustomerGroupMemberPaymentMethodParams,
       options?: RequestOptions,
     ): Promise<CustomerGroupMember> {
-      return action<CustomerGroupMember>(params, "select-payment-method", options);
+      return action<CustomerGroupMember>(
+        params,
+        "select-payment-method",
+        options,
+      );
     },
 
-    reviewSwitch(params: SwitchCustomerGroupMemberParams, options?: RequestOptions): Promise<CustomerGroupMemberChange> {
-      return action<CustomerGroupMemberChange>(params, "review-switch", options);
+    reviewSwitch(
+      params: SwitchCustomerGroupMemberParams,
+      options?: RequestOptions,
+    ): Promise<CustomerGroupMemberChange> {
+      return action<CustomerGroupMemberChange>(
+        params,
+        "review-switch",
+        options,
+      );
     },
 
-    switch(params: SwitchCustomerGroupMemberParams, options?: RequestOptions): Promise<CustomerGroupMemberChange> {
+    switch(
+      params: SwitchCustomerGroupMemberParams,
+      options?: RequestOptions,
+    ): Promise<CustomerGroupMemberChange> {
       return action<CustomerGroupMemberChange>(params, "switch", options);
     },
 
@@ -303,21 +444,35 @@ export const createCustomerGroupMemberApi = (apiConfig: ApiConfig) => {
       params: ChangeCustomerGroupMemberPurchaseRequirementParams,
       options?: RequestOptions,
     ): Promise<CustomerGroupMemberChange> {
-      return action<CustomerGroupMemberChange>(params, "review-purchase-requirement", options);
+      return action<CustomerGroupMemberChange>(
+        params,
+        "review-purchase-requirement",
+        options,
+      );
     },
 
     changePurchaseRequirement(
       params: ChangeCustomerGroupMemberPurchaseRequirementParams,
       options?: RequestOptions,
     ): Promise<CustomerGroupMemberChange> {
-      return action<CustomerGroupMemberChange>(params, "change-purchase-requirement", options);
+      return action<CustomerGroupMemberChange>(
+        params,
+        "change-purchase-requirement",
+        options,
+      );
     },
 
-    reviewTerms(params: ChangeCustomerGroupMemberTermsParams, options?: RequestOptions): Promise<CustomerGroupMemberChange> {
+    reviewTerms(
+      params: ChangeCustomerGroupMemberTermsParams,
+      options?: RequestOptions,
+    ): Promise<CustomerGroupMemberChange> {
       return action<CustomerGroupMemberChange>(params, "review-terms", options);
     },
 
-    changeTerms(params: ChangeCustomerGroupMemberTermsParams, options?: RequestOptions): Promise<CustomerGroupMemberChange> {
+    changeTerms(
+      params: ChangeCustomerGroupMemberTermsParams,
+      options?: RequestOptions,
+    ): Promise<CustomerGroupMemberChange> {
       return action<CustomerGroupMemberChange>(params, "change-terms", options);
     },
 
@@ -325,10 +480,17 @@ export const createCustomerGroupMemberApi = (apiConfig: ApiConfig) => {
       params: WithdrawCustomerGroupMemberRevisionParams,
       options?: RequestOptions,
     ): Promise<CustomerGroupMemberChange> {
-      return action<CustomerGroupMemberChange>(params, "withdraw-revision", options);
+      return action<CustomerGroupMemberChange>(
+        params,
+        "withdraw-revision",
+        options,
+      );
     },
 
-    revoke(params: RevokeCustomerGroupMemberParams, options?: RequestOptions): Promise<CustomerGroupMember> {
+    revoke(
+      params: RevokeCustomerGroupMemberParams,
+      options?: RequestOptions,
+    ): Promise<CustomerGroupMember> {
       return action<CustomerGroupMember>(params, "revoke", options);
     },
 
@@ -338,7 +500,10 @@ export const createCustomerGroupMemberApi = (apiConfig: ApiConfig) => {
     ): Promise<CustomerGroupMemberPurchaseRequirementTransfer> {
       const { store_id, ...body } = params;
       return apiConfig.httpClient.post<CustomerGroupMemberPurchaseRequirementTransfer>(
-        storePath(store_id, "customer-group-members/transfer-purchase-requirement"),
+        storePath(
+          store_id,
+          "customer-group-members/transfer-purchase-requirement",
+        ),
         body,
         options,
       );
@@ -346,10 +511,18 @@ export const createCustomerGroupMemberApi = (apiConfig: ApiConfig) => {
   };
 };
 
-export function createStorefrontCustomerGroupApi(httpClient: HttpClient, ensureVisitorSession: () => Promise<void>) {
+export function createStorefrontCustomerGroupApi(
+  httpClient: HttpClient,
+  ensureVisitorSession: () => Promise<void>,
+) {
   const base = "/v1/storefront";
-  const memberPath = (id: string) => `${base}/customer-group-members/${segment(id)}`;
-  const action = async <T>(params: StorefrontCustomerGroupMemberActionParams, verb: string, options?: RequestOptions) => {
+  const memberPath = (id: string) =>
+    `${base}/customer-group-members/${segment(id)}`;
+  const action = async <T>(
+    params: StorefrontCustomerGroupMemberActionParams,
+    verb: string,
+    options?: RequestOptions,
+  ) => {
     await ensureVisitorSession();
     const { id, ...body } = params;
     return httpClient.post<T>(`${memberPath(id)}/${verb}`, body, options);
@@ -361,25 +534,43 @@ export function createStorefrontCustomerGroupApi(httpClient: HttpClient, ensureV
         params: FindStorefrontCustomerGroupsParams,
         options?: RequestOptions,
       ): Promise<PaginatedResponse<StorefrontCustomerGroup>> {
-        return httpClient.get<PaginatedResponse<StorefrontCustomerGroup>>(`${base}/customer-groups`, { ...options, params });
+        return httpClient.get<PaginatedResponse<StorefrontCustomerGroup>>(
+          `${base}/customer-groups`,
+          { ...options, params },
+        );
       },
 
-      get(params: GetStorefrontCustomerGroupParams, options?: RequestOptions): Promise<StorefrontCustomerGroup> {
+      get(
+        params: GetStorefrontCustomerGroupParams,
+        options?: RequestOptions,
+      ): Promise<StorefrontCustomerGroup> {
         const { identifier, ...query } = params;
-        return httpClient.get<StorefrontCustomerGroup>(`${base}/customer-groups/${segment(identifier)}`, {
-          ...options,
-          params: query,
-        });
+        return httpClient.get<StorefrontCustomerGroup>(
+          `${base}/customer-groups/${segment(identifier)}`,
+          {
+            ...options,
+            params: query,
+          },
+        );
       },
 
-      productChoices(params: GetStorefrontCustomerGroupProductChoicesParams, options?: RequestOptions): Promise<CustomerGroupProductChoices> {
+      productChoices(
+        params: GetStorefrontCustomerGroupProductChoicesParams,
+        options?: RequestOptions,
+      ): Promise<CustomerGroupProductChoices> {
         const { identifier, entitlement_id, ...query } = params;
-        return httpClient.get<CustomerGroupProductChoices>(`${base}/customer-groups/${segment(identifier)}/product-choices/${segment(entitlement_id)}`, { ...options, params: query });
+        return httpClient.get<CustomerGroupProductChoices>(
+          `${base}/customer-groups/${segment(identifier)}/product-choices/${segment(entitlement_id)}`,
+          { ...options, params: query },
+        );
       },
     },
 
     customerGroupOffering: {
-      get(params: GetStorefrontCustomerGroupOfferingParams, options?: RequestOptions): Promise<StorefrontCustomerGroupOffering> {
+      get(
+        params: GetStorefrontCustomerGroupOfferingParams,
+        options?: RequestOptions,
+      ): Promise<StorefrontCustomerGroupOffering> {
         return httpClient.get<StorefrontCustomerGroupOffering>(
           `${base}/customer-group-offerings/${segment(params.identifier)}`,
           options,
@@ -393,26 +584,47 @@ export function createStorefrontCustomerGroupApi(httpClient: HttpClient, ensureV
         options?: RequestOptions,
       ): Promise<PaginatedResponse<CustomerGroupMemberSelf>> {
         await ensureVisitorSession();
-        return httpClient.get<PaginatedResponse<CustomerGroupMemberSelf>>(`${base}/customer-group-members`, {
-          ...options,
-          params,
-        });
+        return httpClient.get<PaginatedResponse<CustomerGroupMemberSelf>>(
+          `${base}/customer-group-members`,
+          {
+            ...options,
+            params,
+          },
+        );
       },
 
-      async get(params: StorefrontGetCustomerGroupMemberParams, options?: RequestOptions): Promise<CustomerGroupMemberSelf> {
+      async get(
+        params: StorefrontGetCustomerGroupMemberParams,
+        options?: RequestOptions,
+      ): Promise<CustomerGroupMemberSelf> {
         await ensureVisitorSession();
-        return httpClient.get<CustomerGroupMemberSelf>(memberPath(params.id), options);
+        return httpClient.get<CustomerGroupMemberSelf>(
+          memberPath(params.id),
+          options,
+        );
       },
 
-      async current(params: StorefrontGetCustomerGroupMemberParams, options?: RequestOptions): Promise<CustomerGroupMemberCurrentSelf> {
+      async current(
+        params: StorefrontGetCustomerGroupMemberParams,
+        options?: RequestOptions,
+      ): Promise<CustomerGroupMemberCurrentSelf> {
         await ensureVisitorSession();
-        return httpClient.get<CustomerGroupMemberCurrentSelf>(`${memberPath(params.id)}/current`, options);
+        return httpClient.get<CustomerGroupMemberCurrentSelf>(
+          `${memberPath(params.id)}/current`,
+          options,
+        );
       },
 
-      async productChoices(params: StorefrontGetCustomerGroupMemberProductChoicesParams, options?: RequestOptions): Promise<CustomerGroupMemberProductChoices> {
+      async productChoices(
+        params: StorefrontGetCustomerGroupMemberProductChoicesParams,
+        options?: RequestOptions,
+      ): Promise<CustomerGroupMemberProductChoices> {
         await ensureVisitorSession();
         const { id, entitlement_id, ...query } = params;
-        return httpClient.get<CustomerGroupMemberProductChoices>(`${memberPath(id)}/product-choices/${segment(entitlement_id)}`, { ...options, params: query });
+        return httpClient.get<CustomerGroupMemberProductChoices>(
+          `${memberPath(id)}/product-choices/${segment(entitlement_id)}`,
+          { ...options, params: query },
+        );
       },
 
       async getRevision(
@@ -432,7 +644,10 @@ export function createStorefrontCustomerGroupApi(httpClient: HttpClient, ensureV
       ): Promise<PaginatedResponse<Order>> {
         await ensureVisitorSession();
         const { id, ...query } = params;
-        return httpClient.get<PaginatedResponse<Order>>(`${memberPath(id)}/orders`, { ...options, params: query });
+        return httpClient.get<PaginatedResponse<Order>>(
+          `${memberPath(id)}/orders`,
+          { ...options, params: query },
+        );
       },
 
       async purchaseAccess(
@@ -441,10 +656,13 @@ export function createStorefrontCustomerGroupApi(httpClient: HttpClient, ensureV
       ): Promise<CustomerGroupMemberPurchaseAccessPage> {
         await ensureVisitorSession();
         const { id, ...query } = params;
-        return httpClient.get<CustomerGroupMemberPurchaseAccessPage>(`${memberPath(id)}/purchase-access`, {
-          ...options,
-          params: query,
-        });
+        return httpClient.get<CustomerGroupMemberPurchaseAccessPage>(
+          `${memberPath(id)}/purchase-access`,
+          {
+            ...options,
+            params: query,
+          },
+        );
       },
 
       async calendar(
@@ -452,18 +670,30 @@ export function createStorefrontCustomerGroupApi(httpClient: HttpClient, ensureV
         options?: RequestOptions,
       ): Promise<CustomerGroupMemberCalendarSelf> {
         await ensureVisitorSession();
-        return httpClient.get<CustomerGroupMemberCalendarSelf>(`${memberPath(params.id)}/calendar`, options);
+        return httpClient.get<CustomerGroupMemberCalendarSelf>(
+          `${memberPath(params.id)}/calendar`,
+          options,
+        );
       },
 
-      cancel(params: StorefrontCustomerGroupMemberActionParams, options?: RequestOptions): Promise<CustomerGroupMemberSelf> {
+      cancel(
+        params: StorefrontCustomerGroupMemberActionParams,
+        options?: RequestOptions,
+      ): Promise<CustomerGroupMemberSelf> {
         return action<CustomerGroupMemberSelf>(params, "cancel", options);
       },
 
-      pause(params: StorefrontPauseCustomerGroupMemberParams, options?: RequestOptions): Promise<CustomerGroupMemberSelf> {
+      pause(
+        params: StorefrontPauseCustomerGroupMemberParams,
+        options?: RequestOptions,
+      ): Promise<CustomerGroupMemberSelf> {
         return action<CustomerGroupMemberSelf>(params, "pause", options);
       },
 
-      resume(params: StorefrontCustomerGroupMemberActionParams, options?: RequestOptions): Promise<CustomerGroupMemberSelf> {
+      resume(
+        params: StorefrontCustomerGroupMemberActionParams,
+        options?: RequestOptions,
+      ): Promise<CustomerGroupMemberSelf> {
         return action<CustomerGroupMemberSelf>(params, "resume", options);
       },
 
@@ -478,33 +708,75 @@ export function createStorefrontCustomerGroupApi(httpClient: HttpClient, ensureV
         params: StorefrontSelectCustomerGroupMemberPaymentMethodParams,
         options?: RequestOptions,
       ): Promise<CustomerGroupMemberSelf> {
-        return action<CustomerGroupMemberSelf>(params, "select-payment-method", options);
+        return action<CustomerGroupMemberSelf>(
+          params,
+          "select-payment-method",
+          options,
+        );
       },
 
       reviewSwitch(
         params: StorefrontSwitchCustomerGroupMemberParams,
         options?: RequestOptions,
       ): Promise<CustomerGroupMemberChangeSelf> {
-        return action<CustomerGroupMemberChangeSelf>(params, "review-switch", options);
+        return action<CustomerGroupMemberChangeSelf>(
+          params,
+          "review-switch",
+          options,
+        );
       },
 
-      switch(params: StorefrontSwitchCustomerGroupMemberParams, options?: RequestOptions): Promise<CustomerGroupMemberChangeSelf> {
+      switch(
+        params: StorefrontSwitchCustomerGroupMemberParams,
+        options?: RequestOptions,
+      ): Promise<CustomerGroupMemberChangeSelf> {
         return action<CustomerGroupMemberChangeSelf>(params, "switch", options);
       },
 
-      reviewTerms(params: StorefrontChangeCustomerGroupMemberTermsParams, options?: RequestOptions): Promise<CustomerGroupMemberChangeSelf> {
-        return action<CustomerGroupMemberChangeSelf>(params, "review-terms", options);
+      async deliveryOptions(
+        params: StorefrontGetCustomerGroupMemberDeliveryOptionsParams,
+        options?: RequestOptions,
+      ): Promise<CustomerGroupMemberDeliveryOptions> {
+        await ensureVisitorSession();
+        const { id, delivery_id, ...body } = params;
+        return httpClient.post<CustomerGroupMemberDeliveryOptions>(
+          `${memberPath(id)}/delivery-options/${segment(delivery_id)}`,
+          body,
+          options,
+        );
       },
 
-      changeTerms(params: StorefrontChangeCustomerGroupMemberTermsParams, options?: RequestOptions): Promise<CustomerGroupMemberChangeSelf> {
-        return action<CustomerGroupMemberChangeSelf>(params, "change-terms", options);
+      reviewTerms(
+        params: StorefrontChangeCustomerGroupMemberTermsParams,
+        options?: RequestOptions,
+      ): Promise<CustomerGroupMemberChangeSelf> {
+        return action<CustomerGroupMemberChangeSelf>(
+          params,
+          "review-terms",
+          options,
+        );
+      },
+
+      changeTerms(
+        params: StorefrontChangeCustomerGroupMemberTermsParams,
+        options?: RequestOptions,
+      ): Promise<CustomerGroupMemberChangeSelf> {
+        return action<CustomerGroupMemberChangeSelf>(
+          params,
+          "change-terms",
+          options,
+        );
       },
 
       withdrawRevision(
         params: StorefrontWithdrawCustomerGroupMemberRevisionParams,
         options?: RequestOptions,
       ): Promise<CustomerGroupMemberChangeSelf> {
-        return action<CustomerGroupMemberChangeSelf>(params, "withdraw-revision", options);
+        return action<CustomerGroupMemberChangeSelf>(
+          params,
+          "withdraw-revision",
+          options,
+        );
       },
     },
   };

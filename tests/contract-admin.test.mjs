@@ -61,7 +61,7 @@ const adminSurface = {
   "eshop.inventoryItem": ["create", "delete", "find", "get", "getByKey", "update"],
   "eshop.inventoryLevel": ["create", "find", "get", "makeAvailable", "move", "receiveMove", "remove", "setAside", "stock"],
   "eshop.inventoryMovement": ["find", "get", "record"],
-  "eshop.inventoryUnit": ["allocate", "find", "fulfillmentId", "get", "makeAvailable", "move", "receive", "setAside", "unassign", "writeOff"],
+  "eshop.inventoryUnit": ["allocate", "find", "get", "makeAvailable", "move", "receive", "setAside", "unassign", "writeOff"],
   "eshop.minimumProgress": ["get"],
   "eshop.order": ["addInvoice", "cancel", "cancelBookingItem", "cancelProductItem", "completeBookingItem", "correctDeliveryAddress", "deleteInvoice", "find", "findBookingItems", "findPayments", "get", "getFinancialSummary", "getPayment", "markBookingItemNoShow", "rescheduleBookingItem", "resendReceipt", "revokeAccess", "update"],
   "eshop.order.credit": ["create", "find", "get", "void"],

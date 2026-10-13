@@ -680,7 +680,9 @@ function createStorefrontClientCore(publishableKeyInput: string, options: Storef
   }
 
   const updateSession: CustomerSessionUpdater = (updater) => {
-    writeCustomerSession(updater(memorySession));
+    const next = updater(memorySession);
+    if (next === memorySession) return;
+    writeCustomerSession(next);
     emit();
   };
 

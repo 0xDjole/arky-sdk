@@ -556,6 +556,7 @@ export interface CancelOrderProductItemParams {
   line_item_id: string;
   credit_id: string;
   expected_updated_at: EpochMilliseconds;
+  notify_customer: boolean;
   units: UnitSpan[];
 }
 
@@ -563,6 +564,7 @@ export interface CancelOrderParams {
   store_id: string;
   order_id: string;
   expected_updated_at: EpochMilliseconds;
+  notify_customer: boolean;
 }
 
 export interface MarkOrderBookingItemParams {
@@ -636,7 +638,7 @@ export type StorefrontRescheduleOrderBookingItemParams = Omit<
   "store_id" | "notify_customer"
 >;
 
-export type StorefrontCancelOrderProductItemParams = Omit<CancelOrderProductItemParams, "store_id">;
+export type StorefrontCancelOrderProductItemParams = Omit<CancelOrderProductItemParams, "store_id" | "notify_customer">;
 
 export interface StorefrontOrderPaymentParams {
   order_id: string;

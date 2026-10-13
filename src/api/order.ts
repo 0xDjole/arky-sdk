@@ -107,18 +107,20 @@ export const createOrderApi = (apiConfig: ApiConfig) => {
     },
 
     cancel(params: CancelOrderParams, options?: RequestOptions): Promise<Order> {
+      if (typeof params.notify_customer !== "boolean") throw new TypeError("Cancellation requires an explicit customer email choice");
       return apiConfig.httpClient.post<Order>(
         `${orderPath(params.store_id, params.order_id)}/cancel`,
-        { expected_updated_at: params.expected_updated_at },
+        { expected_updated_at: params.expected_updated_at, notify_customer: params.notify_customer },
         options,
       );
     },
 
     cancelProductItem(params: CancelOrderProductItemParams, options?: RequestOptions): Promise<Order> {
       requireId(params.credit_id, "credit");
+      if (typeof params.notify_customer !== "boolean") throw new TypeError("Cancellation requires an explicit customer email choice");
       return apiConfig.httpClient.post<Order>(
         `${orderPath(params.store_id, params.order_id)}/product-items/${segment(params.line_item_id)}/cancel`,
-        { credit_id: params.credit_id, expected_updated_at: params.expected_updated_at, units: params.units },
+        { credit_id: params.credit_id, expected_updated_at: params.expected_updated_at, notify_customer: params.notify_customer, units: params.units },
         options,
       );
     },

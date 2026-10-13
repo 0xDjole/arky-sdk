@@ -67,18 +67,18 @@ test("a company location order keeps its buyer, purchase order number, tax regis
   assert.deepEqual(calls.map(({ method, path }) => [method, path]), [["GET", `/v1/stores/${storeId}/orders/${companyLocationOrder.id}`]]);
 });
 
-test("cancelling a whole order sends only the order version to the named store and answers the order", async (context) => {
+test("cancelling a whole order sends its exact version and notification choice to the named store", async (context) => {
   const signal = new AbortController().signal;
   const calls = recordFetch(context, () => retained);
   const api = client();
   assert.equal("setStoreId" in api, false);
   for (const removed of ["cancelPending"]) assert.equal(removed in api.eshop.order, false, removed);
-  assert.deepEqual(await api.eshop.order.cancel({ store_id: otherStoreId, order_id: "order/a?b", expected_updated_at: 7 }, { signal }), retained);
+  assert.deepEqual(await api.eshop.order.cancel({ store_id: otherStoreId, order_id: "order/a?b", expected_updated_at: 7, notify_customer: false }, { signal }), retained);
   assert.deepEqual(calls.map(({ method, href, body }) => [method, href, body]), [
-    ["POST", `${baseUrl}/v1/stores/${otherStoreId}/orders/order%2Fa%3Fb/cancel`, { expected_updated_at: 7 }],
+    ["POST", `${baseUrl}/v1/stores/${otherStoreId}/orders/order%2Fa%3Fb/cancel`, { expected_updated_at: 7, notify_customer: false }],
   ]);
   assert.equal(calls[0].signal, signal);
-  await assert.rejects(async () => api.eshop.order.cancel({ store_id: "store/one", order_id: retained.id, expected_updated_at: 7 }), TypeError);
+  await assert.rejects(async () => api.eshop.order.cancel({ store_id: "store/one", order_id: retained.id, expected_updated_at: 7, notify_customer: false }), TypeError);
   assert.equal(calls.length, 1);
 });
 
@@ -107,7 +107,7 @@ test("booking attendance, access revocation and a receipt resend each name the l
 test("a refused order change is propagated once, without a retry or a replacement request", async (context) => {
   for (const status of [403, 409, 422]) {
     const calls = recordFetch(context, () => errorResponse(status, "ORDER.REFUSED", "Lifecycle denied"));
-    await assert.rejects(client().eshop.order.cancel({ store_id: storeId, order_id: retained.id, expected_updated_at: 1 }), (error) => error.statusCode === status && error.code === "ORDER.REFUSED");
+    await assert.rejects(client().eshop.order.cancel({ store_id: storeId, order_id: retained.id, expected_updated_at: 1, notify_customer: true }), (error) => error.statusCode === status && error.code === "ORDER.REFUSED");
     assert.equal(calls.length, 1);
     context.mock.restoreAll();
   }

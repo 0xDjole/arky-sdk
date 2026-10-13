@@ -68,19 +68,6 @@ test("moving a unit carries the app-picked action id and a write-off its reason,
   assert.equal(calls.length, 2);
 });
 
-test("a physical unit reads its immutable fulfillment identity and keeps absence as null", async (context) => {
-  const fulfillmentId = "8c2a6e14-5b97-4d03-a1f8-3e6c9b0d7a52";
-  const calls = recordFetch(context, (_call, count) => Response.json(count === 1 ? fulfillmentId : null));
-  const api = units();
-  const query = { store_id: OTHER_STORE_ID, id: "unit/id" };
-  assert.equal(await api.fulfillmentId(query), fulfillmentId);
-  assert.equal(await api.fulfillmentId(query), null);
-  assert.equal(calls.length, 2);
-  assert.ok(calls.every(({ url, method }) => method === "GET" && url.search === "" && url.pathname === `/v1/stores/${OTHER_STORE_ID}/inventory-units/unit%2Fid/fulfillment-id`));
-  await assert.rejects(async () => api.fulfillmentId({ store_id: "selected/store", id: "unit/id" }), TypeError);
-  assert.equal(calls.length, 2);
-});
-
 test("a physical unit is set aside and made available by exact action identity and unit version", async (context) => {
   const calls = recordFetch(context, () => ({ id: unitId, status: { type: "set_aside", store_location_id: "warehouse" } }));
   const api = units();
