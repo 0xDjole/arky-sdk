@@ -12,7 +12,7 @@ import type {
 import type { Block } from "./block";
 import type { ShippingDeliveryEstimate } from "./shipping";
 import type { PaymentTerms } from "./company";
-import type { CheckoutPaymentAction } from "./payment";
+import type { CheckoutPaymentAction, PaymentMethodSetupStart } from "./payment";
 import type {
   CustomerGroupDeliveryTerms,
   CustomerGroupOccurrence,
@@ -533,6 +533,8 @@ export type CheckoutAcceptance =
       number: string;
       payment_id: string | null;
       payment_action: CheckoutPaymentAction;
+      payment_method_id: string | null;
+      payment_method_setup: PaymentMethodSetupStart | null;
     }
   | { type: "already_member"; customer_group_member_id: string };
 
@@ -569,6 +571,11 @@ export interface UpdateCartParams {
 }
 
 export interface GetCartParams {
+  store_id: string;
+  id: string;
+}
+
+export interface GetCartOrderParams {
   store_id: string;
   id: string;
 }
@@ -727,6 +734,10 @@ export interface StorefrontCurrentCartParams {
 }
 
 export type StorefrontGetCartParams = StorefrontCartTarget;
+
+export interface StorefrontGetCartOrderParams {
+  id: string;
+}
 
 export interface StorefrontUpdateCartParams extends StorefrontCartTarget {
   expected_updated_at: EpochMilliseconds;

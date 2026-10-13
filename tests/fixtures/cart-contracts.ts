@@ -5,6 +5,7 @@ import type {
   StorefrontCheckoutCartInput, StorefrontQuoteCartParams, StorefrontReorderParams, CartCheckoutRequest,
   CartPresentationChangedError, CheckoutPaymentChoice, QuoteMoney, QuoteBlocker,
   QuoteShippingOffer, StorefrontClient, EpochMilliseconds,
+  GetCartOrderParams, StorefrontGetCartOrderParams, Order, PaymentMethodSetupStart,
 } from "arky-sdk";
 import type { ArkyCartCheckoutInput } from "arky-sdk/storefront";
 import type * as Public from "arky-sdk/types";
@@ -55,6 +56,10 @@ export type CartContracts = [
   Assert<Equal<Awaited<ReturnType<StorefrontCart["create"]>>, CreatedCart>>,
   Assert<Equal<Awaited<ReturnType<StorefrontCart["reorder"]>>, ReorderedCart>>,
   Assert<Equal<Awaited<ReturnType<StorefrontCart["current"]>>, Cart | null>>,
+  Assert<Equal<Awaited<ReturnType<AdminCart["order"]>>, Order | null>>,
+  Assert<Equal<Awaited<ReturnType<StorefrontCart["order"]>>, Order | null>>,
+  Assert<Equal<keyof GetCartOrderParams, "store_id" | "id">>,
+  Assert<Equal<keyof StorefrontGetCartOrderParams, "id">>,
   Assert<Equal<keyof StorefrontCreateCartParams, "id" | "buyer" | "catalog_id">>,
   Assert<Missing<StorefrontCreateCartParams, "sales_channel_id">>,
   Assert<Missing<StorefrontUpdateCartParams, "sales_channel_id">>,
@@ -97,6 +102,9 @@ export type CartContracts = [
   Assert<RequiredNullable<Extract<CheckoutPaymentChoice, { type: "payment_option" }>, "payment_method_terms">>,
   Assert<Missing<Extract<CheckoutPaymentChoice, { type: "payment_option" }>, "payment_method_terms_version">>,
   Assert<Equal<CheckoutAcceptance["type"], "placed" | "already_member">>,
+  Assert<RequiredNullable<Extract<CheckoutAcceptance, { type: "placed" }>, "payment_method_id">>,
+  Assert<RequiredNullable<Extract<CheckoutAcceptance, { type: "placed" }>, "payment_method_setup">>,
+  Assert<Equal<Extract<CheckoutAcceptance, { type: "placed" }>["payment_method_setup"], PaymentMethodSetupStart | null>>,
   Assert<Equal<Extract<CheckoutAcceptance, { type: "already_member" }>, { type: "already_member"; customer_group_member_id: string }>>,
   Assert<Missing<StorefrontUpdateCartParams, "customer_id">>,
   Assert<Missing<StorefrontUpdateCartParams, "store_id">>,

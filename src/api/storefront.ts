@@ -19,6 +19,7 @@ import type {
   StorefrontCreateCartParams,
   StorefrontCurrentCartParams,
   StorefrontGetCartParams,
+  StorefrontGetCartOrderParams,
   StorefrontPreviewCartAccessProductParams,
   StorefrontQuoteCartFutureDeliveriesParams,
   StorefrontQuoteCartParams,
@@ -583,6 +584,13 @@ export const createStorefrontApi = (
         async get(params: StorefrontGetCartParams, options?: RequestOptions): Promise<Cart> {
           await lifecycle.ensureVisitorSession();
           return httpClient.get<Cart>(cartPath(params.id), cartTokenOptions(options, cartToken(params)));
+        },
+
+        async order(params: StorefrontGetCartOrderParams, options?: RequestOptions): Promise<Order | null> {
+          requireId(params.id, "cart");
+          if ("token" in params) throw new TypeError("A Cart-to-Order read uses current buyer authorization");
+          await lifecycle.ensureVisitorSession();
+          return httpClient.get<Order | null>(`${cartPath(params.id)}/order`, cartTokenOptions(options, null));
         },
 
         async offers(params: FindStorefrontCartOffersParams, options?: RequestOptions): Promise<PaginatedResponse<Cart>> {

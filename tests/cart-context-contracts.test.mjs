@@ -30,6 +30,27 @@ function storefront(options = {}) {
   return createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, locale: "bs", market: "bih", sessionStorage: visitorStorage(), ...options });
 }
 
+test("the exact source Cart Order read preserves the authoritative nullable response and sends no Cart capability", async (context) => {
+  const responses = [placedOrder(), null, placedOrder(), null];
+  const calls = recordFetch(context, () => responses.shift());
+  const account = admin();
+  const buyer = storefront();
+  assert.deepEqual(await account.eshop.cart.order({ store_id: STORE_ID, id: ids.cart }), placedOrder());
+  assert.equal(await account.eshop.cart.order({ store_id: STORE_ID, id: ids.cart }), null);
+  assert.deepEqual(await buyer.eshop.cart.order({ id: ids.cart }, { headers: { "x-arky-cart-token": "old-cart-recovery-capability" } }), placedOrder());
+  assert.equal(await buyer.eshop.cart.order({ id: ids.cart }), null);
+  assert.deepEqual(calls.map(call => [call.method, call.path, call.body]), [
+    ["GET", `/v1/stores/${STORE_ID}/carts/${ids.cart}/order`, null],
+    ["GET", `/v1/stores/${STORE_ID}/carts/${ids.cart}/order`, null],
+    ["GET", `/v1/storefront/carts/${ids.cart}/order`, null],
+    ["GET", `/v1/storefront/carts/${ids.cart}/order`, null],
+  ]);
+  assert.equal(calls[2].headers.has("x-arky-cart-token"), false);
+  assert.equal(calls[3].headers.has("x-arky-order-token"), false);
+  await assert.rejects(buyer.eshop.cart.order({ id: ids.cart, token: "old-cart-recovery-capability" }), TypeError);
+  assert.equal(calls.length, 4);
+});
+
 test("Admin Cart commands send exactly the caller's ids, buyer, channel and catalog without inventing defaults", async (context) => {
   const calls = recordFetch(context, (call) => call.method === "POST" && call.path.endsWith("/carts")
     ? { type: "created", cart: cartRecord({ buyer: companyBuyer }), recovery_token: "cart-recovery-token" }

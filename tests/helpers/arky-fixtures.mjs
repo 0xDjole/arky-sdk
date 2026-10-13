@@ -211,6 +211,8 @@ export function placedAcceptance(overrides = {}) {
     order_id: ids.order,
     number: "1001",
     payment_id: null,
+    payment_method_id: null,
+    payment_method_setup: null,
     payment_action: { type: "none" },
     ...overrides,
   };

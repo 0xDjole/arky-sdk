@@ -41,7 +41,7 @@ const adminSurface = {
   "eshop.bookingOffering": ["create", "delete", "find", "get", "lookup", "update"],
   "eshop.bookingResource": ["create", "delete", "find", "get", "getByKey", "update"],
   "eshop.bookingService": ["create", "delete", "find", "get", "getAvailability", "getByKey", "update"],
-  "eshop.cart": ["addBooking", "addCustomerGroup", "addProduct", "checkout", "checkoutOnAccount", "clear", "create", "find", "get", "paymentAction", "previewAccessProduct", "quote", "quoteFutureDeliveries", "quotePurchase", "removeItem", "selectShippingMethod", "setFutureDeliveries", "update"],
+  "eshop.cart": ["addBooking", "addCustomerGroup", "addProduct", "checkout", "checkoutOnAccount", "clear", "create", "find", "get", "order", "paymentAction", "previewAccessProduct", "quote", "quoteFutureDeliveries", "quotePurchase", "removeItem", "selectShippingMethod", "setFutureDeliveries", "update"],
   "eshop.cart.offer": ["create", "send", "withdraw"],
   "eshop.catalog": ["copy", "create", "delete", "find", "findPurchasable", "get", "getByKey", "update"],
   "eshop.catalogAccess": ["create", "delete", "find", "get"],

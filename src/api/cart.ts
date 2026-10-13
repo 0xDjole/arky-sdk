@@ -19,6 +19,7 @@ import type {
   CustomerGroupDeliveryOffers,
   FindCartsParams,
   GetCartParams,
+  GetCartOrderParams,
   GetOrderPaymentActionParams,
   PreviewCartAccessProductParams,
   QuoteCartFutureDeliveriesParams,
@@ -32,6 +33,7 @@ import type {
   WithdrawCartOfferParams,
 } from "../types/cart";
 import type { CheckoutPaymentAction } from "../types/payment";
+import type { Order } from "../types/order";
 import { requireId } from "../utils/ids";
 import { storePath, storeRecordPath } from "./paths";
 
@@ -53,6 +55,11 @@ export const createCartApi = (apiConfig: ApiConfig) => {
 
     get(params: GetCartParams, options?: RequestOptions): Promise<Cart> {
       return apiConfig.httpClient.get<Cart>(cartPath(params.store_id, params.id), options);
+    },
+
+    order(params: GetCartOrderParams, options?: RequestOptions): Promise<Order | null> {
+      requireId(params.id, "cart");
+      return apiConfig.httpClient.get<Order | null>(`${cartPath(params.store_id, params.id)}/order`, options);
     },
 
     create(params: CreateCartParams, options?: RequestOptions): Promise<CreatedCart> {
