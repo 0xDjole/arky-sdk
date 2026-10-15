@@ -161,9 +161,9 @@ export interface DisposeReturnItem extends ReceiveReturnItem {
 }
 
 export type ReturnAction =
-  | { type: "approve"; destination_store_location_id: string | null }
+  | { type: "approve"; destination_store_location_id: string | null; notify_customer: boolean }
   | { type: "decide"; store_location_id: string }
-  | { type: "decline"; reason: string }
+  | { type: "decline"; reason: string; notify_customer: boolean }
   | { type: "cancel" }
   | { type: "receive"; items: ReceiveReturnItem[] }
   | { type: "dispose"; items: DisposeReturnItem[] }
@@ -183,7 +183,7 @@ export interface CreateReturnParams {
   store_id: string;
   id: string;
   type: ReturnTypeRequest;
-  destination_store_location_id: string | null;
+  destination_store_location_id: string;
 }
 
 export interface ActOnReturnParams extends GetReturnParams {

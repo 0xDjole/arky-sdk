@@ -1,5 +1,7 @@
 import type { createAdmin } from "arky-sdk/admin";
+import type { createStorefront } from "arky-sdk/storefront";
 import type {
+  StorefrontPromotion,
   CreatePromotionCodeParams,
   CreatePromotionParams,
   FindPromotionCodesParams,
@@ -26,6 +28,7 @@ type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ?
 type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
 type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
 type Eshop = ReturnType<typeof createAdmin>["eshop"];
+type StorefrontEshop = ReturnType<typeof createStorefront>["eshop"];
 
 export type PromotionContracts = [
   Assert<Equal<Parameters<Eshop["promotion"]["getByKey"]>[0], GetPromotionByKeyParams>>,
@@ -57,4 +60,8 @@ export type PromotionContracts = [
   Assert<Equal<Extract<PromotionCondition, { type: "customer_group_offering" }>, { type: "customer_group_offering"; ids: string[] }>>,
   Assert<Equal<Extract<ShippingRateCondition, { type: "customer_group_offering" }>, { type: "customer_group_offering"; ids: string[] }>>,
   Assert<Equal<PromotionEffect["type"], "item_percentage" | "item_fixed" | "order_percentage" | "order_fixed" | "delivery_percentage" | "delivery_fixed" | "buy_x_get_y">>,
+  Assert<Equal<StorefrontPromotion, { id: string; key: string; blocks: Block[] }>>,
+  Assert<Equal<keyof StorefrontEshop["promotion"], "get">>,
+  Assert<Equal<Parameters<StorefrontEshop["promotion"]["get"]>[0], string>>,
+  Assert<Equal<Awaited<ReturnType<StorefrontEshop["promotion"]["get"]>>, StorefrontPromotion>>,
 ];

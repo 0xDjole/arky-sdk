@@ -1,8 +1,8 @@
 import type { EpochMilliseconds } from "./time";
 import type { Block } from "./block";
-import type { AccountActor, CommerceParty, PostalAddress, SortDirection, UnitSpan } from "./common";
+import type { AccountActor, CommerceParty, Money, PostalAddress, SortDirection, UnitSpan } from "./common";
 import type { InventoryRequirement } from "./product";
-import type { FulfillmentTiming } from "./order";
+import type { OrderDeliveryTiming } from "./order";
 import type { PurchaseRequirementScope } from "./customerGroup";
 
 export type RoutingCondition =
@@ -74,7 +74,7 @@ export type FulfillmentJobType =
       type: "order_delivery";
       order_id: string;
       order_delivery_group_id: string;
-      timing: FulfillmentTiming;
+      timing: OrderDeliveryTiming;
       lines: FulfillmentJobLine[];
     }
   | { type: "rental_replacement"; replacement: RentalIssueReplacement; line: FulfillmentJobLine };
@@ -107,16 +107,24 @@ export interface FulfillmentHold {
   created_at: EpochMilliseconds;
 }
 
-export type FulfillmentRecipient =
-  | { type: "customer"; source_customer_id: string; email: string | null }
+export type FulfillmentJobBuyer =
+  | { type: "customer"; customer_id: string }
+  | { type: "company"; company_id: string; company_name: string }
   | {
       type: "company_location";
-      source_customer_id: string;
-      email: string | null;
+      company_id: string;
       company_name: string;
-      source_company_location_id: string;
+      company_location_id: string;
       company_location_name: string;
     };
+
+export interface FulfillmentJobContact {
+  email: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  phone: string | null;
+  buyer: FulfillmentJobBuyer;
+}
 
 export type FulfillmentJobStatus = "scheduled" | "on_hold" | "open" | "in_progress" | "completed" | "cancelled";
 
@@ -126,7 +134,7 @@ export interface FulfillmentJob {
   type: FulfillmentJobType;
   method: FulfillmentJobMethod;
   holds: FulfillmentHold[];
-  recipient: FulfillmentRecipient;
+  contact: FulfillmentJobContact;
   status: FulfillmentJobStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
@@ -241,6 +249,23 @@ export interface ActOnFulfillmentJobParams extends GetFulfillmentJobParams {
   action: FulfillmentJobAction;
 }
 
+export interface RecordPickupCashParams {
+  store_id: string;
+  fulfillment_job_id: string;
+  id: string;
+  payment_id: string;
+  expected_job_updated_at: EpochMilliseconds;
+  expected_payment_updated_at: EpochMilliseconds;
+  money: Money;
+  reference: string | null;
+}
+
+export interface PickupCash {
+  payment_id: string;
+  payment_updated_at: EpochMilliseconds;
+  due: Money;
+}
+
 export interface FindFulfillmentJobsParams {
   store_id: string;
   order_id?: string;
@@ -338,7 +363,7 @@ export interface CustomerOrderFulfillment {
   order_delivery_group_id: string;
   method: CustomerFulfillmentMethod;
   status: CustomerFulfillmentJobStatus;
-  timing: FulfillmentTiming;
+  timing: OrderDeliveryTiming;
   shipments: CustomerOrderShipment[];
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;

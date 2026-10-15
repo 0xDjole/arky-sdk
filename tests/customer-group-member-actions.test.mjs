@@ -102,7 +102,18 @@ test("the calendar and purchase access read the member's next occurrence and gra
     next: { type: "period", occurrence_index: 4, period: { from: 1, to: 2 } },
     after_skip: { type: "period", occurrence_index: 5, period: { from: 2, to: 3 } },
   };
-  const access = { customer_group_member_id: memberId, catalog_id: catalogId, sales_channel_id: ids.channel, as_of: 1, grants: [], cursor: null };
+  const grant = { entitlement_id: "entitlement", starts_at: 1, ends_at: null, variant_ids: [ids.variant], catalog_id: catalogId, limits: [] };
+  const access = {
+    customer_group_member_id: memberId,
+    catalog_id: catalogId,
+    sales_channel_id: ids.channel,
+    as_of: 1,
+    grants: [
+      { ...grant, source: { type: "order", order_id: ids.order, order_purchase_access_line_item_id: ids.line } },
+      { ...grant, source: { type: "assigned" } },
+    ],
+    cursor: null,
+  };
   const calls = recordFetch(context, (call) => call.path.endsWith("/calendar") ? calendar : access);
   const api = members();
   assert.deepEqual(await api.calendar({ store_id: store, id: memberId }), calendar);

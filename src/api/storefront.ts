@@ -81,6 +81,7 @@ import type {
   StorefrontRescheduleOrderBookingItemParams,
 } from "../types/order";
 import type { CheckoutPaymentAction, Payment } from "../types/payment";
+import type { StorefrontPromotion } from "../types/promotion";
 import type {
   AvailabilityResponse,
   DigitalDownload,
@@ -373,6 +374,10 @@ export const createStorefrontApi = (
       resubscribe(options?: RequestOptions): Promise<CustomerMe> {
         return httpClient.post<CustomerMe>(`${base}/customer/me/resubscribe`, undefined, options);
       },
+
+      unsubscribe(options?: RequestOptions): Promise<CustomerMe> {
+        return httpClient.post<CustomerMe>(`${base}/customer/me/unsubscribe`, undefined, options);
+      },
     },
 
     store: {
@@ -536,6 +541,12 @@ export const createStorefrontApi = (
         },
         getAvailability(params: GetStorefrontAvailabilityParams, options?: RequestOptions): Promise<AvailabilityResponse> {
           return httpClient.get<AvailabilityResponse>(`${base}/booking-services/availability`, { ...options, params });
+        },
+      },
+
+      promotion: {
+        get(id: string, options?: RequestOptions): Promise<StorefrontPromotion> {
+          return httpClient.get<StorefrontPromotion>(`${base}/promotions/${segment(id)}`, options);
         },
       },
 

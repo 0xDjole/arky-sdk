@@ -9,7 +9,6 @@ const SCOPES = {
   "entity_status_overview": "current_snapshot",
   "data_health": "mixed",
   "orders_created": "period",
-  "customers_created": "period",
   "form_submissions_created": "period",
   "carts_abandoned": "period",
   "media_count": "current_snapshot",
@@ -226,14 +225,14 @@ function assertReport(value: unknown, storeId: string): asserts value is Analyti
   if (!Object.prototype.hasOwnProperty.call(SCOPES, key) || row.scope !== SCOPES[key as keyof typeof SCOPES]) fail("unknown report or incorrect scope");
   const data = object(row.data);
   switch (key) {
-    case "business_overview": { fields(data, [...BUSINESS_COUNTS, ...BUSINESS_RATES, "revenue_by_currency"]); counts(data, BUSINESS_COUNTS); for (const name of BUSINESS_RATES) rate(data[name]);
+    case "business_overview": { fields(data, [...BUSINESS_COUNTS, ...BUSINESS_RATES, "placed_order_value_by_currency"]); counts(data, BUSINESS_COUNTS); for (const name of BUSINESS_RATES) rate(data[name]);
       const seen = new Set<string>();
-      for (const item of list(data.revenue_by_currency, 100)) {
-        const row = fields(item, ["currency", "orders", "revenue", "average_order_value"]), code = currency(row.currency);
-        if (seen.has(code)) fail("duplicate revenue currency"); seen.add(code);
-        const orders = integer(row.orders), revenue = integer(row.revenue);
+      for (const item of list(data.placed_order_value_by_currency, 100)) {
+        const row = fields(item, ["currency", "orders", "placed_order_value", "average_order_value"]), code = currency(row.currency);
+        if (seen.has(code)) fail("duplicate placed order value currency"); seen.add(code);
+        const orders = integer(row.orders), placedOrderValue = integer(row.placed_order_value);
         if (orders === 0) { if (row.average_order_value !== null) fail("undefined average must be null"); }
-        else if (Math.abs(decimal(row.average_order_value) - Math.round(revenue / orders * 100) / 100) > 1e-8) fail("average value mismatch");
+        else if (Math.abs(decimal(row.average_order_value) - Math.round(placedOrderValue / orders * 100) / 100) > 1e-8) fail("average value mismatch");
       } break; }
     case "customer_funnel": { fields(data, ["stages", "visitor_to_known_rate", "visitor_to_buyer_rate"]); stages(data.stages, CUSTOMER_STAGES); rate(data.visitor_to_known_rate); rate(data.visitor_to_buyer_rate); break; }
     case "customer_action_by_country": { fields(data, ["items"]);
@@ -256,7 +255,6 @@ function assertReport(value: unknown, storeId: string): asserts value is Analyti
     case "entity_status_overview": { fields(data, ["entities"]); const entities = fields(data.entities, Object.values(STATUS_ENTITIES)); for (const [entity, items] of Object.entries(entities)) statusItems(items, entity); break; }
     case "data_health": { fields(data, HEALTH_COUNTS); counts(data, HEALTH_COUNTS); break; }
     case "orders_created": { fields(data, ["value"]); integer(data.value); break; }
-    case "customers_created": { fields(data, ["value"]); integer(data.value); break; }
     case "form_submissions_created": { fields(data, ["value"]); integer(data.value); break; }
     case "carts_abandoned": { fields(data, ["value"]); integer(data.value); break; }
     case "media_count": { fields(data, ["value"]); integer(data.value); break; }

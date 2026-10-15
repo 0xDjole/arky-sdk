@@ -175,9 +175,9 @@ test("sale and accepted Product choices keep exact catalog, language and current
     alternatives: [
       {
         variant_id: ids.variant,
-        product_name: "Kafa",
+        product_name: "Klasik",
         variant_name: null,
-        sku: "COFFEE",
+        sku: "SKU-1",
         options: [{ label: "Ukus", value: "Blagi" }],
         available: true,
       },

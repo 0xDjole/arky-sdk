@@ -149,8 +149,6 @@ export type BlockSchemaType =
       max_fields: number | null;
     };
 
-export type BlockSchemaKind = BlockSchemaType["type"];
-
 export type BlockQueryOperation =
   | "equals"
   | "greater_than"

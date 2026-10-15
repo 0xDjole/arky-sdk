@@ -17,7 +17,7 @@ test("order execution reads keep empty continuations, the order filter and exact
     { id: "fulfillment/id", type: { type: "delivery", trackings: [], status: { type: "preparing" } } },
     { items: [], cursor },
     { id: "work/id", type: { type: "order_delivery", order_id: "accepted", order_delivery_group_id: "group" } },
-    [{ fulfillment_job_line_id: "line", order_number: "1042", product_key: "milk", product_blocks: [], variant_sku: null, image: null, quantity: 2, source: { type: "order_product", order_product_line_item_id: "product", order_unit_spans: [] } }],
+    [{ fulfillment_job_line_id: "line", order_number: "1042", product_key: "stock-item", product_blocks: [], variant_sku: null, image: null, quantity: 2, source: { type: "order_product", order_product_line_item_id: "product", order_unit_spans: [] } }],
   ];
   const calls = recordFetch(context, () => replies.shift());
   const api = createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop;
@@ -29,7 +29,7 @@ test("order execution reads keep empty continuations, the order filter and exact
   assert.deepEqual(await api.fulfillmentJob.find(scope), { items: [], cursor });
   assert.equal((await api.fulfillmentJob.get({ store_id: STORE_ID, fulfillment_job_id: "work/id" })).type.order_id, "accepted");
   const items = await api.fulfillmentJob.items({ store_id: STORE_ID, fulfillment_job_id: "work/id" });
-  assert.equal(items[0].product_key, "milk");
+  assert.equal(items[0].product_key, "stock-item");
   assert.equal(items[0].order_number, "1042");
   assert.deepEqual(calls[0].query, { order_id: "accepted", limit: "20" });
   assert.deepEqual(calls[1].query, { order_id: "accepted", limit: "20", cursor });
@@ -83,7 +83,7 @@ function job(method = "delivery") {
       ? { type: "pickup", store_location_id: "location" }
       : { type: "delivery", destination: address, store_location_id: "location", source: { type: "otherwise" } },
     holds: [],
-    recipient: { type: "customer", source_customer_id: "customer", email: null },
+    contact: { email: null, first_name: null, last_name: null, phone: null, buyer: { type: "customer", customer_id: "customer" } },
     status: "open",
     created_at: 1,
     updated_at: 1,

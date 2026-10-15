@@ -16,7 +16,7 @@ function eshop() {
 }
 
 test("rental discovery forwards its filters, keeps the empty continuation and reads the rented terms", async (context) => {
-  const detail = { rental: { id: rentalId, status: { type: "active" } }, terms: { product_id: ids.product, variant_id: ids.variant, quantity: 1, inventory_item_id: "machine", product_key: "espresso", variant_sku: null } };
+  const detail = { rental: { id: rentalId, status: { type: "active" } }, terms: { product_id: ids.product, variant_id: ids.variant, quantity: 1, inventory_item_id: "unit-item", product_key: "classic", variant_sku: null } };
   const calls = recordFetch(context, (_call, count) => count <= 2 ? { items: [], cursor: count === 1 ? "next:/+=" : null } : detail);
   const api = eshop().rental;
   const query = { store_id: STORE_ID, customer_group_member_id: ids.customerGroupMember, status: "ending", limit: 20, sort_field: "updated_at", sort_direction: "desc" };

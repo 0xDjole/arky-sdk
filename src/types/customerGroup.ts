@@ -574,9 +574,12 @@ export interface PurchaseAccessLimitAvailability {
   remaining_quantity: number;
 }
 
+export type CustomerGroupMemberPurchaseAccessSource =
+  | { type: "order"; order_id: string; order_purchase_access_line_item_id: string }
+  | { type: "assigned" };
+
 export interface CustomerGroupMemberPurchaseAccessGrant {
-  order_id: string;
-  order_purchase_access_line_item_id: string;
+  source: CustomerGroupMemberPurchaseAccessSource;
   entitlement_id: string;
   starts_at: EpochMilliseconds;
   ends_at: EpochMilliseconds | null;
@@ -771,7 +774,7 @@ export interface PauseCustomerGroupMemberParams extends CustomerGroupMemberActio
   resumes_at: EpochMilliseconds | null;
 }
 
-export interface SkipNextCustomerGroupMemberPurchaseParams extends CustomerGroupMemberActionParams {
+export interface SkipNextCustomerGroupMemberRenewalParams extends CustomerGroupMemberActionParams {
   occurrence_index: number;
 }
 
@@ -915,8 +918,8 @@ export type StorefrontPauseCustomerGroupMemberParams = Omit<
   "store_id"
 >;
 
-export type StorefrontSkipNextCustomerGroupMemberPurchaseParams = Omit<
-  SkipNextCustomerGroupMemberPurchaseParams,
+export type StorefrontSkipNextCustomerGroupMemberRenewalParams = Omit<
+  SkipNextCustomerGroupMemberRenewalParams,
   "store_id"
 >;
 

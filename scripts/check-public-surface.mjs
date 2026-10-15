@@ -92,6 +92,12 @@ const removedIdentifiers = [
   "PayerBranches",
   "CompanyLocationReach",
   "AllowedPaymentOptions",
+  "FulfillmentTiming",
+  "FulfillmentRecipient",
+  "RevenueByCurrencyData",
+  "SkipNextCustomerGroupMemberPurchaseParams",
+  "StorefrontSkipNextCustomerGroupMemberPurchaseParams",
+  "completeBookingItem",
 ];
 
 const removedIdentifierPattern = new RegExp(`\\b(?:${removedIdentifiers.join("|")})\\b`, "g");
@@ -169,6 +175,13 @@ forbidPattern("types/storeRole.ts", /"contact"/, "store permissions use \"email\
 requirePattern("api/store.ts", /storePath\(params\.store_id, "usage"\)/, "the owner's billing screen reads the store's usage");
 requirePattern("api/store.ts", /"subscription\/end-grant"/, "platform administrators end a granted plan");
 requirePattern("api/customerGroup.ts", /\/purchase-access`/, "staff read a customer group member's purchase access");
+requirePattern("api/order.ts", /line_item_id, "attend"\)/, "staff mark a booking attended through its attend route");
+requirePattern("api/fulfillment.ts", /\/cash-collections`/, "a pickup clerk records collected cash on the fulfillment job");
+requirePattern("api/storefront.ts", /\/customer\/me\/unsubscribe`/, "a signed-in customer unsubscribes on the storefront");
+requirePattern("api/storefront.ts", /\/promotions\/\$\{segment\(id\)\}`/, "a storefront reads a promotion's key and blocks by id");
+requirePattern("api/notification.ts", /replaceKey\(/, "a store replaces its Resend key on the same provider");
+requirePattern("api/support.ts", /\/chat-visibility`/, "staff show or hide a received email in the chat");
+requirePattern("utils/cartInputs.ts", /case "assigned_purchase_access":/, "an assigned member buys through its group's purchase access");
 requirePattern("api/return.ts", /\/execute`/, "return actions post to the return's execute route");
 requirePattern("api/return.ts", /\/credit`/, "a received return is credited through its own route");
 requirePattern("api/payment.ts", /\/resolve-charge`/, "a team member settles an unknown Monri card charge");

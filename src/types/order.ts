@@ -181,14 +181,14 @@ export type LineTaxTreatment =
   | { type: "not_taxable"; reason: string }
   | { type: "zero_rated"; reason: string }
   | { type: "exempt"; reason: string }
-  | { type: "buyer_override"; kind: BuyerTaxTreatmentKind };
-
-export type BuyerTaxTreatmentKind = { type: "reverse_charge" } | { type: "exempt" };
+  | { type: "reverse_charge" }
+  | { type: "buyer_exempt" };
 
 export type DeliveryTaxSource =
   | { type: "own"; tax_category_id: string; rule_id: string; treatment: LineTaxTreatment }
   | { type: "group_share"; tax_group_id: string; treatment: LineTaxTreatment }
-  | { type: "buyer_override"; tax_category_id: string; kind: BuyerTaxTreatmentKind };
+  | { type: "reverse_charge"; tax_category_id: string }
+  | { type: "buyer_exempt"; tax_category_id: string };
 
 export interface DeliveryTaxPart {
   line_item_id: string;
@@ -200,7 +200,8 @@ export interface DeliveryTaxPart {
 export type LineTax =
   | { type: "own"; tax_category_id: string; rule_id: string; treatment: LineTaxTreatment }
   | { type: "group_share"; tax_group_id: string; treatment: LineTaxTreatment }
-  | { type: "buyer_override"; tax_category_id: string; kind: BuyerTaxTreatmentKind }
+  | { type: "reverse_charge"; tax_category_id: string }
+  | { type: "buyer_exempt"; tax_category_id: string }
   | { type: "follow_goods"; parts: DeliveryTaxPart[] };
 
 export interface LineMoney {
@@ -242,8 +243,8 @@ export interface OrderBookingSnapshot {
 
 export type OrderBookingAttendance =
   | { type: "upcoming" }
-  | { type: "attended"; by: Actor; at: EpochMilliseconds }
-  | { type: "no_show"; by: Actor; at: EpochMilliseconds };
+  | { type: "attended"; by: AccountActor; at: EpochMilliseconds }
+  | { type: "no_show"; by: AccountActor; at: EpochMilliseconds };
 
 export type OrderBookingLineStatus =
   | { type: "pending"; wait: OrderPaymentWait }
@@ -275,7 +276,8 @@ export interface OrderBookingLineItem {
 
 export type OrderTaxGroupSource =
   | { type: "rule"; rule_id: string }
-  | { type: "buyer_override"; kind: BuyerTaxTreatmentKind };
+  | { type: "reverse_charge" }
+  | { type: "buyer_exempt" };
 
 export interface OrderTaxGroup {
   id: string;
@@ -336,7 +338,7 @@ export type DeliveryPricing =
   | { type: "rate"; rate_id: string }
   | { type: "customer_group_delivery_terms"; delivery_terms_id: string };
 
-export type FulfillmentTiming =
+export type OrderDeliveryTiming =
   | { type: "asap" }
   | { type: "window"; from: EpochMilliseconds; to: EpochMilliseconds };
 
@@ -351,7 +353,7 @@ export interface OrderDeliveryGroup {
   shipping_method_id: string;
   shipping_profile_id: string;
   pricing: DeliveryPricing;
-  timing: FulfillmentTiming;
+  timing: OrderDeliveryTiming;
   delivery_estimate: ShippingDeliveryEstimate | null;
   rentals: OrderDeliveryRental[];
   money: LineMoney;
@@ -461,7 +463,7 @@ export type OrderSourceFilter = "cart" | "renewal";
 
 export type OrderItemStatusFilter = "pending" | "confirmed" | "cancelled";
 
-export type OrderBookingStatusFilter = "pending" | "confirmed" | "completed" | "no_show" | "cancelled";
+export type OrderBookingStatusFilter = "pending" | "confirmed" | "attended" | "no_show" | "cancelled";
 
 export interface FindOrdersParams {
   store_id: string;

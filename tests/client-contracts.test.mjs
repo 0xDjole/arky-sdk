@@ -141,11 +141,11 @@ test("request errors keep the server response and read its snake_case status and
 });
 
 test("a camelCase error body is not the Server's shape: its field errors are not read and the HTTP status stands", async (context) => {
-  recordFetch(context, () => jsonResponse({ message: "Conflict", error: "CART.CHANGED", statusCode: 400, validationErrors: [{ field: "email", error: "bad" }] }, 409));
+  recordFetch(context, () => jsonResponse({ message: "Conflict", error: "GENERAL.CONFLICT", statusCode: 400, validationErrors: [{ field: "email", error: "bad" }] }, 409));
   await assert.rejects(admin().account.getMe(), (error) => {
     assert.equal(error.statusCode, 409);
     assert.deepEqual(error.validationErrors, []);
-    assert.equal(error.code, "CART.CHANGED");
+    assert.equal(error.code, "GENERAL.CONFLICT");
     return true;
   });
   recordFetch(context, () => new Response("upstream failure", { status: 502, headers: { "content-type": "text/plain" } }));
@@ -206,7 +206,7 @@ test("Store locations and webhooks carry app-picked ids and versions; a webhook 
     ["DELETE", `/v1/stores/${storeId}/locations/${ids.companyLocation}`, { expected_updated_at: "5" }, null],
     ["POST", `/v1/stores/${storeId}/webhooks`, {}, webhook],
     ["PUT", `/v1/stores/${storeId}/webhooks/${ids.form}`, {}, { expected_updated_at: 6, status: { type: "active" } }],
-    ["POST", `/v1/stores/${storeId}/webhooks/test`, {}, { id: ids.submission, webhook_id: ids.form }],
+    ["POST", `/v1/stores/${storeId}/outgoing-webhooks/test`, {}, { id: ids.submission, webhook_id: ids.form }],
   ]);
   await assert.rejects(async () => client.store.webhook.test({ store_id: storeId, id: "test-1", webhook_id: ids.form }), TypeError);
   assert.equal(calls.length, 6);
@@ -374,7 +374,7 @@ test("storefront money helpers preserve exact zero, need an explicit locale and 
 test("SDK_VERSION equals the package version", async () => {
   const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
   assert.equal(SDK_VERSION, packageJson.version);
-  assert.equal(SDK_VERSION, "0.26.86");
+  assert.equal(SDK_VERSION, "0.26.87");
 });
 
 test("recursive storefront declarations never degrade to any", async () => {

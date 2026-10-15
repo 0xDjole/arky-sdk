@@ -150,9 +150,9 @@ export const createOrderApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    completeBookingItem(params: MarkOrderBookingItemParams, options?: RequestOptions): Promise<Order> {
+    attendBookingItem(params: MarkOrderBookingItemParams, options?: RequestOptions): Promise<Order> {
       return apiConfig.httpClient.post<Order>(
-        bookingItemPath(params.store_id, params.order_id, params.line_item_id, "complete"),
+        bookingItemPath(params.store_id, params.order_id, params.line_item_id, "attend"),
         { expected_updated_at: params.expected_updated_at },
         options,
       );

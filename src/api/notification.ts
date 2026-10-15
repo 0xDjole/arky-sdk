@@ -4,6 +4,7 @@ import type { PaginatedResponse } from "../types/common";
 import type {
   GetEmailProviderParams,
   ConnectEmailProviderParams,
+  ReplaceEmailProviderKeyParams,
   FindEmailProviderDomainsParams,
   EmailProvider,
   EmailProviderDomain,
@@ -118,6 +119,13 @@ export const createEmailProviderApi = (apiConfig: ApiConfig) => ({
     requireId(params.id, "email provider");
     const { store_id, ...body } = params;
     return apiConfig.httpClient.post<EmailProvider>(storePath(store_id, "email-provider"), body, options);
+  },
+  replaceKey(params: ReplaceEmailProviderKeyParams, options?: RequestOptions): Promise<EmailProvider> {
+    return apiConfig.httpClient.put<EmailProvider>(
+      storePath(params.store_id, "email-provider"),
+      { expected_updated_at: params.expected_updated_at, api_key: params.api_key },
+      options,
+    );
   },
   get(params: GetEmailProviderParams, options?: RequestOptions): Promise<EmailProvider | null> {
     return apiConfig.httpClient.get<EmailProvider | null>(storePath(params.store_id, "email-provider"), options);

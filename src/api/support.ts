@@ -4,6 +4,7 @@ import type { RequestOptions } from "../types/api";
 import type { PaginatedResponse } from "../types/common";
 import type {
   AssignConversationParams,
+  ChangeConversationChatVisibilityParams,
   Conversation,
   ConversationAttachmentLink,
   ConversationMessage,
@@ -193,6 +194,18 @@ export function createAdminSupportApi(apiConfig: ApiConfig) {
         return apiConfig.httpClient.post<ConversationReply>(
           `${conversationPath(store_id, conversation_id)}/messages`,
           body,
+          options,
+        );
+      },
+
+      changeChatVisibility(
+        params: ChangeConversationChatVisibilityParams,
+        options?: RequestOptions,
+      ): Promise<ConversationMessage> {
+        if (typeof params.visible_in_chat !== "boolean") throw new TypeError("Chat visibility needs an explicit choice");
+        return apiConfig.httpClient.post<ConversationMessage>(
+          `${conversationPath(params.store_id, params.conversation_id)}/messages/${segment(params.message_id)}/chat-visibility`,
+          { expected_updated_at: params.expected_updated_at, visible_in_chat: params.visible_in_chat },
           options,
         );
       },

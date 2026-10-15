@@ -197,7 +197,7 @@ export { createCartController } from "./cartController";
 export { buildFormAnswers, initialize } from "./storefrontStore";
 export type * from "./storefrontStore";
 
-export const SDK_VERSION = "0.26.86";
+export const SDK_VERSION = "0.26.87";
 export const SUPPORTED_FRAMEWORKS = ["astro", "react", "vue", "svelte", "vanilla"] as const;
 
 export interface AdminSession {
@@ -878,6 +878,11 @@ function createStorefrontClientCore(publishableKeyInput: string, options: Storef
     return customerApi.resubscribe(options);
   }
 
+  async function unsubscribe(options?: RequestOptions): Promise<CustomerMe> {
+    await ensureVisitorSession();
+    return customerApi.unsubscribe(options);
+  }
+
   async function logout(): Promise<void> {
     identifyPromise = null;
     if (!authorizationToken()) {
@@ -990,6 +995,7 @@ function createStorefrontClientCore(publishableKeyInput: string, options: Storef
       getMe: me,
       updateMe,
       resubscribe,
+      unsubscribe,
     },
     actions: storefrontApi.actions,
     experiments: storefrontApi.experiments,

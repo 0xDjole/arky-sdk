@@ -40,7 +40,7 @@ export const createWebhookApi = (apiConfig: ApiConfig) => ({
   test(params: TestWebhookParams, options?: RequestOptions): Promise<OutgoingWebhook> {
     requireId(params.id, "test post");
     return apiConfig.httpClient.post<OutgoingWebhook>(
-      storePath(params.store_id, "webhooks/test"),
+      storePath(params.store_id, "outgoing-webhooks/test"),
       { id: params.id, webhook_id: params.webhook_id },
       options,
     );

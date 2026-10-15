@@ -28,6 +28,12 @@ export function copyCartProductPurchase(purchase: CartProductPurchase): CartProd
         cart_customer_group_line_item_id: purchase.cart_customer_group_line_item_id,
         entitlement_id: purchase.entitlement_id,
       };
+    case "assigned_purchase_access":
+      return {
+        type: "assigned_purchase_access",
+        customer_group_member_id: purchase.customer_group_member_id,
+        entitlement_id: purchase.entitlement_id,
+      };
     default:
       throw new Error("A cart product needs an explicit supported purchase route");
   }

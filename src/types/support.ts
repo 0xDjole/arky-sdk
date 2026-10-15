@@ -248,7 +248,8 @@ export interface StartEmailConversationParams {
   subject: string;
   language: string;
   sending_address_id: string;
-  text: string;
+  text?: string;
+  email_template_id?: string;
 }
 
 export interface FindSupportFlowsParams {
@@ -332,9 +333,18 @@ export interface ReplyConversationParams {
   conversation_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
-  text: string;
+  text?: string;
+  email_template_id?: string;
   delivery: ReplyDeliveryName;
   resolve?: boolean;
+}
+
+export interface ChangeConversationChatVisibilityParams {
+  store_id: string;
+  conversation_id: string;
+  message_id: string;
+  expected_updated_at: EpochMilliseconds;
+  visible_in_chat: boolean;
 }
 
 export interface SelectConversationSendingAddressParams {

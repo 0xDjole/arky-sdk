@@ -35,6 +35,38 @@ test("staff starts an email conversation with retained caller-picked conversatio
   assert.deepEqual(calls[1].body, body);
 });
 
+test("staff start an email thread or reply from a SupportReply template, sending the template and no text of their own", async (context) => {
+  const templateId = "5e1a9c37-4b28-4d60-8f13-2c7a6e0b9d45";
+  const answer = { conversation: { id: conversationId }, message: { id: messageId } };
+  const calls = recordFetch(context, () => answer);
+  const start = { store_id: STORE_ID, id: conversationId, message_id: messageId, customer_id: ids.customer, email: "buyer@example.test", subject: "Delivery", language: "bs", sending_address_id: addressId, email_template_id: templateId };
+  assert.deepEqual(await support().conversation.startEmail(start), answer);
+  await support().conversation.reply({ store_id: STORE_ID, conversation_id: conversationId, id: promptId, expected_updated_at: 6, email_template_id: templateId, delivery: "email" });
+  const { store_id: _store, ...startBody } = start;
+  assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
+    ["POST", `/v1/stores/${STORE_ID}/conversations`, startBody],
+    ["POST", `/v1/stores/${STORE_ID}/conversations/${conversationId}/messages`, { id: promptId, expected_updated_at: 6, email_template_id: templateId, delivery: "email" }],
+  ]);
+  assert.ok(calls.every((call) => !("text" in call.body)));
+});
+
+test("staff show or hide a received email in the chat with the message version they read", async (context) => {
+  const message = { id: messageId, store_id: STORE_ID, conversation_id: conversationId, sequence: 3, type: { type: "received_email", visible_in_chat: true }, created_at: 1, updated_at: 7 };
+  const calls = recordFetch(context, () => message);
+  const api = support().conversation;
+  assert.deepEqual(await api.changeChatVisibility({ store_id: STORE_ID, conversation_id: conversationId, message_id: messageId, expected_updated_at: 6, visible_in_chat: true }), message);
+  await api.changeChatVisibility({ store_id: STORE_ID, conversation_id: conversationId, message_id: "message/one", expected_updated_at: 7, visible_in_chat: false });
+  assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
+    ["POST", `/v1/stores/${STORE_ID}/conversations/${conversationId}/messages/${messageId}/chat-visibility`, { expected_updated_at: 6, visible_in_chat: true }],
+    ["POST", `/v1/stores/${STORE_ID}/conversations/${conversationId}/messages/message%2Fone/chat-visibility`, { expected_updated_at: 7, visible_in_chat: false }],
+  ]);
+  await assert.rejects(async () => api.changeChatVisibility({ store_id: STORE_ID, conversation_id: conversationId, message_id: messageId, expected_updated_at: 7 }), {
+    name: "TypeError",
+    message: "Chat visibility needs an explicit choice",
+  });
+  assert.equal(calls.length, 2);
+});
+
 test("the conversation inbox keeps native multi-status filters, the contact filter and its opaque continuation", async (context) => {
   const calls = recordFetch(context, () => ({ items: [], cursor: "next:+/=" }));
   const filters = {

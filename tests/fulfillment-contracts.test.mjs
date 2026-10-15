@@ -29,7 +29,7 @@ test("warehouse slot resolution carries exact job positions and returns the sele
 });
 
 test("a fulfillment is prepared under the app-picked id with exact unit selections and lot references", async (context) => {
-  const lines = [{ fulfillment_job_line_id: "line", unit_spans: [{ first_unit: 3, quantity: 1 }], selected_units: [{ fulfillment_unit_index: 3, inventory_unit_id: "physical-unit" }], lot_reference: "milk-batch-42" }];
+  const lines = [{ fulfillment_job_line_id: "line", unit_spans: [{ first_unit: 3, quantity: 1 }], selected_units: [{ fulfillment_unit_index: 3, inventory_unit_id: "physical-unit" }], lot_reference: "lot-batch-42" }];
   const request = { id: fulfillmentId, fulfillment_job_id: "work", lines };
   const before = structuredClone(request);
   const reply = { id: fulfillmentId, lines, type: { type: "delivery", trackings: [], status: { type: "preparing" } } };
@@ -110,14 +110,87 @@ test("warehouse job decisions carry the job version and the exact action, and a 
     message: "The fulfillment job id must be a canonical UUID v4 picked by the app",
   });
   assert.equal(calls.length, actions.length);
-  assert.deepEqual(Object.keys(api).sort(), ["decide", "find", "get", "items", "unitSlots"]);
+  assert.deepEqual(Object.keys(api).sort(), ["decide", "find", "get", "getPickupCash", "items", "recordPickupCash", "unitSlots"]);
   for (const removed of ["fulfillmentOrder", "fulfillmentPartner", "fulfillmentRoutingPolicy"]) assert.equal(removed in eshop(), false, removed);
+});
+
+test("a pickup clerk records the collected cash on the job with both versions and the app-picked collection id", async (context) => {
+  const collectionId = "2d6f9b14-3a57-4c80-b1e2-7f4a8c0d5e93";
+  const paymentId = "9e4c1a72-5b38-4d06-8f2a-6c1e3b7d0a45";
+  const payment = { id: paymentId, status: "paid" };
+  const calls = recordFetch(context, () => payment);
+  const api = eshop().fulfillmentJob;
+  const request = {
+    store_id: storeId,
+    fulfillment_job_id: "work/id",
+    id: collectionId,
+    payment_id: paymentId,
+    expected_job_updated_at: revision,
+    expected_payment_updated_at: revision + 5,
+    money: { amount: 4200, currency: "eur" },
+    reference: null,
+  };
+  const before = structuredClone(request);
+  assert.deepEqual(await api.recordPickupCash(request), payment);
+  await api.recordPickupCash({ ...request, reference: "Till 2" });
+  assert.deepEqual(request, before);
+  assert.deepEqual(calls.map(({ href, method, body }) => ({ href, method, body })), [
+    {
+      href: `${baseUrl}/v1/stores/${storeId}/fulfillment-jobs/work%2Fid/cash-collections`,
+      method: "POST",
+      body: { id: collectionId, payment_id: paymentId, expected_job_updated_at: revision, expected_payment_updated_at: revision + 5, money: { amount: 4200, currency: "eur" }, reference: null },
+    },
+    {
+      href: `${baseUrl}/v1/stores/${storeId}/fulfillment-jobs/work%2Fid/cash-collections`,
+      method: "POST",
+      body: { id: collectionId, payment_id: paymentId, expected_job_updated_at: revision, expected_payment_updated_at: revision + 5, money: { amount: 4200, currency: "eur" }, reference: "Till 2" },
+    },
+  ]);
+  await assert.rejects(async () => api.recordPickupCash({ ...request, id: "cash-1" }), {
+    name: "TypeError",
+    message: "The collection id must be a canonical UUID v4 picked by the app",
+  });
+  assert.equal(calls.length, 2);
+});
+
+test("a pickup clerk reads the cash a pickup still owes from the job, or nothing", async (context) => {
+  const due = { payment_id: "9e4c1a72-5b38-4d06-8f2a-6c1e3b7d0a45", payment_updated_at: revision + 5, due: { amount: 4200, currency: "eur" } };
+  const replies = [due, null];
+  const calls = recordFetch(context, () => replies.shift());
+  const api = eshop().fulfillmentJob;
+  const request = { store_id: storeId, fulfillment_job_id: "work/id" };
+  const before = structuredClone(request);
+  assert.deepEqual(await api.getPickupCash(request), due);
+  assert.equal(await api.getPickupCash(request), null);
+  assert.deepEqual(request, before);
+  assert.deepEqual(calls.map(({ href, method }) => ({ href, method })), [
+    { href: `${baseUrl}/v1/stores/${storeId}/fulfillment-jobs/work%2Fid/cash-collections`, method: "GET" },
+    { href: `${baseUrl}/v1/stores/${storeId}/fulfillment-jobs/work%2Fid/cash-collections`, method: "GET" },
+  ]);
+  assert.ok(calls.every((call) => call.body === null));
+  await assert.rejects(async () => api.getPickupCash({ fulfillment_job_id: "work/id" }), TypeError);
+  assert.equal(calls.length, 2);
+});
+
+test("a job read gives the Order contact and buyer as the Server derives them, with no recipient", async (context) => {
+  const contact = {
+    email: null,
+    first_name: "Ana",
+    last_name: null,
+    phone: "+38761000000",
+    buyer: { type: "company_location", company_id: "company", company_name: "Buyer Ltd", company_location_id: "location", company_location_name: "Depot" },
+  };
+  const job = { id: "work", store_id: storeId, type: { type: "order_delivery", order_id: "order", order_delivery_group_id: "group", timing: { type: "asap" }, lines: [] }, method: { type: "pickup", store_location_id: "location" }, holds: [], contact, status: "open", created_at: revision, updated_at: revision };
+  recordFetch(context, () => job);
+  const read = await eshop().fulfillmentJob.get({ store_id: storeId, fulfillment_job_id: "work" });
+  assert.deepEqual(read.contact, contact);
+  assert.equal("recipient" in read, false);
 });
 
 test("warehouse discovery sends the complete job filter and leaves the continuation to the caller", async (context) => {
   const response = { items: [], cursor: "next:/+=" };
   const calls = recordFetch(context, (call) => call.path.endsWith("/items") ? [] : response);
-  const query = { store_id: storeId, order_id: "order", rental_id: "rental", store_location_id: "warehouse", hold: "out_of_stock", inventory_item_id: "milk", status: "scheduled", scheduled_from: revision, scheduled_to: revision + 86_400_000, sort_field: "scheduled_at", sort_direction: "asc", limit: 20, cursor: "" };
+  const query = { store_id: storeId, order_id: "order", rental_id: "rental", store_location_id: "warehouse", hold: "out_of_stock", inventory_item_id: "stock-item", status: "scheduled", scheduled_from: revision, scheduled_to: revision + 86_400_000, sort_field: "scheduled_at", sort_direction: "asc", limit: 20, cursor: "" };
   assert.deepEqual(await eshop().fulfillmentJob.find(query), response);
   await eshop().fulfillmentJob.get({ store_id: storeId, fulfillment_job_id: "work/id" });
   await eshop().fulfillmentJob.items({ store_id: storeId, fulfillment_job_id: "work/id" });

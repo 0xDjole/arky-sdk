@@ -1271,6 +1271,7 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
       getMe: client.customer.getMe,
       updateMe: client.customer.updateMe,
       resubscribe: client.customer.resubscribe,
+      unsubscribe: client.customer.unsubscribe,
     },
     onAuthStateChanged: client.onAuthStateChanged,
     get hasSession() {
@@ -1318,6 +1319,7 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
         list: loadBookingResources,
       },
       bookingOffering: client.eshop.bookingOffering,
+      promotion: client.eshop.promotion,
       order: client.eshop.order,
       library: client.eshop.library,
       return: client.eshop.return,

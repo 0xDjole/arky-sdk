@@ -227,7 +227,7 @@ test("a concurrent tab cannot queue a duplicate checkout or read pending state t
 test("any definite refusal clears the kept request, while a timeout, throttle or server failure keeps it", async () => {
   for (const status of [400, 403, 404, 409, 422, 408, 429, 500, 503]) {
     const { storage } = browser();
-    const calls = capture(() => Response.json({ message: "Rejected", error: "CART.CHANGED", status_code: status, validation_errors: [] }, { status }));
+    const calls = capture(() => Response.json({ message: "Rejected", error: "CART.NOT_READY", status_code: status, validation_errors: [] }, { status }));
     await assert.rejects(retainAndRecover(), (error) => error.statusCode === status);
     assert.equal(calls.filter((call) => call.path.endsWith("/carts/accept")).length, 1);
     const definite = status < 500 && status !== 408 && status !== 429;

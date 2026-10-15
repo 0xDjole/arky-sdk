@@ -43,7 +43,7 @@ test("an inventory index failure stays an error rather than zero stock", async (
 });
 
 test("inventory history keeps combined filters, empty continuations and exact quantity changes", async (context) => {
-  const record = { id: "movement", inventory_item_id: "item", tracking: { type: "individual", inventory_unit_id: "unit" }, store_location_id: "location", delta: -1, after: 7, reason: { type: "dispatched", fulfillment_job_id: "work", fulfillment_id: "fulfillment" }, action_id: actionId(1) };
+  const record = { id: "movement", inventory_item_id: "item", tracking: { type: "individual", inventory_unit_id: "unit" }, store_location_id: "location", delta: -1, after: 7, reason: { type: "dispatched", fulfillment_id: "fulfillment" }, action_id: actionId(1) };
   const responses = [{ items: [], cursor: "movement-next" }, { items: [record], cursor: null }];
   const calls = recordFetch(context, () => responses.shift());
   const query = { inventory_item_id: "item", store_location_id: "location", inventory_unit_id: "unit", action_id: actionId(1), limit: 10, sort_field: "created_at", sort_direction: "desc" };
@@ -60,7 +60,7 @@ test("inventory history keeps combined filters, empty continuations and exact qu
 });
 
 test("stock reads keep unavailable and negative available quantities with the item's identity", async (context) => {
-  const record = { id: "level", inventory_item_id: "item", store_location_id: "location", on_hand: 2, reserved: 5, unavailable: 1, available: -4, item: { key: "milk", sku: null, tracking: { type: "tracked" } } };
+  const record = { id: "level", inventory_item_id: "item", store_location_id: "location", on_hand: 2, reserved: 5, unavailable: 1, available: -4, item: { key: "stock-item", sku: null, tracking: { type: "tracked" } } };
   const calls = recordFetch(context, () => ({ items: [record], cursor: null }));
   const query = { store_id: OTHER_STORE_ID, inventory_item_id: "item", store_location_id: "location", limit: 5, cursor: "" };
   assert.deepEqual(await eshop().inventoryLevel.stock(query), { items: [record], cursor: null });
@@ -77,7 +77,7 @@ test("stock commands carry the app-picked action id, the level version and the e
     ["makeAvailable", "make-available", { quantity: 2, note: "Inspection passed" }],
     ["move", "move", { to_store_location_id: "destination", quantity: 4 }],
     ["receiveMove", "incoming", { type: { type: "counted", from_store_location_id: "origin", quantity: 4 } }],
-    ["receiveMove", "incoming", { type: { type: "unit", asset_tag: "MACHINE-42" } }],
+    ["receiveMove", "incoming", { type: { type: "unit", asset_tag: "UNIT-42" } }],
   ];
   for (const [index, [method, path, payload]] of cases.entries()) {
     const body = { action_id: actionId(index), expected_updated_at: 1_700_000_000_000, ...payload };
@@ -112,7 +112,7 @@ test("levels are created under an app-picked id and removed with their version",
 test("a manual stock correction names the level and version it was decided on", async (context) => {
   const calls = recordFetch(context, () => ({ id: "movement" }));
   const body = {
-    inventory_item_id: "milk",
+    inventory_item_id: "stock-item",
     store_location_id: "warehouse",
     action_id: actionId(7),
     expected_level_id: levelId,

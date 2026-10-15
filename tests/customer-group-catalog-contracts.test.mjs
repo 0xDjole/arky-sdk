@@ -33,7 +33,7 @@ test("storefront group discovery forwards the catalog, offering, price filter, o
     created_at_to: 2000,
   });
   await client.eshop.customerGroup.get({ identifier: "monthly/plan", catalog_id: ids.catalog, company_id: ids.company, include_price: true });
-  await client.eshop.customerGroupOffering.get({ identifier: "coffee-club" });
+  await client.eshop.customerGroupOffering.get({ identifier: "members-club" });
   assert.deepEqual(calls[0].query, {
     customer_group_offering_id: offeringId,
     catalog_id: ids.catalog,
@@ -50,7 +50,7 @@ test("storefront group discovery forwards the catalog, offering, price filter, o
   });
   assert.equal(calls[1].path, "/v1/storefront/customer-groups/monthly%2Fplan");
   assert.deepEqual(calls[1].query, { catalog_id: ids.catalog, company_id: ids.company, include_price: "true" });
-  assert.equal(calls[2].path, "/v1/storefront/customer-group-offerings/coffee-club");
+  assert.equal(calls[2].path, "/v1/storefront/customer-group-offerings/members-club");
   assert.deepEqual(calls[2].query, {});
   for (const call of calls) {
     assert.equal(call.method, "GET");
@@ -109,21 +109,21 @@ test("group and offering edits carry the version, offerings list their groups, a
   await client.customerGroup.update(update);
   assert.equal(await client.customerGroup.delete({ store_id: OTHER_STORE_ID, id: groupId, expected_updated_at: 6 }), undefined);
   await client.customerGroup.find({ store_id: STORE_ID, customer_group_offering_id: offeringId, status: { type: "active" }, sort_field: "status", limit: 5 });
-  await client.customerGroupOffering.create({ store_id: STORE_ID, id: offeringId, key: "coffee-club", blocks: [], customer_group_ids: [groupId], status: { type: "draft" } });
+  await client.customerGroupOffering.create({ store_id: STORE_ID, id: offeringId, key: "members-club", blocks: [], customer_group_ids: [groupId], status: { type: "draft" } });
   await client.customerGroupOffering.update({ store_id: STORE_ID, id: offeringId, expected_updated_at: 7, blocks: [], customer_group_ids: [groupId, otherGroupId], status: { type: "active" } });
-  await client.customerGroupOffering.find({ store_id: STORE_ID, key: "coffee-club", status: "active", limit: 5 });
+  await client.customerGroupOffering.find({ store_id: STORE_ID, key: "members-club", status: "active", limit: 5 });
   assert.equal(await client.customerGroupOffering.delete({ store_id: STORE_ID, id: offeringId, expected_updated_at: 8 }), undefined);
   const { store_id: _store, id: _id, ...updateBody } = update;
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
     ["PUT", `/v1/stores/${OTHER_STORE_ID}/customer-groups/${groupId}`, {}, updateBody],
     ["DELETE", `/v1/stores/${OTHER_STORE_ID}/customer-groups/${groupId}`, { expected_updated_at: "6" }, null],
     ["GET", `/v1/stores/${STORE_ID}/customer-groups`, { customer_group_offering_id: offeringId, status: JSON.stringify({ type: "active" }), sort_field: "status", limit: "5" }, null],
-    ["POST", `/v1/stores/${STORE_ID}/customer-group-offerings`, {}, { id: offeringId, key: "coffee-club", blocks: [], customer_group_ids: [groupId], status: { type: "draft" } }],
+    ["POST", `/v1/stores/${STORE_ID}/customer-group-offerings`, {}, { id: offeringId, key: "members-club", blocks: [], customer_group_ids: [groupId], status: { type: "draft" } }],
     ["PUT", `/v1/stores/${STORE_ID}/customer-group-offerings/${offeringId}`, {}, { expected_updated_at: 7, blocks: [], customer_group_ids: [groupId, otherGroupId], status: { type: "active" } }],
-    ["GET", `/v1/stores/${STORE_ID}/customer-group-offerings`, { key: "coffee-club", status: "active", limit: "5" }, null],
+    ["GET", `/v1/stores/${STORE_ID}/customer-group-offerings`, { key: "members-club", status: "active", limit: "5" }, null],
     ["DELETE", `/v1/stores/${STORE_ID}/customer-group-offerings/${offeringId}`, { expected_updated_at: "8" }, null],
   ]);
-  await assert.rejects(async () => client.customerGroupOffering.create({ store_id: STORE_ID, id: "coffee-club", key: "coffee-club", blocks: [], customer_group_ids: [], status: { type: "draft" } }), {
+  await assert.rejects(async () => client.customerGroupOffering.create({ store_id: STORE_ID, id: "members-club", key: "members-club", blocks: [], customer_group_ids: [], status: { type: "draft" } }), {
     name: "TypeError",
     message: "The customer group offering id must be a canonical UUID v4 picked by the app",
   });
@@ -134,12 +134,12 @@ test("customer group offerings are read by id or by key on the named store, and 
   const calls = recordFetch(context, () => ({ id: offeringId }));
   const client = admin().eshop.customerGroupOffering;
   await client.get({ store_id: STORE_ID, id: offeringId });
-  await client.getByKey({ store_id: OTHER_STORE_ID, key: "coffee/club" });
+  await client.getByKey({ store_id: OTHER_STORE_ID, key: "members/club" });
   await admin().eshop.customerGroup.get({ store_id: STORE_ID, id: groupId });
-  await assert.rejects(async () => client.getByKey({ key: "coffee-club" }), TypeError);
+  await assert.rejects(async () => client.getByKey({ key: "members-club" }), TypeError);
   assert.deepEqual(calls.map(({ path }) => path), [
     `/v1/stores/${STORE_ID}/customer-group-offerings/${offeringId}`,
-    `/v1/stores/${OTHER_STORE_ID}/customer-group-offerings/by-key/coffee%2Fclub`,
+    `/v1/stores/${OTHER_STORE_ID}/customer-group-offerings/by-key/members%2Fclub`,
     `/v1/stores/${STORE_ID}/customer-groups/${groupId}`,
   ]);
 });

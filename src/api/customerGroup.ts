@@ -55,7 +55,7 @@ import type {
   RevokeCustomerGroupMemberParams,
   ScheduleCustomerGroupMemberEndParams,
   SelectCustomerGroupMemberPaymentMethodParams,
-  SkipNextCustomerGroupMemberPurchaseParams,
+  SkipNextCustomerGroupMemberRenewalParams,
   StorefrontCustomerGroup,
   StorefrontCustomerGroupMemberActionParams,
   StorefrontChangeCustomerGroupMemberTermsParams,
@@ -67,7 +67,7 @@ import type {
   StorefrontGetCustomerGroupMemberRevisionParams,
   StorefrontPauseCustomerGroupMemberParams,
   StorefrontSelectCustomerGroupMemberPaymentMethodParams,
-  StorefrontSkipNextCustomerGroupMemberPurchaseParams,
+  StorefrontSkipNextCustomerGroupMemberRenewalParams,
   StorefrontSwitchCustomerGroupMemberParams,
   StorefrontWithdrawCustomerGroupMemberRevisionParams,
   SwitchCustomerGroupMemberParams,
@@ -405,7 +405,7 @@ export const createCustomerGroupMemberApi = (apiConfig: ApiConfig) => {
     },
 
     skipNext(
-      params: SkipNextCustomerGroupMemberPurchaseParams,
+      params: SkipNextCustomerGroupMemberRenewalParams,
       options?: RequestOptions,
     ): Promise<CustomerGroupMember> {
       return action<CustomerGroupMember>(params, "skip-next", options);
@@ -698,7 +698,7 @@ export function createStorefrontCustomerGroupApi(
       },
 
       skipNext(
-        params: StorefrontSkipNextCustomerGroupMemberPurchaseParams,
+        params: StorefrontSkipNextCustomerGroupMemberRenewalParams,
         options?: RequestOptions,
       ): Promise<CustomerGroupMemberSelf> {
         return action<CustomerGroupMemberSelf>(params, "skip-next", options);

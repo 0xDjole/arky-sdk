@@ -17,7 +17,6 @@ export type AnalyticsReportKey =
   | "entity_status_overview"
   | "data_health"
   | "orders_created"
-  | "customers_created"
   | "form_submissions_created"
   | "carts_abandoned"
   | "media_count"
@@ -120,7 +119,7 @@ export interface BusinessOverviewData {
   new_verified_customers: number;
   buyers: number;
   orders: number;
-  revenue_by_currency: RevenueByCurrencyData[];
+  placed_order_value_by_currency: PlacedOrderValueByCurrencyData[];
   carts: number;
   abandoned_carts: number;
   visitor_to_known_rate: AnalyticsRateData;
@@ -134,10 +133,10 @@ export interface AnalyticsRateData {
   value: number | null;
 }
 
-export interface RevenueByCurrencyData {
+export interface PlacedOrderValueByCurrencyData {
   currency: string;
   orders: number;
-  revenue: number;
+  placed_order_value: number;
   average_order_value: number | null;
 }
 
@@ -218,7 +217,6 @@ export interface CustomerActionFeedData {
 
 export type AnalyticsMetricReportKey =
   | "orders_created"
-  | "customers_created"
   | "form_submissions_created"
   | "carts_abandoned"
   | "media_count";
@@ -259,7 +257,6 @@ export type AnalyticsReport =
   | { key: "entity_status_overview"; scope: "current_snapshot"; data: EntityStatusOverviewData }
   | { key: "data_health"; scope: "mixed"; data: DataHealthData }
   | { key: "orders_created"; scope: "period"; data: AnalyticsMetricData }
-  | { key: "customers_created"; scope: "period"; data: AnalyticsMetricData }
   | { key: "form_submissions_created"; scope: "period"; data: AnalyticsMetricData }
   | { key: "carts_abandoned"; scope: "period"; data: AnalyticsMetricData }
   | { key: "media_count"; scope: "current_snapshot"; data: AnalyticsMetricData }

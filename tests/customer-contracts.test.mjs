@@ -191,3 +191,28 @@ for (const method of ["getMe", "updateMe"]) {
     assert.equal(storage.values.size, 0);
   });
 }
+
+test("a signed-in customer unsubscribes and resubscribes on the storefront with no body and keeps the session", async (context) => {
+  const storage = signedInStorage();
+  const storefront = client(storage);
+  const before = structuredClone(storefront.session);
+  const answers = [true, false].map((email_unsubscribed) => ({
+    customer: customerRecord(customerId, { type: before.customer.type }),
+    session: { id: before.id, customer_id: customerId, store_id: storeId },
+    email_unsubscribed,
+  }));
+  const calls = recordFetch(context, (_call, count) => answers[count - 1]);
+  assert.deepEqual(await storefront.customer.unsubscribe(), answers[0]);
+  assert.deepEqual(await storefront.customer.resubscribe(), answers[1]);
+  assert.deepEqual(calls.map((call) => [call.method, call.path, call.body]), [
+    ["POST", "/v1/storefront/customer/me/unsubscribe", null],
+    ["POST", "/v1/storefront/customer/me/resubscribe", null],
+  ]);
+  for (const call of calls) {
+    assert.equal(call.headers.get("authorization"), `Bearer ${accessToken}`);
+    assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
+  }
+  assert.deepEqual(storefront.session, before);
+  const store = initialize(publishableKey, { apiUrl: baseUrl, locale: "bs", visitorIdentity: identity, createSessionId: () => ids.otherSession, sessionStorage: signedInStorage() });
+  assert.equal(typeof store.customer.unsubscribe, "function");
+});

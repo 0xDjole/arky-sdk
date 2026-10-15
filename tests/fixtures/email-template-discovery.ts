@@ -1,5 +1,5 @@
 import { createAdmin } from '../../dist/index.js';
-import type { EmailTemplate, EmailTemplateType, EmailTemplateTypeName, EmailTemplateDefault, EmailContent, EmailAddressSending, CreateEmailTemplateParams, UpdateEmailTemplateParams, FindEmailTemplatesParams, SendEmailTemplateTestParams, OutgoingEmail, StoreEmailSettings, AlertEmail } from '../../dist/index.js';
+import type { EmailTemplate, EmailTemplateType, EmailTemplateTypeName, EmailTemplateDefault, EmailContent, EmailAddressSending, CreateEmailTemplateParams, UpdateEmailTemplateParams, FindEmailTemplatesParams, SendEmailTemplateTestParams, OutgoingEmail, StoreEmailSettings, AlertEmail, EmailProvider, EmailProviderDomain, EmailProviderDomainStatus, ReplaceEmailProviderKeyParams, EpochMilliseconds } from '../../dist/index.js';
 type Assert<T extends true> = T;
 type Equal<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
@@ -20,5 +20,10 @@ export type EmailTemplateContracts = [
   Assert<Missing<FindEmailTemplatesParams, 'email_type'>>,
   Assert<Missing<SendEmailTemplateTestParams, 'notification_id'>>,
   Assert<Equal<keyof EmailAddressSending, 'from_name' | 'reply_to'>>,
-  Assert<Equal<StoreEmailSettings['sign_in_code'], { email_template_id: string } | null>>
+  Assert<Equal<StoreEmailSettings['sign_in_code'], { email_template_id: string } | null>>,
+  Assert<Equal<EmailProviderDomainStatus, 'not_started' | 'pending' | 'verified' | 'partially_verified' | 'partially_failed' | 'failed' | 'temporary_failure'>>,
+  Assert<Equal<EmailProviderDomain['status'], EmailProviderDomainStatus>>,
+  Assert<Equal<ReplaceEmailProviderKeyParams, { store_id: string; expected_updated_at: EpochMilliseconds; api_key: string }>>,
+  Assert<Equal<Parameters<typeof client.notification.emailProvider.replaceKey>[0], ReplaceEmailProviderKeyParams>>,
+  Assert<Equal<Awaited<ReturnType<typeof client.notification.emailProvider.replaceKey>>, EmailProvider>>
 ];

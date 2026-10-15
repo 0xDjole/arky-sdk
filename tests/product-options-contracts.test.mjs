@@ -13,7 +13,7 @@ test("product and variant preserve ordered localized options and native validity
   const api = createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop;
   const options = [{ id: option, key: "size", label: { en: "Size", bs: "Veličina" },
     values: [{ key: "large", label: { en: "Large" } }, { key: "small", label: { en: "Small" } }] }];
-  await api.product.create({ store_id: store, id: product, key: "coffee", slugs: {}, blocks: [], options, categories: [] });
+  await api.product.create({ store_id: store, id: product, key: "classic", slugs: {}, blocks: [], options, categories: [] });
   const choices = [{ option_id: option, value_key: "large" }];
   const result = await api.productVariant.create({ store_id: store, id: variant, product_id: product,
     sku: null, blocks: [], options: choices, fulfillment: { type: "none" }, tax_category_id: option });

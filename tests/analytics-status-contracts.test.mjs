@@ -113,3 +113,33 @@ test("a status bucket the future-3 Server can't send is refused instead of being
     context.mock.restoreAll();
   }
 });
+
+test("the business overview reports placed order value by currency and refuses the old revenue shape", async (context) => {
+  const request = { time, reports: [{ key: "business_overview" }] };
+  const rate = (numerator, denominator) => ({ numerator, denominator, value: denominator === 0 ? null : Math.round(numerator / denominator * 10000) / 100 });
+  const overview = {
+    visitors: 10, new_visitors: 4, new_email_known_customers: 3, new_verified_customers: 2, buyers: 2, orders: 3,
+    placed_order_value_by_currency: [
+      { currency: "eur", orders: 2, placed_order_value: 5001, average_order_value: 2500.5 },
+      { currency: "bam", orders: 0, placed_order_value: 0, average_order_value: null },
+    ],
+    carts: 4, abandoned_carts: 1,
+    visitor_to_known_rate: rate(3, 10), visitor_to_buyer_rate: rate(2, 10), cart_abandonment_rate: rate(1, 4),
+  };
+  const answer = { time, reports: [{ key: "business_overview", scope: "period", data: overview }] };
+  const calls = recordFetch(context, () => answer);
+  assert.deepEqual(await admin().analytics.get(request, { store_id: storeId }), answer);
+  assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [["POST", `/v1/stores/${storeId}/analytics`, request]]);
+  context.mock.restoreAll();
+
+  const { placed_order_value_by_currency: rows, ...rest } = overview;
+  const revenue = { ...rest, revenue_by_currency: rows.map(({ placed_order_value, ...row }) => ({ ...row, revenue: placed_order_value })) };
+  recordFetch(context, () => ({ time, reports: [{ key: "business_overview", scope: "period", data: revenue }] }));
+  await assert.rejects(admin().analytics.get(request, { store_id: storeId }), /Invalid analytics contract/);
+});
+
+test("customers_created is no longer a report: the request is refused before any call", async (context) => {
+  const calls = recordFetch(context, () => ({ time, reports: [] }));
+  await assert.rejects(admin().analytics.get({ time, reports: [{ key: "customers_created" }] }, { store_id: storeId }), /Invalid analytics contract: unknown or repeated report/);
+  assert.equal(calls.length, 0);
+});

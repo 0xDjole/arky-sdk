@@ -40,13 +40,14 @@ await arky.customer.requestCode({ id: crypto.randomUUID(), email: "ana@example.c
 await arky.customer.verify({ code: "123456" });
 const me = await arky.customer.getMe();
 await arky.customer.updateMe({ expected_updated_at: me.customer.updated_at, first_name: "Ana" });
+await arky.customer.unsubscribe();
 await arky.customer.resubscribe();
 
 await arky.customer.requestCode({ id: crypto.randomUUID(), email: "ana.new@example.com", language: "en" });
-await arky.customer.changeEmail({ code: "654321", language: "en" });
+await arky.customer.changeEmail({ code: "654321" });
 ```
 
-`requestCode` names the code email's id and its language. On a signed-in session it starts an email change instead of a sign-in: the code goes to the new address, and `changeEmail({ code, language })` proves it. The session stays signed in, the email becomes the new verified address, and the old address gets a notice in `language`. `updateMe` can't replace or remove a verified email. Sessions are kept in `localStorage`, or in the `sessionStorage` adapter you pass (needed during SSR). When `verify` signs the visitor in as a customer who already exists, Arky merges the visitor's cart into that customer's cart in the same step. The next `cart.current(...)` follows the merged visitor cart to that cart and selects it, so the customer lands on their merged cart, on a new browser too; `cart.create` or `cart.forget` for the same buyer and catalog drops the pending follow.
+`requestCode` names the code email's id and its language. On a signed-in session it starts an email change instead of a sign-in: the code goes to the new address, and `changeEmail({ code })` proves it. The session stays signed in, the email becomes the new verified address, and the old address gets a notice in the language the code request named. `unsubscribe` records that the signed-in customer unsubscribed and `resubscribe` releases it; both answer the customer with `email_unsubscribed`. `updateMe` can't replace or remove a verified email. Sessions are kept in `localStorage`, or in the `sessionStorage` adapter you pass (needed during SSR). When `verify` signs the visitor in as a customer who already exists, Arky merges the visitor's cart into that customer's cart in the same step. The next `cart.current(...)` follows the merged visitor cart to that cart and selects it, so the customer lands on their merged cart, on a new browser too; `cart.create` or `cart.forget` for the same buyer and catalog drops the pending follow.
 
 ### Content, media and forms
 
@@ -60,7 +61,7 @@ const url = arky.utils.getImageUrl(media[0], "medium");
 const form = await arky.forms.get({ key: "contact" });
 const submission = await arky.forms.submit({
   form_id: form.id,
-  form_updated_at: form.updated_at,
+  questions_updated_at: form.questions_updated_at,
   id: crypto.randomUUID(),
   language: "en",
   answers: [{ type: "text", question_id: form.questions[0].id, key: "message", value: "Hello" }],
@@ -69,16 +70,16 @@ const submission = await arky.forms.submit({
 
 Entry slugs are unique per collection and language, so a slug lookup names its collection and reads the client's locale. Every stored media file carries its public `url`; images have `original`, `thumbnail`, `small`, `medium` and `large`.
 
-A submission names the `updated_at` of the form it was filled in from (`form_updated_at`); when the form changed since, Arky refuses it with 409 `FORM_SUBMISSION.FORM_CHANGED`, so load the form again. The storefront store's `forms.submitByKey` sends the loaded form's version itself. File answers carry `File` objects; the SDK sends the submission as multipart, with each file in the same request (up to 10 MiB a file, 20 files and 50 MiB a submission). An answer exists only when it is given, so empty or whitespace-only text, empty choices and empty file lists are left out. `buildFormAnswers(form, values)` turns a plain `{ key: value }` map into checked answers. The storefront gets back its own copy of the submission (`StorefrontFormSubmission`: `id`, `form_id`, `language`, `answers`, `stage_id` and the two times, no staff history).
+A submission names the `questions_updated_at` of the form it was filled in from; when the form's questions changed since, Arky refuses it with 409 `FORM_SUBMISSION.FORM_CHANGED`, so load the form again. The storefront store's `forms.submitByKey` sends the loaded form's version itself. File answers carry `File` objects; the SDK sends the submission as multipart, with each file in the same request (up to 10 MiB a file, 20 files and 50 MiB a submission). An answer exists only when it is given, so empty or whitespace-only text, empty choices and empty file lists are left out. `buildFormAnswers(form, values)` turns a plain `{ key: value }` map into checked answers. The storefront gets back its own copy of the submission (`StorefrontFormSubmission`: `id`, `form_id`, `language`, `answers`, `stage_id` and the two times, no staff history).
 
 ### Catalog and products
 
 ```typescript
 const catalogs = await arky.eshop.catalog.find();
 const products = await arky.eshop.product.find({ catalog_id, include_price: true, limit: 20 });
-const product = await arky.eshop.product.get({ slug: "espresso", catalog_id, include_price: true });
-const byKey = await arky.eshop.product.getByKey({ key: "espresso-x1", catalog_id, include_price: true });
-const category = await arky.category.getByKey({ key: "coffee" });
+const product = await arky.eshop.product.get({ slug: "classic", catalog_id, include_price: true });
+const byKey = await arky.eshop.product.getByKey({ key: "classic-x1", catalog_id, include_price: true });
+const category = await arky.category.getByKey({ key: "kitchen" });
 const variants = await arky.eshop.productVariant.find({ product_id: product.id, catalog_id, include_price: true });
 ```
 
@@ -90,7 +91,7 @@ const variants = await arky.eshop.productVariant.find({ product_id: product.id, 
 const created = await arky.eshop.cart.create({
   id: crypto.randomUUID(),
   buyer: { type: "customer" },
-  catalog_id: null,
+  catalog_id,
 });
 let cart = created.cart;
 
@@ -99,7 +100,6 @@ cart = await arky.eshop.cart.addProduct({
   expected_updated_at: cart.updated_at,
   product: {
     id: crypto.randomUUID(),
-    product_id,
     variant_id,
     quantity: 1,
     purchase: { type: "catalog" },
@@ -125,7 +125,7 @@ const accepted = await arky.eshop.cart.checkout({
 });
 ```
 
-The quote is in the client's locale. `quote.ready` is false while `quote.blockers` lists what is missing (a delivery, a shipping choice, a billing address, …); each delivery's `offers` name their shipping method by `shipping_method_key` and `shipping_method_blocks`, so a storefront can show "Courier €45". `cart.current({ buyer, catalog_id })` reads the cart this browser selected for the signed-in customer (a cart that was merged is followed to its target when the target is this customer's), `cart.forget()` drops the selection, and `cart.reorder({ id, order_id, buyer })` starts a cart from an earlier order and selects it under the buyer and the new cart's `catalog_id`, as `create` does, so it survives a reload. Checkout is refused when the quote changed (`CartPresentationChangedError` carries the new quote). A checkout can be kept across reloads with `retainCheckout`, `pendingCheckout` and `recoverCheckout`; a definite refusal (any 4xx but 408 and 429, including the changed-quote 409) drops the kept request, so the cart can be changed and quoted again.
+The quote is in the client's locale. `quote.ready` is false while `quote.blockers` lists what is missing (a delivery, a shipping choice, a billing address, …); each delivery's `offers` name their shipping method by `shipping_method_key` and `shipping_method_blocks`, so a storefront can show "Courier €45". A rate that needs a weight Arky doesn't know is left out of `offers` and listed in the delivery's `unavailable` with its `code` (`SHIPPING.WEIGHT_UNKNOWN`); when the cart already selected it, the quote shows a `shipping_rate_unavailable` (or `customer_group_shipping_rate_unavailable`) blocker with that code. A product line may buy through a group's purchase access: `{ type: "existing_purchase_access", grant }` for access an order bought, `{ type: "same_cart_purchase_access", cart_customer_group_line_item_id, entitlement_id }` for access bought in the same cart, and `{ type: "assigned_purchase_access", customer_group_member_id, entitlement_id }` for a member the team assigned. `cart.current({ buyer, catalog_id })` reads the cart this browser selected for the signed-in customer (a cart that was merged is followed to its target when the target is this customer's), `cart.forget()` drops the selection, and `cart.reorder({ id, order_id, buyer })` starts a cart from an earlier order and selects it under the buyer and the new cart's `catalog_id`, as `create` does, so it survives a reload. Checkout is refused when the quote changed (`CartPresentationChangedError` carries the new quote). A checkout can be kept across reloads with `retainCheckout`, `pendingCheckout` and `recoverCheckout`; a definite refusal (any 4xx but 408 and 429, including the changed-quote 409) drops the kept request, so the cart can be changed and quoted again.
 
 ### Paying
 
@@ -141,14 +141,15 @@ Checkout answers `{ type: "placed", order_id, number, payment_id, payment_action
 
 ### Orders, customer groups and more
 
-- `eshop.order`: `find`, `get`, `fulfillments`, `findPayments`, `getPayment`, `paymentAction`, `cancelProductItem`, `cancelBookingItem`.
+- `eshop.order`: `find`, `get`, `fulfillments`, `findPayments`, `getPayment`, `paymentAction`, `cancelProductItem`, `cancelBookingItem`, `rescheduleBookingItem`. Order lists filter booking lines by `booking_statuses` (`pending`, `confirmed`, `attended`, `no_show`, `cancelled`).
+- `eshop.promotion.get(id)`: the text shoppers see for an Active or Archived promotion, `{ id, key, blocks }`, with no conditions or counters.
 - `eshop.library`: `find`, `getProduct`, `findAssets`, `download` (digital files the buyer owns). Pass nothing for the customer's own files, `company_id` for a company's, or `company_location_id` alone for a location's.
 - `eshop.customerGroup` (`find`, `get`) and `eshop.customerGroupOffering.get`: the groups a store sells, read like products (`catalog_id`, `include_price`). A cart buys one with `eshop.cart.addCustomerGroup({ id, expected_updated_at, customer_group: { id, customer_group_id, start, deliveries } })`; `start` is `{ type: "on_acceptance" }`, `{ type: "scheduled", starts_at }` or, to move a member to another group of its offering, `{ type: "switch", customer_group_member_id }`.
-- `eshop.customerGroupMember`: `find` (the customer's own members, or a company's or location's with `company_id` / `company_location_id`), `get`, `findOrders`, `getRevision` (a revision with its terms), `purchaseAccess({ id, catalog_id })`, `calendar` (the next occurrence and the one after a skip), and the member's actions `cancel`, `pause`, `resume`, `skipNext`, `selectPaymentMethod` and `withdrawRevision`. A switch is `reviewSwitch` then `switch` with the same body; it may name a `catalog_id`: Arky then prices it from that catalog, which must sell in the market of the member's first order (`CUSTOMER_GROUP_MEMBER.CATALOG_OTHER_MARKET` otherwise); without one it is priced from the current terms' catalog. When that catalog doesn't list the new group, has no price for it or doesn't let the buyer buy from it, `reviewSwitch` and `switch` answer 409 `CUSTOMER_GROUP_MEMBER.TARGET_NOT_PRICED`. A switch names no rentals: when the new terms start, each rented machine stays on its entitlement if that entitlement still lends the same variant, else moves to a free entitlement lending that variant, else is returned. The storefront gets the customer's copies (`CustomerGroupMemberSelf`, `CustomerGroupMemberRevisionDetailSelf`, `CustomerGroupMemberChangeSelf`): no staff emails or internal reasons.
+- `eshop.customerGroupMember`: `find` (the customer's own members, or a company's or location's with `company_id` / `company_location_id`), `get`, `findOrders`, `getRevision` (a revision with its terms), `purchaseAccess({ id, catalog_id })`, `calendar` (the next occurrence and the one after a skip), and the member's actions `cancel`, `pause`, `resume`, `skipNext`, `selectPaymentMethod` and `withdrawRevision`. A switch is `reviewSwitch` then `switch` with the same body; it may name a `catalog_id`: Arky then prices it from that catalog, which must sell in the market of the member's first order (`CUSTOMER_GROUP_MEMBER.CATALOG_OTHER_MARKET` otherwise); without one it is priced from the current terms' catalog. When that catalog doesn't list the new group, has no price for it or doesn't let the buyer buy from it, `reviewSwitch` and `switch` answer 409 `CUSTOMER_GROUP_MEMBER.TARGET_NOT_PRICED`. A switch names no rentals: when the new terms start, each rented unit stays on its entitlement if that entitlement still lends the same variant, else moves to a free entitlement lending that variant, else is returned. The storefront gets the customer's copies (`CustomerGroupMemberSelf`, `CustomerGroupMemberRevisionDetailSelf`, `CustomerGroupMemberChangeSelf`): no staff emails or internal reasons.
 - `eshop.minimumProgress.get({ customer_id } | { company_id } | { company_location_id })`: progress toward a group's purchase minimum. A company whose minimum counts per location answers `per_location`; read each location instead.
 - `eshop.paymentMethod`: saved cards (`find`, `get`, `requestSetup`, `startSetup`, `completeSetup`, …), `currentConsentText({ language })` for the text a buyer accepts when saving a card, and `consentText({ terms_version })` for an earlier one.
 - `eshop.rental`, `eshop.return`, `companies` (the signed-in customer's companies, locations and access grants).
-- `support.conversation`: `start({ id, language, flow_key })` (without `flow_key` the chat goes straight to the team) answers the conversation, its first messages and the chat's `support_token`; `get`, `findMessages`, `getMessage` and `sendMessage({ support_token, conversation_id, id, input, prompt_message_id })` take that token. `input` is `{ type: "text", text }` or `{ type: "button", label }`; while the chat waits on a choice, question or email prompt, `prompt_message_id` names the prompt shown (409 `SUPPORT.STALE_PROMPT` otherwise).
+- `support.conversation`: `start({ id, language, flow_key })` (without `flow_key` the chat goes straight to the team) answers the conversation and its first messages; `get`, `findMessages`, `getMessage` and `sendMessage({ conversation_id, id, input, prompt_message_id })` run under the customer's own session, with no separate chat token. `input` is `{ type: "text", text }` or `{ type: "button", label }`; while the chat waits on a choice, question or email prompt, `prompt_message_id` names the prompt shown (409 `CONVERSATION.STALE_PROMPT` otherwise).
 - `actions.track({ key, data })`, `experiments.use({ key })`. An assignment means the storefront asked for a version, so call `experiments.use` only where that version is actually shown. A goal of `order_placed` means an order was placed, paid or not.
 
 ## Storefront store
@@ -161,7 +162,7 @@ import { initialize } from "arky-sdk/storefront";
 export const store = initialize("arky_pk_...", { locale: "en", market: "eu" });
 
 await store.eshop.cart.load({ buyer: { type: "customer" } });
-await store.eshop.cart.addProduct({ id: crypto.randomUUID(), product_id, variant_id, quantity: 1, purchase: { type: "catalog" } });
+await store.eshop.cart.addProduct({ id: crypto.randomUUID(), variant_id, quantity: 1, purchase: { type: "catalog" } });
 await store.eshop.cart.quote();
 await store.eshop.cart.checkout({ order_id: crypto.randomUUID(), order_token: createOrderToken(), contact_email, payment });
 ```
@@ -183,14 +184,14 @@ Without `secretKey`, sign in with `admin.account.auth.code({ email })` and `admi
 | `account` | `getMe`, `delete`, `search`, `session`, `auth` |
 | `platform` | currencies, webhook events, store plans, `administrator` (each with its account's `email`), `stripeBillingEvent` |
 | `store` | the store (with `pauseEmailSending` and `allowEmailSending`), `subscription` (with `endGrant` for platform administrators), `usage.find` (each counter beside its plan allowance), `member` (an invite lasts 7 days, inviting again renews it, and the invited account accepts with `acceptInvite`), `emails`, `role`, `webhook`, `location`, `market`, `salesChannel`, `apiKey` (Publishable keys belong to one sales channel; Secret keys carry explicit permissions; `revoke` retires either), `paymentOption`, `zone`, `taxCategory`, `shippingProfile`, `shippingMethod` |
-| `notification` | notifications (`email` or `webhook`; a notification is never stopped), `template` (`transactional` with its sending address and email type, or `support_reply`), `emailDomain`, `emailAddress` (the store's sending and receiving addresses) |
+| `notification` | `outgoingEmail` and `outgoingWebhook` (what Arky sent; a send is never stopped), `incomingWebhook` (provider posts), `template` (the wording of one email type in each store language), `emailProvider` (`connect` a Resend key, `replaceKey` to swap it on the same provider with the version read, live `domains` including `partially_verified` and `partially_failed`), `emailAddress` (the store's sending and receiving addresses) |
 | `broadcast` | one email to the members of a customer group offering or of chosen customer groups, sent from one of the store's addresses; `BROADCAST_FIELDS` and `BROADCAST_BLOCK_FIELD_PREFIXES` list the placeholders it may use |
-| `support` | `flow` (fixed-step chat flows), `conversation` (chat and email in one record, with `reply`, `selectSendingAddress`, `resolve`, `assign`, `notes` and `attachmentLink`) |
+| `support` | `flow` (fixed-step chat flows), `conversation` (chat and email in one record, with `startEmail` and `reply` taking their own `text` or a SupportReply `email_template_id`, `changeChatVisibility` to show or hide a received email in the chat, `selectSendingAddress`, `resolve`, `assign`, `notes` and `attachmentLink`) |
 | `media`, `category`, `content` | files, categories, collections and entries |
 | `forms` | forms, submissions, stage changes, files, `notes` |
 | `companies`, `customers` | companies with locations, purchasing (`setPurchasing`), tax registrations (`submitTaxRegistration`, `reviewTaxRegistration`), roles, memberships with scoped grants, and notes; customers with sessions, email suppressions, notes, `erase` and `merge` |
 | `actions`, `experiments`, `analytics` | the customer timeline, A/B tests, reports |
-| `eshop` | products, variants, digital assets, bookings, prices, catalogs, promotions, `customerGroup`, `customerGroupOffering` and `customerGroupMember` (with `assign`, `current`, `revisions`, `purchaseAccess`, `calendar`, each change as `review…` then the change, and `transferPurchaseRequirement`), payment methods (with `consentText`), payments (with `resolveRefund` and `resolveCharge` for Monri), provider events, carts, orders (with credits and notes), inventory, fulfillment, `minimumProgress`, returns (with `credit` for received goods) and rentals |
+| `eshop` | products, variants, digital assets, bookings, prices, catalogs, promotions, `customerGroup`, `customerGroupOffering` and `customerGroupMember` (with `assign`, `current`, `revisions`, `purchaseAccess`, `calendar`, each change as `review…` then the change, and `transferPurchaseRequirement`), payment methods (with `consentText`), payments (with `resolveRefund` and `resolveCharge` for Monri), provider events, carts, orders (with credits, notes, `rescheduleBookingItem`, `attendBookingItem` and `markBookingItemNoShow`), inventory, fulfillment (jobs carry the Order's current `contact`; `fulfillmentJob.getPickupCash` reads the cash a pickup still owes and `fulfillmentJob.recordPickupCash` records it), `minimumProgress`, returns (staff name the receiving location; approve and decline name `notify_customer`; `credit` for received goods) and rentals |
 
 A customer group without entitlements is a free sign-up: it is permanent, its price is 0 in every catalog that lists it, and Arky refuses any other amount. The team can `assign` a customer, company or location to a group that neither ships nor lends anything, without an order; assigning into another group of an offering the subject already holds moves them.
 
@@ -204,7 +205,7 @@ Deletes of records that clean up after themselves (stores, markets, locations, c
 
 SDK packages are released by tagging the protected `master` commit with `v<package.json version>`. The `Publish SDK` workflow runs the tests and publishes with npm provenance. Version bumps are patch-only.
 
-## Domain 4 customer identity
+## Customer identity
 
 Customers are Anonymous until their inbox is verified. Storefront responses contain their typed profile; staff responses also contain private blocks. Imports create Anonymous customers from caller-picked IDs and typed blocks without matching an email.
 

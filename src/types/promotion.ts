@@ -73,6 +73,12 @@ export interface Promotion {
   updated_at: EpochMilliseconds;
 }
 
+export interface StorefrontPromotion {
+  id: string;
+  key: string;
+  blocks: Block[];
+}
+
 export type PromotionCodeStatus =
   | { type: "active" }
   | { type: "archived" }

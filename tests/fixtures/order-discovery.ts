@@ -40,7 +40,7 @@ export type OrderDiscoveryContracts = [
   Assert<Equal<OrderStatus, "pending" | "confirmed" | "partially_cancelled" | "cancelled">>,
   Assert<Equal<OrderSourceFilter, "cart" | "renewal">>,
   Assert<Equal<OrderItemStatusFilter, "pending" | "confirmed" | "cancelled">>,
-  Assert<Equal<OrderBookingStatusFilter, "pending" | "confirmed" | "completed" | "no_show" | "cancelled">>,
+  Assert<Equal<OrderBookingStatusFilter, "pending" | "confirmed" | "attended" | "no_show" | "cancelled">>,
   Assert<Equal<NonNullable<FindOrdersParams["query"]>, string>>,
   Assert<Missing<StorefrontFindOrdersParams, "store_id" | "customer_id" | "subscription_id">>,
   Assert<Equal<StorefrontFindOrdersParams["customer_group_member_id"], string | undefined>>,

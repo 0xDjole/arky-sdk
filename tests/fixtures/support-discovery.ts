@@ -2,7 +2,9 @@ import { epochMilliseconds } from "arky-sdk";
 import type { createAdmin } from "arky-sdk/admin";
 import type { createStorefront } from "arky-sdk/storefront";
 import type {
+  ChangeConversationChatVisibilityParams,
   ChatInput,
+  EpochMilliseconds,
   Conversation,
   ConversationMessage,
   ConversationMessageType,
@@ -69,7 +71,16 @@ export type SupportContracts = [
   Assert<Equal<keyof AdminSupport, "flow" | "conversation">>,
   Assert<Equal<Parameters<AdminSupport["conversation"]["startEmail"]>[0], StartEmailConversationParams>>,
   Assert<Equal<Awaited<ReturnType<AdminSupport["conversation"]["startEmail"]>>, ConversationReply>>,
-  Assert<Equal<keyof AdminSupport["conversation"], "startEmail" | "find" | "get" | "findMessages" | "getMessage" | "attachmentLink" | "reply" | "selectSendingAddress" | "resolve" | "assign" | "notes">>,
+  Assert<Equal<keyof AdminSupport["conversation"], "startEmail" | "find" | "get" | "findMessages" | "getMessage" | "attachmentLink" | "reply" | "changeChatVisibility" | "selectSendingAddress" | "resolve" | "assign" | "notes">>,
+  Assert<Equal<Parameters<AdminSupport["conversation"]["changeChatVisibility"]>[0], ChangeConversationChatVisibilityParams>>,
+  Assert<Equal<Awaited<ReturnType<AdminSupport["conversation"]["changeChatVisibility"]>>, ConversationMessage>>,
+  Assert<Equal<ChangeConversationChatVisibilityParams, { store_id: string; conversation_id: string; message_id: string; expected_updated_at: EpochMilliseconds; visible_in_chat: boolean }>>,
+  Assert<OptionalField<ReplyConversationParams, "text">>,
+  Assert<OptionalField<ReplyConversationParams, "email_template_id">>,
+  Assert<Equal<ReplyConversationParams["email_template_id"], string | undefined>>,
+  Assert<OptionalField<StartEmailConversationParams, "text">>,
+  Assert<OptionalField<StartEmailConversationParams, "email_template_id">>,
+  Assert<Equal<StartEmailConversationParams["email_template_id"], string | undefined>>,
   Assert<Equal<Parameters<AdminSupport["conversation"]["find"]>[0], FindConversationsParams>>,
   Assert<Equal<Awaited<ReturnType<AdminSupport["conversation"]["find"]>>, PaginatedResponse<Conversation>>>,
   Assert<Equal<Parameters<AdminSupport["conversation"]["findMessages"]>[0], FindConversationMessagesParams>>,

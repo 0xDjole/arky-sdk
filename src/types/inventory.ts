@@ -71,7 +71,7 @@ export type InventoryMovementReason =
   | { type: "receiving"; actor: AccountActor; reference: string | null }
   | { type: "adjustment"; actor: AccountActor; quantity: InventoryQuantity; note: string }
   | { type: "damage"; actor: AccountActor; quantity: InventoryQuantity; reference: string | null }
-  | { type: "dispatched"; fulfillment_job_id: string; fulfillment_id: string }
+  | { type: "dispatched"; fulfillment_id: string }
   | { type: "return_restock"; return_id: string }
   | { type: "set_aside"; actor: AccountActor; note: string }
   | { type: "made_available"; actor: AccountActor; note: string }

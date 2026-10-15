@@ -77,6 +77,10 @@ export const createReturnApi = (apiConfig: ApiConfig) => {
     },
 
     execute(params: ActOnReturnParams, options?: RequestOptions): Promise<Return> {
+      const command = params.command;
+      if ((command.type === "approve" || command.type === "decline") && typeof command.notify_customer !== "boolean") {
+        throw new TypeError("A return approval or decline requires an explicit customer email choice");
+      }
       return apiConfig.httpClient.post<Return>(
         `${returnPath(params.store_id, params.return_id)}/execute`,
         { expected_updated_at: params.expected_updated_at, command: params.command },

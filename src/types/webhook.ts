@@ -1,6 +1,7 @@
 import type { EpochMilliseconds } from "./time";
 import type { CollectionFilter } from "./block";
 import type { SortDirection } from "./common";
+import type { Order } from "./order";
 
 export type KeyFilter = { type: "all" } | { type: "only"; keys: string[] };
 
@@ -119,6 +120,25 @@ export const WEBHOOK_UNIT_EVENT_TYPES = [
 
 export type WebhookUnitEventType = (typeof WEBHOOK_UNIT_EVENT_TYPES)[number];
 
+export interface OrderRefundCreated {
+  order: Omit<Order, "status" | "totals">;
+  payment_id: string;
+  refund_id: string;
+}
+
+export interface OrderRefundFailed {
+  order: Omit<Order, "status" | "totals">;
+  payment_id: string;
+  refund_id: string;
+}
+
+export interface OrderRefundSucceeded {
+  order: Omit<Order, "status" | "totals">;
+  payment_id: string;
+  refund_id: string;
+  notify_customer: boolean;
+}
+
 export type WebhookEvent =
   | { type: "collection.created"; collections: KeyFilter }
   | { type: "collection.updated"; collections: KeyFilter }
@@ -147,8 +167,6 @@ export interface Webhook {
 
 export interface WebhookEventScopeField {
   field: string;
-  label: string;
-  placeholder: string;
 }
 
 export interface WebhookEventMetadata {

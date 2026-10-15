@@ -26,7 +26,7 @@ test("a buyer's return names the drop-off location only when one is chosen, and 
   const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, sessionStorage: visitorStorage() });
   const request = {
     id: returnId,
-    type: { type: "order", order_id: ids.order, lines: [{ id: "line", order_product_line_item_id: ids.line, unit_spans: [{ first_unit: 0, quantity: 1 }], reason: "damaged", items: [{ inventory_item_id: "milk", quantity: 1 }] }] },
+    type: { type: "order", order_id: ids.order, lines: [{ id: "line", order_product_line_item_id: ids.line, unit_spans: [{ first_unit: 0, quantity: 1 }], reason: "damaged", items: [{ inventory_item_id: "stock-item", quantity: 1 }] }] },
     destination_store_location_id: null,
   };
   await client.eshop.return.create(request);

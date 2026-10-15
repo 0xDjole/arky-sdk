@@ -46,7 +46,7 @@ test("webhook writes keep tagged statuses and scoped event types, carry the app-
     ["POST", `/v1/stores/${STORE_ID}/webhooks`, {}, { id: hookId, url: "https://receiver.test", events, headers: {}, secret: "secret", status: { type: "active" } }],
     ["PUT", `/v1/stores/${STORE_ID}/webhooks/${hookId}`, {}, { expected_updated_at: 2, status: { type: "disabled" } }],
     ["DELETE", `/v1/stores/${STORE_ID}/webhooks/${hookId}`, { expected_updated_at: "3" }, null],
-    ["POST", `/v1/stores/${STORE_ID}/webhooks/test`, {}, { id: testId, webhook_id: hookId }],
+    ["POST", `/v1/stores/${STORE_ID}/outgoing-webhooks/test`, {}, { id: testId, webhook_id: hookId }],
   ]);
   await assert.rejects(async () => api.create({ store_id: STORE_ID, id: "hook", url: "https://receiver.test", events, headers: {}, secret: "s", status: { type: "active" } }), TypeError);
   await assert.rejects(async () => api.test({ store_id: STORE_ID, id: "test", webhook_id: hookId }), {

@@ -65,3 +65,25 @@ test("store provider domains are live reads and sending addresses use provider-i
   assert.equal(calls[7].url.searchParams.get("expected_updated_at"), "5");
   assert.equal("emailDomain" in client.notification, false);
 });
+
+test("a store replaces its Resend key on the same provider with the version it read", async (context) => {
+  const replaced = { id: provider, store_id: store, type: { type: "resend", webhook_id: "webhook" }, created_at: 1, updated_at: 9 };
+  const { client, calls } = setup(context, () => replaced);
+  assert.deepEqual(await client.notification.emailProvider.replaceKey({ store_id: store, expected_updated_at: 8, api_key: "re_next_key" }), replaced);
+  assert.deepEqual(calls.map((call) => [call.method, call.url.pathname, call.body]), [
+    ["PUT", `/v1/stores/${store}/email-provider`, { expected_updated_at: 8, api_key: "re_next_key" }],
+  ]);
+  assert.deepEqual(Object.keys(client.notification.emailProvider).sort(), ["connect", "domains", "get", "replaceKey"]);
+});
+
+test("partially verified and partially failed domains are read as the Server names them", async (context) => {
+  const domains = ["not_started", "pending", "verified", "partially_verified", "partially_failed", "failed", "temporary_failure"].map((status, index) => ({
+    id: `domain-${index}`,
+    name: `mail${index}.example.test`,
+    status,
+    records: [{ type: "TXT", name: "send", value: "v=spf1", priority: null }],
+  }));
+  const { client, calls } = setup(context, () => domains);
+  assert.deepEqual(await client.notification.emailProvider.domains({ store_id: store }), domains);
+  assert.deepEqual(calls.map((call) => [call.method, call.url.pathname]), [["GET", `/v1/stores/${store}/email-provider/domains`]]);
+});

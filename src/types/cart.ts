@@ -21,11 +21,11 @@ import type {
   CustomerGroupStart,
 } from "./customerGroup";
 import type {
-  FulfillmentTiming,
   LineDiscount,
   LineMoney,
   OrderBookingSnapshot,
   OrderDeliveryDestination,
+  OrderDeliveryTiming,
   OrderProductSnapshot,
   OrderPromotion,
   OrderTaxGroup,
@@ -62,6 +62,11 @@ export type CartProductPurchase =
   | {
       type: "same_cart_purchase_access";
       cart_customer_group_line_item_id: string;
+      entitlement_id: string;
+    }
+  | {
+      type: "assigned_purchase_access";
+      customer_group_member_id: string;
       entitlement_id: string;
     };
 
@@ -351,7 +356,7 @@ export interface QuoteProductLine {
 
 export type QuoteBookingAvailability =
   | { type: "available"; spots: number }
-  | { type: "unavailable"; reason: string };
+  | { type: "unavailable"; code: string };
 
 export interface QuoteBookingLine {
   line_item_id: string;
@@ -425,14 +430,21 @@ export interface QuoteShippingOffer {
   delivery_estimate: ShippingDeliveryEstimate | null;
 }
 
+export interface UnavailableShippingRate {
+  shipping_method_id: string;
+  rate_id: string;
+  code: string;
+}
+
 export interface QuoteDelivery {
   delivery_group_id: string;
   destination: OrderDeliveryDestination;
   shipping_profile_id: string;
   items: QuoteDeliveryItem[];
   rental_entitlements: QuoteDeliveryRental[];
-  timing: FulfillmentTiming;
+  timing: OrderDeliveryTiming;
   offers: QuoteShippingOffer[];
+  unavailable: UnavailableShippingRate[];
   shipping: CartShipping | null;
   delivery_estimate: ShippingDeliveryEstimate | null;
   money: LineMoney | null;
@@ -442,12 +454,27 @@ export type QuoteBlocker =
   | { type: "units_without_delivery"; line_item: CartPhysicalLineRef; quantity: number }
   | { type: "billing_address_required" }
   | { type: "shipping_required"; delivery_group_id: string }
-  | { type: "booking_unavailable"; line_item_id: string; reason: string }
+  | { type: "booking_unavailable"; line_item_id: string; code: string }
   | { type: "customer_group_delivery_required"; line_item_id: string; entitlement_id: string }
   | { type: "customer_group_shipping_required"; line_item_id: string; delivery_id: string }
   | { type: "customer_group_delivery_fee_varies"; line_item_id: string; delivery_id: string }
   | { type: "purchase_order_number_required" }
-  | { type: "purchase_limit_exceeded"; line_item_id: string; limit_id: string };
+  | { type: "purchase_limit_exceeded"; line_item_id: string; limit_id: string }
+  | {
+      type: "shipping_rate_unavailable";
+      delivery_group_id: string;
+      shipping_method_id: string;
+      rate_id: string;
+      code: string;
+    }
+  | {
+      type: "customer_group_shipping_rate_unavailable";
+      line_item_id: string;
+      delivery_id: string;
+      shipping_method_id: string;
+      rate_id: string;
+      code: string;
+    };
 
 export interface QuoteTotals {
   subtotal: number;

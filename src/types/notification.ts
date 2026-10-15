@@ -141,14 +141,24 @@ export interface EmailProvider {
   updated_at: EpochMilliseconds;
 }
 
+export type EmailProviderDomainStatus =
+  | "not_started"
+  | "pending"
+  | "verified"
+  | "partially_verified"
+  | "partially_failed"
+  | "failed"
+  | "temporary_failure";
+
 export interface EmailProviderDomain {
   id: string;
   name: string;
-  status: "not_started" | "pending" | "verified" | "failed" | "temporary_failure";
+  status: EmailProviderDomainStatus;
   records: { type: string; name: string; value: string; priority: number | null }[];
 }
 
 export interface ConnectEmailProviderParams { store_id: string; id: string; api_key: string }
+export interface ReplaceEmailProviderKeyParams { store_id: string; expected_updated_at: EpochMilliseconds; api_key: string }
 export interface GetEmailProviderParams { store_id: string }
 export interface FindEmailProviderDomainsParams { store_id: string }
 

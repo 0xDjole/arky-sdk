@@ -26,8 +26,12 @@ const standardCheckout = { payment: { type: "standard_checkout", billing_address
 const monthly = {
   type: "recurring",
   cadence: { interval: "month", interval_count: 1 },
-  recovery_policy: { retry_offsets_seconds: [86_400], recovery_window_seconds: 604_800, on_exhaustion: { type: "pause" }, unpaid_order: { type: "retain_debt" } },
+  renewal_reminder_days: null,
   commitment: { occurrences: 12, end_action: { type: "renew" } },
+  on_exhaustion: { type: "pause" },
+  unpaid_order: { type: "retain_debt" },
+  retry_offsets_seconds: [86_400],
+  recovery_window_seconds: 604_800,
 };
 const definitions = [
   {
@@ -79,9 +83,9 @@ const definitions = [
   {
     path: ["eshop", "customerGroupOffering"],
     route: "customer-group-offerings",
-    create: { key: "coffee-club", blocks: [], customer_group_ids: [otherId], status: { type: "draft" } },
+    create: { key: "members-club", blocks: [], customer_group_ids: [otherId], status: { type: "draft" } },
     update: { blocks: detailBlocks, customer_group_ids: [otherId, selectedStoreId], status: { type: "active" } },
-    query: { key: "coffee-club", status: "active", sort_field: "updated_at", sort_direction: "desc" },
+    query: { key: "members-club", status: "active", sort_field: "updated_at", sort_direction: "desc" },
     deletion: "empty",
   },
   {

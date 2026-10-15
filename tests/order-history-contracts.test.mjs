@@ -86,13 +86,14 @@ test("booking attendance, access revocation and a receipt resend each name the l
   const calls = recordFetch(context, (call) => call.path.endsWith("/resend-receipt") ? { id: ids.credit } : retained);
   const api = client().eshop.order;
   const lineId = "19f4bc18-4259-46b8-b5ef-3579d1dac971";
-  await api.completeBookingItem({ store_id: storeId, order_id: retained.id, line_item_id: lineId, expected_updated_at: 3 });
+  assert.equal("completeBookingItem" in api, false);
+  await api.attendBookingItem({ store_id: storeId, order_id: retained.id, line_item_id: lineId, expected_updated_at: 3 });
   await api.markBookingItemNoShow({ store_id: storeId, order_id: retained.id, line_item_id: lineId, expected_updated_at: 4 });
   await api.revokeAccess({ store_id: storeId, id: retained.id, expected_updated_at: 5, line_item_id: "3e956b8d-efc3-42e6-a5c1-9fb38ea840fa", effective_at: 1_789_000_000_000, reason: "Chargeback" });
   await api.resendReceipt({ store_id: storeId, order_id: retained.id, id: ids.credit, expected_updated_at: 5 });
   const base = `/v1/stores/${storeId}/orders/${retained.id}`;
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
-    ["POST", `${base}/booking-items/${lineId}/complete`, { expected_updated_at: 3 }],
+    ["POST", `${base}/booking-items/${lineId}/attend`, { expected_updated_at: 3 }],
     ["POST", `${base}/booking-items/${lineId}/no-show`, { expected_updated_at: 4 }],
     ["POST", `${base}/access/revoke`, { expected_updated_at: 5, line_item_id: "3e956b8d-efc3-42e6-a5c1-9fb38ea840fa", effective_at: 1_789_000_000_000, reason: "Chargeback" }],
     ["POST", `${base}/resend-receipt`, { id: ids.credit, expected_updated_at: 5 }],

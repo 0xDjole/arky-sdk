@@ -13,7 +13,7 @@ const shared = {
   statuses: ["confirmed", "partially_cancelled"],
   sources: ["renewal"],
   product_statuses: ["confirmed"],
-  booking_statuses: ["completed", "no_show"],
+  booking_statuses: ["attended", "no_show"],
   product_ids: [ids.product],
   booking_service_ids: ["service"],
   booking_resource_ids: ["resource"],

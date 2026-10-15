@@ -121,7 +121,7 @@ export interface StorePlan {
   interval: StorePlanInterval;
   interval_count: number;
   trial_days: number | null;
-  features: Partial<Record<FeatureType, StorePlanFeature>>;
+  features: Record<FeatureType, StorePlanFeature>;
 }
 
 export interface CreateStoreMarketInput {

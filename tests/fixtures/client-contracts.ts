@@ -5,7 +5,7 @@ import type {
   BroadcastAudience,
   ExperimentResults,
   ExperimentVariantResult,
-  FulfillmentRecipient,
+  FulfillmentJobBuyer,
   IncomingWebhookStatus,
   IncomingWebhookStatusName,
   IncomingWebhookTarget,
@@ -166,8 +166,8 @@ export type AdminSurfaceContracts = [
   Assert<Equal<IncomingWebhookTarget["type"], "conversation_message" | "outgoing_email" | "email_suppression" | "payment" | "payment_method" | "store_subscription">>,
   Assert<Equal<keyof ResendEvent, "event_type" | "email_id" | "occurred_at" | "outgoing_email_id" | "store_id" | "message_id" | "recipients" | "failure">>,
   Assert<Equal<ResendEvent["failure"], EmailFailure | null>>,
-  Assert<Equal<Extract<FulfillmentRecipient, { type: "company_location" }>["source_company_location_id"], string>>,
-  Assert<Missing<Extract<FulfillmentRecipient, { type: "company_location" }>, "source_company_id">>,
+  Assert<Equal<Extract<FulfillmentJobBuyer, { type: "company_location" }>["company_location_id"], string>>,
+  Assert<Missing<Extract<FulfillmentJobBuyer, { type: "company_location" }>, "source_company_location_id" | "source_customer_id">>,
 ];
 
 export type StorefrontSurfaceContracts = [
@@ -177,7 +177,11 @@ export type StorefrontSurfaceContracts = [
   Assert<Missing<Storefront["customer"], "captureEmail">>,
   Assert<Missing<Storefront["eshop"], "digital">>,
   Assert<Missing<Storefront["eshop"]["order"], "resumePayment">>,
-  Assert<Equal<keyof Storefront["customer"], "identify" | "requestCode" | "verify" | "changeEmail" | "refresh" | "logout" | "getMe" | "updateMe" | "resubscribe">>,
+  Assert<Equal<keyof Storefront["customer"], "identify" | "requestCode" | "verify" | "changeEmail" | "refresh" | "logout" | "getMe" | "updateMe" | "resubscribe" | "unsubscribe">>,
+  Assert<Equal<Answer<Storefront["customer"]["unsubscribe"]>, CustomerMe>>,
+  Assert<Equal<Answer<Storefront["customer"]["resubscribe"]>, CustomerMe>>,
+  Assert<Equal<keyof Store["customer"], "identify" | "requestCode" | "verify" | "changeEmail" | "refresh" | "logout" | "getMe" | "updateMe" | "resubscribe" | "unsubscribe">>,
+  Assert<Equal<Store["eshop"]["promotion"], Storefront["eshop"]["promotion"]>>,
   Assert<Equal<keyof ChangeCustomerEmailParams, "code">>,
   Assert<Equal<Answer<Storefront["customer"]["changeEmail"]>, CustomerMe>>,
   Assert<Equal<keyof RequestCustomerCodeParams, "id" | "email" | "language" | "bot_check_token">>,

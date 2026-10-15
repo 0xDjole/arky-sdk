@@ -166,18 +166,18 @@ test("Admin booking runtime creates service, resource and offering under app-pic
   const line = orderBookingItems(loadedOrder)[0];
   assert.equal(line.id, lineId);
   await admin.eshop.order.cancelBookingItem({ store_id: storeId, order_id: loadedOrder.id, line_item_id: line.id, credit_id: creditId, expected_updated_at: 2 });
-  await admin.eshop.order.completeBookingItem({ store_id: storeId, order_id: loadedOrder.id, line_item_id: line.id, expected_updated_at: 3 });
+  await admin.eshop.order.attendBookingItem({ store_id: storeId, order_id: loadedOrder.id, line_item_id: line.id, expected_updated_at: 3 });
   await admin.eshop.order.markBookingItemNoShow({ store_id: storeId, order_id: loadedOrder.id, line_item_id: line.id, expected_updated_at: 4 });
 
   for (const removed of ["service", "provider", "booking"]) assert.equal(removed in admin.eshop, false, removed);
-  for (const removed of ["getBookings", "getBookingAppointment"]) assert.equal(removed in admin.eshop.order, false, removed);
+  for (const removed of ["getBookings", "getBookingAppointment", "completeBookingItem"]) assert.equal(removed in admin.eshop.order, false, removed);
   assert.deepEqual(calls.map((call) => [call.url.pathname, call.method, call.body]), [
     [`/v1/stores/${storeId}/booking-services`, "POST", service],
     [`/v1/stores/${storeId}/booking-resources`, "POST", resource],
     [`/v1/stores/${storeId}/booking-offerings`, "POST", offering],
     [`/v1/stores/${storeId}/orders/${ids.order}`, "GET", null],
     [`/v1/stores/${storeId}/orders/${ids.order}/booking-items/${lineId}/cancel`, "POST", { credit_id: creditId, expected_updated_at: 2 }],
-    [`/v1/stores/${storeId}/orders/${ids.order}/booking-items/${lineId}/complete`, "POST", { expected_updated_at: 3 }],
+    [`/v1/stores/${storeId}/orders/${ids.order}/booking-items/${lineId}/attend`, "POST", { expected_updated_at: 3 }],
     [`/v1/stores/${storeId}/orders/${ids.order}/booking-items/${lineId}/no-show`, "POST", { expected_updated_at: 4 }],
   ]);
   for (const [create, record] of [

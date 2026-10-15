@@ -67,9 +67,9 @@ test("staff returns are created under the app-picked id, and every action goes t
   await api.get({ store_id: OTHER_STORE_ID, return_id: "return/id" });
   const items = [{ line_id: lineId, inventory_item_id: "item", quantity: 1, inventory_unit_ids: [] }];
   const commands = [
-    { type: "approve", destination_store_location_id: null },
+    { type: "approve", destination_store_location_id: null, notify_customer: true },
     { type: "decide", store_location_id: "warehouse" },
-    { type: "decline", reason: "Outside the return window" },
+    { type: "decline", reason: "Outside the return window", notify_customer: false },
     { type: "receive", items },
     { type: "dispose", items: items.map((item) => ({ ...item, disposition: { type: "not_restocked", reason: "Broken seal" } })) },
     { type: "missing", items: [{ line_id: lineId, inventory_item_id: "item", quantity: 1 }] },
@@ -92,6 +92,29 @@ test("staff returns are created under the app-picked id, and every action goes t
     message: "The return id must be a canonical UUID v4 picked by the app",
   });
   assert.equal(calls.length, 2 + commands.length);
+});
+
+test("approving or declining a return needs an explicit customer email choice and sends it as given", async (context) => {
+  const calls = recordFetch(context, () => ({ id: returnId }));
+  const api = returns();
+  const version = { store_id: STORE_ID, return_id: returnId, expected_updated_at: 9 };
+  for (const command of [
+    { type: "approve", destination_store_location_id: "warehouse" },
+    { type: "decline", reason: "Outside the return window" },
+    { type: "approve", destination_store_location_id: null, notify_customer: "yes" },
+  ]) {
+    await assert.rejects(async () => api.execute({ ...version, command }), {
+      name: "TypeError",
+      message: "A return approval or decline requires an explicit customer email choice",
+    });
+  }
+  assert.equal(calls.length, 0);
+  await api.execute({ ...version, command: { type: "approve", destination_store_location_id: "warehouse", notify_customer: false } });
+  await api.execute({ ...version, command: { type: "decline", reason: "Seal broken", notify_customer: true } });
+  assert.deepEqual(calls.map((call) => call.body.command), [
+    { type: "approve", destination_store_location_id: "warehouse", notify_customer: false },
+    { type: "decline", reason: "Seal broken", notify_customer: true },
+  ]);
 });
 
 test("a return credit carries the app-picked credit id and the return version, and the option reads name their owner", async (context) => {
