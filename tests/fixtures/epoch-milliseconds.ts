@@ -13,7 +13,6 @@ import {
 import type { EpochMilliseconds as UtilityEpochMilliseconds } from "arky-sdk/utils";
 import type {
   Account,
-  AnalyticsTimeRange,
   BookingCapacityClaim,
   BookingOffering,
   BookingService,
@@ -73,7 +72,6 @@ export type ContractChecks = [
   Assert<Checked<BookingCapacityClaim["from"]>>,
   Assert<Checked<GetAvailabilityParams["from"]>>,
   Assert<Checked<FindOrdersParams["created_at_from"]>>,
-  Assert<Checked<AnalyticsTimeRange["to"]>>,
   Assert<Checked<ExperimentResults["freshness_at"]>>,
   Assert<Checked<Extract<StoreSubscriptionPaymentAction, { type: "stripe_embedded_checkout" }>["expires_at"]>>,
   Assert<Checked<DateTimeBlock["value"]>>,

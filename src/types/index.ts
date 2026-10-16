@@ -58,6 +58,8 @@ export type * from "./orderCredit";
 export type * from "./payment";
 export type * from "./experiment";
 export type * from "./customerAction";
+export type * from "./pageView";
+export type * from "./storeCount";
 export { TYPED_CUSTOMER_ACTION_KEYS } from "./customerAction";
 export type * from "./storefront";
 export type * from "./monriCheckout";

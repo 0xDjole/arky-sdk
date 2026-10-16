@@ -22,7 +22,7 @@ import type {
 import type { StorefrontSetup } from "./types/storefront";
 import { createAccountApi } from "./api/account";
 import { createActionsApi } from "./api/actions";
-import { createAnalyticsApi } from "./api/analytics";
+import { createCountsApi } from "./api/counts";
 import { createAuthApi } from "./api/auth";
 import { createBookingOfferingApi, createBookingResourceApi, createBookingServiceApi } from "./api/booking";
 import { createBroadcastApi } from "./api/broadcast";
@@ -97,6 +97,7 @@ import {
   type RequestCustomerCodeParams,
   type VerifyCustomerCodeParams,
 } from "./api/storefront";
+import { createStorefrontPageViewsApi } from "./api/pageViews";
 import { createAdminSupportApi, createStorefrontSupportApi } from "./api/support";
 import { createTaxCategoryApi } from "./api/taxCategory";
 import { createWebhookApi } from "./api/webhook";
@@ -157,7 +158,6 @@ export {
 } from "./types";
 export type { AdminLogoutResult } from "./services/adminSession";
 export type { AdminSessionInternal, AdminSessionUpdater, ApiConfig, StorefrontApiConfig } from "./services/clientTypes";
-export type * from "./api/analytics";
 export type { GetCountriesResponse } from "./api/location";
 export type { RecordNoteApi } from "./api/note";
 export type { FindAdminRentalReturnOptionsParams } from "./api/return";
@@ -197,7 +197,7 @@ export { createCartController } from "./cartController";
 export { buildFormAnswers, initialize } from "./storefrontStore";
 export type * from "./storefrontStore";
 
-export const SDK_VERSION = "0.26.87";
+export const SDK_VERSION = "0.26.88";
 export const SUPPORTED_FRAMEWORKS = ["astro", "react", "vue", "svelte", "vanilla"] as const;
 
 export interface AdminSession {
@@ -383,7 +383,7 @@ export function createAdmin(config: CreateAdminConfig) {
     },
     actions: createActionsApi(apiConfig),
     experiments: createExperimentsApi(apiConfig),
-    analytics: createAnalyticsApi(apiConfig),
+    counts: createCountsApi(apiConfig),
     eshop: {
       product: createProductApi(apiConfig),
       productVariant: createProductVariantApi(apiConfig),
@@ -999,6 +999,7 @@ function createStorefrontClientCore(publishableKeyInput: string, options: Storef
     },
     actions: storefrontApi.actions,
     experiments: storefrontApi.experiments,
+    pageViews: createStorefrontPageViewsApi(apiConfig),
     support: createStorefrontSupportApi(httpClient, ensureVisitorSession),
     getSetup,
     setContext,

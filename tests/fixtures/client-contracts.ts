@@ -96,7 +96,7 @@ export const pausedSending: Promise<StoreRecord> = admin.store.pauseEmailSending
 export const allowedSending: Promise<StoreRecord> = admin.store.allowEmailSending({ store_id, expected_updated_at: createdAt });
 
 export type AdminSurfaceContracts = [
-  Assert<Equal<keyof Admin, "account" | "platform" | "store" | "notification" | "broadcast" | "support" | "media" | "category" | "content" | "forms" | "companies" | "customers" | "actions" | "experiments" | "analytics" | "eshop" | "session" | "isAuthenticated" | "onAuthStateChanged" | "logout" | "utils">>,
+  Assert<Equal<keyof Admin, "account" | "platform" | "store" | "notification" | "broadcast" | "support" | "media" | "category" | "content" | "forms" | "companies" | "customers" | "actions" | "experiments" | "counts" | "eshop" | "session" | "isAuthenticated" | "onAuthStateChanged" | "logout" | "utils">>,
   Assert<Missing<Admin, "automation">>,
   Assert<Missing<Admin, "campaign">>,
   Assert<Missing<Admin, "leadResearch">>,

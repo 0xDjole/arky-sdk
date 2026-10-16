@@ -185,7 +185,6 @@ export interface VerifyCustomerCodeParams {
 export interface RefreshCustomerSessionParams { session_id: string }
 
 export const COMMON_CUSTOMER_ACTION_KEYS = [
-  "page.view",
   "product.view",
   "booking_service.view",
   "booking_resource.view",

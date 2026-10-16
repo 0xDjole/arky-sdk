@@ -1334,10 +1334,8 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
     companies: client.companies,
     actions: {
       track: trackCustomerAction,
-      pageView(data: Record<string, unknown> = {}) {
-        return trackCustomerAction({ key: "page.view", data });
-      },
     },
+    pageViews: client.pageViews,
     experiments: {
       use: useExperiment,
     },

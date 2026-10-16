@@ -25,7 +25,7 @@ const adminSurface = {
   "account.auth": ["code", "refresh", "storeCode", "storeVerify", "verify"],
   "account.session": ["list", "revoke"],
   actions: ["find"],
-  analytics: ["get"],
+  counts: ["report", "statuses"],
   broadcast: ["create", "delete", "find", "get", "preview", "schedule", "send", "test", "unschedule", "update"],
   category: ["create", "delete", "find", "get", "getChildren", "update"],
   companies: ["create", "delete", "find", "get", "reviewTaxRegistration", "setPurchasing", "setTax", "submitTaxRegistration", "update"],
