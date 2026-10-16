@@ -23,6 +23,14 @@ function bookingService(overrides = {}) {
     slugs: { en: "consultation" },
     blocks: [],
     categories: [],
+    segments: [{ type: "service", minutes: 60 }],
+    buffer_before_minutes: 0,
+    buffer_after_minutes: 0,
+    slot_interval_minutes: 30,
+    booking_window: { opens_before_start_minutes: 43_200, closes_before_start_minutes: 120 },
+    customer_changes: { type: "not_allowed" },
+    reminder_offsets_minutes: [1440, 60],
+    tax_category_id: taxCategoryId,
     status: { type: "active" },
     created_at: 1,
     updated_at: 1,
@@ -41,6 +49,7 @@ function bookingResource(overrides = {}) {
     categories: [],
     timezone: "Europe/Sarajevo",
     capacity: 3,
+    hours: { weekly_availability: { monday: [{ from_minute: 540, to_minute: 1020 }] }, date_overrides: { "2026-08-24": [] } },
     status: { type: "active" },
     created_at: 1,
     updated_at: 1,
@@ -54,14 +63,8 @@ function bookingOffering(overrides = {}) {
     store_id: storeId,
     booking_service_id: serviceId,
     booking_resource_id: resourceId,
-    weekly_availability: { monday: [{ from_minute: 540, to_minute: 1020 }] },
-    date_overrides: { "2026-08-24": [] },
-    segments: [{ type: "service", minutes: 60 }],
-    slot_interval_minutes: 30,
-    booking_window: { opens_before_start_minutes: 43_200, closes_before_start_minutes: 120 },
-    reminder_offsets_minutes: [1440, 60],
+    hours: { type: "resource" },
     venue: { type: "store_location", store_location_id: "e7a9c1d3-5f6b-4dac-8e4a-6c8d0e2a4f5b" },
-    tax_category_id: taxCategoryId,
     status: { type: "active" },
     created_at: 1,
     updated_at: 1,
@@ -82,8 +85,8 @@ function bookingLine() {
     capacity_units: 1,
     form_submission_id: ids.submission,
     snapshot: { service_key: "consultation", resource_key: "room-one", timezone: "Europe/Sarajevo", price: { type: "catalog", price_id: ids.product, catalog_id: ids.catalog } },
-    status: { type: "confirmed" },
-    attendance: "upcoming",
+    status: { type: "confirmed", attendance: { type: "upcoming" } },
+    reschedules: [],
     money: { unit_price: 5000, discounts: [], tax: { type: "own", tax_category_id: taxCategoryId, rule_id: ids.variant, treatment: { type: "rates", lines: [] } } },
     created_at: 1,
     updated_at: 2,
@@ -111,8 +114,8 @@ test("Resource discovery preserves bounded opaque continuation and ordered filte
       ? { items: [], cursor }
       : { items: [bookingResource()], cursor: null });
   });
-  const admin = createAdmin({ baseUrl: apiUrl, apiToken: "token" });
-  const storefront = createStorefront(publishableKey, { apiUrl, sessionStorage: visitorStorage() });
+  const admin = createAdmin({ baseUrl: apiUrl, secretKey: "token" });
+  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, sessionStorage: visitorStorage() });
   const adminFilters = {
     booking_service_id: serviceId, query: "room", status: "active", limit: 1,
     sort_field: "key", sort_direction: "desc", created_at_from: 0, created_at_to: 10,
@@ -149,9 +152,11 @@ test("Admin booking runtime creates service, resource and offering under app-pic
     if (path.endsWith("/booking-offerings")) return jsonResponse(bookingOffering());
     return jsonResponse(order());
   });
-  const admin = createAdmin({ baseUrl: apiUrl, apiToken: "token" });
-  const service = { id: serviceId, key: "consultation", slugs: { en: "consultation" }, blocks: [], categories: [], status: { type: "active" } };
-  const resource = { id: resourceId, key: "room-one", slugs: { en: "room-one" }, blocks: [], categories: [], timezone: "Europe/Sarajevo", capacity: 3, status: { type: "active" } };
+  const admin = createAdmin({ baseUrl: apiUrl, secretKey: "token" });
+  const { id: _serviceId, store_id: _serviceStore, created_at: _serviceCreated, updated_at: _serviceUpdated, price: _servicePrice, ...serviceFields } = bookingService();
+  const service = { id: serviceId, ...serviceFields };
+  const { id: _resourceId, store_id: _resourceStore, created_at: _resourceCreated, updated_at: _resourceUpdated, ...resourceFields } = bookingResource();
+  const resource = { id: resourceId, ...resourceFields };
   const { id: _offeringId, store_id: _store, status: _status, created_at: _created, updated_at: _updated, price: _price, ...offeringFields } = bookingOffering();
   const offering = { id: offeringId, ...offeringFields, status: { type: "active" } };
   await admin.eshop.bookingService.create({ store_id: storeId, ...service });
@@ -161,18 +166,18 @@ test("Admin booking runtime creates service, resource and offering under app-pic
   const line = orderBookingItems(loadedOrder)[0];
   assert.equal(line.id, lineId);
   await admin.eshop.order.cancelBookingItem({ store_id: storeId, order_id: loadedOrder.id, line_item_id: line.id, credit_id: creditId, expected_updated_at: 2 });
-  await admin.eshop.order.completeBookingItem({ store_id: storeId, order_id: loadedOrder.id, line_item_id: line.id, expected_updated_at: 3 });
+  await admin.eshop.order.attendBookingItem({ store_id: storeId, order_id: loadedOrder.id, line_item_id: line.id, expected_updated_at: 3 });
   await admin.eshop.order.markBookingItemNoShow({ store_id: storeId, order_id: loadedOrder.id, line_item_id: line.id, expected_updated_at: 4 });
 
   for (const removed of ["service", "provider", "booking"]) assert.equal(removed in admin.eshop, false, removed);
-  for (const removed of ["getBookings", "update", "getBookingAppointment"]) assert.equal(removed in admin.eshop.order, false, removed);
+  for (const removed of ["getBookings", "getBookingAppointment", "completeBookingItem"]) assert.equal(removed in admin.eshop.order, false, removed);
   assert.deepEqual(calls.map((call) => [call.url.pathname, call.method, call.body]), [
     [`/v1/stores/${storeId}/booking-services`, "POST", service],
     [`/v1/stores/${storeId}/booking-resources`, "POST", resource],
     [`/v1/stores/${storeId}/booking-offerings`, "POST", offering],
     [`/v1/stores/${storeId}/orders/${ids.order}`, "GET", null],
     [`/v1/stores/${storeId}/orders/${ids.order}/booking-items/${lineId}/cancel`, "POST", { credit_id: creditId, expected_updated_at: 2 }],
-    [`/v1/stores/${storeId}/orders/${ids.order}/booking-items/${lineId}/complete`, "POST", { expected_updated_at: 3 }],
+    [`/v1/stores/${storeId}/orders/${ids.order}/booking-items/${lineId}/attend`, "POST", { expected_updated_at: 3 }],
     [`/v1/stores/${storeId}/orders/${ids.order}/booking-items/${lineId}/no-show`, "POST", { expected_updated_at: 4 }],
   ]);
   for (const [create, record] of [
@@ -206,7 +211,7 @@ test("storefront booking runtime sends one offering interval under the app's lin
     if (path.endsWith(`/carts/${ids.cart}/booking-items`)) return jsonResponse(cartRecord({ line_items: [{ type: "booking", ...call.body.booking, price_override: null }] }));
     return jsonResponse(order());
   });
-  const storefront = createStorefront(publishableKey, { apiUrl, market: "bih", sessionStorage: storage });
+  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, market: "bih", sessionStorage: storage });
   await storefront.eshop.bookingService.find({ sort_field: "price", include_price: true });
   await storefront.eshop.bookingResource.find({ booking_service_id: serviceId });
   await storefront.eshop.bookingOffering.find({ booking_service_id: serviceId });
@@ -252,8 +257,8 @@ test("booking cancellation resends the caller's credit id after an uncertain res
     if (calls.length % 2 === 1) return jsonResponse({ message: "Response unavailable", status_code: 503 }, 503);
     return jsonResponse(order());
   });
-  const admin = createAdmin({ baseUrl: apiUrl, apiToken: "token" });
-  const storefront = createStorefront(publishableKey, { apiUrl, market: "bih", sessionStorage: visitorStorage() });
+  const admin = createAdmin({ baseUrl: apiUrl, secretKey: "token" });
+  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, market: "bih", sessionStorage: visitorStorage() });
   for (const [client, target] of [[admin, { store_id: storeId }], [storefront, {}]]) {
     const request = { ...target, order_id: "order/booking", line_item_id: "item/booking", credit_id: creditId, expected_updated_at: 9 };
     await assert.rejects(client.eshop.order.cancelBookingItem(request), (error) => error.statusCode === 503);
@@ -279,7 +284,7 @@ test("Booking Service slug lookup stays singular while records expose slugs", as
     call = { url: new URL(url), method: init.method || "GET" };
     return jsonResponse(bookingService());
   });
-  const storefront = createStorefront(publishableKey, { apiUrl, market: "bih", sessionStorage: visitorStorage() });
+  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, market: "bih", sessionStorage: visitorStorage() });
   const service = await storefront.eshop.bookingService.get({
     slug: "consultation",
     company_location_id: ids.companyLocation,
@@ -302,7 +307,7 @@ test("booking discovery forwards the price filter and sort as query fields and n
     called = new URL(url);
     return jsonResponse({ items: [], cursor: "next-page" });
   });
-  const storefront = createStorefront(publishableKey, { apiUrl, market: "bih", sessionStorage: visitorStorage() });
+  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, market: "bih", sessionStorage: visitorStorage() });
   const params = {
     query: "čas gitare", booking_resource_id: resourceId, price_filter: { min_amount: 0, max_amount: 800, quantity: 1 },
     sort_field: "price", sort_direction: "asc", created_at_from: 1, created_at_to: 2, limit: 10, cursor: "previous-page", include_price: true,
@@ -362,9 +367,9 @@ test("high-level booking flow adds one cart line per appointment under the ids t
     throw new Error(`Unexpected request ${call.method} ${call.url}`);
   });
 
-  const store = initialize(publishableKey, { apiUrl, locale: "en", sessionStorage: visitorStorage() });
-  await store.eshop.cart.create({ id: ids.cart, buyer: { type: "customer" }, catalog_id: null });
-  await store.eshop.bookingService.select(bookingService());
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, locale: "en", sessionStorage: visitorStorage() });
+  await store.eshop.cart.create({ id: ids.cart, buyer: { type: "customer" }, catalog_id: ids.catalog });
+  await store.eshop.bookingService.select(bookingService(), { catalog_id: ids.catalog });
   const availableDay = store.eshop.bookingService.state.get().calendar.find((day) => day.iso === availableLocalDate);
   assert.equal(availableDay?.available, true);
   store.eshop.bookingService.selectDate(availableDay);
@@ -454,7 +459,7 @@ test("booking selection retains the company location context and explicitly foll
     }
     throw new Error(`Unexpected request ${url}`);
   });
-  const store = initialize(publishableKey, { apiUrl, locale: "en", sessionStorage: visitorStorage() });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, locale: "en", sessionStorage: visitorStorage() });
   await store.eshop.bookingService.select(bookingService(), { company_location_id: ids.companyLocation });
   assert.equal(offeringCalls.length, 1);
   assert.equal(availabilityCalls.length, 1, "availability must not eagerly follow continuations");
@@ -512,9 +517,9 @@ test("late availability cannot replace a newer Service selection or its shared r
     if (request.pathname.includes("/booking-services/")) return jsonResponse(bookingService({ id: request.pathname.split("/").at(-1) }));
     throw new Error(`Unexpected request ${url}`);
   });
-  const store = initialize(publishableKey, { apiUrl, locale: "en", sessionStorage: visitorStorage() });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, locale: "en", sessionStorage: visitorStorage() });
   try {
-    const first = store.eshop.bookingService.select(bookingService());
+    const first = store.eshop.bookingService.select(bookingService(), { catalog_id: ids.catalog });
     await pending;
     await store.eshop.bookingService.select(bookingService({ id: newServiceId }));
     releaseOld();

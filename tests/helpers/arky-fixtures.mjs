@@ -78,16 +78,8 @@ export function customerRecord(id = ids.customer, overrides = {}) {
   return {
     id,
     store_id: ids.store,
-    first_name: null,
-    last_name: null,
-    phone: null,
-    language: null,
-    email: { type: "no_email" },
-    addresses: [],
-    default_shipping_address_id: null,
-    default_billing_address_id: null,
-    status: { type: "active" },
-    categories: [],
+    type: { type: "anonymous" },
+    profile: [],
     created_at: 1_700_000_000_000,
     updated_at: 1_700_000_000_000,
     ...overrides,
@@ -121,11 +113,13 @@ export function emailSession(customerId = ids.customer, sessionId = ids.session,
 }
 
 export function sessionResult(customerId = ids.customer, session = visitorSession(customerId)) {
-  return { customer: customerRecord(customerId), session };
+  const customer = customerRecord(customerId);
+  if (session.type === "email_authenticated") customer.type = { type: "verified", email: "customer@example.test", addresses: [], default_shipping_address_id: null, default_billing_address_id: null };
+  return { customer, session };
 }
 
 export function storedSession(customerId = ids.customer, session = visitorSession(customerId)) {
-  return JSON.stringify({ version: 3, customer: customerRecord(customerId), session });
+  return JSON.stringify({ version: 4, ...sessionResult(customerId, session) });
 }
 
 export class SessionStorage {
@@ -172,6 +166,7 @@ export function cartRecord(overrides = {}) {
     catalog_id: ids.catalog,
     status: { type: "active" },
     origin: { type: "storefront", customer_session_id: ids.session },
+    blocks: [],
     line_items: [],
     delivery_groups: [],
     billing_address: null,
@@ -216,6 +211,8 @@ export function placedAcceptance(overrides = {}) {
     order_id: ids.order,
     number: "1001",
     payment_id: null,
+    payment_method_id: null,
+    payment_method_setup: null,
     payment_action: { type: "none" },
     ...overrides,
   };
@@ -235,6 +232,7 @@ export function placedOrder(overrides = {}) {
 
 export function checkoutRequest(overrides = {}) {
   return {
+    order_token: "arky_ot_" + "A".repeat(43),
     order_id: ids.order,
     cart_id: ids.cart,
     expected_updated_at: 1_700_000_000_001,
@@ -245,7 +243,7 @@ export function checkoutRequest(overrides = {}) {
       payment_option_id: ids.paymentOption,
       return_url: "https://shop.example.test/return",
       save_payment_method: false,
-      payment_method_terms_version: null,
+      payment_method_terms: null,
     },
     ...overrides,
   };

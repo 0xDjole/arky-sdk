@@ -20,7 +20,7 @@ test("member transport keeps combined filters, empty pages and explicit history 
     calls.push({ url: new URL(input), method: init.method ?? "GET", body: init.body ? JSON.parse(init.body) : null });
     return new Response(JSON.stringify(replies.shift()), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const api = createAdmin({ baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).eshop;
+  const api = createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop;
   const members = { store_id: store, company_location_id: locationId, customer_group_id: groupId, customer_group_offering_id: offeringId, status: "paused", limit: 20 };
   assert.deepEqual(await api.customerGroupMember.find(members), { items: [], cursor });
   assert.equal(calls.length, 1);
@@ -55,7 +55,7 @@ test("member order history forwards its own cursor and exposes no retired financ
     requests.push({ url: new URL(url), method: init.method ?? "GET", body: init.body });
     return new Response(JSON.stringify(page), { headers: { "content-type": "application/json" } });
   });
-  const members = createAdmin({ apiToken: "test-token", baseUrl: "https://api.example.test" }).eshop.customerGroupMember;
+  const members = createAdmin({ secretKey: "test-token", baseUrl: "https://api.example.test" }).eshop.customerGroupMember;
   for (const owner of ["refunds", "disputes", "billing", "memberships"]) {
     assert.equal(owner in members, false, owner);
   }

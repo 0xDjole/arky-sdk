@@ -9,7 +9,7 @@ const unitId = "5c9e2a71-8d34-4b06-9f1a-3e7c0b5d2a84";
 const actionId = "7c4e1a93-2d58-4b06-9f3e-5a8c0d2b6e19";
 
 function units() {
-  return createAdmin({ baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).eshop.inventoryUnit;
+  return createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop.inventoryUnit;
 }
 
 test("individual stock discovery keeps the exact tag case, combined filters and the continuation", async (context) => {
@@ -68,15 +68,22 @@ test("moving a unit carries the app-picked action id and a write-off its reason,
   assert.equal(calls.length, 2);
 });
 
-test("unit execution evidence is read exactly and its absence is kept as null", async (context) => {
-  const execution = { fulfillment_job_id: "work", fulfillment_job_line_id: "line", fulfillment_unit_index: 3, fulfillment_id: "fulfillment", executed_at: 1_700_000_000_000 };
-  const calls = recordFetch(context, (_call, count) => count === 1 ? execution : Response.json(null));
+test("a physical unit is set aside and made available by exact action identity and unit version", async (context) => {
+  const calls = recordFetch(context, () => ({ id: unitId, status: { type: "set_aside", store_location_id: "warehouse" } }));
   const api = units();
-  const query = { store_id: OTHER_STORE_ID, id: "unit/id" };
-  assert.deepEqual(await api.execution(query), execution);
-  assert.equal(await api.execution(query), null);
+  const input = { store_id: STORE_ID, id: unitId, action_id: actionId, expected_updated_at: 1_700_000_000_000, note: "Awaiting service" };
+  const before = structuredClone(input);
+  await api.setAside(input);
+  await api.makeAvailable({ ...input, expected_updated_at: input.expected_updated_at + 1 });
+  assert.deepEqual(input, before);
+  assert.deepEqual(calls.map(({ path, method, body }) => [path, method, body]), [
+    [`/v1/stores/${STORE_ID}/inventory-units/${unitId}/set-aside`, "POST", { action_id: actionId, expected_updated_at: input.expected_updated_at, note: input.note }],
+    [`/v1/stores/${STORE_ID}/inventory-units/${unitId}/make-available`, "POST", { action_id: actionId, expected_updated_at: input.expected_updated_at + 1, note: input.note }],
+  ]);
+  for (const action_id of [undefined, "set-aside", actionId.toUpperCase()]) {
+    await assert.rejects(async () => api.setAside({ ...input, action_id }), TypeError);
+    await assert.rejects(async () => api.makeAvailable({ ...input, action_id }), TypeError);
+  }
   assert.equal(calls.length, 2);
-  assert.ok(calls.every(({ url, method }) => method === "GET" && url.search === "" && url.pathname === `/v1/stores/${OTHER_STORE_ID}/inventory-units/unit%2Fid/execution`));
-  await assert.rejects(async () => api.execution({ store_id: "selected/store", id: "unit/id" }), TypeError);
-  assert.equal(calls.length, 2);
+  assert.equal("execution" in api, false);
 });

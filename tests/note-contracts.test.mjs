@@ -31,7 +31,7 @@ for (const [label, owner, key, segment, target] of [
   test(`${label} notes list, write, edit and delete through the record's notes route`, async (context) => {
     const saved = note(target);
     const calls = capture(context, saved);
-    const api = owner(createAdmin({ baseUrl, apiToken: "arky_api_notes" }));
+    const api = owner(createAdmin({ baseUrl, secretKey: "arky_api_notes" }));
     const scope = { store_id: storeId, [key]: recordId };
     await api.find({ ...scope, limit: 20, cursor: "next" });
     assert.deepEqual(await api.create({ ...scope, id: noteId, body: "Called back" }), saved);
@@ -53,7 +53,7 @@ test("submission and conversation notes are Note records, and a submission links
   const formId = "a4c7e1b9-2d58-4f36-8b0e-5c9a3d7f1e62";
   const conversationId = "7c2e9a41-5b3d-4f86-a1e0-3d4c2b9f6e18";
   const calls = capture(context, note({ type: "form_submission", form_submission_id: recordId }));
-  const admin = createAdmin({ baseUrl, apiToken: "arky_api_notes" });
+  const admin = createAdmin({ baseUrl, secretKey: "arky_api_notes" });
   const forms = admin.forms;
   const scope = { store_id: storeId, form_id: formId, form_submission_id: recordId };
   for (const removed of ["createSubmissionNote", "findSubmissionNotes", "updateSubmissionNote", "deleteSubmissionNote"]) assert.equal(removed in forms, false, removed);
@@ -85,7 +85,7 @@ test("submission and conversation notes are Note records, and a submission links
 });
 
 test("notes are staff-only and absent from the storefront client", () => {
-  const storefront = createStorefront(`arky_pk_${"n".repeat(42)}A`, { apiUrl: baseUrl });
+  const storefront = createStorefront(`arky_pk_${"n".repeat(42)}A`, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl: baseUrl });
   assert.equal("notes" in storefront.eshop.order, false);
   assert.equal("notes" in storefront.companies, false);
 });

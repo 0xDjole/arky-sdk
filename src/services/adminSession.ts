@@ -8,7 +8,7 @@ export type AdminLogoutResult =
   | { type: 'revoked'; session_id: string }
   | { type: 'unconfirmed'; session_id: string }
   | { type: 'local_only' }
-  | { type: 'api_token' };
+  | { type: 'secret_key' };
 
 const queues = new Map<string, Promise<unknown>>();
 const changedEvent = 'arky-admin-session-changed';

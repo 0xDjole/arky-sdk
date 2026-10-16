@@ -32,7 +32,7 @@ const MAX_FORM_SUBMISSION_FILES = 20;
 const MAX_FORM_SUBMISSION_FILE_BYTES = 50 * 1024 * 1024;
 
 function isGiven(answer: FormAnswerInput): boolean {
-  if (answer.type === "text") return answer.value.trim() !== "";
+  if ((answer.type === "text" || answer.type === "email")) return answer.value.trim() !== "";
   if (answer.type === "select_many") return answer.option_keys.length > 0;
   if (answer.type === "file") return answer.files.length > 0;
   return true;
@@ -179,7 +179,7 @@ export const createStorefrontFormsApi = (httpClient: HttpClient) => ({
   submit(params: SubmitFormParams, options?: RequestOptions): Promise<StorefrontFormSubmission> {
     requireId(params.id, "form submission");
     const body = formSubmissionBody(
-      { id: params.id, form_updated_at: params.form_updated_at, language: params.language },
+      { id: params.id, questions_updated_at: params.questions_updated_at, language: params.language, ...(params.bot_check_token !== undefined ? { bot_check_token: params.bot_check_token } : {}) },
       params.answers,
     );
     return httpClient.post<StorefrontFormSubmission>(`/v1/storefront/forms/${segment(params.form_id)}/submissions`, body, options);

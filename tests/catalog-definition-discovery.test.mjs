@@ -13,7 +13,7 @@ for (const [owner, path] of [['catalog', 'catalogs']]) {
       return new Response(JSON.stringify({ items: [], cursor: 'after-stale' }), { headers: { 'content-type': 'application/json' } });
     };
     try {
-      const api = createAdmin({ baseUrl: 'https://api.example.test', apiToken: 'arky_api_test' }).eshop[owner];
+      const api = createAdmin({ baseUrl: 'https://api.example.test', secretKey: 'arky_secret_test' }).eshop[owner];
       const filters = { key: 'a'.repeat(255), status: 'archived', sort_field: 'updated_at', sort_direction: 'asc', limit: 200, cursor: 'previous', market_id: 'market' };
       assert.deepEqual(await api.find({ store_id: STORE_ID, ...filters }), { items: [], cursor: 'after-stale' });
       assert.equal(calls[0].url.pathname, `/v1/stores/${STORE_ID}/${path}`);

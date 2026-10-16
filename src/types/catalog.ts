@@ -1,14 +1,10 @@
 import type { EpochMilliseconds } from "./time";
-import type { CompanyPartyQuery, SortDirection } from "./common";
+import type { CompanyPartyQuery, Schedule, SortDirection } from "./common";
 
 export type SellableRef =
-  | { type: "product_variant"; product_id: string; variant_id: string }
+  | { type: "product_variant"; variant_id: string }
   | { type: "booking_offering"; booking_offering_id: string }
   | { type: "customer_group"; customer_group_id: string };
-
-export type PriceSchedule =
-  | { type: "always" }
-  | { type: "scheduled"; starts_at: EpochMilliseconds; ends_at: EpochMilliseconds | null };
 
 export type PriceStatus = { type: "active" } | { type: "archived" };
 
@@ -21,15 +17,11 @@ export interface Price {
   compare_at: number | null;
   min_quantity: number;
   max_quantity: number | null;
-  schedule: PriceSchedule;
+  schedule: Schedule;
   status: PriceStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
-
-export type CatalogSchedule =
-  | { type: "always" }
-  | { type: "scheduled"; starts_at: EpochMilliseconds; ends_at: EpochMilliseconds | null };
 
 export type CatalogStatus =
   | { type: "draft" }
@@ -44,7 +36,7 @@ export interface Catalog {
   store_id: string;
   key: string;
   market_id: string;
-  schedule: CatalogSchedule;
+  schedule: Schedule;
   status: CatalogStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
@@ -109,7 +101,7 @@ export interface CatalogCopyResult {
 }
 
 export type CatalogReadOptions = CompanyPartyQuery & {
-  catalog_id?: string;
+  catalog_id: string;
   include_price?: boolean;
 };
 
@@ -138,7 +130,7 @@ export interface CreatePriceParams {
   compare_at: number | null;
   min_quantity: number;
   max_quantity: number | null;
-  schedule: PriceSchedule;
+  schedule: Schedule;
   status: PriceStatus;
 }
 
@@ -150,7 +142,7 @@ export interface UpdatePriceParams {
   compare_at: number | null;
   min_quantity: number;
   max_quantity: number | null;
-  schedule: PriceSchedule;
+  schedule: Schedule;
   status: PriceStatus;
 }
 
@@ -196,7 +188,7 @@ export interface CreateCatalogParams {
   id: string;
   key: string;
   market_id: string;
-  schedule: CatalogSchedule;
+  schedule: Schedule;
   status: CatalogEditableStatus;
 }
 
@@ -204,7 +196,7 @@ export interface UpdateCatalogParams {
   store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
-  schedule: CatalogSchedule;
+  schedule: Schedule;
   status: CatalogEditableStatus;
 }
 

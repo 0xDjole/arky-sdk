@@ -1,11 +1,14 @@
 import type { ApiConfig } from "../services/clientTypes";
 import type { RequestOptions } from "../types/api";
 import type { PaginatedResponse } from "../types/common";
-import type { Notification } from "../types/notification";
+import type { OutgoingEmail } from "../types/notification";
 import type {
+  AddOrderInvoiceParams,
+  DeleteOrderInvoiceParams,
   CancelOrderBookingItemParams,
   CancelOrderParams,
   CancelOrderProductItemParams,
+  CorrectOrderDeliveryAddressParams,
   FindOrderBookingItemsParams,
   FindOrderPaymentsParams,
   FindOrdersParams,
@@ -17,7 +20,9 @@ import type {
   OrderBookingItem,
   OrderFinancialSummary,
   ResendOrderReceiptParams,
+  RescheduleOrderBookingItemParams,
   RevokeOrderAccessParams,
+  UpdateOrderParams,
 } from "../types/order";
 import type {
   CreateOrderCreditParams,
@@ -51,6 +56,31 @@ export const createOrderApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.get<Order>(orderPath(params.store_id, params.id), options);
     },
 
+    update(params: UpdateOrderParams, options?: RequestOptions): Promise<Order> {
+      const { store_id, id, ...body } = params;
+      return apiConfig.httpClient.patch<Order>(orderPath(store_id, id), body, options);
+    },
+
+    correctDeliveryAddress(params: CorrectOrderDeliveryAddressParams, options?: RequestOptions): Promise<Order> {
+      return apiConfig.httpClient.patch<Order>(
+        `${orderPath(params.store_id, params.order_id)}/deliveries/${segment(params.delivery_group_id)}/address`,
+        { expected_updated_at: params.expected_updated_at, address: params.address },
+        options,
+      );
+    },
+
+    addInvoice(params: AddOrderInvoiceParams, options?: RequestOptions): Promise<Order> {
+      requireId(params.id, "invoice");
+      const { store_id, order_id, ...body } = params;
+      return apiConfig.httpClient.post<Order>(`${orderPath(store_id, order_id)}/invoices`, body, options);
+    },
+
+    deleteInvoice(params: DeleteOrderInvoiceParams, options?: RequestOptions): Promise<Order> {
+      return apiConfig.httpClient.delete<Order>(`${orderPath(params.store_id, params.order_id)}/invoices/${segment(params.invoice_id)}`, {
+        ...options, params: { expected_updated_at: params.expected_updated_at },
+      });
+    },
+
     findBookingItems(
       params: FindOrderBookingItemsParams,
       options?: RequestOptions,
@@ -67,28 +97,30 @@ export const createOrderApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.post<Order>(`${orderPath(store_id, id)}/access/revoke`, body, options);
     },
 
-    resendReceipt(params: ResendOrderReceiptParams, options?: RequestOptions): Promise<Notification> {
+    resendReceipt(params: ResendOrderReceiptParams, options?: RequestOptions): Promise<OutgoingEmail> {
       requireId(params.id, "receipt");
-      return apiConfig.httpClient.post<Notification>(
+      return apiConfig.httpClient.post<OutgoingEmail>(
         `${orderPath(params.store_id, params.order_id)}/resend-receipt`,
-        { id: params.id },
+        { id: params.id, expected_updated_at: params.expected_updated_at },
         options,
       );
     },
 
     cancel(params: CancelOrderParams, options?: RequestOptions): Promise<Order> {
+      if (typeof params.notify_customer !== "boolean") throw new TypeError("Cancellation requires an explicit customer email choice");
       return apiConfig.httpClient.post<Order>(
         `${orderPath(params.store_id, params.order_id)}/cancel`,
-        { expected_updated_at: params.expected_updated_at },
+        { expected_updated_at: params.expected_updated_at, notify_customer: params.notify_customer },
         options,
       );
     },
 
     cancelProductItem(params: CancelOrderProductItemParams, options?: RequestOptions): Promise<Order> {
       requireId(params.credit_id, "credit");
+      if (typeof params.notify_customer !== "boolean") throw new TypeError("Cancellation requires an explicit customer email choice");
       return apiConfig.httpClient.post<Order>(
         `${orderPath(params.store_id, params.order_id)}/product-items/${segment(params.line_item_id)}/cancel`,
-        { credit_id: params.credit_id, expected_updated_at: params.expected_updated_at, units: params.units },
+        { credit_id: params.credit_id, expected_updated_at: params.expected_updated_at, notify_customer: params.notify_customer, units: params.units },
         options,
       );
     },
@@ -97,14 +129,30 @@ export const createOrderApi = (apiConfig: ApiConfig) => {
       requireId(params.credit_id, "credit");
       return apiConfig.httpClient.post<Order>(
         bookingItemPath(params.store_id, params.order_id, params.line_item_id, "cancel"),
-        { credit_id: params.credit_id, expected_updated_at: params.expected_updated_at },
+        {
+          credit_id: params.credit_id,
+          expected_updated_at: params.expected_updated_at,
+          notify_customer: params.notify_customer,
+        },
         options,
       );
     },
 
-    completeBookingItem(params: MarkOrderBookingItemParams, options?: RequestOptions): Promise<Order> {
+    rescheduleBookingItem(params: RescheduleOrderBookingItemParams, options?: RequestOptions): Promise<Order> {
       return apiConfig.httpClient.post<Order>(
-        bookingItemPath(params.store_id, params.order_id, params.line_item_id, "complete"),
+        bookingItemPath(params.store_id, params.order_id, params.line_item_id, "reschedule"),
+        {
+          expected_updated_at: params.expected_updated_at,
+          starts_at: params.starts_at,
+          notify_customer: params.notify_customer,
+        },
+        options,
+      );
+    },
+
+    attendBookingItem(params: MarkOrderBookingItemParams, options?: RequestOptions): Promise<Order> {
+      return apiConfig.httpClient.post<Order>(
+        bookingItemPath(params.store_id, params.order_id, params.line_item_id, "attend"),
         { expected_updated_at: params.expected_updated_at },
         options,
       );

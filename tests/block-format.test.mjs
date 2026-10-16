@@ -5,7 +5,7 @@ import { createAdmin } from '../dist/admin.js';
 
 const arky = createAdmin({
 	baseUrl: 'https://api.example.com',
-	apiToken: 'arky_api_block_format',
+	secretKey: 'arky_api_block_format',
 });
 
 test('formats a calendar date block as that day in the explicit locale, independent of the time zone', () => {

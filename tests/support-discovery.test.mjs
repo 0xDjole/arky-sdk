@@ -9,19 +9,63 @@ const conversationId = "7c2e9a41-5b3d-4f86-a1e0-3d4c2b9f6e18";
 const messageId = "2a6d8f13-9c47-4e05-b1a8-6f3e0c2d7b95";
 const promptId = "8b3e5d71-2c96-4f04-a7d1-9e2c4b6a8f30";
 const addressId = "4b6d8f0a-2e3a-4b7d-9f1c-3e5a7b9d1f2a";
-const supportToken = "s".repeat(64);
 
 function support() {
-  return createAdmin({ baseUrl: "https://support-contract.test", apiToken: "arky_api_support" }).support;
+  return createAdmin({ baseUrl: "https://support-contract.test", secretKey: "arky_api_support" }).support;
 }
 
 function storefront() {
-  return createStorefront(publishableKey, { apiUrl, locale: "bs", sessionStorage: visitorStorage() });
+  return createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, locale: "bs", sessionStorage: visitorStorage() });
 }
 
 function storefrontConversation(status = { type: "flow", step_key: "start" }) {
   return { id: conversationId, language: "bs", status, created_at: 1, updated_at: 1 };
 }
+
+test("staff starts an email conversation with retained caller-picked conversation and message IDs", async (context) => {
+  const reply = { conversation: { id: conversationId, language: "bs", type: { type: "email", email: { customer_email: "buyer@example.test", subject: "Delivery", sending_address_id: addressId } } }, message: { id: messageId } };
+  const calls = recordFetch(context, () => reply);
+  const params = { store_id: STORE_ID, id: conversationId, message_id: messageId, customer_id: ids.customer, email: "buyer@example.test", subject: "Delivery", language: "bs", sending_address_id: addressId, text: "We can help." };
+  assert.deepEqual(await support().conversation.startEmail(params), reply);
+  assert.deepEqual(await support().conversation.startEmail(params), reply);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].path, `/v1/stores/${STORE_ID}/conversations`);
+  const { store_id, ...body } = params;
+  assert.deepEqual(calls[0].body, body);
+  assert.deepEqual(calls[1].body, body);
+});
+
+test("staff start an email thread or reply from a SupportReply template, sending the template and no text of their own", async (context) => {
+  const templateId = "5e1a9c37-4b28-4d60-8f13-2c7a6e0b9d45";
+  const answer = { conversation: { id: conversationId }, message: { id: messageId } };
+  const calls = recordFetch(context, () => answer);
+  const start = { store_id: STORE_ID, id: conversationId, message_id: messageId, customer_id: ids.customer, email: "buyer@example.test", subject: "Delivery", language: "bs", sending_address_id: addressId, email_template_id: templateId };
+  assert.deepEqual(await support().conversation.startEmail(start), answer);
+  await support().conversation.reply({ store_id: STORE_ID, conversation_id: conversationId, id: promptId, expected_updated_at: 6, email_template_id: templateId, delivery: "email" });
+  const { store_id: _store, ...startBody } = start;
+  assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
+    ["POST", `/v1/stores/${STORE_ID}/conversations`, startBody],
+    ["POST", `/v1/stores/${STORE_ID}/conversations/${conversationId}/messages`, { id: promptId, expected_updated_at: 6, email_template_id: templateId, delivery: "email" }],
+  ]);
+  assert.ok(calls.every((call) => !("text" in call.body)));
+});
+
+test("staff show or hide a received email in the chat with the message version they read", async (context) => {
+  const message = { id: messageId, store_id: STORE_ID, conversation_id: conversationId, sequence: 3, type: { type: "received_email", visible_in_chat: true }, created_at: 1, updated_at: 7 };
+  const calls = recordFetch(context, () => message);
+  const api = support().conversation;
+  assert.deepEqual(await api.changeChatVisibility({ store_id: STORE_ID, conversation_id: conversationId, message_id: messageId, expected_updated_at: 6, visible_in_chat: true }), message);
+  await api.changeChatVisibility({ store_id: STORE_ID, conversation_id: conversationId, message_id: "message/one", expected_updated_at: 7, visible_in_chat: false });
+  assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
+    ["POST", `/v1/stores/${STORE_ID}/conversations/${conversationId}/messages/${messageId}/chat-visibility`, { expected_updated_at: 6, visible_in_chat: true }],
+    ["POST", `/v1/stores/${STORE_ID}/conversations/${conversationId}/messages/message%2Fone/chat-visibility`, { expected_updated_at: 7, visible_in_chat: false }],
+  ]);
+  await assert.rejects(async () => api.changeChatVisibility({ store_id: STORE_ID, conversation_id: conversationId, message_id: messageId, expected_updated_at: 7 }), {
+    name: "TypeError",
+    message: "Chat visibility needs an explicit choice",
+  });
+  assert.equal(calls.length, 2);
+});
 
 test("the conversation inbox keeps native multi-status filters, the contact filter and its opaque continuation", async (context) => {
   const calls = recordFetch(context, () => ({ items: [], cursor: "next:+/=" }));
@@ -143,7 +187,7 @@ test("support writes carry the app-picked id or the conversation version", async
 test("an account reply is one write of the app-picked message id, its text and its delivery", async (context) => {
   const answer = { conversation: { id: conversationId }, message: { id: messageId } };
   const calls = recordFetch(context, () => answer);
-  const admin = createAdmin({ baseUrl: apiUrl, apiToken: "arky_api_support" });
+  const admin = createAdmin({ baseUrl: apiUrl, secretKey: "arky_api_support" });
   assert.equal("sendConversationMessage" in admin.support.conversation, false);
   assert.deepEqual(await admin.support.conversation.reply({ store_id: ids.store, conversation_id: conversationId, id: messageId, expected_updated_at: 4, text: "I can help from here.", delivery: "chat_and_email", resolve: false }), answer);
   await admin.support.conversation.reply({ store_id: ids.store, conversation_id: conversationId, id: promptId, expected_updated_at: 5, text: "Done.", delivery: "email" });
@@ -158,22 +202,22 @@ test("an account reply is one write of the app-picked message id, its text and i
   assert.equal(calls.length, 2);
 });
 
-test("storefront support starts with an app-picked id, explicit language and an optional flow key, and sends its token only in the header", async (context) => {
-  const started = { conversation: storefrontConversation(), messages: [], support_token: supportToken };
+test("storefront support starts with an app-picked id and uses its real customer session", async (context) => {
+  const started = { conversation: storefrontConversation(), messages: [] };
   const calls = recordFetch(context, (call) => call.method === "POST" ? started : storefrontConversation());
   const client = storefront();
   assert.deepEqual(await client.support.conversation.start({ id: conversationId, language: "bs" }), started);
   await client.support.conversation.start({ id: conversationId, language: "en", flow_key: "returns" });
-  const read = await client.support.conversation.get({ conversation_id: conversationId, support_token: supportToken });
+  const read = await client.support.conversation.get({ conversation_id: conversationId });
   assert.deepEqual(read, storefrontConversation());
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
     ["POST", "/v1/storefront/conversations", { id: conversationId, language: "bs" }],
     ["POST", "/v1/storefront/conversations", { id: conversationId, language: "en", flow_key: "returns" }],
     ["GET", `/v1/storefront/conversations/${conversationId}`, null],
   ]);
-  assert.equal(calls[2].headers.get("x-arky-support-token"), supportToken);
+  assert.equal(calls[2].headers.get("x-arky-support-token"), null);
   assert.equal(calls[2].headers.get("authorization"), `Bearer ${visitorToken}`);
-  assert.equal(calls[2].href.includes(supportToken), false);
+  assert.equal(calls[2].query.support_token, undefined);
   assert.equal(calls[0].headers.get("x-arky-support-token"), null);
   assert.equal(calls[0].headers.get("x-arky-locale"), "bs");
   await assert.rejects(client.support.conversation.start({ id: "chat-1", language: "bs" }), TypeError);
@@ -191,10 +235,10 @@ test("a storefront chat message is one write with the app-picked id, the input a
   };
   const calls = recordFetch(context, (call) => call.method === "POST" ? reply : call.path.endsWith("/messages") ? { items: reply.messages, cursor: null } : reply.messages[1]);
   const client = storefront().support.conversation;
-  assert.deepEqual(await client.sendMessage({ conversation_id: conversationId, support_token: supportToken, id: messageId, input: { type: "button", label: "Talk to a person" }, prompt_message_id: promptId }), reply);
-  await client.sendMessage({ conversation_id: conversationId, support_token: supportToken, id: promptId, input: { type: "text", text: "buyer@example.test" } });
-  assert.deepEqual(await client.findMessages({ conversation_id: conversationId, support_token: supportToken, limit: 20, cursor: "older" }), { items: reply.messages, cursor: null });
-  assert.deepEqual(await client.getMessage({ conversation_id: conversationId, support_token: supportToken, message_id: "flow-reply" }), reply.messages[1]);
+  assert.deepEqual(await client.sendMessage({ conversation_id: conversationId, id: messageId, input: { type: "button", label: "Talk to a person" }, prompt_message_id: promptId }), reply);
+  await client.sendMessage({ conversation_id: conversationId, id: promptId, input: { type: "text", text: "buyer@example.test" } });
+  assert.deepEqual(await client.findMessages({ conversation_id: conversationId, limit: 20, cursor: "older" }), { items: reply.messages, cursor: null });
+  assert.deepEqual(await client.getMessage({ conversation_id: conversationId, message_id: "flow-reply" }), reply.messages[1]);
   const base = `/v1/storefront/conversations/${conversationId}`;
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
     ["POST", `${base}/messages`, {}, { id: messageId, input: { type: "button", label: "Talk to a person" }, prompt_message_id: promptId }],
@@ -203,28 +247,22 @@ test("a storefront chat message is one write with the app-picked id, the input a
     ["GET", `${base}/messages/flow-reply`, {}, null],
   ]);
   for (const call of calls) {
-    assert.equal(call.headers.get("x-arky-support-token"), supportToken);
+    assert.equal(call.headers.get("x-arky-support-token"), null);
     assert.equal(call.headers.get("authorization"), `Bearer ${visitorToken}`);
   }
 });
 
-test("the support token travels only in its header, a caller copy is replaced, and a missing token or message id is refused before any request", async (context) => {
+test("support uses the actual customer session and refuses a noncanonical message id before any request", async (context) => {
   const calls = recordFetch(context, () => ({ items: [], cursor: null }));
   const client = storefront().support.conversation;
-  await client.findMessages(
-    { conversation_id: conversationId, support_token: supportToken, limit: 20, cursor: "older" },
-    { headers: { "X-ARKY-SUPPORT-TOKEN": "forged" } },
-  );
+  await client.findMessages({ conversation_id: conversationId, limit: 20, cursor: "older" });
   assert.equal(calls[0].path, `/v1/storefront/conversations/${conversationId}/messages`);
   assert.deepEqual(calls[0].query, { limit: "20", cursor: "older" });
-  assert.equal(calls[0].headers.get("x-arky-support-token"), supportToken);
-  await assert.rejects(client.get({ conversation_id: conversationId, support_token: "" }), /needs the token its start returned/);
-  await assert.rejects(client.getMessage({ conversation_id: conversationId, message_id: messageId, support_token: "" }), /needs the token its start returned/);
-  await assert.rejects(client.findMessages({ conversation_id: conversationId, support_token: "" }), /needs the token its start returned/);
-  await assert.rejects(client.sendMessage({ conversation_id: conversationId, support_token: supportToken, id: "message-1", input: { type: "text", text: "x" } }), {
+  assert.equal(calls[0].headers.get("x-arky-support-token"), null);
+  assert.equal(calls[0].headers.get("authorization"), `Bearer ${visitorToken}`);
+  await assert.rejects(client.sendMessage({ conversation_id: conversationId, id: "message-1", input: { type: "text", text: "x" } }), {
     name: "TypeError",
     message: "The conversation message id must be a canonical UUID v4 picked by the app",
   });
-  await assert.rejects(client.sendMessage({ conversation_id: conversationId, support_token: "", id: messageId, input: { type: "text", text: "x" } }), /needs the token its start returned/);
   assert.equal(calls.length, 1);
 });

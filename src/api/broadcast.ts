@@ -15,7 +15,7 @@ import type {
   UnscheduleBroadcastParams,
   UpdateBroadcastParams,
 } from "../types/broadcast";
-import type { Notification } from "../types/notification";
+import type { OutgoingEmail } from "../types/notification";
 import { requireId } from "../utils/ids";
 import { storePath, storeRecordPath } from "./paths";
 
@@ -79,11 +79,11 @@ export const createBroadcastApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.post<BroadcastPreview>(`${broadcastPath(store_id, id)}/preview`, body, options);
     },
 
-    test(params: SendBroadcastTestParams, options?: RequestOptions): Promise<Notification> {
-      requireId(params.notification_id, "test email");
-      return apiConfig.httpClient.post<Notification>(
+    test(params: SendBroadcastTestParams, options?: RequestOptions): Promise<OutgoingEmail> {
+      requireId(params.outgoing_email_id, "test email");
+      return apiConfig.httpClient.post<OutgoingEmail>(
         `${broadcastPath(params.store_id, params.id)}/test`,
-        { id: params.notification_id, language: params.language },
+        { id: params.outgoing_email_id, language: params.language },
         options,
       );
     },

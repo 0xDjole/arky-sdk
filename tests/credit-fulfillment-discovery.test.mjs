@@ -25,7 +25,7 @@ for (const definition of [
       calls.push({ url: new URL(url), method: init.method ?? "GET" });
       return new Response(JSON.stringify({ items: [], cursor: calls.length === 1 ? cursor : null }), { status: 200, headers: { "content-type": "application/json" } });
     });
-    const admin = createAdmin({ baseUrl: "https://api.example.test", apiToken: "arky_api_test" });
+    const admin = createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" });
     const query = { store_id: selectedStoreId, order_id: orderId };
     const first = await definition.find(admin, query);
     assert.deepEqual(first, { items: [], cursor });
@@ -48,7 +48,7 @@ test("store-wide credit history needs no order and credits are created under the
     calls.push({ url: new URL(url), method: init.method ?? "GET", body: init.body ? JSON.parse(init.body) : null });
     return new Response(JSON.stringify(init.method === "GET" ? { items: [], cursor: null } : { id: creditId }), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const admin = createAdmin({ baseUrl: "https://api.example.test", apiToken: "arky_api_test" });
+  const admin = createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" });
   await admin.eshop.order.credit.find({ store_id: selectedStoreId, limit: 10 });
   const create = { id: creditId, reason: "Damaged in transit", targets: [] };
   await admin.eshop.order.credit.create({ store_id: selectedStoreId, order_id: orderId, ...create });

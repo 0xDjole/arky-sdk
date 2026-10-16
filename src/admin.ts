@@ -21,7 +21,6 @@ export {
 } from "./types";
 export type { AdminLogoutResult } from "./services/adminSession";
 export type { AdminSessionInternal, AdminSessionUpdater, ApiConfig } from "./services/clientTypes";
-export type * from "./api/analytics";
 export type { GetCountriesResponse } from "./api/location";
 export type { RecordNoteApi } from "./api/note";
 export type { FindAdminRentalReturnOptionsParams } from "./api/return";

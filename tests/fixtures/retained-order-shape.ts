@@ -31,6 +31,8 @@ const bookingMoney: LineMoney = {
 };
 
 export const typedRetainedOrder: Order = {
+  invoices: [],
+  blocks: [],
   id: "4a2c7c0d-4389-4aae-b3d7-02ff834a024d",
   number: "1001",
   store_id: "e4c8a2f6-1b73-4d95-a0e7-5f2c9b6d3a18",
@@ -51,7 +53,6 @@ export const typedRetainedOrder: Order = {
       type: "product",
       id: "3e956b8d-efc3-42e6-a5c1-9fb38ea840fa",
       origin: { type: "direct" },
-      product_id: "0b3e9c17-5a2d-4f86-9e01-7c4b6d2a8f35",
       variant_id: "7a1e5c39-4b82-4d60-9f17-3c8e2a6d0b54",
       quantity: 1,
       cancelled_units: [],
@@ -84,8 +85,8 @@ export const typedRetainedOrder: Order = {
         timezone: "America/New_York",
         price: { type: "catalog", price_id: "booking-price", catalog_id: "e4c8a2f6-1b73-4d95-a0e7-5f2c9b6d3a18" },
       },
-      status: { type: "confirmed" },
-      attendance: "upcoming",
+      status: { type: "confirmed", attendance: { type: "upcoming" } },
+      reschedules: [],
       money: bookingMoney,
       created_at: placedAt,
       updated_at: placedAt,
@@ -143,13 +144,13 @@ export const typedCompanyLocationOrder: Order = {
   source: {
     type: "cart",
     cart_id: "9f1b6e23-e2ea-4ab9-a1b7-eaaf550ddf41",
-    placed_by: { type: "account", account_id: "ca60db1c-68d1-42d5-8b55-8a1e04f2cb2f", snapshot: { email: "staff@example.test", credential_type: "session" } },
+    placed_by: { type: "account", account_id: "ca60db1c-68d1-42d5-8b55-8a1e04f2cb2f", snapshot: { email: "staff@example.test", credential_type: { type: "session" } } },
   },
   buyer: {
     type: "company_location",
     company_location_id: "8c68fc2e-57b6-44fc-8f9c-6cbd1c76dbcf",
     purchase_order_number: "PO-2026-7",
-    tax_registrations: [{ country: "BA", region: null, identifier: "4200000000000" }],
+    tax: { type: "standard", registrations: [{ country: "BA", region: null, identifier: "4200000000000" }] },
   },
   collection: {
     type: "on_account",

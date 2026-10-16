@@ -76,6 +76,9 @@ function answerFor(question: FormQuestion, value: FormValue): FormAnswerInput {
       }
       return { ...base, type: "text", value };
     }
+    case "email":
+      if (typeof value !== "string") throw questionError(question, "expected email");
+      return { ...base, type: "email", value };
     case "number": {
       if (typeof value !== "number" || !Number.isFinite(value)) throw questionError(question, "expected a finite number");
       if (question.min !== null && value < question.min) throw questionError(question, `must be at least ${question.min}`);

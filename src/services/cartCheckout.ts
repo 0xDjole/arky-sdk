@@ -1,3 +1,4 @@
+import { isOrderToken, retainOrderToken } from "../utils/orderToken";
 import type { RequestOptions, RequestSuccessContext } from "../types/httpClient";
 import type { CartQuote, CheckoutAcceptance } from "../types/cart";
 import type { CartCheckoutRequest, CartCheckoutSubmission, CartCheckoutTransport } from "../types/cartCheckout";
@@ -27,26 +28,30 @@ function text(value: unknown, maximum: number): value is string {
   return typeof value === "string" && value.length > 0 && value.length <= maximum && value === value.trim();
 }
 
+function cardTerms(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0 && new TextEncoder().encode(value).length <= 40_000;
+}
+
 function checkoutPayment(value: unknown): CartCheckoutRequest["payment"] | null {
   if (!record(value)) return null;
   if (value.type === "free" && Object.keys(value).length === 1) return { type: "free" };
-  if (value.type === "on_account" && isCanonicalId(value.payment_option_id)) {
+  if (value.type === "on_account" && Object.keys(value).length === 2 && isCanonicalId(value.payment_option_id)) {
     return { type: "on_account", payment_option_id: value.payment_option_id };
   }
   if (
     value.type === "payment_option" &&
+    Object.keys(value).length === 5 &&
     isCanonicalId(value.payment_option_id) &&
     (value.return_url === null || text(value.return_url, 2048)) &&
     typeof value.save_payment_method === "boolean" &&
-    (value.payment_method_terms_version === null || text(value.payment_method_terms_version, 256)) &&
-    (!value.save_payment_method || value.payment_method_terms_version !== null)
+    (value.save_payment_method ? cardTerms(value.payment_method_terms) : value.payment_method_terms === null)
   ) {
     return {
       type: "payment_option",
       payment_option_id: value.payment_option_id,
       return_url: value.return_url as string | null,
       save_payment_method: value.save_payment_method,
-      payment_method_terms_version: value.payment_method_terms_version as string | null,
+      payment_method_terms: value.payment_method_terms as string | null,
     };
   }
   return null;
@@ -57,6 +62,7 @@ export function cartCheckoutRequest(input: unknown): CartCheckoutRequest {
   if (
     !record(input) ||
     !isCanonicalId(input.order_id) ||
+    !isOrderToken(input.order_token) ||
     !isCanonicalId(input.cart_id) ||
     typeof input.expected_updated_at !== "number" ||
     !Number.isSafeInteger(input.expected_updated_at) ||
@@ -69,6 +75,7 @@ export function cartCheckoutRequest(input: unknown): CartCheckoutRequest {
     );
   }
   return {
+    order_token: input.order_token as string,
     order_id: input.order_id as string,
     cart_id: input.cart_id as string,
     expected_updated_at: input.expected_updated_at as CartCheckoutRequest["expected_updated_at"],
@@ -149,7 +156,7 @@ async function submit(
   ) {
     throw new DurableRequestStorageError("Cart checkout did not return the order it was asked to place");
   }
-  const order = await transport.getOrder(result.order_id, { signal: options?.signal });
+  const order = await transport.getOrder(result.order_id, { signal: options?.signal, order_token: request.order_token });
   if (!record(order) || order.id !== request.order_id || order.source.type !== "cart" || order.source.cart_id !== request.cart_id) {
     throw new DurableRequestStorageError("Cart checkout did not confirm the order placed from this cart");
   }
@@ -183,6 +190,7 @@ export async function retainCartCheckout(scope: string, input: CartCheckoutReque
   const key = storageKey(scope);
   await withDurableRequestLock(key, label, async () => {
     getOrCreateDurableRequest(key, request, label);
+    retainOrderToken(scope, request.order_id, request.order_token);
   });
   return request;
 }

@@ -18,7 +18,7 @@ import type {
   OrderLinePrice,
   DeletePriceParams,
   SellableRef,
-  PriceSchedule,
+  Schedule,
   PriceBatchOperation,
   BatchPricesParams,
 } from "arky-sdk";
@@ -36,9 +36,19 @@ export type PriceContracts = [
   True<RequiredField<Price, "catalog_id">>,
   True<RequiredField<Price, "sellable">>,
   True<Same<Price["sellable"], SellableRef>>,
-  True<Same<Price["schedule"], PriceSchedule>>,
+  True<Same<Price["schedule"], Schedule>>,
   False<"starts_at" | "ends_at" extends keyof Price ? true : false>,
-  False<"priced" | "scope" | "currency" | "price_list_id" | "market" | "audience_id" extends keyof Price ? true : false>,
+  False<
+
+      | "priced"
+      | "scope"
+      | "currency"
+      | "price_list_id"
+      | "market"
+      | "audience_id" extends keyof Price
+      ? true
+      : false
+  >,
   True<Same<Price["status"]["type"], "active" | "archived">>,
   True<RequiredField<CreatePriceParams, "id">>,
   True<RequiredField<CreatePriceParams, "catalog_id">>,
@@ -47,7 +57,15 @@ export type PriceContracts = [
   True<RequiredField<CreatePriceParams, "compare_at">>,
   True<RequiredField<CreatePriceParams, "max_quantity">>,
   False<"currency" extends keyof CreatePriceParams ? true : false>,
-  False<"sellable" | "catalog_id" | "currency" | "billing" extends keyof UpdatePriceParams ? true : false>,
+  False<
+
+      | "sellable"
+      | "catalog_id"
+      | "currency"
+      | "billing" extends keyof UpdatePriceParams
+      ? true
+      : false
+  >,
   True<RequiredField<UpdatePriceParams, "schedule">>,
   True<RequiredField<UpdatePriceParams, "expected_updated_at">>,
   True<RequiredField<UpdatePriceParams, "compare_at">>,
@@ -58,23 +76,65 @@ export type PriceContracts = [
   True<Same<Parameters<PriceApi["batch"]>[0], BatchPricesParams>>,
   True<Same<Awaited<ReturnType<PriceApi["batch"]>>, Price[]>>,
   True<Same<NonNullable<FindPricesParams["sellable"]>, SellableRef>>,
-  False<"base_only" | "currency" | "price_list_id" extends keyof FindPricesParams ? true : false>,
-  True<Same<OrderLinePrice["type"], "catalog" | "purchase_access" | "manual" | "offer" | "customer_group_allocation">>,
+  False<
+    "base_only" | "currency" | "price_list_id" extends keyof FindPricesParams
+      ? true
+      : false
+  >,
+  True<
+    Same<
+      OrderLinePrice["type"],
+      | "catalog"
+      | "purchase_access"
+      | "manual"
+      | "offer"
+      | "customer_group_allocation"
+    >
+  >,
   True<Same<Extract<OrderLinePrice, { type: "manual" }>["catalog_id"], string>>,
   True<RequiredField<Extract<OrderLinePrice, { type: "manual" }>, "reason">>,
-  True<Same<Extract<OrderLinePrice, { type: "purchase_access" }>["customer_group_member_id"], string | null>>,
-  False<"subscription_id" extends keyof Extract<OrderLinePrice, { type: "purchase_access" }> ? true : false>,
+  True<
+    Same<
+      Extract<
+        OrderLinePrice,
+        { type: "purchase_access" }
+      >["customer_group_member_id"],
+      string | null
+    >
+  >,
+  False<
+    "subscription_id" extends keyof Extract<
+      OrderLinePrice,
+      { type: "purchase_access" }
+    >
+      ? true
+      : false
+  >,
   False<"prices" extends keyof ProductVariant ? true : false>,
   False<"prices" extends keyof BookingOffering ? true : false>,
   False<"prices" extends keyof CreateProductVariantParams ? true : false>,
   False<"prices" extends keyof CreateBookingOfferingParams ? true : false>,
   False<"status" extends keyof StorefrontProduct ? true : false>,
-  True<StorefrontProduct["price"] extends StorefrontPrice | null ? true : false>,
-  True<StorefrontProductVariant["price"] extends StorefrontPrice | null ? true : false>,
-  True<StorefrontBookingOffering["price"] extends StorefrontPrice | null ? true : false>,
-  False<"purchase_allowed" extends keyof StorefrontProductVariant ? true : false>,
+  True<
+    StorefrontProduct["price"] extends StorefrontPrice | null ? true : false
+  >,
+  True<
+    StorefrontProductVariant["price"] extends StorefrontPrice | null
+      ? true
+      : false
+  >,
+  True<
+    StorefrontBookingOffering["price"] extends StorefrontPrice | null
+      ? true
+      : false
+  >,
+  False<
+    "purchase_allowed" extends keyof StorefrontProductVariant ? true : false
+  >,
   False<"purchase_allowed" extends keyof StorefrontProduct ? true : false>,
-  False<"purchase_allowed" extends keyof StorefrontBookingOffering ? true : false>,
+  False<
+    "purchase_allowed" extends keyof StorefrontBookingOffering ? true : false
+  >,
   False<"source" extends keyof StorefrontPrice ? true : false>,
   True<Same<OrderProductSnapshot["price"], OrderLinePrice>>,
   True<Same<OrderBookingSnapshot["price"], OrderLinePrice>>,

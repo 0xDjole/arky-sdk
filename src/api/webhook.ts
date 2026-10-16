@@ -9,7 +9,7 @@ import type {
   UpdateWebhookParams,
   Webhook,
 } from "../types/webhook";
-import type { Notification } from "../types/notification";
+import type { OutgoingWebhook } from "../types/notification";
 import { requireId } from "../utils/ids";
 import { storePath, storeRecordPath } from "./paths";
 
@@ -37,10 +37,10 @@ export const createWebhookApi = (apiConfig: ApiConfig) => ({
     });
   },
 
-  test(params: TestWebhookParams, options?: RequestOptions): Promise<Notification> {
+  test(params: TestWebhookParams, options?: RequestOptions): Promise<OutgoingWebhook> {
     requireId(params.id, "test post");
-    return apiConfig.httpClient.post<Notification>(
-      storePath(params.store_id, "webhooks/test"),
+    return apiConfig.httpClient.post<OutgoingWebhook>(
+      storePath(params.store_id, "outgoing-webhooks/test"),
       { id: params.id, webhook_id: params.webhook_id },
       options,
     );

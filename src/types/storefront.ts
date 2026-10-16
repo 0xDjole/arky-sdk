@@ -1,4 +1,5 @@
 import type { Currency, PostalAddress, SortDirection, TaxMode } from "./common";
+import type { BotCheck } from "./apiKey";
 import type { StorefrontPaymentOption } from "./payment";
 
 export interface StorefrontSetup {
@@ -6,6 +7,7 @@ export interface StorefrontSetup {
   timezone: string;
   languages: string[];
   payment_options: StorefrontPaymentOption[];
+  bot_check: BotCheck;
 }
 
 export interface StorefrontMarket {

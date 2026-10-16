@@ -10,6 +10,13 @@ export type ReturnReason =
   | "not_as_described"
   | "other";
 
+export type RentalReturnReason =
+  | "rental_ended"
+  | "fewer_units"
+  | "damaged"
+  | "defective"
+  | "other";
+
 export type ReturnDisposition =
   | { type: "restocked" }
   | { type: "not_restocked"; reason: string };
@@ -34,13 +41,15 @@ export interface OrderReturnLine {
   order_product_line_item_id: string;
   unit_spans: UnitSpan[];
   reason: ReturnReason;
+  note: string | null;
   items: ReturnItem[];
 }
 
 export interface RentalReturnLine {
   id: string;
   inventory_unit_id: string;
-  reason: ReturnReason;
+  reason: RentalReturnReason;
+  note: string | null;
   items: ReturnItem[];
 }
 
@@ -58,7 +67,7 @@ export type ReturnDestination =
   | { type: "decided"; store_location_id: string };
 
 export type ReturnStatus =
-  | { type: "requested"; requested_at: EpochMilliseconds; destination: ReturnDestination }
+  | { type: "requested"; destination: ReturnDestination }
   | { type: "declined"; declined_at: EpochMilliseconds; reason: string }
   | { type: "open"; store_location_id: string }
   | { type: "closed"; closed_at: EpochMilliseconds; store_location_id: string }
@@ -69,7 +78,7 @@ export interface Return {
   store_id: string;
   type: ReturnType;
   requested_by: ReturnRequester;
-  tracking: Tracking | null;
+  trackings: Tracking[];
   status: ReturnStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
@@ -85,13 +94,15 @@ export interface OrderReturnLineRequest {
   order_product_line_item_id: string;
   unit_spans: UnitSpan[];
   reason: ReturnReason;
+  note?: string | null;
   items: ReturnItemRequest[];
 }
 
 export interface RentalReturnLineRequest {
   id: string;
   inventory_unit_id: string;
-  reason: ReturnReason;
+  reason: RentalReturnReason;
+  note?: string | null;
   items: ReturnItemRequest[];
 }
 
@@ -150,14 +161,14 @@ export interface DisposeReturnItem extends ReceiveReturnItem {
 }
 
 export type ReturnAction =
-  | { type: "approve"; destination_store_location_id: string | null }
+  | { type: "approve"; destination_store_location_id: string | null; notify_customer: boolean }
   | { type: "decide"; store_location_id: string }
-  | { type: "decline"; reason: string }
+  | { type: "decline"; reason: string; notify_customer: boolean }
   | { type: "cancel" }
   | { type: "receive"; items: ReceiveReturnItem[] }
   | { type: "dispose"; items: DisposeReturnItem[] }
   | { type: "missing"; items: MissingReturnItem[] }
-  | { type: "tracking"; tracking: Tracking };
+  | { type: "tracking"; trackings: Tracking[] };
 
 export interface GetReturnParams {
   store_id: string;
@@ -172,7 +183,7 @@ export interface CreateReturnParams {
   store_id: string;
   id: string;
   type: ReturnTypeRequest;
-  destination_store_location_id: string | null;
+  destination_store_location_id: string;
 }
 
 export interface ActOnReturnParams extends GetReturnParams {

@@ -4,7 +4,7 @@ import { createAdmin } from '../dist/admin.js';
 
 const STORE_ID = '8e5d1f60-3a2c-4b7e-9f18-6c4a2d0b7e95';
 
-const sellable = { type: 'product_variant', product_id: 'product', variant_id: 'variant' };
+const sellable = { type: 'product_variant', variant_id: 'variant' };
 for (const [owner, path, filters] of [
   ['price', 'prices', { catalog_id: 'catalog', sellable, status: 'active', sort_field: 'updated_at', sort_direction: 'asc' }],
   ['catalogItem', 'catalog-items', { catalog_id: 'catalog', item: { type: 'product', product_id: 'product' } }],
@@ -18,7 +18,7 @@ for (const [owner, path, filters] of [
       return new Response(JSON.stringify({ items: [], cursor: 'after-stale' }), { headers: { 'content-type': 'application/json' } });
     };
     try {
-      const api = createAdmin({ baseUrl: 'https://api.example.test', apiToken: 'arky_api_test' }).eshop[owner];
+      const api = createAdmin({ baseUrl: 'https://api.example.test', secretKey: 'arky_secret_test' }).eshop[owner];
       const input = { store_id: STORE_ID, ...filters, limit: 50, cursor: 'previous' };
       assert.deepEqual(await api.find(input), { items: [], cursor: 'after-stale' });
       assert.equal(calls[0].url.pathname, `/v1/stores/${STORE_ID}/${path}`);

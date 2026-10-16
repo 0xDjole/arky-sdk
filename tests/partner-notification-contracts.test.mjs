@@ -9,7 +9,7 @@ const notificationId = "d65211c1-743f-45fb-ab24-07221b1e3a7c";
 const templateId = "41d550d0-387b-4f24-b17a-87992ebcb3f9";
 
 function admin() {
-  return createAdmin({ baseUrl: "https://api.example.test", apiToken: "contract" });
+  return createAdmin({ baseUrl: "https://api.example.test", secretKey: "contract" });
 }
 
 test("a staff offer is made from the reviewed quote, sent in the buyer's language and withdrawn by version", async (context) => {
@@ -25,35 +25,27 @@ test("a staff offer is made from the reviewed quote, sent in the buyer's languag
     ["POST", `${base}/offer/withdraw`, { expected_updated_at: 125 }],
   ]);
   for (const removed of ["reviewFirstOrderTerms", "sealFirstOrderTerms", "withdrawFirstOrderTerms"]) assert.equal(removed in admin().eshop.cart, false, removed);
-  assert.equal("repeat" in createStorefront(publishableKey, { apiUrl }).eshop.cart, false);
+  assert.equal("repeat" in createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl }).eshop.cart, false);
 });
 
-test("an email is resolved to its customer or reserved for the app-picked customer id", async (context) => {
-  const calls = recordFetch(context, () => ({ id: ids.customer }));
-  assert.deepEqual(await admin().customers.resolveOrReserveEmail({ store_id: storeId, email: "partner@example.test", customer_id: ids.customer }), { id: ids.customer });
-  assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
-    ["POST", `/v1/stores/${storeId}/customers/resolve-or-reserve`, { email: "partner@example.test", customer_id: ids.customer }],
-  ]);
-  await assert.rejects(async () => admin().customers.resolveOrReserveEmail({ store_id: storeId, email: "partner@example.test", customer_id: "partner" }), {
-    name: "TypeError",
-    message: "The customer id must be a canonical UUID v4 picked by the app",
-  });
-  assert.equal(calls.length, 1);
+test("staff email matching is explicit merge and never reserve", () => {
+  assert.equal("resolveOrReserveEmail" in admin().customers, false);
+  assert.equal(typeof admin().customers.merge, "function");
 });
 
 test("notification history and a template preview send only their own fields, and a queued notification has no stop", async (context) => {
   const calls = recordFetch(context, (call) => call.method === "GET" ? { items: [], cursor: "opaque:+/=" } : { id: notificationId });
   const api = admin().notification;
   const signal = new AbortController().signal;
-  await api.find({ store_id: storeId, to: "buyer@example.test", type: "receipt_resend", order_id: ids.order, limit: 25, cursor: "opaque:+/=" }, { signal, headers: { "x-request-trace": "delivery-contract" } });
-  await api.find({ store_id: storeId, type: "broadcast_email", broadcast_id: ids.form });
-  await api.get({ store_id: storeId, id: notificationId });
+  await api.outgoingEmail.find({ store_id: storeId, to: "buyer@example.test", type: "receipt_resend", order_id: ids.order, limit: 25, cursor: "opaque:+/=" }, { signal, headers: { "x-request-trace": "delivery-contract" } });
+  await api.outgoingEmail.find({ store_id: storeId, type: "broadcast_email", broadcast_id: ids.form });
+  await api.outgoingEmail.get({ store_id: storeId, id: notificationId });
   const content = { subject: "Narudžba {{order.number}}", preheader: null, body: "<p>{{order.number}}</p>" };
   await api.template.preview({ store_id: storeId, id: templateId, language: "bs", content });
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
-    ["GET", `/v1/stores/${storeId}/notifications`, { to: "buyer@example.test", type: "receipt_resend", order_id: ids.order, limit: "25", cursor: "opaque:+/=" }, null],
-    ["GET", `/v1/stores/${storeId}/notifications`, { type: "broadcast_email", broadcast_id: ids.form }, null],
-    ["GET", `/v1/stores/${storeId}/notifications/${notificationId}`, {}, null],
+    ["GET", `/v1/stores/${storeId}/outgoing-emails`, { to: "buyer@example.test", type: "receipt_resend", order_id: ids.order, limit: "25", cursor: "opaque:+/=" }, null],
+    ["GET", `/v1/stores/${storeId}/outgoing-emails`, { type: "broadcast_email", broadcast_id: ids.form }, null],
+    ["GET", `/v1/stores/${storeId}/outgoing-emails/${notificationId}`, {}, null],
     ["POST", `/v1/stores/${storeId}/email-templates/${templateId}/preview`, {}, { language: "bs", content }],
   ]);
   assert.equal(calls[0].signal, signal);
@@ -68,7 +60,7 @@ test("minimum progress is read for exactly one customer, company or company loca
   assert.deepEqual(await admin().eshop.minimumProgress.get({ store_id: storeId, company_location_id: ids.companyLocation }), locationProgress);
   assert.deepEqual(await admin().eshop.minimumProgress.get({ store_id: storeId, company_id: ids.company }), companyProgress);
   await admin().eshop.minimumProgress.get({ store_id: storeId, customer_id: ids.customer });
-  const shop = createStorefront(publishableKey, { apiUrl, sessionStorage: visitorStorage() });
+  const shop = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, sessionStorage: visitorStorage() });
   assert.deepEqual(await shop.eshop.minimumProgress.get({ company_id: ids.company }), companyProgress);
   assert.deepEqual(await shop.eshop.minimumProgress.get({ company_location_id: ids.companyLocation }), locationProgress);
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [

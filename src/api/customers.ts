@@ -2,20 +2,18 @@ import type { ApiConfig } from "../services/clientTypes";
 import type { RequestOptions } from "../types/api";
 import type { PaginatedResponse } from "../types/common";
 import type {
-  ArchiveCustomerParams,
   CreateCustomerParams,
   Customer,
   CustomerSearchSnapshot,
   CustomerSession,
   EraseCustomerParams,
+  MergeCustomerParams,
   FindCustomerSessionsParams,
   FindCustomersParams,
   GetCustomerParams,
   ImportCustomersParams,
   ImportCustomersPreviewResult,
   ImportCustomersResult,
-  MergeCustomerParams,
-  ResolveOrReserveCustomerEmailParams,
   RevokeAllCustomerSessionsParams,
   RevokeCustomerSessionParams,
   UpdateCustomerParams,
@@ -50,14 +48,6 @@ export const createCustomersApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.patch<Customer>(customerPath(store_id, id), body, options);
     },
 
-    archive(params: ArchiveCustomerParams, options?: RequestOptions): Promise<Customer> {
-      return apiConfig.httpClient.post<Customer>(
-        `${customerPath(params.store_id, params.id)}/archive`,
-        { expected_updated_at: params.expected_updated_at },
-        options,
-      );
-    },
-
     erase(params: EraseCustomerParams, options?: RequestOptions): Promise<Customer> {
       return apiConfig.httpClient.post<Customer>(
         `${customerPath(params.store_id, params.id)}/erase`,
@@ -68,17 +58,9 @@ export const createCustomersApi = (apiConfig: ApiConfig) => {
 
     merge(params: MergeCustomerParams, options?: RequestOptions): Promise<Customer> {
       requireId(params.target_customer_id, "customer");
-      return apiConfig.httpClient.post<Customer>(
-        `${customerPath(params.store_id, params.id)}/merge`,
-        { target_customer_id: params.target_customer_id, expected_updated_at: params.expected_updated_at },
-        options,
-      );
-    },
-
-    resolveOrReserveEmail(params: ResolveOrReserveCustomerEmailParams, options?: RequestOptions): Promise<Customer> {
-      requireId(params.customer_id, "customer");
-      const { store_id, ...body } = params;
-      return apiConfig.httpClient.post<Customer>(storePath(store_id, "customers/resolve-or-reserve"), body, options);
+      return apiConfig.httpClient.post<Customer>(`${customerPath(params.store_id, params.id)}/merge`, {
+        target_customer_id: params.target_customer_id, expected_updated_at: params.expected_updated_at,
+      }, options);
     },
 
     import(params: ImportCustomersParams, options?: RequestOptions): Promise<ImportCustomersResult> {

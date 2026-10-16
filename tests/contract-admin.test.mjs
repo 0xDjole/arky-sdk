@@ -22,76 +22,77 @@ const minorUnitExceptions = { bhd: 3, bif: 0, clp: 0, djf: 0, gnf: 0, isk: 0, jo
 const adminSurface = {
   "(root)": ["logout", "onAuthStateChanged"],
   account: ["delete", "getMe", "search"],
-  "account.apiToken": ["create", "list", "revoke", "update"],
   "account.auth": ["code", "refresh", "storeCode", "storeVerify", "verify"],
   "account.session": ["list", "revoke"],
   actions: ["find"],
-  analytics: ["get"],
+  counts: ["report", "statuses"],
   broadcast: ["create", "delete", "find", "get", "preview", "schedule", "send", "test", "unschedule", "update"],
   category: ["create", "delete", "find", "get", "getChildren", "update"],
-  companies: ["create", "delete", "find", "get", "reviewTaxRegistration", "setPurchasing", "submitTaxRegistration", "update"],
-  "companies.location": ["create", "delete", "find", "get", "reviewTaxRegistration", "setFulfillment", "setPurchasing", "submitTaxRegistration", "update"],
-  "companies.membership": ["create", "delete", "find", "get", "update"],
+  companies: ["create", "delete", "find", "get", "reviewTaxRegistration", "setPurchasing", "setTax", "submitTaxRegistration", "update"],
+  "companies.location": ["create", "delete", "find", "get", "reviewTaxRegistration", "setFulfillment", "setPurchasing", "setTax", "submitTaxRegistration", "update"],
+  "companies.membership": ["create", "delete", "find", "get", "resendInvite", "update"],
   "companies.notes": ["create", "delete", "find", "update"],
   "companies.role": ["create", "delete", "find", "get", "update"],
   "content.collection": ["create", "delete", "find", "get", "update"],
   "content.entry": ["create", "delete", "find", "findByIds", "findBySlug", "get", "update"],
-  customers: ["archive", "create", "erase", "find", "findSessions", "get", "import", "merge", "previewImport", "resolveOrReserveEmail", "revokeAllSessions", "revokeSession", "update"],
+  customers: ["create", "erase", "find", "findSessions", "get", "import", "merge", "previewImport", "revokeAllSessions", "revokeSession", "update"],
   "customers.emailSuppression": ["block", "find", "get", "recordResubscribe", "recordUnsubscribe", "unblock"],
   "customers.notes": ["create", "delete", "find", "update"],
   "eshop.bookingOffering": ["create", "delete", "find", "get", "lookup", "update"],
   "eshop.bookingResource": ["create", "delete", "find", "get", "getByKey", "update"],
   "eshop.bookingService": ["create", "delete", "find", "get", "getAvailability", "getByKey", "update"],
-  "eshop.cart": ["addBooking", "addCustomerGroup", "addProduct", "checkout", "checkoutOnAccount", "clear", "create", "find", "get", "paymentAction", "previewAccessProduct", "quote", "quoteFutureDeliveries", "quotePurchase", "removeItem", "selectShippingMethod", "setFutureDeliveries", "update"],
+  "eshop.cart": ["addBooking", "addCustomerGroup", "addProduct", "checkout", "checkoutOnAccount", "clear", "create", "find", "get", "order", "paymentAction", "previewAccessProduct", "quote", "quoteFutureDeliveries", "quotePurchase", "removeItem", "selectShippingMethod", "setFutureDeliveries", "update"],
   "eshop.cart.offer": ["create", "send", "withdraw"],
   "eshop.catalog": ["copy", "create", "delete", "find", "findPurchasable", "get", "getByKey", "update"],
   "eshop.catalogAccess": ["create", "delete", "find", "get"],
   "eshop.catalogItem": ["batch", "create", "delete", "find", "get", "update"],
   "eshop.customerGroup": ["create", "delete", "find", "get", "getByKey", "update"],
   "eshop.customerGroupMember": [
-    "assign", "calendar", "cancel", "changePurchaseRequirement", "correctTaxClassification", "current", "find", "findOrders", "get",
+    "assign", "calendar", "cancel", "changePurchaseRequirement", "changeTerms", "current", "find", "findOrders", "get",
     "getRevision", "pause", "purchaseAccess", "purchaseLimits", "purchaseRequirement", "resume", "reviewPurchaseRequirement",
-    "reviewSwitch", "reviewTaxCorrection", "revisions", "revoke", "scheduleEnd", "selectPaymentMethod", "skipNext", "switch",
+    "reviewSwitch", "reviewTerms", "revisions", "revoke", "scheduleEnd", "selectPaymentMethod", "skipNext", "switch",
     "transferPurchaseRequirement", "withdrawRevision",
   ],
   "eshop.customerGroupOffering": ["create", "delete", "find", "get", "getByKey", "update"],
   "eshop.digitalAsset": ["archive", "find", "get", "upload"],
   "eshop.fulfillment": ["create", "execute", "find", "get", "markDelivered", "updateTracking"],
-  "eshop.fulfillmentJob": ["decide", "find", "get", "items", "unitSlots"],
+  "eshop.fulfillmentJob": ["decide", "find", "get", "getPickupCash", "items", "recordPickupCash", "unitSlots"],
   "eshop.fulfillmentRouting": ["get", "update"],
   "eshop.inventoryItem": ["create", "delete", "find", "get", "getByKey", "update"],
   "eshop.inventoryLevel": ["create", "find", "get", "makeAvailable", "move", "receiveMove", "remove", "setAside", "stock"],
   "eshop.inventoryMovement": ["find", "get", "record"],
-  "eshop.inventoryUnit": ["allocate", "execution", "find", "get", "move", "receive", "unassign", "writeOff"],
+  "eshop.inventoryUnit": ["allocate", "find", "get", "makeAvailable", "move", "receive", "setAside", "unassign", "writeOff"],
   "eshop.minimumProgress": ["get"],
-  "eshop.order": ["cancel", "cancelBookingItem", "cancelProductItem", "completeBookingItem", "find", "findBookingItems", "findPayments", "get", "getFinancialSummary", "getPayment", "markBookingItemNoShow", "resendReceipt", "revokeAccess"],
+  "eshop.order": ["addInvoice", "attendBookingItem", "cancel", "cancelBookingItem", "cancelProductItem", "correctDeliveryAddress", "deleteInvoice", "find", "findBookingItems", "findPayments", "get", "getFinancialSummary", "getPayment", "markBookingItemNoShow", "rescheduleBookingItem", "resendReceipt", "revokeAccess", "update"],
   "eshop.order.credit": ["create", "find", "get", "void"],
   "eshop.order.notes": ["create", "delete", "find", "update"],
-  "eshop.payment": ["cancel", "cancelRefund", "createManual", "createRefund", "find", "get", "recordCollection", "recordRefundReceipt", "resolveCharge", "resolveHold", "resolveRefund"],
-  "eshop.paymentMethod": ["cancelSetup", "completeSetup", "consentText", "find", "get", "requestSetup", "revoke", "startSetup"],
+  "eshop.payment": ["cancel", "cancelRefund", "createManual", "createRefund", "find", "get", "recordCollection", "recordRefundReceipt", "resolveCharge", "resolveHold", "resolveRefund", "voidCollection"],
+  "eshop.paymentMethod": ["cancelSetup", "completeSetup", "find", "get", "requestSetup", "revoke", "startSetup"],
   "eshop.price": ["batch", "create", "delete", "find", "get", "update"],
   "eshop.product": ["create", "delete", "find", "get", "getByKey", "update"],
   "eshop.productVariant": ["create", "delete", "find", "get", "update"],
   "eshop.promotion": ["create", "delete", "find", "get", "getByKey", "update"],
   "eshop.promotionCode": ["create", "delete", "find", "get", "getByCode", "update"],
-  "eshop.providerEvent": ["find", "get", "resolve"],
+  "notification.incomingWebhook": ["find", "get", "resolve"],
   "eshop.rental": ["execute", "find", "get"],
   "eshop.return": ["create", "credit", "destinationOptions", "execute", "find", "get", "inspectionUnit", "orderOptions", "rentalOptions"],
   experiments: ["complete", "create", "delete", "find", "get", "pause", "results", "resume", "start", "update"],
   forms: ["assignSubmission", "changeSubmissionStage", "create", "createSubmission", "delete", "deleteSubmission", "find", "findSubmissions", "get", "getSubmission", "getSubmissionFile", "setSubmissionCompany", "update"],
   "forms.notes": ["create", "delete", "find", "update"],
   media: ["create", "delete", "find", "get", "replaceContent", "update"],
-  notification: ["find", "get"],
+  "notification.outgoingEmail": ["find", "get"],
+  "notification.outgoingWebhook": ["find", "get"],
   "notification.emailAddress": ["activate", "archive", "create", "delete", "find", "get", "update"],
-  "notification.emailDomain": ["create", "delete", "find", "get", "verify"],
+  "notification.emailProvider": ["connect", "domains", "get", "replaceKey"],
   "notification.template": ["create", "defaults", "delete", "find", "get", "preview", "test", "update"],
   platform: ["getCurrencies", "getStorePlans", "getWebhookEvents"],
   "platform.administrator": ["add", "list", "me", "remove"],
+  "platform.resendEvent": ["find", "resolve"],
   "platform.stripeBillingEvent": ["find", "resolve"],
   store: ["allowEmailSending", "create", "find", "get", "pauseEmailSending", "requestDeletion", "update"],
   "store.location": ["create", "delete", "get", "getByKey", "getCountries", "getCountry", "list", "update"],
   "store.market": ["create", "delete", "get", "getByKey", "list", "update"],
-  "store.member": ["acceptInvite", "add", "changeStatus", "find", "findOwn", "getOwn", "invite", "remove", "transferOwnership", "updateRoles"],
+  "store.member": ["acceptInvite", "changeStatus", "find", "findOwn", "getOwn", "invite", "remove", "resendInvite", "transferOwnership", "updateRoles"],
   "store.paymentOption": ["create", "get", "getByKey", "list", "update"],
   "store.paymentOption.monri": ["create"],
   "store.paymentOption.stripe": ["connect", "createWebhook", "refresh", "replaceKeys", "rotateWebhookSecret"],
@@ -99,13 +100,14 @@ const adminSurface = {
   "store.salesChannel": ["create", "delete", "find", "get", "getByKey", "update"],
   "store.shippingMethod": ["create", "delete", "find", "get", "getByKey", "update"],
   "store.shippingProfile": ["create", "delete", "find", "get", "getByKey", "update"],
-  "store.storefrontKey": ["create", "find", "get", "revoke"],
+  "store.apiKey": ["create", "delete", "find", "get", "revoke"],
+  "store.emails": ["get", "update"],
   "store.subscription": ["createPortalSession", "endGrant", "get", "select"],
   "store.taxCategory": ["create", "delete", "find", "get", "getByKey", "update"],
   "store.usage": ["find"],
   "store.webhook": ["create", "delete", "list", "test", "update"],
   "store.zone": ["create", "delete", "find", "get", "getByKey", "update"],
-  "support.conversation": ["assign", "attachmentLink", "find", "findMessages", "get", "getMessage", "reply", "resolve", "selectSendingAddress"],
+  "support.conversation": ["assign", "attachmentLink", "changeChatVisibility", "find", "findMessages", "get", "getMessage", "reply", "resolve", "selectSendingAddress", "startEmail"],
   "support.conversation.notes": ["create", "delete", "find", "update"],
   "support.flow": ["create", "delete", "find", "get", "update"],
 };
@@ -125,7 +127,7 @@ function surfaceOf(client) {
 }
 
 function admin() {
-  return createAdmin({ baseUrl: API, apiToken: "contract-token" });
+  return createAdmin({ baseUrl: API, secretKey: "contract-token" });
 }
 
 test("store currencies and minor units match the Server's currency table, in its order", () => {
@@ -149,7 +151,7 @@ test("store currencies and minor units match the Server's currency table, in its
   assert.throws(() => convertToMinor(1, "zzz"), /Unsupported currency/);
 });
 
-test("the Admin client exposes exactly the reviewed future-3 surface", () => {
+test("the Admin client exposes exactly the reviewed Domain5 surface", () => {
   assert.deepEqual(surfaceOf(admin()), adminSurface);
 });
 
@@ -190,7 +192,7 @@ test("broadcasts are created under the app-picked id, scheduled, sent and tested
   await api.create({ store_id: STORE_ID, id: broadcastId, key: "spring", audience, sending_address_id: "address", content });
   await api.update({ store_id: STORE_ID, id: broadcastId, expected_updated_at: 1, content, audience: offeringAudience, sending_address_id: "other-address" });
   await api.preview({ store_id: STORE_ID, id: broadcastId, language: "en" });
-  await api.test({ store_id: STORE_ID, id: broadcastId, notification_id: testId, language: "en" });
+  await api.test({ store_id: STORE_ID, id: broadcastId, outgoing_email_id: testId, language: "en" });
   await api.schedule({ store_id: STORE_ID, id: broadcastId, expected_updated_at: 2, send_at: 1_900_000_000_000 });
   await api.unschedule({ store_id: STORE_ID, id: broadcastId, expected_updated_at: 3 });
   await api.send({ store_id: STORE_ID, id: broadcastId, expected_updated_at: 4 });
@@ -208,7 +210,7 @@ test("broadcasts are created under the app-picked id, scheduled, sent and tested
     ["DELETE", `${base}/${broadcastId}`, { expected_updated_at: "5" }, null],
   ]);
   await assert.rejects(async () => api.create({ store_id: STORE_ID, id: "spring", key: "spring", audience, sending_address_id: "address", content }), TypeError);
-  await assert.rejects(async () => api.test({ store_id: STORE_ID, id: broadcastId, notification_id: "test-1", language: "en" }), {
+  await assert.rejects(async () => api.test({ store_id: STORE_ID, id: broadcastId, outgoing_email_id: "test-1", language: "en" }), {
     name: "TypeError",
     message: "The test email id must be a canonical UUID v4 picked by the app",
   });
@@ -217,8 +219,6 @@ test("broadcasts are created under the app-picked id, scheduled, sent and tested
 
 test("broadcast merge fields name the member's customer group and offering, and no subscription", () => {
   assert.deepEqual([...BROADCAST_FIELDS], [
-    "customer.first_name",
-    "customer.last_name",
     "customer.email",
     "store.name",
     "customer_group_member.customer_group.key",
@@ -226,6 +226,8 @@ test("broadcast merge fields name the member's customer group and offering, and 
     "unsubscribe_url",
   ]);
   assert.deepEqual([...BROADCAST_BLOCK_FIELD_PREFIXES], [
+    "customer.profile.",
+    "customer.blocks.",
     "customer_group_member.customer_group.blocks.",
     "customer_group_member.customer_group_offering.blocks.",
   ]);
@@ -267,8 +269,8 @@ test("platform reads and administrator changes use the platform routes, and a ne
     ["GET", "/v1/platform/administrators", { cursor: "next" }, null],
     ["POST", "/v1/platform/administrators", {}, { id: administratorId, account_id: "account" }],
     ["DELETE", `/v1/platform/administrators/${administratorId}`, {}, null],
-    ["GET", "/v1/platform/provider-events/stripe-billing", { status: "review", limit: "10" }, null],
-    ["POST", "/v1/platform/provider-events/stripe-billing/event%2F1/resolve", {}, { expected_updated_at: 4, resolution: "apply" }],
+    ["GET", "/v1/platform/incoming-webhooks/stripe-billing", { status: "review", limit: "10" }, null],
+    ["POST", "/v1/platform/incoming-webhooks/stripe-billing/event%2F1/resolve", {}, { expected_updated_at: 4, resolution: "apply" }],
   ]);
   await assert.rejects(async () => platform.administrator.add({ id: "admin", account_id: "account" }), TypeError);
   assert.equal(calls.length, 8);

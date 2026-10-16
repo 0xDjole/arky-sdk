@@ -37,6 +37,7 @@ export interface RequestErrorContext {
 }
 
 export interface RequestOptions<T = unknown> {
+  order_token?: string;
   headers?: Record<string, string>;
   params?: QueryParams;
   signal?: AbortSignal;
@@ -50,7 +51,7 @@ export interface HttpClient {
   post<T>(path: string, body: unknown, opts?: RequestOptions<T>): Promise<T>;
   put<T>(path: string, body: unknown, opts?: RequestOptions<T>): Promise<T>;
   patch<T>(path: string, body: unknown, opts?: RequestOptions<T>): Promise<T>;
-  delete<T>(path: string, opts?: RequestOptions<T>): Promise<T>;
+  delete<T>(path: string, opts?: RequestOptions<T> & { body?: unknown }): Promise<T>;
 }
 
 export interface HttpClientConfig {

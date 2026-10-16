@@ -13,7 +13,7 @@ for (const [owner, path, scope] of [['zone','zones',{market_id:'market'}], ['tax
       return new Response(JSON.stringify({items:[],cursor:'next'}),{headers:{'content-type':'application/json'}});
     };
     try {
-      const api = createAdmin({baseUrl:'https://api.example.test',apiToken:'arky_api_test'}).store[owner];
+      const api = createAdmin({baseUrl:'https://api.example.test',secretKey:'arky_secret_test'}).store[owner];
       const filters = {store_id:STORE_ID,key:'trade',...scope,sort_field:'updated_at',sort_direction:'asc',limit:50,cursor:'previous'};
       assert.deepEqual(await api.find(filters),{items:[],cursor:'next'});
       assert.equal(calls[0].url.pathname,`/v1/stores/${STORE_ID}/${path}`);

@@ -8,6 +8,7 @@ import type {
   CompanyRole,
   CreateCompanyLocationParams,
   CreateCompanyMembershipParams,
+  ResendCompanyInviteParams,
   CreateCompanyParams,
   CreateCompanyRoleParams,
   DeleteCompanyLocationParams,
@@ -25,6 +26,7 @@ import type {
   ReviewCompanyTaxRegistrationParams,
   SetCompanyLocationFulfillmentParams,
   SetCompanyPurchasingParams,
+  SetCompanyTaxParams,
   SubmitCompanyTaxRegistrationParams,
   UpdateCompanyLocationParams,
   UpdateCompanyMembershipParams,
@@ -36,6 +38,10 @@ import { storePath, storeRecordPath } from "./paths";
 
 function taxRegistrationRoutes<T>(apiConfig: ApiConfig, collection: string) {
   return {
+    setTax(params: SetCompanyTaxParams, options?: RequestOptions): Promise<T> {
+      const { store_id, id, ...body } = params;
+      return apiConfig.httpClient.put<T>(`${storeRecordPath(store_id, collection, id)}/tax`, body, options);
+    },
     submitTaxRegistration(params: SubmitCompanyTaxRegistrationParams, options?: RequestOptions): Promise<T> {
       const { store_id, id, ...body } = params;
       return apiConfig.httpClient.post<T>(`${storeRecordPath(store_id, collection, id)}/tax/registrations`, body, options);
@@ -182,6 +188,11 @@ export const createCompanyMembershipApi = (apiConfig: ApiConfig) => ({
     requireId(params.id, "company membership");
     const { store_id, ...body } = params;
     return apiConfig.httpClient.post<CompanyMembership>(storePath(store_id, "company-memberships"), body, options);
+  },
+
+  resendInvite(params: ResendCompanyInviteParams, options?: RequestOptions): Promise<CompanyMembership> {
+    const { store_id, id, ...body } = params;
+    return apiConfig.httpClient.post<CompanyMembership>(`${storeRecordPath(store_id, "company-memberships", id)}/resend-invite`, body, options);
   },
 
   update(params: UpdateCompanyMembershipParams, options?: RequestOptions): Promise<CompanyMembership> {

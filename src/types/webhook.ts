@@ -1,6 +1,7 @@
 import type { EpochMilliseconds } from "./time";
 import type { CollectionFilter } from "./block";
 import type { SortDirection } from "./common";
+import type { Order } from "./order";
 
 export type KeyFilter = { type: "all" } | { type: "only"; keys: string[] };
 
@@ -14,8 +15,9 @@ export const WEBHOOK_UNIT_EVENT_TYPES = [
   "order.confirmed",
   "order.payment_received",
   "order.payment_failed",
-  "order.refunded",
+  "refund.created",
   "refund.succeeded",
+  "refund.failed",
   "order.cancelled",
   "order_product_item.created",
   "order_product_item.updated",
@@ -24,13 +26,13 @@ export const WEBHOOK_UNIT_EVENT_TYPES = [
   "order_booking_item.created",
   "order_booking_item.updated",
   "order_booking_item.confirmed",
-  "order_booking_item.completed",
+  "order_booking_item.attended",
   "order_booking_item.no_show",
   "order_booking_item.cancelled",
   "order_booking_item.reminder",
   "fulfillment.created",
   "fulfillment.ready",
-  "fulfillment.sent",
+  "fulfillment.dispatched",
   "fulfillment.delivered",
   "fulfillment.collected",
   "fulfillment.tracking_updated",
@@ -50,6 +52,18 @@ export const WEBHOOK_UNIT_EVENT_TYPES = [
   "product.created",
   "product.updated",
   "product.deleted",
+  "product_variant.created",
+  "product_variant.updated",
+  "product_variant.deleted",
+  "price.created",
+  "price.updated",
+  "price.deleted",
+  "inventory_level.updated",
+  "promotion.created",
+  "promotion.updated",
+  "promotion.deleted",
+  "promotion_code.created",
+  "promotion_code.deleted",
   "booking_resource.created",
   "booking_resource.updated",
   "booking_resource.deleted",
@@ -59,27 +73,33 @@ export const WEBHOOK_UNIT_EVENT_TYPES = [
   "media.created",
   "media.updated",
   "media.deleted",
-  "store.created",
+  "category.created",
+  "category.updated",
+  "category.deleted",
   "store.updated",
   "customer_group.created",
   "customer_group.updated",
-  "customer.created",
+  "customer_group.deleted",
+  "customer.verified",
   "customer.updated",
-  "customer.archived",
-  "account.updated",
+  "customer.merged",
+  "customer.erased",
   "customer_group_member.activated",
   "customer_group_member.paused",
+  "customer_group_member.blocked",
   "customer_group_member.resumed",
   "customer_group_member.cancelled",
   "customer_group_member.renewed",
   "customer_group_member.payment_failed",
   "customer_group_member.switched",
-  "customer_group_member.next_purchase_skipped",
+  "customer_group_member.renewal_skipped",
   "customer_group_member.payment_method_changed",
-  "customer_group_member.tax_classification_corrected",
   "company.created",
   "company.updated",
   "company.deleted",
+  "company_location.created",
+  "company_location.updated",
+  "company_location.deleted",
   "company_membership.created",
   "company_membership.updated",
   "company_membership.deleted",
@@ -100,7 +120,26 @@ export const WEBHOOK_UNIT_EVENT_TYPES = [
 
 export type WebhookUnitEventType = (typeof WEBHOOK_UNIT_EVENT_TYPES)[number];
 
-export type WebhookType =
+export interface OrderRefundCreated {
+  order: Omit<Order, "status" | "totals">;
+  payment_id: string;
+  refund_id: string;
+}
+
+export interface OrderRefundFailed {
+  order: Omit<Order, "status" | "totals">;
+  payment_id: string;
+  refund_id: string;
+}
+
+export interface OrderRefundSucceeded {
+  order: Omit<Order, "status" | "totals">;
+  payment_id: string;
+  refund_id: string;
+  notify_customer: boolean;
+}
+
+export type WebhookEvent =
   | { type: "collection.created"; collections: KeyFilter }
   | { type: "collection.updated"; collections: KeyFilter }
   | { type: "collection.deleted"; collections: KeyFilter }
@@ -110,7 +149,7 @@ export type WebhookType =
   | { type: "form_submission.created"; forms: FormFilter }
   | { type: WebhookUnitEventType };
 
-export type WebhookEventName = WebhookType["type"];
+export type WebhookEventName = WebhookEvent["type"];
 
 export type WebhookStatus = { type: "active" } | { type: "disabled" };
 
@@ -118,7 +157,7 @@ export interface Webhook {
   id: string;
   store_id: string;
   url: string;
-  events: WebhookType[];
+  events: WebhookEvent[];
   headers: Record<string, string>;
   secret: string;
   status: WebhookStatus;
@@ -128,8 +167,6 @@ export interface Webhook {
 
 export interface WebhookEventScopeField {
   field: string;
-  label: string;
-  placeholder: string;
 }
 
 export interface WebhookEventMetadata {
@@ -151,7 +188,7 @@ export interface CreateWebhookParams {
   store_id: string;
   id: string;
   url: string;
-  events: WebhookType[];
+  events: WebhookEvent[];
   headers: Record<string, string>;
   secret: string;
   status: WebhookStatus;
@@ -162,7 +199,7 @@ export interface UpdateWebhookParams {
   id: string;
   expected_updated_at: EpochMilliseconds;
   url?: string;
-  events?: WebhookType[];
+  events?: WebhookEvent[];
   headers?: Record<string, string>;
   secret?: string;
   status?: WebhookStatus;

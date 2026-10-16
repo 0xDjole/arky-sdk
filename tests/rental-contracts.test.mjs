@@ -12,11 +12,11 @@ const jobLineId = "2d8e4b61-9a37-4c05-8f1e-6b3d0a7c5e92";
 const fulfillmentId = "9a1c5e37-6b28-4d40-b3f9-1e7d2c8a4b65";
 
 function eshop() {
-  return createAdmin({ baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).eshop;
+  return createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop;
 }
 
 test("rental discovery forwards its filters, keeps the empty continuation and reads the rented terms", async (context) => {
-  const detail = { rental: { id: rentalId, status: { type: "active" } }, terms: { product_id: ids.product, variant_id: ids.variant, quantity: 1, inventory_item_id: "machine", product_key: "espresso", variant_sku: null } };
+  const detail = { rental: { id: rentalId, status: { type: "active" } }, terms: { product_id: ids.product, variant_id: ids.variant, quantity: 1, inventory_item_id: "unit-item", product_key: "classic", variant_sku: null } };
   const calls = recordFetch(context, (_call, count) => count <= 2 ? { items: [], cursor: count === 1 ? "next:/+=" : null } : detail);
   const api = eshop().rental;
   const query = { store_id: STORE_ID, customer_group_member_id: ids.customerGroupMember, status: "ending", limit: 20, sort_field: "updated_at", sort_direction: "desc" };
@@ -51,6 +51,7 @@ test("rental actions send the loaded version and the typed action, and a replace
     { type: "end", reason: "Customer ended the agreement", return_due_at: null },
     { type: "end", reason: "Agreed collection date", return_due_at: 1_700_000_100_000 },
     { type: "close" },
+    { type: "resume" },
     { type: "cancel_issue", fulfillment_job_id: jobId, fulfillment_job_line_id: jobLineId },
   ];
   for (const action of actions) {
@@ -99,7 +100,7 @@ test("rental physical work uses fulfillment and job routes with exact unit selec
 
 test("a buyer reads their own rentals of one customer group member through storefront routes", async (context) => {
   const calls = recordFetch(context, (call) => call.path === "/v1/storefront/rentals" ? { items: [], cursor: null } : { id: rentalId });
-  const rentals = createStorefront(publishableKey, { apiUrl, sessionStorage: visitorStorage() }).eshop.rental;
+  const rentals = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, sessionStorage: visitorStorage() }).eshop.rental;
   await rentals.find({ customer_group_member_id: ids.customerGroupMember, limit: 10 });
   await rentals.get({ rental_id: rentalId });
   assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [

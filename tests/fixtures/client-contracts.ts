@@ -1,16 +1,14 @@
 import { createAdmin, createStorefront, epochMilliseconds, initialize } from "arky-sdk";
 import type {
   Account,
-  AccountApiTokenCreated,
   AccountSessionStatus,
   BroadcastAudience,
-  EmailDomain as EmailDomainRecord,
   ExperimentResults,
   ExperimentVariantResult,
-  FulfillmentRecipient,
-  ProviderEventStatus,
-  ProviderEventStatusName,
-  ProviderEventTarget,
+  FulfillmentJobBuyer,
+  IncomingWebhookStatus,
+  IncomingWebhookStatusName,
+  IncomingWebhookTarget,
   ResendEvent,
   EmailFailure,
   ArkyCartCheckoutInput,
@@ -22,28 +20,28 @@ import type {
   CreateBroadcastParams,
   ChangeCustomerEmailParams,
   CreateEmailAddressParams,
-  CreateEmailDomainParams,
   CreateEmailTemplateParams,
   CreatePaymentRefundParams,
   CreateSupportFlowParams,
   Customer,
-  CustomerEmail,
   CustomerMe,
   CustomerSearchSnapshot,
   EmailAddress,
-  EmailDomain,
   EmailTemplate,
   EmailTemplatePreview,
   FormAnswerInput,
   FormValues,
   MonriConfirmation,
-  Notification,
+  OutgoingEmail,
+  CustomerType,
+  BroadcastMembers,
+  BroadcastCondition,
   PaginatedResponse,
   Payment,
   PaymentType,
   PlatformAdministrator,
   PreviewEmailTemplateParams,
-  ProviderEvent,
+  IncomingWebhook,
   RecordRefundReceiptParams,
   RequestCustomerCodeParams,
   ResolvePaymentChargeParams,
@@ -80,25 +78,25 @@ type Storefront = ReturnType<typeof createStorefront>;
 type Store = ReturnType<typeof initialize>;
 type Answer<F extends (...args: never[]) => unknown> = Awaited<ReturnType<F>>;
 
-const admin = createAdmin({ baseUrl: "https://api.example.test", apiToken: "arky_api_contract" });
+const admin = createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_api_contract" });
 const storefront = createStorefront(`arky_pk_${"a".repeat(42)}A`, { apiUrl: "https://api.example.test", locale: "bs", market: "bih" });
 const store_id = "c3d8f1a2-6b47-4e95-8a0c-2f7d5e9b1a63";
 
-export const notificationPage: Promise<PaginatedResponse<Notification>> = admin.notification.find({ store_id, to: "buyer@example.test", type: "event_email", limit: 20 });
+export const notificationPage: Promise<PaginatedResponse<OutgoingEmail>> = admin.notification.outgoingEmail.find({ store_id, to: "buyer@example.test", type: "event_email", limit: 20 });
 export const templatePreview: Promise<EmailTemplatePreview> = admin.notification.template.preview({ store_id, id: "template", language: "bs" });
-export const templateTest: Promise<Notification> = admin.notification.template.test({ store_id, id: "template", notification_id: "8a6d4f2b-9c1e-4e57-b3a8-1f6c9e2d4b70", language: "bs" });
-export const broadcastTest: Promise<Notification> = admin.broadcast.test({ store_id, id: "broadcast", notification_id: "8a6d4f2b-9c1e-4e57-b3a8-1f6c9e2d4b70", language: "en" });
+export const templateTest: Promise<OutgoingEmail> = admin.notification.template.test({ store_id, id: "template", outgoing_email_id: "8a6d4f2b-9c1e-4e57-b3a8-1f6c9e2d4b70", language: "bs" });
+export const broadcastTest: Promise<OutgoingEmail> = admin.broadcast.test({ store_id, id: "broadcast", outgoing_email_id: "8a6d4f2b-9c1e-4e57-b3a8-1f6c9e2d4b70", language: "en" });
 export const usage: Promise<StoreUsageSummary> = admin.store.usage.find({ store_id });
 export const setup: Promise<StorefrontSetup> = storefront.getSetup();
 export const formAnswers: FormAnswerInput[] = [{ type: "text", question_id: "q", key: "name", value: "Ana" }];
 export const formValues: FormValues = { name: "Ana", phone: null, notes: undefined, colors: ["red"] };
 export const createdAt = epochMilliseconds(1);
-export const emailChange: Promise<CustomerMe> = storefront.customer.changeEmail({ code: "123456", language: "bs" });
+export const emailChange: Promise<CustomerMe> = storefront.customer.changeEmail({ code: "123456" });
 export const pausedSending: Promise<StoreRecord> = admin.store.pauseEmailSending({ store_id, expected_updated_at: createdAt, reason: "Bounce rate review" });
 export const allowedSending: Promise<StoreRecord> = admin.store.allowEmailSending({ store_id, expected_updated_at: createdAt });
 
 export type AdminSurfaceContracts = [
-  Assert<Equal<keyof Admin, "account" | "platform" | "store" | "notification" | "broadcast" | "support" | "media" | "category" | "content" | "forms" | "companies" | "customers" | "actions" | "experiments" | "analytics" | "eshop" | "session" | "isAuthenticated" | "onAuthStateChanged" | "logout" | "utils">>,
+  Assert<Equal<keyof Admin, "account" | "platform" | "store" | "notification" | "broadcast" | "support" | "media" | "category" | "content" | "forms" | "companies" | "customers" | "actions" | "experiments" | "counts" | "eshop" | "session" | "isAuthenticated" | "onAuthStateChanged" | "logout" | "utils">>,
   Assert<Missing<Admin, "automation">>,
   Assert<Missing<Admin, "campaign">>,
   Assert<Missing<Admin, "leadResearch">>,
@@ -112,25 +110,22 @@ export type AdminSurfaceContracts = [
   Assert<Missing<Admin["eshop"], "subscriptionPlanEntitlement">>,
   Assert<Missing<Admin["eshop"], "customerGroupEmailConsent">>,
   Assert<Missing<Admin["store"], "commerce">>,
-  Assert<Equal<keyof Admin["notification"], "find" | "get" | "template" | "emailDomain" | "emailAddress">>,
-  Assert<Equal<keyof Admin["notification"]["emailDomain"], "find" | "get" | "create" | "verify" | "delete">>,
+  Assert<Equal<keyof Admin["notification"], "outgoingEmail" | "outgoingWebhook" | "incomingWebhook" | "template" | "emailProvider" | "emailAddress">>,
   Assert<Equal<keyof Admin["notification"]["emailAddress"], "find" | "get" | "create" | "update" | "archive" | "activate" | "delete">>,
   Assert<Equal<keyof Admin["broadcast"], "find" | "get" | "create" | "update" | "delete" | "schedule" | "unschedule" | "send" | "preview" | "test">>,
   Assert<Equal<keyof Admin["support"], "flow" | "conversation">>,
   Assert<Missing<Admin["store"], "storefrontClient">>,
-  Assert<Equal<keyof Admin["store"]["storefrontKey"], "find" | "get" | "create" | "revoke">>,
+  Assert<Equal<keyof Admin["store"]["apiKey"], "find" | "get" | "create" | "revoke" | "delete">>,
   Assert<Equal<keyof Admin["platform"]["administrator"], "list" | "me" | "add" | "remove">>,
-  Assert<Equal<keyof Admin["eshop"]["payment"], "find" | "get" | "createManual" | "recordCollection" | "createRefund" | "recordRefundReceipt" | "cancelRefund" | "resolveRefund" | "resolveCharge" | "resolveHold" | "cancel">>,
-  Assert<Equal<keyof Admin["eshop"]["providerEvent"], "find" | "get" | "resolve">>,
+  Assert<Equal<keyof Admin["eshop"]["payment"], "find" | "get" | "createManual" | "recordCollection" | "voidCollection" | "createRefund" | "recordRefundReceipt" | "cancelRefund" | "resolveRefund" | "resolveCharge" | "resolveHold" | "cancel">>,
+  Assert<Equal<keyof Admin["notification"]["incomingWebhook"], "find" | "get" | "resolve">>,
   Assert<Equal<Answer<Admin["account"]["getMe"]>, Account>>,
-  Assert<Equal<Answer<Admin["account"]["apiToken"]["create"]>, AccountApiTokenCreated>>,
   Assert<Equal<Answer<Admin["account"]["session"]["list"]>, PaginatedResponse<AccountSession>>>,
   Assert<Equal<Answer<Admin["account"]["auth"]["verify"]>, AuthToken>>,
   Assert<Missing<AuthToken, "scope">>,
   Assert<Equal<Answer<Admin["platform"]["administrator"]["add"]>, PlatformAdministrator>>,
-  Assert<Equal<Answer<Admin["platform"]["stripeBillingEvent"]["resolve"]>, ProviderEvent>>,
+  Assert<Equal<Answer<Admin["platform"]["stripeBillingEvent"]["resolve"]>, IncomingWebhook>>,
   Assert<Equal<Answer<Admin["notification"]["template"]["create"]>, EmailTemplate>>,
-  Assert<Equal<Answer<Admin["notification"]["emailDomain"]["create"]>, EmailDomain>>,
   Assert<Equal<Answer<Admin["notification"]["emailAddress"]["create"]>, EmailAddress>>,
   Assert<Equal<Answer<Admin["store"]["pauseEmailSending"]>, StoreRecord>>,
   Assert<Equal<Answer<Admin["broadcast"]["create"]>, Broadcast>>,
@@ -142,39 +137,37 @@ export type AdminSurfaceContracts = [
   Assert<RequiredField<CreateEmailTemplateParams, "id">>,
   Assert<RequiredField<CreateEmailTemplateParams, "type">>,
   Assert<Missing<CreateEmailTemplateParams, "sender_id">>,
-  Assert<RequiredField<CreateEmailDomainParams, "id">>,
   Assert<RequiredField<CreateEmailAddressParams, "id">>,
   Assert<RequiredField<CreateEmailAddressParams, "email">>,
   Assert<Missing<CreateEmailAddressParams, "email_domain_id" | "local_part">>,
   Assert<RequiredField<CreateBroadcastParams, "id">>,
   Assert<RequiredField<CreateSupportFlowParams, "id">>,
   Assert<RequiredField<CreatePaymentRefundParams, "id">>,
-  Assert<RequiredField<RecordRefundReceiptParams, "id">>,
+  Assert<RequiredField<RecordRefundReceiptParams, "expected_updated_at">>,
+  Assert<Missing<RecordRefundReceiptParams, "id">>,
   Assert<RequiredField<PreviewEmailTemplateParams, "language">>,
   Assert<RequiredField<SendEmailTemplateTestParams, "language">>,
-  Assert<RequiredField<SendEmailTemplateTestParams, "notification_id">>,
+  Assert<RequiredField<SendEmailTemplateTestParams, "outgoing_email_id">>,
   Assert<RequiredField<SendBroadcastTestParams, "language">>,
   Assert<Equal<ResolvePaymentRefundParams["outcome"], MonriConfirmation>>,
   Assert<Equal<ResolvePaymentChargeParams["outcome"], MonriConfirmation>>,
   Assert<Equal<MonriConfirmation["type"], "made" | "not_made">>,
   Assert<Equal<PaymentType["type"], "stripe_checkout" | "stripe_card" | "monri_checkout" | "monri_card" | "cash_on_delivery" | "manual">>,
-  Assert<Equal<CustomerEmail["type"], "no_email" | "contact" | "reserved" | "verified">>,
+  Assert<Equal<CustomerType["type"], "anonymous" | "verified">>,
   Assert<Equal<keyof ServerError, "message" | "error" | "statusCode" | "validationErrors">>,
   Assert<Missing<Extract<AccountSessionStatus, { type: "pending_verification" }>, "notification_id">>,
   Assert<Equal<ExperimentVariantResult["open_windows"], number>>,
   Assert<Missing<ExperimentResults, "maturing">>,
-  Assert<Equal<BroadcastAudience, { type: "customer_group_offering"; customer_group_offering_id: string } | { type: "customer_groups"; customer_group_ids: string[] }>>,
+  Assert<Equal<BroadcastAudience, { include: BroadcastMembers[]; exclude: BroadcastMembers[]; conditions: BroadcastCondition[] }>>,
   Assert<Equal<Broadcast["sending_address_id"], string>>,
   Assert<Missing<Broadcast, "sender_id">>,
-  Assert<Equal<ProviderEventStatus["type"], "waiting" | "processing" | "applied" | "ignored" | "review">>,
-  Assert<Equal<ProviderEventStatusName, "waiting" | "unmatched" | "processing" | "applied" | "ignored" | "review">>,
-  Assert<Equal<ProviderEventTarget["type"], "conversation_message" | "notification" | "email_suppression" | "payment" | "payment_method" | "store_subscription">>,
-  Assert<Equal<keyof ResendEvent, "event_type" | "email_id" | "occurred_at" | "notification_id" | "store_id" | "message_id" | "recipients" | "failure">>,
+  Assert<Equal<IncomingWebhookStatus["type"], "waiting" | "processing" | "applied" | "ignored" | "review">>,
+  Assert<Equal<IncomingWebhookStatusName, "waiting" | "unmatched" | "processing" | "applied" | "ignored" | "review">>,
+  Assert<Equal<IncomingWebhookTarget["type"], "conversation_message" | "outgoing_email" | "email_suppression" | "payment" | "payment_method" | "store_subscription">>,
+  Assert<Equal<keyof ResendEvent, "event_type" | "email_id" | "occurred_at" | "outgoing_email_id" | "store_id" | "message_id" | "recipients" | "failure">>,
   Assert<Equal<ResendEvent["failure"], EmailFailure | null>>,
-  Assert<Equal<Extract<FulfillmentRecipient, { type: "company_location" }>["source_company_location_id"], string>>,
-  Assert<Missing<Extract<FulfillmentRecipient, { type: "company_location" }>, "source_company_id">>,
-  Assert<Equal<EmailDomainRecord["provider_domain_id"], string | null>>,
-  Assert<Equal<"deleting" extends EmailDomainRecord["status"]["type"] ? true : false, true>>,
+  Assert<Equal<Extract<FulfillmentJobBuyer, { type: "company_location" }>["company_location_id"], string>>,
+  Assert<Missing<Extract<FulfillmentJobBuyer, { type: "company_location" }>, "source_company_location_id" | "source_customer_id">>,
 ];
 
 export type StorefrontSurfaceContracts = [
@@ -184,13 +177,17 @@ export type StorefrontSurfaceContracts = [
   Assert<Missing<Storefront["customer"], "captureEmail">>,
   Assert<Missing<Storefront["eshop"], "digital">>,
   Assert<Missing<Storefront["eshop"]["order"], "resumePayment">>,
-  Assert<Equal<keyof Storefront["customer"], "identify" | "requestCode" | "verify" | "changeEmail" | "refresh" | "logout" | "getMe" | "updateMe" | "resubscribe">>,
-  Assert<Equal<keyof ChangeCustomerEmailParams, "code" | "language">>,
+  Assert<Equal<keyof Storefront["customer"], "identify" | "requestCode" | "verify" | "changeEmail" | "refresh" | "logout" | "getMe" | "updateMe" | "resubscribe" | "unsubscribe">>,
+  Assert<Equal<Answer<Storefront["customer"]["unsubscribe"]>, CustomerMe>>,
+  Assert<Equal<Answer<Storefront["customer"]["resubscribe"]>, CustomerMe>>,
+  Assert<Equal<keyof Store["customer"], "identify" | "requestCode" | "verify" | "changeEmail" | "refresh" | "logout" | "getMe" | "updateMe" | "resubscribe" | "unsubscribe">>,
+  Assert<Equal<Store["eshop"]["promotion"], Storefront["eshop"]["promotion"]>>,
+  Assert<Equal<keyof ChangeCustomerEmailParams, "code">>,
   Assert<Equal<Answer<Storefront["customer"]["changeEmail"]>, CustomerMe>>,
-  Assert<Equal<keyof RequestCustomerCodeParams, "id" | "email" | "language">>,
-  Assert<RequiredField<RequestCustomerCodeParams, "language">>,
+  Assert<Equal<keyof RequestCustomerCodeParams, "id" | "email" | "language" | "bot_check_token">>,
   Assert<RequiredField<RequestCustomerCodeParams, "id">>,
-  Assert<Equal<keyof SubmitFormParams, "form_id" | "form_updated_at" | "id" | "language" | "answers">>,
+  Assert<RequiredField<RequestCustomerCodeParams, "language">>,
+  Assert<Equal<keyof SubmitFormParams, "form_id" | "questions_updated_at" | "id" | "language" | "answers" | "bot_check_token">>,
   Assert<Equal<Answer<Storefront["forms"]["submit"]>, StorefrontFormSubmission>>,
   Assert<Equal<keyof StorefrontFormSubmission, "id" | "form_id" | "language" | "answers" | "stage_id" | "created_at" | "updated_at">>,
   Assert<Equal<keyof NonNullable<Parameters<Storefront["store"]["location"]["list"]>[0]>, "key" | "sort_field" | "sort_direction" | "limit" | "cursor">>,
@@ -200,5 +197,5 @@ export type StorefrontSurfaceContracts = [
   Assert<Missing<StorefrontOptions, "salesChannel">>,
   Assert<Missing<Storefront, "setSalesChannel" | "getSalesChannel" | "subscription_plans" | "subscription_offerings">>,
   Assert<Missing<Store, "setSalesChannel" | "getSalesChannel" | "sales_channel_key">>,
-  Assert<Equal<keyof Public.StorefrontSetup, "name" | "timezone" | "languages" | "payment_options">>,
+  Assert<Equal<keyof Public.StorefrontSetup, "name" | "timezone" | "languages" | "payment_options" | "bot_check">>,
 ];

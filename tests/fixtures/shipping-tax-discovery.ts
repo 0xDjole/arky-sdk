@@ -32,7 +32,7 @@ type Api = ReturnType<typeof createAdmin>["store"];
 export type ShippingTaxContract = [
   Assert<Missing<Api, "taxRule" | "shippingRate" | "marketZone" | "marketSalesChannel">>,
   Assert<Equal<TaxCategory["rules"], TaxRule[]>>,
-  Assert<Equal<keyof TaxRule, "id" | "zone_id" | "treatment" | "starts_at" | "ends_at">>,
+  Assert<Equal<keyof TaxRule, "id" | "areas" | "treatment" | "starts_at" | "ends_at">>,
   Assert<Equal<TaxRule["starts_at"], EpochMilliseconds | null>>,
   Assert<Equal<TaxTreatment["type"], "rates" | "zero_rated" | "exempt" | "not_taxable" | "not_collecting">>,
   Assert<Equal<CreateTaxCategoryParams["rules"], TaxRule[]>>,

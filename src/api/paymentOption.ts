@@ -30,10 +30,17 @@ export const createPaymentOptionApi = (apiConfig: ApiConfig) => {
 
   return {
     list(params: FindPaymentOptionsParams, options?: RequestOptions): Promise<PaginatedResponse<PaymentOption>> {
-      const { store_id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<PaymentOption>>(storePath(store_id, collection), {
+      return apiConfig.httpClient.get<PaginatedResponse<PaymentOption>>(storePath(params.store_id, collection), {
         ...options,
-        params: query,
+        params: {
+          key: params.key,
+          type_name: params.type_name,
+          status: params.status,
+          sort_field: params.sort_field,
+          sort_direction: params.sort_direction,
+          limit: params.limit,
+          cursor: params.cursor,
+        },
       });
     },
 
@@ -50,28 +57,52 @@ export const createPaymentOptionApi = (apiConfig: ApiConfig) => {
 
     create(params: CreatePaymentOptionParams, options?: RequestOptions): Promise<PaymentOption> {
       requireId(params.id, "payment option");
-      const { store_id, ...body } = params;
-      return apiConfig.httpClient.post<PaymentOption>(storePath(store_id, collection), body, options);
+      return apiConfig.httpClient.post<PaymentOption>(storePath(params.store_id, collection), {
+        id: params.id,
+        key: params.key,
+        blocks: params.blocks,
+        type: params.type,
+        status: params.status,
+      }, options);
     },
 
     update(params: UpdatePaymentOptionParams, options?: RequestOptions): Promise<PaymentOption> {
-      const { store_id, id, ...body } = params;
-      return apiConfig.httpClient.put<PaymentOption>(storeRecordPath(store_id, collection, id), body, options);
+      return apiConfig.httpClient.put<PaymentOption>(storeRecordPath(params.store_id, collection, params.id), {
+        expected_updated_at: params.expected_updated_at,
+        blocks: params.blocks,
+        status: params.status,
+        saved_card_terms: params.saved_card_terms,
+      }, options);
     },
 
     monri: {
       create(params: CreateMonriPaymentOptionParams, options?: RequestOptions): Promise<PaymentOption> {
         requireId(params.id, "payment option");
-        const { store_id, ...body } = params;
-        return apiConfig.httpClient.post<PaymentOption>(storePath(store_id, `${collection}/monri`), body, options);
+        return apiConfig.httpClient.post<PaymentOption>(storePath(params.store_id, `${collection}/monri`), {
+          id: params.id,
+          key: params.key,
+          blocks: params.blocks,
+          status: params.status,
+          environment: params.environment,
+          merchant_key: params.merchant_key,
+          authenticity_token: params.authenticity_token,
+          saved_card_terms: params.saved_card_terms,
+        }, options);
       },
     },
 
     stripe: {
       connect(params: ConnectStripePaymentOptionParams, options?: RequestOptions): Promise<PaymentOption> {
         requireId(params.id, "payment option");
-        const { store_id, ...body } = params;
-        return apiConfig.httpClient.post<PaymentOption>(storePath(store_id, `${collection}/stripe`), body, options);
+        return apiConfig.httpClient.post<PaymentOption>(storePath(params.store_id, `${collection}/stripe`), {
+          id: params.id,
+          key: params.key,
+          blocks: params.blocks,
+          status: params.status,
+          restricted_key: params.restricted_key,
+          publishable_key: params.publishable_key,
+          saved_card_terms: params.saved_card_terms,
+        }, options);
       },
 
       createWebhook(params: CreateStripeWebhookParams, options?: RequestOptions): Promise<PaymentOption> {
@@ -81,13 +112,19 @@ export const createPaymentOptionApi = (apiConfig: ApiConfig) => {
       },
 
       rotateWebhookSecret(params: RotateStripeWebhookSecretParams, options?: RequestOptions): Promise<PaymentOption> {
-        const { store_id, id, ...body } = params;
-        return stripeAction(store_id, id, "rotate-webhook-secret", body, options);
+        return stripeAction(params.store_id, params.id, "rotate-webhook-secret", {
+          expected_updated_at: params.expected_updated_at,
+          signing_secret: params.signing_secret,
+          previous_secret_expires_at: params.previous_secret_expires_at,
+        }, options);
       },
 
       replaceKeys(params: ReplaceStripeKeysParams, options?: RequestOptions): Promise<PaymentOption> {
-        const { store_id, id, ...body } = params;
-        return stripeAction(store_id, id, "replace-keys", body, options);
+        return stripeAction(params.store_id, params.id, "replace-keys", {
+          expected_updated_at: params.expected_updated_at,
+          restricted_key: params.restricted_key,
+          publishable_key: params.publishable_key,
+        }, options);
       },
 
       refresh(params: RefreshStripePaymentOptionParams, options?: RequestOptions): Promise<PaymentOption> {

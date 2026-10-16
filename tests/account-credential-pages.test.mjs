@@ -56,16 +56,16 @@ test("own credential lists forward bounded pages and preserve tagged statuses wi
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     const parsed = new URL(url);
     calls.push({ url: parsed, headers: new Headers(init.headers) });
-    const body = { items: [{ id: "credential", status: { type: "revoked", revoked_at: 5 } }], cursor: parsed.searchParams.has("cursor") ? null : cursor };
+    const body = { items: [{ id: "credential", status: { type: "revoked" } }], cursor: parsed.searchParams.has("cursor") ? null : cursor };
     return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const admin = createAdmin({ baseUrl: "https://credentials.test", apiToken: "arky_account_access_contract" });
-  for (const [api, path] of [[admin.account.apiToken, "api-tokens"], [admin.account.session, "sessions"]]) {
+  const admin = createAdmin({ baseUrl: "https://credentials.test", secretKey: "arky_account_access_contract" });
+  for (const [api, path] of [[admin.account.session, "sessions"]]) {
     const count = calls.length;
     const first = await api.list({ limit: 1 }, { headers: { "X-Trace-Id": "credential-page" } });
     assert.equal(calls.length, count + 1);
     assert.equal(first.cursor, cursor);
-    assert.deepEqual(first.items[0].status, { type: "revoked", revoked_at: 5 });
+    assert.deepEqual(first.items[0].status, { type: "revoked" });
     const next = await api.list({ limit: 1, cursor: first.cursor });
     assert.equal(calls.length, count + 2);
     assert.equal(next.cursor, null);
@@ -78,18 +78,10 @@ test("own credential lists forward bounded pages and preserve tagged statuses wi
   }
 });
 
-test("an API token create sends the app-picked id once and refuses an invented or malformed one", async (context) => {
-  const calls = recordFetch(context, () => [200, { type: "created", token: { id: loginSessionId }, value: "arky_api_secret" }]);
-  const admin = createAdmin({ baseUrl: "https://credentials.test", apiToken: "arky_account_access_contract" });
-  const created = await admin.account.apiToken.create({ id: loginSessionId, name: "Deploy", expires_at: null });
-  assert.equal(created.type, "created");
-  assert.deepEqual(calls.map((call) => [call.method, call.url, call.body]), [
-    ["POST", "https://credentials.test/v1/accounts/me/api-tokens", { id: loginSessionId, name: "Deploy", expires_at: null }],
-  ]);
-  for (const id of [undefined, "", "token-1", loginSessionId.toUpperCase()]) {
-    await assert.rejects(async () => admin.account.apiToken.create({ id, name: "Deploy", expires_at: null }), TypeError);
-  }
-  assert.equal(calls.length, 1);
+test("personal credentials have no API token owner", () => {
+  const admin = createAdmin({ baseUrl: "https://credentials.test", secretKey: "arky_secret" });
+  assert.equal("apiToken" in admin.account, false);
+  assert.equal(typeof admin.store.apiKey.create, "function");
 });
 
 test("Admin logout revokes the exact persisted server Session with its current access credential", async (context) => {
@@ -138,12 +130,12 @@ test("a lost, refused or unexpected revocation response clears that login and re
   }
 });
 
-test("logout without a local login is local-only and an API token client revokes nothing", async (context) => {
+test("logout without a local login is local-only and a Secret key client revokes nothing", async (context) => {
   installWindow(context);
   const calls = recordFetch(context, () => [200, true]);
   assert.deepEqual(await createAdmin({ baseUrl: logoutBaseUrl }).logout(), { type: "local_only" });
-  const tokenClient = createAdmin({ baseUrl: logoutBaseUrl, apiToken: "arky_account_access_contract" });
-  assert.deepEqual(await tokenClient.logout(), { type: "api_token" });
+  const tokenClient = createAdmin({ baseUrl: logoutBaseUrl, secretKey: "arky_account_access_contract" });
+  assert.deepEqual(await tokenClient.logout(), { type: "secret_key" });
   assert.equal(tokenClient.isAuthenticated, true);
   assert.equal(tokenClient.session, null);
   assert.equal(calls.length, 0);

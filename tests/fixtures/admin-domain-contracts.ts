@@ -25,7 +25,7 @@ export type AdminDomainContracts = [
   Assert<Missing<Admin['store'], 'commerce'>>,
   Assert<Missing<Admin, 'setStoreId'>>,
   Assert<Missing<Admin, 'getMarket'>>,
-  Assert<Equal<keyof CreateStoreParams, 'id' | 'name' | 'timezone' | 'languages' | 'market' | 'sales_channel'>>,
+  Assert<Equal<keyof CreateStoreParams, 'id' | 'name' | 'timezone' | 'languages' | 'market' | 'sales_channel' | 'location_address'>>,
   Assert<Equal<CreateStoreParams, Public.CreateStoreParams>>,
   Assert<Missing<Public.Store, 'billing_email'>>,
   Assert<Missing<Public.Store, 'contact_email'>>,

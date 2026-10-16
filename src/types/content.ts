@@ -24,6 +24,7 @@ export interface Collection {
 export type EntryStatus =
   | { type: "active" }
   | { type: "draft" }
+  | { type: "scheduled"; publish_at: EpochMilliseconds }
   | { type: "archived" }
   | { type: "deleting" };
 
@@ -39,6 +40,7 @@ export interface Entry {
   status: EntryStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
+  validation_errors: { field: string; error: string }[];
 }
 
 export type CategoryStatus =

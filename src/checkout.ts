@@ -23,9 +23,11 @@ export interface PaymentMethodSetupMount {
 function setupIntentId(start: PaymentMethodSetupStart): string {
   const status = start.method.type.type === "stripe" ? start.method.type.status : null;
   if (status && status.type === "requires_action") return status.setup_intent_id;
-  const marker = start.client_secret.indexOf("_secret_");
+  const secret = start.client_secret;
+  if (!secret) throw new Error("Card setup requires its exact confirmation secret");
+  const marker = secret.indexOf("_secret_");
   if (marker <= 0) throw new Error("Card setup requires its exact confirmation secret");
-  return start.client_secret.slice(0, marker);
+  return secret.slice(0, marker);
 }
 
 export async function mountPaymentMethodSetup(

@@ -16,7 +16,7 @@ const storeId = retained.store_id;
 const otherStoreId = "7d3b9f15-c2a6-4e80-9b4d-1a6e8c2f5d73";
 
 function client() {
-  return createAdmin({ baseUrl, apiToken: "arky_api_history_contract" });
+  return createAdmin({ baseUrl, secretKey: "arky_api_history_contract" });
 }
 
 test("an order read keeps its cart source, the placed snapshot and every line family as sent", async (context) => {
@@ -35,7 +35,9 @@ test("an order read keeps its cart source, the placed snapshot and every line fa
   assert.equal(product.money_runs[0].money.unit_price, 1000);
   assert.equal("type" in product, true);
   assert.equal(booking.snapshot.service_key, "consultation");
-  assert.equal(booking.attendance, "upcoming");
+  assert.deepEqual(booking.status, { type: "confirmed", attendance: { type: "upcoming" } });
+  assert.deepEqual(booking.reschedules, []);
+  assert.equal("attendance" in booking, false);
   assert.equal(group.customer_group_member_id, ids.customerGroupMember);
   assert.equal(access.order_customer_group_line_item_id, group.id);
   assert.equal("type" in group, true);
@@ -65,18 +67,18 @@ test("a company location order keeps its buyer, purchase order number, tax regis
   assert.deepEqual(calls.map(({ method, path }) => [method, path]), [["GET", `/v1/stores/${storeId}/orders/${companyLocationOrder.id}`]]);
 });
 
-test("cancelling a whole order sends only the order version to the named store and answers the order", async (context) => {
+test("cancelling a whole order sends its exact version and notification choice to the named store", async (context) => {
   const signal = new AbortController().signal;
   const calls = recordFetch(context, () => retained);
   const api = client();
   assert.equal("setStoreId" in api, false);
-  for (const removed of ["update", "cancelPending"]) assert.equal(removed in api.eshop.order, false, removed);
-  assert.deepEqual(await api.eshop.order.cancel({ store_id: otherStoreId, order_id: "order/a?b", expected_updated_at: 7 }, { signal }), retained);
+  for (const removed of ["cancelPending"]) assert.equal(removed in api.eshop.order, false, removed);
+  assert.deepEqual(await api.eshop.order.cancel({ store_id: otherStoreId, order_id: "order/a?b", expected_updated_at: 7, notify_customer: false }, { signal }), retained);
   assert.deepEqual(calls.map(({ method, href, body }) => [method, href, body]), [
-    ["POST", `${baseUrl}/v1/stores/${otherStoreId}/orders/order%2Fa%3Fb/cancel`, { expected_updated_at: 7 }],
+    ["POST", `${baseUrl}/v1/stores/${otherStoreId}/orders/order%2Fa%3Fb/cancel`, { expected_updated_at: 7, notify_customer: false }],
   ]);
   assert.equal(calls[0].signal, signal);
-  await assert.rejects(async () => api.eshop.order.cancel({ store_id: "store/one", order_id: retained.id, expected_updated_at: 7 }), TypeError);
+  await assert.rejects(async () => api.eshop.order.cancel({ store_id: "store/one", order_id: retained.id, expected_updated_at: 7, notify_customer: false }), TypeError);
   assert.equal(calls.length, 1);
 });
 
@@ -84,18 +86,19 @@ test("booking attendance, access revocation and a receipt resend each name the l
   const calls = recordFetch(context, (call) => call.path.endsWith("/resend-receipt") ? { id: ids.credit } : retained);
   const api = client().eshop.order;
   const lineId = "19f4bc18-4259-46b8-b5ef-3579d1dac971";
-  await api.completeBookingItem({ store_id: storeId, order_id: retained.id, line_item_id: lineId, expected_updated_at: 3 });
+  assert.equal("completeBookingItem" in api, false);
+  await api.attendBookingItem({ store_id: storeId, order_id: retained.id, line_item_id: lineId, expected_updated_at: 3 });
   await api.markBookingItemNoShow({ store_id: storeId, order_id: retained.id, line_item_id: lineId, expected_updated_at: 4 });
   await api.revokeAccess({ store_id: storeId, id: retained.id, expected_updated_at: 5, line_item_id: "3e956b8d-efc3-42e6-a5c1-9fb38ea840fa", effective_at: 1_789_000_000_000, reason: "Chargeback" });
-  await api.resendReceipt({ store_id: storeId, order_id: retained.id, id: ids.credit });
+  await api.resendReceipt({ store_id: storeId, order_id: retained.id, id: ids.credit, expected_updated_at: 5 });
   const base = `/v1/stores/${storeId}/orders/${retained.id}`;
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
-    ["POST", `${base}/booking-items/${lineId}/complete`, { expected_updated_at: 3 }],
+    ["POST", `${base}/booking-items/${lineId}/attend`, { expected_updated_at: 3 }],
     ["POST", `${base}/booking-items/${lineId}/no-show`, { expected_updated_at: 4 }],
     ["POST", `${base}/access/revoke`, { expected_updated_at: 5, line_item_id: "3e956b8d-efc3-42e6-a5c1-9fb38ea840fa", effective_at: 1_789_000_000_000, reason: "Chargeback" }],
-    ["POST", `${base}/resend-receipt`, { id: ids.credit }],
+    ["POST", `${base}/resend-receipt`, { id: ids.credit, expected_updated_at: 5 }],
   ]);
-  await assert.rejects(async () => api.resendReceipt({ store_id: storeId, order_id: retained.id, id: "receipt" }), {
+  await assert.rejects(async () => api.resendReceipt({ store_id: storeId, order_id: retained.id, id: "receipt", expected_updated_at: 5 }), {
     name: "TypeError",
     message: "The receipt id must be a canonical UUID v4 picked by the app",
   });
@@ -105,8 +108,48 @@ test("booking attendance, access revocation and a receipt resend each name the l
 test("a refused order change is propagated once, without a retry or a replacement request", async (context) => {
   for (const status of [403, 409, 422]) {
     const calls = recordFetch(context, () => errorResponse(status, "ORDER.REFUSED", "Lifecycle denied"));
-    await assert.rejects(client().eshop.order.cancel({ store_id: storeId, order_id: retained.id, expected_updated_at: 1 }), (error) => error.statusCode === status && error.code === "ORDER.REFUSED");
+    await assert.rejects(client().eshop.order.cancel({ store_id: storeId, order_id: retained.id, expected_updated_at: 1, notify_customer: true }), (error) => error.statusCode === status && error.code === "ORDER.REFUSED");
     assert.equal(calls.length, 1);
     context.mock.restoreAll();
   }
+});
+
+test("contact, blocks, delivery address and sold booking changes carry the exact current Order version", async (context) => {
+  const calls = recordFetch(context, () => retained);
+  const api = client().eshop.order;
+  const contact = { first_name: "New", last_name: "Contact", email: "updated@example.test", phone: null };
+  const blocks = [{ key: "note", type: "text", value: "Accepted gift note" }];
+  const delivery = ids.otherLine;
+  const booking = ids.line;
+  const address = { country: "BA", street1: "Changed street", city: "Sarajevo", postal_code: "71000" };
+  await api.update({ store_id: storeId, id: retained.id, expected_updated_at: 10, contact, blocks });
+  await api.correctDeliveryAddress({ store_id: storeId, order_id: retained.id, delivery_group_id: delivery, expected_updated_at: 11, address });
+  await api.rescheduleBookingItem({ store_id: storeId, order_id: retained.id, line_item_id: booking, expected_updated_at: 12, starts_at: 1_800_000_000_000, notify_customer: false });
+  await api.cancelBookingItem({ store_id: storeId, order_id: retained.id, line_item_id: booking, credit_id: ids.credit, expected_updated_at: 13, notify_customer: true });
+  const base = `/v1/stores/${storeId}/orders/${retained.id}`;
+  assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
+    ["PATCH", base, { expected_updated_at: 10, contact, blocks }],
+    ["PATCH", `${base}/deliveries/${delivery}/address`, { expected_updated_at: 11, address }],
+    ["POST", `${base}/booking-items/${booking}/reschedule`, { expected_updated_at: 12, starts_at: 1_800_000_000_000, notify_customer: false }],
+    ["POST", `${base}/booking-items/${booking}/cancel`, { credit_id: ids.credit, expected_updated_at: 13, notify_customer: true }],
+  ]);
+});
+
+test("order history retains the actual newly shipped rental quantity", async (context) => {
+  const rental = { rental_id: "73d24da5-90db-4139-938a-186a868bbbf0", newly_shipped_quantity: 3 };
+  const response = { ...retained, delivery_groups: [{
+    id: "28bdfd05-6695-4a15-a6df-0d34147d48ce",
+    destination: { type: "delivery", address: { country: "BA" } },
+    shipping_method_id: "a190e61c-1e30-4b7f-8a3c-1ca9c67e6057",
+    shipping_profile_id: "ba6c50d7-ed46-4fd1-bf80-76c7aac3de4d",
+    pricing: { type: "rate", rate_id: "aa785c79-bd77-423a-b405-03c98a81d379" },
+    timing: { type: "asap" },
+    delivery_estimate: null,
+    rentals: [rental],
+    money: retained.line_items[0].money_runs[0].money,
+  }] };
+  recordFetch(context, () => response);
+  const order = await client().eshop.order.get({ store_id: storeId, id: retained.id });
+  assert.deepEqual(order.delivery_groups[0].rentals, [rental]);
+  assert.equal("rental_ids" in order.delivery_groups[0], false);
 });

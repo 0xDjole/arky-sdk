@@ -8,7 +8,7 @@ const hookId = "1c7e3a95-6b28-4d40-8f13-9a2e5c0d7b64";
 const testId = "5d9b1f37-2a84-4c60-b3e7-8f1a6c4d0e29";
 
 function store() {
-  return createAdmin({ baseUrl: "https://hooks.test", apiToken: "arky_api_hooks" }).store;
+  return createAdmin({ baseUrl: "https://hooks.test", secretKey: "arky_api_hooks" }).store;
 }
 
 test("webhook discovery carries its native filters and keeps the empty-page continuation", async (context) => {
@@ -46,7 +46,7 @@ test("webhook writes keep tagged statuses and scoped event types, carry the app-
     ["POST", `/v1/stores/${STORE_ID}/webhooks`, {}, { id: hookId, url: "https://receiver.test", events, headers: {}, secret: "secret", status: { type: "active" } }],
     ["PUT", `/v1/stores/${STORE_ID}/webhooks/${hookId}`, {}, { expected_updated_at: 2, status: { type: "disabled" } }],
     ["DELETE", `/v1/stores/${STORE_ID}/webhooks/${hookId}`, { expected_updated_at: "3" }, null],
-    ["POST", `/v1/stores/${STORE_ID}/webhooks/test`, {}, { id: testId, webhook_id: hookId }],
+    ["POST", `/v1/stores/${STORE_ID}/outgoing-webhooks/test`, {}, { id: testId, webhook_id: hookId }],
   ]);
   await assert.rejects(async () => api.create({ store_id: STORE_ID, id: "hook", url: "https://receiver.test", events, headers: {}, secret: "s", status: { type: "active" } }), TypeError);
   await assert.rejects(async () => api.test({ store_id: STORE_ID, id: "test", webhook_id: hookId }), {
@@ -60,19 +60,25 @@ test("the webhook event list carries the ten customer group member events and no
   const memberEvents = [
     "customer_group_member.activated",
     "customer_group_member.paused",
+    "customer_group_member.blocked",
     "customer_group_member.resumed",
     "customer_group_member.cancelled",
     "customer_group_member.renewed",
     "customer_group_member.payment_failed",
     "customer_group_member.switched",
-    "customer_group_member.next_purchase_skipped",
+    "customer_group_member.renewal_skipped",
     "customer_group_member.payment_method_changed",
-    "customer_group_member.tax_classification_corrected",
   ];
-  assert.equal(WEBHOOK_UNIT_EVENT_TYPES.length, 87);
+  assert.equal(WEBHOOK_UNIT_EVENT_TYPES.length, 106);
   assert.equal(new Set(WEBHOOK_UNIT_EVENT_TYPES).size, WEBHOOK_UNIT_EVENT_TYPES.length);
   assert.deepEqual(WEBHOOK_UNIT_EVENT_TYPES.filter((event) => event.startsWith("customer_group_member.")), memberEvents);
   for (const kept of ["customer_group.created", "customer_group.updated"]) assert.ok(WEBHOOK_UNIT_EVENT_TYPES.includes(kept), kept);
   for (const retired of ["customer_group.member_added", "customer_group.member_removed"]) assert.equal(WEBHOOK_UNIT_EVENT_TYPES.includes(retired), false, retired);
+  for (const added of ["refund.created", "refund.failed", "fulfillment.dispatched", "order_booking_item.attended", "product_variant.created", "price.deleted", "inventory_level.updated", "promotion.created", "company_location.created", "customer_group.deleted"]) {
+    assert.ok(WEBHOOK_UNIT_EVENT_TYPES.includes(added), added);
+  }
+  for (const retired of ["order.refunded", "fulfillment.sent", "order_booking_item.completed", "customer_group_member.next_purchase_skipped", "store.created", "account.updated"]) {
+    assert.equal(WEBHOOK_UNIT_EVENT_TYPES.includes(retired), false, retired);
+  }
   assert.deepEqual(WEBHOOK_UNIT_EVENT_TYPES.filter((event) => event.startsWith("subscription.")), []);
 });

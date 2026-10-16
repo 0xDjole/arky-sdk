@@ -11,7 +11,7 @@ const assetId = "0198f8f7-2f25-4a14-86bb-64efc56e1a11";
 
 test("digital goods are products: storefront discovery forwards catalog price filters, ordering and opaque continuation", async (context) => {
   const calls = recordFetch(context, () => ({ items: [], cursor: "opaque-next" }));
-  const storefront = createStorefront(publishableKey, { apiUrl: baseUrl, market: "us", locale: "en" });
+  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl: baseUrl, market: "us", locale: "en" });
   const params = {
     query: "Košulja linen",
     price_filter: { min_amount: 0, max_amount: 500, quantity: 1 },
@@ -45,7 +45,7 @@ test("Admin digital variants carry their asset ids and assets are uploaded under
   const archivedAsset = { ...asset, status: { type: "archived" }, updated_at: 4 };
   const responses = [variant, asset, { items: [asset], cursor: "next-asset" }, archivedAsset];
   const calls = recordFetch(context, () => responses.shift());
-  const admin = createAdmin({ baseUrl, apiToken: "arky_api_digital_contract" });
+  const admin = createAdmin({ baseUrl, secretKey: "arky_api_digital_contract" });
   const { store_id: _store, status: _status, created_at: _created, updated_at: _updated, ...create } = variant;
   assert.deepEqual(await admin.eshop.productVariant.create({ store_id: storeId, ...create }), variant);
   const uploaded = await admin.eshop.digitalAsset.upload({ store_id: storeId, id: assetId, file: new File(["protected"], "guide.pdf", { type: "application/pdf" }) });
@@ -87,7 +87,7 @@ test("the digital library keeps empty-page continuation and names a location alo
     { url: "https://files.example.test/protected", expires_at: 10000, file_name: "guide.pdf", mime_type: "application/pdf" },
   ];
   const calls = recordFetch(context, () => responses.shift());
-  const storefront = createStorefront(publishableKey, { apiUrl: baseUrl, market: "us", locale: "en", sessionStorage: visitorStorage() });
+  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl: baseUrl, market: "us", locale: "en", sessionStorage: visitorStorage() });
   const location = { company_location_id: ids.companyLocation };
   const first = await storefront.eshop.library.find({ ...location, limit: 1 });
   assert.deepEqual(first, { items: [], cursor: "opaque-grant-position" });
@@ -121,7 +121,7 @@ test("a company's library reads and downloads name the company alone", async (co
   const calls = recordFetch(context, (call) => call.path.endsWith("/download")
     ? { url: "https://files.example.test/protected", expires_at: 10000, file_name: "guide.pdf", mime_type: "application/pdf" }
     : { items: [], cursor: null });
-  const storefront = createStorefront(publishableKey, { apiUrl: baseUrl, sessionStorage: visitorStorage() });
+  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl: baseUrl, sessionStorage: visitorStorage() });
   const company = { company_id: ids.company };
   await storefront.eshop.library.find({ ...company, limit: 5 });
   await storefront.eshop.library.findAssets({ ...company, product_id: ids.product, limit: 5 });
@@ -135,7 +135,7 @@ test("a company's library reads and downloads name the company alone", async (co
 
 test("library downloads never go to the retired library path", async (context) => {
   const calls = recordFetch(context, () => ({ url: "https://files.example.test/protected", expires_at: 10000, file_name: "guide.pdf", mime_type: "application/pdf" }));
-  const storefront = createStorefront(publishableKey, { apiUrl: baseUrl, sessionStorage: visitorStorage() });
+  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl: baseUrl, sessionStorage: visitorStorage() });
   await storefront.eshop.library.download({ product_id: ids.product, asset_id: assetId, reference: "r" });
   assert.equal(calls[0].path, `/v1/storefront/digital-products/${ids.product}/assets/${assetId}/download`);
   assert.equal(calls[0].path.startsWith("/v1/storefront/library"), false);

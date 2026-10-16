@@ -2,9 +2,20 @@ import type { EpochMilliseconds } from "./time";
 import type { SortDirection } from "./common";
 import type { EmailContent, EmailTemplatePreview } from "./notification";
 
-export type BroadcastAudience =
-  | { type: "customer_group_offering"; customer_group_offering_id: string }
-  | { type: "customer_groups"; customer_group_ids: string[] };
+export type BroadcastMembers =
+  | { type: "customer_group"; customer_group_id: string }
+  | { type: "customer_group_offering"; customer_group_offering_id: string };
+
+export type BroadcastCondition =
+  | { type: "ordered_product"; product_id: string }
+  | { type: "ordered_within"; days: number }
+  | { type: "not_ordered_within"; days: number };
+
+export interface BroadcastAudience {
+  include: BroadcastMembers[];
+  exclude: BroadcastMembers[];
+  conditions: BroadcastCondition[];
+}
 
 export type BroadcastStatus =
   | { type: "draft" }
@@ -27,8 +38,6 @@ export interface Broadcast {
 export type BroadcastPreview = EmailTemplatePreview;
 
 export const BROADCAST_FIELDS = [
-  "customer.first_name",
-  "customer.last_name",
   "customer.email",
   "store.name",
   "customer_group_member.customer_group.key",
@@ -39,6 +48,8 @@ export const BROADCAST_FIELDS = [
 export type BroadcastField = (typeof BROADCAST_FIELDS)[number];
 
 export const BROADCAST_BLOCK_FIELD_PREFIXES = [
+  "customer.profile.",
+  "customer.blocks.",
   "customer_group_member.customer_group.blocks.",
   "customer_group_member.customer_group_offering.blocks.",
 ] as const;
@@ -114,6 +125,6 @@ export interface PreviewBroadcastParams {
 export interface SendBroadcastTestParams {
   store_id: string;
   id: string;
-  notification_id: string;
+  outgoing_email_id: string;
   language: string;
 }

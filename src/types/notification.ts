@@ -1,63 +1,57 @@
 import type { EpochMilliseconds } from "./time";
-import type { FormFilter } from "./webhook";
 
-export type EmailNotificationType =
-  | { type: "arky_sign_in"; to: string }
-  | { type: "team_invite"; to: string }
-  | { type: "customer_sign_in"; sending_address_id: string; to: string }
+export type OutgoingEmailType =
+  | { type: "arky_sign_in" }
+  | { type: "team_invite" }
+  | { type: "customer_sign_in"; sending_address_id: string }
   | {
       type: "event_email";
       sending_address_id: string;
       event_id: string;
       email_template_id: string;
-      to: string;
     }
-  | { type: "receipt_resend"; sending_address_id: string; order_id: string; to: string }
-  | { type: "template_test"; sending_address_id: string; to: string }
-  | { type: "broadcast_email"; sending_address_id: string; broadcast_id: string; to: string }
-  | { type: "support_reply"; sending_address_id: string; to: string };
+  | { type: "receipt_resend"; sending_address_id: string; order_id: string }
+  | { type: "template_test"; sending_address_id: string }
+  | { type: "broadcast_email"; sending_address_id: string; broadcast_id: string }
+  | { type: "support_reply"; sending_address_id: string };
 
-export interface EmailSendRecovery {
+export interface OutgoingEmailRecovery {
   retry_until: EpochMilliseconds;
   acceptance_uncertain: boolean;
 }
 
-export type EmailNotificationStatus =
+export type OutgoingEmailStatus =
   | { type: "waiting" }
-  | { type: "sending"; attempt: number; until: EpochMilliseconds; recovery: EmailSendRecovery }
-  | { type: "retrying"; attempt: number; next_at: EpochMilliseconds; reason: string; recovery: EmailSendRecovery }
+  | { type: "sending"; attempt: number; until: EpochMilliseconds; recovery: OutgoingEmailRecovery }
+  | { type: "retrying"; attempt: number; next_at: EpochMilliseconds; reason: string; recovery: OutgoingEmailRecovery }
   | { type: "sent"; provider_email_id: string; sent_at: EpochMilliseconds }
   | { type: "not_sent"; reason: string; at: EpochMilliseconds }
   | { type: "maybe_sent"; at: EpochMilliseconds };
 
-export type WebhookNotificationStatus =
+export type OutgoingWebhookStatus =
   | { type: "waiting" }
   | { type: "sending"; attempt: number; until: EpochMilliseconds }
   | { type: "retrying"; attempt: number; next_at: EpochMilliseconds; reason: string }
   | { type: "acknowledged"; at: EpochMilliseconds }
   | { type: "unacknowledged"; reason: string; at: EpochMilliseconds };
 
-export type NotificationType =
-  | {
-      type: "email";
-      email_type: EmailNotificationType;
-      send_before: EpochMilliseconds | null;
-      status: EmailNotificationStatus;
-    }
-  | {
-      type: "webhook";
-      store_id: string;
-      webhook_id: string;
-      event_id: string;
-      event_type: string;
-      status: WebhookNotificationStatus;
-    };
-
-export type NotificationKind = EmailNotificationType["type"] | "webhook";
-
-export interface Notification {
+export interface OutgoingEmail {
   id: string;
-  type: NotificationType;
+  type: OutgoingEmailType;
+  to: string;
+  send_before: EpochMilliseconds | null;
+  status: OutgoingEmailStatus;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+}
+
+export interface OutgoingWebhook {
+  id: string;
+  store_id: string;
+  webhook_id: string;
+  event_id: string;
+  event_type: string;
+  status: OutgoingWebhookStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
@@ -72,44 +66,54 @@ export type AlertRecipient =
   | { type: "store_role"; store_role_id: string; language: string }
   | { type: "email"; email: string; language: string };
 
-export type EmailType =
-  | { type: "sign_in_code" }
-  | { type: "order_received" }
-  | { type: "order_dispatched" }
-  | { type: "order_delivered" }
-  | { type: "order_ready_for_pickup" }
-  | { type: "order_cancelled" }
-  | { type: "order_refunded" }
-  | { type: "first_order_placed" }
-  | { type: "booking_confirmed" }
-  | { type: "booking_reminder" }
-  | { type: "cart_sent" }
-  | { type: "cart_revised" }
-  | { type: "cart_reminder"; after_days: number }
-  | { type: "form_received"; forms: FormFilter }
-  | { type: "form_stage_changed"; form_id: string; stage_id: string }
-  | { type: "company_access" }
-  | { type: "return_requested" }
-  | { type: "return_approved" }
-  | { type: "return_declined" }
-  | { type: "renewal_upcoming"; days_before: number }
-  | { type: "renewal_payment_failed" }
-  | { type: "email_changed" }
-  | { type: "new_order_alert"; to: AlertRecipient[] }
-  | { type: "new_return_alert"; to: AlertRecipient[] }
-  | { type: "new_form_submission_alert"; forms: FormFilter; to: AlertRecipient[] };
+export type EmailTemplateTypeName = "sign_in_code" | "email_change" | "order" | "fulfillment" | "booking" | "offer" | "form" | "company_invite" | "return" | "renewal" | "membership_cancellation" | "support_reply";
+export type EmailTemplateType = { type: EmailTemplateTypeName };
 
-export type EmailTypeName = EmailType["type"];
+export interface Email { email_template_id: string }
+export interface TimedEmail { email_template_id: string; days: number }
+export interface AlertEmail { email_template_id: string; to: AlertRecipient[] }
 
-export type EmailTemplateType =
-  | { type: "transactional"; sending_address_id: string; email_type: EmailType }
-  | { type: "support_reply" };
+export interface StoreEmailSettings {
+  sending_address_id: string | null;
+  sign_in_code: Email | null;
+  email_changed: Email | null;
+  order_received: Email | null;
+  order_dispatched: Email | null;
+  order_delivered: Email | null;
+  order_ready_for_pickup: Email | null;
+  order_cancelled: Email | null;
+  order_refunded: Email | null;
+  first_order_placed: Email | null;
+  booking_confirmed: Email | null;
+  booking_reminder: Email | null;
+  booking_cancelled: Email | null;
+  offer_sent: Email | null;
+  offer_reminder: TimedEmail | null;
+  company_invite: Email | null;
+  return_requested: Email | null;
+  return_approved: Email | null;
+  return_declined: Email | null;
+  renewal_upcoming: Email | null;
+  renewal_payment_failed: Email | null;
+  membership_cancelled: Email | null;
+  new_order_alert: AlertEmail | null;
+  new_return_alert: AlertEmail | null;
+}
 
-export type EmailTemplateTypeName = EmailTemplateType["type"];
+export interface StoreEmails extends StoreEmailSettings {
+  id: string;
+  store_id: string;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+}
+
+export interface GetStoreEmailsParams { store_id: string }
+export interface UpdateStoreEmailsParams extends StoreEmailSettings { store_id: string; expected_updated_at: EpochMilliseconds }
 
 export interface EmailTemplate {
   id: string;
   store_id: string;
+  key: string;
   type: EmailTemplateType;
   content: Record<string, EmailContent>;
   created_at: EpochMilliseconds;
@@ -117,7 +121,8 @@ export interface EmailTemplate {
 }
 
 export interface EmailTemplateDefault {
-  type: EmailType;
+  key: string;
+  type: EmailTemplateType;
   content: EmailContent;
 }
 
@@ -128,68 +133,79 @@ export interface EmailTemplatePreview {
   text: string;
 }
 
-export type DnsRecordType =
-  | { type: "txt" }
-  | { type: "mx"; priority: number }
-  | { type: "cname" };
-
-export interface DnsRecord {
-  type: DnsRecordType;
-  name: string;
-  value: string;
-}
-
-export type EmailDomainStatus =
-  | { type: "pending" }
-  | { type: "verified"; verified_at: EpochMilliseconds }
-  | { type: "failed"; reason: string }
-  | { type: "deleting" };
-
-export interface EmailDomain {
+export interface EmailProvider {
   id: string;
   store_id: string;
-  domain: string;
-  provider_domain_id: string | null;
-  records: DnsRecord[];
-  status: EmailDomainStatus;
+  type: { type: "resend"; webhook_id: string };
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
+export type EmailProviderDomainStatus =
+  | "not_started"
+  | "pending"
+  | "verified"
+  | "partially_verified"
+  | "partially_failed"
+  | "failed"
+  | "temporary_failure";
+
+export interface EmailProviderDomain {
+  id: string;
+  name: string;
+  status: EmailProviderDomainStatus;
+  records: { type: string; name: string; value: string; priority: number | null }[];
+}
+
+export interface ConnectEmailProviderParams { store_id: string; id: string; api_key: string }
+export interface ReplaceEmailProviderKeyParams { store_id: string; expected_updated_at: EpochMilliseconds; api_key: string }
+export interface GetEmailProviderParams { store_id: string }
+export interface FindEmailProviderDomainsParams { store_id: string }
+
 export interface EmailAddressSending {
-  email_domain_id: string;
   from_name: string;
   reply_to: string;
 }
 
 export interface EmailAddressReceiving {
   forwarding_email: string;
+  language: string;
   initial_sending_address_id: string | null;
   initial_flow_id: string | null;
 }
 
 export type EmailAddressStatus = "active" | "archived";
 
+export type EmailAddressType =
+  | { type: "sending"; sending: EmailAddressSending }
+  | { type: "receiving"; receiving: EmailAddressReceiving }
+  | { type: "sending_and_receiving"; sending: EmailAddressSending; receiving: EmailAddressReceiving };
+
+export type EmailAddressInputType =
+  | { type: "sending"; sending: EmailAddressSending }
+  | { type: "receiving"; receiving: EmailAddressReceivingInput }
+  | { type: "sending_and_receiving"; sending: EmailAddressSending; receiving: EmailAddressReceivingInput };
+
 export interface EmailAddress {
   id: string;
   store_id: string;
   email: string;
-  sending: EmailAddressSending | null;
-  receiving: EmailAddressReceiving | null;
+  type: EmailAddressType;
   status: EmailAddressStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
 export interface EmailAddressReceivingInput {
+  language: string;
   initial_sending_address_id: string | null;
   initial_flow_id: string | null;
 }
 
-export type EmailFailureKind = "hard_bounce" | "soft_bounce" | "rejected" | "other";
+export type EmailFailureType = "hard_bounce" | "soft_bounce" | "rejected" | "other";
 
 export interface EmailFailure {
-  kind: EmailFailureKind;
+  type: EmailFailureType;
   reason: string;
 }
 
@@ -199,26 +215,29 @@ export type EmailDeliveryReport =
   | { type: "bounced"; failure: EmailFailure; at: EpochMilliseconds }
   | { type: "failed"; reason: string; at: EpochMilliseconds };
 
-export interface FindNotificationsParams {
+export interface FindOutgoingEmailsParams {
   store_id: string;
   to?: string;
-  type?: NotificationKind;
-  webhook_id?: string;
+  type?: OutgoingEmailType["type"];
   order_id?: string;
   broadcast_id?: string;
   limit?: number;
   cursor?: string | null;
 }
 
-export interface GetNotificationParams {
+export interface FindOutgoingWebhooksParams {
   store_id: string;
-  id: string;
+  webhook_id?: string;
+  limit?: number;
+  cursor?: string | null;
 }
+
+export interface GetOutgoingEmailParams { store_id: string; id: string }
+export interface GetOutgoingWebhookParams { store_id: string; id: string }
 
 export interface FindEmailTemplatesParams {
   store_id: string;
   type?: EmailTemplateTypeName;
-  email_type?: EmailTypeName;
   limit?: number;
   cursor?: string | null;
 }
@@ -235,6 +254,7 @@ export interface FindEmailTemplateDefaultsParams {
 export interface CreateEmailTemplateParams {
   store_id: string;
   id: string;
+  key: string;
   type: EmailTemplateType;
   content: Record<string, EmailContent>;
 }
@@ -243,7 +263,7 @@ export interface UpdateEmailTemplateParams {
   store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
-  type?: EmailTemplateType;
+  key?: string;
   content?: Record<string, EmailContent>;
 }
 
@@ -263,38 +283,9 @@ export interface PreviewEmailTemplateParams {
 export interface SendEmailTemplateTestParams {
   store_id: string;
   id: string;
-  notification_id: string;
+  outgoing_email_id: string;
   language: string;
   sending_address_id?: string;
-}
-
-export interface FindEmailDomainsParams {
-  store_id: string;
-  limit?: number;
-  cursor?: string | null;
-}
-
-export interface GetEmailDomainParams {
-  store_id: string;
-  id: string;
-}
-
-export interface CreateEmailDomainParams {
-  store_id: string;
-  id: string;
-  domain: string;
-}
-
-export interface VerifyEmailDomainParams {
-  store_id: string;
-  id: string;
-  expected_updated_at: EpochMilliseconds;
-}
-
-export interface DeleteEmailDomainParams {
-  store_id: string;
-  id: string;
-  expected_updated_at: EpochMilliseconds;
 }
 
 export interface FindEmailAddressesParams {
@@ -312,16 +303,14 @@ export interface CreateEmailAddressParams {
   store_id: string;
   id: string;
   email: string;
-  sending?: EmailAddressSending;
-  receiving?: EmailAddressReceivingInput;
+  type: EmailAddressInputType;
 }
 
 export interface UpdateEmailAddressParams {
   store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
-  sending?: EmailAddressSending;
-  receiving?: EmailAddressReceivingInput;
+  type: EmailAddressInputType;
 }
 
 export interface ChangeEmailAddressStatusParams {

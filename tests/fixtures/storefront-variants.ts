@@ -6,6 +6,12 @@ import type {
   StorefrontPrice,
   StorefrontProduct,
   StorefrontProductVariant,
+  Product,
+  ProductVariant,
+  ProductOption,
+  ProductVariantOption,
+  CreateProductParams,
+  CreateProductVariantParams,
 } from "arky-sdk";
 import type { FindStorefrontProductVariantsParams as PublicFind, GetStorefrontProductVariantParams as PublicGet } from "arky-sdk/types";
 import type { createStorefront } from "arky-sdk/storefront";
@@ -17,6 +23,13 @@ type Client = ReturnType<typeof createStorefront>;
 
 export type StorefrontVariantContracts = [
   Assert<Equal<FindStorefrontProductVariantsParams, PublicFind>>,
+  Assert<Equal<Product["options"], ProductOption[]>>,
+  Assert<Equal<CreateProductParams["options"], ProductOption[]>>,
+  Assert<Equal<CreateProductVariantParams["options"], ProductVariantOption[]>>,
+  Assert<Equal<ProductVariant["options_valid"], boolean>>,
+  Assert<Equal<StorefrontProductVariant["options"], ProductVariantOption[]>>,
+  Assert<Missing<ProductVariant, "attributes">>,
+  Assert<Equal<CatalogReadOptions["catalog_id"], string>>,
   Assert<Equal<GetStorefrontProductVariantParams, PublicGet>>,
   Assert<Equal<StorefrontProduct["price"], StorefrontPrice | null>>,
   Assert<Equal<StorefrontProductVariant["price"], StorefrontPrice | null>>,

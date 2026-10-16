@@ -1,5 +1,5 @@
 import type { EpochMilliseconds } from "./time";
-import type { Currency, SortDirection, TaxMode } from "./common";
+import type { Currency, PostalAddressInput, SortDirection, TaxMode } from "./common";
 
 export type StoreStatus = { type: "active" } | { type: "deleting" };
 
@@ -121,7 +121,7 @@ export interface StorePlan {
   interval: StorePlanInterval;
   interval_count: number;
   trial_days: number | null;
-  features: Partial<Record<FeatureType, StorePlanFeature>>;
+  features: Record<FeatureType, StorePlanFeature>;
 }
 
 export interface CreateStoreMarketInput {
@@ -141,6 +141,7 @@ export interface CreateStoreParams {
   languages: string[];
   market: CreateStoreMarketInput;
   sales_channel: CreateStoreSalesChannelInput;
+  location_address: PostalAddressInput;
 }
 
 export interface UpdateStoreParams {

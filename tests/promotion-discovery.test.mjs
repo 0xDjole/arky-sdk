@@ -1,14 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
-import { recordFetch } from "./helpers/arky-fixtures.mjs";
+import { createStorefront } from "../dist/storefront.js";
+import { apiUrl, publishableKey, recordFetch, visitorStorage } from "./helpers/arky-fixtures.mjs";
 
 const store = "75669224-5b13-4994-a4a7-98b0d3d90d89";
 const id = "52718a47-c06b-49aa-b3a7-1ac29f9756a3";
 const codeId = "d31aa72d-5d0e-4b7f-b757-aab89c610d27";
 
 function eshop() {
-  return createAdmin({ baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).eshop;
+  return createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop;
 }
 
 test("promotion discovery keeps scoped filters, the opaque continuation and exact reads by key or code", async (context) => {
@@ -41,7 +42,7 @@ test("promotion discovery keeps scoped filters, the opaque continuation and exac
   assert.equal((await api.promotionCode.delete({ store_id: store, id: codeId, expected_updated_at: 456 })).status.type, "deleting");
   assert.equal(await api.promotionCode.delete({ store_id: store, id: codeId, expected_updated_at: 456 }), undefined);
   assert.equal(calls.length, 10);
-  assert.ok(calls.every((call) => call.path.startsWith(`/v1/stores/${store}/`) && call.headers.get("authorization") === "Bearer arky_api_test"));
+  assert.ok(calls.every((call) => call.path.startsWith(`/v1/stores/${store}/`) && call.headers.get("authorization") === "Bearer arky_secret_test"));
   assert.deepEqual(calls[1].query, { key: policy.key, status: "active", limit: "20", cursor });
   assert.deepEqual(calls[4].query, { promotion_id: id, code: code.code, status: "active", limit: "20", cursor });
   assert.equal(calls[2].path, `/v1/stores/${store}/promotions/by-key/${policy.key}`);
@@ -55,12 +56,12 @@ test("promotion discovery keeps scoped filters, the opaque continuation and exac
 
 test("a promotion is created under the app-picked id and may target whole categories on a schedule", async (context) => {
   const calls = recordFetch(context, () => ({ id }));
-  const effect = { type: "item_percentage", id: "effect", target: { type: "categories", category_ids: ["coffee", "tea"] }, basis_points: 1000 };
+  const effect = { type: "item_percentage", id: "effect", target: { type: "categories", category_ids: ["kitchen", "garden"] }, basis_points: 1000 };
   const create = {
     id,
     key: "warm-drinks",
-    activation: { type: "automatic" },
-    conditions: [{ type: "minimum_order_amount", money: { amount: 2000, currency: "eur" } }],
+    blocks: [],
+    conditions: [{ type: "minimum_subtotal", amounts: [{ amount: 2000, currency: "eur" }] }],
     effects: [effect],
     stacking: { type: "combinable" },
     priority: 0,
@@ -93,4 +94,41 @@ test("a promotion code is created under the app-picked id and edited by version"
   ]);
   await assert.rejects(async () => eshop().promotionCode.create({ store_id: store, id: "WINTER_10", promotion_id: id, code: "WINTER_10", max_uses: null, status: { type: "active" } }), TypeError);
   assert.equal(calls.length, 2);
+});
+
+
+test("fixed promotion transports currency alternatives and explicit item scope without activation", async (context) => {
+  const calls = recordFetch(context, () => ({ id }));
+  const params = {
+    store_id: store, id, key: "two-currencies", blocks: [],
+    conditions: [{ type: "minimum_subtotal", amounts: [{ amount: 100, currency: "eur" }, { amount: 200, currency: "bam" }] }],
+    effects: [{ type: "item_fixed", id: codeId, target: { type: "product_variants", variant_ids: [codeId] },
+      amounts: [{ amount: 10, currency: "eur" }, { amount: 20, currency: "bam" }], scope: { type: "once_per_order" } }],
+    stacking: { type: "combinable" }, priority: 1, max_uses: null, max_uses_per_customer: null,
+    schedule: { type: "always" }, status: { type: "active" },
+  };
+  await eshop().promotion.create(params);
+  const { store_id, ...body } = params;
+  assert.deepEqual(calls[0].body, body);
+  assert.equal("activation" in calls[0].body, false);
+  assert.equal("money" in calls[0].body.effects[0], false);
+  assert.equal("product_id" in calls[0].body.effects[0].target, false);
+  assert.deepEqual(params.effects[0].amounts, [{ amount: 10, currency: "eur" }, { amount: 20, currency: "bam" }]);
+});
+
+test("a storefront reads a promotion's key and blocks by id with one request and no conditions or counters", async (context) => {
+  const shown = { id, key: "winter-sale", blocks: [{ id: "8e2c4a61-7b39-4d05-9f1a-3c6e8b0d2f47", key: "headline", type: "text", value: "Winter sale" }] };
+  const calls = recordFetch(context, () => shown);
+  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, locale: "bs", sessionStorage: visitorStorage() });
+  assert.deepEqual(await storefront.eshop.promotion.get(id), shown);
+  await storefront.eshop.promotion.get("promotion/one");
+  assert.deepEqual(calls.map((call) => [call.method, call.path, call.body]), [
+    ["GET", `/v1/storefront/promotions/${id}`, null],
+    ["GET", "/v1/storefront/promotions/promotion%2Fone", null],
+  ]);
+  for (const call of calls) {
+    assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
+    assert.equal(call.headers.get("x-arky-locale"), "bs");
+  }
+  assert.deepEqual(Object.keys(storefront.eshop.promotion), ["get"]);
 });

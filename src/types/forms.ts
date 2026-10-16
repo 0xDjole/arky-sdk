@@ -1,3 +1,4 @@
+import type { Email, AlertEmail } from "./notification";
 import type { CalendarDate, EpochMilliseconds } from "./time";
 import type {
   AccountActor,
@@ -26,6 +27,7 @@ export type FormQuestion =
       max_length: number | null;
       pattern: string | null;
     })
+  | (FormQuestionBase & { type: "email" })
   | (FormQuestionBase & { type: "number"; min: number | null; max: number | null })
   | (FormQuestionBase & { type: "boolean" })
   | (FormQuestionBase & { type: "date" })
@@ -44,15 +46,23 @@ export interface FormStage {
 
 export type FormStatus = { type: "active" } | { type: "draft" } | { type: "closed" };
 
+export interface FormEmails {
+  received: Email | null;
+  stage_changed: Record<string, Email>;
+  alert: AlertEmail | null;
+}
+
 export interface Form {
   id: string;
   store_id: string;
   key: string;
+  emails: FormEmails;
   questions: FormQuestion[];
   stages: FormStage[];
   status: FormStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
+  questions_updated_at: EpochMilliseconds;
 }
 
 export type FormSubmissionSource =
@@ -99,6 +109,7 @@ export interface FormFile {
 
 export type FormAnswer =
   | { type: "text"; question_id: string; key: string; value: string }
+  | { type: "email"; question_id: string; key: string; value: string }
   | { type: "number"; question_id: string; key: string; value: number }
   | { type: "boolean"; question_id: string; key: string; value: boolean }
   | { type: "date"; question_id: string; key: string; value: CalendarDate }
@@ -183,6 +194,7 @@ export interface FindFormsParams {
 export type GetFormParams = { store_id: string } & ({ id: string } | { key: string });
 
 export interface CreateFormParams {
+  emails?: FormEmails;
   store_id: string;
   id: string;
   key: string;
@@ -191,6 +203,7 @@ export interface CreateFormParams {
 }
 
 export interface UpdateFormParams {
+  emails?: FormEmails;
   store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
@@ -285,8 +298,9 @@ export interface GetFormSubmissionFileParams {
 export type GetStorefrontFormParams = { id: string } | { key: string };
 
 export interface SubmitFormParams {
+  bot_check_token?: string;
   form_id: string;
-  form_updated_at: EpochMilliseconds;
+  questions_updated_at: EpochMilliseconds;
   id: string;
   language: string;
   answers: FormAnswerInput[];

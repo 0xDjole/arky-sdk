@@ -19,16 +19,37 @@ import {
 const STORE_ID = ids.store;
 const OTHER_STORE_ID = ids.otherStore;
 const groupLineId = ids.otherLine;
-const groupSelection = { id: groupLineId, customer_group_id: ids.product, start: { type: "on_acceptance" }, deliveries: [] };
+const groupSelection = { id: groupLineId, customer_group_id: ids.product, quantity: 1, choices: [], start: { type: "on_acceptance" }, deliveries: [] };
 const companyBuyer = { type: "company_location", company_location_id: ids.companyLocation, purchase_order_number: "PO-7" };
 
 function admin() {
-  return createAdmin({ baseUrl: apiUrl, apiToken: "arky_api_cart" });
+  return createAdmin({ baseUrl: apiUrl, secretKey: "arky_api_cart" });
 }
 
 function storefront(options = {}) {
-  return createStorefront(publishableKey, { apiUrl, locale: "bs", market: "bih", sessionStorage: visitorStorage(), ...options });
+  return createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, locale: "bs", market: "bih", sessionStorage: visitorStorage(), ...options });
 }
+
+test("the exact source Cart Order read preserves the authoritative nullable response and sends no Cart capability", async (context) => {
+  const responses = [placedOrder(), null, placedOrder(), null];
+  const calls = recordFetch(context, () => responses.shift());
+  const account = admin();
+  const buyer = storefront();
+  assert.deepEqual(await account.eshop.cart.order({ store_id: STORE_ID, id: ids.cart }), placedOrder());
+  assert.equal(await account.eshop.cart.order({ store_id: STORE_ID, id: ids.cart }), null);
+  assert.deepEqual(await buyer.eshop.cart.order({ id: ids.cart }, { headers: { "x-arky-cart-token": "old-cart-recovery-capability" } }), placedOrder());
+  assert.equal(await buyer.eshop.cart.order({ id: ids.cart }), null);
+  assert.deepEqual(calls.map(call => [call.method, call.path, call.body]), [
+    ["GET", `/v1/stores/${STORE_ID}/carts/${ids.cart}/order`, null],
+    ["GET", `/v1/stores/${STORE_ID}/carts/${ids.cart}/order`, null],
+    ["GET", `/v1/storefront/carts/${ids.cart}/order`, null],
+    ["GET", `/v1/storefront/carts/${ids.cart}/order`, null],
+  ]);
+  assert.equal(calls[2].headers.has("x-arky-cart-token"), false);
+  assert.equal(calls[3].headers.has("x-arky-order-token"), false);
+  await assert.rejects(buyer.eshop.cart.order({ id: ids.cart, token: "old-cart-recovery-capability" }), TypeError);
+  assert.equal(calls.length, 4);
+});
 
 test("Admin Cart commands send exactly the caller's ids, buyer, channel and catalog without inventing defaults", async (context) => {
   const calls = recordFetch(context, (call) => call.method === "POST" && call.path.endsWith("/carts")
@@ -39,14 +60,15 @@ test("Admin Cart commands send exactly the caller's ids, buyer, channel and cata
     customer_id: ids.customer,
     buyer: companyBuyer,
     sales_channel_id: ids.channel,
-    catalog: { type: "catalog", catalog_id: ids.catalog },
+    catalog_id: ids.catalog,
   };
   const created = await admin().eshop.cart.create({ store_id: STORE_ID, ...create });
   assert.equal(created.type, "created");
   assert.deepEqual(calls[0].body, create);
   assert.equal(calls[0].path, `/v1/stores/${STORE_ID}/carts`);
-  await admin().eshop.cart.create({ store_id: STORE_ID, ...create, catalog: { type: "market_public", market_id: ids.market } });
-  assert.deepEqual(calls[1].body.catalog, { type: "market_public", market_id: ids.market });
+  await admin().eshop.cart.create({ store_id: STORE_ID, ...create, catalog_id: ids.otherCatalog });
+  assert.equal(calls[1].body.catalog_id, ids.otherCatalog);
+  assert.equal("catalog" in calls[1].body, false);
   const patch = { expected_updated_at: 5, billing_address: null, buyer: { type: "customer" } };
   await admin().eshop.cart.update({ store_id: STORE_ID, id: "cart/one", ...patch });
   assert.deepEqual(calls[2].body, patch);
@@ -81,7 +103,7 @@ test("Admin carts are created for a customer, a company, a company location or a
   ];
   const calls = recordFetch(context, (call) => ({ type: "created", cart: cartRecord({ buyer: call.body.buyer }), recovery_token: "cart-recovery-token" }));
   for (const buyer of buyers) {
-    const created = await admin().eshop.cart.create({ store_id: STORE_ID, id: ids.cart, customer_id: ids.customer, buyer, sales_channel_id: ids.channel, catalog: { type: "catalog", catalog_id: ids.catalog } });
+    const created = await admin().eshop.cart.create({ store_id: STORE_ID, id: ids.cart, customer_id: ids.customer, buyer, sales_channel_id: ids.channel, catalog_id: ids.catalog });
     assert.deepEqual(created.cart.buyer, buyer);
   }
   assert.deepEqual(calls.map((call) => call.body.buyer), buyers);
@@ -95,10 +117,10 @@ test("a storefront location-choice cart is created for the company and then pick
     ? { type: "created", cart: cartRecord({ buyer: choice }), recovery_token: "cart-recovery-token" }
     : cartRecord({ buyer: picked, updated_at: 1_700_000_000_002 }));
   const client = storefront();
-  await client.eshop.cart.create({ id: ids.cart, buyer: choice, catalog_id: null });
+  await client.eshop.cart.create({ id: ids.cart, buyer: choice, catalog_id: ids.catalog });
   assert.deepEqual((await client.eshop.cart.update({ id: ids.cart, expected_updated_at: 1_700_000_000_001, buyer: picked })).buyer, picked);
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
-    ["POST", "/v1/storefront/carts", { id: ids.cart, buyer: choice, catalog_id: null }],
+    ["POST", "/v1/storefront/carts", { id: ids.cart, buyer: choice, catalog_id: ids.catalog }],
     ["PUT", `/v1/storefront/carts/${ids.cart}`, { expected_updated_at: 1_700_000_000_001, buyer: picked }],
   ]);
   assert.equal(calls[1].headers.get("x-arky-cart-token"), "cart-recovery-token");
@@ -107,7 +129,7 @@ test("a storefront location-choice cart is created for the company and then pick
 
 test("Admin quotes carry only the language the caller names; the client has no configured language", async (context) => {
   const calls = recordFetch(context, () => quoteRecord());
-  const client = createAdmin({ baseUrl: apiUrl, apiToken: "arky_api_cart", locale: "bs" });
+  const client = createAdmin({ baseUrl: apiUrl, secretKey: "arky_api_cart", locale: "bs" });
   assert.deepEqual(await client.eshop.cart.quote({ store_id: STORE_ID, id: ids.cart, language: "en" }), quoteRecord());
   assert.deepEqual(calls[0].body, { language: "en" });
   assert.equal(calls[0].path, `/v1/stores/${STORE_ID}/carts/${ids.cart}/quote`);
@@ -115,10 +137,11 @@ test("Admin quotes carry only the language the caller names; the client has no c
   assert.deepEqual(calls[1].body, {});
   const purchase = {
     language: "bs",
+    contact_email: "receipt@example.test",
     customer_id: ids.customer,
     buyer: { type: "customer" },
     sales_channel_id: ids.channel,
-    catalog: { type: "catalog", catalog_id: ids.catalog },
+    catalog_id: ids.catalog,
     line_items: [{ type: "customer_group", ...groupSelection }],
     delivery_groups: [],
     billing_address: null,
@@ -139,7 +162,7 @@ test("Storefront cart updates may switch the catalog and never forward browser a
   await storefront().eshop.cart.update({
     id: ids.cart,
     expected_updated_at: 9,
-    catalog: { type: "catalog", catalog_id: ids.otherCatalog },
+    catalog_id: ids.otherCatalog,
     customer_id: ids.otherCustomer,
     store_id: OTHER_STORE_ID,
     sales_channel_id: ids.channel,
@@ -147,7 +170,7 @@ test("Storefront cart updates may switch the catalog and never forward browser a
   });
   assert.equal(calls[0].path, `/v1/storefront/carts/${ids.cart}`);
   assert.equal(calls[0].method, "PUT");
-  assert.deepEqual(calls[0].body, { expected_updated_at: 9, catalog: { type: "catalog", catalog_id: ids.otherCatalog } });
+  assert.deepEqual(calls[0].body, { expected_updated_at: 9, catalog_id: ids.otherCatalog });
 });
 
 test("Cart discovery preserves combined predicates, ordering and empty-page continuation", async (context) => {
@@ -210,6 +233,8 @@ test("Storefront Cart lines carry their own ids and strip price overrides and ot
       { type: "product", id: ids.line, product_id: ids.product, variant_id: ids.variant, quantity: 2, price_override: override, purchase: { type: "catalog", spoof: true }, store_id: "spoof" },
       { type: "product", id: ids.otherLine, product_id: ids.product, variant_id: ids.variant, quantity: 1, price_override: override,
         purchase: { type: "existing_purchase_access", grant: { order_id: ids.order, order_purchase_access_line_item_id: ids.line, price: 0 } } },
+      { type: "product", id: ids.otherOrder, variant_id: ids.variant, quantity: 1, price_override: override,
+        purchase: { type: "assigned_purchase_access", customer_group_member_id: ids.customerGroupMember, entitlement_id: ids.catalog, price: 0 } },
       { type: "booking", id: ids.credit, booking_offering_id: ids.product, requested_interval: { from: 0, to: 60000, timezone: "spoof" }, capacity_units: 1, price_override: override },
       { type: "customer_group", ...groupSelection, id: ids.submission, price_override: override },
     ],
@@ -218,9 +243,11 @@ test("Storefront Cart lines carry their own ids and strip price overrides and ot
     expected_updated_at: 3,
     buyer: { type: "customer" },
     line_items: [
-      { type: "product", id: ids.line, product_id: ids.product, variant_id: ids.variant, quantity: 2, purchase: { type: "catalog" } },
-      { type: "product", id: ids.otherLine, product_id: ids.product, variant_id: ids.variant, quantity: 1,
+      { type: "product", id: ids.line, variant_id: ids.variant, quantity: 2, purchase: { type: "catalog" } },
+      { type: "product", id: ids.otherLine, variant_id: ids.variant, quantity: 1,
         purchase: { type: "existing_purchase_access", grant: { order_id: ids.order, order_purchase_access_line_item_id: ids.line } } },
+      { type: "product", id: ids.otherOrder, variant_id: ids.variant, quantity: 1,
+        purchase: { type: "assigned_purchase_access", customer_group_member_id: ids.customerGroupMember, entitlement_id: ids.catalog } },
       { type: "booking", id: ids.credit, booking_offering_id: ids.product, requested_interval: { from: 0, to: 60000 }, capacity_units: 1 },
       { type: "customer_group", ...groupSelection, id: ids.submission },
     ],
@@ -277,23 +304,24 @@ test("initialize quotes and checks out a group-only cart through the reviewed qu
     if (call.method === "GET") return placedOrder();
     throw new Error(`Unexpected request ${call.method} ${call.path}`);
   });
-  const store = initialize(publishableKey, { apiUrl, locale: "bs", market: "bih", sessionStorage: visitorStorage() });
-  await store.eshop.cart.create({ id: ids.cart, buyer: { type: "customer" }, catalog_id: null });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, locale: "bs", market: "bih", sessionStorage: visitorStorage() });
+  await store.eshop.cart.create({ id: ids.cart, buyer: { type: "customer" }, catalog_id: ids.catalog });
   assert.equal(store.eshop.cart.item_count.get(), 1);
   const { type: _type, ...groupItem } = current.line_items[0];
   assert.deepEqual(store.eshop.cart.customer_group_items.get(), [groupItem]);
   assert.deepEqual(cartCustomerGroupItems(current), [groupItem]);
   assert.deepEqual(store.eshop.cart.product_items.get(), []);
   const payment = { type: "free" };
-  await assert.rejects(store.eshop.cart.checkout({ order_id: ids.order, contact_email: null, payment }), /Quote the cart before checkout/);
+  await assert.rejects(store.eshop.cart.checkout({ order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), contact_email: null, payment }), /Quote the cart before checkout/);
   await store.eshop.cart.quote();
-  await assert.rejects(store.eshop.cart.checkout({ order_id: ids.order, contact_email: null, payment }), /quote isn't ready/);
+  await assert.rejects(store.eshop.cart.checkout({ order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), contact_email: null, payment }), /quote isn't ready/);
   quoted = quoteRecord();
   assert.deepEqual(await store.eshop.cart.quote(), quoteRecord());
-  assert.deepEqual(await store.eshop.cart.checkout({ order_id: ids.order, contact_email: null, payment, clear_after_checkout: false }), placedAcceptance());
+  assert.deepEqual(await store.eshop.cart.checkout({ order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), contact_email: null, payment, clear_after_checkout: false }), placedAcceptance());
   const accept = calls.find((call) => call.path.endsWith("/carts/accept"));
   assert.deepEqual(accept.body, {
     order_id: ids.order,
+    order_token: "arky_ot_" + "A".repeat(43),
     cart_id: ids.cart,
     expected_updated_at: current.updated_at,
     presentation_digest: quoteRecord().presentation_digest,
@@ -345,8 +373,8 @@ test("initialize saves future deliveries into the loaded cart and drops its stal
     if (call.path.endsWith("/quote")) return quoteRecord();
     return updated;
   });
-  const store = initialize(publishableKey, { apiUrl, locale: "bs", sessionStorage: visitorStorage() });
-  await store.eshop.cart.create({ id: ids.cart, buyer: { type: "customer" }, catalog_id: null });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, locale: "bs", sessionStorage: visitorStorage() });
+  await store.eshop.cart.create({ id: ids.cart, buyer: { type: "customer" }, catalog_id: ids.catalog });
   await store.eshop.cart.quote();
   assert.notEqual(store.eshop.cart.quote_result.get(), null);
   assert.deepEqual(await store.eshop.cart.setFutureDeliveries(groups), updated);
@@ -366,8 +394,8 @@ test("initialize refuses a late quote after the language changed and a late deli
     started();
     return pending;
   });
-  const store = initialize(publishableKey, { apiUrl, locale: "bs", market: "bih", sessionStorage: visitorStorage() });
-  await store.eshop.cart.create({ id: ids.cart, buyer: { type: "customer" }, catalog_id: null });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, locale: "bs", market: "bih", sessionStorage: visitorStorage() });
+  await store.eshop.cart.create({ id: ids.cart, buyer: { type: "customer" }, catalog_id: ids.catalog });
   const quote = store.eshop.cart.quote();
   await entered;
   store.setLocale("en");
@@ -393,19 +421,62 @@ test("Cart controller fills the loaded cart's id and version and never quotes im
     quote: async () => { throw new Error("Must not quote implicitly"); },
     checkout: async (input) => { calls.push(["checkout", input]); return placedAcceptance(); },
   });
-  await controller.init({ buyer: { type: "customer" }, catalog_id: null });
+  await controller.init({ buyer: { type: "customer" }, catalog_id: ids.catalog });
   await controller.addCustomerGroup({ customer_group: groupSelection });
-  const reviewed = { order_id: ids.order, presentation_digest: "d".repeat(64), contact_email: null, payment: { type: "free" } };
+  const reviewed = { order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), presentation_digest: "d".repeat(64), contact_email: null, payment: { type: "free" } };
   await controller.checkout(reviewed);
   assert.deepEqual(calls, [
-    ["current", { buyer: { type: "customer" }, catalog_id: null }],
+    ["current", { buyer: { type: "customer" }, catalog_id: ids.catalog }],
     ["add", { customer_group: groupSelection, id: ids.cart, expected_updated_at: current.updated_at }],
     ["checkout", { ...reviewed, cart_id: ids.cart, expected_updated_at: current.updated_at }],
   ]);
   assert.deepEqual(controller.getState().checkoutResult, placedAcceptance());
   const empty = createCartController({ current: async () => null });
-  await empty.init({});
+  await empty.init({ buyer: { type: "customer" }, catalog_id: ids.catalog });
   await assert.rejects(empty.addCustomerGroup({ customer_group: groupSelection }), /no cart id was provided/);
   await assert.rejects(empty.addCustomerGroup({ id: ids.cart, customer_group: groupSelection }), /updated_at of the cart/);
   assert.equal("addSubscriptionPlan" in controller, false);
+});
+
+test("quotes carry transient receipt email without forwarding identity or persisting the cart", async (context) => {
+  const calls = recordFetch(context, () => quoteRecord());
+  const contact_email = "guest@example.test";
+  await admin().eshop.cart.quote({ store_id: STORE_ID, id: ids.cart, language: "en", contact_email });
+  await storefront().eshop.cart.quote({ id: ids.cart, contact_email, customer_id: ids.otherCustomer });
+  assert.deepEqual(calls.map((call) => [call.method, call.path, call.body]), [
+    ["POST", `/v1/stores/${STORE_ID}/carts/${ids.cart}/quote`, { language: "en", contact_email }],
+    ["POST", `/v1/storefront/carts/${ids.cart}/quote`, { contact_email }],
+  ]);
+});
+
+test("Order capability is sent only with the named Order request and never elevates lists or company access", async (context) => {
+  const token = "arky_ot_" + "A".repeat(43);
+  const calls = recordFetch(context, () => ({}));
+  const client = storefront();
+  await client.eshop.order.get({ id: ids.order }, { order_token: token });
+  await client.eshop.order.find({}, { order_token: token });
+  await client.companies.memberships({}, { order_token: token });
+  assert.equal(calls[0].headers.get("x-arky-order-token"), token);
+  assert.equal(calls[1].headers.has("x-arky-order-token"), false);
+  assert.equal(calls[2].headers.has("x-arky-order-token"), false);
+  assert.equal(calls[0].headers.get("authorization"), calls[1].headers.get("authorization"));
+  await assert.rejects(client.eshop.order.get({ id: ids.order }, { order_token: "bad" }), TypeError);
+  assert.equal(calls.length, 3);
+});
+
+
+test("Explicit Order capability replaces every casing of a caller header without changing unrelated headers", async (context) => {
+  const token = "arky_ot_" + "A".repeat(43);
+  const other = "arky_ot_" + "C".repeat(42) + "A";
+  const calls = recordFetch(context, () => ({}));
+  await storefront().eshop.order.get({ id: ids.order }, {
+    order_token: token,
+    headers: { "x-arky-order-token": other, "x-ArKy-OrDeR-ToKeN": other, "X-Arky-Order-Token": other, "X-Receipt-Request": "retained" },
+  });
+  assert.equal(calls.length, 1);
+  const headers = calls[0].headers;
+  assert.equal(headers.get("x-arky-order-token") === token, true);
+  assert.equal(headers.get("x-arky-order-token").includes(","), false);
+  assert.equal(headers.get("x-receipt-request"), "retained");
+  assert.equal(headers.get("authorization"), `Bearer ${visitorToken}`);
 });

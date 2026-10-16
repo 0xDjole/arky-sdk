@@ -81,7 +81,6 @@ function cartLineInput(line: CartLineItem): StorefrontCartLineItemInput {
       return {
         type: "product",
         id: line.id,
-        product_id: line.product_id,
         variant_id: line.variant_id,
         quantity: line.quantity,
         form_submission_id: line.form_submission_id,
@@ -101,6 +100,8 @@ function cartLineInput(line: CartLineItem): StorefrontCartLineItemInput {
         type: "customer_group",
         id: line.id,
         customer_group_id: line.customer_group_id,
+        quantity: line.quantity,
+        choices: line.choices.map(({ entitlement_id, variant_id }) => ({ entitlement_id, variant_id })),
         start: line.start,
         deliveries: line.deliveries,
       };
@@ -141,7 +142,7 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
     (value?.promotions ?? []).flatMap((promotion) => (promotion.code ? [promotion.code.code] : [])),
   );
 
-  let cartParams: StorefrontCurrentCartParams = {};
+  let cartParams: StorefrontCurrentCartParams | null = null;
   let contextRevision = 0;
   let cartRevision = 0;
   let sessionRequest: Promise<StorefrontCustomerSession | null> | null = null;
@@ -309,7 +310,8 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
     }
   }
 
-  async function loadCart(params: StorefrontCurrentCartParams = cartParams): Promise<Cart | null> {
+  async function loadCart(params: StorefrontCurrentCartParams | null = cartParams): Promise<Cart | null> {
+    if (!params) throw new CartSelectionError("Choose the cart's catalog before loading it");
     cartParams = params;
     const scope = await beginCartOperation();
     const revision = ++cartRevision;
@@ -485,6 +487,7 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
     if (!reviewed || reviewed.cart_id !== current.id) throw new CartSelectionError("Quote the cart before checkout");
     if (!reviewed.ready) throw new CartSelectionError("The quote isn't ready: pick shipping and check bookings first");
     return {
+      order_token: input.order_token,
       order_id: input.order_id,
       cart_id: current.id,
       expected_updated_at: current.updated_at,
@@ -515,7 +518,7 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
       last_order.set(null);
     }
     if (clearAfter) {
-      client.eshop.cart.forget(cartParams);
+      if (cartParams) client.eshop.cart.forget(cartParams);
       clearLocalCart();
     }
     return result;
@@ -671,7 +674,7 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
   let bookingSelectionRevision = 0;
   let bookingAvailabilityRevision = 0;
   let bookingAvailabilityReadRevision = 0;
-  let bookingCatalogOptions: CatalogReadOptions = {};
+  let bookingCatalogOptions: CatalogReadOptions | null = null;
 
   async function loadBookingAvailability(params: GetStorefrontAvailabilityParams, options?: RequestOptions) {
     const revision = ++bookingAvailabilityReadRevision;
@@ -710,13 +713,14 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
       }
     },
 
-    async select(bookingService: StorefrontBookingService, catalogOptions: CatalogReadOptions = {}): Promise<void> {
+    async select(bookingService: StorefrontBookingService, catalogOptions: CatalogReadOptions): Promise<void> {
       const selectionRevision = ++bookingSelectionRevision;
       bookingAvailabilityRevision += 1;
       bookingAvailabilityReadRevision += 1;
       eshop_state.setKey("loading_availability", false);
       eshop_state.setKey("availability", null);
-      bookingCatalogOptions = { ...catalogOptions, include_price: true };
+      const selectedCatalog = { ...catalogOptions, include_price: true };
+      bookingCatalogOptions = selectedCatalog;
       booking_service_state.set({
         ...booking_service_state.get(),
         bookingService: null,
@@ -736,8 +740,8 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
       });
       try {
         const [fullService, offeringPage] = await Promise.all([
-          client.eshop.bookingService.get({ ...bookingCatalogOptions, id: bookingService.id }),
-          client.eshop.bookingOffering.find({ ...bookingCatalogOptions, booking_service_id: bookingService.id, limit: 200 }),
+          client.eshop.bookingService.get({ ...selectedCatalog, id: bookingService.id }),
+          client.eshop.bookingOffering.find({ ...selectedCatalog, booking_service_id: bookingService.id, limit: 200 }),
         ]);
         const ids = [...new Set(offeringPage.items.map((offering) => offering.booking_resource_id))];
         const resources = ids.length
@@ -763,13 +767,15 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
     async loadMoreOfferings(): Promise<void> {
       const state = booking_service_state.get();
       if (!state.bookingService || !state.bookingOfferingsCursor || state.loadingOfferings) return;
+      const catalog = bookingCatalogOptions;
+      if (!catalog) throw new Error("Choose a catalog before reading booking offerings");
       const serviceId = state.bookingService.id;
       const cursor = state.bookingOfferingsCursor;
       const selectionRevision = bookingSelectionRevision;
       booking_service_state.setKey("loadingOfferings", true);
       try {
         const page = await client.eshop.bookingOffering.find({
-          ...bookingCatalogOptions,
+          ...catalog,
           booking_service_id: serviceId,
           cursor,
           limit: 200,
@@ -803,6 +809,8 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
     async loadMonth(cursor?: string): Promise<void> {
       const state = booking_service_state.get();
       if (!state.bookingService) return;
+      const selectedCatalog = bookingCatalogOptions;
+      if (!selectedCatalog) throw new Error("Choose a catalog before reading booking availability");
       const requestRevision = ++bookingAvailabilityRevision;
       const selectionRevision = bookingSelectionRevision;
       booking_service_state.setKey("loading", true);
@@ -822,7 +830,7 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
           from = epochMilliseconds(Date.UTC(month.getFullYear(), month.getMonth(), 1));
           to = epochMilliseconds(Date.UTC(month.getFullYear(), month.getMonth() + 1, 1));
         }
-        const { include_price: _includePrice, ...catalog } = bookingCatalogOptions;
+        const { include_price: _includePrice, ...catalog } = selectedCatalog;
         const availability = await loadBookingAvailability({
           ...catalog,
           booking_service_id: state.bookingService.id,
@@ -1116,7 +1124,7 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
     return submitForm(
       {
         form_id: params.form.id,
-        form_updated_at: params.form.updated_at,
+        questions_updated_at: params.form.questions_updated_at,
         id: params.id,
         language: params.language,
         answers: buildFormAnswers(params.form, params.values),
@@ -1126,7 +1134,7 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
   }
 
   async function loadProducts(
-    params: FindStorefrontProductsParams = {},
+    params: FindStorefrontProductsParams,
     options?: RequestOptions,
   ): Promise<PaginatedResponse<StorefrontProduct>> {
     eshop_state.setKey("loading_products", true);
@@ -1145,7 +1153,7 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
   }
 
   async function loadBookingServices(
-    params: FindStorefrontBookingServicesParams = {},
+    params: FindStorefrontBookingServicesParams,
     options?: RequestOptions,
   ): Promise<PaginatedResponse<StorefrontBookingService>> {
     eshop_state.setKey("loading_booking_services", true);
@@ -1263,6 +1271,7 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
       getMe: client.customer.getMe,
       updateMe: client.customer.updateMe,
       resubscribe: client.customer.resubscribe,
+      unsubscribe: client.customer.unsubscribe,
     },
     onAuthStateChanged: client.onAuthStateChanged,
     get hasSession() {
@@ -1310,6 +1319,7 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
         list: loadBookingResources,
       },
       bookingOffering: client.eshop.bookingOffering,
+      promotion: client.eshop.promotion,
       order: client.eshop.order,
       library: client.eshop.library,
       return: client.eshop.return,
@@ -1324,10 +1334,8 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig, sc
     companies: client.companies,
     actions: {
       track: trackCustomerAction,
-      pageView(data: Record<string, unknown> = {}) {
-        return trackCustomerAction({ key: "page.view", data });
-      },
     },
+    pageViews: client.pageViews,
     experiments: {
       use: useExperiment,
     },

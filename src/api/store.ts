@@ -22,12 +22,12 @@ import type {
 } from "../types/store";
 import type {
   AcceptStoreInviteParams,
-  AddStoreMemberParams,
   ChangeStoreMemberStatusParams,
   FindOwnStoreMembershipsParams,
   FindStoreMembersParams,
   GetOwnStoreMembershipParams,
   InviteStoreMemberParams,
+  ResendStoreInviteParams,
   RemoveStoreMemberParams,
   StoreMember,
   StoreMembership,
@@ -119,18 +119,18 @@ export const createStoreApi = (apiConfig: ApiConfig) => ({
   },
 
   member: {
-    add(params: AddStoreMemberParams, options?: RequestOptions): Promise<boolean> {
+    invite(params: InviteStoreMemberParams, options?: RequestOptions): Promise<boolean> {
       return apiConfig.httpClient.post<boolean>(
-        storePath(params.store_id, "members"),
-        { email: params.email, role_ids: params.role_ids },
+        storePath(params.store_id, "invitation"),
+        { id: requireId(params.id, "membership"), email: params.email, role_ids: params.role_ids },
         options,
       );
     },
 
-    invite(params: InviteStoreMemberParams, options?: RequestOptions): Promise<boolean> {
+    resendInvite(params: ResendStoreInviteParams, options?: RequestOptions): Promise<boolean> {
       return apiConfig.httpClient.post<boolean>(
-        storePath(params.store_id, "invitation"),
-        { email: params.email, role_ids: params.role_ids },
+        storePath(params.store_id, `members/${segment(requireId(params.id, "membership"))}/invitation`),
+        { expected_updated_at: params.expected_updated_at },
         options,
       );
     },
@@ -167,14 +167,18 @@ export const createStoreApi = (apiConfig: ApiConfig) => ({
 
     remove(params: RemoveStoreMemberParams, options?: RequestOptions): Promise<boolean> {
       return apiConfig.httpClient.delete<boolean>(
-        storePath(params.store_id, `members/${segment(requireId(params.account_id, "account"))}`),
-        options,
+        storePath(params.store_id, `members/${segment(requireId(params.id, "membership"))}`),
+        {
+          ...options,
+          params: undefined,
+          body: { expected_updated_at: params.expected_updated_at },
+        },
       );
     },
 
     updateRoles(params: UpdateStoreMemberRolesParams, options?: RequestOptions): Promise<StoreMembership> {
       return apiConfig.httpClient.put<StoreMembership>(
-        storePath(params.store_id, `members/${segment(requireId(params.account_id, "account"))}/roles`),
+        storePath(params.store_id, `members/${segment(requireId(params.id, "membership"))}/roles`),
         { expected_updated_at: params.expected_updated_at, role_ids: params.role_ids },
         options,
       );
@@ -182,7 +186,7 @@ export const createStoreApi = (apiConfig: ApiConfig) => ({
 
     changeStatus(params: ChangeStoreMemberStatusParams, options?: RequestOptions): Promise<StoreMembership> {
       return apiConfig.httpClient.put<StoreMembership>(
-        storePath(params.store_id, `members/${segment(requireId(params.account_id, "account"))}/status`),
+        storePath(params.store_id, `members/${segment(requireId(params.id, "membership"))}/status`),
         { expected_updated_at: params.expected_updated_at, status: params.status },
         options,
       );
@@ -191,7 +195,7 @@ export const createStoreApi = (apiConfig: ApiConfig) => ({
     transferOwnership(params: TransferStoreOwnershipParams, options?: RequestOptions): Promise<Store> {
       return apiConfig.httpClient.post<Store>(
         storePath(params.store_id, "ownership/transfer"),
-        { account_id: requireId(params.account_id, "account") },
+        { account_id: requireId(params.account_id, "account"), expected_updated_at: params.expected_updated_at },
         options,
       );
     },

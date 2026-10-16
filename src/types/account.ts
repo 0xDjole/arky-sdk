@@ -21,45 +21,26 @@ export interface PlatformAdministrator {
 export type AccountSessionStatus =
   | {
       type: "pending_verification";
+      email: string;
       failed_attempts: number;
       verification_expires_at: EpochMilliseconds;
     }
   | {
       type: "active";
+      account_id: string;
       access_expires_at: EpochMilliseconds;
       refresh_expires_at: EpochMilliseconds;
       authenticated_at: EpochMilliseconds;
     }
-  | { type: "locked" }
   | { type: "superseded" }
   | { type: "revoked" };
 
 export interface AccountSession {
   id: string;
-  account_id: string;
   status: AccountSessionStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
-
-export type AccountApiTokenStatus =
-  | { type: "active" }
-  | { type: "revoked"; revoked_at: EpochMilliseconds };
-
-export interface AccountApiToken {
-  id: string;
-  account_id: string;
-  token_hint: string;
-  name: string;
-  status: AccountApiTokenStatus;
-  expires_at: EpochMilliseconds | null;
-  created_at: EpochMilliseconds;
-  updated_at: EpochMilliseconds;
-}
-
-export type AccountApiTokenCreated =
-  | { type: "created"; token: AccountApiToken; value: string }
-  | { type: "existing"; token: AccountApiToken };
 
 export type AccountSortField = "email";
 
@@ -69,26 +50,6 @@ export interface SearchAccountsParams {
   sort_direction?: SortDirection;
   limit?: number;
   cursor?: string | null;
-}
-
-export interface ListAccountApiTokensParams {
-  limit?: number;
-  cursor?: string | null;
-}
-
-export interface CreateAccountApiTokenParams {
-  id: string;
-  name: string;
-  expires_at: EpochMilliseconds | null;
-}
-
-export interface UpdateAccountApiTokenParams {
-  id: string;
-  name: string;
-}
-
-export interface RevokeAccountApiTokenParams {
-  id: string;
 }
 
 export interface ListAccountSessionsParams {

@@ -1,4 +1,4 @@
-import { createAdmin, createStorefront, type Entry, type FindEntriesParams, type UpdateEntryParams,
+import { createAdmin, createStorefront, type Entry, type EpochMilliseconds, type FindEntriesParams, type UpdateEntryParams,
   type CreateEntryParams, type FindEntryBySlugParams, type StorefrontFindEntriesParams, type StorefrontFindEntryBySlugParams } from "../../dist/index.js";
 
 type Assert<T extends true> = T;
@@ -32,6 +32,6 @@ export type EntryDiscoveryContracts = [
   Assert<RequiredField<CreateEntryParams, "id">>,
   Assert<RequiredField<CreateEntryParams, "slugs">>,
   Assert<RequiredField<CreateEntryParams, "blocks">>,
-  Assert<Equal<UpdateEntryParams["status"], { type: "active" } | { type: "draft" } | { type: "archived" } | undefined>>,
+  Assert<Equal<UpdateEntryParams["status"], { type: "active" } | { type: "draft" } | { type: "archived" } | { type: "scheduled"; publish_at: EpochMilliseconds } | undefined>>,
   Assert<RequiredField<UpdateEntryParams, "expected_updated_at">>,
 ];

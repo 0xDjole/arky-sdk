@@ -17,7 +17,7 @@ type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ?
 type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
 
 const store_id = "56c82765-4f5a-47e9-bd6d-dba7c6354919";
-const admin = createAdmin({ baseUrl: "https://api.example.test", apiToken: "arky_api_test" });
+const admin = createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" });
 const groups: FindCustomerGroupsParams = { store_id, customer_group_offering_id: "offering", status: { type: "active" }, query: "members", limit: 20, cursor: "opaque" };
 const offerings: FindCustomerGroupOfferingsParams = { store_id, key: "club", status: "active", sort_field: "updated_at", limit: 20 };
 const members: FindCustomerGroupMembersParams = { store_id, customer_group_id: "group", company_location_id: "location", status: "active", limit: 20 };

@@ -1,5 +1,5 @@
 import type { createAdmin } from "arky-sdk/admin";
-import type { AccountSortField, FindStoresParams, PaginatedResponse, SearchAccountsParams, Store, StorePlan } from "arky-sdk";
+import type { AccountSortField, FeatureType, FindStoresParams, PaginatedResponse, SearchAccountsParams, Store, StorePlan, StorePlanFeature, WebhookEventMetadata, WebhookEventScopeField } from "arky-sdk";
 
 type Assert<T extends true> = T;
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
@@ -15,4 +15,8 @@ export type PlatformDiscoveryContracts = [
   Assert<Equal<NonNullable<Parameters<Admin["store"]["find"]>[0]>, FindStoresParams>>,
   Assert<Equal<Awaited<ReturnType<Admin["store"]["find"]>>, PaginatedResponse<Store>>>,
   Assert<Equal<Awaited<ReturnType<Admin["platform"]["getStorePlans"]>>, PaginatedResponse<StorePlan>>>,
+  Assert<Equal<StorePlan["features"], Record<FeatureType, StorePlanFeature>>>,
+  Assert<Equal<Awaited<ReturnType<Admin["platform"]["getWebhookEvents"]>>, WebhookEventMetadata[]>>,
+  Assert<Equal<WebhookEventMetadata["scopes"], WebhookEventScopeField[]>>,
+  Assert<Equal<WebhookEventScopeField, { field: string }>>,
 ];

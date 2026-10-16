@@ -1,3 +1,4 @@
+import { isOrderToken } from "../utils/orderToken";
 import type { ApiConfig } from "../services/clientTypes";
 import type { RequestOptions } from "../types/api";
 import type { PaginatedResponse } from "../types/common";
@@ -18,6 +19,7 @@ import type {
   CustomerGroupDeliveryOffers,
   FindCartsParams,
   GetCartParams,
+  GetCartOrderParams,
   GetOrderPaymentActionParams,
   PreviewCartAccessProductParams,
   QuoteCartFutureDeliveriesParams,
@@ -31,6 +33,7 @@ import type {
   WithdrawCartOfferParams,
 } from "../types/cart";
 import type { CheckoutPaymentAction } from "../types/payment";
+import type { Order } from "../types/order";
 import { requireId } from "../utils/ids";
 import { storePath, storeRecordPath } from "./paths";
 
@@ -52,6 +55,11 @@ export const createCartApi = (apiConfig: ApiConfig) => {
 
     get(params: GetCartParams, options?: RequestOptions): Promise<Cart> {
       return apiConfig.httpClient.get<Cart>(cartPath(params.store_id, params.id), options);
+    },
+
+    order(params: GetCartOrderParams, options?: RequestOptions): Promise<Order | null> {
+      requireId(params.id, "cart");
+      return apiConfig.httpClient.get<Order | null>(`${cartPath(params.store_id, params.id)}/order`, options);
     },
 
     create(params: CreateCartParams, options?: RequestOptions): Promise<CreatedCart> {
@@ -116,7 +124,7 @@ export const createCartApi = (apiConfig: ApiConfig) => {
     },
 
     quote(params: QuoteCartParams, options?: RequestOptions): Promise<CartQuote> {
-      return action<CartQuote>(params.store_id, params.id, "quote", { language: params.language }, options);
+      return action<CartQuote>(params.store_id, params.id, "quote", { language: params.language, ...(params.contact_email !== undefined ? { contact_email: params.contact_email } : {}) }, options);
     },
 
     quotePurchase(params: QuotePurchaseParams, options?: RequestOptions): Promise<CartQuote> {
@@ -148,12 +156,14 @@ export const createCartApi = (apiConfig: ApiConfig) => {
 
     checkout(params: CheckoutCartParams, options?: RequestOptions): Promise<CheckoutAcceptance> {
       requireId(params.order_id, "order");
+      if (!isOrderToken(params.order_token)) throw new TypeError("A canonical order token is required");
       const { store_id, ...body } = params;
       return apiConfig.httpClient.post<CheckoutAcceptance>(storePath(store_id, `${collection}/accept`), body, options);
     },
 
     checkoutOnAccount(params: CheckoutCartOnAccountParams, options?: RequestOptions): Promise<CheckoutAcceptance> {
       requireId(params.order_id, "order");
+      if (!isOrderToken(params.order_token)) throw new TypeError("A canonical order token is required");
       const { store_id, ...body } = params;
       return apiConfig.httpClient.post<CheckoutAcceptance>(
         storePath(store_id, `${collection}/accept-on-account`),

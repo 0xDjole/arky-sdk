@@ -10,6 +10,7 @@ export type StorePermission =
   | { type: "admin" }
   | { type: "catalog" }
   | { type: "orders" }
+  | { type: "payments" }
   | { type: "customers" }
   | { type: "fulfillment"; locations: LocationReach }
   | { type: "inventory"; locations: LocationReach }
@@ -35,16 +36,15 @@ export interface StoreAccess {
 }
 
 export type StoreMembershipStatus =
-  | { type: "invited"; expires_at: EpochMilliseconds }
-  | { type: "active" }
-  | { type: "disabled" };
+  | { type: "invited"; email: string }
+  | { type: "active"; account_id: string }
+  | { type: "disabled"; account_id: string };
 
-export type StoreMembershipEditableStatus = Exclude<StoreMembershipStatus, { type: "invited" }>;
+export type StoreMembershipEditableStatus = { type: "active" } | { type: "disabled" };
 
 export interface StoreMembership {
   id: string;
   store_id: string;
-  account_id: string;
   role_ids: string[];
   status: StoreMembershipStatus;
   created_at: EpochMilliseconds;
@@ -57,7 +57,7 @@ export interface StoreMembershipWithStoreName extends StoreMembership {
 }
 
 export interface StoreMember {
-  account: Account;
+  account: Account | null;
   membership: StoreMembership;
 }
 
@@ -93,33 +93,35 @@ export interface FindStoreRolesParams {
   cursor?: string | null;
 }
 
-export interface AddStoreMemberParams {
+export interface InviteStoreMemberParams {
   store_id: string;
+  id: string;
   email: string;
   role_ids: string[];
 }
 
-export interface InviteStoreMemberParams {
+export interface ResendStoreInviteParams {
   store_id: string;
-  email: string;
-  role_ids: string[];
+  id: string;
+  expected_updated_at: EpochMilliseconds;
 }
 
 export interface RemoveStoreMemberParams {
   store_id: string;
-  account_id: string;
+  id: string;
+  expected_updated_at: EpochMilliseconds;
 }
 
 export interface UpdateStoreMemberRolesParams {
   store_id: string;
-  account_id: string;
+  id: string;
   expected_updated_at: EpochMilliseconds;
   role_ids: string[];
 }
 
 export interface ChangeStoreMemberStatusParams {
   store_id: string;
-  account_id: string;
+  id: string;
   expected_updated_at: EpochMilliseconds;
   status: StoreMembershipEditableStatus;
 }
@@ -131,6 +133,7 @@ export interface AcceptStoreInviteParams {
 
 export interface TransferStoreOwnershipParams {
   store_id: string;
+  expected_updated_at: EpochMilliseconds;
   account_id: string;
 }
 

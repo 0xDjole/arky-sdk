@@ -41,7 +41,7 @@ type StoreForms = ReturnType<typeof initialize>["forms"];
 const store_id = "a8c41e2f-6d95-4b07-83f1-0e5d7a9c2b36";
 const form_id = "0f6a3c84-2d19-4e75-b8a1-5c9e7d3b2f60";
 const id = "4b9e2d71-8a36-4c05-9f1e-6d3a7b0c5e92";
-const api = createAdmin({ baseUrl: "https://forms.test", apiToken: "arky_api_forms" }).forms;
+const api = createAdmin({ baseUrl: "https://forms.test", secretKey: "arky_api_forms" }).forms;
 
 const stages: FormStage[] = [{ id: "new", key: "new" }, { id: "won", key: "won" }];
 const questions: FormQuestion[] = [
@@ -107,7 +107,7 @@ declare const shown: Form;
 const storefront = initialize(`arky_pk_${"f".repeat(42)}A`);
 const byKeySubmission: ArkySubmitFormByKeyParams = { id, key: "intake", form: shown, language: "en", values: { answer: "Kept", topic: [], files: [brief] } };
 const answered: Promise<StorefrontFormSubmission> = storefront.forms.submitByKey(byKeySubmission);
-const raw: SubmitFormParams = { form_id, form_updated_at: epochMilliseconds(4), id, language: "en", answers: [{ type: "select_many", question_id: "q-topic", key: "topic", option_keys: ["sales"] }] };
+const raw: SubmitFormParams = { form_id, questions_updated_at: epochMilliseconds(4), id, language: "en", answers: [{ type: "select_many", question_id: "q-topic", key: "topic", option_keys: ["sales"] }] };
 const rawAnswered: Promise<StorefrontFormSubmission> = storefront.forms.submit(raw);
 const loaded: Promise<Form> = storefront.forms.get({ key: "intake" });
 
@@ -138,9 +138,11 @@ export type FormContracts = [
   Assert<RequiredField<ArkySubmitFormByKeyParams, "language">>,
   Assert<RequiredField<SubmitFormParams, "id">>,
   Assert<RequiredField<SubmitFormParams, "language">>,
-  Assert<RequiredField<SubmitFormParams, "form_updated_at">>,
-  Assert<Equal<SubmitFormParams["form_updated_at"], EpochMilliseconds>>,
-  Assert<Missing<ArkySubmitFormByKeyParams, "form_updated_at">>,
+  Assert<RequiredField<SubmitFormParams, "questions_updated_at">>,
+  Assert<RequiredField<Form, "questions_updated_at">>,
+  Assert<RequiredField<CreateFormParams, "stages">>,
+  Assert<Equal<SubmitFormParams["questions_updated_at"], EpochMilliseconds>>,
+  Assert<Missing<ArkySubmitFormByKeyParams, "questions_updated_at">>,
   Assert<Equal<keyof FormSubmissionSnapshot, "form_key" | "questions" | "options">>,
   Assert<Equal<FormSubmissionSnapshot["options"], FormOptionSnapshot[]>>,
   Assert<Equal<keyof FormOptionSnapshot, "question_id" | "option_key" | "label">>,

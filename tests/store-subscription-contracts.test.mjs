@@ -37,7 +37,7 @@ class RecordingStorage {
 }
 
 function admin() {
-  return createAdmin({ baseUrl: "https://api.example.test", apiToken: "contract-token" });
+  return createAdmin({ baseUrl: "https://api.example.test", secretKey: "contract-token" });
 }
 
 test("picking a store plan is one plain request with the plan and the return page, and keeps nothing in the browser", async (context) => {

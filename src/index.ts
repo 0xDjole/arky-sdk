@@ -1,3 +1,4 @@
+import { requireId } from "./utils/ids";
 import { createAdminSessionState } from "./services/adminSession";
 import { createHttpClient } from "./services/createHttpClient";
 import type { AuthStorage, HttpClientConfig } from "./types/httpClient";
@@ -10,7 +11,7 @@ import type {
 } from "./services/clientTypes";
 import type {
   ChangeCustomerEmailParams,
-  Customer,
+  StorefrontCustomer,
   CustomerCodeResult,
   CustomerMe,
   CustomerSessionIssued,
@@ -21,7 +22,7 @@ import type {
 import type { StorefrontSetup } from "./types/storefront";
 import { createAccountApi } from "./api/account";
 import { createActionsApi } from "./api/actions";
-import { createAnalyticsApi } from "./api/analytics";
+import { createCountsApi } from "./api/counts";
 import { createAuthApi } from "./api/auth";
 import { createBookingOfferingApi, createBookingResourceApi, createBookingServiceApi } from "./api/booking";
 import { createBroadcastApi } from "./api/broadcast";
@@ -65,13 +66,15 @@ import {
   createOrderNoteApi,
 } from "./api/note";
 import {
+  createStoreEmailsApi,
   createEmailAddressApi,
-  createEmailDomainApi,
+  createEmailProviderApi,
   createEmailTemplateApi,
-  createNotificationApi,
+  createOutgoingEmailApi,
+  createOutgoingWebhookApi,
 } from "./api/notification";
 import { createOrderApi } from "./api/order";
-import { createPaymentApi, createProviderEventApi } from "./api/payment";
+import { createPaymentApi, createIncomingWebhookApi } from "./api/payment";
 import { createPaymentMethodApi } from "./api/paymentMethod";
 import { createPaymentOptionApi } from "./api/paymentOption";
 import { createPlatformApi } from "./api/platform";
@@ -83,15 +86,18 @@ import { createSalesChannelApi } from "./api/salesChannel";
 import { createShippingMethodApi } from "./api/shippingMethod";
 import { createShippingProfileApi } from "./api/shippingProfile";
 import { createStoreApi } from "./api/store";
-import { createStorefrontKeyApi } from "./api/storefrontKey";
+import { createApiKeyApi } from "./api/apiKey";
 import { createStoreRoleApi } from "./api/storeRole";
 import {
   createStorefrontApi,
   type CustomerSessionInternal,
   type CustomerSessionUpdater,
+  type RefreshCustomerSessionParams,
+  type IdentifyCustomerParams,
   type RequestCustomerCodeParams,
   type VerifyCustomerCodeParams,
 } from "./api/storefront";
+import { createStorefrontPageViewsApi } from "./api/pageViews";
 import { createAdminSupportApi, createStorefrontSupportApi } from "./api/support";
 import { createTaxCategoryApi } from "./api/taxCategory";
 import { createWebhookApi } from "./api/webhook";
@@ -152,7 +158,6 @@ export {
 } from "./types";
 export type { AdminLogoutResult } from "./services/adminSession";
 export type { AdminSessionInternal, AdminSessionUpdater, ApiConfig, StorefrontApiConfig } from "./services/clientTypes";
-export type * from "./api/analytics";
 export type { GetCountriesResponse } from "./api/location";
 export type { RecordNoteApi } from "./api/note";
 export type { FindAdminRentalReturnOptionsParams } from "./api/return";
@@ -192,7 +197,7 @@ export { createCartController } from "./cartController";
 export { buildFormAnswers, initialize } from "./storefrontStore";
 export type * from "./storefrontStore";
 
-export const SDK_VERSION = "0.26.86";
+export const SDK_VERSION = "0.26.88";
 export const SUPPORTED_FRAMEWORKS = ["astro", "react", "vue", "svelte", "vanilla"] as const;
 
 export interface AdminSession {
@@ -201,7 +206,7 @@ export interface AdminSession {
 }
 
 export interface StorefrontCustomerSession {
-  customer: Customer;
+  customer: StorefrontCustomer;
   id: string;
   type: CustomerSessionIssued["type"];
   status: CustomerSessionStatus;
@@ -252,7 +257,7 @@ function createUtilitySurface() {
 }
 
 export type CreateAdminConfig = Omit<HttpClientConfig, "authStorage" | "refreshCredentials"> & {
-  apiToken?: string;
+  secretKey?: string;
 };
 
 export function createAdmin(config: CreateAdminConfig) {
@@ -276,15 +281,15 @@ export function createAdmin(config: CreateAdminConfig) {
   }
 
   const updateSession: AdminSessionUpdater = (updater) => {
-    if (config.apiToken) return;
+    if (config.secretKey) return;
     writeAdminSession(updater(readAdminSession()));
     emit();
   };
 
-  const apiToken = config.apiToken;
-  const authStorage: AuthStorage = apiToken
+  const secretKey = config.secretKey;
+  const authStorage: AuthStorage = secretKey
     ? {
-        getTokens: () => ({ access_token: apiToken }),
+        getTokens: () => ({ access_token: secretKey }),
         onTokensRefreshed: () => {},
         onForcedLogout: () => {},
       }
@@ -305,9 +310,10 @@ export function createAdmin(config: CreateAdminConfig) {
 
   const httpClient = createHttpClient({
     baseUrl: config.baseUrl,
+    forcedHeaders: config.forcedHeaders,
     refreshPath: config.refreshPath,
-    refreshCredentials: apiToken ? undefined : sessionState.refresh,
-    onUnauthorized: apiToken ? () => false : config.onUnauthorized,
+    refreshCredentials: secretKey ? undefined : sessionState.refresh,
+    onUnauthorized: secretKey ? () => false : config.onUnauthorized,
     navigate: config.navigate,
     loginFallbackPath: config.loginFallbackPath,
     authStorage,
@@ -335,7 +341,8 @@ export function createAdmin(config: CreateAdminConfig) {
       location: createLocationApi(apiConfig),
       market: createMarketApi(apiConfig),
       salesChannel: createSalesChannelApi(apiConfig),
-      storefrontKey: createStorefrontKeyApi(apiConfig),
+      apiKey: createApiKeyApi(apiConfig),
+      emails: createStoreEmailsApi(apiConfig),
       paymentOption: createPaymentOptionApi(apiConfig),
       zone: createZoneApi(apiConfig),
       taxCategory: createTaxCategoryApi(apiConfig),
@@ -343,9 +350,11 @@ export function createAdmin(config: CreateAdminConfig) {
       shippingMethod: createShippingMethodApi(apiConfig),
     },
     notification: {
-      ...createNotificationApi(apiConfig),
+      incomingWebhook: createIncomingWebhookApi(apiConfig),
+      outgoingEmail: createOutgoingEmailApi(apiConfig),
+      outgoingWebhook: createOutgoingWebhookApi(apiConfig),
       template: createEmailTemplateApi(apiConfig),
-      emailDomain: createEmailDomainApi(apiConfig),
+      emailProvider: createEmailProviderApi(apiConfig),
       emailAddress: createEmailAddressApi(apiConfig),
     },
     broadcast: createBroadcastApi(apiConfig),
@@ -374,7 +383,7 @@ export function createAdmin(config: CreateAdminConfig) {
     },
     actions: createActionsApi(apiConfig),
     experiments: createExperimentsApi(apiConfig),
-    analytics: createAnalyticsApi(apiConfig),
+    counts: createCountsApi(apiConfig),
     eshop: {
       product: createProductApi(apiConfig),
       productVariant: createProductVariantApi(apiConfig),
@@ -393,7 +402,6 @@ export function createAdmin(config: CreateAdminConfig) {
       customerGroupMember: createCustomerGroupMemberApi(apiConfig),
       paymentMethod: createPaymentMethodApi(apiConfig),
       payment: createPaymentApi(apiConfig),
-      providerEvent: createProviderEventApi(apiConfig),
       cart: createCartApi(apiConfig),
       order: {
         ...createOrderApi(apiConfig),
@@ -412,12 +420,12 @@ export function createAdmin(config: CreateAdminConfig) {
     },
 
     get session(): AdminSession | null {
-      if (apiToken) return null;
+      if (secretKey) return null;
       return toPublic(readAdminSession());
     },
 
     get isAuthenticated(): boolean {
-      if (apiToken) return true;
+      if (secretKey) return true;
       return readAdminSession() !== null;
     },
 
@@ -440,7 +448,7 @@ export function createAdmin(config: CreateAdminConfig) {
     },
 
     async logout(): Promise<import("./services/adminSession").AdminLogoutResult> {
-      if (apiToken) return { type: "api_token" };
+      if (secretKey) return { type: "secret_key" };
       const result = await sessionState.logout();
       emit();
       return result;
@@ -466,6 +474,9 @@ export interface StorefrontContext {
 export interface StorefrontOptions extends StorefrontContext {
   apiUrl?: string;
   sessionStorage?: StorefrontSessionStorage;
+  visitorIdentity?: IdentifyCustomerParams;
+  createVisitorIdentity?: () => IdentifyCustomerParams;
+  createSessionId?: () => string;
 }
 
 export const DEFAULT_STOREFRONT_API_URL = "https://api.arky.io";
@@ -514,12 +525,12 @@ function publishableKeyFingerprint(publishableKey: string): string {
 }
 
 function storefrontSessionStorageKey(apiUrl: string, publishableKey: string): string {
-  return `arky_customer_session:v3:${encodeURIComponent(apiUrl.toLowerCase())}:${publishableKeyFingerprint(publishableKey)}`;
+  return `arky_customer_session:v4:${encodeURIComponent(apiUrl.toLowerCase())}:${publishableKeyFingerprint(publishableKey)}`;
 }
 
 interface StoredCustomerSession {
-  version: 3;
-  customer: Customer;
+  version: 4;
+  customer: StorefrontCustomer;
   session: CustomerSessionIssued;
 }
 
@@ -559,10 +570,15 @@ function isIssuedCustomerSession(value: unknown): value is CustomerSessionIssued
   );
 }
 
-function isStoredCustomer(value: unknown): value is Customer {
+function isStoredCustomer(value: unknown): value is StorefrontCustomer {
   return (
     isRecord(value) &&
     typeof value.id === "string" &&
+    typeof value.store_id === "string" &&
+    Array.isArray(value.profile) &&
+    isRecord(value.type) &&
+    (value.type.type === "anonymous" ||
+      (value.type.type === "verified" && typeof value.type.email === "string" && Array.isArray(value.type.addresses))) &&
     isEpochMilliseconds(value.created_at) &&
     isEpochMilliseconds(value.updated_at)
   );
@@ -574,7 +590,7 @@ function parseStoredCustomerSession(value: string | null): CustomerSessionIntern
     const parsed: unknown = JSON.parse(value);
     if (
       !isRecord(parsed) ||
-      parsed.version !== 3 ||
+      parsed.version !== 4 ||
       !isStoredCustomer(parsed.customer) ||
       !isIssuedCustomerSession(parsed.session) ||
       parsed.session.customer_id !== parsed.customer.id
@@ -599,7 +615,12 @@ function createStorefrontClientCore(publishableKeyInput: string, options: Storef
   let locale = options.locale?.trim() ?? "";
   let market = contextKey(options.market, "market");
   const listeners = new Set<AuthStateListener<StorefrontCustomerSession>>();
+  let automaticRefreshPromise: Promise<CustomerSessionResult> | null = null;
+  let automaticRefreshId: string | null = null;
   let identifyPromise: Promise<CustomerSessionResult> | null = null;
+  let identifyKey: string | null = null;
+  let pendingVisitorIdentity: IdentifyCustomerParams | null = null;
+  let visitorIdentityConsumed = false;
   let identityTail: Promise<void> = Promise.resolve();
   let setupPromise: Promise<StorefrontSetup> | null = null;
   let setupValue: StorefrontSetup | null = null;
@@ -620,6 +641,8 @@ function createStorefrontClientCore(publishableKeyInput: string, options: Storef
     } catch {}
   }
 
+  visitorIdentityConsumed = Boolean(memorySession && options.visitorIdentity && memorySession.session.id === options.visitorIdentity.session_id);
+
   function authorizationToken(session: CustomerSessionInternal | null = memorySession): string | null {
     if (!session || session.session.status.type !== "active") return null;
     return session.session.type === "visitor" ? session.session.token : session.session.access_token;
@@ -633,7 +656,7 @@ function createStorefrontClientCore(publishableKeyInput: string, options: Storef
     if (!sessionStorage) return;
     try {
       if (session) {
-        const stored: StoredCustomerSession = { version: 3, customer: session.customer, session: session.session };
+        const stored: StoredCustomerSession = { version: 4, customer: session.customer, session: session.session };
         sessionStorage.setItem(storageKey, JSON.stringify(stored));
       } else {
         sessionStorage.removeItem(storageKey);
@@ -657,7 +680,9 @@ function createStorefrontClientCore(publishableKeyInput: string, options: Storef
   }
 
   const updateSession: CustomerSessionUpdater = (updater) => {
-    writeCustomerSession(updater(memorySession));
+    const next = updater(memorySession);
+    if (next === memorySession) return;
+    writeCustomerSession(next);
     emit();
   };
 
@@ -741,16 +766,34 @@ function createStorefrontClientCore(publishableKeyInput: string, options: Storef
   );
   const customerApi = storefrontApi.customer;
 
-  async function identify(params: { email?: string } = {}): Promise<CustomerSessionResult> {
+  function pickVisitorIdentity(): IdentifyCustomerParams {
+    if (pendingVisitorIdentity) return pendingVisitorIdentity;
+    const picked = !visitorIdentityConsumed && options.visitorIdentity
+      ? options.visitorIdentity
+      : options.createVisitorIdentity?.();
+    if (!picked) throw new Error("A new Visitor requires caller-picked IDs through customer.identify or createVisitorIdentity");
+    pendingVisitorIdentity = {
+      customer_id: requireId(picked.customer_id, "customer"),
+      session_id: requireId(picked.session_id, "customer session"),
+    };
+    return pendingVisitorIdentity;
+  }
+
+  async function identify(params: IdentifyCustomerParams = pickVisitorIdentity()): Promise<CustomerSessionResult> {
     requireVisitorSessionCapability();
-    const isBareCall = !params.email;
-    if (isBareCall && identifyPromise) return identifyPromise;
-    const promise = identityTail.then(() => customerApi.identify(params));
+    const key = `${params.customer_id}:${params.session_id}`;
+    if (identifyPromise && identifyKey === key) return identifyPromise;
+    const promise = identityTail.then(() => customerApi.identify(params)).then((result) => {
+      visitorIdentityConsumed = true;
+      if (pendingVisitorIdentity?.customer_id === params.customer_id && pendingVisitorIdentity.session_id === params.session_id) pendingVisitorIdentity = null;
+      return result;
+    });
     identityTail = promise.then(
       () => undefined,
       () => undefined,
     );
-    if (isBareCall) {
+    {
+      identifyKey = key;
       identifyPromise = promise;
       void promise.then(
         () => {
@@ -784,26 +827,30 @@ function createStorefrontClientCore(publishableKeyInput: string, options: Storef
     await ensureVisitorSession();
     const requested = memorySession;
     const result = await customerApi.changeEmail(params, options);
-    applyAnsweredCustomer(requested, result.customer);
+    applyAnsweredCustomer(requested, result);
     identifyPromise = null;
     return result;
   }
 
-  async function refresh(): Promise<CustomerSessionResult> {
+  async function refresh(params: RefreshCustomerSessionParams): Promise<CustomerSessionResult> {
     requireVisitorSessionCapability();
-    const result = await customerApi.refresh();
+    const result = await customerApi.refresh(params);
     identifyPromise = null;
     return result;
   }
 
-  function applyAnsweredCustomer(requested: CustomerSessionInternal | null, customer: Customer): void {
+  function applyAnsweredCustomer(requested: CustomerSessionInternal | null, result: CustomerMe): void {
+    const customer = result.customer;
     const current = memorySession;
     if (
       !requested ||
       !current ||
       current.session.id !== requested.session.id ||
       current.customer.id !== requested.customer.id ||
-      customer.id !== requested.customer.id
+      customer.id !== requested.customer.id ||
+      result.session.id !== requested.session.id ||
+      result.session.customer_id !== requested.customer.id ||
+      result.session.store_id !== requested.customer.store_id
     ) {
       return;
     }
@@ -814,7 +861,7 @@ function createStorefrontClientCore(publishableKeyInput: string, options: Storef
     await ensureVisitorSession();
     const requested = memorySession;
     const result = await customerApi.getMe(options);
-    applyAnsweredCustomer(requested, result.customer);
+    applyAnsweredCustomer(requested, result);
     return result;
   }
 
@@ -822,13 +869,18 @@ function createStorefrontClientCore(publishableKeyInput: string, options: Storef
     await ensureVisitorSession();
     const requested = memorySession;
     const result = await customerApi.updateMe(params, options);
-    applyAnsweredCustomer(requested, result.customer);
+    applyAnsweredCustomer(requested, result);
     return result;
   }
 
   async function resubscribe(options?: RequestOptions): Promise<CustomerMe> {
     await ensureVisitorSession();
     return customerApi.resubscribe(options);
+  }
+
+  async function unsubscribe(options?: RequestOptions): Promise<CustomerMe> {
+    await ensureVisitorSession();
+    return customerApi.unsubscribe(options);
   }
 
   async function logout(): Promise<void> {
@@ -873,7 +925,16 @@ function createStorefrontClientCore(publishableKeyInput: string, options: Storef
     }
     if (memorySession?.session.type === "email_authenticated") {
       try {
-        await refresh();
+        if (!options.createSessionId) return false;
+        if (!automaticRefreshPromise) {
+          const refreshSessionId = automaticRefreshId ?? requireId(options.createSessionId(), "customer session");
+          automaticRefreshId = refreshSessionId;
+          automaticRefreshPromise = refresh({ session_id: refreshSessionId }).then((result) => {
+            automaticRefreshId = null;
+            return result;
+          }).finally(() => { automaticRefreshPromise = null; });
+        }
+        await automaticRefreshPromise;
         return true;
       } catch {
         updateSession(() => null);
@@ -934,9 +995,11 @@ function createStorefrontClientCore(publishableKeyInput: string, options: Storef
       getMe: me,
       updateMe,
       resubscribe,
+      unsubscribe,
     },
     actions: storefrontApi.actions,
     experiments: storefrontApi.experiments,
+    pageViews: createStorefrontPageViewsApi(apiConfig),
     support: createStorefrontSupportApi(httpClient, ensureVisitorSession),
     getSetup,
     setContext,
@@ -974,3 +1037,5 @@ function createStorefrontClient(publishableKey: string, options: StorefrontOptio
 export function createStorefront(publishableKey: string, options: StorefrontOptions = {}): StorefrontClient {
   return createStorefrontClient(publishableKey, options);
 }
+
+export { createOrderToken, isOrderToken, retainOrderToken, replaceOrderToken, readOrderToken } from "./utils/orderToken";

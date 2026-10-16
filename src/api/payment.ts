@@ -7,17 +7,18 @@ import type {
   CreateManualPaymentParams,
   CreatePaymentRefundParams,
   FindPaymentsParams,
-  FindProviderEventsParams,
+  FindIncomingWebhooksParams,
   GetPaymentParams,
-  GetProviderEventParams,
+  GetIncomingWebhookParams,
   Payment,
-  ProviderEvent,
+  IncomingWebhook,
   RecordPaymentCollectionParams,
   RecordRefundReceiptParams,
   ResolvePaymentChargeParams,
   ResolvePaymentHoldParams,
   ResolvePaymentRefundParams,
-  ResolveProviderEventParams,
+  ResolveIncomingWebhookParams,
+  VoidPaymentCollectionParams,
 } from "../types/payment";
 import { requireId } from "../utils/ids";
 import { segment, storePath, storeRecordPath } from "./paths";
@@ -31,10 +32,19 @@ export const createPaymentApi = (apiConfig: ApiConfig) => {
 
   return {
     find(params: FindPaymentsParams, options?: RequestOptions): Promise<PaginatedResponse<Payment>> {
-      const { store_id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<Payment>>(storePath(store_id, collection), {
+      return apiConfig.httpClient.get<PaginatedResponse<Payment>>(storePath(params.store_id, collection), {
         ...options,
-        params: query,
+        params: {
+          order_id: params.order_id,
+          status: params.status,
+          type: params.type,
+          on_hold: params.on_hold,
+          updated_at_from: params.updated_at_from,
+          sort_field: params.sort_field,
+          sort_direction: params.sort_direction,
+          limit: params.limit,
+          cursor: params.cursor,
+        },
       });
     },
 
@@ -44,26 +54,52 @@ export const createPaymentApi = (apiConfig: ApiConfig) => {
 
     createManual(params: CreateManualPaymentParams, options?: RequestOptions): Promise<Payment> {
       requireId(params.id, "payment");
-      const { store_id, ...body } = params;
-      return apiConfig.httpClient.post<Payment>(storePath(store_id, `${collection}/manual`), body, options);
+      return apiConfig.httpClient.post<Payment>(storePath(params.store_id, `${collection}/manual`), {
+        id: params.id,
+        order_id: params.order_id,
+        payment_option_id: params.payment_option_id,
+        money: params.money,
+        reference: params.reference,
+      }, options);
     },
 
     recordCollection(params: RecordPaymentCollectionParams, options?: RequestOptions): Promise<Payment> {
       requireId(params.id, "collection");
-      const { store_id, payment_id, ...body } = params;
-      return apiConfig.httpClient.post<Payment>(`${paymentPath(store_id, payment_id)}/collections`, body, options);
+      return apiConfig.httpClient.post<Payment>(`${paymentPath(params.store_id, params.payment_id)}/collections`, {
+        id: params.id,
+        money: params.money,
+        reference: params.reference,
+      }, options);
+    },
+
+    voidCollection(params: VoidPaymentCollectionParams, options?: RequestOptions): Promise<Payment> {
+      return apiConfig.httpClient.post<Payment>(
+        `${paymentPath(params.store_id, params.payment_id)}/collections/${segment(params.collection_id)}/void`,
+        { expected_updated_at: params.expected_updated_at, reason: params.reason },
+        options,
+      );
     },
 
     createRefund(params: CreatePaymentRefundParams, options?: RequestOptions): Promise<Payment> {
       requireId(params.id, "refund");
-      const { store_id, payment_id, ...body } = params;
-      return apiConfig.httpClient.post<Payment>(`${paymentPath(store_id, payment_id)}/refunds`, body, options);
+      return apiConfig.httpClient.post<Payment>(`${paymentPath(params.store_id, params.payment_id)}/refunds`, {
+        id: params.id,
+        money: params.money,
+        reason: params.reason,
+        application: params.application,
+        notify_customer: params.notify_customer,
+      }, options);
     },
 
     recordRefundReceipt(params: RecordRefundReceiptParams, options?: RequestOptions): Promise<Payment> {
-      requireId(params.id, "refund receipt");
-      const { store_id, payment_id, refund_id, ...body } = params;
-      return apiConfig.httpClient.post<Payment>(`${refundPath(store_id, payment_id, refund_id)}/receipts`, body, options);
+      return apiConfig.httpClient.post<Payment>(
+        `${refundPath(params.store_id, params.payment_id, params.refund_id)}/receipts`,
+        {
+          expected_updated_at: params.expected_updated_at,
+          receipt: { type: params.receipt.type, reference: params.receipt.reference },
+        },
+        options,
+      );
     },
 
     cancelRefund(params: CancelPaymentRefundParams, options?: RequestOptions): Promise<Payment> {
@@ -91,8 +127,11 @@ export const createPaymentApi = (apiConfig: ApiConfig) => {
     },
 
     resolveHold(params: ResolvePaymentHoldParams, options?: RequestOptions): Promise<Payment> {
-      const { store_id, payment_id, ...body } = params;
-      return apiConfig.httpClient.post<Payment>(`${paymentPath(store_id, payment_id)}/resolve-hold`, body, options);
+      return apiConfig.httpClient.post<Payment>(`${paymentPath(params.store_id, params.payment_id)}/resolve-hold`, {
+        expected_updated_at: params.expected_updated_at,
+        hold_id: params.hold_id,
+        note: params.note,
+      }, options);
     },
 
     cancel(params: CancelPaymentParams, options?: RequestOptions): Promise<Payment> {
@@ -105,24 +144,22 @@ export const createPaymentApi = (apiConfig: ApiConfig) => {
   };
 };
 
-export const createProviderEventApi = (apiConfig: ApiConfig) => ({
-  find(params: FindProviderEventsParams, options?: RequestOptions): Promise<PaginatedResponse<ProviderEvent>> {
-    const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<PaginatedResponse<ProviderEvent>>(storePath(store_id, "provider-events"), {
+export const createIncomingWebhookApi = (apiConfig: ApiConfig) => ({
+  find(params: FindIncomingWebhooksParams, options?: RequestOptions): Promise<PaginatedResponse<IncomingWebhook>> {
+    return apiConfig.httpClient.get<PaginatedResponse<IncomingWebhook>>(storePath(params.store_id, "incoming-webhooks"), {
       ...options,
-      params: query,
+      params: { status: params.status, limit: params.limit, cursor: params.cursor },
     });
   },
 
-  get(params: GetProviderEventParams, options?: RequestOptions): Promise<ProviderEvent> {
-    return apiConfig.httpClient.get<ProviderEvent>(storeRecordPath(params.store_id, "provider-events", params.id), options);
+  get(params: GetIncomingWebhookParams, options?: RequestOptions): Promise<IncomingWebhook> {
+    return apiConfig.httpClient.get<IncomingWebhook>(storeRecordPath(params.store_id, "incoming-webhooks", params.id), options);
   },
 
-  resolve(params: ResolveProviderEventParams, options?: RequestOptions): Promise<ProviderEvent> {
-    const { store_id, id, ...body } = params;
-    return apiConfig.httpClient.post<ProviderEvent>(
-      `${storeRecordPath(store_id, "provider-events", id)}/resolve`,
-      body,
+  resolve(params: ResolveIncomingWebhookParams, options?: RequestOptions): Promise<IncomingWebhook> {
+    return apiConfig.httpClient.post<IncomingWebhook>(
+      `${storeRecordPath(params.store_id, "incoming-webhooks", params.id)}/resolve`,
+      { expected_updated_at: params.expected_updated_at, resolution: params.resolution },
       options,
     );
   },

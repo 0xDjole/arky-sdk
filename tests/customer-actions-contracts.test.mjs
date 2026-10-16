@@ -12,7 +12,7 @@ test("Admin reads the typed Customer Action timeline with only the customer filt
       store_id: ids.store,
       customer_id: ids.customer,
       origin: { type: "storefront", customer_session_id: ids.session },
-      type: { type: "custom", key: "page.view", data: { path: "/products/example" } },
+      type: { type: "custom", key: "product.view", data: { path: "/products/example" } },
       occurred_at: 1,
     },
     {
@@ -35,7 +35,7 @@ test("Admin reads the typed Customer Action timeline with only the customer filt
   const calls = recordFetch(context, (call) => call.path.endsWith("/actions")
     ? { items: actions, cursor: null }
     : { items: [], cursor: null });
-  const admin = createAdmin({ baseUrl: apiUrl, apiToken: "arky_api_actions" });
+  const admin = createAdmin({ baseUrl: apiUrl, secretKey: "arky_api_actions" });
   const found = await admin.actions.find({ store_id: ids.store, customer_id: ids.customer, limit: 20 });
   await admin.customers.find({ store_id: ids.store, has_customer_action: true });
   assert.deepEqual(found, { items: actions, cursor: null });
@@ -48,7 +48,6 @@ test("Admin reads the typed Customer Action timeline with only the customer filt
 
 test("the server records commerce, support and customer group actions itself, so the storefront suggests only custom keys", () => {
   assert.deepEqual([...COMMON_CUSTOMER_ACTION_KEYS], [
-    "page.view",
     "product.view",
     "booking_service.view",
     "booking_resource.view",
@@ -60,7 +59,7 @@ test("the server records commerce, support and customer group actions itself, so
     "share",
     "wishlist.added",
   ]);
-  for (const removed of ["cart.added", "cart.removed", "order.created", "service.view", "provider.view"]) {
+  for (const removed of ["page.view", "cart.added", "cart.removed", "order.created", "service.view", "provider.view"]) {
     assert.equal(COMMON_CUSTOMER_ACTION_KEYS.includes(removed), false, removed);
   }
   assert.deepEqual([...TYPED_CUSTOMER_ACTION_KEYS], [
@@ -81,13 +80,14 @@ test("the server records commerce, support and customer group actions itself, so
   for (const key of TYPED_CUSTOMER_ACTION_KEYS) assert.equal(COMMON_CUSTOMER_ACTION_KEYS.includes(key), false, key);
 });
 
-test("initialized storefront tracks a page view with the visitor session and only the key and data", async (context) => {
+test("initialized storefront tracks an action with the visitor session and only the key and data, and page views are no action", async (context) => {
   const calls = recordFetch(context, () => new Response(null, { status: 204 }));
-  const store = initialize(publishableKey, { apiUrl, locale: "en", sessionStorage: visitorStorage() });
-  await store.actions.pageView({ path: "/products/example" });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, locale: "en", sessionStorage: visitorStorage() });
+  assert.equal(store.actions.pageView, undefined);
+  await store.actions.track({ key: "product.view", data: { path: "/products/example" } });
   await store.actions.track({ key: "search" });
   assert.deepEqual(calls.map((call) => [call.method, call.path, call.body]), [
-    ["POST", "/v1/storefront/actions/track", { key: "page.view", data: { path: "/products/example" } }],
+    ["POST", "/v1/storefront/actions/track", { key: "product.view", data: { path: "/products/example" } }],
     ["POST", "/v1/storefront/actions/track", { key: "search" }],
   ]);
   for (const call of calls) {
@@ -98,7 +98,7 @@ test("initialized storefront tracks a page view with the visitor session and onl
 
 test("the storefront action client forwards no store, customer or session field from the caller", async (context) => {
   const calls = recordFetch(context, () => new Response(null, { status: 204 }));
-  const storefront = createStorefront(publishableKey, { apiUrl, sessionStorage: visitorStorage() });
+  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, sessionStorage: visitorStorage() });
   await storefront.actions.track({ key: "share", data: { channel: "email" }, store_id: ids.otherStore, customer_id: ids.otherCustomer });
   assert.deepEqual(calls[0].body, { key: "share", data: { channel: "email" } });
 });

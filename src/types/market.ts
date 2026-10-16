@@ -28,21 +28,6 @@ export interface SalesChannel {
   updated_at: EpochMilliseconds;
 }
 
-export type StorefrontKeyStatus =
-  | { type: "active" }
-  | { type: "revoked"; revoked_at: EpochMilliseconds };
-
-export interface StorefrontKey {
-  id: string;
-  store_id: string;
-  key: string;
-  publishable_key: string;
-  sales_channel_id: string;
-  status: StorefrontKeyStatus;
-  created_at: EpochMilliseconds;
-  updated_at: EpochMilliseconds;
-}
-
 export type ZoneArea =
   | { type: "country"; country: string }
   | { type: "state"; country: string; state: string }
@@ -148,31 +133,6 @@ export interface UpdateSalesChannelParams {
 }
 
 export interface DeleteSalesChannelParams {
-  store_id: string;
-  id: string;
-  expected_updated_at: EpochMilliseconds;
-}
-
-export interface FindStorefrontKeysParams {
-  store_id: string;
-  sales_channel_id?: string;
-  limit?: number;
-  cursor?: string | null;
-}
-
-export interface GetStorefrontKeyParams {
-  store_id: string;
-  id: string;
-}
-
-export interface CreateStorefrontKeyParams {
-  store_id: string;
-  id: string;
-  key: string;
-  sales_channel_id: string;
-}
-
-export interface RevokeStorefrontKeyParams {
   store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;

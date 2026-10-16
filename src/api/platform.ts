@@ -10,7 +10,9 @@ import type {
 import type { WebhookEventMetadata } from "../types/webhook";
 import type {
   FindStripeBillingEventsParams,
-  ProviderEvent,
+  FindResendEventsParams,
+  ResolveResendEventParams,
+  IncomingWebhook,
   ResolveStripeBillingEventParams,
 } from "../types/payment";
 import type { StorePlan } from "../types/store";
@@ -60,19 +62,29 @@ export const createPlatformApi = (apiConfig: ApiConfig) => ({
   },
 
   stripeBillingEvent: {
-    find(params: FindStripeBillingEventsParams, options?: RequestOptions): Promise<PaginatedResponse<ProviderEvent>> {
-      return apiConfig.httpClient.get<PaginatedResponse<ProviderEvent>>(
-        "/v1/platform/provider-events/stripe-billing",
+    find(params: FindStripeBillingEventsParams, options?: RequestOptions): Promise<PaginatedResponse<IncomingWebhook>> {
+      return apiConfig.httpClient.get<PaginatedResponse<IncomingWebhook>>(
+        "/v1/platform/incoming-webhooks/stripe-billing",
         { ...options, params },
       );
     },
 
-    resolve(params: ResolveStripeBillingEventParams, options?: RequestOptions): Promise<ProviderEvent> {
-      return apiConfig.httpClient.post<ProviderEvent>(
-        `/v1/platform/provider-events/stripe-billing/${segment(params.id)}/resolve`,
+    resolve(params: ResolveStripeBillingEventParams, options?: RequestOptions): Promise<IncomingWebhook> {
+      return apiConfig.httpClient.post<IncomingWebhook>(
+        `/v1/platform/incoming-webhooks/stripe-billing/${segment(params.id)}/resolve`,
         { expected_updated_at: params.expected_updated_at, resolution: params.resolution },
         options,
       );
     },
   },
+  resendEvent: {
+    find(params: FindResendEventsParams, options?: RequestOptions): Promise<PaginatedResponse<IncomingWebhook>> {
+      return apiConfig.httpClient.get<PaginatedResponse<IncomingWebhook>>("/v1/platform/incoming-webhooks/resend", { ...options, params });
+    },
+    resolve(params: ResolveResendEventParams, options?: RequestOptions): Promise<IncomingWebhook> {
+      const { id, ...body } = params;
+      return apiConfig.httpClient.post<IncomingWebhook>(`/v1/platform/incoming-webhooks/resend/${segment(id)}/resolve`, body, options);
+    },
+  },
+
 });

@@ -28,7 +28,7 @@ for (const owner of ["product", "bookingService", "bookingOffering"]) {
       const body = isList ? { items: [record], cursor: "next" } : record;
       return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
     });
-    const client = createStorefront(publishableKey, {
+    const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14",
       apiUrl: "https://api.example.test",
       locale: "bs",
       market: "bih",
@@ -41,10 +41,10 @@ for (const owner of ["product", "bookingService", "bookingOffering"]) {
     assert.equal(calls[0].url.searchParams.has("company_id"), false);
     assert.equal(calls[0].url.searchParams.get("company_location_id"), locationId);
     assert.equal(calls[0].url.searchParams.get("include_price"), "true");
-    await api.find({ ...selector, include_price: false });
+    await api.find({ ...selector, catalog_id: catalogId, include_price: false });
     assert.equal(calls[1].url.searchParams.has("company_id"), false);
     assert.equal(calls[1].url.searchParams.has("company_location_id"), false);
-    assert.equal(calls[1].url.searchParams.has("catalog_id"), false);
+    assert.equal(calls[1].url.searchParams.get("catalog_id"), catalogId);
     assert.equal(calls[1].url.searchParams.get("include_price"), "false");
     if (owner !== "bookingOffering") {
       const identifier = "catalog/item?literal";
@@ -54,9 +54,9 @@ for (const owner of ["product", "bookingService", "bookingOffering"]) {
       assert.equal(calls[2].url.searchParams.get("company_id"), companyId);
       assert.equal(calls[2].url.searchParams.has("company_location_id"), false);
       assert.equal(calls[2].url.searchParams.get("include_price"), "true");
-      await api.get({ slug: "the-slug" });
+      await api.get({ slug: "the-slug", catalog_id: catalogId });
       assert.ok(calls[3].url.pathname.endsWith("/the-slug"));
-      assert.equal(calls[3].url.search, "");
+      assert.equal(calls[3].url.searchParams.get("catalog_id"), catalogId);
     }
     for (const call of calls) {
       assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
@@ -77,14 +77,14 @@ for (const [owner, route] of [["product", "products"], ["bookingService", "booki
       calls.push({ url: new URL(url), headers: new Headers(init.headers) });
       return new Response(JSON.stringify(record), { status: 200, headers: { "content-type": "application/json" } });
     });
-    const client = createStorefront(publishableKey, { apiUrl: "https://api.example.test", locale: "bs", market: "bih" });
-    assert.deepEqual(await client.eshop[owner].getByKey({ key: "espresso-x1", catalog_id: catalogId, company_location_id: locationId, include_price: true }), record);
-    await client.eshop[owner].getByKey({ key: "with/slash" });
-    await client.eshop[owner].get({ slug: "espresso-x1" });
+    const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl: "https://api.example.test", locale: "bs", market: "bih" });
+    assert.deepEqual(await client.eshop[owner].getByKey({ key: "classic-x1", catalog_id: catalogId, company_location_id: locationId, include_price: true }), record);
+    await client.eshop[owner].getByKey({ key: "with/slash", catalog_id: catalogId });
+    await client.eshop[owner].get({ slug: "classic-x1", catalog_id: catalogId });
     assert.deepEqual(calls.map((call) => [call.url.pathname, Object.fromEntries(call.url.searchParams)]), [
-      [`/v1/storefront/${route}/by-key/espresso-x1`, { catalog_id: catalogId, company_location_id: locationId, include_price: "true" }],
-      [`/v1/storefront/${route}/by-key/with%2Fslash`, {}],
-      [`/v1/storefront/${route}/espresso-x1`, {}],
+      [`/v1/storefront/${route}/by-key/classic-x1`, { catalog_id: catalogId, company_location_id: locationId, include_price: "true" }],
+      [`/v1/storefront/${route}/by-key/with%2Fslash`, { catalog_id: catalogId }],
+      [`/v1/storefront/${route}/classic-x1`, { catalog_id: catalogId }],
     ]);
     for (const call of calls) {
       assert.equal(call.headers.get("x-arky-locale"), "bs");
@@ -95,14 +95,14 @@ for (const [owner, route] of [["product", "products"], ["bookingService", "booki
 
 test("the storefront store exposes the by-key reads next to get", async () => {
   const { initialize } = await import("../dist/storefront.js");
-  const store = initialize(publishableKey, { apiUrl: "https://api.example.test", locale: "bs" });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl: "https://api.example.test", locale: "bs" });
   assert.equal(typeof store.eshop.product.getByKey, "function");
   assert.equal(typeof store.eshop.bookingService.getByKey, "function");
   assert.equal(typeof store.category.getByKey, "function");
 });
 
 test("the storefront has no separate digital product catalog", () => {
-  const client = createStorefront(publishableKey, { apiUrl: "https://api.example.test" });
+  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl: "https://api.example.test" });
   assert.equal("digital" in client.eshop, false);
   assert.equal("digitalProduct" in client.eshop, false);
 });

@@ -28,6 +28,12 @@ export function copyCartProductPurchase(purchase: CartProductPurchase): CartProd
         cart_customer_group_line_item_id: purchase.cart_customer_group_line_item_id,
         entitlement_id: purchase.entitlement_id,
       };
+    case "assigned_purchase_access":
+      return {
+        type: "assigned_purchase_access",
+        customer_group_member_id: purchase.customer_group_member_id,
+        entitlement_id: purchase.entitlement_id,
+      };
     default:
       throw new Error("A cart product needs an explicit supported purchase route");
   }
@@ -71,7 +77,6 @@ export function storefrontCartProduct(item: StorefrontCartProductLineItemInput):
   requireId(item.id, "cart line");
   return {
     id: item.id,
-    product_id: item.product_id,
     variant_id: item.variant_id,
     quantity: item.quantity,
     purchase: copyCartProductPurchase(item.purchase),
@@ -97,6 +102,8 @@ export function storefrontCartCustomerGroup(
   return {
     id: item.id,
     customer_group_id: item.customer_group_id,
+    quantity: item.quantity,
+    choices: item.choices.map(({ entitlement_id, variant_id }) => ({ entitlement_id, variant_id })),
     start: item.start,
     ...(item.deliveries !== undefined ? { deliveries: item.deliveries } : {}),
   };
@@ -123,7 +130,8 @@ export function storefrontCartUpdateBody(
   return {
     expected_updated_at: input.expected_updated_at,
     ...(input.buyer !== undefined ? { buyer: input.buyer } : {}),
-    ...(input.catalog !== undefined ? { catalog: input.catalog } : {}),
+    ...(input.catalog_id !== undefined ? { catalog_id: input.catalog_id } : {}),
+    ...(input.blocks !== undefined ? { blocks: input.blocks } : {}),
     ...(input.line_items !== undefined ? { line_items: storefrontCartLineItems(input.line_items) } : {}),
     ...(input.delivery_groups !== undefined ? { delivery_groups: input.delivery_groups } : {}),
     ...(input.billing_address !== undefined ? { billing_address: input.billing_address } : {}),

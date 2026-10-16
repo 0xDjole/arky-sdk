@@ -17,7 +17,7 @@ test("the setup carries no market, and the selected market is one exact read by 
     if (call.path === "/v1/storefront/markets/by-key/trade") return market("trade", "usd");
     throw new Error(`Unexpected request: ${call.path}`);
   });
-  const store = initialize(publishableKey, { apiUrl, market: "trade" });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, market: "trade" });
   const loaded = await store.store.load();
   assert.deepEqual(loaded, setup());
   assert.equal("markets" in loaded, false);
@@ -36,7 +36,7 @@ test("the setup carries no market, and the selected market is one exact read by 
 
 test("without an explicit market the setup loads without inventing one, and a malformed market key is refused up front", async (context) => {
   const calls = recordFetch(context, () => setup());
-  const store = initialize(publishableKey, { apiUrl });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl });
   assert.deepEqual(await store.store.load(), setup());
   assert.equal(store.market.get(), null);
   assert.equal(store.currency.get(), null);
@@ -44,8 +44,8 @@ test("without an explicit market the setup loads without inventing one, and a ma
   assert.equal(store.getMarket(), "");
   assert.deepEqual(calls.map((call) => call.path), ["/v1/storefront"]);
   for (const selected of ["Retail", "retail market", "retail\tmarket"]) {
-    assert.throws(() => initialize(publishableKey, { apiUrl, market: selected }), /market must be a valid exact key/);
-    assert.throws(() => createStorefront(publishableKey, { apiUrl, market: selected }), /market must be a valid exact key/);
+    assert.throws(() => initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, market: selected }), /market must be a valid exact key/);
+    assert.throws(() => createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, market: selected }), /market must be a valid exact key/);
   }
 });
 
@@ -68,7 +68,7 @@ test("a late market read can't replace a newer market selection or its currency 
     if (call.path.endsWith("/new")) return market("new", "usd");
     throw new Error(`Unexpected request: ${call.path}`);
   });
-  const store = initialize(publishableKey, { apiUrl, market: "old" });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, market: "old" });
   const rejected = assert.rejects(store.store.load(), /market changed while the store setup was loading/);
   await requested;
   store.setMarket("new");
@@ -93,7 +93,7 @@ test("a failed or mismatched market read never falls back to another market", as
     }
     throw new Error(`Unexpected request: ${call.path}`);
   });
-  const store = initialize(publishableKey, { apiUrl, market: "trade" });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, market: "trade" });
   await assert.rejects(store.store.load(), (error) => error.statusCode === 503);
   assert.equal(store.market.get(), null);
   failure = false;
@@ -105,7 +105,7 @@ test("a failed or mismatched market read never falls back to another market", as
 
 test("a market read by key encodes the key and creates no session", async (context) => {
   const calls = recordFetch(context, () => market("retail"));
-  const client = createStorefront(publishableKey, { apiUrl });
+  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl });
   await client.store.market.getByKey("a/b");
   assert.equal(calls.length, 1);
   assert.equal(calls[0].path, "/v1/storefront/markets/by-key/a%2Fb");

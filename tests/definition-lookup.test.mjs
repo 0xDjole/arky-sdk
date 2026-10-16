@@ -13,7 +13,7 @@ test("Admin payment resume targets the placed Order without creating a new reque
     return new Response(JSON.stringify(action), { headers: { "content-type": "application/json" } });
   };
   try {
-    const api = createAdmin({ baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).eshop;
+    const api = createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop;
     assert.deepEqual(await api.cart.paymentAction({ store_id: STORE_ID, order_id: "order/one" }), action);
     assert.equal(calls.length, 1);
     assert.equal(calls[0].url.pathname, `/v1/stores/${STORE_ID}/orders/order%2Fone/payment-action`);
@@ -34,7 +34,7 @@ test("known commerce definitions use exact key/binding reads without discovery o
     return new Response(JSON.stringify({ id: "retained", key: "selected" }), { headers: { "content-type": "application/json" } });
   };
   try {
-    const api = createAdmin({ baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).eshop;
+    const api = createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop;
     for (const owner of [api.product, api.bookingService, api.bookingResource, api.catalog]) {
       assert.equal((await owner.getByKey({ store_id: STORE_ID, key: "demo-key" })).id, "retained");
     }
@@ -74,7 +74,7 @@ test("a known booking offering is read by its exact id for catalog price labels"
     return new Response(JSON.stringify(offering), { headers: { "content-type": "application/json" } });
   };
   try {
-    const api = createAdmin({ baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).eshop;
+    const api = createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop;
     assert.deepEqual(await api.bookingOffering.get({ store_id: STORE_ID, id: "offering/one" }), offering);
     assert.deepEqual(calls.map(({ url, method }) => [method, url.pathname, url.search]), [
       ["GET", `/v1/stores/${STORE_ID}/booking-offerings/offering%2Fone`, ""],

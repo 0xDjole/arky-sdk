@@ -2,48 +2,57 @@ import type { ApiConfig } from "../services/clientTypes";
 import type { RequestOptions } from "../types/api";
 import type { PaginatedResponse } from "../types/common";
 import type {
+  GetEmailProviderParams,
+  ConnectEmailProviderParams,
+  ReplaceEmailProviderKeyParams,
+  FindEmailProviderDomainsParams,
+  EmailProvider,
+  EmailProviderDomain,
   ChangeEmailAddressStatusParams,
   CreateEmailAddressParams,
-  CreateEmailDomainParams,
   CreateEmailTemplateParams,
   DeleteEmailAddressParams,
-  DeleteEmailDomainParams,
   DeleteEmailTemplateParams,
   EmailAddress,
-  EmailDomain,
   EmailTemplate,
   EmailTemplateDefault,
   EmailTemplatePreview,
   FindEmailAddressesParams,
-  FindEmailDomainsParams,
   FindEmailTemplateDefaultsParams,
   FindEmailTemplatesParams,
-  FindNotificationsParams,
+  FindOutgoingEmailsParams,
+  FindOutgoingWebhooksParams,
   GetEmailAddressParams,
-  GetEmailDomainParams,
   GetEmailTemplateParams,
-  GetNotificationParams,
-  Notification,
+  GetOutgoingEmailParams,
+  GetOutgoingWebhookParams,
+  OutgoingEmail,
+  OutgoingWebhook,
   PreviewEmailTemplateParams,
   SendEmailTemplateTestParams,
   UpdateEmailAddressParams,
   UpdateEmailTemplateParams,
-  VerifyEmailDomainParams,
 } from "../types/notification";
 import { requireId } from "../utils/ids";
 import { storePath, storeRecordPath } from "./paths";
 
-export const createNotificationApi = (apiConfig: ApiConfig) => ({
-  find(params: FindNotificationsParams, options?: RequestOptions): Promise<PaginatedResponse<Notification>> {
+export const createOutgoingEmailApi = (apiConfig: ApiConfig) => ({
+  find(params: FindOutgoingEmailsParams, options?: RequestOptions): Promise<PaginatedResponse<OutgoingEmail>> {
     const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<PaginatedResponse<Notification>>(storePath(store_id, "notifications"), {
-      ...options,
-      params: query,
-    });
+    return apiConfig.httpClient.get<PaginatedResponse<OutgoingEmail>>(storePath(store_id, "outgoing-emails"), { ...options, params: query });
   },
+  get(params: GetOutgoingEmailParams, options?: RequestOptions): Promise<OutgoingEmail> {
+    return apiConfig.httpClient.get<OutgoingEmail>(storeRecordPath(params.store_id, "outgoing-emails", params.id), options);
+  },
+});
 
-  get(params: GetNotificationParams, options?: RequestOptions): Promise<Notification> {
-    return apiConfig.httpClient.get<Notification>(storeRecordPath(params.store_id, "notifications", params.id), options);
+export const createOutgoingWebhookApi = (apiConfig: ApiConfig) => ({
+  find(params: FindOutgoingWebhooksParams, options?: RequestOptions): Promise<PaginatedResponse<OutgoingWebhook>> {
+    const { store_id, ...query } = params;
+    return apiConfig.httpClient.get<PaginatedResponse<OutgoingWebhook>>(storePath(store_id, "outgoing-webhooks"), { ...options, params: query });
+  },
+  get(params: GetOutgoingWebhookParams, options?: RequestOptions): Promise<OutgoingWebhook> {
+    return apiConfig.httpClient.get<OutgoingWebhook>(storeRecordPath(params.store_id, "outgoing-webhooks", params.id), options);
   },
 });
 
@@ -91,12 +100,12 @@ export const createEmailTemplateApi = (apiConfig: ApiConfig) => ({
     );
   },
 
-  test(params: SendEmailTemplateTestParams, options?: RequestOptions): Promise<Notification> {
-    requireId(params.notification_id, "test email");
-    return apiConfig.httpClient.post<Notification>(
+  test(params: SendEmailTemplateTestParams, options?: RequestOptions): Promise<OutgoingEmail> {
+    requireId(params.outgoing_email_id, "test email");
+    return apiConfig.httpClient.post<OutgoingEmail>(
       `${storeRecordPath(params.store_id, "email-templates", params.id)}/test`,
       {
-        id: params.notification_id,
+        id: params.outgoing_email_id,
         language: params.language,
         ...(params.sending_address_id !== undefined ? { sending_address_id: params.sending_address_id } : {}),
       },
@@ -105,38 +114,24 @@ export const createEmailTemplateApi = (apiConfig: ApiConfig) => ({
   },
 });
 
-export const createEmailDomainApi = (apiConfig: ApiConfig) => ({
-  find(params: FindEmailDomainsParams, options?: RequestOptions): Promise<PaginatedResponse<EmailDomain>> {
-    const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<PaginatedResponse<EmailDomain>>(storePath(store_id, "email-domains"), {
-      ...options,
-      params: query,
-    });
-  },
-
-  get(params: GetEmailDomainParams, options?: RequestOptions): Promise<EmailDomain> {
-    return apiConfig.httpClient.get<EmailDomain>(storeRecordPath(params.store_id, "email-domains", params.id), options);
-  },
-
-  create(params: CreateEmailDomainParams, options?: RequestOptions): Promise<EmailDomain> {
-    requireId(params.id, "email domain");
+export const createEmailProviderApi = (apiConfig: ApiConfig) => ({
+  connect(params: ConnectEmailProviderParams, options?: RequestOptions): Promise<EmailProvider> {
+    requireId(params.id, "email provider");
     const { store_id, ...body } = params;
-    return apiConfig.httpClient.post<EmailDomain>(storePath(store_id, "email-domains"), body, options);
+    return apiConfig.httpClient.post<EmailProvider>(storePath(store_id, "email-provider"), body, options);
   },
-
-  verify(params: VerifyEmailDomainParams, options?: RequestOptions): Promise<EmailDomain> {
-    return apiConfig.httpClient.post<EmailDomain>(
-      `${storeRecordPath(params.store_id, "email-domains", params.id)}/verify`,
-      { expected_updated_at: params.expected_updated_at },
+  replaceKey(params: ReplaceEmailProviderKeyParams, options?: RequestOptions): Promise<EmailProvider> {
+    return apiConfig.httpClient.put<EmailProvider>(
+      storePath(params.store_id, "email-provider"),
+      { expected_updated_at: params.expected_updated_at, api_key: params.api_key },
       options,
     );
   },
-
-  delete(params: DeleteEmailDomainParams, options?: RequestOptions): Promise<boolean> {
-    return apiConfig.httpClient.delete<boolean>(storeRecordPath(params.store_id, "email-domains", params.id), {
-      ...options,
-      params: { expected_updated_at: params.expected_updated_at },
-    });
+  get(params: GetEmailProviderParams, options?: RequestOptions): Promise<EmailProvider | null> {
+    return apiConfig.httpClient.get<EmailProvider | null>(storePath(params.store_id, "email-provider"), options);
+  },
+  domains(params: FindEmailProviderDomainsParams, options?: RequestOptions): Promise<EmailProviderDomain[]> {
+    return apiConfig.httpClient.get<EmailProviderDomain[]>(storePath(params.store_id, "email-provider/domains"), options);
   },
 });
 
@@ -190,3 +185,13 @@ export const createEmailAddressApi = (apiConfig: ApiConfig) => {
     },
   };
 };
+
+export const createStoreEmailsApi = (apiConfig: ApiConfig) => ({
+  get(params: import("../types/notification").GetStoreEmailsParams, options?: RequestOptions): Promise<import("../types/notification").StoreEmails> {
+    return apiConfig.httpClient.get<import("../types/notification").StoreEmails>(storePath(params.store_id, "emails"), options);
+  },
+  update(params: import("../types/notification").UpdateStoreEmailsParams, options?: RequestOptions): Promise<import("../types/notification").StoreEmails> {
+    const { store_id, ...body } = params;
+    return apiConfig.httpClient.put<import("../types/notification").StoreEmails>(storePath(store_id, "emails"), body, options);
+  },
+});

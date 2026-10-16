@@ -8,6 +8,7 @@ import type {
   SortDirection,
   TaxMode,
   TaxRate,
+  TimeRange,
   UnitSpan,
 } from "./common";
 import type { PaymentTerms } from "./company";
@@ -15,6 +16,7 @@ import type { InventoryTracking } from "./inventory";
 import type { BackorderPolicy } from "./product";
 import type { ShippingDeliveryEstimate } from "./shipping";
 import type { CustomerGroupOccurrence } from "./customerGroup";
+import type { Block } from "./block";
 
 export type RenewalRecoveryStatus = "recovering" | "exhausted" | "resolved";
 
@@ -45,19 +47,24 @@ export interface OrderTaxRegistration {
   identifier: string;
 }
 
+export type OrderBuyerTax =
+  | { type: "standard"; registrations: OrderTaxRegistration[] }
+  | { type: "reverse_charge"; registration: OrderTaxRegistration }
+  | { type: "exempt"; reason: string };
+
 export type OrderBuyer =
   | { type: "customer" }
   | {
       type: "company";
       company_id: string;
       purchase_order_number: string | null;
-      tax_registrations: OrderTaxRegistration[];
+      tax: OrderBuyerTax;
     }
   | {
       type: "company_location";
       company_location_id: string;
       purchase_order_number: string | null;
-      tax_registrations: OrderTaxRegistration[];
+      tax: OrderBuyerTax;
     };
 
 export type OnAccountApproval = { type: "buyer_terms" } | { type: "account"; reason: string };
@@ -75,15 +82,17 @@ export type OrderCollection =
     };
 
 export type OrderCancellationReason =
-  | "rejected"
-  | "contact_cancelled"
+  | "store_cancelled"
+  | "customer_cancelled"
   | "payment_failed"
-  | "expired"
-  | "refunded"
-  | "other";
+  | "expired";
+
+export type OrderPaymentWait =
+  | { type: "checkout"; expires_at: EpochMilliseconds }
+  | { type: "renewal" };
 
 export type OrderLineItemStatus =
-  | { type: "pending"; expires_at: EpochMilliseconds }
+  | { type: "pending"; wait: OrderPaymentWait }
   | { type: "confirmed" }
   | { type: "cancelled"; reason: OrderCancellationReason };
 
@@ -156,11 +165,11 @@ export interface LineDiscount {
 
 export type TaxLineCalculation =
   | { type: "percentage"; rate: TaxRate; compound: boolean }
-  | { type: "fixed_per_unit"; unit_amount: number }
-  | { type: "fixed_per_assessment"; amount: number };
+  | { type: "fixed_per_unit"; unit_amount: number };
 
 export interface TaxLine {
   component_id: string;
+  code: string | null;
   title: string;
   calculation: TaxLineCalculation;
   amount: number;
@@ -171,11 +180,29 @@ export type LineTaxTreatment =
   | { type: "not_collecting"; reason: string }
   | { type: "not_taxable"; reason: string }
   | { type: "zero_rated"; reason: string }
-  | { type: "exempt"; reason: string };
+  | { type: "exempt"; reason: string }
+  | { type: "reverse_charge" }
+  | { type: "buyer_exempt" };
+
+export type DeliveryTaxSource =
+  | { type: "own"; tax_category_id: string; rule_id: string; treatment: LineTaxTreatment }
+  | { type: "group_share"; tax_group_id: string; treatment: LineTaxTreatment }
+  | { type: "reverse_charge"; tax_category_id: string }
+  | { type: "buyer_exempt"; tax_category_id: string };
+
+export interface DeliveryTaxPart {
+  line_item_id: string;
+  span: UnitSpan;
+  discounted_base_amount: number;
+  tax: DeliveryTaxSource;
+}
 
 export type LineTax =
   | { type: "own"; tax_category_id: string; rule_id: string; treatment: LineTaxTreatment }
-  | { type: "group_share"; tax_group_id: string; treatment: LineTaxTreatment };
+  | { type: "group_share"; tax_group_id: string; treatment: LineTaxTreatment }
+  | { type: "reverse_charge"; tax_category_id: string }
+  | { type: "buyer_exempt"; tax_category_id: string }
+  | { type: "follow_goods"; parts: DeliveryTaxPart[] };
 
 export interface LineMoney {
   unit_price: number;
@@ -196,7 +223,6 @@ export interface ProductMoneyRun {
 export interface OrderProductLineItem {
   id: string;
   origin: OrderLineItemOrigin;
-  product_id: string;
   variant_id: string;
   quantity: number;
   cancelled_units: UnitSpan[];
@@ -208,11 +234,6 @@ export interface OrderProductLineItem {
   updated_at: EpochMilliseconds;
 }
 
-export interface OrderTimeRange {
-  from: EpochMilliseconds;
-  to: EpochMilliseconds;
-}
-
 export interface OrderBookingSnapshot {
   service_key: string;
   resource_key: string;
@@ -220,29 +241,48 @@ export interface OrderBookingSnapshot {
   price: OrderLinePrice;
 }
 
-export type OrderBookingAttendance = "upcoming" | "attended" | "no_show";
+export type OrderBookingAttendance =
+  | { type: "upcoming" }
+  | { type: "attended"; by: AccountActor; at: EpochMilliseconds }
+  | { type: "no_show"; by: AccountActor; at: EpochMilliseconds };
+
+export type OrderBookingLineStatus =
+  | { type: "pending"; wait: OrderPaymentWait }
+  | { type: "confirmed"; attendance: OrderBookingAttendance }
+  | { type: "cancelled"; reason: OrderCancellationReason };
+
+export interface OrderBookingReschedule {
+  previous: TimeRange;
+  by: Actor;
+  at: EpochMilliseconds;
+}
 
 export interface OrderBookingLineItem {
   id: string;
   booking_offering_id: string;
   booking_service_id: string;
   booking_resource_id: string;
-  interval: OrderTimeRange;
-  capacity_intervals: OrderTimeRange[];
+  interval: TimeRange;
+  capacity_intervals: TimeRange[];
   capacity_units: number;
   form_submission_id: string | null;
   snapshot: OrderBookingSnapshot;
-  status: OrderLineItemStatus;
-  attendance: OrderBookingAttendance;
+  status: OrderBookingLineStatus;
+  reschedules: OrderBookingReschedule[];
   money: LineMoney;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
+export type OrderTaxGroupSource =
+  | { type: "rule"; rule_id: string }
+  | { type: "reverse_charge" }
+  | { type: "buyer_exempt" };
+
 export interface OrderTaxGroup {
   id: string;
   tax_category_id: string;
-  rule_id: string;
+  source: OrderTaxGroupSource;
   quantity: number;
 }
 
@@ -298,9 +338,14 @@ export type DeliveryPricing =
   | { type: "rate"; rate_id: string }
   | { type: "customer_group_delivery_terms"; delivery_terms_id: string };
 
-export type FulfillmentTiming =
+export type OrderDeliveryTiming =
   | { type: "asap" }
   | { type: "window"; from: EpochMilliseconds; to: EpochMilliseconds };
+
+export interface OrderDeliveryRental {
+  rental_id: string;
+  newly_shipped_quantity: number;
+}
 
 export interface OrderDeliveryGroup {
   id: string;
@@ -308,9 +353,9 @@ export interface OrderDeliveryGroup {
   shipping_method_id: string;
   shipping_profile_id: string;
   pricing: DeliveryPricing;
-  timing: FulfillmentTiming;
+  timing: OrderDeliveryTiming;
   delivery_estimate: ShippingDeliveryEstimate | null;
-  rental_ids: string[];
+  rentals: OrderDeliveryRental[];
   money: LineMoney;
 }
 
@@ -322,7 +367,7 @@ export interface OrderPromotionCode {
 export interface OrderPromotion {
   promotion_id: string;
   promotion_key: string;
-  code: OrderPromotionCode | null;
+  code: OrderPromotionCode;
 }
 
 export type OrderStatus = "pending" | "confirmed" | "partially_cancelled" | "cancelled";
@@ -352,9 +397,38 @@ export interface OrderTotals {
   delivery_groups: OrderDeliveryTotals[];
 }
 
+export type OrderInvoiceType = "invoice" | "credit_note";
+
+export interface OrderInvoice {
+  id: string;
+  type: OrderInvoiceType;
+  number: string;
+  url: string;
+  created_at: EpochMilliseconds;
+}
+
+export interface AddOrderInvoiceParams {
+  store_id: string;
+  order_id: string;
+  id: string;
+  type: OrderInvoiceType;
+  number: string;
+  url: string;
+  expected_updated_at: EpochMilliseconds;
+}
+
+export interface DeleteOrderInvoiceParams {
+  store_id: string;
+  order_id: string;
+  invoice_id: string;
+  expected_updated_at: EpochMilliseconds;
+}
+
 export interface Order {
   id: string;
+  blocks: Block[];
   number: string;
+  invoices: OrderInvoice[];
   store_id: string;
   source: OrderSource;
   customer_id: string;
@@ -389,7 +463,7 @@ export type OrderSourceFilter = "cart" | "renewal";
 
 export type OrderItemStatusFilter = "pending" | "confirmed" | "cancelled";
 
-export type OrderBookingStatusFilter = "pending" | "confirmed" | "completed" | "no_show" | "cancelled";
+export type OrderBookingStatusFilter = "pending" | "confirmed" | "attended" | "no_show" | "cancelled";
 
 export interface FindOrdersParams {
   store_id: string;
@@ -421,6 +495,22 @@ export interface GetOrderParams {
   id: string;
 }
 
+export interface UpdateOrderParams {
+  store_id: string;
+  id: string;
+  expected_updated_at: EpochMilliseconds;
+  contact?: OrderContact;
+  blocks?: Block[];
+}
+
+export interface CorrectOrderDeliveryAddressParams {
+  store_id: string;
+  order_id: string;
+  delivery_group_id: string;
+  expected_updated_at: EpochMilliseconds;
+  address: PostalAddress;
+}
+
 export interface FindOrderBookingItemsParams {
   store_id: string;
   customer_id?: string;
@@ -450,6 +540,16 @@ export interface CancelOrderBookingItemParams {
   line_item_id: string;
   credit_id: string;
   expected_updated_at: EpochMilliseconds;
+  notify_customer: boolean;
+}
+
+export interface RescheduleOrderBookingItemParams {
+  store_id: string;
+  order_id: string;
+  line_item_id: string;
+  expected_updated_at: EpochMilliseconds;
+  starts_at: EpochMilliseconds;
+  notify_customer: boolean;
 }
 
 export interface CancelOrderProductItemParams {
@@ -458,6 +558,7 @@ export interface CancelOrderProductItemParams {
   line_item_id: string;
   credit_id: string;
   expected_updated_at: EpochMilliseconds;
+  notify_customer: boolean;
   units: UnitSpan[];
 }
 
@@ -465,6 +566,7 @@ export interface CancelOrderParams {
   store_id: string;
   order_id: string;
   expected_updated_at: EpochMilliseconds;
+  notify_customer: boolean;
 }
 
 export interface MarkOrderBookingItemParams {
@@ -478,6 +580,7 @@ export interface ResendOrderReceiptParams {
   store_id: string;
   order_id: string;
   id: string;
+  expected_updated_at: EpochMilliseconds;
 }
 
 export interface GetOrderFinancialSummaryParams {
@@ -532,7 +635,12 @@ export interface StorefrontCancelOrderBookingItemParams {
   expected_updated_at: EpochMilliseconds;
 }
 
-export type StorefrontCancelOrderProductItemParams = Omit<CancelOrderProductItemParams, "store_id">;
+export type StorefrontRescheduleOrderBookingItemParams = Omit<
+  RescheduleOrderBookingItemParams,
+  "store_id" | "notify_customer"
+>;
+
+export type StorefrontCancelOrderProductItemParams = Omit<CancelOrderProductItemParams, "store_id" | "notify_customer">;
 
 export interface StorefrontOrderPaymentParams {
   order_id: string;

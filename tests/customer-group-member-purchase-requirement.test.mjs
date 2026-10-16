@@ -8,19 +8,17 @@ const memberId = "d65211c1-743f-45fb-ab24-07221b1e3a7c";
 const otherMemberId = "5f2a8c63-1d47-4b90-a3e6-9c0b7d4e2f18";
 const entitlementId = "0b9a4b7e-51a1-4d5f-9d9f-7a0e3f9ce0a1";
 const requirement = {
-  unit: { type: "millilitres" },
   minimum_quantity: 5000,
-  period: { type: "calendar_month", timezone: "Europe/Sarajevo" },
   qualifying_variants: [{ variant_id: "variant", contribution_per_unit: 250 }],
   scope: { type: "per_location" },
 };
 
 function members() {
-  return createAdmin({ baseUrl: "https://api.example.test", apiToken: "contract" }).eshop.customerGroupMember;
+  return createAdmin({ baseUrl: "https://api.example.test", secretKey: "contract" }).eshop.customerGroupMember;
 }
 
 test("the effective minimum is read at the caller's instant or at the Server's now, with the caller's request options", async (context) => {
-  const result = { customer_group_member: { id: memberId, store_id: storeId }, starts_at: 1, ends_at: null, evaluated_at: 1_700_000_000_123, initial: null, current: requirement };
+  const result = { customer_group_member: { id: memberId, store_id: storeId }, starts_at: 1, timezone: "Europe/Sarajevo", ends_at: null, evaluated_at: 1_700_000_000_123, initial: null, current: requirement };
   const calls = recordFetch(context, () => result);
   const api = members();
   const signal = new AbortController().signal;
@@ -47,13 +45,12 @@ test("the effective minimum is read at the caller's instant or at the Server's n
   assert.equal(calls.length, count);
 });
 
-test("a minimum change and a tax correction are reviewed and accepted with the member version, and a transfer names both members", async (context) => {
+test("a minimum change are reviewed and accepted with the member version, and a transfer names both members", async (context) => {
   const answer = { customer_group_member: { id: memberId }, created: null, withdrawn: null };
   const calls = recordFetch(context, (call) => call.path.endsWith("/transfer-purchase-requirement") ? { from: answer, to: { ...answer, customer_group_member: { id: otherMemberId } } } : answer);
   const api = members();
   const change = { expected_updated_at: 1_700_000_000_000, requirement, reason: "Contract renegotiated" };
   const removal = { ...change, requirement: null, reason: "Minimum waived" };
-  const correction = { expected_updated_at: 1_700_000_000_100, changes: [{ entitlement_id: entitlementId, tax_category_id: "reduced" }], reason: "Wrong rate" };
   const transfer = {
     from: { customer_group_member_id: memberId, expected_updated_at: 1_700_000_000_000 },
     to: { customer_group_member_id: otherMemberId, expected_updated_at: 1_700_000_000_500 },
@@ -62,18 +59,14 @@ test("a minimum change and a tax correction are reviewed and accepted with the m
   };
   await api.reviewPurchaseRequirement({ store_id: storeId, id: memberId, ...change });
   await api.changePurchaseRequirement({ store_id: storeId, id: memberId, ...removal });
-  await api.reviewTaxCorrection({ store_id: storeId, id: memberId, ...correction });
-  await api.correctTaxClassification({ store_id: storeId, id: memberId, ...correction });
   const moved = await api.transferPurchaseRequirement({ store_id: storeId, ...transfer });
   assert.equal(moved.to.customer_group_member.id, otherMemberId);
   const base = `/v1/stores/${storeId}/customer-group-members`;
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
     ["POST", `${base}/${memberId}/review-purchase-requirement`, change],
     ["POST", `${base}/${memberId}/change-purchase-requirement`, removal],
-    ["POST", `${base}/${memberId}/review-tax-correction`, correction],
-    ["POST", `${base}/${memberId}/correct-tax-classification`, correction],
     ["POST", `${base}/transfer-purchase-requirement`, transfer],
   ]);
   assert.ok(calls.every((call) => call.url.search === "" && !("store_id" in call.body) && !("id" in call.body)));
-  for (const removed of ["reviewPurchaseRequirementChange"]) assert.equal(removed in api, false, removed);
+  for (const removed of ["reviewPurchaseRequirementChange", "reviewTaxCorrection", "correctTaxClassification"]) assert.equal(removed in api, false, removed);
 });

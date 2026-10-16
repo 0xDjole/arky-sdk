@@ -50,6 +50,8 @@ export interface ShippingRate {
   ends_at: EpochMilliseconds | null;
 }
 
+export type ShippingTax = { type: "category"; tax_category_id: string } | { type: "follow_goods" };
+
 export type ShippingMethodStatus = { type: "active" } | { type: "archived" };
 
 export interface ShippingMethod {
@@ -58,7 +60,7 @@ export interface ShippingMethod {
   key: string;
   blocks: Block[];
   type: ShippingMethodType;
-  tax_category_id: string;
+  tax: ShippingTax;
   rates: ShippingRate[];
   status: ShippingMethodStatus;
   created_at: EpochMilliseconds;
@@ -111,7 +113,7 @@ export interface CreateShippingMethodParams {
   key: string;
   blocks: Block[];
   type: ShippingMethodType;
-  tax_category_id: string;
+  tax: ShippingTax;
   rates: ShippingRate[];
   status: ShippingMethodStatus;
 }
@@ -122,7 +124,7 @@ export interface UpdateShippingMethodParams {
   expected_updated_at: EpochMilliseconds;
   key?: string;
   blocks?: Block[];
-  tax_category_id?: string;
+  tax?: ShippingTax;
   rates?: ShippingRate[];
   status?: ShippingMethodStatus;
 }

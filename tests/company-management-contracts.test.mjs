@@ -26,8 +26,12 @@ const standardCheckout = { payment: { type: "standard_checkout", billing_address
 const monthly = {
   type: "recurring",
   cadence: { interval: "month", interval_count: 1 },
-  recovery_policy: { retry_offsets_seconds: [86_400], recovery_window_seconds: 604_800, on_exhaustion: { type: "pause" }, unpaid_order: { type: "retain_debt" } },
+  renewal_reminder_days: null,
   commitment: { occurrences: 12, end_action: { type: "renew" } },
+  on_exhaustion: { type: "pause" },
+  unpaid_order: { type: "retain_debt" },
+  retry_offsets_seconds: [86_400],
+  recovery_window_seconds: 604_800,
 };
 const definitions = [
   {
@@ -63,8 +67,8 @@ const definitions = [
       purchasing: standardCheckout,
       fulfillment: { type: "routing" },
     },
-    create: { company_id: selectedStoreId, name: "Depot", shipping_address: null, billing_address: null, status: { type: "active" } },
-    update: { name: "Depot 2", shipping_address: address, billing_address: null, status: { type: "archived" } },
+    create: { company_id: selectedStoreId, blocks: detailBlocks, name: "Depot", shipping_address: null, billing_address: null, status: { type: "active" } },
+    update: { name: "Depot 2", blocks: [], shipping_address: address, billing_address: null, status: { type: "archived" } },
     query: { company_id: selectedStoreId },
     deletion: "deleting",
   },
@@ -79,9 +83,9 @@ const definitions = [
   {
     path: ["eshop", "customerGroupOffering"],
     route: "customer-group-offerings",
-    create: { key: "coffee-club", blocks: [], customer_group_ids: [otherId], status: { type: "draft" } },
+    create: { key: "members-club", blocks: [], customer_group_ids: [otherId], status: { type: "draft" } },
     update: { blocks: detailBlocks, customer_group_ids: [otherId, selectedStoreId], status: { type: "active" } },
-    query: { key: "coffee-club", status: "active", sort_field: "updated_at", sort_direction: "desc" },
+    query: { key: "members-club", status: "active", sort_field: "updated_at", sort_direction: "desc" },
     deletion: "empty",
   },
   {
@@ -95,7 +99,7 @@ const definitions = [
 ];
 
 const getApi = (client, path) => path.reduce((owner, key) => owner[key], client);
-const createClient = () => createAdmin({ baseUrl: "https://api.example.test", apiToken: "arky_api_test" });
+const createClient = () => createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" });
 const response = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
 test("company-wide and all-locations grants are sent explicitly and survive exact reads", async (context) => {
@@ -199,7 +203,7 @@ for (const definition of definitions) {
     assert.equal(calls.at(-1).target.searchParams.get("expected_updated_at"), String(now));
     for (const call of calls) {
       assert.ok(call.target.pathname.startsWith(`/v1/stores/${selectedStoreId}/${definition.route}`));
-      assert.equal(call.headers.get("authorization"), "Bearer arky_api_test");
+      assert.equal(call.headers.get("authorization"), "Bearer arky_secret_test");
       assert.equal(call.body?.store_id, undefined);
       assert.equal(call.target.searchParams.has("store_id"), false);
     }
@@ -274,7 +278,7 @@ test("Market management sends explicit creation, payment option order and versio
   assert.equal(calls.at(-1).body, null);
   assert.deepEqual([...calls.at(-1).target.searchParams], [["expected_updated_at", String(now + 1)]]);
   for (const call of calls) {
-    assert.equal(call.headers.get("authorization"), "Bearer arky_api_test");
+    assert.equal(call.headers.get("authorization"), "Bearer arky_secret_test");
     assert.equal(call.body?.store_id, undefined);
     assert.equal(call.target.searchParams.has("store_id"), false);
   }
@@ -320,7 +324,7 @@ test("a buyer reads their company access as scoped grants, their memberships and
     if (target.pathname.endsWith("/company-memberships") || target.pathname.endsWith("/company-locations")) return response({ items: [], cursor: null });
     return response({ id: otherId });
   });
-  const shop = createStorefront(publishableKey, { apiUrl, sessionStorage: visitorStorage() }).companies;
+  const shop = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, sessionStorage: visitorStorage() }).companies;
   assert.deepEqual(await shop.access({ id: selectedStoreId }), access);
   await shop.memberships({ limit: 10 });
   await shop.locations({ company_id: selectedStoreId, limit: 5 });

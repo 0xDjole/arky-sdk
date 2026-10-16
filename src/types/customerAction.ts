@@ -19,8 +19,6 @@ export type CustomerActionType =
   | { type: "customer_group_member_cancelled"; customer_group_id: string }
   | { type: "customer_group_member_switched"; from_customer_group_id: string; to_customer_group_id: string };
 
-export type CustomerActionKind = CustomerActionType["type"];
-
 export const TYPED_CUSTOMER_ACTION_KEYS = [
   "cart_item_added",
   "cart_item_removed",

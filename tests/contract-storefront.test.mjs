@@ -20,7 +20,6 @@ import {
 const productLine = {
   type: "product",
   id: ids.line,
-  product_id: ids.product,
   variant_id: ids.variant,
   quantity: 1,
   form_submission_id: null,
@@ -29,19 +28,19 @@ const productLine = {
 };
 
 function checkoutStore() {
-  const store = initialize(publishableKey, { apiUrl, market: "ita", locale: "it", sessionStorage: visitorStorage() });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, market: "ita", locale: "it", sessionStorage: visitorStorage() });
   store.eshop.cart.cart.set(cartRecord({ line_items: [productLine] }));
   store.eshop.cart.quote_result.set(quoteRecord());
   return store;
 }
 
 function cardPayment() {
-  return { type: "payment_option", payment_option_id: ids.paymentOption, return_url: "https://shop.example.test/checkout/complete", save_payment_method: false, payment_method_terms_version: null };
+  return { type: "payment_option", payment_option_id: ids.paymentOption, return_url: "https://shop.example.test/checkout/complete", save_payment_method: false, payment_method_terms: null };
 }
 
 test("initialize is the root API and exposes the module facade without store switching", () => {
   const rootStore = initializeFromRoot(publishableKey, { locale: "it" });
-  const store = initialize(publishableKey, { locale: "it", market: "ita" });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", locale: "it", market: "ita" });
   for (const facade of [rootStore, store]) {
     assert.equal(typeof facade.content.entry.get, "function");
     assert.equal(typeof facade.media.findByIds, "function");
@@ -85,7 +84,7 @@ test("initialize is the root API and exposes the module facade without store swi
 
 test("storefront reference batches use their typed endpoints with the ids JSON-encoded", async (context) => {
   const calls = recordFetch(context, () => ({ items: [], cursor: null }));
-  const storefront = createStorefront(publishableKey, { apiUrl });
+  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl });
   await storefront.media.findByIds({ ids: ["media-1", "media-2"] });
   await storefront.content.entry.findByIds({ ids: ["entry-1"] });
   await storefront.eshop.product.find({ ids: [ids.product], catalog_id: ids.catalog });
@@ -98,7 +97,7 @@ test("storefront reference batches use their typed endpoints with the ids JSON-e
 });
 
 test("market and locale stay independent, a cart with items locks its market, and the storefront key alone gives the channel", () => {
-  const store = initialize(publishableKey, { locale: "it", market: "ita" });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", locale: "it", market: "ita" });
   store.setContext({ locale: "en" });
   assert.equal(store.getLocale(), "en");
   assert.equal(store.getMarket(), "ita");
@@ -116,7 +115,7 @@ test("checkout from the store sends the reviewed cart through keyless routes wit
   const store = checkoutStore();
   await assert.rejects(store.eshop.cart.checkout({ order_id: "order-1", contact_email: null, payment: cardPayment() }), /needs the app's order id/);
   assert.equal(calls.length, 0);
-  const answer = await store.eshop.cart.checkout({ order_id: ids.order, contact_email: "buyer@example.test", payment: cardPayment() });
+  const answer = await store.eshop.cart.checkout({ order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), contact_email: "buyer@example.test", payment: cardPayment() });
   assert.deepEqual(answer, placedAcceptance());
   assert.deepEqual(calls.map((call) => [call.method, call.path]), [
     ["POST", "/v1/storefront/carts/accept"],
@@ -124,6 +123,7 @@ test("checkout from the store sends the reviewed cart through keyless routes wit
   ]);
   assert.deepEqual(calls[0].body, {
     order_id: ids.order,
+    order_token: "arky_ot_" + "A".repeat(43),
     cart_id: ids.cart,
     expected_updated_at: cartRecord().updated_at,
     presentation_digest: quoteRecord().presentation_digest,
@@ -156,7 +156,7 @@ test("a free checkout needs no payment option and still clears the stale cart st
   recordFetch(context, (call) => call.path === "/v1/storefront/carts/accept" ? placedAcceptance({ number: "1000" }) : placedOrder({ number: "1000" }));
   const store = checkoutStore();
   store.eshop.cart.quote_result.set(quoteRecord({ totals: { subtotal: 0, delivery: 0, discount: 0, tax: 0, total: 0 } }));
-  const answer = await store.eshop.cart.checkout({ order_id: ids.order, contact_email: null, payment: { type: "free" } });
+  const answer = await store.eshop.cart.checkout({ order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), contact_email: null, payment: { type: "free" } });
   assert.equal(answer.type, "placed");
   assert.equal(store.eshop.cart.cart.get(), null);
   assert.deepEqual(store.eshop.cart.product_items.get(), []);
@@ -167,7 +167,7 @@ test("a free checkout needs no payment option and still clears the stale cart st
 test("checkout refuses before posting without a reviewed, ready quote for this cart", async (context) => {
   const calls = recordFetch(context, () => placedAcceptance());
   const store = checkoutStore();
-  const input = { order_id: ids.order, contact_email: null, payment: cardPayment() };
+  const input = { order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), contact_email: null, payment: cardPayment() };
   store.eshop.cart.quote_result.set(null);
   await assert.rejects(store.eshop.cart.checkout(input), /Quote the cart before checkout/);
   store.eshop.cart.quote_result.set(quoteRecord({ cart_id: ids.otherCart }));
@@ -187,7 +187,7 @@ test("outside a browser a lost checkout keeps no recovery state, and the retry s
     return placedAcceptance();
   });
   const store = checkoutStore();
-  const input = { order_id: ids.order, contact_email: null, payment: cardPayment() };
+  const input = { order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), contact_email: null, payment: cardPayment() };
   await assert.rejects(store.eshop.cart.checkout(input), /connection was lost/);
   assert.equal(await store.eshop.cart.pendingCheckout(), null);
   assert.deepEqual(await store.eshop.cart.checkout(input), placedAcceptance());
@@ -202,7 +202,7 @@ test("outside a browser a lost checkout keeps no recovery state, and the retry s
 test("a refused checkout is propagated once and leaves the cart in place", async (context) => {
   const calls = recordFetch(context, () => errorResponse(422, "CART.NOT_READY", "Pick shipping first"));
   const store = checkoutStore();
-  await assert.rejects(store.eshop.cart.checkout({ order_id: ids.order, contact_email: null, payment: cardPayment() }), (error) => error.statusCode === 422 && error.code === "CART.NOT_READY");
+  await assert.rejects(store.eshop.cart.checkout({ order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), contact_email: null, payment: cardPayment() }), (error) => error.statusCode === 422 && error.code === "CART.NOT_READY");
   assert.equal(calls.length, 1);
   assert.equal(store.eshop.cart.cart.get().id, ids.cart);
   assert.equal(store.eshop.cart.last_order.get(), null);
@@ -213,7 +213,7 @@ test("a card checkout hands back the embedded Stripe action without navigating",
   const action = { type: "stripe_embedded_checkout", publishable_key: "pk_test_order", client_secret: "cs_order_secret_exact", expires_at: 1_800_000_000_000 };
   recordFetch(context, (call) => call.path === "/v1/storefront/carts/accept" ? placedAcceptance({ payment_id: ids.payment, payment_action: action }) : placedOrder());
   const store = checkoutStore();
-  const answer = await store.eshop.cart.checkout({ order_id: ids.order, contact_email: null, payment: cardPayment() });
+  const answer = await store.eshop.cart.checkout({ order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), contact_email: null, payment: cardPayment() });
   assert.deepEqual(answer.payment_action, action);
   assert.equal("account_id" in answer.payment_action, false);
   assert.deepEqual(store.eshop.cart.last_order.get().payment_action, action);
@@ -222,7 +222,7 @@ test("a card checkout hands back the embedded Stripe action without navigating",
 
 test("payment resume asks the placed order for its payment action, and payments are read exactly", async (context) => {
   const calls = recordFetch(context, (call) => call.path.endsWith("/payment-action") ? { type: "none" } : call.path.endsWith("/payments") ? [] : { id: ids.payment });
-  const store = initialize(publishableKey, { apiUrl, sessionStorage: visitorStorage() });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, sessionStorage: visitorStorage() });
   assert.deepEqual(await store.eshop.cart.paymentAction(ids.order), { type: "none" });
   await store.eshop.order.getPayment({ order_id: ids.order, payment_id: ids.payment });
   await store.eshop.order.findPayments({ order_id: ids.order });
@@ -232,5 +232,5 @@ test("payment resume asks the placed order for its payment action, and payments 
     ["GET", `/v1/storefront/orders/${ids.order}/payments`, null],
   ]);
   assert.ok(calls.every((call) => call.headers.get("authorization") === `Bearer ${visitorToken}`));
-  assert.equal("checkout" in createStorefront(publishableKey, { apiUrl }).eshop, false);
+  assert.equal("checkout" in createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl }).eshop, false);
 });

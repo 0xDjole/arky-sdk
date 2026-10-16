@@ -1,5 +1,5 @@
 import type { createAdmin } from 'arky-sdk/admin';
-import type { CreateMonriPaymentOptionParams, UpdatePaymentOptionParams, MonriEnvironment, PaymentOption } from 'arky-sdk';
+import type { CreateMonriPaymentOptionParams, UpdatePaymentOptionParams, MonriEnvironment, PaymentOption, LocalizedMarkdown } from 'arky-sdk';
 type Admin = ReturnType<typeof createAdmin>;
 type True<T extends true> = T;
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
@@ -17,13 +17,19 @@ export type MonriConfigurationContracts = [
   True<Missing<MonriOption, 'authenticity_token'>>,
   True<RequiredField<CreateMonriPaymentOptionParams, 'environment'>>,
   True<RequiredField<CreateMonriPaymentOptionParams, 'id'>>,
+  True<RequiredField<CreateMonriPaymentOptionParams, 'saved_card_terms'>>,
+  True<Same<CreateMonriPaymentOptionParams['saved_card_terms'], LocalizedMarkdown>>,
+  True<Same<MonriOption['saved_card_terms'], LocalizedMarkdown>>,
+  True<RequiredField<UpdatePaymentOptionParams, 'saved_card_terms'>>,
+  True<Same<UpdatePaymentOptionParams['saved_card_terms'], LocalizedMarkdown | null>>,
   True<Same<PaymentOption['status'], 'active' | 'disabled'>>,
 ];
 
 export const input: CreateMonriPaymentOptionParams = {
   store_id: 'store', id: 'provider', key: 'cards', blocks: [], environment: 'test',
   merchant_key: 'submitted-secret', authenticity_token: 'submitted-token', status: 'disabled',
+  saved_card_terms: { bs: 'Saglasnost za čuvanje kartice i ugovorene obnove.' },
 };
 export const environment: MonriEnvironment = 'live';
-export const config: PaymentOption['type'] = { type: 'monri', environment: 'test' };
+export const config: PaymentOption['type'] = { type: 'monri', environment: 'test', saved_card_terms: {} };
 export const filter: Parameters<Admin['store']['paymentOption']['list']>[0] = { store_id: 'store', type_name: 'monri', limit: 1 };

@@ -28,17 +28,21 @@ export interface PostalAddress {
   city: string | null;
   state: string | null;
   postal_code: string | null;
-  country: string | null;
+  country: string;
   phone: string | null;
   email: string | null;
 }
 
-export type PostalAddressInput = Partial<PostalAddress>;
+export type PostalAddressInput = Pick<PostalAddress, "country"> & Partial<Omit<PostalAddress, "country">>;
 
 export interface Coordinates {
   lat: number;
   lon: number;
 }
+
+export type Schedule =
+  | { type: "always" }
+  | { type: "scheduled"; starts_at: EpochMilliseconds; ends_at: EpochMilliseconds | null };
 
 export interface TimeRange {
   from: EpochMilliseconds;
@@ -96,7 +100,9 @@ export interface Money {
   currency: Currency;
 }
 
-export type AccountCredentialType = "session" | "api_token";
+export type AccountCredentialType =
+  | { type: "session" }
+  | { type: "secret_key"; api_key_id: string };
 
 export interface AccountActorSnapshot {
   email: string;

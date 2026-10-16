@@ -11,7 +11,7 @@ test('Customer discovery retains combined predicates, native ordering and empty-
     return new Response(JSON.stringify({ items: [], cursor: calls.length === 1 ? 'customer:+/=' : null }),
       { headers: { 'content-type': 'application/json' } });
   });
-  const api = createAdmin({ baseUrl: 'https://customers.test', apiToken: 'arky_api_customers' }).customers;
+  const api = createAdmin({ baseUrl: 'https://customers.test', secretKey: 'arky_api_customers' }).customers;
   const filters = { query: 'buyer', status: 'active', has_cart: false, has_customer_action: true,
     email_type: 'verified', limit: 1, sort_field: 'updated_at', sort_direction: 'asc',
     category_query: [{ category_id: 'category', query: [{ type: 'select', key: 'size', option_keys: ['large'] }] }] };
@@ -38,7 +38,7 @@ test('Customer exact-ID batches preserve request order without adding discovery 
     request = new URL(url);
     return new Response(JSON.stringify(response), { headers: { 'content-type': 'application/json' } });
   });
-  const api = createAdmin({ baseUrl: 'https://customers.test', apiToken: 'arky_api_customers' }).customers;
+  const api = createAdmin({ baseUrl: 'https://customers.test', secretKey: 'arky_api_customers' }).customers;
   assert.deepEqual(await api.find({ store_id: STORE_ID, ids: ['second', 'first'] }), response);
   assert.equal(request.pathname, `/v1/stores/${STORE_ID}/customers`);
   assert.deepEqual(JSON.parse(request.searchParams.get('ids')), ['second', 'first']);

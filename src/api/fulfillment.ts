@@ -17,9 +17,12 @@ import type {
   GetMinimumProgressParams,
   MarkFulfillmentDeliveredParams,
   MinimumProgress,
+  PickupCash,
+  RecordPickupCashParams,
   UpdateFulfillmentRoutingParams,
   UpdateFulfillmentTrackingParams,
 } from "../types/fulfillment";
+import type { Payment } from "../types/payment";
 import type { FulfillmentUnitSlots, ResolveFulfillmentUnitSlotsParams } from "../types/fulfillmentUnitSelection";
 import { requireId } from "../utils/ids";
 import { storePath, storeRecordPath } from "./paths";
@@ -67,6 +70,29 @@ export const createFulfillmentJobApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.post<FulfillmentJob>(
         `${jobPath(params.store_id, params.fulfillment_job_id)}/decisions`,
         { expected_updated_at: params.expected_updated_at, action: params.action },
+        options,
+      );
+    },
+
+    getPickupCash(params: GetFulfillmentJobParams, options?: RequestOptions): Promise<PickupCash | null> {
+      return apiConfig.httpClient.get<PickupCash | null>(
+        `${jobPath(params.store_id, params.fulfillment_job_id)}/cash-collections`,
+        options,
+      );
+    },
+
+    recordPickupCash(params: RecordPickupCashParams, options?: RequestOptions): Promise<Payment> {
+      requireId(params.id, "collection");
+      return apiConfig.httpClient.post<Payment>(
+        `${jobPath(params.store_id, params.fulfillment_job_id)}/cash-collections`,
+        {
+          id: params.id,
+          payment_id: params.payment_id,
+          expected_job_updated_at: params.expected_job_updated_at,
+          expected_payment_updated_at: params.expected_payment_updated_at,
+          money: params.money,
+          reference: params.reference,
+        },
         options,
       );
     },

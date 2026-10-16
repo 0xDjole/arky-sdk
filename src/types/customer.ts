@@ -1,59 +1,38 @@
 import type { EpochMilliseconds } from "./time";
 import type { AccountActor, PostalAddress, PostalAddressInput, SortDirection } from "./common";
-import type { CategoryEntry, CategoryQuery } from "./content";
+import type { Block } from "./block";
 
-export interface CustomerAddress {
-  id: string;
-  address: PostalAddress;
-}
+export interface CustomerAddress extends PostalAddress { id: string }
+export type CustomerAddressInput = PostalAddressInput & { id: string };
 
-export interface CustomerAddressInput {
-  id: string;
-  address: PostalAddressInput;
-}
+export type CustomerType =
+  | { type: "anonymous" }
+  | { type: "verified"; email: string; addresses: CustomerAddress[]; default_shipping_address_id: string | null; default_billing_address_id: string | null };
 
-export type CustomerEmail =
-  | { type: "no_email" }
-  | { type: "contact"; email: string }
-  | { type: "reserved"; email: string; reserved_at: EpochMilliseconds }
-  | { type: "verified"; email: string; verified_at: EpochMilliseconds };
-
-export type CustomerEmailType = CustomerEmail["type"];
-
-export type CustomerEmailInput =
-  | { type: "no_email" }
-  | { type: "contact"; email: string }
-  | { type: "reserved"; email: string };
-
-export type CustomerStatus = { type: "active" } | { type: "archived" };
-
-export interface Customer {
+export interface StorefrontCustomer {
   id: string;
   store_id: string;
-  first_name: string | null;
-  last_name: string | null;
-  phone: string | null;
-  language: string | null;
-  email: CustomerEmail;
-  addresses: CustomerAddress[];
-  default_shipping_address_id: string | null;
-  default_billing_address_id: string | null;
-  status: CustomerStatus;
-  categories: CategoryEntry[];
+  type: CustomerType;
+  profile: Block[];
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
+
+export interface Customer extends StorefrontCustomer { blocks: Block[] }
 
 export interface CustomerSearchSnapshot {
   customer: Customer;
   has_cart: boolean;
   has_customer_action: boolean;
+  has_order: boolean;
+  latest_order_contact: { email: string | null; first_name: string | null; last_name: string | null; phone: string | null } | null;
 }
 
 export interface CustomerEmailVerification {
   email: string;
+  language: string;
   failed_attempts: number;
-  notification_id: string;
+  outgoing_email_id: string;
   issued_at: EpochMilliseconds;
   expires_at: EpochMilliseconds;
 }
@@ -110,12 +89,12 @@ export type CustomerSessionIssued =
     };
 
 export interface CustomerSessionResult {
-  customer: Customer;
+  customer: StorefrontCustomer;
   session: CustomerSessionIssued;
 }
 
 export interface CustomerCodeResult {
-  customer: Customer;
+  customer: StorefrontCustomer;
   session: CustomerSession;
   email_verification: {
     issued_at: EpochMilliseconds;
@@ -124,7 +103,7 @@ export interface CustomerCodeResult {
 }
 
 export interface CustomerMe {
-  customer: Customer;
+  customer: StorefrontCustomer;
   session: CustomerSession;
   email_unsubscribed: boolean;
 }
@@ -132,6 +111,7 @@ export interface CustomerMe {
 export type EmailSuppressionType = "unsubscribe" | "block" | "hard_bounce" | "complaint";
 
 export type EmailSuppressionCause =
+  | { type: "storefront"; customer_session_id: string }
   | { type: "unsubscribe_link"; broadcast_id: string }
   | { type: "account"; actor: AccountActor; note: string }
   | { type: "report" };
@@ -157,31 +137,19 @@ export interface EmailSuppression {
 export interface CreateCustomerParams {
   store_id: string;
   id: string;
-  email?: CustomerEmailInput;
-  first_name?: string | null;
-  last_name?: string | null;
-  phone?: string | null;
-  language?: string | null;
-  addresses?: CustomerAddressInput[];
-  default_shipping_address_id?: string | null;
-  default_billing_address_id?: string | null;
-  categories?: CategoryEntry[];
+  profile: Block[];
+  blocks: Block[];
 }
 
 export interface UpdateCustomerParams {
   store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
-  email?: CustomerEmailInput;
-  first_name?: string | null;
-  last_name?: string | null;
-  phone?: string | null;
-  language?: string | null;
+  profile?: Block[];
+  blocks?: Block[];
   addresses?: CustomerAddressInput[];
   default_shipping_address_id?: string | null;
   default_billing_address_id?: string | null;
-  categories?: CategoryEntry[];
-  status?: CustomerStatus;
 }
 
 export interface GetCustomerParams {
@@ -189,55 +157,22 @@ export interface GetCustomerParams {
   id: string;
 }
 
-export interface ArchiveCustomerParams {
-  store_id: string;
-  id: string;
-  expected_updated_at: EpochMilliseconds;
-}
-
-export interface EraseCustomerParams {
-  store_id: string;
-  id: string;
-  expected_updated_at: EpochMilliseconds;
-}
-
-export interface MergeCustomerParams {
-  store_id: string;
-  id: string;
-  target_customer_id: string;
-  expected_updated_at: EpochMilliseconds;
-}
+export interface EraseCustomerParams { store_id: string; id: string; expected_updated_at: EpochMilliseconds }
 
 export interface FindCustomersParams {
   store_id: string;
   ids?: string[];
   query?: string;
-  category_query?: CategoryQuery[];
-  status?: CustomerStatus["type"];
-  email_type?: CustomerEmailType;
+  type?: CustomerType["type"];
   has_customer_action?: boolean;
   has_cart?: boolean;
-  sort_field?: "created_at" | "updated_at";
+  sort_field?: "id" | "email" | "created_at" | "updated_at";
   sort_direction?: SortDirection;
   limit?: number;
   cursor?: string | null;
 }
 
-export interface ResolveOrReserveCustomerEmailParams {
-  store_id: string;
-  email: string;
-  customer_id: string;
-}
-
-export interface ImportCustomerRow {
-  email: string;
-  customer_id: string | null;
-  first_name: string | null;
-  last_name: string | null;
-  phone: string | null;
-  language: string | null;
-  categories: CategoryEntry[] | null;
-}
+export interface ImportCustomerRow { customer_id: string; profile: Block[]; blocks: Block[] }
 
 export interface ImportCustomersParams {
   store_id: string;
@@ -251,8 +186,7 @@ export interface ImportCustomerFieldError {
 
 export interface ImportCustomerPreviewRow {
   row: number;
-  email: string;
-  customer_id: string | null;
+  customer_id: string;
   valid: boolean;
   errors: ImportCustomerFieldError[];
 }
@@ -266,8 +200,7 @@ export interface ImportCustomersPreviewResult {
 
 export interface ImportCustomerRowResult {
   row: number;
-  email: string;
-  customer_id: string | null;
+  customer_id: string;
   created: boolean;
   updated: boolean;
   error: string | null;
@@ -330,11 +263,7 @@ export interface ReleaseEmailSuppressionParams {
 
 export interface UpdateCustomerMeParams {
   expected_updated_at: EpochMilliseconds;
-  first_name?: string | null;
-  last_name?: string | null;
-  phone?: string | null;
-  language?: string | null;
-  email?: string;
+  profile?: Block[];
   addresses?: CustomerAddressInput[];
   default_shipping_address_id?: string | null;
   default_billing_address_id?: string | null;
@@ -342,5 +271,6 @@ export interface UpdateCustomerMeParams {
 
 export interface ChangeCustomerEmailParams {
   code: string;
-  language: string;
 }
+
+export interface MergeCustomerParams { store_id: string; id: string; target_customer_id: string; expected_updated_at: EpochMilliseconds }

@@ -31,7 +31,7 @@ function browser(storage = new MemoryStorage()) {
 }
 
 function storefront() {
-  return createStorefront(publishableKey, { apiUrl, locale: "en", market: "bih", sessionStorage: visitorStorage() });
+  return createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, locale: "en", market: "bih", sessionStorage: visitorStorage() });
 }
 
 function capture(respond) {
@@ -108,14 +108,14 @@ test("an unresolved checkout blocks every cart change and a new cart until it is
   await loseResponse();
   const calls = capture(success);
   const cart = storefront().eshop.cart;
-  const product = { id: ids.otherLine, product_id: ids.product, variant_id: ids.variant, quantity: 1, purchase: { type: "catalog" } };
+  const product = { id: ids.otherLine, variant_id: ids.variant, quantity: 1, purchase: { type: "catalog" } };
   for (const mutate of [
-    () => cart.create({ id: ids.otherCart, buyer: { type: "customer" }, catalog_id: null }),
+    () => cart.create({ id: ids.otherCart, buyer: { type: "customer" }, catalog_id: ids.catalog }),
     () => cart.reorder({ id: ids.otherCart, order_id: ids.otherOrder, buyer: { type: "customer" } }),
     () => cart.update({ id: ids.cart, expected_updated_at: 1, promotion_codes: ["NEW"] }),
     () => cart.addProduct({ id: ids.cart, expected_updated_at: 1, product }),
     () => cart.addBooking({ id: ids.cart, expected_updated_at: 1, booking: { id: ids.otherLine, booking_offering_id: ids.product, requested_interval: { from: 1, to: 2 }, capacity_units: 1 } }),
-    () => cart.addCustomerGroup({ id: ids.cart, expected_updated_at: 1, customer_group: { id: ids.otherLine, customer_group_id: ids.product, start: { type: "on_acceptance" } } }),
+    () => cart.addCustomerGroup({ id: ids.cart, expected_updated_at: 1, customer_group: { id: ids.otherLine, customer_group_id: ids.product, quantity: 1, choices: [], start: { type: "on_acceptance" } } }),
     () => cart.removeItem({ id: ids.cart, expected_updated_at: 1, line_item_id: ids.line }),
     () => cart.clear({ id: ids.cart, expected_updated_at: 1 }),
     () => cart.selectShippingMethod({ id: ids.cart, expected_updated_at: 1, shipping_method_id: ids.product }),
@@ -141,7 +141,7 @@ test("direct checkout submits the caller's exact request, never a body language,
 
 test("checkout input the app did not decide explicitly fails before persisting or posting", async () => {
   const invalid = [
-    { order_id: undefined }, { order_id: "" }, { order_id: "order-1" }, { order_id: ids.order.toUpperCase() },
+    { order_token: undefined }, { order_token: "arky_ot_" + "B".repeat(43) }, { order_id: undefined }, { order_id: "" }, { order_id: "order-1" }, { order_id: ids.order.toUpperCase() },
     { cart_id: undefined }, { cart_id: "cart-1" },
     { expected_updated_at: undefined }, { expected_updated_at: 1.5 }, { expected_updated_at: "1" },
     { presentation_digest: "" }, { presentation_digest: " digest" }, { presentation_digest: "d".repeat(257) },
@@ -179,7 +179,7 @@ test("every changed checkout field stays blocked after ambiguity without another
   await loseResponse();
   const calls = capture(success);
   for (const change of [
-    { order_id: ids.otherOrder }, { cart_id: ids.otherCart }, { expected_updated_at: 2 },
+    { order_token: "arky_ot_" + "C".repeat(42) + "A" }, { order_id: ids.otherOrder }, { cart_id: ids.otherCart }, { expected_updated_at: 2 },
     { presentation_digest: "e".repeat(64) }, { contact_email: null }, { contact_email: "other@example.test" },
     { payment: { type: "free" } }, { payment: { ...request.payment, payment_option_id: ids.otherPaymentOption } },
     { payment: { ...request.payment, return_url: null } },
@@ -227,7 +227,7 @@ test("a concurrent tab cannot queue a duplicate checkout or read pending state t
 test("any definite refusal clears the kept request, while a timeout, throttle or server failure keeps it", async () => {
   for (const status of [400, 403, 404, 409, 422, 408, 429, 500, 503]) {
     const { storage } = browser();
-    const calls = capture(() => Response.json({ message: "Rejected", error: "CART.CHANGED", status_code: status, validation_errors: [] }, { status }));
+    const calls = capture(() => Response.json({ message: "Rejected", error: "CART.NOT_READY", status_code: status, validation_errors: [] }, { status }));
     await assert.rejects(retainAndRecover(), (error) => error.statusCode === status);
     assert.equal(calls.filter((call) => call.path.endsWith("/carts/accept")).length, 1);
     const definite = status < 500 && status !== 408 && status !== 429;
@@ -397,15 +397,15 @@ test("failed terminal storage clear does not notify success and retains recovery
 
 test("saved-method consent survives lost responses and exact recovery", async () => {
   const { storage } = browser();
-  const consentRequest = { ...request, payment: { ...request.payment, save_payment_method: true, payment_method_terms_version: "checkout-2026-09" } };
+  const consentRequest = { ...request, payment: { ...request.payment, save_payment_method: true, payment_method_terms: "Save this card for later group charges." } };
   await loseResponse(consentRequest);
   assert.deepEqual(await storefront().eshop.cart.pendingCheckout(), consentRequest);
   const calls = capture(success);
-  await assert.rejects(storefront().eshop.cart.retainCheckout({ ...consentRequest, payment: { ...consentRequest.payment, payment_method_terms_version: "new-terms" } }), /different unresolved payload/);
+  await assert.rejects(storefront().eshop.cart.retainCheckout({ ...consentRequest, payment: { ...consentRequest.payment, payment_method_terms: "Updated exact card wording." } }), /different unresolved payload/);
   assert.equal(calls.length, 0);
   assert.deepEqual(await storefront().eshop.cart.recoverCheckout(), placedAcceptance());
   assert.equal(calls[0].body.payment.save_payment_method, true);
-  assert.equal(calls[0].body.payment.payment_method_terms_version, "checkout-2026-09");
+  assert.equal(calls[0].body.payment.payment_method_terms, "Save this card for later group charges.");
   assert.equal(storage.getItem(storageKey), null);
 });
 
@@ -413,8 +413,8 @@ test("saving a payment method requires explicit well-formed consent before trans
   for (const payment of [
     { ...request.payment, save_payment_method: "true" },
     { ...request.payment, save_payment_method: true },
-    { ...request.payment, save_payment_method: true, payment_method_terms_version: null },
-    ...["", " terms", "terms\n", "a".repeat(257)].map((terms) => ({ ...request.payment, save_payment_method: true, payment_method_terms_version: terms })),
+    { ...request.payment, save_payment_method: true, payment_method_terms: null },
+    ...["", "   ", "a".repeat(40_001), "ž".repeat(20_001)].map((terms) => ({ ...request.payment, save_payment_method: true, payment_method_terms: terms })),
   ]) {
     const { storage } = browser();
     const calls = capture(success);

@@ -11,7 +11,7 @@ const otherStoreId = ids.otherStore;
 const sessionId = "7f2a5c90-1d64-4e38-b9a7-0c3e8f6d2b15";
 
 function admin() {
-  return createAdmin({ baseUrl, apiToken: "arky_api_admin_contract" });
+  return createAdmin({ baseUrl, secretKey: "arky_api_admin_contract" });
 }
 
 function issued(overrides = {}) {
@@ -42,37 +42,22 @@ test("Admin reads need no Market or Store context and invent none", async (conte
   }
 });
 
-test("notification history routes keep recipient and owner filters, and a queued notification has no stop", async (context) => {
-  const notification = {
-    id: ids.payment,
-    type: {
-      type: "email",
-      email_type: { type: "receipt_resend", sending_address_id: ids.paymentOption, order_id: ids.order, to: "buyer@example.test" },
-      send_before: null,
-      status: { type: "waiting" },
-    },
-    created_at: 1,
-    updated_at: 1,
-  };
-  const webhook = {
-    id: ids.credit,
-    type: { type: "webhook", store_id: storeId, webhook_id: ids.form, event_id: ids.submission, event_type: "order.created", status: { type: "acknowledged", at: 2 } },
-    created_at: 1,
-    updated_at: 2,
-  };
-  const responses = [{ items: [notification], cursor: null }, notification, { items: [webhook], cursor: null }];
+test("email and webhook histories use distinct routes and preserve their public delivery states", async (context) => {
+  const email = { id: ids.payment, type: { type: "receipt_resend", sending_address_id: ids.paymentOption, order_id: ids.order }, to: "buyer@example.test", send_before: null, status: { type: "waiting" }, created_at: 1, updated_at: 1 };
+  const webhook = { id: ids.credit, store_id: storeId, webhook_id: ids.form, event_id: ids.submission, event_type: "order.created", status: { type: "acknowledged", at: 2 }, created_at: 1, updated_at: 2 };
+  const responses = [{ items: [email], cursor: null }, email, { items: [webhook], cursor: null }];
   const calls = recordFetch(context, () => responses.shift());
   const client = admin();
-  const page = await client.notification.find({ store_id: storeId, to: "buyer@example.test", type: "receipt_resend", order_id: ids.order, limit: 25 });
-  assert.deepEqual(page.items, [notification]);
-  assert.deepEqual(await client.notification.get({ store_id: storeId, id: notification.id }), notification);
-  assert.deepEqual((await client.notification.find({ store_id: storeId, type: "webhook", webhook_id: ids.form })).items, [webhook]);
+  assert.deepEqual((await client.notification.outgoingEmail.find({ store_id: storeId, to: email.to, type: "receipt_resend", order_id: ids.order, limit: 25 })).items, [email]);
+  assert.deepEqual(await client.notification.outgoingEmail.get({ store_id: storeId, id: email.id }), email);
+  assert.deepEqual((await client.notification.outgoingWebhook.find({ store_id: storeId, webhook_id: ids.form })).items, [webhook]);
   assert.deepEqual(calls.map((call) => [call.method, call.href, call.body]), [
-    ["GET", `${baseUrl}/v1/stores/${storeId}/notifications?to=buyer%40example.test&type=receipt_resend&order_id=${ids.order}&limit=25`, null],
-    ["GET", `${baseUrl}/v1/stores/${storeId}/notifications/${notification.id}`, null],
-    ["GET", `${baseUrl}/v1/stores/${storeId}/notifications?type=webhook&webhook_id=${ids.form}`, null],
+    ["GET", `${baseUrl}/v1/stores/${storeId}/outgoing-emails?to=buyer%40example.test&type=receipt_resend&order_id=${ids.order}&limit=25`, null],
+    ["GET", `${baseUrl}/v1/stores/${storeId}/outgoing-emails/${email.id}`, null],
+    ["GET", `${baseUrl}/v1/stores/${storeId}/outgoing-webhooks?webhook_id=${ids.form}`, null],
   ]);
-  for (const removed of ["stop", "cancel", "delivery", "mailbox", "email", "emailSender"]) assert.equal(removed in client.notification, false, removed);
+  assert.equal("find" in client.notification, false);
+  assert.equal("stop" in client.notification.outgoingEmail, false);
 });
 
 test("admin code login activates the same pending Account Session and remembers the email it was asked for", async (context) => {
@@ -156,11 +141,11 @@ test("request errors keep the server response and read its snake_case status and
 });
 
 test("a camelCase error body is not the Server's shape: its field errors are not read and the HTTP status stands", async (context) => {
-  recordFetch(context, () => jsonResponse({ message: "Conflict", error: "CART.CHANGED", statusCode: 400, validationErrors: [{ field: "email", error: "bad" }] }, 409));
+  recordFetch(context, () => jsonResponse({ message: "Conflict", error: "GENERAL.CONFLICT", statusCode: 400, validationErrors: [{ field: "email", error: "bad" }] }, 409));
   await assert.rejects(admin().account.getMe(), (error) => {
     assert.equal(error.statusCode, 409);
     assert.deepEqual(error.validationErrors, []);
-    assert.equal(error.code, "CART.CHANGED");
+    assert.equal(error.code, "GENERAL.CONFLICT");
     return true;
   });
   recordFetch(context, () => new Response("upstream failure", { status: 502, headers: { "content-type": "text/plain" } }));
@@ -221,7 +206,7 @@ test("Store locations and webhooks carry app-picked ids and versions; a webhook 
     ["DELETE", `/v1/stores/${storeId}/locations/${ids.companyLocation}`, { expected_updated_at: "5" }, null],
     ["POST", `/v1/stores/${storeId}/webhooks`, {}, webhook],
     ["PUT", `/v1/stores/${storeId}/webhooks/${ids.form}`, {}, { expected_updated_at: 6, status: { type: "active" } }],
-    ["POST", `/v1/stores/${storeId}/webhooks/test`, {}, { id: ids.submission, webhook_id: ids.form }],
+    ["POST", `/v1/stores/${storeId}/outgoing-webhooks/test`, {}, { id: ids.submission, webhook_id: ids.form }],
   ]);
   await assert.rejects(async () => client.store.webhook.test({ store_id: storeId, id: "test-1", webhook_id: ids.form }), TypeError);
   assert.equal(calls.length, 6);
@@ -262,34 +247,37 @@ test("admin Order reads by customer and cancels product units under the app's cr
   });
   const client = admin();
   await client.eshop.order.find({ store_id: storeId, customer_id: ids.customer });
-  const request = { store_id: otherStoreId, order_id: "order/one", line_item_id: "line/one", credit_id: ids.credit, expected_updated_at: 1789990000000, units: [{ first_unit: 1, quantity: 2 }, { first_unit: 5, quantity: 1 }] };
+  const request = { store_id: otherStoreId, order_id: "order/one", line_item_id: "line/one", credit_id: ids.credit, expected_updated_at: 1789990000000, notify_customer: false, units: [{ first_unit: 1, quantity: 2 }, { first_unit: 5, quantity: 1 }] };
   await assert.rejects(client.eshop.order.cancelProductItem(request), (error) => error.statusCode === 503);
   assert.deepEqual(await client.eshop.order.cancelProductItem(request), { id: ids.order });
   assert.equal(calls.length, 3);
   assert.deepEqual(calls[1].body, calls[2].body);
   assert.deepEqual(calls.map((call) => [call.method, call.href, call.body]), [
     ["GET", `${baseUrl}/v1/stores/${storeId}/orders?customer_id=${ids.customer}`, null],
-    ["POST", `${baseUrl}/v1/stores/${otherStoreId}/orders/order%2Fone/product-items/line%2Fone/cancel`, { credit_id: ids.credit, expected_updated_at: 1789990000000, units: request.units }],
-    ["POST", `${baseUrl}/v1/stores/${otherStoreId}/orders/order%2Fone/product-items/line%2Fone/cancel`, { credit_id: ids.credit, expected_updated_at: 1789990000000, units: request.units }],
+    ["POST", `${baseUrl}/v1/stores/${otherStoreId}/orders/order%2Fone/product-items/line%2Fone/cancel`, { credit_id: ids.credit, expected_updated_at: 1789990000000, notify_customer: false, units: request.units }],
+    ["POST", `${baseUrl}/v1/stores/${otherStoreId}/orders/order%2Fone/product-items/line%2Fone/cancel`, { credit_id: ids.credit, expected_updated_at: 1789990000000, notify_customer: false, units: request.units }],
   ]);
   await assert.rejects(async () => client.eshop.order.cancelProductItem({ ...request, credit_id: "cancellation-command" }), TypeError);
   await assert.rejects(async () => client.eshop.order.cancelProductItem({ ...request, store_id: "store/one" }), TypeError);
+  await assert.rejects(async () => client.eshop.order.cancelProductItem({ ...request, notify_customer: undefined }), TypeError);
   assert.equal(calls.length, 3);
-  for (const removed of ["getProducts", "getDigitalProducts", "cancelProduct", "resumePayment", "update"]) {
+  for (const removed of ["getProducts", "getDigitalProducts", "cancelProduct", "resumePayment"]) {
     assert.equal(removed in client.eshop.order, false, removed);
   }
+  for (const action of ["update", "correctDeliveryAddress", "rescheduleBookingItem"]) assert.equal(typeof client.eshop.order[action], "function", action);
 });
 
 test("a pending order is cancelled with the version and a receipt is resent under the app's notification id", async (context) => {
   const calls = recordFetch(context, () => ({ id: ids.order }));
   const client = admin();
-  await client.eshop.order.cancel({ store_id: storeId, order_id: ids.order, expected_updated_at: 9 });
-  await client.eshop.order.resendReceipt({ store_id: storeId, order_id: ids.order, id: ids.payment });
+  await client.eshop.order.cancel({ store_id: storeId, order_id: ids.order, expected_updated_at: 9, notify_customer: true });
+  await client.eshop.order.resendReceipt({ store_id: storeId, order_id: ids.order, id: ids.payment, expected_updated_at: 9 });
   assert.deepEqual(calls.map((call) => [call.method, call.path, call.body]), [
-    ["POST", `/v1/stores/${storeId}/orders/${ids.order}/cancel`, { expected_updated_at: 9 }],
-    ["POST", `/v1/stores/${storeId}/orders/${ids.order}/resend-receipt`, { id: ids.payment }],
+    ["POST", `/v1/stores/${storeId}/orders/${ids.order}/cancel`, { expected_updated_at: 9, notify_customer: true }],
+    ["POST", `/v1/stores/${storeId}/orders/${ids.order}/resend-receipt`, { id: ids.payment, expected_updated_at: 9 }],
   ]);
-  await assert.rejects(async () => client.eshop.order.resendReceipt({ store_id: storeId, order_id: ids.order, id: "receipt-1" }), TypeError);
+  await assert.rejects(async () => client.eshop.order.resendReceipt({ store_id: storeId, order_id: ids.order, id: "receipt-1", expected_updated_at: 9 }), TypeError);
+  await assert.rejects(async () => client.eshop.order.cancel({ store_id: storeId, order_id: ids.order, expected_updated_at: 9 }), TypeError);
   assert.equal(calls.length, 2);
 });
 
@@ -303,7 +291,7 @@ test("admin market deletion sends the version and answers the market marked dele
 });
 
 test("Category is top-level on both clients", () => {
-  const storefront = createStorefront(publishableKey, { apiUrl: baseUrl });
+  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl: baseUrl });
   assert.equal("category" in admin().content, false);
   assert.equal("category" in storefront.content, false);
   assert.equal(typeof admin().category.find, "function");
@@ -312,7 +300,7 @@ test("Category is top-level on both clients", () => {
 
 test("storefront collection lookup uses a keyless route with the publishable key and locale headers", async (context) => {
   const calls = recordFetch(context, () => ({ id: "collection-contract", key: "articles" }));
-  const storefront = createStorefront(publishableKey, { apiUrl: baseUrl, locale: "en" });
+  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl: baseUrl, locale: "en" });
   await storefront.content.collection.get({ key: "articles" });
   await storefront.content.collection.get({ id: ids.form });
   assert.deepEqual(calls.map((call) => call.href), [`${baseUrl}/v1/storefront/collections/articles`, `${baseUrl}/v1/storefront/collections/${ids.form}`]);
@@ -343,7 +331,7 @@ test("admin Product writes carry the app-picked id and version and InventoryLeve
 
 test("storefront variant read carries the exact product and buyer context", async (context) => {
   const calls = recordFetch(context, () => ({}));
-  const storefront = createStorefront(publishableKey, { apiUrl: baseUrl, locale: "en" });
+  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl: baseUrl, locale: "en" });
   await storefront.eshop.productVariant.get({ product_id: "lean-product", id: "variant-one", company_location_id: "location-one", include_price: true });
   await storefront.eshop.productVariant.get({ product_id: "lean-product", id: "variant-one", company_id: "company-one" });
   assert.equal(calls[0].href, `${baseUrl}/v1/storefront/products/lean-product/variants/variant-one?company_location_id=location-one&include_price=true`);
@@ -354,7 +342,7 @@ test("storefront variant read carries the exact product and buyer context", asyn
 test("storefront cart reads send the recovery credential only in the cart-token header", async (context) => {
   const recoveryToken = "cart-recovery-contract-token";
   const calls = recordFetch(context, () => ({ id: ids.cart }));
-  const storefront = createStorefront(publishableKey, { apiUrl: baseUrl, sessionStorage: visitorStorage() });
+  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl: baseUrl, sessionStorage: visitorStorage() });
   await storefront.eshop.cart.get(
     { id: ids.cart, token: recoveryToken },
     {
@@ -370,7 +358,7 @@ test("storefront cart reads send the recovery credential only in the cart-token 
 });
 
 test("storefront money helpers preserve exact zero, need an explicit locale and reject invalid minor units", () => {
-  const storefront = createStorefront(publishableKey, { apiUrl: baseUrl, market: "ita" });
+  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl: baseUrl, market: "ita" });
   const price = { tax_mode: "inclusive", unit_price: { amount: 0, currency: "eur" }, compare_at: null, min_quantity: 1, max_quantity: null, priced_at: 1 };
   assert.equal(storefront.utils.getPriceAmount(price), 0);
   assert.equal(storefront.utils.formatPrice(price, "it"), storefront.utils.formatMinor(0, "eur", "it"));
@@ -386,7 +374,7 @@ test("storefront money helpers preserve exact zero, need an explicit locale and 
 test("SDK_VERSION equals the package version", async () => {
   const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
   assert.equal(SDK_VERSION, packageJson.version);
-  assert.equal(SDK_VERSION, "0.26.86");
+  assert.equal(SDK_VERSION, "0.26.88");
 });
 
 test("recursive storefront declarations never degrade to any", async () => {

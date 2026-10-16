@@ -9,7 +9,7 @@ const methodId = "9d4b2e61-7a35-4c08-b1f9-3e6a0c8d5b72";
 const zoneId = "2e8a6c14-9b37-4d50-a2f8-6c1e4b9d0a35";
 
 function store() {
-  return createAdmin({ baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).store;
+  return createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" }).store;
 }
 
 test("a tax category carries its rules with exact treatments and explicit schedule boundaries", async (context) => {
@@ -17,7 +17,7 @@ test("a tax category carries its rules with exact treatments and explicit schedu
   const rules = [
     {
       id: "rule-1",
-      zone_id: zoneId,
+      areas: [{ type: "country", country: "US" }],
       treatment: {
         type: "rates",
         components: [
@@ -28,7 +28,7 @@ test("a tax category carries its rules with exact treatments and explicit schedu
       starts_at: 1_900_000_000_123,
       ends_at: null,
     },
-    { id: "rule-2", zone_id: zoneId, treatment: { type: "zero_rated", reason: "Exports" }, starts_at: null, ends_at: 1_900_000_000_456 },
+    { id: "rule-2", areas: [{ type: "country", country: "US" }], treatment: { type: "zero_rated", reason: "Exports" }, starts_at: null, ends_at: 1_900_000_000_456 },
   ];
   const api = store().taxCategory;
   await api.create({ store_id: STORE_ID, id: categoryId, key: "standard", rules });

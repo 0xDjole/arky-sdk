@@ -55,6 +55,7 @@ export interface ArkyLastOrder {
 }
 
 export interface ArkyCartCheckoutInput {
+  order_token: string;
   order_id: string;
   contact_email: string | null;
   payment: CheckoutPaymentChoice;

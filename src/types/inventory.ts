@@ -71,7 +71,7 @@ export type InventoryMovementReason =
   | { type: "receiving"; actor: AccountActor; reference: string | null }
   | { type: "adjustment"; actor: AccountActor; quantity: InventoryQuantity; note: string }
   | { type: "damage"; actor: AccountActor; quantity: InventoryQuantity; reference: string | null }
-  | { type: "dispatched"; fulfillment_job_id: string; fulfillment_id: string }
+  | { type: "dispatched"; fulfillment_id: string }
   | { type: "return_restock"; return_id: string }
   | { type: "set_aside"; actor: AccountActor; note: string }
   | { type: "made_available"; actor: AccountActor; note: string }
@@ -102,25 +102,18 @@ export interface InventoryUnitAllocation {
   fulfillment_unit_index: number;
 }
 
-export interface InventoryUnitExecution {
-  fulfillment_job_id: string;
-  fulfillment_job_line_id: string;
-  fulfillment_unit_index: number;
-  fulfillment_id: string;
-  executed_at: EpochMilliseconds;
-}
-
 export type InventoryUnitWriteOffSource =
   | { type: "warehouse"; store_location_id: string }
-  | { type: "rental"; rental_id: string; execution: InventoryUnitExecution }
+  | { type: "rental"; rental_id: string; fulfillment_id: string }
   | { type: "return_disposition"; return_id: string; store_location_id: string };
 
 export type InventoryUnitStatus =
   | { type: "available"; store_location_id: string }
+  | { type: "set_aside"; store_location_id: string }
   | { type: "allocated"; store_location_id: string; allocation: InventoryUnitAllocation }
-  | { type: "issued"; execution: InventoryUnitExecution }
-  | { type: "rented"; rental_id: string; execution: InventoryUnitExecution }
-  | { type: "returning"; rental_id: string; execution: InventoryUnitExecution; return_id: string }
+  | { type: "issued"; fulfillment_id: string }
+  | { type: "rented"; rental_id: string; fulfillment_id: string }
+  | { type: "returning"; rental_id: string; fulfillment_id: string; return_id: string }
   | { type: "inspection"; store_location_id: string; return_id: string; received_at: EpochMilliseconds }
   | {
       type: "written_off";
@@ -317,6 +310,12 @@ export interface AllocateInventoryUnitParams extends GetInventoryUnitParams {
 
 export interface UnassignInventoryUnitParams extends GetInventoryUnitParams {
   expected_updated_at: EpochMilliseconds;
+}
+
+export interface ChangeInventoryUnitSetAsideParams extends GetInventoryUnitParams {
+  expected_updated_at: EpochMilliseconds;
+  action_id: string;
+  note: string;
 }
 
 export interface MoveInventoryUnitParams extends GetInventoryUnitParams {

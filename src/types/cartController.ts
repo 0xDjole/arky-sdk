@@ -18,7 +18,7 @@ import type {
 } from "./cart";
 
 export interface CartApi {
-  current(params?: StorefrontCurrentCartParams, options?: RequestOptions): Promise<Cart | null>;
+  current(params: StorefrontCurrentCartParams, options?: RequestOptions): Promise<Cart | null>;
   get(params: StorefrontGetCartParams, options?: RequestOptions): Promise<Cart>;
   update(params: StorefrontUpdateCartParams, options?: RequestOptions): Promise<Cart>;
   addProduct(params: StorefrontAddCartProductParams, options?: RequestOptions): Promise<Cart>;

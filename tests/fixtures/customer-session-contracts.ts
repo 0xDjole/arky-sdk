@@ -26,16 +26,16 @@ export type CustomerSessionContracts = [
   Assert<Equal<Extract<CustomerSessionIssued, { type: 'visitor' }>['token'], string>>,
   Assert<Missing<Extract<CustomerSessionIssued, { type: 'visitor' }>, 'access_token' | 'refresh_token'>>,
   Assert<Equal<CustomerSessionType['type'], 'visitor' | 'email_authenticated'>>,
-  Assert<Equal<keyof IdentifyCustomerParams, 'email'>>,
+  Assert<Equal<keyof IdentifyCustomerParams, 'customer_id' | 'session_id'>>,
   Assert<Missing<StorefrontClient['customer'], 'captureEmail'>>,
   Assert<Missing<CustomerSession, 'superseded_at'>>,
   Assert<Missing<CustomerSession, 'revoked_at'>>,
   Assert<Equal<typeof record, CustomerSession>>,
   Assert<Equal<Extract<CustomerSessionType, { type: 'email_authenticated' }>['email_change'], CustomerEmailVerification | null>>,
   Assert<Equal<Extract<CustomerSessionType, { type: 'visitor' }>['email_verification'], CustomerEmailVerification | null>>,
-  Assert<Equal<keyof ChangeCustomerEmailParams, 'code' | 'language'>>,
+  Assert<Equal<keyof ChangeCustomerEmailParams, 'code'>>,
   Assert<Equal<Awaited<ReturnType<StorefrontClient['customer']['changeEmail']>>, CustomerMe>>,
-  Assert<Equal<UpdateCustomerMeParams['email'], string | undefined>>,
+  Assert<Missing<UpdateCustomerMeParams, 'email'>>,
 ];
 
 void [status, visitor, record];

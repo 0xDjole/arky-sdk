@@ -1,10 +1,10 @@
 import type { EpochMilliseconds } from "./time";
+import type { ZoneArea } from "./market";
 import type { Money, SortDirection, TaxRate } from "./common";
 
 export type TaxCalculation =
   | { type: "percentage"; rate: TaxRate; compound: boolean }
-  | { type: "fixed_per_unit"; unit_amount: Money }
-  | { type: "fixed_per_assessment"; amount: Money };
+  | { type: "fixed_per_unit"; unit_amount: Money };
 
 export interface TaxComponent {
   id: string;
@@ -22,7 +22,7 @@ export type TaxTreatment =
 
 export interface TaxRule {
   id: string;
-  zone_id: string;
+  areas: ZoneArea[];
   treatment: TaxTreatment;
   starts_at: EpochMilliseconds | null;
   ends_at: EpochMilliseconds | null;

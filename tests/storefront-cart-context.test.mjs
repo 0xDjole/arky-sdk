@@ -20,7 +20,6 @@ const customerBuyer = { type: "customer" };
 const productLine = {
   type: "product",
   id: ids.line,
-  product_id: ids.product,
   variant_id: ids.variant,
   quantity: 1,
   form_submission_id: null,
@@ -46,7 +45,7 @@ function gate() {
 }
 
 function storeWithCart(options = {}) {
-  const store = initialize(publishableKey, { apiUrl, locale: "en", market: "market-a", sessionStorage: visitorStorage(), ...options });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, locale: "en", market: "market-a", sessionStorage: visitorStorage(), ...options });
   store.eshop.cart.cart.set(cartRecord({ line_items: [productLine] }));
   return store;
 }
@@ -79,7 +78,6 @@ test("the store saves delivery groups exactly as given, with the loaded cart's i
 test("promotion codes come from the reviewed quote, drop with a language change, and are only sent when the buyer sets them", async (context) => {
   const promotions = [
     { promotion_id: "promotion", promotion_key: "spring", code: { promotion_code_id: "code", code: "SAVE10" } },
-    { promotion_id: "automatic", promotion_key: "auto", code: null },
   ];
   const calls = recordFetch(context, (call) => call.path.endsWith("/quote") ? quoteRecord({ promotions }) : cartRecord({ line_items: [productLine], updated_at: 1_700_000_000_002 }));
   const store = storeWithCart();
@@ -113,7 +111,7 @@ test("a market change clears the selected cart view, and a late read for the old
     await reads.get(id).waiting;
     return cartRecord({ id });
   });
-  const store = initialize(publishableKey, { apiUrl, locale: "en", market: "market-a", sessionStorage: visitorStorage() });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, locale: "en", market: "market-a", sessionStorage: visitorStorage() });
   await store.eshop.cart.create({ id: ids.cart, buyer: customerBuyer, catalog_id: ids.catalog });
   store.setMarket("market-b");
   await store.eshop.cart.create({ id: ids.otherCart, buyer: customerBuyer, catalog_id: ids.catalog });
@@ -166,7 +164,7 @@ for (const change of ["buyer", "language"]) {
     const pending = store.eshop.cart.quote();
     const rejected = assert.rejects(pending, change === "buyer" ? /changed during the cart operation/ : /language changed while quoting/);
     await quote.started;
-    if (change === "buyer") await store.customer.identify();
+    if (change === "buyer") await store.customer.identify({ customer_id: ids.otherCustomer, session_id: ids.otherSession });
     else store.setLocale("de");
     quote.release();
     await rejected;
@@ -193,7 +191,7 @@ test("a buyer or market change leaves an unresolved checkout request byte for by
     assert.equal(call.path, "/v1/storefront/carts/accept");
     throw new TypeError("response lost");
   });
-  const store = initialize(publishableKey, { apiUrl, locale: "en", market: "market-a", sessionStorage: visitorStorage() });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, locale: "en", market: "market-a", sessionStorage: visitorStorage() });
   const request = checkoutRequest();
   await store.client.eshop.cart.retainCheckout(request);
   await assert.rejects(store.client.eshop.cart.recoverCheckout(), /response lost/);
@@ -203,7 +201,7 @@ test("a buyer or market change leaves an unresolved checkout request byte for by
   const retained = durable.getItem(key);
   assert.ok(retained);
   store.setMarket("market-b");
-  await store.customer.identify();
+  await store.customer.identify({ customer_id: ids.otherCustomer, session_id: ids.otherSession });
   assert.equal(store.eshop.cart.cart.get(), null);
   assert.equal(store.eshop.cart.last_order.get(), null);
   assert.equal(durable.getItem(key), retained);

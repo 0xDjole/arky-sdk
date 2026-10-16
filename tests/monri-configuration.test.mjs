@@ -5,17 +5,18 @@ import { errorResponse, ids, recordFetch } from "./helpers/arky-fixtures.mjs";
 
 const STORE_ID = "9a4c2e71-5d38-4b06-8f1a-2c7e9b3d5f40";
 const OTHER_STORE_ID = "1f6b8d23-4e97-4a50-b2c8-7d0e5a9c3f16";
+const savedCardTerms = { bs: "Kartica će se koristiti za vaše prihvaćene obnove." };
 
 function paymentOptions() {
-  return createAdmin({ baseUrl: "https://api.example.test", apiToken: "arky_api_test" }).store.paymentOption;
+  return createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" }).store.paymentOption;
 }
 
 test("Monri creation sends the app-picked id and explicit credentials once to the named store and returns the safe record", async (context) => {
   let failure = null;
-  const result = { id: ids.paymentOption, store_id: STORE_ID, key: "cards", blocks: [], status: "disabled", type: { type: "monri", environment: "test" }, created_at: 1, updated_at: 1 };
+  const result = { id: ids.paymentOption, store_id: STORE_ID, key: "cards", blocks: [], status: "disabled", type: { type: "monri", environment: "test", saved_card_terms: savedCardTerms }, created_at: 1, updated_at: 1 };
   const calls = recordFetch(context, () => failure ? errorResponse(failure) : result);
   const api = paymentOptions();
-  const input = { id: ids.paymentOption, key: "cards", blocks: [], environment: "test", merchant_key: "submitted-secret", authenticity_token: "submitted-token", status: "disabled" };
+  const input = { id: ids.paymentOption, key: "cards", blocks: [], environment: "test", merchant_key: "submitted-secret", authenticity_token: "submitted-token", status: "disabled", saved_card_terms: savedCardTerms };
   for (const store_id of [STORE_ID, OTHER_STORE_ID]) {
     assert.deepEqual(await api.monri.create({ ...input, store_id }), result);
     const call = calls.at(-1);
@@ -42,13 +43,20 @@ test("Monri creation sends the app-picked id and explicit credentials once to th
 });
 
 test("payment option availability sends the version, blocks and status without resending credentials", async (context) => {
-  const result = { id: ids.paymentOption, store_id: STORE_ID, status: "disabled", type: { type: "monri", environment: "test" } };
+  const result = { id: ids.paymentOption, store_id: STORE_ID, status: "disabled", type: { type: "monri", environment: "test", saved_card_terms: savedCardTerms } };
   const calls = recordFetch(context, () => result);
-  const input = { store_id: STORE_ID, id: ids.paymentOption, expected_updated_at: 1000, blocks: [], status: "disabled" };
+  const input = { store_id: STORE_ID, id: ids.paymentOption, expected_updated_at: 1000, blocks: [], status: "disabled", saved_card_terms: savedCardTerms };
   assert.deepEqual(await paymentOptions().update(input), result);
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
-    ["PUT", `/v1/stores/${STORE_ID}/payment-options/${ids.paymentOption}`, { expected_updated_at: 1000, blocks: [], status: "disabled" }],
+    ["PUT", `/v1/stores/${STORE_ID}/payment-options/${ids.paymentOption}`, { expected_updated_at: 1000, blocks: [], status: "disabled", saved_card_terms: savedCardTerms }],
   ]);
+});
+
+test("a local payment option update explicitly carries no saved-card wording", async (context) => {
+  const result = { id: ids.paymentOption, store_id: STORE_ID, status: "active", type: { type: "manual" } };
+  const calls = recordFetch(context, () => result);
+  await paymentOptions().update({ store_id: STORE_ID, id: ids.paymentOption, expected_updated_at: 1001, blocks: [], status: "active", saved_card_terms: null });
+  assert.deepEqual(calls[0].body, { expected_updated_at: 1001, blocks: [], status: "active", saved_card_terms: null });
 });
 
 test("payment options are listed with native filters and read by id or by key", async (context) => {

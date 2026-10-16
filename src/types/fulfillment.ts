@@ -1,9 +1,9 @@
 import type { EpochMilliseconds } from "./time";
 import type { Block } from "./block";
-import type { AccountActor, CommerceParty, PostalAddress, SortDirection, UnitSpan } from "./common";
+import type { AccountActor, CommerceParty, Money, PostalAddress, SortDirection, UnitSpan } from "./common";
 import type { InventoryRequirement } from "./product";
-import type { FulfillmentTiming } from "./order";
-import type { PurchaseRequirementScope, PurchaseRequirementUnit } from "./customerGroup";
+import type { OrderDeliveryTiming } from "./order";
+import type { PurchaseRequirementScope } from "./customerGroup";
 
 export type RoutingCondition =
   | { type: "markets"; market_ids: string[] }
@@ -74,13 +74,13 @@ export type FulfillmentJobType =
       type: "order_delivery";
       order_id: string;
       order_delivery_group_id: string;
-      timing: FulfillmentTiming;
+      timing: OrderDeliveryTiming;
       lines: FulfillmentJobLine[];
     }
   | { type: "rental_replacement"; replacement: RentalIssueReplacement; line: FulfillmentJobLine };
 
 export type FulfillmentAssignmentSource =
-  | { type: "served_from"; company_location_id: string }
+  | { type: "served_from" }
   | { type: "routing_rule"; rule_id: string }
   | { type: "otherwise" }
   | { type: "account"; actor: AccountActor };
@@ -95,7 +95,7 @@ export type FulfillmentJobMethod =
   | { type: "pickup"; store_location_id: string };
 
 export type FulfillmentHoldReason =
-  | { type: "awaiting_release" }
+  | { type: "awaiting_payment" }
   | { type: "awaiting_location_choice" }
   | { type: "out_of_stock" }
   | { type: "manual"; actor: AccountActor; note: string }
@@ -107,16 +107,24 @@ export interface FulfillmentHold {
   created_at: EpochMilliseconds;
 }
 
-export type FulfillmentRecipient =
-  | { type: "customer"; source_customer_id: string; email: string | null }
+export type FulfillmentJobBuyer =
+  | { type: "customer"; customer_id: string }
+  | { type: "company"; company_id: string; company_name: string }
   | {
       type: "company_location";
-      source_customer_id: string;
-      email: string | null;
+      company_id: string;
       company_name: string;
-      source_company_location_id: string;
+      company_location_id: string;
       company_location_name: string;
     };
+
+export interface FulfillmentJobContact {
+  email: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  phone: string | null;
+  buyer: FulfillmentJobBuyer;
+}
 
 export type FulfillmentJobStatus = "scheduled" | "on_hold" | "open" | "in_progress" | "completed" | "cancelled";
 
@@ -126,7 +134,7 @@ export interface FulfillmentJob {
   type: FulfillmentJobType;
   method: FulfillmentJobMethod;
   holds: FulfillmentHold[];
-  recipient: FulfillmentRecipient;
+  contact: FulfillmentJobContact;
   status: FulfillmentJobStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
@@ -150,7 +158,7 @@ export interface FulfillmentExecution {
 
 export type DeliveryStatus =
   | { type: "preparing" }
-  | { type: "sent"; execution: FulfillmentExecution }
+  | { type: "dispatched"; execution: FulfillmentExecution }
   | { type: "delivered"; execution: FulfillmentExecution; delivered_at: EpochMilliseconds }
   | { type: "cancelled"; cancelled_at: EpochMilliseconds };
 
@@ -161,7 +169,7 @@ export type PickupStatus =
   | { type: "cancelled"; cancelled_at: EpochMilliseconds };
 
 export type FulfillmentType =
-  | { type: "delivery"; tracking: Tracking | null; status: DeliveryStatus }
+  | { type: "delivery"; trackings: Tracking[]; status: DeliveryStatus }
   | { type: "pickup"; status: PickupStatus };
 
 export interface SelectedUnit {
@@ -241,6 +249,23 @@ export interface ActOnFulfillmentJobParams extends GetFulfillmentJobParams {
   action: FulfillmentJobAction;
 }
 
+export interface RecordPickupCashParams {
+  store_id: string;
+  fulfillment_job_id: string;
+  id: string;
+  payment_id: string;
+  expected_job_updated_at: EpochMilliseconds;
+  expected_payment_updated_at: EpochMilliseconds;
+  money: Money;
+  reference: string | null;
+}
+
+export interface PickupCash {
+  payment_id: string;
+  payment_updated_at: EpochMilliseconds;
+  due: Money;
+}
+
 export interface FindFulfillmentJobsParams {
   store_id: string;
   order_id?: string;
@@ -291,18 +316,20 @@ export type FulfillmentAction =
 export interface ActOnFulfillmentParams extends GetFulfillmentParams {
   expected_updated_at: EpochMilliseconds;
   action: FulfillmentAction;
-  tracking: Tracking | null;
+  notify_customer: boolean;
+  trackings: Tracking[];
   lot_references: FulfillmentLotReference[];
 }
 
 export interface UpdateFulfillmentTrackingParams extends GetFulfillmentParams {
   expected_updated_at: EpochMilliseconds;
-  tracking: Tracking | null;
+  trackings: Tracking[];
 }
 
 export interface MarkFulfillmentDeliveredParams extends GetFulfillmentParams {
   expected_updated_at: EpochMilliseconds;
   delivered_at: EpochMilliseconds;
+  notify_customer: boolean;
 }
 
 export type CustomerFulfillmentMethod =
@@ -312,8 +339,8 @@ export type CustomerFulfillmentMethod =
 export type CustomerShipmentStatus =
   | { type: "preparing" }
   | { type: "ready_for_pickup"; ready_at: EpochMilliseconds }
-  | { type: "sent"; sent_at: EpochMilliseconds }
-  | { type: "delivered"; sent_at: EpochMilliseconds; delivered_at: EpochMilliseconds }
+  | { type: "dispatched"; dispatched_at: EpochMilliseconds }
+  | { type: "delivered"; dispatched_at: EpochMilliseconds; delivered_at: EpochMilliseconds }
   | { type: "collected"; collected_at: EpochMilliseconds }
   | { type: "cancelled"; cancelled_at: EpochMilliseconds };
 
@@ -336,8 +363,10 @@ export interface CustomerOrderFulfillment {
   order_delivery_group_id: string;
   method: CustomerFulfillmentMethod;
   status: CustomerFulfillmentJobStatus;
-  timing: FulfillmentTiming;
+  timing: OrderDeliveryTiming;
   shipments: CustomerOrderShipment[];
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface FindCustomerOrderFulfillmentsParams {
@@ -349,7 +378,6 @@ export type MinimumProgressUnavailableReason =
   | "incomplete_source_evidence"
   | "incomplete_return_evidence"
   | "mixed_timezone_period"
-  | "mixed_measurement_unit"
   | "mixed_agreements"
   | "arithmetic_overflow"
   | "history_limit"
@@ -358,7 +386,6 @@ export type MinimumProgressUnavailableReason =
 export type MinimumProgressMonthState =
   | {
       type: "available";
-      unit: PurchaseRequirementUnit;
       scope: PurchaseRequirementScope;
       delivered_quantity: number;
       returned_quantity: number;

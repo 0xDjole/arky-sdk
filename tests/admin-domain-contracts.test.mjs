@@ -108,7 +108,7 @@ test('API-token rejection preserves the native snake_case failure without refres
     return Response.json(response, { status: 401, headers: { 'x-request-id': 'native-auth-rejection' } });
   };
   const token = 'arky_api_native-revoked-credential';
-  const admin = createAdmin({ baseUrl: 'https://api.example.test', apiToken: token });
+  const admin = createAdmin({ baseUrl: 'https://api.example.test', secretKey: token });
   const payload = {
     id: STORE_ID,
     name: 'Account-authorized Store',
@@ -137,4 +137,33 @@ test('API-token rejection preserves the native snake_case failure without refres
   ]);
   await assert.rejects(async () => admin.store.create({ ...payload, id: 'store-one' }), TypeError);
   assert.equal(requests.length, 2);
+});
+
+
+test('a restored Account bearer reaches protected requests and follows caller-owned credential renewal', async (t) => {
+  const original = globalThis.fetch;
+  t.after(() => { globalThis.fetch = original; });
+  const now = Date.now();
+  let credentials = issued(now, 1);
+  const calls = [];
+  const rejected = [];
+  globalThis.fetch = async (url, init) => {
+    const headers = new Headers(init.headers);
+    calls.push({ path: new URL(url).pathname, authorization: headers.get('authorization') });
+    if (headers.get('authorization') === 'Bearer access-1') return Response.json({ error: 'INVALID_TOKEN', message: 'Account session expired', status_code: 401, validation_errors: [] }, { status: 401 });
+    return Response.json({ id: 'account', email: 'staff@example.test' });
+  };
+  const admin = createAdmin({
+    baseUrl: 'https://api.example.test',
+    forcedHeaders: () => ({ Authorization: `Bearer ${credentials.access_token}` }),
+    onUnauthorized: (context) => { rejected.push(context); return false; },
+  });
+  await assert.rejects(admin.account.getMe(), { statusCode: 401 });
+  assert.deepEqual(rejected, [{ hadAuthorization: true, authorizationToken: 'access-1', path: '/v1/accounts/me' }]);
+  credentials = issued(now, 2);
+  await admin.account.getMe({ headers: { authorization: 'Bearer caller-override' } });
+  assert.deepEqual(calls, [
+    { path: '/v1/accounts/me', authorization: 'Bearer access-1' },
+    { path: '/v1/accounts/me', authorization: 'Bearer access-2' },
+  ]);
 });
