@@ -368,7 +368,7 @@ test("a visitor who signs in as an existing customer lands on the cart the serve
   await storefront.eshop.cart.create({ id: ids.cart, buyer: customerBuyer, catalog_id: ids.catalog });
   await storefront.eshop.cart.addProduct({ id: ids.cart, expected_updated_at: 1, product: { id: ids.line, variant_id: ids.variant, quantity: 1, purchase: { type: "catalog" } } });
   await storefront.customer.requestCode({ id: ids.form, email: "buyer@example.test", language: "en" });
-  await storefront.customer.verify({ session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", code: "123456" });
+  await storefront.customer.verify({ code: "123456" });
   assert.equal(storefront.session.customer.id, ids.otherCustomer);
   const signInLinks = storage.keys("arky:cart-sign-in:v1:");
   assert.equal(signInLinks.length, 1);
@@ -417,7 +417,7 @@ test("an explicit new cart after sign-in is kept instead of being replaced by a 
   });
   const storefront = client(storage);
   await storefront.eshop.cart.create({ id: ids.cart, buyer: customerBuyer, catalog_id: ids.catalog });
-  await storefront.customer.verify({ session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", code: "123456" });
+  await storefront.customer.verify({ code: "123456" });
   await storefront.eshop.cart.create({ id: ids.thirdCart, buyer: customerBuyer, catalog_id: ids.catalog });
   const before = calls.length;
   assert.equal((await storefront.eshop.cart.current({ buyer: customerBuyer, catalog_id: ids.catalog })).id, ids.thirdCart);
@@ -438,7 +438,7 @@ test("a merged guest cart is never followed into a cart the signed-in customer d
   });
   const storefront = client(storage);
   await storefront.eshop.cart.create({ id: ids.cart, buyer: customerBuyer, catalog_id: ids.catalog });
-  await storefront.customer.verify({ session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", code: "123456" });
+  await storefront.customer.verify({ code: "123456" });
   assert.equal(await storefront.eshop.cart.current({ buyer: customerBuyer, catalog_id: ids.catalog }), null);
   assert.deepEqual(storage.keys(selectionPrefix), []);
   assert.deepEqual(storage.keys(tokenPrefix), []);

@@ -1,4 +1,5 @@
 import { requireId } from "./utils/ids";
+import { isDefiniteRefusal } from "./utils/durableRequest";
 import { createAdminSessionState } from "./services/adminSession";
 import { createHttpClient } from "./services/createHttpClient";
 import type { AuthStorage, HttpClientConfig } from "./types/httpClient";
@@ -177,7 +178,7 @@ export { createCartController } from "./cartController";
 export { buildFormAnswers, initialize } from "./storefrontStore";
 export type * from "./storefrontStore";
 
-export const SDK_VERSION = "0.26.89";
+export const SDK_VERSION = "0.26.90";
 export const SUPPORTED_FRAMEWORKS = ["astro", "react", "vue", "svelte", "vanilla"] as const;
 
 export interface AdminSession {
@@ -455,8 +456,8 @@ export interface StorefrontOptions extends StorefrontContext {
   apiUrl?: string;
   sessionStorage?: StorefrontSessionStorage;
   visitorIdentity?: IdentifyCustomerParams;
-  createVisitorIdentity?: () => IdentifyCustomerParams;
-  createSessionId?: () => string;
+  createVisitorIdentity: () => IdentifyCustomerParams;
+  createSessionId: () => string;
 }
 
 export const DEFAULT_STOREFRONT_API_URL = "https://api.arky.io";
@@ -589,8 +590,16 @@ function contextKey(value: string | undefined, label: string): string {
   return key;
 }
 
-function createStorefrontClientCore(publishableKeyInput: string, options: StorefrontOptions = {}, isolatedSession = false) {
+function requireIdFactories(options: StorefrontOptions | undefined): StorefrontOptions {
+  if (typeof options?.createVisitorIdentity !== "function" || typeof options.createSessionId !== "function") {
+    throw new TypeError("A storefront needs createVisitorIdentity and createSessionId: the app picks every customer and session id");
+  }
+  return options;
+}
+
+function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions: StorefrontOptions, isolatedSession = false) {
   const publishableKey = validatePublishableKey(publishableKeyInput);
+  const options = requireIdFactories(suppliedOptions);
   const apiUrl = normalizeStorefrontApiUrl(options.apiUrl);
   let locale = options.locale?.trim() ?? "";
   let market = contextKey(options.market, "market");
@@ -599,6 +608,7 @@ function createStorefrontClientCore(publishableKeyInput: string, options: Storef
   let automaticRefreshId: string | null = null;
   let identifyPromise: Promise<CustomerSessionResult> | null = null;
   let identifyKey: string | null = null;
+  let pendingVerifySessionId: string | null = null;
   let pendingVisitorIdentity: IdentifyCustomerParams | null = null;
   let visitorIdentityConsumed = false;
   let identityTail: Promise<void> = Promise.resolve();
@@ -750,8 +760,7 @@ function createStorefrontClientCore(publishableKeyInput: string, options: Storef
     if (pendingVisitorIdentity) return pendingVisitorIdentity;
     const picked = !visitorIdentityConsumed && options.visitorIdentity
       ? options.visitorIdentity
-      : options.createVisitorIdentity?.();
-    if (!picked) throw new Error("A new Visitor requires caller-picked IDs through customer.identify or createVisitorIdentity");
+      : options.createVisitorIdentity();
     pendingVisitorIdentity = {
       customer_id: requireId(picked.customer_id, "customer"),
       session_id: requireId(picked.session_id, "customer session"),
@@ -798,9 +807,17 @@ function createStorefrontClientCore(publishableKeyInput: string, options: Storef
   async function verify(params: VerifyCustomerCodeParams): Promise<CustomerSessionResult> {
     requireVisitorSessionCapability();
     await ensureVisitorSession();
-    const result = await customerApi.verify(params);
-    identifyPromise = null;
-    return result;
+    pendingVerifySessionId ??= requireId(options.createSessionId(), "customer session");
+    const sessionId = pendingVerifySessionId;
+    try {
+      const result = await customerApi.verify({ session_id: sessionId, code: params.code });
+      pendingVerifySessionId = null;
+      identifyPromise = null;
+      return result;
+    } catch (error) {
+      if (isDefiniteRefusal(error)) pendingVerifySessionId = null;
+      throw error;
+    }
   }
 
   async function changeEmail(params: ChangeCustomerEmailParams, options?: RequestOptions): Promise<CustomerMe> {
@@ -905,7 +922,6 @@ function createStorefrontClientCore(publishableKeyInput: string, options: Storef
     }
     if (memorySession?.session.type === "email_authenticated") {
       try {
-        if (!options.createSessionId) return false;
         if (!automaticRefreshPromise) {
           const refreshSessionId = automaticRefreshId ?? requireId(options.createSessionId(), "customer session");
           automaticRefreshId = refreshSessionId;
@@ -917,6 +933,7 @@ function createStorefrontClientCore(publishableKeyInput: string, options: Storef
         await automaticRefreshPromise;
         return true;
       } catch {
+        automaticRefreshId = null;
         updateSession(() => null);
         return false;
       }
@@ -997,7 +1014,7 @@ export type StorefrontClient = StorefrontClientCore & {
   withContext(context: StorefrontContext): StorefrontClient;
 };
 
-function createStorefrontClient(publishableKey: string, options: StorefrontOptions = {}, isolatedSession = false): StorefrontClient {
+function createStorefrontClient(publishableKey: string, options: StorefrontOptions, isolatedSession = false): StorefrontClient {
   const client = createStorefrontClientCore(publishableKey, options, isolatedSession);
   return Object.assign(client, {
     withContext(context: StorefrontContext): StorefrontClient {
@@ -1014,7 +1031,7 @@ function createStorefrontClient(publishableKey: string, options: StorefrontOptio
   });
 }
 
-export function createStorefront(publishableKey: string, options: StorefrontOptions = {}): StorefrontClient {
+export function createStorefront(publishableKey: string, options: StorefrontOptions): StorefrontClient {
   return createStorefrontClient(publishableKey, options);
 }
 

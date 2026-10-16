@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { createStorefront, initialize } from "../dist/storefront.js";
+import { idFactories } from "./helpers/arky-fixtures.mjs";
 
 const storeId = "3b21b61d-7162-414c-a73a-888ccbc57c3e";
 const otherStoreId = "7f3a7a66-3403-4112-b5e5-d004a62d00b0";
@@ -144,7 +145,7 @@ test("price lists, assortments and catalog entitlements are gone from the Admin 
 });
 
 test("catalog management is not attached to the storefront acquisition API", () => {
-  const storefront = createStorefront(`arky_pk_${"a".repeat(42)}A`);
+  const storefront = createStorefront(`arky_pk_${"a".repeat(42)}A`, idFactories);
   for (const { owner } of definitions) {
     assert.equal(owner in storefront, false);
     if (owner !== "catalog") assert.equal(owner in storefront.eshop, false);

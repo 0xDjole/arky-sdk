@@ -38,6 +38,11 @@ export const ids = {
   account: "ca60db1c-68d1-42d5-8b55-8a1e04f2cb2f",
 };
 
+export const idFactories = {
+  createVisitorIdentity: () => ({ customer_id: ids.customer, session_id: ids.session }),
+  createSessionId: () => ids.otherSession,
+};
+
 export function jsonResponse(body, status = 200) {
   if (status === 204 || body === undefined) return new Response(null, { status: status === 200 ? 204 : status });
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });

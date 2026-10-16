@@ -8,6 +8,7 @@ import {
   apiUrl as baseUrl,
   customerRecord,
   emailSession,
+  idFactories,
   ids,
   publishableKey,
   recordFetch,
@@ -25,7 +26,7 @@ const identity = { customer_id: customerId, session_id: ids.session };
 const profile = [{ id: ids.line, key: "name", type: "text", value: "Ana" }];
 
 function client(storage = new SessionStorage()) {
-  return createStorefront(publishableKey, { apiUrl: baseUrl, locale: "bs", visitorIdentity: identity, createSessionId: () => ids.otherSession, sessionStorage: storage });
+  return createStorefront(publishableKey, { ...idFactories, apiUrl: baseUrl, locale: "bs", visitorIdentity: identity, sessionStorage: storage });
 }
 
 test("same caller-picked visitor identities share a request without sending contact fields", async (context) => {
@@ -213,6 +214,6 @@ test("a signed-in customer unsubscribes and resubscribes on the storefront with 
     assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
   }
   assert.deepEqual(storefront.session, before);
-  const store = initialize(publishableKey, { apiUrl: baseUrl, locale: "bs", visitorIdentity: identity, createSessionId: () => ids.otherSession, sessionStorage: signedInStorage() });
+  const store = initialize(publishableKey, { ...idFactories, apiUrl: baseUrl, locale: "bs", visitorIdentity: identity, sessionStorage: signedInStorage() });
   assert.equal(typeof store.customer.unsubscribe, "function");
 });
