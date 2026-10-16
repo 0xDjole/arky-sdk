@@ -343,5 +343,3 @@ export function createCartSelection(
 
   return { current, create, reorder, forget, token, signedIn };
 }
-
-export type CartSelection = ReturnType<typeof createCartSelection>;

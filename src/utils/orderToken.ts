@@ -1,4 +1,5 @@
 import type { RequestOptions } from '../types/httpClient';
+import { isCanonicalId } from './ids';
 
 export function isOrderToken(value: unknown): value is string {
   return typeof value === 'string' && /^arky_ot_[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/.test(value);
@@ -18,7 +19,7 @@ export function orderTokenOptions(options?: RequestOptions): RequestOptions | un
 }
 
 function tokenKey(scope: string, orderId: string): string {
-  if (!scope || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(orderId)) throw new TypeError('An order token needs its exact scope and canonical Order ID');
+  if (!scope || !isCanonicalId(orderId)) throw new TypeError('An order token needs its exact scope and canonical Order ID');
   return `arky:order-token:v1:${encodeURIComponent(scope)}:${orderId}`;
 }
 
