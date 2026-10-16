@@ -178,7 +178,6 @@ export interface RequestCustomerCodeParams {
 }
 
 export interface VerifyCustomerCodeParams {
-  session_id: string;
   code: string;
 }
 
@@ -331,7 +330,7 @@ export const createStorefrontApi = (
         return result;
       },
 
-      async verify(params: VerifyCustomerCodeParams, options?: RequestOptions): Promise<CustomerSessionResult> {
+      async verify(params: VerifyCustomerCodeParams & { session_id: string }, options?: RequestOptions): Promise<CustomerSessionResult> {
         const signedInFrom = cartSelectionContext.customerId();
         const result = await httpClient.post<CustomerSessionResult>(
           `${base}/customer/verify`,

@@ -7,6 +7,7 @@ import {
   apiUrl,
   cartRecord,
   customerRecord,
+  idFactories,
   ids,
   publishableKey,
   recordFetch,
@@ -246,7 +247,7 @@ test("a raw storefront submission stays stateful and sends only the id, the load
 
 test("Visitor identify sends only the application-picked IDs and does not claim a contact address", async (context) => {
   const storage = new SessionStorage();
-  const store = initialize(publishableKey, { apiUrl, sessionStorage: storage });
+  const store = initialize(publishableKey, { ...idFactories, apiUrl, sessionStorage: storage });
   const calls = recordFetch(context, () => ({ customer: customerRecord(), session: visitorSession() }));
   const identity = { customer_id: ids.customer, session_id: ids.session };
   const result = await store.customer.identify(identity);

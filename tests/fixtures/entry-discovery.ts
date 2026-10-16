@@ -13,7 +13,7 @@ const discovery = { collection_id: "collection", query: "heading",
   filters: [{ type: "text", key: "heading", values: ["Exact title"] }] } satisfies StorefrontFindEntriesParams;
 const query: FindEntriesParams = { store_id, status: "active", ...discovery };
 const page: Promise<{ items: Entry[]; cursor: string | null }> = api.content.entry.find(query);
-const storefront = createStorefront(`arky_pk_${"s".repeat(43)}`, { apiUrl: "https://entry.test", market: "market-contract" });
+const storefront = createStorefront(`arky_pk_${"s".repeat(43)}`, { apiUrl: "https://entry.test", market: "market-contract", createVisitorIdentity: () => ({ customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" });
 const cursor: Promise<string | null> = storefront.content.entry.find(discovery).then((result) => result.cursor);
 const bySlug: Promise<Entry | null> = storefront.content.entry.findBySlug({ collection_id: "collection", slug: "guide" });
 void [page, cursor, bySlug];

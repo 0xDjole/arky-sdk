@@ -9,6 +9,7 @@ import {
   customerRecord,
   emailSession,
   errorResponse,
+  idFactories,
   ids,
   otherPublishableKey,
   publishableKey,
@@ -77,14 +78,14 @@ test("publishable-key initialization is synchronous, network-free and refuses ev
   const calls = recordFetch(context, () => {
     throw new Error("initialize must not fetch");
   });
-  const client = createStorefront(publishableKey);
+  const client = createStorefront(publishableKey, idFactories);
   assert.equal(calls.length, 0);
   assert.equal(client.getLocale(), "");
   assert.equal(client.getMarket(), "");
   assert.equal("getStoreId" in client, false);
   assert.equal("forStore" in client, false);
   for (const credential of ["arky_api_private", "customer_visitor_visitor", "arky_vst_visitor", "contact_visitor", `arky_pk_${"a".repeat(43)}`, {}]) {
-    assert.throws(() => createStorefront(credential), /publishable key/i);
+    assert.throws(() => createStorefront(credential, idFactories), /publishable key/i);
   }
 });
 
@@ -371,7 +372,7 @@ test("a sign-in code and refresh rotate the customer session atomically, and log
   const requested = await client.customer.requestCode({ id: signInId, email: "person@example.com", language: "en" });
   assert.equal(requested.email_verification.issued_at, 2);
   assert.equal(sessionValues(storage)[0].session.token, visitorTokenA);
-  const verified = await client.customer.verify({ session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", code: "123456" });
+  const verified = await client.customer.verify({ code: "123456" });
   assert.equal(verified.session.id, authenticated.id);
   assert.equal(client.isAuthenticated, true);
   assert.deepEqual(client.session, { customer, id: authenticated.id, type: "email_authenticated", status: { type: "active" } });
@@ -460,7 +461,7 @@ test("a profile answer that lands after a sign-in leaves the signed-in customer 
   const reading = client.customer.getMe();
   const editing = client.customer.updateMe({ expected_updated_at: 1_700_000_000_000, profile: [{ id: ids.line, key: "name", type: "text", value: "Edited" }] });
   await new Promise((resolve) => setImmediate(resolve));
-  await client.customer.verify({ session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", code: "123456" });
+  await client.customer.verify({ code: "123456" });
   answers.get("GET").release();
   answers.get("PATCH").release();
   assert.equal((await reading).customer.profile[0].value, "Visitor");

@@ -27,10 +27,12 @@ const arky = createStorefront("arky_pk_...", {
   apiUrl: "https://api.arky.io",
   locale: "en",
   market: "eu",
+  createVisitorIdentity: () => ({ customer_id: crypto.randomUUID(), session_id: crypto.randomUUID() }),
+  createSessionId: () => crypto.randomUUID(),
 });
 ```
 
-Only an `arky_pk_...` publishable key is accepted. Each storefront key belongs to exactly one sales channel, so carts, prices and checkouts made with it use that channel; there is no channel option or header. `X-Arky-Locale` is the only source of the language, so storefront quotes and checkouts send no `language` in the body. Change the context with `setContext({ locale, market })`, or make a scoped copy with `withContext(...)`. `getSetup()` answers the store's `name`, `timezone`, `languages` and payment options.
+`createVisitorIdentity` and `createSessionId` are required: the app picks every customer and session id, and a client without them throws when it is created. Only an `arky_pk_...` publishable key is accepted. Each storefront key belongs to exactly one sales channel, so carts, prices and checkouts made with it use that channel; there is no channel option or header. `X-Arky-Locale` is the only source of the language, so storefront quotes and checkouts send no `language` in the body. Change the context with `setContext({ locale, market })`, or make a scoped copy with `withContext(...)`. `getSetup()` answers the store's `name`, `timezone`, `languages` and payment options.
 
 ### Customer sessions
 
@@ -47,7 +49,7 @@ await arky.customer.requestCode({ id: crypto.randomUUID(), email: "ana.new@examp
 await arky.customer.changeEmail({ code: "654321" });
 ```
 
-`requestCode` names the code email's id and its language. On a signed-in session it starts an email change instead of a sign-in: the code goes to the new address, and `changeEmail({ code })` proves it. The session stays signed in, the email becomes the new verified address, and the old address gets a notice in the language the code request named. `unsubscribe` records that the signed-in customer unsubscribed and `resubscribe` releases it; both answer the customer with `email_unsubscribed`. `updateMe` can't replace or remove a verified email. Sessions are kept in `localStorage`, or in the `sessionStorage` adapter you pass (needed during SSR). When `verify` signs the visitor in as a customer who already exists, Arky merges the visitor's cart into that customer's cart in the same step. The next `cart.current(...)` follows the merged visitor cart to that cart and selects it, so the customer lands on their merged cart, on a new browser too; `cart.create` or `cart.forget` for the same buyer and catalog drops the pending follow.
+`requestCode` names the code email's id and its language. On a signed-in session it starts an email change instead of a sign-in: the code goes to the new address, and `changeEmail({ code })` proves it. The session stays signed in, the email becomes the new verified address, and the old address gets a notice in the language the code request named. `unsubscribe` records that the signed-in customer unsubscribed and `resubscribe` releases it; both answer the customer with `email_unsubscribed`. `updateMe` can't replace or remove a verified email. `verify` issues the signed-in session under a new id from `createSessionId` and reuses that id when it retries after a lost answer. Sessions are kept in `localStorage`, or in the `sessionStorage` adapter you pass (needed during SSR). When `verify` signs the visitor in as a customer who already exists, Arky merges the visitor's cart into that customer's cart in the same step. The next `cart.current(...)` follows the merged visitor cart to that cart and selects it, so the customer lands on their merged cart, on a new browser too; `cart.create` or `cart.forget` for the same buyer and catalog drops the pending follow.
 
 ### Content, media and forms
 
@@ -120,7 +122,7 @@ const accepted = await arky.eshop.cart.checkout({
     payment_option_id: quote.suggested_payment_option_id!,
     return_url: location.href,
     save_payment_method: false,
-    payment_method_terms_version: null,
+    payment_method_terms: null,
   },
 });
 ```
@@ -160,9 +162,15 @@ Checkout answers `{ type: "placed", order_id, number, payment_id, payment_action
 ```typescript
 import { initialize } from "arky-sdk/storefront";
 
-export const store = initialize("arky_pk_...", { locale: "en", market: "eu" });
+export const store = initialize("arky_pk_...", {
+  locale: "en",
+  market: "eu",
+  createVisitorIdentity: () => ({ customer_id: crypto.randomUUID(), session_id: crypto.randomUUID() }),
+  createSessionId: () => crypto.randomUUID(),
+});
 
-await store.eshop.cart.load({ buyer: { type: "customer" } });
+const [catalog] = await store.eshop.catalog.find();
+await store.eshop.cart.load({ buyer: { type: "customer" }, catalog_id: catalog.id });
 await store.eshop.cart.addProduct({ id: crypto.randomUUID(), variant_id, quantity: 1, purchase: { type: "catalog" } });
 await store.eshop.cart.quote();
 await store.eshop.cart.checkout({ order_id: crypto.randomUUID(), order_token: createOrderToken(), contact_email, payment });
@@ -210,7 +218,7 @@ SDK packages are released by tagging the protected `master` commit with `v<packa
 
 Customers are Anonymous until their inbox is verified. Storefront responses contain their typed profile; staff responses also contain private blocks. Imports create Anonymous customers from caller-picked IDs and typed blocks without matching an email.
 
-For stateful storefront operations, supply the IDs your application picked once for the visitor identity:
+Every storefront client takes the two id factories. `visitorIdentity` is optional and restores a pair your application picked earlier:
 
 ```typescript
 const arkyStore = initialize(publishableKey, {
@@ -222,13 +230,13 @@ const arkyStore = initialize(publishableKey, {
 });
 ```
 
-To sign in, request a code using a caller-picked `id` and explicit `language`, then verify with a new caller-picked `session_id`. For automatic credential refresh, supply `createSessionId`; your application creates each ID and the SDK reuses it for that refresh attempt. Explicit refresh uses `customer.refresh({ session_id })`. Store API keys replace personal tokens: Publishable keys select one sales channel, and Secret keys grant explicit store permissions. Pass a Secret key as `createAdmin({ baseUrl, secretKey })`.
+To sign in, request a code using a caller-picked `id` and explicit `language`, then call `verify({ code })`: the SDK takes the new session's id from `createSessionId`. Automatic credential refresh takes each new id from `createSessionId` too, and reuses it for that refresh attempt. When a signed-in session can't be refreshed, the SDK clears it and reports the sign-out to `onAuthStateChanged`. Explicit refresh uses `customer.refresh({ session_id })`. Store API keys replace personal tokens: Publishable keys select one sales channel, and Secret keys grant explicit store permissions. Pass a Secret key as `createAdmin({ baseUrl, secretKey })`.
 
 Reusable email templates have a key and fixed data type. Select templates explicitly through `admin.store.emails.update`; each empty setting disables that email. Forms select their own received, stage-change and alert emails.
 
-Email changes currently return an unavailable response until the required previous-address notice is configured. After an uncertain sign-in issuance (`CommitOutcomeUnknown`), begin a fresh explicit visitor identity, request another code, and verify with a new caller-picked session ID. The SDK does not replace an issuance ID automatically.
+Email changes currently return an unavailable response until the required previous-address notice is configured. After an uncertain sign-in issuance (`CommitOutcomeUnknown`), `verify` keeps its session id for the retry; a definite refusal drops it, so the next `verify` takes a new one from `createSessionId`.
 
-Use `createVisitorIdentity` to replace an expired Visitor. The application picks both IDs; the SDK keeps that pair across a lost response and retries. A static `visitorIdentity` is used once; after expiry, supply new IDs explicitly with `customer.identify({ customer_id, session_id })` or configure the factory.
+Use `createVisitorIdentity` to replace an expired Visitor. The application picks both IDs; the SDK keeps that pair across a lost response and retries. A static `visitorIdentity` is used once; after expiry the SDK takes a new pair from `createVisitorIdentity`, or you supply one with `customer.identify({ customer_id, session_id })`.
 
 An app creates an Order capability with `createOrderToken` from `arky-sdk/utils`, keeps it with the chosen `order_id`, and reuses both on every checkout retry. `retainCheckout` retains that pair. The token is transient and never appears in an Order record or a checkout response. Exact Order reads, payments, payment actions, fulfillments, cancellations and Order returns accept `{ order_token }` as request options; the SDK sends `X-Arky-Order-Token` only for those requests. Lists and customer, company, rental and library access keep their ordinary session scope. `order.downloadAsset({ order_id, line_item_id, asset_id, order_token })` downloads one asset from that exact Order.
 

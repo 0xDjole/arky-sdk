@@ -1372,7 +1372,7 @@ function initializeStore(publishableKey: string, config: ArkyStoreConfig, scoped
   });
 }
 
-export function initialize(publishableKey: string, options: ArkyStoreConfig = {}): InitializedStore {
+export function initialize(publishableKey: string, options: ArkyStoreConfig): InitializedStore {
   return initializeStore(publishableKey, options);
 }
 

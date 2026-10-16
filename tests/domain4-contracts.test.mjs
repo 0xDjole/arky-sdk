@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { createStorefront } from "../dist/storefront.js";
-import { publishableKey, recordFetch, ids, visitorSession, storedSession, SessionStorage, errorResponse } from "./helpers/arky-fixtures.mjs";
+import { idFactories, publishableKey, recordFetch, ids, visitorSession, storedSession, SessionStorage, errorResponse } from "./helpers/arky-fixtures.mjs";
 
 const storeId = "ab73eb42-89fd-4cbf-a1fd-fb84e6d78590";
 const customerId = "63ebda09-b0da-40c7-85ee-4ad9f2310c30";
@@ -36,7 +36,7 @@ test("store API keys carry typed scope and retain caller identity on retries", a
 test("visitor identity and code sends use caller-picked UUIDs without exposing staff blocks", async (context) => {
   const calls = recordFetch(context, (call) => call.path.endsWith("request-code") ? { customer: customer(), session: { id: sessionId, store_id: storeId, customer_id: customerId }, email_verification: { issued_at: 1, expires_at: 600001 } } : issued());
   const memory = new Map();
-  const client = createStorefront(publishableKey, { apiUrl: "https://api.example.test", locale: "en", sessionStorage: { getItem: (key) => memory.get(key) ?? null, setItem: (key, value) => memory.set(key, value), removeItem: (key) => memory.delete(key) }, visitorIdentity: { customer_id: customerId, session_id: sessionId } });
+  const client = createStorefront(publishableKey, { ...idFactories, apiUrl: "https://api.example.test", locale: "en", sessionStorage: { getItem: (key) => memory.get(key) ?? null, setItem: (key, value) => memory.set(key, value), removeItem: (key) => memory.delete(key) }, visitorIdentity: { customer_id: customerId, session_id: sessionId } });
   await client.customer.identify({ customer_id: customerId, session_id: sessionId });
   await client.customer.requestCode({ id: emailId, email: "buyer@example.test", language: "en" });
   assert.deepEqual(calls.map((call) => call.body), [{ customer_id: customerId, session_id: sessionId }, { id: emailId, email: "buyer@example.test", language: "en" }]);
@@ -62,6 +62,7 @@ test("expired Visitor replacement keeps the application-picked pair after a lost
     apiUrl: "https://api.example.test",
     sessionStorage: new SessionStorage(storedSession(ids.customer, prior)),
     createVisitorIdentity: () => { picks++; return { customer_id: customerId, session_id: sessionId }; },
+    createSessionId: () => ids.otherSession,
   });
   await assert.rejects(client.customer.getMe(), /Lost response/);
   await Promise.all([client.customer.getMe(), client.customer.getMe()]);

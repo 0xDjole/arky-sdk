@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { createStorefront, initialize } from "../dist/storefront.js";
-import { apiUrl, errorResponse, ids, publishableKey, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
+import { apiUrl, errorResponse, idFactories, ids, publishableKey, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
 
 const STORE_ID = "9e4c7a21-3b58-4f06-8d1a-6c2e0b9f5a37";
 const methodId = "3c7e1a95-4d28-4b60-9f13-8e2a5d0c7b46";
@@ -17,7 +17,7 @@ const owners = [
 function surfaceApi(surface) {
   if (surface === "admin") return createAdmin({ baseUrl: apiUrl, secretKey: "arky_api_contract" }).eshop.paymentMethod;
   const make = surface === "initialized" ? initialize : createStorefront;
-  return make(publishableKey, { apiUrl, sessionStorage: visitorStorage() }).eshop.paymentMethod;
+  return make(publishableKey, { ...idFactories, apiUrl, sessionStorage: visitorStorage() }).eshop.paymentMethod;
 }
 
 function base(surface) {
@@ -125,7 +125,7 @@ test("storefront setup exposes each option's own saved-card wording and preserve
     ],
   };
   const calls = recordFetch(context, () => setup);
-  const api = createStorefront(publishableKey, { apiUrl, sessionStorage: visitorStorage() });
+  const api = createStorefront(publishableKey, { ...idFactories, apiUrl, sessionStorage: visitorStorage() });
   const read = await api.store.getSetup();
   assert.deepEqual(read, setup);
   assert.equal(read.payment_options[0].saved_card_terms.bs, terms);
