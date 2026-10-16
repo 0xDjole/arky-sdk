@@ -3,6 +3,7 @@ import type { AuthToken } from '../types/api';
 import type { TokenSet } from '../types/httpClient';
 import { epochMillisecondsNow } from '../utils/time';
 import type { EpochMilliseconds } from '../types/time';
+import { isCanonicalId } from '../utils/ids';
 
 export type AdminLogoutResult =
   | { type: 'revoked'; session_id: string }
@@ -12,7 +13,6 @@ export type AdminLogoutResult =
 
 const queues = new Map<string, Promise<unknown>>();
 const changedEvent = 'arky-admin-session-changed';
-const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 function isEpochMilliseconds(value: unknown): value is EpochMilliseconds {
   return typeof value === 'number' && Number.isSafeInteger(value);
@@ -23,7 +23,7 @@ function record(value: unknown): value is Record<string, unknown> {
 }
 
 function validSession(value: unknown): value is AdminSessionInternal {
-  return record(value) && typeof value.id === 'string' && uuid.test(value.id)
+  return record(value) && isCanonicalId(value.id)
     && typeof value.access_token === 'string' && value.access_token.length > 0
     && typeof value.refresh_token === 'string' && value.refresh_token.length > 0
     && isEpochMilliseconds(value.access_expires_at)

@@ -1,13 +1,12 @@
 import type { LocalizedText } from "../types/common";
 import type { CreateMediaParams } from "../types/content";
 import { DurableRequestStorageError } from "./durableRequest";
+import { isCanonicalId } from "./ids";
 
 const databaseName = "arky-durable-requests-v1";
 const objectStoreName = "media-create";
 const databaseVersion = 1;
 const mediaCreateLabel = "Media create";
-const canonicalUuidV4 =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 interface DurableMediaCreate {
   storageKey: string;
@@ -190,12 +189,7 @@ function parsePayload(requestJson: string): MediaCreatePayload {
     throw unavailable("payload is corrupt");
   }
   if (!isRecord(value)) throw unavailable("payload is invalid");
-  if (
-    typeof value.store_id !== "string" ||
-    !canonicalUuidV4.test(value.store_id) ||
-    typeof value.media_id !== "string" ||
-    !canonicalUuidV4.test(value.media_id)
-  ) {
+  if (!isCanonicalId(value.store_id) || !isCanonicalId(value.media_id)) {
     throw unavailable("payload identity is invalid");
   }
   if (!validAlt(value.alt)) throw unavailable("payload alt text is invalid");
@@ -296,7 +290,7 @@ async function payloadFor(
   storeId: string,
   params: CreateMediaParams,
 ): Promise<{ payload: MediaCreatePayload; blob: Blob | null }> {
-  if (!canonicalUuidV4.test(storeId) || !canonicalUuidV4.test(params.id)) {
+  if (!isCanonicalId(storeId) || !isCanonicalId(params.id)) {
     throw unavailable("identity is not a canonical UUID-v4");
   }
   if (params.file) {

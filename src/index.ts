@@ -135,27 +135,7 @@ import { categorify, formatDate, humanize, slugify } from "./utils/text";
 import { fetchSvgContent, getSvgContentForAstro, injectSvgIntoElement } from "./utils/svg";
 import { isValidKey, nameToKey, toKey, validateKey } from "./utils/keyValidation";
 
-export type * from "./types";
-export {
-  CURRENCY_MINOR_UNITS,
-  WEBHOOK_UNIT_EVENT_TYPES,
-  TYPED_CUSTOMER_ACTION_KEYS,
-  BROADCAST_FIELDS,
-  BROADCAST_BLOCK_FIELD_PREFIXES,
-  cartProductItems,
-  cartBookingItems,
-  cartCustomerGroupItems,
-  orderLineItemsOfType,
-  orderProductItems,
-  orderBookingItems,
-  orderCustomerGroupItems,
-  orderRentalUseItems,
-  orderPurchaseAccessItems,
-  MonriCheckoutError,
-  CartPresentationChangedError,
-  CartSelectionError,
-  FulfillmentSelectionError,
-} from "./types";
+export * from "./types";
 export type { AdminLogoutResult } from "./services/adminSession";
 export type { AdminSessionInternal, AdminSessionUpdater, ApiConfig, StorefrontApiConfig } from "./services/clientTypes";
 export type { GetCountriesResponse } from "./api/location";
@@ -197,7 +177,7 @@ export { createCartController } from "./cartController";
 export { buildFormAnswers, initialize } from "./storefrontStore";
 export type * from "./storefrontStore";
 
-export const SDK_VERSION = "0.26.88";
+export const SDK_VERSION = "0.26.89";
 export const SUPPORTED_FRAMEWORKS = ["astro", "react", "vue", "svelte", "vanilla"] as const;
 
 export interface AdminSession {
