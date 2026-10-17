@@ -1,16 +1,21 @@
 import type { EpochMilliseconds } from "../types/time";
 import { epochMilliseconds, epochMillisecondsNow } from "../utils/time";
 import { buildQueryString, type QueryParams } from "../utils/queryParams";
+import { ArkyApiError } from "../types/apiError";
 
 import type { TokenSet, AuthStorage, RequestSuccessContext, RequestErrorContext, RequestOptions, HttpClient, HttpClientConfig, ServerError, HttpRequestErrorDetails } from "../types/httpClient";
 export type { TokenSet, AuthStorage, RequestSuccessContext, RequestErrorContext, RequestOptions, HttpClient, HttpClientConfig } from "../types/httpClient";
 
 function requestError(
-  name: "ApiError" | "NetworkError" | "ParseError" | "AbortError",
+  name: "NetworkError" | "ParseError" | "AbortError",
   message: string,
   details: HttpRequestErrorDetails = {},
 ): Error & HttpRequestErrorDetails {
   return Object.assign(new Error(message), { name }, details);
+}
+
+function sessionEnded(message: string): ArkyApiError {
+  return new ArkyApiError({ message, code: "GENERAL.UNAUTHENTICATED", statusCode: 401 });
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -97,9 +102,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
       const refresh_token = tokens?.refresh_token;
       if (!refresh_token) {
         authStorage.onForcedLogout();
-        throw requestError("ApiError", "No refresh token available", {
-          statusCode: 401,
-        });
+        throw sessionEnded("No refresh token available");
       }
 
       const refRes = await fetch(getRefreshEndpoint(), {
@@ -113,9 +116,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
 
       if (!refRes.ok) {
         authStorage.onForcedLogout();
-        throw requestError("ApiError", "Token refresh failed", {
-          statusCode: 401,
-        });
+        throw sessionEnded("Token refresh failed");
       }
 
       const data: unknown = await refRes.json();
@@ -142,6 +143,10 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
     options?: RequestOptions<T> & { body?: unknown },
     retried = false,
   ): Promise<T> {
+    if (!cfg.storefrontMode && (options?.locale !== undefined || options?.market !== undefined)) {
+      throw new TypeError("A per-call locale or market is a storefront request option");
+    }
+
     if (!retried && options?.transformRequest) {
       body = options.transformRequest(body);
     }
@@ -152,7 +157,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
 
     const forcedHeaders =
       typeof cfg.forcedHeaders === "function"
-        ? cfg.forcedHeaders()
+        ? cfg.forcedHeaders({ locale: options?.locale, market: options?.market })
         : cfg.forcedHeaders || {};
     const callerHeaders = { ...(options?.headers || {}) };
     const protectedHeaderNames = new Set(
@@ -181,7 +186,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
       await ensureFreshToken(tokens);
       const refreshed = authStorage.getTokens();
       if (tokens?.id && refreshed?.id !== tokens.id) {
-        throw requestError("ApiError", "The Account session changed", { statusCode: 401 });
+        throw sessionEnded("The Account session changed");
       }
       tokens = refreshed;
     }
@@ -252,7 +257,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
       } else {
         await ensureFreshToken(tokens);
         if (tokens?.id && authStorage.getTokens()?.id !== tokens.id) {
-          throw requestError("ApiError", "The Account session changed", { statusCode: 401 });
+          throw sessionEnded("The Account session changed");
         }
         return request<T>(method, path, body, options, true);
       }
@@ -294,7 +299,8 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
       const serverErr = toServerError(data, res.status);
       const requestId =
         res.headers.get("x-request-id") || res.headers.get("request-id");
-      const err = requestError("ApiError", serverErr.message, {
+      const err = new ArkyApiError({
+        message: serverErr.message,
         code: serverErr.error,
         response: data,
         statusCode: serverErr.statusCode,

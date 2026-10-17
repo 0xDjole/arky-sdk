@@ -105,7 +105,12 @@ export function cartCheckoutPresentationChanged(error: unknown): unknown {
   ) {
     return error;
   }
-  return new CartPresentationChangedError(error.response.quote);
+  return new CartPresentationChangedError(error.response.quote, {
+    response: error.response,
+    method: typeof error.method === "string" ? error.method : undefined,
+    url: typeof error.url === "string" ? error.url : undefined,
+    requestId: typeof error.requestId === "string" ? error.requestId : undefined,
+  });
 }
 
 export function finishCartCheckoutSubmission(
@@ -193,6 +198,37 @@ export async function retainCartCheckout(scope: string, input: CartCheckoutReque
     retainOrderToken(scope, request.order_id, request.order_token);
   });
   return request;
+}
+
+export interface CartCheckoutIds {
+  newId(label: string): string;
+  newOrderToken(): string;
+}
+
+export type CartCheckoutDraft = Omit<CartCheckoutRequest, "order_id" | "order_token">;
+
+function sameCheckout(pending: CartCheckoutRequest, draft: CartCheckoutDraft): boolean {
+  const asked = cartCheckoutRequest({ ...draft, order_id: pending.order_id, order_token: pending.order_token });
+  return JSON.stringify(asked) === JSON.stringify(pending);
+}
+
+export async function checkoutCartWithNewIds(
+  scope: string,
+  draft: CartCheckoutDraft,
+  ids: CartCheckoutIds,
+  transport: CartCheckoutTransport<CartCheckoutRequest>,
+  options?: RequestOptions,
+): Promise<CheckoutAcceptance> {
+  const pending = await pendingCartCheckout(scope);
+  if (pending && !sameCheckout(pending, draft)) {
+    throw new DurableRequestStorageError("Recover the unfinished cart checkout before starting another one");
+  }
+  if (!pending) {
+    await retainCartCheckout(scope, { ...draft, order_id: ids.newId("order"), order_token: ids.newOrderToken() });
+  }
+  const result = await recoverCartCheckout(scope, transport, options);
+  if (!result) throw new DurableRequestStorageError("The kept cart checkout was settled elsewhere; read the order");
+  return result;
 }
 
 export async function pendingCartCheckout(scope: string): Promise<CartCheckoutRequest | null> {

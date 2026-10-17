@@ -38,9 +38,27 @@ export const ids = {
   account: "ca60db1c-68d1-42d5-8b55-8a1e04f2cb2f",
 };
 
+export const factoryOrderToken = `arky_ot_${"F".repeat(42)}A`;
+
+let factoryIdCount = 0;
+
+export function factoryId(index) {
+  return `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`;
+}
+
+export function idSequence(...values) {
+  const queue = [...values];
+  return () => {
+    if (queue.length === 0) throw new Error("The test ran out of picked ids");
+    return queue.shift();
+  };
+}
+
 export const idFactories = {
   createVisitorIdentity: () => ({ customer_id: ids.customer, session_id: ids.session }),
   createSessionId: () => ids.otherSession,
+  createId: () => factoryId(++factoryIdCount),
+  createOrderToken: () => factoryOrderToken,
 };
 
 export function jsonResponse(body, status = 200) {

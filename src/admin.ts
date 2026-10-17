@@ -16,6 +16,8 @@ export {
   orderCustomerGroupItems,
   orderRentalUseItems,
   orderPurchaseAccessItems,
+  ArkyApiError,
+  isArkyApiError,
   CartPresentationChangedError,
   FulfillmentSelectionError,
 } from "./types";

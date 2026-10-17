@@ -4,6 +4,7 @@ import test from "node:test";
 import { createStorefront, initialize } from "../dist/storefront.js";
 import {
   apiUrl,
+  factoryOrderToken,
   idFactories,
   ids,
   installGlobal,
@@ -90,6 +91,8 @@ test("an empty referrer travels as none, and a page view never creates or stores
     sessionStorage: storage,
     createVisitorIdentity: () => ({ customer_id: ids.customer, session_id: ids.session }),
     createSessionId: () => ids.otherSession,
+    createId: () => ids.submission,
+    createOrderToken: () => factoryOrderToken,
   });
 
   storefront.pageViews.send({ path: "/about", referrer: "" });

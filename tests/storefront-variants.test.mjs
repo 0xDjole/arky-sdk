@@ -6,7 +6,7 @@ import { apiUrl, ids, publishableKey, recordFetch } from "./helpers/arky-fixture
 test("variant pages and exact reads keep the buyer context, the continuation and the encoded ids", async (context) => {
   const responses = [{ items: [], cursor: "next-page" }, { items: [{ id: "chosen", price: null }], cursor: null }, { id: "chosen", price: { unit_price: { amount: 0, currency: "usd" } } }];
   const calls = recordFetch(context, () => responses.shift());
-  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl });
+  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl });
   const selection = { product_id: "product/one", catalog_id: ids.catalog, company_location_id: ids.companyLocation, include_price: true, limit: 1 };
   const first = await client.eshop.productVariant.find(selection);
   assert.deepEqual(first, { items: [], cursor: "next-page" });
@@ -35,7 +35,7 @@ test("every storefront browse read sends the one named catalog, and lists can so
     const page = call.path.endsWith("s") || call.path.endsWith("/variants") || call.path.endsWith("/availability");
     return page ? { items: [], cursor: null } : { id: "exact", price: null };
   });
-  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl });
+  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl });
   const scope = { catalog_id: ids.catalog, company_id: "company" };
   await client.eshop.product.get({ id: "product", ...scope, include_price: true });
   await client.eshop.product.find({ ...scope, sort_field: "catalog_order", limit: 10 });

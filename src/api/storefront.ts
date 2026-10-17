@@ -1,5 +1,5 @@
-import { orderTokenOptions } from "../utils/orderToken";
-import type { StorefrontApiConfig } from "../services/clientTypes";
+import { isOrderToken, orderTokenOptions, readOrderToken, replaceOrderToken, retainOrderToken } from "../utils/orderToken";
+import type { StorefrontApiConfig, StorefrontFlowContext } from "../services/clientTypes";
 import type { RequestOptions } from "../types/api";
 import type { PaginatedResponse } from "../types/common";
 import type {
@@ -30,6 +30,9 @@ import type {
   StorefrontUpdateCartParams,
 } from "../types/cart";
 import type { CartCheckoutRequest, CartCheckoutTransport } from "../types/cartCheckout";
+import type { LoadContentEntriesParams, LoadContentParams, LoadedContent, LoadedContentFor } from "../types/contentView";
+import type { JoinFreeCustomerGroupParams, JoinFreeCustomerGroupResult } from "../types/customerGroupJoin";
+import type { StorefrontFormSubmission, SubmitFormParams } from "../types/forms";
 import type { CartSelectionContext } from "../types/cartSelection";
 import type { CatalogReadOptions, FindStorefrontCatalogsParams, StorefrontCatalog } from "../types/catalog";
 import type {
@@ -132,11 +135,15 @@ import type {
 import { createCartSelection } from "../services/cartSelection";
 import {
   checkoutCart,
+  checkoutCartWithNewIds,
   pendingCartCheckout,
   recoverCartCheckout,
   retainCartCheckout,
   withCartMutation,
 } from "../services/cartCheckout";
+import { loadContent, loadContentEntries, type ContentReads } from "../services/contentLoad";
+import { runDurableCreate } from "../services/durableCreate";
+import { joinFreeCustomerGroup, type FreeJoinDeps } from "../services/freeJoin";
 import {
   cartOffersQuery,
   cartTokenOptions,
@@ -177,8 +184,27 @@ export interface RequestCustomerCodeParams {
   bot_check_token?: string | null;
 }
 
+export type RequestCustomerCodeInput = Omit<RequestCustomerCodeParams, "id"> & { id?: string };
+
 export interface VerifyCustomerCodeParams {
   code: string;
+}
+
+export type SubmitFormInput = Omit<SubmitFormParams, "id"> & { id?: string };
+
+export type StorefrontCheckoutCartRequest = Omit<StorefrontCheckoutCartParams, "order_id" | "order_token"> & {
+  order_id?: string;
+  order_token?: string;
+};
+
+export interface OrderFromLinkParams {
+  id: string;
+  url: string;
+}
+
+export interface OrderFromLink {
+  order: Order;
+  url: string;
 }
 
 export interface RefreshCustomerSessionParams { session_id: string }
@@ -214,6 +240,7 @@ export const createStorefrontApi = (
   updateCustomerSession: CustomerSessionUpdater,
   lifecycle: StorefrontLifecycle,
   cartSelectionContext: CartSelectionContext,
+  flows: StorefrontFlowContext,
 ) => {
   const { httpClient } = apiConfig;
   const checkoutScope = `storefront:${apiConfig.apiUrl}:${apiConfig.publishableKey}`;
@@ -224,13 +251,13 @@ export const createStorefrontApi = (
       httpClient.post<CreatedCart>(
         `${base}/carts`,
         { id: params.id, buyer: params.buyer, catalog_id: params.catalog_id },
-        options,
+        cartTokenOptions(options, null),
       ),
     reorder: (params, options) =>
       httpClient.post<ReorderedCart>(
         `${base}/carts/reorder`,
         { id: params.id, order_id: params.order_id, buyer: params.buyer },
-        options,
+        cartTokenOptions(options, null),
       ),
   });
   const cartToken = (target: { id: string; token?: string | null }) => target.token ?? cartSelection.token(target.id);
@@ -255,6 +282,100 @@ export const createStorefrontApi = (
   const paymentMethods = createStorefrontPaymentMethodApi(httpClient);
   const forms = createStorefrontFormsApi(httpClient);
   const customerGroups = createStorefrontCustomerGroupApi(httpClient, lifecycle.ensureVisitorSession);
+  const orderPath = (id: string) => `${base}/orders/${segment(id)}`;
+
+  const contentReads: ContentReads = {
+    getCollection: (params, options) => {
+      const identifier = "id" in params ? params.id : params.key;
+      return httpClient.get<Collection>(`${base}/collections/${segment(identifier)}`, options);
+    },
+    getEntry: (params, options) => httpClient.get<Entry>(`${base}/entries/${segment(params.id)}`, options),
+    findEntries: (params, options) => httpClient.get<PaginatedResponse<Entry>>(`${base}/entries`, { ...options, params }),
+    async findEntryBySlug(params, options) {
+      const page = await httpClient.get<PaginatedResponse<Entry>>(`${base}/entries`, {
+        ...options,
+        params: { collection_id: params.collection_id, slug: params.slug },
+      });
+      return page.items[0] ?? null;
+    },
+    findMedia: (params, options) => httpClient.get<Media[]>(`${base}/media`, { ...options, params: { ids: params.ids } }),
+  };
+
+  const freeJoin: FreeJoinDeps = {
+    verifiedEmail: flows.verifiedEmail,
+    pendingKey: flows.pendingKey,
+    newId: flows.newId,
+    newOrderToken: flows.newOrderToken,
+    retainToken: (orderId, token) => retainOrderToken(checkoutScope, orderId, token),
+    getGroup: (params, options) => customerGroups.customerGroup.get(params, options),
+    async createCart(params, options) {
+      requireId(params.id, "cart");
+      return withCartMutation(checkoutScope, () =>
+        httpClient.post<CreatedCart>(
+          `${base}/carts`,
+          { id: params.id, buyer: params.buyer, catalog_id: params.catalog_id },
+          cartTokenOptions(options, null),
+        ),
+      );
+    },
+    addGroupLine: (params, options) =>
+      cartMutation<Cart>(
+        params,
+        "customer-group-items",
+        () => ({ expected_updated_at: params.expected_updated_at, customer_group: storefrontCartCustomerGroup(params.customer_group) }),
+        options,
+      ),
+    quote: (params, options) => httpClient.post<CartQuote>(`${cartPath(params.id)}/quote`, {}, cartTokenOptions(options, cartToken(params))),
+    accept: (request, options) => checkoutTransport.post(request, options),
+    getOrder: (id, orderToken, options) => httpClient.get<Order>(orderPath(id), orderTokenOptions({ ...options, order_token: orderToken })),
+  };
+
+  async function submitForm(params: SubmitFormInput, options?: RequestOptions): Promise<StorefrontFormSubmission> {
+    const { id, ...draft } = params;
+    if (id !== undefined) {
+      requireId(id, "form submission");
+      await lifecycle.ensureVisitorSession();
+      return forms.submit({ ...draft, id }, options);
+    }
+    await lifecycle.ensureVisitorSession();
+    return runDurableCreate({
+      key: flows.pendingKey("form-submission", draft.form_id),
+      label: "form submission",
+      input: { form_id: draft.form_id, questions_updated_at: draft.questions_updated_at, language: draft.language, answers: draft.answers },
+      newId: () => flows.newId("form submission"),
+      send: (submissionId) => forms.submit({ ...draft, id: submissionId }, options),
+      confirms: (submission, submissionId) => submission.id === submissionId && submission.form_id === draft.form_id,
+    });
+  }
+
+  async function orderFromLink(params: OrderFromLinkParams, options?: RequestOptions): Promise<OrderFromLink> {
+    requireId(params.id, "order");
+    if (typeof globalThis.localStorage === "undefined") {
+      throw new Error("order.fromLink keeps the order token in localStorage; call it in the browser");
+    }
+    const link = new URL(params.url);
+    const fragment = new URLSearchParams(link.hash.slice(1));
+    const tokens = fragment.getAll("order_token");
+    await lifecycle.ensureVisitorSession();
+    if (tokens.length > 0) {
+      const [token] = tokens;
+      if (tokens.length !== 1 || !isOrderToken(token)) throw new TypeError("The order link carries an invalid order token");
+      const order = await httpClient.get<Order>(orderPath(params.id), orderTokenOptions({ ...options, order_token: token }));
+      if (order.id !== params.id) throw new Error("The order link opened another order");
+      replaceOrderToken(checkoutScope, params.id, token);
+      fragment.delete("order_token");
+      const rest = fragment.toString();
+      link.hash = rest ? `#${rest}` : "";
+      return { order, url: link.toString() };
+    }
+    const retained = readOrderToken(checkoutScope, params.id);
+    const order = await httpClient.get<Order>(
+      orderPath(params.id),
+      orderTokenOptions(retained ? { ...options, order_token: retained } : options),
+    );
+    if (order.id !== params.id) throw new Error("The order read answered another order");
+    return { order, url: link.toString() };
+  }
 
   function persistIssuedSession<T extends CustomerSessionResult>(result: T): T {
     updateCustomerSession(() => ({ customer: result.customer, session: result.session }));
@@ -438,6 +559,13 @@ export const createStorefrontApi = (
           return httpClient.get<Entry>(`${base}/entries/${segment(params.id)}`, options);
         },
       },
+      async load<P extends LoadContentParams>(params: P, options?: RequestOptions): Promise<LoadedContentFor<P>> {
+        const loaded = await loadContent(contentReads, params, flows.locale(options), options);
+        return loaded as LoadedContentFor<P>;
+      },
+      loadEntries(params: LoadContentEntriesParams, options?: RequestOptions): Promise<LoadedContent<Entry>[]> {
+        return loadContentEntries(contentReads, params, flows.locale(options), options);
+      },
     },
 
     category: {
@@ -460,10 +588,7 @@ export const createStorefrontApi = (
 
     forms: {
       get: forms.get,
-      async submit(params: Parameters<typeof forms.submit>[0], options?: RequestOptions) {
-        await lifecycle.ensureVisitorSession();
-        return forms.submit(params, options);
-      },
+      submit: submitForm,
     },
 
     eshop: {
@@ -724,9 +849,15 @@ export const createStorefrontApi = (
           return httpClient.post<CartQuote>(`${cartPath(params.id)}/quote`, params.contact_email !== undefined ? { contact_email: params.contact_email } : {}, cartTokenOptions(options, cartToken(params)));
         },
 
-        async checkout(params: StorefrontCheckoutCartParams, options?: RequestOptions): Promise<CheckoutAcceptance> {
-          const { token: _token, ...request } = params;
-          return checkoutCart(request, checkoutTransport, options);
+        async checkout(params: StorefrontCheckoutCartRequest, options?: RequestOptions): Promise<CheckoutAcceptance> {
+          const { token: _token, order_id, order_token, ...draft } = params;
+          if (order_id !== undefined && order_token !== undefined) {
+            return checkoutCart({ ...draft, order_id, order_token }, checkoutTransport, options);
+          }
+          if (order_id !== undefined || order_token !== undefined) {
+            throw new TypeError("A checkout names both its order_id and order_token, or neither so the app's factories pick them");
+          }
+          return checkoutCartWithNewIds(checkoutScope, draft, flows, checkoutTransport, options);
         },
 
         async retainCheckout(params: StorefrontCheckoutCartParams): Promise<CartCheckoutRequest> {
@@ -757,6 +888,13 @@ export const createStorefrontApi = (
         async get(params: StorefrontGetOrderParams, options?: RequestOptions): Promise<Order> {
           await lifecycle.ensureVisitorSession();
           return httpClient.get<Order>(`${base}/orders/${segment(params.id)}`, orderTokenOptions(options));
+        },
+
+        fromLink: orderFromLink,
+
+        retainedToken(id: string): string | null {
+          requireId(id, "order");
+          return typeof globalThis.localStorage === "undefined" ? null : readOrderToken(checkoutScope, id);
         },
 
         async fulfillments(
@@ -884,7 +1022,12 @@ export const createStorefrontApi = (
         },
       },
 
-      customerGroup: customerGroups.customerGroup,
+      customerGroup: {
+        ...customerGroups.customerGroup,
+        joinFree(params: JoinFreeCustomerGroupParams, options?: RequestOptions): Promise<JoinFreeCustomerGroupResult> {
+          return joinFreeCustomerGroup(freeJoin, params, options);
+        },
+      },
       customerGroupOffering: customerGroups.customerGroupOffering,
       customerGroupMember: customerGroups.customerGroupMember,
 

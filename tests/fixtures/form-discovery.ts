@@ -35,6 +35,7 @@ type Assert<T extends true> = T;
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
 type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
+type OptionalField<T, K extends keyof T> = {} extends Pick<T, K> ? true : false;
 type FormsApi = ReturnType<typeof createAdmin>["forms"];
 type StoreForms = ReturnType<typeof initialize>["forms"];
 
@@ -104,7 +105,7 @@ const notes: Promise<PaginatedResponse<Note>> = api.notes.find({ store_id, form_
 const noteEdit: Promise<Note> = api.notes.update({ store_id, form_id, form_submission_id: id, id: "2c7e9a41-5b3d-4f86-a1e0-7d4c2b9f6e38", expected_updated_at: epochMilliseconds(2), body: "Called back twice" });
 
 declare const shown: Form;
-const storefront = initialize(`arky_pk_${"f".repeat(42)}A`, { createVisitorIdentity: () => ({ customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" });
+const storefront = initialize(`arky_pk_${"f".repeat(42)}A`, { createVisitorIdentity: () => ({ customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A` });
 const byKeySubmission: ArkySubmitFormByKeyParams = { id, key: "intake", form: shown, language: "en", values: { answer: "Kept", topic: [], files: [brief] } };
 const answered: Promise<StorefrontFormSubmission> = storefront.forms.submitByKey(byKeySubmission);
 const raw: SubmitFormParams = { form_id, questions_updated_at: epochMilliseconds(4), id, language: "en", answers: [{ type: "select_many", question_id: "q-topic", key: "topic", option_keys: ["sales"] }] };
@@ -133,7 +134,7 @@ export type FormContracts = [
   Assert<Equal<Awaited<ReturnType<StoreForms["submitByKey"]>>, StorefrontFormSubmission>>,
   Assert<Equal<Parameters<StoreForms["get"]>[0], GetStorefrontFormParams>>,
   Assert<Equal<GetStorefrontFormParams, { id: string } | { key: string }>>,
-  Assert<RequiredField<ArkySubmitFormByKeyParams, "id">>,
+  Assert<OptionalField<ArkySubmitFormByKeyParams, "id">>,
   Assert<RequiredField<ArkySubmitFormByKeyParams, "form">>,
   Assert<RequiredField<ArkySubmitFormByKeyParams, "language">>,
   Assert<RequiredField<SubmitFormParams, "id">>,

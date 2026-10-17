@@ -1,4 +1,5 @@
-import type { ApiConfig } from "../services/clientTypes";
+import type { ApiConfig, StorefrontFlowContext } from "../services/clientTypes";
+import { runDurableCreate } from "../services/durableCreate";
 import type { HttpClient } from "../types/httpClient";
 import type { RequestOptions } from "../types/api";
 import type { PaginatedResponse } from "../types/common";
@@ -37,24 +38,45 @@ import { requireId } from "../utils/ids";
 import { segment, storePath, storeRecordPath } from "./paths";
 import { createConversationNoteApi } from "./note";
 
-export function createStorefrontSupportApi(httpClient: HttpClient, ensureSession: () => Promise<void>) {
+export type StartConversationInput = Omit<StartConversationParams, "id"> & { id?: string };
+
+export type SendConversationMessageInput = Omit<SendConversationMessageParams, "id"> & { id?: string };
+
+export function createStorefrontSupportApi(
+  httpClient: HttpClient,
+  ensureSession: () => Promise<void>,
+  flows: StorefrontFlowContext,
+) {
   const base = "/v1/storefront/conversations";
   const conversationPath = (id: string) => `${base}/${segment(id)}`;
 
   return {
     conversation: {
-      async start(params: StartConversationParams, options?: RequestOptions): Promise<StorefrontConversationReply> {
-        requireId(params.id, "conversation");
+      async start(params: StartConversationInput, options?: RequestOptions): Promise<StorefrontConversationReply> {
+        const send = (id: string) =>
+          httpClient.post<StorefrontConversationReply>(
+            base,
+            {
+              id,
+              language: params.language,
+              ...(params.flow_key !== undefined ? { flow_key: params.flow_key } : {}),
+            },
+            options,
+          );
+        if (params.id !== undefined) {
+          requireId(params.id, "conversation");
+          await ensureSession();
+          return send(params.id);
+        }
         await ensureSession();
-        return httpClient.post<StorefrontConversationReply>(
-          base,
-          {
-            id: params.id,
-            language: params.language,
-            ...(params.flow_key !== undefined ? { flow_key: params.flow_key } : {}),
-          },
-          options,
-        );
+        return runDurableCreate({
+          key: flows.pendingKey("conversation", params.flow_key ?? ""),
+          label: "support conversation",
+          input: { language: params.language, flow_key: params.flow_key ?? null },
+          newId: () => flows.newId("conversation"),
+          send,
+          confirms: (reply, id) => reply.conversation.id === id,
+        });
       },
 
       async get(params: StorefrontGetConversationParams, options?: RequestOptions): Promise<StorefrontConversation> {
@@ -88,18 +110,32 @@ export function createStorefrontSupportApi(httpClient: HttpClient, ensureSession
         );
       },
 
-      async sendMessage(params: SendConversationMessageParams, options?: RequestOptions): Promise<StorefrontConversationReply> {
-        requireId(params.id, "conversation message");
+      async sendMessage(params: SendConversationMessageInput, options?: RequestOptions): Promise<StorefrontConversationReply> {
+        const send = (id: string) =>
+          httpClient.post<StorefrontConversationReply>(
+            `${conversationPath(params.conversation_id)}/messages`,
+            {
+              id,
+              input: params.input,
+              ...(params.prompt_message_id !== undefined ? { prompt_message_id: params.prompt_message_id } : {}),
+            },
+            options,
+          );
+        if (params.id !== undefined) {
+          requireId(params.id, "conversation message");
+          await ensureSession();
+          return send(params.id);
+        }
         await ensureSession();
-        return httpClient.post<StorefrontConversationReply>(
-          `${conversationPath(params.conversation_id)}/messages`,
-          {
-            id: params.id,
-            input: params.input,
-            ...(params.prompt_message_id !== undefined ? { prompt_message_id: params.prompt_message_id } : {}),
-          },
-          options,
-        );
+        return runDurableCreate({
+          key: flows.pendingKey("conversation-message", params.conversation_id),
+          label: "support message",
+          input: { conversation_id: params.conversation_id, input: params.input, prompt_message_id: params.prompt_message_id ?? null },
+          newId: () => flows.newId("conversation message"),
+          send,
+          confirms: (reply, id) =>
+            reply.conversation.id === params.conversation_id && reply.messages.some((message) => message.id === id),
+        });
       },
     },
   };

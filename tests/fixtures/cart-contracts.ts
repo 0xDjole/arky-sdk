@@ -16,6 +16,7 @@ type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ?
 type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
 type RequiredNullable<T, K extends keyof T> = {} extends Pick<T, K> ? false : null extends T[K] ? true : false;
 type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
+type OptionalField<T, K extends keyof T> = {} extends Pick<T, K> ? true : false;
 type AdminCart = ReturnType<typeof createAdmin>["eshop"]["cart"];
 type StorefrontCart = StorefrontClient["eshop"]["cart"];
 
@@ -114,7 +115,11 @@ export type CartContracts = [
   Assert<Equal<CartCheckoutRequest, StorefrontCheckoutCartInput>>,
   Assert<Missing<CartCheckoutRequest, "store_id">>,
   Assert<Equal<keyof ArkyCartCheckoutInput, "order_id" | "order_token" | "contact_email" | "payment" | "clear_after_checkout">>,
-  Assert<RequiredField<ArkyCartCheckoutInput, "order_id">>,
+  Assert<OptionalField<ArkyCartCheckoutInput, "order_id">>,
+  Assert<OptionalField<ArkyCartCheckoutInput, "order_token">>,
+  Assert<RequiredField<ArkyCartCheckoutInput, "payment">>,
+  Assert<OptionalField<Parameters<StorefrontCart["checkout"]>[0], "order_id">>,
+  Assert<RequiredField<Parameters<StorefrontCart["checkout"]>[0], "presentation_digest">>,
   Assert<Equal<CartPresentationChangedError["quote"], CartQuote>>,
   Assert<Equal<Awaited<ReturnType<StorefrontCart["pendingCheckout"]>>, CartCheckoutRequest | null>>,
   Assert<Equal<Awaited<ReturnType<StorefrontCart["checkout"]>>, CheckoutAcceptance>>,

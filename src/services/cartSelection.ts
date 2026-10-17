@@ -23,7 +23,7 @@ interface FollowedCart {
 const closedStatuses = ["converted", "merged", "superseded", "expired"];
 const maxMergedHops = 4;
 
-function buyerKey(buyer: CartBuyer | undefined): string {
+export function cartBuyerKey(buyer: CartBuyer | undefined): string {
   if (!buyer || buyer.type === "customer") return "customer";
   if (buyer.type === "company_location") return `company_location:${buyer.company_location_id}`;
   return `${buyer.type}:${buyer.company_id}`;
@@ -32,7 +32,7 @@ function buyerKey(buyer: CartBuyer | undefined): string {
 function sameBuyer(cart: Cart, buyer: CartBuyer | undefined): boolean {
   if (!buyer) return true;
   if (buyer.type === "company_location_selection" && cart.buyer.type === "company_location") return true;
-  return buyerKey(cart.buyer) === buyerKey(buyer);
+  return cartBuyerKey(cart.buyer) === cartBuyerKey(buyer);
 }
 
 function readSelection(value: string | null): SelectedCart | null {
@@ -105,7 +105,7 @@ export function createCartSelection(
       context.namespace,
       encodeURIComponent(customerId),
       encodeURIComponent(context.market() ?? ""),
-      encodeURIComponent(buyerKey(params.buyer)),
+      encodeURIComponent(cartBuyerKey(params.buyer)),
       encodeURIComponent(params.catalog_id),
     ].join(":");
   }
