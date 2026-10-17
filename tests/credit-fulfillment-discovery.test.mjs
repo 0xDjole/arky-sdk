@@ -42,20 +42,20 @@ for (const definition of [
   });
 }
 
-test("store-wide credit history needs no order and credits are created under the app's id", async (context) => {
+test("store-wide credit history needs no order, lists by last change, and credits are created under the app's id", async (context) => {
   const calls = [];
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     calls.push({ url: new URL(url), method: init.method ?? "GET", body: init.body ? JSON.parse(init.body) : null });
     return new Response(JSON.stringify(init.method === "GET" ? { items: [], cursor: null } : { id: creditId }), { status: 200, headers: { "content-type": "application/json" } });
   });
   const admin = createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" });
-  await admin.eshop.order.credit.find({ store_id: selectedStoreId, limit: 10 });
+  await admin.eshop.order.credit.find({ store_id: selectedStoreId, sort_field: "updated_at", sort_direction: "desc", limit: 10 });
   const create = { id: creditId, reason: "Damaged in transit", targets: [] };
   await admin.eshop.order.credit.create({ store_id: selectedStoreId, order_id: orderId, ...create });
   await admin.eshop.order.credit.get({ store_id: selectedStoreId, order_id: orderId, credit_id: creditId });
   await admin.eshop.order.credit.void({ store_id: selectedStoreId, order_id: orderId, credit_id: creditId, expected_updated_at: 5 });
   assert.deepEqual(calls.map(({ method, url, body }) => [method, url.pathname, url.search, body]), [
-    ["GET", `/v1/stores/${selectedStoreId}/credits`, "?limit=10", null],
+    ["GET", `/v1/stores/${selectedStoreId}/credits`, "?sort_field=updated_at&sort_direction=desc&limit=10", null],
     ["POST", `/v1/stores/${selectedStoreId}/orders/${orderId}/credits`, "", create],
     ["GET", `/v1/stores/${selectedStoreId}/orders/${orderId}/credits/${creditId}`, "", null],
     ["POST", `/v1/stores/${selectedStoreId}/orders/${orderId}/credits/${creditId}/void`, "", { expected_updated_at: 5 }],
