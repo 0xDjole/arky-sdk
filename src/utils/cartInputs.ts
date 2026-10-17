@@ -40,6 +40,9 @@ export function copyCartProductPurchase(purchase: CartProductPurchase): CartProd
 }
 
 export function cartTokenOptions(options?: RequestOptions, token?: string | null): RequestOptions {
+  if (options?.market !== undefined) {
+    throw new TypeError("A cart call uses the storefront's market; change it with setMarket while the cart is empty");
+  }
   const headers = Object.fromEntries(
     Object.entries(options?.headers ?? {}).filter(([name]) => name.toLowerCase() !== "x-arky-cart-token"),
   );

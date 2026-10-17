@@ -29,7 +29,7 @@ const productLine = {
 };
 
 function checkoutStore() {
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, market: "ita", locale: "it", sessionStorage: visitorStorage() });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, market: "ita", locale: "it", sessionStorage: visitorStorage() });
   store.eshop.cart.cart.set(cartRecord({ line_items: [productLine] }));
   store.eshop.cart.quote_result.set(quoteRecord());
   return store;
@@ -41,7 +41,7 @@ function cardPayment() {
 
 test("initialize is the root API and exposes the module facade without store switching", () => {
   const rootStore = initializeFromRoot(publishableKey, { ...idFactories, locale: "it" });
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", locale: "it", market: "ita" });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, locale: "it", market: "ita" });
   for (const facade of [rootStore, store]) {
     assert.equal(typeof facade.content.entry.get, "function");
     assert.equal(typeof facade.media.findByIds, "function");
@@ -61,10 +61,13 @@ test("initialize is the root API and exposes the module facade without store swi
     assert.equal(typeof facade.eshop.cart.addCustomerGroup, "function");
     assert.equal(typeof facade.customer.changeEmail, "function");
     assert.equal(typeof facade.setContext, "function");
-    assert.equal(typeof facade.withContext, "function");
+    assert.equal(typeof facade.eshop.carts.for, "function");
+    assert.equal(typeof facade.eshop.checkoutFlow, "function");
+    assert.equal(typeof facade.content.load, "function");
+    assert.equal(typeof facade.newsletter.join, "function");
     for (const removed of [
       "getStoreId", "forStore", "marketForLocale", "audiences", "customer_groups", "customer_group_members", "customer_group_email_consents", "cms", "crm",
-      "subscription_plans", "subscription_offerings", "setSalesChannel", "getSalesChannel", "sales_channel_key",
+      "subscription_plans", "subscription_offerings", "setSalesChannel", "getSalesChannel", "sales_channel_key", "withContext",
     ]) {
       assert.equal(removed in facade, false, removed);
     }
@@ -76,16 +79,13 @@ test("initialize is the root API and exposes the module facade without store swi
     assert.equal(facade.session.get(), null);
     assert.equal(facade.isAuthenticated, false);
   }
-  const scoped = store.withContext({ locale: "en" });
   assert.equal(store.getLocale(), "it");
   assert.equal(store.getMarket(), "ita");
-  assert.equal(scoped.getLocale(), "en");
-  assert.equal(scoped.getMarket(), "ita");
 });
 
 test("storefront reference batches use their typed endpoints with the ids JSON-encoded", async (context) => {
   const calls = recordFetch(context, () => ({ items: [], cursor: null }));
-  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl });
+  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl });
   await storefront.media.findByIds({ ids: ["media-1", "media-2"] });
   await storefront.content.entry.findByIds({ ids: ["entry-1"] });
   await storefront.eshop.product.find({ ids: [ids.product], catalog_id: ids.catalog });
@@ -98,7 +98,7 @@ test("storefront reference batches use their typed endpoints with the ids JSON-e
 });
 
 test("market and locale stay independent, a cart with items locks its market, and the storefront key alone gives the channel", () => {
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", locale: "it", market: "ita" });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, locale: "it", market: "ita" });
   store.setContext({ locale: "en" });
   assert.equal(store.getLocale(), "en");
   assert.equal(store.getMarket(), "ita");
@@ -114,7 +114,8 @@ test("market and locale stay independent, a cart with items locks its market, an
 test("checkout from the store sends the reviewed cart through keyless routes with visitor authorization and no store, market or language in the body", async (context) => {
   const calls = recordFetch(context, (call) => call.path === "/v1/storefront/carts/accept" ? placedAcceptance() : placedOrder());
   const store = checkoutStore();
-  await assert.rejects(store.eshop.cart.checkout({ order_id: "order-1", contact_email: null, payment: cardPayment() }), /needs the app's order id/);
+  await assert.rejects(store.eshop.cart.checkout({ order_id: "order-1", order_token: "arky_ot_" + "A".repeat(43), contact_email: null, payment: cardPayment() }), /needs the app's order id/);
+  await assert.rejects(store.eshop.cart.checkout({ order_id: ids.order, contact_email: null, payment: cardPayment() }), /both its order_id and order_token/);
   assert.equal(calls.length, 0);
   const answer = await store.eshop.cart.checkout({ order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), contact_email: "buyer@example.test", payment: cardPayment() });
   assert.deepEqual(answer, placedAcceptance());
@@ -223,7 +224,7 @@ test("a card checkout hands back the embedded Stripe action without navigating",
 
 test("payment resume asks the placed order for its payment action, and payments are read exactly", async (context) => {
   const calls = recordFetch(context, (call) => call.path.endsWith("/payment-action") ? { type: "none" } : call.path.endsWith("/payments") ? [] : { id: ids.payment });
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl, sessionStorage: visitorStorage() });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: visitorStorage() });
   assert.deepEqual(await store.eshop.cart.paymentAction(ids.order), { type: "none" });
   await store.eshop.order.getPayment({ order_id: ids.order, payment_id: ids.payment });
   await store.eshop.order.findPayments({ order_id: ids.order });
@@ -233,5 +234,5 @@ test("payment resume asks the placed order for its payment action, and payments 
     ["GET", `/v1/storefront/orders/${ids.order}/payments`, null],
   ]);
   assert.ok(calls.every((call) => call.headers.get("authorization") === `Bearer ${visitorToken}`));
-  assert.equal("checkout" in createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", apiUrl }).eshop, false);
+  assert.equal("checkout" in createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl }).eshop, false);
 });

@@ -9,7 +9,7 @@ import type {
   StorefrontProduct,
 } from "../types/product";
 import { getBlockTextValue } from "../utils/blocks";
-import { epochMillisecondsToDate } from "../utils/time";
+import { epochMilliseconds, epochMillisecondsToDate } from "../utils/time";
 import type { ArkyBookingServiceState } from "./types";
 
 export function readErrorMessage(error: unknown, fallback: string): string {
@@ -154,6 +154,24 @@ export function formatServiceTime(ts: EpochMilliseconds, tz: string, locale: str
 
 export function formatServiceSlotTime(from: EpochMilliseconds, to: EpochMilliseconds, tz: string, locale: string): string {
   return `${formatServiceTime(from, tz, locale)} - ${formatServiceTime(to, tz, locale)}`;
+}
+
+export function calendarDateIn(ts: EpochMilliseconds, tz: string): string {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(
+    epochMillisecondsToDate(ts),
+  );
+  const part = (type: "year" | "month" | "day") => parts.find((item) => item.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
+
+export function slotSpansDays(from: EpochMilliseconds, to: EpochMilliseconds, tz: string): boolean {
+  return to - from > 0 && calendarDateIn(from, tz) !== calendarDateIn(epochMilliseconds(to - 1), tz);
+}
+
+export function formatServiceSlotRange(from: EpochMilliseconds, to: EpochMilliseconds, tz: string, locale: string): string {
+  const format = (ts: EpochMilliseconds) =>
+    epochMillisecondsToDate(ts).toLocaleDateString(locale, { month: "short", day: "numeric", timeZone: tz });
+  return `${format(from)} - ${format(to)}`;
 }
 
 export function getSlotsForDate(

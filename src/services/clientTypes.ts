@@ -15,6 +15,14 @@ export interface StorefrontApiConfig {
   authStorage: AuthStorage;
 }
 
+export interface StorefrontFlowContext {
+  newId(label: string): string;
+  newOrderToken(): string;
+  pendingKey(flow: string, target: string): string;
+  locale(options?: { locale?: string }): string;
+  verifiedEmail(): string | null;
+}
+
 export interface AdminSessionInternal {
   id: string;
   access_token: string;

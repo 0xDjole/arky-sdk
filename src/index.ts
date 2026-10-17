@@ -1,15 +1,25 @@
 import { requireId } from "./utils/ids";
 import { isDefiniteRefusal } from "./utils/durableRequest";
+import { isOrderToken } from "./utils/orderToken";
 import { createAdminSessionState } from "./services/adminSession";
 import { createHttpClient } from "./services/createHttpClient";
-import type { AuthStorage, HttpClientConfig } from "./types/httpClient";
+import { durableCreateKey, runDurableCreate } from "./services/durableCreate";
+import type { AuthStorage, HttpClientConfig, RequestContextOverride } from "./types/httpClient";
 import type { RequestOptions } from "./types/api";
 import type {
   AdminSessionInternal,
   AdminSessionUpdater,
   ApiConfig,
   StorefrontApiConfig,
+  StorefrontFlowContext,
 } from "./services/clientTypes";
+import {
+  CustomerGroupJoinError,
+  type JoinFreeCustomerGroupResult,
+  type JoinNewsletterParams,
+  type SendNewsletterCodeParams,
+  type SendNewsletterCodeResult,
+} from "./types/customerGroupJoin";
 import type {
   ChangeCustomerEmailParams,
   StorefrontCustomer,
@@ -95,7 +105,7 @@ import {
   type CustomerSessionUpdater,
   type RefreshCustomerSessionParams,
   type IdentifyCustomerParams,
-  type RequestCustomerCodeParams,
+  type RequestCustomerCodeInput,
   type VerifyCustomerCodeParams,
 } from "./api/storefront";
 import { createStorefrontPageViewsApi } from "./api/pageViews";
@@ -150,10 +160,16 @@ export type {
   CustomerSessionInternal,
   CustomerSessionUpdater,
   IdentifyCustomerParams,
+  OrderFromLink,
+  OrderFromLinkParams,
+  RequestCustomerCodeInput,
   RequestCustomerCodeParams,
+  StorefrontCheckoutCartRequest,
   StorefrontLifecycle,
+  SubmitFormInput,
   VerifyCustomerCodeParams,
 } from "./api/storefront";
+export type { SendConversationMessageInput, StartConversationInput } from "./api/support";
 export { ScheduledResultTimeoutError } from "./utils/scheduledResult";
 export { isValidKey, validateKey, toKey, nameToKey } from "./utils/keyValidation";
 export {
@@ -163,6 +179,11 @@ export {
   epochMillisecondsToDate,
 } from "./utils/time";
 export { isCanonicalId, requireId } from "./utils/ids";
+export { DurableRequestStorageError, isDefiniteRefusal, isDurableRequestStorageError } from "./utils/durableRequest";
+export { paginate, readAllPages } from "./utils/paginate";
+export type { PageRead, PaginateOptions } from "./utils/paginate";
+export { latestPayment, paymentOutcome } from "./utils/paymentOutcome";
+export type { PaymentOutcome } from "./utils/paymentOutcome";
 export {
   blockContent,
   collectBlockReferences,
@@ -175,10 +196,10 @@ export type { BlockReferences } from "./utils/blocks";
 export { createStripeEmbeddedCheckout, mountCheckoutAction, mountPaymentMethodSetup } from "./checkout";
 export type { PaymentMethodSetupMount } from "./checkout";
 export { createCartController } from "./cartController";
-export { buildFormAnswers, initialize } from "./storefrontStore";
+export { buildFormAnswers, CheckoutFlowError, initialize } from "./storefrontStore";
 export type * from "./storefrontStore";
 
-export const SDK_VERSION = "0.26.90";
+export const SDK_VERSION = "0.26.91";
 export const SUPPORTED_FRAMEWORKS = ["astro", "react", "vue", "svelte", "vanilla"] as const;
 
 export interface AdminSession {
@@ -458,10 +479,11 @@ export interface StorefrontOptions extends StorefrontContext {
   visitorIdentity?: IdentifyCustomerParams;
   createVisitorIdentity: () => IdentifyCustomerParams;
   createSessionId: () => string;
+  createId: () => string;
+  createOrderToken: () => string;
 }
 
 export const DEFAULT_STOREFRONT_API_URL = "https://api.arky.io";
-let storefrontScopeSequence = 0;
 
 function defaultStorefrontSessionStorage(): StorefrontSessionStorage | null {
   if (typeof window === "undefined") return null;
@@ -591,13 +613,24 @@ function contextKey(value: string | undefined, label: string): string {
 }
 
 function requireIdFactories(options: StorefrontOptions | undefined): StorefrontOptions {
-  if (typeof options?.createVisitorIdentity !== "function" || typeof options.createSessionId !== "function") {
-    throw new TypeError("A storefront needs createVisitorIdentity and createSessionId: the app picks every customer and session id");
+  if (
+    typeof options?.createVisitorIdentity !== "function" ||
+    typeof options.createSessionId !== "function" ||
+    typeof options.createId !== "function" ||
+    typeof options.createOrderToken !== "function"
+  ) {
+    throw new TypeError(
+      "A storefront needs createVisitorIdentity, createSessionId, createId and createOrderToken: the app picks every id and order token",
+    );
   }
   return options;
 }
 
-function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions: StorefrontOptions, isolatedSession = false) {
+function sameEmail(left: string, right: string): boolean {
+  return left.trim().toLowerCase() === right.trim().toLowerCase();
+}
+
+function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions: StorefrontOptions) {
   const publishableKey = validatePublishableKey(publishableKeyInput);
   const options = requireIdFactories(suppliedOptions);
   const apiUrl = normalizeStorefrontApiUrl(options.apiUrl);
@@ -615,12 +648,9 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
   let setupPromise: Promise<StorefrontSetup> | null = null;
   let setupValue: StorefrontSetup | null = null;
   const explicitSessionStorage = options.sessionStorage;
-  const sessionStorage = isolatedSession
-    ? explicitSessionStorage || null
-    : explicitSessionStorage || defaultStorefrontSessionStorage();
+  const sessionStorage = explicitSessionStorage || defaultStorefrontSessionStorage();
   const canCreateVisitorSession = typeof window !== "undefined" || Boolean(explicitSessionStorage);
-  const storageSuffix = isolatedSession ? `:scope:${++storefrontScopeSequence}` : "";
-  const storageKey = `${storefrontSessionStorageKey(apiUrl, publishableKey)}${storageSuffix}`;
+  const storageKey = storefrontSessionStorageKey(apiUrl, publishableKey);
   let memorySession: CustomerSessionInternal | null = null;
 
   if (sessionStorage) {
@@ -694,11 +724,29 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
   let recoverUnauthorized: (authorizationToken: string | null, path: string) => Promise<boolean> = async () => false;
   let visitorRecoveryPromise: Promise<void> | null = null;
 
-  const storefrontHeaders = (): Record<string, string> => ({
-    "X-Arky-Publishable-Key": publishableKey,
-    ...(locale ? { "X-Arky-Locale": locale } : {}),
-    ...(market ? { "X-Arky-Market": market } : {}),
-  });
+  function requestLocale(value: string | undefined): string {
+    if (value === undefined) return locale;
+    const requested = typeof value === "string" ? value.trim() : "";
+    if (!requested) throw new TypeError("A per-call locale names a language");
+    return requested;
+  }
+
+  function requestMarket(value: string | undefined): string {
+    if (value === undefined) return market;
+    const requested = contextKey(value, "market");
+    if (!requested) throw new TypeError("A per-call market names a market key");
+    return requested;
+  }
+
+  const storefrontHeaders = (context: RequestContextOverride): Record<string, string> => {
+    const headerLocale = requestLocale(context.locale);
+    const headerMarket = requestMarket(context.market);
+    return {
+      "X-Arky-Publishable-Key": publishableKey,
+      ...(headerLocale ? { "X-Arky-Locale": headerLocale } : {}),
+      ...(headerMarket ? { "X-Arky-Market": headerMarket } : {}),
+    };
+  };
   const httpClient = createHttpClient({
     baseUrl: apiUrl,
     authStorage,
@@ -743,6 +791,42 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
     await identify();
   }
 
+  function newId(label: string): string {
+    return requireId(options.createId(), label);
+  }
+
+  function newOrderToken(): string {
+    const token = options.createOrderToken();
+    if (!isOrderToken(token)) {
+      throw new TypeError("createOrderToken must answer an order token: 32 random bytes in canonical base64url after arky_ot_");
+    }
+    return token;
+  }
+
+  function pendingKey(flow: string, target: string): string {
+    const customerId = memorySession?.customer.id;
+    if (!customerId) throw new Error("A retry-safe create needs the customer session first");
+    return durableCreateKey(storageKey, flow, customerId, target);
+  }
+
+  function verifiedEmail(): string | null {
+    const current = memorySession;
+    if (!current || current.session.type !== "email_authenticated" || current.customer.type.type !== "verified") return null;
+    return current.customer.type.email;
+  }
+
+  const flows: StorefrontFlowContext = {
+    newId,
+    newOrderToken,
+    pendingKey,
+    locale(requestOptions) {
+      const value = requestLocale(requestOptions?.locale);
+      if (!value) throw new Error("Set the storefront locale, or pass one with the call");
+      return value;
+    },
+    verifiedEmail,
+  };
+
   const storefrontApi = createStorefrontApi(
     apiConfig,
     updateSession,
@@ -753,6 +837,7 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
       customerId: () => memorySession?.customer.id ?? null,
       market: () => market || null,
     },
+    flows,
   );
   const customerApi = storefrontApi.customer;
 
@@ -796,10 +881,23 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
     return promise;
   }
 
-  async function requestCode(params: RequestCustomerCodeParams): Promise<CustomerCodeResult> {
+  async function requestCode(params: RequestCustomerCodeInput): Promise<CustomerCodeResult> {
     requireVisitorSessionCapability();
+    if (params.id !== undefined) requireId(params.id, "sign-in email");
     await ensureVisitorSession();
-    const result = await customerApi.requestCode(params);
+    const send = (id: string) =>
+      customerApi.requestCode({ id, email: params.email, language: params.language, bot_check_token: params.bot_check_token });
+    const result =
+      params.id !== undefined
+        ? await send(params.id)
+        : await runDurableCreate({
+            key: pendingKey("sign-in-email", ""),
+            label: "sign-in code request",
+            input: { email: params.email, language: params.language },
+            newId: () => newId("sign-in email"),
+            send,
+            confirms: () => true,
+          });
     identifyPromise = null;
     return result;
   }
@@ -891,6 +989,29 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
     } catch {
       updateSession(() => null);
     }
+  }
+
+  async function sendNewsletterCode(params: SendNewsletterCodeParams): Promise<SendNewsletterCodeResult> {
+    const signedIn = verifiedEmail();
+    if (signedIn !== null && sameEmail(signedIn, params.email)) return { type: "verified" };
+    if (memorySession?.session.type === "email_authenticated") await logout();
+    await requestCode({ email: params.email, language: params.language, bot_check_token: params.bot_check_token });
+    return { type: "code_sent" };
+  }
+
+  async function joinNewsletter(params: JoinNewsletterParams, requestOptions?: RequestOptions): Promise<JoinFreeCustomerGroupResult> {
+    if (params.code !== undefined) {
+      const result = await verify({ code: params.code });
+      const email = result.customer.type.type === "verified" ? result.customer.type.email : null;
+      if (result.session.type !== "email_authenticated" || email === null || !sameEmail(email, params.email)) {
+        throw new CustomerGroupJoinError("email_mismatch", "The code confirmed another email address; start again");
+      }
+    }
+    const signedIn = verifiedEmail();
+    if (signedIn === null || !sameEmail(signedIn, params.email)) {
+      throw new CustomerGroupJoinError("sign_in_required", "Confirm the email address with its code first");
+    }
+    return storefrontApi.eshop.customerGroup.joinFree({ identifier: params.identifier, catalog_id: params.catalog_id }, requestOptions);
   }
 
   function setMarket(value: string): void {
@@ -994,10 +1115,14 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
       resubscribe,
       unsubscribe,
     },
+    newsletter: {
+      sendCode: sendNewsletterCode,
+      join: joinNewsletter,
+    },
     actions: storefrontApi.actions,
     experiments: storefrontApi.experiments,
     pageViews: createStorefrontPageViewsApi(apiConfig),
-    support: createStorefrontSupportApi(httpClient, ensureVisitorSession),
+    support: createStorefrontSupportApi(httpClient, ensureVisitorSession, flows),
     getSetup,
     setContext,
     setMarket,
@@ -1008,31 +1133,10 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
   };
 }
 
-type StorefrontClientCore = ReturnType<typeof createStorefrontClientCore>;
-
-export type StorefrontClient = StorefrontClientCore & {
-  withContext(context: StorefrontContext): StorefrontClient;
-};
-
-function createStorefrontClient(publishableKey: string, options: StorefrontOptions, isolatedSession = false): StorefrontClient {
-  const client = createStorefrontClientCore(publishableKey, options, isolatedSession);
-  return Object.assign(client, {
-    withContext(context: StorefrontContext): StorefrontClient {
-      return createStorefrontClient(
-        publishableKey,
-        {
-          ...options,
-          locale: context.locale ?? client.getLocale(),
-          market: context.market ?? client.getMarket(),
-        },
-        true,
-      );
-    },
-  });
-}
+export type StorefrontClient = ReturnType<typeof createStorefrontClientCore>;
 
 export function createStorefront(publishableKey: string, options: StorefrontOptions): StorefrontClient {
-  return createStorefrontClient(publishableKey, options);
+  return createStorefrontClientCore(publishableKey, options);
 }
 
 export { createOrderToken, isOrderToken, retainOrderToken, replaceOrderToken, readOrderToken } from "./utils/orderToken";

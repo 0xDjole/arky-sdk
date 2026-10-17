@@ -1,10 +1,22 @@
 import type { EpochMilliseconds } from "../types/time";
 import type { StorefrontOptions } from "../index";
-import type { CartQuote, CheckoutPaymentChoice } from "../types/cart";
-import type { Currency } from "../types/common";
+import type {
+  Cart,
+  CartBuyer,
+  CartDeliveryDestination,
+  CartQuote,
+  CheckoutPaymentChoice,
+  StorefrontCartBookingLineItemInput,
+  StorefrontCartCustomerGroupLineItemInput,
+  StorefrontCartProductLineItemInput,
+  StorefrontCheckoutCartInput,
+  StorefrontCurrentCartParams,
+} from "../types/cart";
+import type { Currency, PostalAddress } from "../types/common";
 import type { Entry } from "../types/content";
 import type { Form, FormValues } from "../types/forms";
-import type { CheckoutPaymentAction } from "../types/payment";
+import type { CheckoutPaymentAction, Payment } from "../types/payment";
+import type { PaymentOutcome } from "../utils/paymentOutcome";
 import type {
   AvailabilityResponse,
   StorefrontBookingOffering,
@@ -27,7 +39,7 @@ export type ArkyContentEntryParams =
   | { collection_id: string; slug: string };
 
 export interface ArkySubmitFormByKeyParams {
-  id: string;
+  id?: string;
   key: string;
   form: Form;
   values: FormValues;
@@ -55,11 +67,71 @@ export interface ArkyLastOrder {
 }
 
 export interface ArkyCartCheckoutInput {
-  order_token: string;
-  order_id: string;
+  order_token?: string;
+  order_id?: string;
   contact_email: string | null;
   payment: CheckoutPaymentChoice;
   clear_after_checkout?: boolean;
+}
+
+export type ArkyCartScope = StorefrontCurrentCartParams;
+
+export interface ArkyCartCreateParams {
+  id?: string;
+  buyer?: CartBuyer;
+  catalog_id?: string;
+}
+
+export type ArkyCartProductInput = Omit<StorefrontCartProductLineItemInput, "id"> & { id?: string };
+
+export type ArkyCartBookingInput = Omit<StorefrontCartBookingLineItemInput, "id"> & { id?: string };
+
+export type ArkyCartCustomerGroupInput = Omit<StorefrontCartCustomerGroupLineItemInput, "id"> & { id?: string };
+
+export type ArkyCheckoutStep = "cart" | "details" | "shipping" | "payment" | "paying" | "placed";
+
+export interface ArkyPlacedCheckout {
+  order_id: string;
+  number: string | null;
+  payment_id: string | null;
+  payment_action: CheckoutPaymentAction;
+}
+
+export type ArkyCheckoutErrorCode =
+  | "busy"
+  | "not_ready"
+  | "pending"
+  | "presentation_changed"
+  | "refused"
+  | "interrupted"
+  | "unavailable"
+  | "failed";
+
+export interface ArkyCheckoutState {
+  step: ArkyCheckoutStep;
+  busy: boolean;
+  cart: Cart | null;
+  quote: CartQuote | null;
+  contact_email: string | null;
+  destination: CartDeliveryDestination | null;
+  billing_address: PostalAddress | null;
+  payment_option_id: string | null;
+  pending: StorefrontCheckoutCartInput | null;
+  placed: ArkyPlacedCheckout | null;
+  payment: Payment | null;
+  outcome: PaymentOutcome | null;
+  error: { code: ArkyCheckoutErrorCode; message: string } | null;
+}
+
+export interface ArkyCheckoutPlaceParams {
+  return_url?: string | ((order_id: string) => string);
+  save_payment_method?: boolean;
+  payment_method_terms?: string | null;
+}
+
+export interface ArkyCheckoutResumeParams {
+  order_id: string;
+  url: string;
 }
 
 export interface ArkyContentState {
@@ -115,7 +187,7 @@ export interface ArkyBookingSlot {
 }
 
 export interface ArkyBookingCartItem {
-  id: string;
+  id?: string;
   slot: ArkyBookingSlot;
   capacity_units?: number;
   form_submission_id?: string | null;

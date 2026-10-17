@@ -27,12 +27,18 @@ export {
   durableRequestPayload,
   getOrCreateDurableRequest,
   isDefiniteRefusal,
+  isDurableRequestStorageError,
   readDurableRequest,
   withDurableRequestLock,
 } from "./durableRequest";
 export type { DurableRequest } from "./durableRequest";
 
 export { readPendingMediaCreate } from "./durableMediaCreate";
+
+export { paginate, readAllPages } from "./paginate";
+export type { PageRead, PaginateOptions } from "./paginate";
+export { latestPayment, paymentOutcome } from "./paymentOutcome";
+export type { PaymentOutcome } from "./paymentOutcome";
 
 export {
   blockContent,

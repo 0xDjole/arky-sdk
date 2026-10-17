@@ -38,6 +38,8 @@ export interface RequestErrorContext {
 
 export interface RequestOptions<T = unknown> {
   order_token?: string;
+  locale?: string;
+  market?: string;
   headers?: Record<string, string>;
   params?: QueryParams;
   signal?: AbortSignal;
@@ -45,6 +47,8 @@ export interface RequestOptions<T = unknown> {
   onSuccess?: (ctx: RequestSuccessContext<T>) => void | Promise<void>;
   onError?: (ctx: RequestErrorContext) => void | Promise<void>;
 }
+
+export type RequestContextOverride = Pick<RequestOptions, "locale" | "market">;
 
 export interface HttpClient {
   get<T>(path: string, opts?: RequestOptions<T>): Promise<T>;
@@ -58,7 +62,7 @@ export interface HttpClientConfig {
   baseUrl: string;
   authStorage: AuthStorage;
   storefrontMode?: boolean;
-  forcedHeaders?: Record<string, string> | (() => Record<string, string>);
+  forcedHeaders?: Record<string, string> | ((context: RequestContextOverride) => Record<string, string>);
   onUnauthorized?: (context: {
     hadAuthorization: boolean;
     authorizationToken: string | null;

@@ -40,7 +40,7 @@ test("the storefront reads groups, offerings and the shopper's own members under
       customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47",
       session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14",
     }),
-    createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14",
+    createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`,
     apiUrl,
     sessionStorage: new SessionStorage(),
   });
@@ -53,7 +53,7 @@ test("the storefront reads groups, offerings and the shopper's own members under
       customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47",
       session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14",
     }),
-    createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14",
+    createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`,
     apiUrl,
     sessionStorage: new SessionStorage(),
   });
@@ -71,6 +71,7 @@ test("the storefront reads groups, offerings and the shopper's own members under
     assert.deepEqual(Object.keys(facade.eshop.customerGroup).sort(), [
       "find",
       "get",
+      "joinFree",
       "productChoices",
     ]);
     assert.deepEqual(Object.keys(facade.eshop.customerGroupOffering).sort(), [

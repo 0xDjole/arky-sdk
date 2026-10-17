@@ -5,11 +5,19 @@ export interface DurableRequest {
 
 type StoredDurableRequest = Omit<DurableRequest, "storageKey">;
 
+const durableStorageErrorBrand = Symbol.for("arky.DurableRequestStorageError");
+
 export class DurableRequestStorageError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "DurableRequestStorageError";
+  readonly name: string = "DurableRequestStorageError";
+  readonly [durableStorageErrorBrand] = true;
+
+  static [Symbol.hasInstance](value: unknown): boolean {
+    return value instanceof Error && durableStorageErrorBrand in value;
   }
+}
+
+export function isDurableRequestStorageError(value: unknown): value is DurableRequestStorageError {
+  return value instanceof DurableRequestStorageError;
 }
 
 export function isDefiniteRefusal(error: unknown): boolean {

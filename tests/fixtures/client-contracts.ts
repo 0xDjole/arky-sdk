@@ -80,7 +80,7 @@ type Store = ReturnType<typeof initialize>;
 type Answer<F extends (...args: never[]) => unknown> = Awaited<ReturnType<F>>;
 
 const admin = createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_api_contract" });
-const storefront = createStorefront(`arky_pk_${"a".repeat(42)}A`, { apiUrl: "https://api.example.test", locale: "bs", market: "bih", createVisitorIdentity: () => ({ customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" });
+const storefront = createStorefront(`arky_pk_${"a".repeat(42)}A`, { apiUrl: "https://api.example.test", locale: "bs", market: "bih", createVisitorIdentity: () => ({ customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A` });
 const store_id = "c3d8f1a2-6b47-4e95-8a0c-2f7d5e9b1a63";
 
 export const notificationPage: Promise<PaginatedResponse<OutgoingEmail>> = admin.notification.outgoingEmail.find({ store_id, to: "buyer@example.test", type: "event_email", limit: 20 });
@@ -198,6 +198,10 @@ export type StorefrontSurfaceContracts = [
   Assert<Missing<StorefrontOptions, "salesChannel">>,
   Assert<RequiredField<StorefrontOptions, "createVisitorIdentity">>,
   Assert<RequiredField<StorefrontOptions, "createSessionId">>,
+  Assert<RequiredField<StorefrontOptions, "createId">>,
+  Assert<RequiredField<StorefrontOptions, "createOrderToken">>,
+  Assert<Missing<Storefront, "withContext">>,
+  Assert<Missing<Store, "withContext">>,
   Assert<Equal<Parameters<typeof createStorefront>, [string, StorefrontOptions]>>,
   Assert<Equal<Parameters<typeof initialize>, [string, StorefrontOptions]>>,
   Assert<Equal<keyof VerifyCustomerCodeParams, "code">>,

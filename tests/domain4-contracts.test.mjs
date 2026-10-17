@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { createStorefront } from "../dist/storefront.js";
-import { idFactories, publishableKey, recordFetch, ids, visitorSession, storedSession, SessionStorage, errorResponse } from "./helpers/arky-fixtures.mjs";
+import { factoryOrderToken, idFactories, publishableKey, recordFetch, ids, visitorSession, storedSession, SessionStorage, errorResponse } from "./helpers/arky-fixtures.mjs";
 
 const storeId = "ab73eb42-89fd-4cbf-a1fd-fb84e6d78590";
 const customerId = "63ebda09-b0da-40c7-85ee-4ad9f2310c30";
@@ -63,6 +63,8 @@ test("expired Visitor replacement keeps the application-picked pair after a lost
     sessionStorage: new SessionStorage(storedSession(ids.customer, prior)),
     createVisitorIdentity: () => { picks++; return { customer_id: customerId, session_id: sessionId }; },
     createSessionId: () => ids.otherSession,
+    createId: () => ids.submission,
+    createOrderToken: () => factoryOrderToken,
   });
   await assert.rejects(client.customer.getMe(), /Lost response/);
   await Promise.all([client.customer.getMe(), client.customer.getMe()]);
