@@ -20,7 +20,7 @@ test("platform discovery keeps sorting and opaque continuation without hidden pa
       status: 200, headers: { "content-type": "application/json" },
     });
   });
-  const admin = createAdmin({ baseUrl, secretKey: "arky_account_access_contract" });
+  const admin = createAdmin({ apiUrl: baseUrl, secretKey: "arky_account_access_contract" });
   const stores = { query: "Workspace", limit: 1, sort_field: "name", sort_direction: "desc" };
   assert.deepEqual(await admin.store.find(stores), { items: [], cursor });
   assert.equal(calls.length, 1);
@@ -28,9 +28,9 @@ test("platform discovery keeps sorting and opaque continuation without hidden pa
   assert.equal(calls[1].pathname, "/v1/stores");
   assert.deepEqual(Object.fromEntries(calls[1].searchParams), { ...stores, limit: "1", cursor });
   const accounts = { query: "operator", limit: 1, sort_field: "email", sort_direction: "asc" };
-  assert.deepEqual(await admin.account.search(accounts), { items: [], cursor });
+  assert.deepEqual(await admin.account.find(accounts), { items: [], cursor });
   assert.equal(calls.length, 3);
-  assert.deepEqual(await admin.account.search({ ...accounts, cursor }), { items: [], cursor: null });
+  assert.deepEqual(await admin.account.find({ ...accounts, cursor }), { items: [], cursor: null });
   assert.equal(calls[3].pathname, "/v1/accounts/search");
   assert.deepEqual(Object.fromEntries(calls[3].searchParams), { ...accounts, limit: "1", cursor });
 });
@@ -47,7 +47,7 @@ test("membership permissions use an exact Store read while own discovery preserv
     const body = parsed.pathname.endsWith("/membership") ? membership : { items: [], cursor: parsed.searchParams.has("cursor") ? null : cursor };
     return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const admin = createAdmin({ baseUrl, secretKey: "arky_account_access_contract" });
+  const admin = createAdmin({ apiUrl: baseUrl, secretKey: "arky_account_access_contract" });
   assert.deepEqual(await admin.store.member.getOwn({ store_id: storeId }, { headers: { "X-Trace-Id": "permission" } }), membership);
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url.pathname, `/v1/stores/${storeId}/membership`);
@@ -76,14 +76,12 @@ test("store roles are created under an app-picked id and use exact routes, versi
       : (init.method ?? "GET") === "GET" && parsed.pathname.endsWith("/roles") ? { items: [role], cursor: null } : role;
     return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const admin = createAdmin({ baseUrl, secretKey: "arky_account_access_contract" });
+  const admin = createAdmin({ apiUrl: baseUrl, secretKey: "arky_account_access_contract" });
   assert.deepEqual(await admin.store.role.create({ store_id: storeId, id: roleId, key: role.key, permissions: role.permissions }), role);
   await admin.store.role.update({ store_id: storeId, id: roleId, expected_updated_at: 2, key: "picker", permissions: [{ type: "fulfillment", locations: { type: "only", store_location_ids: [locationA] } }] });
   await admin.store.role.get({ store_id: storeId, id: roleId });
   assert.deepEqual(await admin.store.role.find({ store_id: storeId, limit: 20 }), { items: [role], cursor: null });
-  assert.deepEqual(await admin.store.role.delete({ store_id: storeId, id: roleId, expected_updated_at: 3 }, {
-    transformRequest: () => ({ unexpected_body: true }),
-  }), { deleted: true });
+  assert.deepEqual(await admin.store.role.delete({ store_id: storeId, id: roleId, expected_updated_at: 3 }), { deleted: true });
   assert.deepEqual(calls.map(({ url, method }) => [method, url.pathname + url.search]), [
     ["POST", `/v1/stores/${storeId}/roles`],
     ["PUT", `/v1/stores/${storeId}/roles/${roleId}`],
@@ -107,7 +105,7 @@ test("members are invited by caller-picked identity and re-roled by membership i
     calls.push({ url: new URL(url), method: init.method ?? "GET", body: init.body ? JSON.parse(String(init.body)) : null });
     return new Response(JSON.stringify(String(url).endsWith("/roles") ? { id: "member", role_ids: [roleId] } : true), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const admin = createAdmin({ baseUrl, secretKey: "arky_account_access_contract" });
+  const admin = createAdmin({ apiUrl: baseUrl, secretKey: "arky_account_access_contract" });
   await admin.store.member.invite({ store_id: storeId, id: accountId, email: "packer@example.test", role_ids: [roleId] });
   await admin.store.member.updateRoles({ store_id: storeId, id: accountId, expected_updated_at: 5, role_ids: [roleId] });
   assert.deepEqual(calls.map(({ url, method, body }) => [method, url.pathname, body]), [
@@ -128,7 +126,7 @@ test("the owner transfers the Store and members are paused and resumed by status
     const body = parsed.pathname.endsWith("/ownership/transfer") ? store : membership;
     return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const admin = createAdmin({ baseUrl, secretKey: "arky_account_access_contract" });
+  const admin = createAdmin({ apiUrl: baseUrl, secretKey: "arky_account_access_contract" });
   assert.deepEqual(await admin.store.member.transferOwnership({ store_id: storeId, account_id: accountId, expected_updated_at: 4 }), store);
   assert.deepEqual(await admin.store.member.changeStatus({ store_id: storeId, id: accountId, expected_updated_at: 5, status: { type: "disabled" } }), membership);
   await admin.store.member.changeStatus({ store_id: storeId, id: accountId, expected_updated_at: 6, status: { type: "active" } });
@@ -190,7 +188,7 @@ test("own workspace discovery retains each Store name and access without public 
     calls.push({ path: new URL(url).pathname, method: init.method ?? "GET" });
     return Response.json({ items: memberships, cursor: null });
   });
-  const admin = createAdmin({ baseUrl, secretKey: "arky_account_access_contract" });
+  const admin = createAdmin({ apiUrl: baseUrl, secretKey: "arky_account_access_contract" });
   const page = await admin.store.member.findOwn({ limit: 20 });
   assert.deepEqual(page.items.map(({ store_name }) => store_name), ["First Store", "Second Store"]);
   assert.deepEqual(calls, [{ path: "/v1/stores/memberships", method: "GET" }]);
@@ -207,7 +205,7 @@ test("a nonexpiring email invite is explicitly resent and accepted with its curr
     const body = parsed.pathname.endsWith("/invitation") ? true : parsed.pathname.endsWith("/membership/accept") ? accepted : invited;
     return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const admin = createAdmin({ baseUrl, secretKey: "arky_account_access_contract" });
+  const admin = createAdmin({ apiUrl: baseUrl, secretKey: "arky_account_access_contract" });
   const invite = { store_id: storeId, id: accountId, email: "packer@example.test", role_ids: [roleId] };
   assert.equal(await admin.store.member.invite(invite), true);
   assert.equal(await admin.store.member.resendInvite({ store_id: storeId, id: accountId, expected_updated_at: 2 }), true);
@@ -235,7 +233,7 @@ test("a store's email sending is paused with a reason and allowed again, each wi
     calls.push({ url: parsed, method: init.method ?? "GET", body: init.body ? JSON.parse(String(init.body)) : null });
     return new Response(JSON.stringify(parsed.pathname.endsWith("/pause-email-sending") ? paused : allowed), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const admin = createAdmin({ baseUrl, secretKey: "arky_account_access_contract" });
+  const admin = createAdmin({ apiUrl: baseUrl, secretKey: "arky_account_access_contract" });
   assert.deepEqual((await admin.store.pauseEmailSending({ store_id: storeId, expected_updated_at: 4, reason: "Bounce rate review" })).email_sending, paused.email_sending);
   assert.deepEqual((await admin.store.allowEmailSending({ store_id: storeId, expected_updated_at: 5 })).email_sending, { type: "allowed" });
   assert.deepEqual(calls.map(({ url, method, body }) => [method, url.pathname + url.search, body]), [
@@ -249,7 +247,6 @@ test("a store's email sending is paused with a reason and allowed again, each wi
 test("membership removal sends the exact read version in JSON and preserves request options", async (context) => {
   const calls = [];
   const successes = [];
-  const transformed = [];
   const controller = new AbortController();
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     calls.push({
@@ -263,15 +260,11 @@ test("membership removal sends the exact read version in JSON and preserves requ
       headers: { "x-request-id": `membership-removal-${calls.length}` },
     });
   });
-  const admin = createAdmin({ baseUrl, secretKey: "arky_account_access_contract" });
+  const admin = createAdmin({ apiUrl: baseUrl, secretKey: "arky_account_access_contract" });
   const options = {
     headers: { "X-Trace-Id": "membership-removal" },
     signal: controller.signal,
     params: { expected_updated_at: 99 },
-    transformRequest: (body) => {
-      transformed.push(body);
-      return body;
-    },
     onSuccess: (result) => { successes.push(result); },
     onError: () => { assert.fail("A successful removal must not invoke onError"); },
   };
@@ -287,7 +280,6 @@ test("membership removal sends the exact read version in JSON and preserves requ
     assert.equal(call.headers.get("Authorization"), "Bearer arky_account_access_contract");
     assert.equal(call.signal, controller.signal);
   }
-  assert.deepEqual(transformed, [{ expected_updated_at: 7 }, { expected_updated_at: 8 }]);
   assert.deepEqual(successes.map(({ data, method, url, status, request_id }) => [data, method, url, status, request_id]), [
     [true, "DELETE", `${baseUrl}/v1/stores/${storeId}/members/${roleId}`, 200, "membership-removal-1"],
     [false, "DELETE", `${baseUrl}/v1/stores/${storeId}/members/${roleId}`, 200, "membership-removal-2"],
@@ -316,7 +308,7 @@ test("membership removal preserves native authority and version refusals", async
       validation_errors: [],
     }, { status: response.status });
   });
-  const admin = createAdmin({ baseUrl, secretKey: "arky_account_access_contract" });
+  const admin = createAdmin({ apiUrl: baseUrl, secretKey: "arky_account_access_contract" });
   for (const response of responses) {
     await assert.rejects(admin.store.member.remove({ store_id: storeId, id: roleId, expected_updated_at: 7 }, {
       onSuccess: () => { assert.fail("A refused removal must not invoke onSuccess"); },

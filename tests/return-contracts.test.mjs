@@ -15,7 +15,7 @@ const orderReturn = {
 };
 
 function returns() {
-  return createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop.return;
+  return createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop.return;
 }
 
 test("a buyer's return is created under the app-picked id and read through storefront routes only", async (context) => {
@@ -26,9 +26,9 @@ test("a buyer's return is created under the app-picked id and read through store
   const before = structuredClone(request);
   assert.deepEqual(await store.eshop.return.create(request), retained);
   assert.deepEqual(await store.eshop.return.find({ order_id: ids.order, limit: 10, cursor: "prior" }), { items: [], cursor: "next" });
-  assert.deepEqual(await store.eshop.return.get({ return_id: "return/one" }), retained);
-  await store.eshop.return.orderOptions({ order_id: ids.order });
-  await store.eshop.return.rentalOptions({ rental_id: "rental/one", limit: 5 });
+  assert.deepEqual(await store.eshop.return.get({ id: "return/one" }), retained);
+  await store.eshop.return.getOrderOptions({ order_id: ids.order });
+  await store.eshop.return.findRentalOptions({ rental_id: "rental/one", limit: 5 });
   assert.deepEqual(request, before);
   assert.deepEqual(calls.map((call) => [call.method, call.path, call.query]), [
     ["POST", "/v1/storefront/returns", {}],
@@ -55,7 +55,7 @@ test("return discovery carries every filter and keeps the empty continuation", a
   assert.deepEqual(calls[0].query, expected);
   assert.deepEqual(calls[1].query, { ...expected, cursor: "next" });
   assert.equal(calls.length, 2);
-  assert.deepEqual(Object.keys(api).sort(), ["create", "credit", "destinationOptions", "execute", "find", "get", "inspectionUnit", "orderOptions", "rentalOptions"]);
+  assert.deepEqual(Object.keys(api).sort(), ["create", "credit", "execute", "find", "findRentalOptions", "get", "getDestinationOptions", "getInspectionUnit", "getOrderOptions"]);
 });
 
 test("staff returns are created under the app-picked id, and every action goes to execute with the return version", async (context) => {
@@ -122,10 +122,10 @@ test("a return credit carries the app-picked credit id and the return version, a
   const calls = recordFetch(context, (call) => call.path.endsWith("/credit") ? { id: ids.credit } : call.path.includes("/inspection-units/") ? inspection : call.path.includes("/rentals/") ? { items: [], cursor: null } : { return_id: returnId });
   const api = returns();
   await api.credit({ store_id: STORE_ID, return_id: returnId, id: ids.credit, expected_updated_at: 5 });
-  await api.destinationOptions({ store_id: STORE_ID, return_id: returnId });
-  assert.deepEqual(await api.inspectionUnit({ store_id: STORE_ID, return_id: returnId, inventory_unit_id: "unit/1" }), inspection);
-  await api.orderOptions({ store_id: STORE_ID, order_id: ids.order });
-  await api.rentalOptions({ store_id: STORE_ID, rental_id: "rental", limit: 3 });
+  await api.getDestinationOptions({ store_id: STORE_ID, return_id: returnId });
+  assert.deepEqual(await api.getInspectionUnit({ store_id: STORE_ID, return_id: returnId, inventory_unit_id: "unit/1" }), inspection);
+  await api.getOrderOptions({ store_id: STORE_ID, order_id: ids.order });
+  await api.findRentalOptions({ store_id: STORE_ID, rental_id: "rental", limit: 3 });
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
     ["POST", `/v1/stores/${STORE_ID}/returns/${returnId}/credit`, {}, { id: ids.credit, expected_updated_at: 5 }],
     ["GET", `/v1/stores/${STORE_ID}/returns/${returnId}/destination-options`, {}, null],

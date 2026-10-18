@@ -12,7 +12,7 @@ const STORE_ID = "d7b1f4e9-2a63-4c58-8e0d-5b9c3a6f1e24";
 const OTHER_STORE_ID = "0a6e3c9f-5d21-4b87-9f4a-8c2e1b7d5a03";
 
 function admin() {
-  return createAdmin({ secretKey: "test-token", baseUrl: apiUrl });
+  return createAdmin({ secretKey: "test-token", apiUrl: apiUrl });
 }
 
 test("storefront group discovery forwards the catalog, offering, price filter, ordering and continuation", async (context) => {
@@ -32,8 +32,8 @@ test("storefront group discovery forwards the catalog, offering, price filter, o
     created_at_from: 1000,
     created_at_to: 2000,
   });
-  await client.eshop.customerGroup.get({ identifier: "monthly/plan", catalog_id: ids.catalog, company_id: ids.company, include_price: true });
-  await client.eshop.customerGroupOffering.get({ identifier: "members-club" });
+  await client.eshop.customerGroup.getByKey({ key: "monthly/plan", catalog_id: ids.catalog, company_id: ids.company, include_price: true });
+  await client.eshop.customerGroupOffering.getByKey({ key: "members-club" });
   assert.deepEqual(calls[0].query, {
     customer_group_offering_id: offeringId,
     catalog_id: ids.catalog,

@@ -1,3 +1,4 @@
+import { ArkyError } from "../types/apiError";
 import { requireStoreId } from "../utils/storeTarget";
 import type {
   ApiConfig,
@@ -23,7 +24,7 @@ export const createAuthApi = (
   function applyAuthToken(result: AuthToken, expectedSessionId: string | undefined, email?: string) {
     updateSession((previous) => {
       if (previous?.id !== expectedSessionId) {
-        throw Object.assign(new Error('The Account session changed during sign-in'), { name: 'SessionChangedError' });
+        throw new ArkyError('session_changed', 'The Account session changed during sign-in');
       }
       const next: AdminSessionInternal = {
         id: result.id,
@@ -36,14 +37,18 @@ export const createAuthApi = (
     });
   }
 
+  function authPath(storeId: string | undefined, path: "code" | "verify"): string {
+    return storeId === undefined ? `/v1/auth/${path}` : `/v1/stores/${requireStoreId(storeId)}/auth/${path}`;
+  }
+
   return {
-    async code(
+    async requestCode(
       params: RequestPendingAccountSessionParams,
       options?: RequestOptions,
     ): Promise<PendingAccountSession> {
       const result = await apiConfig.httpClient.post<PendingAccountSession>(
-        "/v1/auth/code",
-        params,
+        authPath(params.store_id, "code"),
+        { email: params.email },
         options,
       );
       pendingEmails.set(result.session_id, params.email);
@@ -56,8 +61,8 @@ export const createAuthApi = (
     ): Promise<AuthToken> {
       const expectedSessionId = apiConfig.authStorage.getTokens()?.id;
       const result = await apiConfig.httpClient.post<AuthToken>(
-        "/v1/auth/verify",
-        params,
+        authPath(params.store_id, "verify"),
+        { session_id: params.session_id, code: params.code },
         options,
       );
       if (result?.access_token) {
@@ -72,38 +77,6 @@ export const createAuthApi = (
       options?: RequestOptions,
     ): Promise<AuthToken> {
       return refreshSession(params.refresh_token);
-    },
-
-    async storeCode(
-      storeId: string,
-      params: RequestPendingAccountSessionParams,
-      options?: RequestOptions,
-    ): Promise<PendingAccountSession> {
-      const result = await apiConfig.httpClient.post<PendingAccountSession>(
-        `/v1/stores/${requireStoreId(storeId)}/auth/code`,
-        params,
-        options,
-      );
-      pendingEmails.set(result.session_id, params.email);
-      return result;
-    },
-
-    async storeVerify(
-      storeId: string,
-      params: VerifyPendingAccountSessionParams,
-      options?: RequestOptions,
-    ): Promise<AuthToken> {
-      const expectedSessionId = apiConfig.authStorage.getTokens()?.id;
-      const result = await apiConfig.httpClient.post<AuthToken>(
-        `/v1/stores/${requireStoreId(storeId)}/auth/verify`,
-        params,
-        options,
-      );
-      if (result?.access_token) {
-        applyAuthToken(result, expectedSessionId, pendingEmails.get(params.session_id));
-        pendingEmails.delete(params.session_id);
-      }
-      return result;
     },
   };
 };

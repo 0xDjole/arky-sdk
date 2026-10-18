@@ -3,32 +3,38 @@ import type {
   Cart,
   CartDeliveryDestination,
   CartQuote,
-  CartShipping,
   CheckoutAcceptance,
   CheckoutPaymentChoice,
   QuoteBlocker,
 } from "../types/cart";
-import { ArkyApiError } from "../types/apiError";
+import { ArkyApiError, ArkyError, ArkyNetworkError } from "../types/apiError";
 import { CartPresentationChangedError } from "../types/cartCheckout";
-import type { PostalAddress } from "../types/common";
+import { CartError } from "../types/cartSelection";
 import type { Payment } from "../types/payment";
 import type { StorefrontClient } from "../index";
-import { DurableRequestStorageError, isDefiniteRefusal } from "../utils/durableRequest";
+import { DurableRequestError, isDefiniteRefusal } from "../utils/durableRequest";
 import { latestPayment, paymentOutcome } from "../utils/paymentOutcome";
-import type { CartStore } from "./cart";
+import type { CartScope, CartStore } from "./cart";
 import type {
+  ArkyCartQuoteParams,
   ArkyCheckoutErrorCode,
   ArkyCheckoutPlaceParams,
-  ArkyCheckoutResumeParams,
+  ArkyCheckoutShipToParams,
   ArkyCheckoutState,
   ArkyCheckoutStep,
+  ArkyOpenOrderParams,
   ArkyPlacedCheckout,
+  ArkySelectPaymentOptionParams,
+  ArkySelectShippingParams,
+  ArkySetBillingAddressParams,
+  ArkySetContactParams,
+  ArkySetPromotionCodesParams,
 } from "./types";
 
 const checkoutErrorBrand = Symbol.for("arky.commerce.CheckoutFlowError");
 
-export class CheckoutFlowError extends Error {
-  readonly name = "CheckoutFlowError";
+export class CheckoutFlowError extends ArkyError {
+  readonly name: string = "CheckoutFlowError";
   readonly [checkoutErrorBrand] = true;
 
   static [Symbol.hasInstance](value: unknown): boolean {
@@ -40,13 +46,14 @@ export class CheckoutFlowError extends Error {
     message: string,
     readonly cause?: unknown,
   ) {
-    super(message);
+    super(code, message);
   }
 }
 
 export interface CheckoutFlowContext {
   client: StorefrontClient;
   loadSetup(): Promise<unknown>;
+  beginCartOperation(): Promise<CartScope>;
   newId(label: string): string;
   newOrderToken(): string;
 }
@@ -62,6 +69,8 @@ interface CheckoutLocal {
   error: ArkyCheckoutState["error"];
 }
 
+const lineBlockers: QuoteBlocker["type"][] = ["booking_unavailable", "purchase_limit_exceeded"];
+
 const detailBlockers: QuoteBlocker["type"][] = [
   "units_without_delivery",
   "billing_address_required",
@@ -69,19 +78,53 @@ const detailBlockers: QuoteBlocker["type"][] = [
   "customer_group_delivery_required",
 ];
 
+const placedOutcomes = ["paid", "pay_later", "unconfirmed"];
+
+const initialLocal: CheckoutLocal = {
+  busy: false,
+  contact_email: null,
+  destination: null,
+  payment_option_id: null,
+  pending: null,
+  placed: null,
+  payment: null,
+  error: null,
+};
+
 function stepOf(cart: Cart | null, quote: CartQuote | null, local: CheckoutLocal): ArkyCheckoutStep {
   if (local.placed) {
     if (local.placed.payment_id === null) return "placed";
     const outcome = local.payment ? paymentOutcome(local.payment) : null;
-    return outcome === "paid" || outcome === "pay_later" ? "placed" : "paying";
+    return outcome !== null && placedOutcomes.includes(outcome) ? "placed" : "paying";
   }
   if (local.pending) return "paying";
   if (!cart || cart.line_items.length === 0) return "cart";
-  if (!quote || quote.cart_id !== cart.id || local.contact_email === null) return "details";
-  if (quote.blockers.some((blocker) => detailBlockers.includes(blocker.type))) return "details";
-  if (!quote.ready) return "shipping";
+  const reviewed = quote !== null && quote.cart_id === cart.id ? quote : null;
+  if (reviewed?.blockers.some((blocker) => lineBlockers.includes(blocker.type))) return "cart";
+  if (!reviewed || local.contact_email === null) return "details";
+  if (reviewed.blockers.some((blocker) => detailBlockers.includes(blocker.type))) return "details";
+  if (!reviewed.ready) return "shipping";
   return "payment";
 }
+
+const durableFailures: Record<DurableRequestError["code"], ArkyCheckoutErrorCode> = {
+  storage: "unavailable",
+  busy: "busy",
+  pending: "pending",
+  answer_mismatch: "interrupted",
+  settled_elsewhere: "interrupted",
+};
+
+const cartFailures: Record<CartError["code"], ArkyCheckoutErrorCode> = {
+  context_changed: "interrupted",
+  other_cart: "failed",
+  no_cart: "not_ready",
+  not_ready: "not_ready",
+  answer_mismatch: "interrupted",
+  busy: "busy",
+  storage: "unavailable",
+  no_session: "not_ready",
+};
 
 function destinationOf(cart: Cart): CartDeliveryDestination | null {
   return cart.delivery_groups[0]?.destination ?? null;
@@ -89,16 +132,11 @@ function destinationOf(cart: Cart): CartDeliveryDestination | null {
 
 export function createCheckoutFlow(context: CheckoutFlowContext, cart: CartStore) {
   const { client } = context;
-  const local = atom<CheckoutLocal>({
-    busy: false,
-    contact_email: null,
-    destination: null,
-    payment_option_id: null,
-    pending: null,
-    placed: null,
-    payment: null,
-    error: null,
-  });
+  const local = atom<CheckoutLocal>({ ...initialLocal });
+
+  function invalidate(): void {
+    local.set({ ...initialLocal });
+  }
 
   const state = computed([cart.cart, cart.quote_result, local], (currentCart, currentQuote, current): ArkyCheckoutState => ({
     step: stepOf(currentCart, currentQuote, current),
@@ -127,38 +165,55 @@ export function createCheckoutFlow(context: CheckoutFlowContext, cart: CartStore
       cart.quote_result.set(error.quote);
       return new CheckoutFlowError("presentation_changed", message, error);
     }
-    if (error instanceof DurableRequestStorageError) return new CheckoutFlowError("unavailable", message, error);
+    if (error instanceof DurableRequestError) return new CheckoutFlowError(durableFailures[error.code], message, error);
+    if (error instanceof CartError) return new CheckoutFlowError(cartFailures[error.code], message, error);
     if (isDefiniteRefusal(error)) return new CheckoutFlowError("refused", message, error);
-    if (
-      error instanceof ArkyApiError ||
-      (error instanceof Error && ["NetworkError", "AbortError", "ParseError"].includes(error.name))
-    ) {
+    if (error instanceof ArkyApiError || error instanceof ArkyNetworkError) {
       return new CheckoutFlowError("interrupted", message, error);
     }
     return new CheckoutFlowError("failed", message, error);
   }
 
-  async function step<T>(work: () => Promise<T>): Promise<T> {
+  async function step<T>(work: (operation: CartScope) => Promise<T>): Promise<T> {
+    let operation: CartScope;
+    try {
+      operation = await context.beginCartOperation();
+      operation.assertCurrent();
+    } catch (error) {
+      throw failure(error);
+    }
     if (local.get().busy) throw new CheckoutFlowError("busy", "A checkout step is already running");
     patch({ busy: true, error: null });
     try {
-      return await work();
+      const result = await work(operation);
+      operation.assertCurrent();
+      return result;
     } catch (error) {
+      if (!operation.isCurrent()) {
+        throw new CheckoutFlowError("interrupted", "The buyer or the store context changed during checkout", error);
+      }
       const failed = failure(error);
       patch({ error: { code: failed.code, message: failed.message } });
       throw failed;
     } finally {
-      patch({ busy: false });
+      if (operation.isCurrent()) patch({ busy: false });
     }
   }
 
-  async function quote(): Promise<CartQuote | null> {
+  function contact(): ArkyCartQuoteParams {
+    const email = local.get().contact_email;
+    return email === null ? {} : { contact_email: email };
+  }
+
+  async function quote(operation: CartScope): Promise<CartQuote | null> {
+    operation.assertCurrent();
     const current = cart.cart.get();
     if (!current || current.line_items.length === 0) {
       cart.quote_result.set(null);
       return null;
     }
-    const quoted = await cart.quote();
+    const quoted = await cart.quote(contact());
+    operation.assertCurrent();
     const chosen = local.get().payment_option_id;
     if (chosen !== null && !quoted.payment_option_ids.includes(chosen)) patch({ payment_option_id: null });
     if (local.get().payment_option_id === null && quoted.suggested_payment_option_id !== null) {
@@ -168,23 +223,25 @@ export function createCheckoutFlow(context: CheckoutFlowContext, cart: CartStore
   }
 
   function orderToken(orderId: string) {
-    const token = client.eshop.order.retainedToken(orderId);
-    return token ? { order_token: token } : undefined;
+    return { order_token: client.eshop.order.retainedToken({ order_id: orderId }) };
   }
 
-  async function readPayment(placed: ArkyPlacedCheckout): Promise<Payment | null> {
+  async function readPayment(operation: CartScope, placed: ArkyPlacedCheckout): Promise<Payment | null> {
+    operation.assertCurrent();
     if (placed.payment_id === null) return null;
     const payment = await client.eshop.order.getPayment(
       { order_id: placed.order_id, payment_id: placed.payment_id },
       orderToken(placed.order_id),
     );
+    operation.assertCurrent();
     if (payment.id !== placed.payment_id || payment.order_id !== placed.order_id) {
       throw new CheckoutFlowError("interrupted", "The payment read answered another payment");
     }
     return payment;
   }
 
-  async function accepted(result: CheckoutAcceptance, orderId: string): Promise<ArkyCheckoutState> {
+  async function accepted(operation: CartScope, result: CheckoutAcceptance, orderId: string): Promise<ArkyCheckoutState> {
+    operation.assertCurrent();
     if (result.type !== "placed") {
       patch({ pending: null, placed: null, payment: null });
       throw new CheckoutFlowError("refused", "The buyer already holds this sign-up; no order was placed");
@@ -197,21 +254,30 @@ export function createCheckoutFlow(context: CheckoutFlowContext, cart: CartStore
       payment_action: result.payment_action,
     };
     patch({ pending: null, placed, payment: null });
-    if (placed.payment_id !== null && placed.payment_action.type === "none") patch({ payment: await readPayment(placed) });
+    if (placed.payment_id !== null && placed.payment_action.type === "none") {
+      const payment = await readPayment(operation, placed);
+      operation.assertCurrent();
+      patch({ payment });
+    }
     return state.get();
   }
 
-  async function pendingRequest() {
+  async function pendingRequest(operation: CartScope) {
+    operation.assertCurrent();
     const pending = await cart.pendingCheckout();
+    operation.assertCurrent();
     patch({ pending });
     return pending;
   }
 
-  async function recoverKept(): Promise<CheckoutAcceptance | null> {
+  async function recoverKept(operation: CartScope): Promise<CheckoutAcceptance | null> {
+    operation.assertCurrent();
     try {
-      return await cart.recoverCheckout();
+      const result = await cart.recoverCheckout();
+      operation.assertCurrent();
+      return result;
     } catch (error) {
-      await pendingRequest();
+      if (operation.isCurrent()) await pendingRequest(operation);
       throw error;
     }
   }
@@ -233,15 +299,16 @@ export function createCheckoutFlow(context: CheckoutFlowContext, cart: CartStore
     };
   }
 
-  return {
+  const flow = {
     state,
     cart,
 
     open(): Promise<ArkyCheckoutState> {
-      return step(async () => {
+      return step(async (operation) => {
         await context.loadSetup();
-        if (await pendingRequest()) return state.get();
+        if (await pendingRequest(operation)) return state.get();
         const current = await cart.load();
+        operation.assertCurrent();
         if (current) {
           const customer = client.session?.customer;
           const signedIn = customer?.type.type === "verified" ? customer.type.email : null;
@@ -249,87 +316,88 @@ export function createCheckoutFlow(context: CheckoutFlowContext, cart: CartStore
             destination: destinationOf(current),
             contact_email: local.get().contact_email ?? current.billing_address?.email ?? signedIn,
           });
-          await quote();
+          await quote(operation);
         }
         return state.get();
       });
     },
 
-    setContact(email: string): void {
-      const value = email.trim();
+    setContact(params: ArkySetContactParams): void {
+      const value = params.contact_email.trim();
       if (!value) throw new CheckoutFlowError("not_ready", "The contact email is empty");
       patch({ contact_email: value, error: null });
     },
 
-    shipTo(destination: CartDeliveryDestination): Promise<ArkyCheckoutState> {
-      return step(async () => {
-        await cart.shipTo(destination);
-        patch({ destination });
-        await quote();
+    shipTo(params: ArkyCheckoutShipToParams): Promise<ArkyCheckoutState> {
+      return step(async (operation) => {
+        await cart.shipTo({ destination: params.destination, ...contact() });
+        operation.assertCurrent();
+        patch({ destination: params.destination });
+        await quote(operation);
         return state.get();
       });
     },
 
-    setBillingAddress(address: PostalAddress | null): Promise<ArkyCheckoutState> {
-      return step(async () => {
-        await cart.setBillingAddress(address);
-        await quote();
+    setBillingAddress(params: ArkySetBillingAddressParams): Promise<ArkyCheckoutState> {
+      return step(async (operation) => {
+        await cart.setBillingAddress(params);
+        await quote(operation);
         return state.get();
       });
     },
 
-    chooseShipping(deliveryGroupId: string, shipping: CartShipping): Promise<ArkyCheckoutState> {
-      return step(async () => {
+    selectShipping(params: ArkySelectShippingParams): Promise<ArkyCheckoutState> {
+      return step(async (operation) => {
         const current = cart.cart.get();
         const reviewed = cart.quote_result.get();
-        const delivery = reviewed?.deliveries.find((item) => item.delivery_group_id === deliveryGroupId);
+        const delivery = reviewed?.deliveries.find((item) => item.delivery_group_id === params.delivery_group_id);
         if (
           !current ||
           !reviewed ||
           reviewed.cart_id !== current.id ||
-          !delivery?.offers.some((offer) => offer.rate_id === shipping.rate_id && offer.shipping_method_id === shipping.shipping_method_id) ||
-          !current.delivery_groups.some((group) => group.id === deliveryGroupId)
+          !delivery?.offers.some((offer) => offer.rate_id === params.rate_id && offer.shipping_method_id === params.shipping_method_id) ||
+          !current.delivery_groups.some((group) => group.id === params.delivery_group_id)
         ) {
           throw new CheckoutFlowError("not_ready", "Choose one of the quoted offers for that delivery");
         }
-        await cart.setDeliveryGroups(
-          current.delivery_groups.map((group) =>
-            group.id === deliveryGroupId
-              ? { ...group, shipping: { shipping_method_id: shipping.shipping_method_id, rate_id: shipping.rate_id } }
+        await cart.setDeliveryGroups({
+          delivery_groups: current.delivery_groups.map((group) =>
+            group.id === params.delivery_group_id
+              ? { ...group, shipping: { shipping_method_id: params.shipping_method_id, rate_id: params.rate_id } }
               : group,
           ),
-        );
-        await quote();
+        });
+        await quote(operation);
         return state.get();
       });
     },
 
-    choosePayment(paymentOptionId: string): void {
+    selectPaymentOption(params: ArkySelectPaymentOptionParams): void {
       const reviewed = cart.quote_result.get();
-      if (!reviewed || !reviewed.payment_option_ids.includes(paymentOptionId)) {
+      if (!reviewed || !reviewed.payment_option_ids.includes(params.payment_option_id)) {
         throw new CheckoutFlowError("not_ready", "Choose one of the quote's payment options");
       }
-      patch({ payment_option_id: paymentOptionId, error: null });
+      patch({ payment_option_id: params.payment_option_id, error: null });
     },
 
-    setPromotionCodes(codes: string[]): Promise<ArkyCheckoutState> {
-      return step(async () => {
-        await cart.setPromotionCodes(codes);
-        await quote();
+    setPromotionCodes(params: ArkySetPromotionCodesParams): Promise<ArkyCheckoutState> {
+      return step(async (operation) => {
+        await cart.setPromotionCodes(params);
+        await quote(operation);
         return state.get();
       });
     },
 
     refresh(): Promise<ArkyCheckoutState> {
-      return step(async () => {
-        await quote();
+      return step(async (operation) => {
+        await quote(operation);
         return state.get();
       });
     },
 
     place(params: ArkyCheckoutPlaceParams = {}): Promise<ArkyCheckoutState> {
-      return step(async () => {
-        if (await pendingRequest()) {
+      return step(async (operation) => {
+        if (await pendingRequest(operation)) {
           throw new CheckoutFlowError("pending", "A checkout is still unfinished; recover it first");
         }
         const current = cart.cart.get();
@@ -342,53 +410,62 @@ export function createCheckoutFlow(context: CheckoutFlowContext, cart: CartStore
         const orderId = context.newId("order");
         const payment = paymentChoice(reviewed, orderId, params);
         await cart.retainCheckout({ order_id: orderId, order_token: context.newOrderToken(), contact_email: contactEmail, payment });
-        const result = await recoverKept();
+        const result = await recoverKept(operation);
         if (!result) throw new CheckoutFlowError("interrupted", "The kept checkout was settled elsewhere; read the order");
-        return accepted(result, orderId);
+        return accepted(operation, result, orderId);
       });
     },
 
     recover(): Promise<ArkyCheckoutState> {
-      return step(async () => {
-        const pending = await pendingRequest();
+      return step(async (operation) => {
+        const pending = await pendingRequest(operation);
         if (!pending) return state.get();
-        const result = await recoverKept();
+        const result = await recoverKept(operation);
         if (!result) {
-          await pendingRequest();
+          await pendingRequest(operation);
           return state.get();
         }
-        return accepted(result, pending.order_id);
+        return accepted(operation, result, pending.order_id);
       });
     },
 
     resumePayment(): Promise<ArkyCheckoutState> {
-      return step(async () => {
+      return step(async (operation) => {
         const placed = local.get().placed;
         if (!placed) throw new CheckoutFlowError("not_ready", "No placed order waits for its payment");
-        const action = await client.eshop.order.paymentAction({ order_id: placed.order_id }, orderToken(placed.order_id));
+        const action = await client.eshop.order.resumePayment({ order_id: placed.order_id }, orderToken(placed.order_id));
+        operation.assertCurrent();
         patch({ placed: { ...placed, payment_action: action } });
-        if (action.type === "none") patch({ payment: await readPayment(placed) });
+        if (action.type === "none") {
+          const payment = await readPayment(operation, placed);
+          operation.assertCurrent();
+          patch({ payment });
+        }
         return state.get();
       });
     },
 
     refreshPayment(): Promise<ArkyCheckoutState> {
-      return step(async () => {
+      return step(async (operation) => {
         const placed = local.get().placed;
         if (!placed) throw new CheckoutFlowError("not_ready", "No placed order waits for its payment");
-        patch({ payment: await readPayment(placed) });
+        const payment = await readPayment(operation, placed);
+        operation.assertCurrent();
+        patch({ payment });
         return state.get();
       });
     },
 
-    resume(params: ArkyCheckoutResumeParams): Promise<{ state: ArkyCheckoutState; url: string }> {
-      return step(async () => {
+    openOrder(params: ArkyOpenOrderParams): Promise<{ state: ArkyCheckoutState; url: string }> {
+      return step(async (operation) => {
         const opened = await client.eshop.order.fromLink({ id: params.order_id, url: params.url });
-        const payments = await client.eshop.order.findPayments({ order_id: opened.order.id }, orderToken(opened.order.id));
-        if (payments.some((payment) => payment.order_id !== opened.order.id)) {
+        operation.assertCurrent();
+        const payments = await client.eshop.order.findPayments({ order_id: opened.order.id }, { order_token: opened.order_token });
+        operation.assertCurrent();
+        if (payments.items.some((payment) => payment.order_id !== opened.order.id)) {
           throw new CheckoutFlowError("interrupted", "The payment list answered another order");
         }
-        const payment = latestPayment(payments);
+        const payment = latestPayment(payments.items);
         patch({
           pending: null,
           placed: {
@@ -403,6 +480,7 @@ export function createCheckoutFlow(context: CheckoutFlowContext, cart: CartStore
       });
     },
   };
+  return { flow, invalidate };
 }
 
-export type CheckoutFlow = ReturnType<typeof createCheckoutFlow>;
+export type CheckoutFlow = ReturnType<typeof createCheckoutFlow>["flow"];

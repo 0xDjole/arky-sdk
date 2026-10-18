@@ -9,7 +9,7 @@ const unitId = "5c9e2a71-8d34-4b06-9f1a-3e7c0b5d2a84";
 const actionId = "7c4e1a93-2d58-4b06-9f3e-5a8c0d2b6e19";
 
 function units() {
-  return createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop.inventoryUnit;
+  return createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop.inventoryUnit;
 }
 
 test("individual stock discovery keeps the exact tag case, combined filters and the continuation", async (context) => {

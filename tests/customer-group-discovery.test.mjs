@@ -9,18 +9,18 @@ import {
 } from "./helpers/arky-fixtures.mjs";
 
 const storefrontMemberCalls = [
-  "calendar",
   "cancel",
   "changeTerms",
-  "current",
-  "deliveryOptions",
   "find",
   "findOrders",
   "get",
+  "getCalendar",
+  "getCurrent",
+  "getDeliveryOptions",
+  "getProductChoices",
+  "getPurchaseAccess",
   "getRevision",
   "pause",
-  "productChoices",
-  "purchaseAccess",
   "resume",
   "reviewSwitch",
   "reviewTerms",
@@ -71,11 +71,13 @@ test("the storefront reads groups, offerings and the shopper's own members under
     assert.deepEqual(Object.keys(facade.eshop.customerGroup).sort(), [
       "find",
       "get",
+      "getByKey",
+      "getProductChoices",
       "joinFree",
-      "productChoices",
     ]);
     assert.deepEqual(Object.keys(facade.eshop.customerGroupOffering).sort(), [
       "get",
+      "getByKey",
     ]);
     assert.deepEqual(
       Object.keys(facade.eshop.customerGroupMember).sort(),
@@ -160,7 +162,7 @@ test("group and member transport keeps combined predicates, empty continuations 
     });
   });
   const admin = createAdmin({
-    baseUrl: "https://api.example.test",
+    apiUrl: "https://api.example.test",
     secretKey: "arky_secret_test",
   });
   const filter = {

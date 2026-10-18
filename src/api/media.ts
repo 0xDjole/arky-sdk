@@ -15,7 +15,7 @@ import {
   getOrCreatePendingMediaCreate,
   mediaCreateStorageKey,
 } from "../utils/durableMediaCreate";
-import { DurableRequestStorageError, isDefiniteRefusal, withDurableRequestLock } from "../utils/durableRequest";
+import { DurableRequestError, isDefiniteRefusal, withDurableRequestLock } from "../utils/durableRequest";
 import { requireId } from "../utils/ids";
 import { requireStoreId } from "../utils/storeTarget";
 import { storePath, storeRecordPath } from "./paths";
@@ -79,8 +79,9 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
           throw error;
         }
         if (!matchingMedia(result, storeId, pending.params.id)) {
-          throw new DurableRequestStorageError(
-            `Cannot safely continue ${mediaCreateLabel} because the server returned a different media`,
+          throw new DurableRequestError(
+            "answer_mismatch",
+            `${mediaCreateLabel} was answered with another media; the request is kept for a retry`,
           );
         }
         await clearPendingMediaCreate(pending.durable);

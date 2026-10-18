@@ -41,9 +41,10 @@ export const createCatalogApi = (apiConfig: ApiConfig) => ({
     return apiConfig.httpClient.get<PaginatedResponse<Catalog>>(storePath(store_id, "catalogs"), { ...options, params: query });
   },
 
-  findPurchasable(params: FindPurchasableCatalogsParams, options?: RequestOptions): Promise<Catalog[]> {
+  async findPurchasable(params: FindPurchasableCatalogsParams, options?: RequestOptions): Promise<PaginatedResponse<Catalog>> {
     const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<Catalog[]>(storePath(store_id, "catalogs/purchasable"), { ...options, params: query });
+    const items = await apiConfig.httpClient.get<Catalog[]>(storePath(store_id, "catalogs/purchasable"), { ...options, params: query });
+    return { items, cursor: null };
   },
 
   get(params: GetCatalogParams, options?: RequestOptions): Promise<Catalog> {

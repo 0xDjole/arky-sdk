@@ -21,7 +21,7 @@ function issued() {
 test("store API keys carry typed scope and retain caller identity on retries", async (context) => {
   const key = { id: keyId, store_id: storeId, name: "Backend", type: { type: "secret", token_hint: "secret", permissions: [], created_by: { account_id: customerId, snapshot: { email: "operator@example.test", credential_type: { type: "session" } } }, expires_at: null }, status: { type: "active" }, created_at: 1, updated_at: 1 };
   const calls = recordFetch(context, (_call, count) => count === 1 ? { type: "created", key, value: "secret-value" } : { type: "existing", key });
-  const admin = createAdmin({ baseUrl: "https://api.example.test", secretKey: "secret" });
+  const admin = createAdmin({ apiUrl: "https://api.example.test", secretKey: "secret" });
   const input = { store_id: storeId, id: keyId, name: "Backend", type: { type: "secret", permissions: [], expires_at: null } };
   assert.equal((await admin.store.apiKey.create(input)).value, "secret-value");
   assert.deepEqual(await admin.store.apiKey.create(input), { type: "existing", key });
@@ -81,7 +81,7 @@ test("expired Visitor replacement keeps the application-picked pair after a lost
 
 test("API-key discovery keeps the sales channel filter with native continuation", async (context) => {
   const calls = recordFetch(context, () => ({ items: [], cursor: null }));
-  const admin = createAdmin({ baseUrl: "https://api.example.test", secretKey: "secret" });
+  const admin = createAdmin({ apiUrl: "https://api.example.test", secretKey: "secret" });
   await admin.store.apiKey.find({ store_id: storeId, sales_channel_id: keyId, cursor: "native-next", limit: 20 });
   assert.deepEqual(calls.map(({ method, path, query }) => ({ method, path, query })), [{ method: "GET", path: `/v1/stores/${storeId}/api-keys`, query: { sales_channel_id: keyId, cursor: "native-next", limit: "20" } }]);
 });

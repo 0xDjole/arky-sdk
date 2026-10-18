@@ -14,7 +14,7 @@ const requirement = {
 };
 
 function members() {
-  return createAdmin({ baseUrl: "https://api.example.test", secretKey: "contract" }).eshop.customerGroupMember;
+  return createAdmin({ apiUrl: "https://api.example.test", secretKey: "contract" }).eshop.customerGroupMember;
 }
 
 test("the effective minimum is read at the caller's instant or at the Server's now, with the caller's request options", async (context) => {
@@ -23,7 +23,7 @@ test("the effective minimum is read at the caller's instant or at the Server's n
   const api = members();
   const signal = new AbortController().signal;
   const input = { store_id: storeId, id: memberId, at: 1_700_000_000_123 };
-  assert.deepEqual(await api.purchaseRequirement(input, { signal, headers: { "x-read-trace": "effective-rule" } }), result);
+  assert.deepEqual(await api.getPurchaseRequirement(input, { signal, headers: { "x-read-trace": "effective-rule" } }), result);
   assert.deepEqual(input, { store_id: storeId, id: memberId, at: 1_700_000_000_123 });
   assert.equal(calls[0].path, `/v1/stores/${storeId}/customer-group-members/${memberId}/purchase-requirement`);
   assert.deepEqual(calls[0].query, { at: "1700000000123" });
@@ -31,17 +31,17 @@ test("the effective minimum is read at the caller's instant or at the Server's n
   assert.equal(calls[0].body, null);
   assert.equal(calls[0].signal, signal);
   assert.equal(calls[0].headers.get("x-read-trace"), "effective-rule");
-  await api.purchaseRequirement({ store_id: storeId, id: memberId });
+  await api.getPurchaseRequirement({ store_id: storeId, id: memberId });
   assert.equal(calls[1].url.search, "");
   for (const at of [-9_007_199_254_740_991, 0, 9_007_199_254_740_991]) {
-    await api.purchaseRequirement({ store_id: storeId, id: memberId, at });
+    await api.getPurchaseRequirement({ store_id: storeId, id: memberId, at });
     assert.equal(calls.at(-1).query.at, String(at));
   }
   const count = calls.length;
   for (const at of [Number.NaN, Number.POSITIVE_INFINITY]) {
-    await assert.rejects(async () => api.purchaseRequirement({ store_id: storeId, id: memberId, at }), /requires a finite number/);
+    await assert.rejects(async () => api.getPurchaseRequirement({ store_id: storeId, id: memberId, at }), /requires a finite number/);
   }
-  await assert.rejects(async () => api.purchaseRequirement({ id: memberId }), TypeError);
+  await assert.rejects(async () => api.getPurchaseRequirement({ id: memberId }), TypeError);
   assert.equal(calls.length, count);
 });
 

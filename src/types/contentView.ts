@@ -1,5 +1,5 @@
 import type { Block } from "./block";
-import type { Collection, Entry, Media, StorefrontFindEntriesParams, StorefrontGetCollectionParams } from "./content";
+import type { Collection, Entry, Media, StorefrontFindCollectionEntriesParams } from "./content";
 
 export interface ContentBlocks {
   readonly locale: string;
@@ -21,12 +21,14 @@ export type LoadContentEntryParams =
   | { collection_id: string; key: string }
   | { collection_id: string; slug: string };
 
+export type LoadContentCollectionParams = { id: string } | { key: string };
+
 export type LoadContentParams =
-  | { collection: StorefrontGetCollectionParams }
+  | { collection: LoadContentCollectionParams }
   | { entry: LoadContentEntryParams };
 
-export type LoadContentEntriesParams = Omit<StorefrontFindEntriesParams, "cursor">;
+export type LoadContentEntriesParams = Omit<StorefrontFindCollectionEntriesParams, "cursor">;
 
-export type LoadedContentFor<P extends LoadContentParams> = P extends { collection: StorefrontGetCollectionParams }
+export type LoadedContentFor<P extends LoadContentParams> = P extends { collection: LoadContentCollectionParams }
   ? LoadedContent<Collection>
   : LoadedContent<Entry>;

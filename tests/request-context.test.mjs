@@ -52,7 +52,7 @@ test("per-call context is checked, refused on cart calls and refused by Admin", 
   assert.equal(calls.length, 1);
   assert.equal(calls[0].headers.get("x-arky-locale"), "it");
   assert.equal(calls[0].headers.get("authorization"), `Bearer ${visitorToken}`);
-  const admin = createAdmin({ baseUrl: apiUrl, secretKey: "arky_sk_test" });
+  const admin = createAdmin({ apiUrl: apiUrl, secretKey: "arky_sk_test" });
   await assert.rejects(admin.account.getMe({ locale: "it" }), /storefront request option/);
   assert.equal(calls.length, 1);
 });
@@ -65,7 +65,9 @@ test("the store has no withContext: content in another language is a per-call lo
   await store.content.entry.find({ collection_id: ids.form, limit: 1 }, { locale: "en" });
   assert.equal(calls[0].headers.get("x-arky-locale"), "en");
   assert.equal(store.getLocale(), "it");
-  store.eshop.cart.cart.set(cartRecord());
-  await assert.rejects(store.eshop.cart.quote({ locale: "en" }), /store's locale and market/);
+  const cart = store.eshop.cart({ buyer: { type: "customer" }, catalog_id: ids.catalog });
+  cart.cart.set(cartRecord());
+  await assert.rejects(cart.quote({}, { locale: "en" }), /store's locale and market/);
+  await assert.rejects(cart.quote({ locale: "en" }), /request options come second/);
   assert.equal(calls.length, 1);
 });

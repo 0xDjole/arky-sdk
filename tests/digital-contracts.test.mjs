@@ -45,7 +45,7 @@ test("Admin digital variants carry their asset ids and assets are uploaded under
   const archivedAsset = { ...asset, status: { type: "archived" }, updated_at: 4 };
   const responses = [variant, asset, { items: [asset], cursor: "next-asset" }, archivedAsset];
   const calls = recordFetch(context, () => responses.shift());
-  const admin = createAdmin({ baseUrl, secretKey: "arky_api_digital_contract" });
+  const admin = createAdmin({ apiUrl: baseUrl, secretKey: "arky_api_digital_contract" });
   const { store_id: _store, status: _status, created_at: _created, updated_at: _updated, ...create } = variant;
   assert.deepEqual(await admin.eshop.productVariant.create({ store_id: storeId, ...create }), variant);
   const uploaded = await admin.eshop.digitalAsset.upload({ store_id: storeId, id: assetId, file: new File(["protected"], "guide.pdf", { type: "application/pdf" }) });

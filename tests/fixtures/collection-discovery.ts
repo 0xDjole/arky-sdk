@@ -13,7 +13,7 @@ export type ScheduledEntryContracts = [
 ];
 
 const store_id = "7a3f9e21-5c84-4d06-b2e9-0f1d6c8a4b73";
-const api = createAdmin({ baseUrl: "https://content.test" }).content.collection;
+const api = createAdmin({ apiUrl: "https://content.test" }).content.collection;
 const filters: FindCollectionsParams = { store_id, query: "guides", key: "guides", ids: ["collection"],
   status: "archived", sort_field: "key", sort_direction: "asc", limit: 1, cursor: null,
   created_at_from: epochMilliseconds(0), created_at_to: epochMilliseconds(2) };

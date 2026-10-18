@@ -6,7 +6,7 @@ import type {
   CreateStorePortalSessionParams,
   CreateStoreParams,
   EndStoreGrantParams,
-  FindStoreUsageParams,
+  GetStoreUsageParams,
   FindStoresParams,
   GetStoreParams,
   GetStoreSubscriptionParams,
@@ -113,7 +113,7 @@ export const createStoreApi = (apiConfig: ApiConfig) => ({
   },
 
   usage: {
-    find(params: FindStoreUsageParams, options?: RequestOptions): Promise<StoreUsageSummary> {
+    get(params: GetStoreUsageParams, options?: RequestOptions): Promise<StoreUsageSummary> {
       return apiConfig.httpClient.get<StoreUsageSummary>(storePath(params.store_id, "usage"), options);
     },
   },

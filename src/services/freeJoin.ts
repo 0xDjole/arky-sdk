@@ -8,7 +8,11 @@ import type {
   StorefrontCreateCartParams,
 } from "../types/cart";
 import type { CartCheckoutRequest } from "../types/cartCheckout";
-import type { GetStorefrontCustomerGroupParams, StorefrontCustomerGroup } from "../types/customerGroup";
+import type {
+  GetStorefrontCustomerGroupByKeyParams,
+  GetStorefrontCustomerGroupParams,
+  StorefrontCustomerGroup,
+} from "../types/customerGroup";
 import {
   CustomerGroupJoinError,
   type JoinFreeCustomerGroupParams,
@@ -17,7 +21,7 @@ import {
 import type { Order } from "../types/order";
 import {
   clearDurableRequest,
-  DurableRequestStorageError,
+  DurableRequestError,
   durableRequestPayload,
   getOrCreateDurableRequest,
   isDefiniteRefusal,
@@ -34,7 +38,10 @@ export interface FreeJoinDeps {
   newId(label: string): string;
   newOrderToken(): string;
   retainToken(orderId: string, token: string): void;
-  getGroup(params: GetStorefrontCustomerGroupParams, options?: RequestOptions): Promise<StorefrontCustomerGroup>;
+  getGroup(
+    params: GetStorefrontCustomerGroupParams | GetStorefrontCustomerGroupByKeyParams,
+    options?: RequestOptions,
+  ): Promise<StorefrontCustomerGroup>;
   createCart(params: StorefrontCreateCartParams, options?: RequestOptions): Promise<CreatedCart>;
   addGroupLine(params: StorefrontAddCartCustomerGroupParams, options?: RequestOptions): Promise<Cart>;
   quote(params: { id: string }, options?: RequestOptions): Promise<CartQuote>;
@@ -66,7 +73,7 @@ function savedJoin(request: DurableRequest): FreeJoinRequest {
     !isCanonicalId(fields.catalog_id) ||
     !isCanonicalId(fields.customer_group_id)
   ) {
-    throw new DurableRequestStorageError(`The saved ${label} can't be read; nothing was sent`);
+    throw new DurableRequestError("storage", `The saved ${label} can't be read; nothing was sent`);
   }
   return {
     cart_id: fields.cart_id,
@@ -89,7 +96,7 @@ async function place(
     options,
   );
   let cart = created.cart;
-  if (!cart || cart.id !== request.cart_id) throw new DurableRequestStorageError("The sign-up cart answer names another cart");
+  if (!cart || cart.id !== request.cart_id) throw new DurableRequestError("answer_mismatch", "The sign-up cart answer names another cart");
   if (cart.status.type === "converted") {
     const order = await deps.getOrder(request.order_id, request.order_token, options);
     if (order.id !== request.order_id || order.source.type !== "cart" || order.source.cart_id !== request.cart_id) {
@@ -135,7 +142,7 @@ async function place(
   if (acceptance.type === "already_member") {
     return { type: "already_member", customer_group_member_id: acceptance.customer_group_member_id };
   }
-  if (acceptance.order_id !== request.order_id) throw new DurableRequestStorageError("The sign-up answer names another order");
+  if (acceptance.order_id !== request.order_id) throw new DurableRequestError("answer_mismatch", "The sign-up answer names another order");
   return { type: "joined", order_id: acceptance.order_id };
 }
 
@@ -149,7 +156,14 @@ export async function joinFreeCustomerGroup(
     throw new CustomerGroupJoinError("sign_in_required", "Joining a free group needs a signed-in customer with a verified email");
   }
   const catalogId = requireId(params.catalog_id, "catalog");
-  const group = await deps.getGroup({ identifier: params.identifier, catalog_id: catalogId, include_price: true }, options);
+  const identifier = "id" in params ? params.id : params.key;
+  if (!identifier) throw new TypeError("A free sign-up names its customer group by id or by key");
+  const group = await deps.getGroup(
+    "id" in params
+      ? { id: params.id, catalog_id: catalogId, include_price: true }
+      : { key: params.key, catalog_id: catalogId, include_price: true },
+    options,
+  );
   if (group.term.type !== "permanent" || group.entitlements.length > 0 || group.price?.unit_price.amount !== 0) {
     throw new CustomerGroupJoinError("not_free", "This customer group isn't a free sign-up in this catalog");
   }

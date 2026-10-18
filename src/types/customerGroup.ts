@@ -744,7 +744,7 @@ export interface GetCustomerGroupMemberPurchaseRequirementParams {
   at?: EpochMilliseconds;
 }
 
-export interface FindCustomerGroupMemberPurchaseAccessParams {
+export interface GetCustomerGroupMemberPurchaseAccessParams {
   store_id: string;
   id: string;
   catalog_id: string;
@@ -830,12 +830,12 @@ export interface StorefrontGetCustomerGroupMemberProductChoicesParams extends St
 export type GetStorefrontCustomerGroupProductChoicesParams = Omit<
   CatalogReadOptions,
   "include_price"
-> & {
-  identifier: string;
-  entitlement_id: string;
-  quantity: number;
-  language: string;
-};
+> &
+  ({ id: string } | { key: string }) & {
+    entitlement_id: string;
+    quantity: number;
+    language: string;
+  };
 
 export interface ChangeCustomerGroupMemberPurchaseRequirementParams extends CustomerGroupMemberActionParams {
   requirement: PurchaseRequirement | null;
@@ -872,11 +872,19 @@ export type FindStorefrontCustomerGroupsParams = CatalogReadOptions & {
 };
 
 export type GetStorefrontCustomerGroupParams = CatalogReadOptions & {
-  identifier: string;
+  id: string;
+};
+
+export type GetStorefrontCustomerGroupByKeyParams = CatalogReadOptions & {
+  key: string;
 };
 
 export interface GetStorefrontCustomerGroupOfferingParams {
-  identifier: string;
+  id: string;
+}
+
+export interface GetStorefrontCustomerGroupOfferingByKeyParams {
+  key: string;
 }
 
 export type StorefrontFindCustomerGroupMembersParams = CompanyPartyQuery & {
@@ -900,7 +908,7 @@ export interface StorefrontFindCustomerGroupMemberOrdersParams {
   cursor?: string | null;
 }
 
-export interface StorefrontFindCustomerGroupMemberPurchaseAccessParams {
+export interface StorefrontGetCustomerGroupMemberPurchaseAccessParams {
   id: string;
   catalog_id: string;
   variant_ids?: string[];

@@ -99,7 +99,7 @@ const definitions = [
 ];
 
 const getApi = (client, path) => path.reduce((owner, key) => owner[key], client);
-const createClient = () => createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" });
+const createClient = () => createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" });
 const response = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
 test("company-wide and all-locations grants are sent explicitly and survive exact reads", async (context) => {
@@ -264,7 +264,7 @@ test("Market management sends explicit creation, payment option order and versio
   assert.deepEqual(await api.create({ store_id: storeId, ...create }), record);
   assert.equal(calls.at(-1).method, "POST");
   assert.deepEqual(calls.at(-1).body, create);
-  assert.deepEqual(await api.list({ store_id: storeId, currency: "bam", status: "active" }), { items: [record], cursor: null });
+  assert.deepEqual(await api.find({ store_id: storeId, currency: "bam", status: "active" }), { items: [record], cursor: null });
   assert.deepEqual(Object.fromEntries(calls.at(-1).target.searchParams), { currency: "bam", status: "active" });
   assert.deepEqual(await api.get({ store_id: storeId, id }), record);
   await api.getByKey({ store_id: storeId, key: "bih" });
@@ -285,7 +285,7 @@ test("Market management sends explicit creation, payment option order and versio
   assert.equal("usage" in api, false);
   assert.equal("setStoreId" in client, false);
   const before = calls.length;
-  await assert.rejects(async () => api.list({}), TypeError);
+  await assert.rejects(async () => api.find({}), TypeError);
   await assert.rejects(async () => api.create({ store_id: storeId, ...create, id: "bih" }), TypeError);
   assert.equal(calls.length, before);
 });
@@ -325,10 +325,10 @@ test("a buyer reads their company access as scoped grants, their memberships and
     return response({ id: otherId });
   });
   const shop = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: visitorStorage() }).companies;
-  assert.deepEqual(await shop.access({ id: selectedStoreId }), access);
-  await shop.memberships({ limit: 10 });
-  await shop.locations({ company_id: selectedStoreId, limit: 5 });
-  await shop.location({ id: otherId });
+  assert.deepEqual(await shop.getAccess({ id: selectedStoreId }), access);
+  await shop.membership.find({ limit: 10 });
+  await shop.location.find({ company_id: selectedStoreId, limit: 5 });
+  await shop.location.get({ id: otherId });
   assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
     ["GET", `/v1/storefront/companies/${selectedStoreId}/access`, {}],
     ["GET", "/v1/storefront/company-memberships", { limit: "10" }],

@@ -212,13 +212,13 @@ export interface StorefrontConversationReply {
 export type ChatInput = { type: "button"; label: string } | { type: "text"; text: string };
 
 export interface StartConversationParams {
-  id: string;
+  id?: string;
   language: string;
   flow_key?: string;
 }
 
 export interface StorefrontGetConversationParams {
-  conversation_id: string;
+  id: string;
 }
 
 export interface StorefrontFindConversationMessagesParams {
@@ -234,7 +234,7 @@ export interface StorefrontGetConversationMessageParams {
 
 export interface SendConversationMessageParams {
   conversation_id: string;
-  id: string;
+  id?: string;
   input: ChatInput;
   prompt_message_id?: string;
 }

@@ -29,7 +29,7 @@ export const createPaymentOptionApi = (apiConfig: ApiConfig) => {
     );
 
   return {
-    list(params: FindPaymentOptionsParams, options?: RequestOptions): Promise<PaginatedResponse<PaymentOption>> {
+    find(params: FindPaymentOptionsParams, options?: RequestOptions): Promise<PaginatedResponse<PaymentOption>> {
       return apiConfig.httpClient.get<PaginatedResponse<PaymentOption>>(storePath(params.store_id, collection), {
         ...options,
         params: {

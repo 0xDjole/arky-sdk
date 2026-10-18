@@ -15,6 +15,10 @@ export interface StoreStatusCountSegments {
   customers_by_type: "anonymous" | "verified";
   orders_by_status: "pending" | "confirmed" | "partially_cancelled" | "cancelled";
   order_product_items_by_status: "pending" | "confirmed" | "cancelled";
+  open_recurring_members_by_status: "awaiting_activation" | "active" | "blocked" | "paused";
+  open_rentals_by_status: "active" | "ending";
+  open_payments_by_type: "stripe_checkout" | "stripe_card" | "monri_checkout" | "monri_card" | "cash_on_delivery" | "manual";
+  open_shipments_by_type: "fulfillment_job" | "fulfillment";
 }
 
 export type StoreStatusCountType = keyof StoreStatusCountSegments;
@@ -25,7 +29,8 @@ export type StoreCountDayType =
   | "new_form_submissions_day"
   | "new_customers_day"
   | "new_orders_day"
-  | "page_views_day";
+  | "page_views_day"
+  | "booked_slots_day";
 
 export type StoreCountUniqueDayType = "unique_buyers_day" | "unique_visitors_day";
 
@@ -54,7 +59,7 @@ export interface StoreStatusCounts {
   counts: StoreStatusCount[];
 }
 
-export interface FindStoreStatusCountsParams {
+export interface GetStoreStatusCountsParams {
   store_id: string;
   types: StoreStatusCountType[];
 }

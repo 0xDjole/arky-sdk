@@ -31,7 +31,7 @@ for (const [label, owner, key, segment, target] of [
   test(`${label} notes list, write, edit and delete through the record's notes route`, async (context) => {
     const saved = note(target);
     const calls = capture(context, saved);
-    const api = owner(createAdmin({ baseUrl, secretKey: "arky_api_notes" }));
+    const api = owner(createAdmin({ apiUrl: baseUrl, secretKey: "arky_api_notes" }));
     const scope = { store_id: storeId, [key]: recordId };
     await api.find({ ...scope, limit: 20, cursor: "next" });
     assert.deepEqual(await api.create({ ...scope, id: noteId, body: "Called back" }), saved);
@@ -53,7 +53,7 @@ test("submission and conversation notes are Note records, and a submission links
   const formId = "a4c7e1b9-2d58-4f36-8b0e-5c9a3d7f1e62";
   const conversationId = "7c2e9a41-5b3d-4f86-a1e0-3d4c2b9f6e18";
   const calls = capture(context, note({ type: "form_submission", form_submission_id: recordId }));
-  const admin = createAdmin({ baseUrl, secretKey: "arky_api_notes" });
+  const admin = createAdmin({ apiUrl: baseUrl, secretKey: "arky_api_notes" });
   const forms = admin.forms;
   const scope = { store_id: storeId, form_id: formId, form_submission_id: recordId };
   for (const removed of ["createSubmissionNote", "findSubmissionNotes", "updateSubmissionNote", "deleteSubmissionNote"]) assert.equal(removed in forms, false, removed);

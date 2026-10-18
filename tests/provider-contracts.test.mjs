@@ -18,7 +18,7 @@ const application = {
 };
 
 function payments() {
-  return createAdmin({ baseUrl: apiUrl, secretKey: "contract-token" }).eshop.payment;
+  return createAdmin({ apiUrl: apiUrl, secretKey: "contract-token" }).eshop.payment;
 }
 
 test("payment discovery keeps native filters and its continuation on the named store", async (context) => {
@@ -47,7 +47,7 @@ test("refunds live inside their payment: create, record receipts, cancel and res
   const calls = recordFetch(context, () => ({ id: paymentId }));
   const api = payments();
   for (const removed of ["refund", "capture", "dispute"]) {
-    assert.equal(removed in createAdmin({ baseUrl: apiUrl, secretKey: "contract-token" }).eshop, false, removed);
+    assert.equal(removed in createAdmin({ apiUrl: apiUrl, secretKey: "contract-token" }).eshop, false, removed);
   }
   await api.createRefund({ store_id: storeId, payment_id: paymentId, id: refundId, money, reason: "customer_request", application, notify_customer: true });
   await api.recordRefundReceipt({ store_id: storeId, payment_id: paymentId, refund_id: refundId, expected_updated_at: 2, receipt: { type: "sent", reference: "SEPA-1" } });
@@ -100,7 +100,7 @@ test("a refused money command is propagated once with its code and never retried
 
 test("provider events are listed by status, read by id and resolved with their version", async (context) => {
   const calls = recordFetch(context, (call) => call.path.endsWith("incoming-webhooks") ? { items: [], cursor: null } : { id: eventId });
-  const events = createAdmin({ baseUrl: apiUrl, secretKey: "contract-token" }).notification.incomingWebhook;
+  const events = createAdmin({ apiUrl: apiUrl, secretKey: "contract-token" }).notification.incomingWebhook;
   await events.find({ store_id: storeId, status: "review", limit: 20, cursor: "next" });
   await events.get({ store_id: storeId, id: eventId });
   await events.resolve({ store_id: storeId, id: eventId, expected_updated_at: 9, resolution: "ignore" });
@@ -116,7 +116,7 @@ test("a buyer reads their own order's payments through storefront routes", async
   const orders = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: visitorStorage() }).eshop.order;
   await orders.findPayments({ order_id: ids.order });
   await orders.getPayment({ order_id: ids.order, payment_id: paymentId });
-  await orders.paymentAction({ order_id: ids.order });
+  await orders.resumePayment({ order_id: ids.order });
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
     ["GET", `/v1/storefront/orders/${ids.order}/payments`, null],
     ["GET", `/v1/storefront/orders/${ids.order}/payments/${paymentId}`, null],

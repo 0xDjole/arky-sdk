@@ -11,7 +11,7 @@ test('Action timeline preserves Customer scope and empty-page continuation', asy
     return new Response(JSON.stringify({ items: [], cursor: calls.length === 1 ? 'action:+/=' : null }),
       { headers: { 'content-type': 'application/json' } });
   });
-  const api = createAdmin({ baseUrl: 'https://actions.test' }).actions;
+  const api = createAdmin({ apiUrl: 'https://actions.test' }).actions;
   const first = await api.find({ store_id: STORE_ID, customer_id: 'customer', limit: 1 });
   assert.deepEqual(first, { items: [], cursor: 'action:+/=' });
   assert.deepEqual(await api.find({ store_id: STORE_ID, customer_id: 'customer', limit: 1, cursor: first.cursor }), { items: [], cursor: null });

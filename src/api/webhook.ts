@@ -14,7 +14,7 @@ import { requireId } from "../utils/ids";
 import { storePath, storeRecordPath } from "./paths";
 
 export const createWebhookApi = (apiConfig: ApiConfig) => ({
-  list(params: FindWebhooksParams, options?: RequestOptions): Promise<PaginatedResponse<Webhook>> {
+  find(params: FindWebhooksParams, options?: RequestOptions): Promise<PaginatedResponse<Webhook>> {
     const { store_id, ...query } = params;
     return apiConfig.httpClient.get<PaginatedResponse<Webhook>>(storePath(store_id, "webhooks"), { ...options, params: query });
   },

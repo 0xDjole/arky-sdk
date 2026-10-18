@@ -38,7 +38,8 @@ export type StorefrontVariantContracts = [
   Assert<Equal<Parameters<Client["eshop"]["productVariant"]["find"]>[0], FindStorefrontProductVariantsParams>>,
   Assert<Equal<Awaited<ReturnType<Client["eshop"]["productVariant"]["get"]>>, StorefrontProductVariant>>,
   Assert<Equal<Parameters<Client["eshop"]["product"]["get"]>[0], GetStorefrontProductParams>>,
-  Assert<Equal<Exclude<keyof GetStorefrontProductParams, keyof CatalogReadOptions>, "id" | "slug">>,
+  Assert<Equal<Exclude<keyof Extract<GetStorefrontProductParams, { id: string }>, keyof CatalogReadOptions>, "id">>,
+  Assert<Equal<Exclude<keyof Extract<GetStorefrontProductParams, { slug: string }>, keyof CatalogReadOptions>, "slug">>,
   Assert<Missing<Client["eshop"]["product"], "getInventory">>,
   Assert<Missing<Client["eshop"], "digital" | "digitalProduct">>,
 ];

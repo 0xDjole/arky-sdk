@@ -15,15 +15,18 @@ import type {
   FormAnswerInput,
   FormSubmission,
   FormSubmissionFileLink,
+  GetFormByKeyParams,
   GetFormParams,
   GetFormSubmissionFileParams,
   GetFormSubmissionParams,
+  GetStorefrontFormByKeyParams,
   GetStorefrontFormParams,
   SetFormSubmissionCompanyParams,
   StorefrontFormSubmission,
-  SubmitFormParams,
+  SubmitFormRequest,
   UpdateFormParams,
 } from "../types/forms";
+import { FormAnswerError } from "../types/forms";
 import { requireId } from "../utils/ids";
 import { segment, storePath, storeRecordPath } from "./paths";
 
@@ -40,17 +43,19 @@ function isGiven(answer: FormAnswerInput): boolean {
 
 function requireFormFiles(files: File[]): void {
   if (files.length > MAX_FORM_SUBMISSION_FILES) {
-    throw new Error(`A form submission carries at most ${MAX_FORM_SUBMISSION_FILES} files`);
+    throw new FormAnswerError("too_many_files", null, `A form submission carries at most ${MAX_FORM_SUBMISSION_FILES} files`);
   }
   let total = 0;
   for (const file of files) {
     if (file.size < 1 || file.size > MAX_FORM_FILE_BYTES) {
-      throw new Error(`The file '${file.name}' must be between 1 byte and 10 MiB`);
+      throw new FormAnswerError("file_size", null, `The file '${file.name}' must be between 1 byte and 10 MiB`);
     }
-    if (!file.name) throw new Error("Every form file needs a file name");
+    if (!file.name) throw new FormAnswerError("file_name", null, "Every form file needs a file name");
     total += file.size;
   }
-  if (total > MAX_FORM_SUBMISSION_FILE_BYTES) throw new Error("A form submission's files are at most 50 MiB together");
+  if (total > MAX_FORM_SUBMISSION_FILE_BYTES) {
+    throw new FormAnswerError("files_too_large", null, "A form submission's files are at most 50 MiB together");
+  }
 }
 
 export function formSubmissionBody(submission: Record<string, unknown>, answers: FormAnswerInput[]): FormData {
@@ -82,11 +87,11 @@ export const createFormsApi = (apiConfig: ApiConfig) => {
     },
 
     get(params: GetFormParams, options?: RequestOptions): Promise<Form> {
-      const path =
-        "id" in params
-          ? storeRecordPath(params.store_id, "forms", params.id)
-          : storePath(params.store_id, `forms/by-key/${segment(params.key)}`);
-      return apiConfig.httpClient.get<Form>(path, options);
+      return apiConfig.httpClient.get<Form>(storeRecordPath(params.store_id, "forms", params.id), options);
+    },
+
+    getByKey(params: GetFormByKeyParams, options?: RequestOptions): Promise<Form> {
+      return apiConfig.httpClient.get<Form>(storePath(params.store_id, `forms/by-key/${segment(params.key)}`), options);
     },
 
     create(params: CreateFormParams, options?: RequestOptions): Promise<Form> {
@@ -172,11 +177,14 @@ export const createFormsApi = (apiConfig: ApiConfig) => {
 
 export const createStorefrontFormsApi = (httpClient: HttpClient) => ({
   get(params: GetStorefrontFormParams, options?: RequestOptions): Promise<Form> {
-    const identifier = "id" in params ? params.id : params.key;
-    return httpClient.get<Form>(`/v1/storefront/forms/${segment(identifier)}`, options);
+    return httpClient.get<Form>(`/v1/storefront/forms/${segment(params.id)}`, options);
   },
 
-  submit(params: SubmitFormParams, options?: RequestOptions): Promise<StorefrontFormSubmission> {
+  getByKey(params: GetStorefrontFormByKeyParams, options?: RequestOptions): Promise<Form> {
+    return httpClient.get<Form>(`/v1/storefront/forms/${segment(params.key)}`, options);
+  },
+
+  submit(params: SubmitFormRequest, options?: RequestOptions): Promise<StorefrontFormSubmission> {
     requireId(params.id, "form submission");
     const body = formSubmissionBody(
       { id: params.id, questions_updated_at: params.questions_updated_at, language: params.language, ...(params.bot_check_token !== undefined ? { bot_check_token: params.bot_check_token } : {}) },

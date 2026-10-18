@@ -21,7 +21,7 @@ import type {
   GetBookingResourceParams,
   GetBookingServiceByKeyParams,
   GetBookingServiceParams,
-  LookupBookingOfferingParams,
+  GetBookingOfferingByServiceAndResourceParams,
   UpdateBookingOfferingParams,
   UpdateBookingResourceParams,
   UpdateBookingServiceParams,
@@ -141,7 +141,7 @@ export const createBookingOfferingApi = (apiConfig: ApiConfig) => ({
     );
   },
 
-  lookup(params: LookupBookingOfferingParams, options?: RequestOptions): Promise<BookingOffering> {
+  getByServiceAndResource(params: GetBookingOfferingByServiceAndResourceParams, options?: RequestOptions): Promise<BookingOffering> {
     const { store_id, ...query } = params;
     return apiConfig.httpClient.get<BookingOffering>(storePath(store_id, "booking-offerings/lookup"), {
       ...options,

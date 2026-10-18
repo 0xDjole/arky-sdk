@@ -44,7 +44,7 @@ export interface AccountSession {
 
 export type AccountSortField = "email";
 
-export interface SearchAccountsParams {
+export interface FindAccountsParams {
   query?: string;
   sort_field?: AccountSortField;
   sort_direction?: SortDirection;
@@ -52,7 +52,7 @@ export interface SearchAccountsParams {
   cursor?: string | null;
 }
 
-export interface ListAccountSessionsParams {
+export interface FindAccountSessionsParams {
   limit?: number;
   cursor?: string | null;
 }

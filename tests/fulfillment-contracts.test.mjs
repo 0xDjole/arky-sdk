@@ -10,7 +10,7 @@ const splitJobId = "4c7e2a91-5d38-4b06-a1f9-8e3c6b0d2a57";
 const revision = 1_700_000_000_000;
 
 function eshop() {
-  return createAdmin({ baseUrl, secretKey: "contract-token" }).eshop;
+  return createAdmin({ apiUrl: baseUrl, secretKey: "contract-token" }).eshop;
 }
 
 test("warehouse slot resolution carries exact job positions and returns the selected physical units", async (context) => {
@@ -22,7 +22,7 @@ test("warehouse slot resolution carries exact job positions and returns the sele
     slots: [{ fulfillment_job_line_id: "line", fulfillment_unit_index: 2, inventory_item_id: "item", inventory_item_key: "camera", inventory_unit: null }],
   };
   const calls = recordFetch(context, () => slots);
-  assert.deepEqual(await eshop().fulfillmentJob.unitSlots({ store_id: storeId, fulfillment_job_id: "work/id", expected_updated_at: revision, lines }), slots);
+  assert.deepEqual(await eshop().fulfillmentJob.getUnitSlots({ store_id: storeId, fulfillment_job_id: "work/id", expected_updated_at: revision, lines }), slots);
   assert.deepEqual(calls.map(({ href, method, body }) => ({ href, method, body })), [
     { href: `${baseUrl}/v1/stores/${storeId}/fulfillment-jobs/work%2Fid/unit-slots`, method: "POST", body: { expected_updated_at: revision, lines } },
   ]);
@@ -110,7 +110,7 @@ test("warehouse job decisions carry the job version and the exact action, and a 
     message: "The fulfillment job id must be a canonical UUID v4 picked by the app",
   });
   assert.equal(calls.length, actions.length);
-  assert.deepEqual(Object.keys(api).sort(), ["decide", "find", "get", "getPickupCash", "items", "recordPickupCash", "unitSlots"]);
+  assert.deepEqual(Object.keys(api).sort(), ["decide", "find", "findItems", "get", "getPickupCash", "getUnitSlots", "recordPickupCash"]);
   for (const removed of ["fulfillmentOrder", "fulfillmentPartner", "fulfillmentRoutingPolicy"]) assert.equal(removed in eshop(), false, removed);
 });
 
@@ -193,7 +193,7 @@ test("warehouse discovery sends the complete job filter and leaves the continuat
   const query = { store_id: storeId, order_id: "order", rental_id: "rental", store_location_id: "warehouse", hold: "out_of_stock", inventory_item_id: "stock-item", status: "scheduled", scheduled_from: revision, scheduled_to: revision + 86_400_000, sort_field: "scheduled_at", sort_direction: "asc", limit: 20, cursor: "" };
   assert.deepEqual(await eshop().fulfillmentJob.find(query), response);
   await eshop().fulfillmentJob.get({ store_id: storeId, fulfillment_job_id: "work/id" });
-  await eshop().fulfillmentJob.items({ store_id: storeId, fulfillment_job_id: "work/id" });
+  assert.deepEqual(await eshop().fulfillmentJob.findItems({ store_id: storeId, fulfillment_job_id: "work/id" }), { items: [], cursor: null });
   const { store_id: _store, ...filters } = query;
   assert.equal(calls[0].path, `/v1/stores/${storeId}/fulfillment-jobs`);
   assert.deepEqual(calls[0].query, Object.fromEntries(Object.entries(filters).map(([key, value]) => [key, String(value)])));

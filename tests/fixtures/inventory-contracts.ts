@@ -40,7 +40,7 @@ export type InventoryContracts = [
   True<RequiredField<ChangeSetAsideParams, "action_id">>,
   True<RequiredField<ChangeSetAsideParams, "note">>,
   True<RequiredField<MoveInventoryParams, "action_id">>,
-  True<Same<Awaited<ReturnType<Api["inventoryLevel"]["stock"]>>, PaginatedResponse<InventoryStockLevel>>>,
+  True<Same<Awaited<ReturnType<Api["inventoryLevel"]["findStock"]>>, PaginatedResponse<InventoryStockLevel>>>,
   True<Same<IncomingStock["type"], "counted" | "unit">>,
   True<Same<keyof Extract<IncomingStock, { type: "unit" }>, "type" | "asset_tag">>,
   True<Same<keyof Extract<IncomingStock, { type: "counted" }>, "type" | "from_store_location_id" | "quantity">>,

@@ -76,11 +76,12 @@ function payment(type, status, overrides = {}) {
   return { ...base, type: types[type], ...overrides };
 }
 
-test("paymentOutcome maps every payment status to paid, pay later, awaiting or failed", () => {
+test("paymentOutcome maps every payment status to paid, pay later, awaiting, unconfirmed or failed", () => {
   assert.equal(paymentOutcome(payment("stripe_checkout", "paid")), "paid");
-  for (const status of ["pending", "open", "requires_action", "closing", "unknown"]) {
+  for (const status of ["pending", "open", "requires_action", "closing"]) {
     assert.equal(paymentOutcome(payment("stripe_checkout", status)), "awaiting", status);
   }
+  assert.equal(paymentOutcome(payment("stripe_checkout", "unknown")), "unconfirmed");
   for (const status of ["expired", "cancelled", "declined", "failed"]) {
     assert.equal(paymentOutcome(payment("stripe_checkout", status)), "failed", status);
   }
@@ -111,22 +112,24 @@ test("order.fromLink reads the order with the link's token, keeps the token and 
   assert.equal(opened.order.id, ids.order);
   assert.equal(opened.url, `https://shop.example.test/order/${ids.order}?lang=en#tab=items`);
   assert.equal(calls[0].headers.get("x-arky-order-token"), orderToken);
-  assert.equal(client.eshop.order.retainedToken(ids.order), orderToken);
+  assert.equal(opened.order_token, orderToken);
+  assert.equal(client.eshop.order.retainedToken({ order_id: ids.order }), orderToken);
 
   const again = await client.eshop.order.fromLink({ id: ids.order, url: `https://shop.example.test/order/${ids.order}` });
   assert.equal(again.url, `https://shop.example.test/order/${ids.order}`);
+  assert.equal(again.order_token, orderToken);
   assert.equal(calls[1].headers.get("x-arky-order-token"), orderToken);
 
   await client.eshop.order.fromLink({ id: ids.order, url: `https://shop.example.test/order#order_token=${otherOrderToken}` });
-  assert.equal(client.eshop.order.retainedToken(ids.order), otherOrderToken);
+  assert.equal(client.eshop.order.retainedToken({ order_id: ids.order }), otherOrderToken);
 
-  await assert.rejects(client.eshop.order.fromLink({ id: ids.order, url: "https://shop.example.test/#order_token=nope" }), /invalid order token/);
+  await assert.rejects(client.eshop.order.fromLink({ id: ids.order, url: "https://shop.example.test/#order_token=nope" }), (error) => error.name === "ArkyError" && error.code === "invalid_link");
   await assert.rejects(
     client.eshop.order.fromLink({ id: ids.order, url: `https://shop.example.test/#order_token=${orderToken}&order_token=${orderToken}` }),
     /invalid order token/,
   );
   await assert.rejects(client.eshop.order.fromLink({ id: ids.otherOrder, url: `https://shop.example.test/#order_token=${orderToken}` }), /Missing/);
-  assert.equal(client.eshop.order.retainedToken(ids.otherOrder), null);
+  assert.equal(client.eshop.order.retainedToken({ order_id: ids.otherOrder }), null);
   assert.equal(calls.length, 4);
 });
 

@@ -22,7 +22,7 @@ function installBrowserState(context) {
 }
 
 function admin() {
-  return createAdmin({ baseUrl, secretKey: "contract-token" });
+  return createAdmin({ apiUrl: baseUrl, secretKey: "contract-token" });
 }
 
 function media(id = mediaId) {
@@ -122,8 +122,8 @@ test("a different file can't start while an unclear create is still saved", asyn
     return errorResponse(404, "MEDIA.NOT_FOUND", "Not found");
   });
   await assert.rejects(admin().media.create({ store_id: storeId, id: mediaId, file: asset([1]) }), /connection was lost/);
-  await assert.rejects(admin().media.create({ store_id: storeId, id: mediaId, file: asset([2]) }), /different unresolved payload/);
-  await assert.rejects(admin().media.create({ store_id: storeId, id: otherMediaId, file: asset([1]) }), /different unresolved payload/);
+  await assert.rejects(admin().media.create({ store_id: storeId, id: mediaId, file: asset([2]) }), /still keeps a different unresolved request/);
+  await assert.rejects(admin().media.create({ store_id: storeId, id: otherMediaId, file: asset([1]) }), /still keeps a different unresolved request/);
   assert.equal(puts, 1);
   assert.notEqual(await readPendingMediaCreate(storeId), null);
 });
@@ -148,7 +148,7 @@ test("concurrent tabs send at most one media create", async (context) => {
   });
   const first = admin().media.create({ store_id: storeId, id: mediaId, file: asset() });
   await uploadEntered;
-  await assert.rejects(admin().media.create({ store_id: storeId, id: mediaId, file: asset() }), /already active in another tab/);
+  await assert.rejects(admin().media.create({ store_id: storeId, id: mediaId, file: asset() }), /already running in this or another tab/);
   releaseUpload();
   await first;
   assert.equal(puts, 1);

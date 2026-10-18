@@ -2,6 +2,7 @@ import type { createStorefront, initialize } from "arky-sdk/storefront";
 import { ArkyApiError, CartPresentationChangedError, CheckoutFlowError, CustomerGroupJoinError } from "arky-sdk/storefront";
 import { ArkyApiError as AdminApiError } from "arky-sdk/admin";
 import type {
+  ArkyCartStore,
   ArkyCheckoutErrorCode,
   ArkyCheckoutState,
   ArkyCheckoutStep,
@@ -14,7 +15,7 @@ import type {
   OrderFromLink,
   PaymentOutcome,
   RequestOptions,
-  SendNewsletterCodeResult,
+  RequestNewsletterCodeResult,
 } from "arky-sdk";
 
 type Assert<T extends true> = T;
@@ -46,21 +47,23 @@ export type StorefrontFlowContracts = [
   Assert<RequiredField<Parameters<Storefront["customer"]["requestCode"]>[0], "email">>,
   Assert<OptionalField<Parameters<Storefront["support"]["conversation"]["start"]>[0], "id">>,
   Assert<OptionalField<Parameters<Storefront["support"]["conversation"]["sendMessage"]>[0], "id">>,
-  Assert<OptionalField<Parameters<Store["forms"]["submitByKey"]>[0], "id">>,
+  Assert<Missing<Store["forms"], "submitByKey">>,
   Assert<Equal<Answer<Storefront["eshop"]["order"]["fromLink"]>, OrderFromLink>>,
   Assert<Equal<ReturnType<Storefront["eshop"]["order"]["retainedToken"]>, string | null>>,
   Assert<Equal<Answer<Storefront["eshop"]["customerGroup"]["joinFree"]>, JoinFreeCustomerGroupResult>>,
-  Assert<Equal<Answer<Storefront["newsletter"]["sendCode"]>, SendNewsletterCodeResult>>,
+  Assert<Equal<Answer<Storefront["newsletter"]["requestCode"]>, RequestNewsletterCodeResult>>,
+  Assert<Missing<Storefront["newsletter"], "sendCode">>,
   Assert<Equal<Answer<Storefront["newsletter"]["join"]>, JoinFreeCustomerGroupResult>>,
   Assert<Equal<Store["newsletter"], Storefront["newsletter"]>>,
   Assert<Equal<Answer<Store["content"]["load"]>, LoadedContent<Collection> | LoadedContent<Entry>>>,
   Assert<Equal<ReturnType<LoadedContent<Entry>["media"]>, Media | null>>,
   Assert<Equal<ReturnType<ContentBlocks["object"]>, ContentBlocks | null>>,
-  Assert<Equal<ReturnType<Store["eshop"]["carts"]["for"]>, Store["eshop"]["cart"]>>,
+  Assert<Equal<ReturnType<Store["eshop"]["cart"]>, ArkyCartStore>>,
+  Assert<Missing<Store["eshop"], "carts">>,
   Assert<Equal<ArkyCheckoutState["step"], ArkyCheckoutStep>>,
   Assert<Equal<ArkyCheckoutStep, "cart" | "details" | "shipping" | "payment" | "paying" | "placed">>,
   Assert<Equal<ArkyCheckoutState["outcome"], PaymentOutcome | null>>,
-  Assert<Equal<PaymentOutcome, "paid" | "pay_later" | "awaiting" | "failed">>,
+  Assert<Equal<PaymentOutcome, "paid" | "pay_later" | "awaiting" | "unconfirmed" | "failed">>,
   Assert<Missing<Storefront, "withContext">>,
   Assert<Missing<Store, "withContext">>,
 ];

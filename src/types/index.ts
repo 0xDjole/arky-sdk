@@ -2,16 +2,7 @@ export type * from "./time";
 export type * from "./common";
 export { CURRENCY_MINOR_UNITS } from "./common";
 export type * from "./api";
-export type {
-  TokenSet,
-  AuthStorage,
-  RequestSuccessContext,
-  RequestErrorContext,
-  HttpClient,
-  HttpClientConfig,
-  ServerError,
-  HttpRequestErrorDetails,
-} from "./httpClient";
+export type { RequestSuccessContext, RequestErrorContext } from "./httpClient";
 export type * from "./block";
 export type * from "./content";
 export type * from "./store";
@@ -22,6 +13,7 @@ export type * from "./webhook";
 export { WEBHOOK_UNIT_EVENT_TYPES } from "./webhook";
 export type * from "./notification";
 export type * from "./forms";
+export { FormAnswerError } from "./forms";
 export type * from "./note";
 export type * from "./tax";
 export type * from "./shipping";
@@ -62,19 +54,18 @@ export type * from "./pageView";
 export type * from "./storeCount";
 export { TYPED_CUSTOMER_ACTION_KEYS } from "./customerAction";
 export type * from "./storefront";
-export type * from "./monriCheckout";
+export type { MonriBuyerDetails, MonriCheckoutErrorCode } from "./monriCheckout";
 export { MonriCheckoutError } from "./monriCheckout";
 export type * from "./embeddedCheckout";
-export type * from "./apiError";
-export { ArkyApiError, isArkyApiError } from "./apiError";
+export type { ArkyApiErrorDetails, ArkyErrorInfo, ArkyNetworkErrorCode, ArkyNetworkErrorDetails } from "./apiError";
+export { ArkyError, ArkyApiError, ArkyNetworkError, isArkyApiError } from "./apiError";
 export type * from "./contentView";
 export type * from "./customerGroupJoin";
 export { CustomerGroupJoinError } from "./customerGroupJoin";
 export type * from "./cartCheckout";
 export { CartPresentationChangedError } from "./cartCheckout";
-export type * from "./cartSelection";
-export { CartSelectionError } from "./cartSelection";
-export type * from "./cartController";
+export type { CartErrorCode } from "./cartSelection";
+export { CartError } from "./cartSelection";
 export { FulfillmentSelectionError } from "./fulfillmentSelection";
 
 export type * from "./apiKey";

@@ -35,7 +35,7 @@ test("Admin reads the typed Customer Action timeline with only the customer filt
   const calls = recordFetch(context, (call) => call.path.endsWith("/actions")
     ? { items: actions, cursor: null }
     : { items: [], cursor: null });
-  const admin = createAdmin({ baseUrl: apiUrl, secretKey: "arky_api_actions" });
+  const admin = createAdmin({ apiUrl: apiUrl, secretKey: "arky_api_actions" });
   const found = await admin.actions.find({ store_id: ids.store, customer_id: ids.customer, limit: 20 });
   await admin.customers.find({ store_id: ids.store, has_customer_action: true });
   assert.deepEqual(found, { items: actions, cursor: null });

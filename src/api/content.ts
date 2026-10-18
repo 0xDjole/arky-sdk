@@ -9,9 +9,8 @@ import type {
   DeleteEntryParams,
   Entry,
   FindCollectionsParams,
-  FindEntriesByIdsParams,
   FindEntriesParams,
-  FindEntryBySlugParams,
+  GetCollectionByKeyParams,
   GetCollectionParams,
   GetEntryParams,
   UpdateCollectionParams,
@@ -30,11 +29,11 @@ export const createCollectionApi = (apiConfig: ApiConfig) => ({
   },
 
   get(params: GetCollectionParams, options?: RequestOptions): Promise<Collection> {
-    const path =
-      "id" in params
-        ? storeRecordPath(params.store_id, "collections", params.id)
-        : storePath(params.store_id, `collections/by-key/${segment(params.key)}`);
-    return apiConfig.httpClient.get<Collection>(path, options);
+    return apiConfig.httpClient.get<Collection>(storeRecordPath(params.store_id, "collections", params.id), options);
+  },
+
+  getByKey(params: GetCollectionByKeyParams, options?: RequestOptions): Promise<Collection> {
+    return apiConfig.httpClient.get<Collection>(storePath(params.store_id, `collections/by-key/${segment(params.key)}`), options);
   },
 
   create(params: CreateCollectionParams, options?: RequestOptions): Promise<Collection> {
@@ -60,21 +59,6 @@ export const createEntryApi = (apiConfig: ApiConfig) => ({
   find(params: FindEntriesParams, options?: RequestOptions): Promise<PaginatedResponse<Entry>> {
     const { store_id, ...query } = params;
     return apiConfig.httpClient.get<PaginatedResponse<Entry>>(storePath(store_id, "entries"), { ...options, params: query });
-  },
-
-  findByIds(params: FindEntriesByIdsParams, options?: RequestOptions): Promise<PaginatedResponse<Entry>> {
-    return apiConfig.httpClient.get<PaginatedResponse<Entry>>(storePath(params.store_id, "entries"), {
-      ...options,
-      params: { ids: params.ids },
-    });
-  },
-
-  async findBySlug(params: FindEntryBySlugParams, options?: RequestOptions): Promise<Entry | null> {
-    const page = await apiConfig.httpClient.get<PaginatedResponse<Entry>>(storePath(params.store_id, "entries"), {
-      ...options,
-      params: { collection_id: params.collection_id, slug: params.slug, language: params.language },
-    });
-    return page.items[0] ?? null;
   },
 
   get(params: GetEntryParams, options?: RequestOptions): Promise<Entry> {

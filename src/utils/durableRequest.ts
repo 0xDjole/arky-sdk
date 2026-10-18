@@ -1,3 +1,5 @@
+import { ArkyError } from "../types/apiError";
+
 export interface DurableRequest {
   storageKey: string;
   requestJson: string;
@@ -5,19 +7,24 @@ export interface DurableRequest {
 
 type StoredDurableRequest = Omit<DurableRequest, "storageKey">;
 
-const durableStorageErrorBrand = Symbol.for("arky.DurableRequestStorageError");
+export type DurableRequestErrorCode = "storage" | "busy" | "pending" | "answer_mismatch" | "settled_elsewhere";
 
-export class DurableRequestStorageError extends Error {
-  readonly name: string = "DurableRequestStorageError";
-  readonly [durableStorageErrorBrand] = true;
+const durableRequestErrorBrand = Symbol.for("arky.DurableRequestError");
+
+export class DurableRequestError extends ArkyError {
+  readonly name: string = "DurableRequestError";
+  readonly [durableRequestErrorBrand] = true;
 
   static [Symbol.hasInstance](value: unknown): boolean {
-    return value instanceof Error && durableStorageErrorBrand in value;
+    return value instanceof Error && durableRequestErrorBrand in value;
   }
-}
 
-export function isDurableRequestStorageError(value: unknown): value is DurableRequestStorageError {
-  return value instanceof DurableRequestStorageError;
+  constructor(
+    readonly code: DurableRequestErrorCode,
+    message: string,
+  ) {
+    super(code, message);
+  }
 }
 
 export function isDefiniteRefusal(error: unknown): boolean {
@@ -29,8 +36,9 @@ export function isDefiniteRefusal(error: unknown): boolean {
 function unavailable(
   label: string,
   reason: string,
-): DurableRequestStorageError {
-  return new DurableRequestStorageError(
+): DurableRequestError {
+  return new DurableRequestError(
+    "storage",
     `Cannot safely start ${label} because its durable request ${reason}`,
   );
 }
@@ -103,6 +111,20 @@ export function durableRequestPayload(request: DurableRequest): unknown {
   return JSON.parse(request.requestJson);
 }
 
+export function durableRequestKeys(prefix: string, label: string): string[] {
+  const storage = requestStorage(label);
+  const keys: string[] = [];
+  try {
+    for (let index = 0; index < storage.length; index += 1) {
+      const key = storage.key(index);
+      if (key !== null && key.startsWith(prefix)) keys.push(key);
+    }
+  } catch {
+    throw unavailable(label, "state cannot be read");
+  }
+  return keys;
+}
+
 export async function withDurableRequestLock<T>(
   storageKey: string,
   label: string,
@@ -124,7 +146,7 @@ export async function withDurableRequestLock<T>(
       async (lock) => {
         callbackEntered = true;
         if (!lock) {
-          throw unavailable(label, "is already active in another tab");
+          throw new DurableRequestError("busy", `${label} is already running in this or another tab`);
         }
         return task();
       },
@@ -145,7 +167,7 @@ export function getOrCreateDurableRequest(
   const stored = readStoredRequest(storage, storageKey, label);
   if (stored) {
     if (stored.requestJson !== requestJson) {
-      throw unavailable(label, "has a different unresolved payload");
+      throw new DurableRequestError("pending", `${label} still keeps a different unresolved request; finish that one first`);
     }
     return { storageKey, ...stored };
   }

@@ -164,7 +164,7 @@ requirePattern("api/payment.ts", /incoming-webhooks/, "incoming webhooks have a 
 requirePattern("api/platform.ts", /\/v1\/platform\/administrators\/me/, "platform administrators read their own record");
 forbidPattern("index.ts", /X-Arky-Sales-Channel/i, "a storefront request sells through its key's channel and names none");
 requirePattern("index.ts", /"X-Arky-Locale"/, "storefront requests name their language");
-requirePattern("api/storefront.ts", /export interface RequestCustomerCodeParams\s*\{\s*id:\s*string;\s*email:\s*string;\s*language:\s*string;\s*bot_check_token\?:\s*string\s*\|\s*null;\s*\}/,
+requirePattern("api/storefront.ts", /export interface RequestCustomerCodeRequest\s*\{\s*id:\s*string;\s*email:\s*string;\s*language:\s*string;\s*bot_check_token\?:\s*string;\s*\}/,
   "a sign-in code request requires id, email and language with optional bot-check proof");
 requirePattern("api/storefront.ts", /\/customer\/request-code`,\s*\{\s*id:\s*params\.id,\s*email:\s*params\.email,\s*language:\s*params\.language,\s*bot_check_token:\s*params\.bot_check_token\s*,?\s*\}/,
   "a sign-in code request posts the caller's id, email, explicit language and optional bot-check proof");
@@ -178,7 +178,7 @@ requirePattern("api/customerGroup.ts", /\/purchase-access`/, "staff read a custo
 requirePattern("api/order.ts", /line_item_id, "attend"\)/, "staff mark a booking attended through its attend route");
 requirePattern("api/fulfillment.ts", /\/cash-collections`/, "a pickup clerk records collected cash on the fulfillment job");
 requirePattern("api/storefront.ts", /\/customer\/me\/unsubscribe`/, "a signed-in customer unsubscribes on the storefront");
-requirePattern("api/storefront.ts", /\/promotions\/\$\{segment\(id\)\}`/, "a storefront reads a promotion's key and blocks by id");
+requirePattern("api/storefront.ts", /\/promotions\/\$\{segment\(params\.id\)\}`/, "a storefront reads a promotion's key and blocks by id");
 requirePattern("api/notification.ts", /replaceKey\(/, "a store replaces its Resend key on the same provider");
 requirePattern("api/support.ts", /\/chat-visibility`/, "staff show or hide a received email in the chat");
 requirePattern("utils/cartInputs.ts", /case "assigned_purchase_access":/, "an assigned member buys through its group's purchase access");

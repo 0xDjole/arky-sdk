@@ -12,7 +12,7 @@ test("variant discovery forwards combined parent, exact SKU, lifecycle and order
     return new Response(JSON.stringify({ items: [], cursor: "continue-after-stale" }), { headers: { "content-type": "application/json" } });
   };
   try {
-    const api = createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop.productVariant;
+    const api = createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop.productVariant;
     const input = { product_id: "product", sku: "a".repeat(255), status: "archived", sort_field: "updated_at", sort_direction: "asc", limit: 200, cursor: "previous" };
     assert.deepEqual(await api.find({ store_id: SELECTED_STORE_ID, ...input }), { items: [], cursor: "continue-after-stale" });
     assert.equal(calls.length, 1);
@@ -37,7 +37,7 @@ test("variant deletion preserves the version and distinguishes accepted deletion
     return status === 204 ? new Response(null, { status }) : new Response(JSON.stringify(value), { status, headers: { "content-type": "application/json" } });
   };
   try {
-    const api = createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop.productVariant;
+    const api = createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop.productVariant;
     const params = { store_id: storeId, id, expected_updated_at: expected };
     assert.deepEqual(await api.delete(params), value);
     status = 204;

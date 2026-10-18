@@ -41,7 +41,7 @@ const payments: FindPaymentsParams = {
   limit: 25,
 };
 const client = createAdmin({
-  baseUrl: "https://example.test",
+  apiUrl: "https://example.test",
   secretKey: "arky_api_fixture",
 });
 void client.eshop.payment.find(payments);

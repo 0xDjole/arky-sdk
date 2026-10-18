@@ -110,7 +110,8 @@ test("durable request storage fails closed for unavailable, corrupt, unreadable,
         () =>
           operations.getOrCreateDurableRequest(storageKey, request, "payment"),
         (error) =>
-          error?.name === "DurableRequestStorageError" &&
+          error?.name === "DurableRequestError" &&
+          error.code === "storage" &&
           /corrupt|invalid/.test(error.message),
       );
     });
@@ -255,7 +256,13 @@ test("unavailable or contended Web Locks execute zero protected tasks", async (t
       operations.withDurableRequestLock(storageKey, "payment", async () => {
         calls += 1;
       }),
-      /already active in another tab/,
+      (error) => {
+        assert.ok(error instanceof operations.DurableRequestError);
+        assert.equal(error.code, "busy");
+        assert.notEqual(error.code, "storage");
+        assert.match(error.message, /already running in this or another tab/);
+        return true;
+      },
     );
     assert.equal(calls, 0);
   });
@@ -286,7 +293,7 @@ test("unavailable or contended Web Locks execute zero protected tasks", async (t
         operations.withDurableRequestLock(storageKey, "payment", async () => {
           secondCalls += 1;
         }),
-        /already active in another tab/,
+        (error) => error instanceof operations.DurableRequestError && error.code === "busy",
       );
       releaseFirst();
       await first;
@@ -332,7 +339,7 @@ test("the exact saved Fulfillment request survives a changed selection and can b
         changedRequestCalls += 1;
       },
     ),
-    /different unresolved payload/,
+    (error) => error instanceof operations.DurableRequestError && error.code === "pending",
   );
   assert.equal(changedRequestCalls, 0);
   const remounted = operations.readDurableRequest(

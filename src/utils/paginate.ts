@@ -1,3 +1,4 @@
+import { ArkyError } from "../types/apiError";
 import type { PaginatedResponse } from "../types/common";
 
 export interface PaginateOptions {
@@ -25,11 +26,11 @@ export async function* paginate<T>(read: PageRead<T>, options?: PaginateOptions)
     const next = result.cursor;
     if (next === null || next === undefined) return;
     if (typeof next !== "string" || next.length === 0) throw new TypeError("A page cursor is a non-empty string or null");
-    if (next === cursor || seen.has(next)) throw new Error("The page cursor did not advance");
+    if (next === cursor || seen.has(next)) throw new ArkyError("answer_mismatch", "The page cursor did not advance");
     seen.add(next);
     cursor = next;
   }
-  throw new Error(`The list has more than ${limit} pages; raise max_pages or narrow the read`);
+  throw new ArkyError("too_many_pages", `The list has more than ${limit} pages; raise max_pages or narrow the read`);
 }
 
 export async function readAllPages<T>(read: PageRead<T>, options?: PaginateOptions): Promise<T[]> {

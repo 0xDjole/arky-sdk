@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { cartCustomerGroupItems, createAdmin, createCartController, CartPresentationChangedError } from "../dist/index.js";
+import { cartCustomerGroupItems, createAdmin, CartPresentationChangedError } from "../dist/index.js";
 import { createStorefront, initialize } from "../dist/storefront.js";
 import {
   apiUrl,
@@ -23,7 +23,7 @@ const groupSelection = { id: groupLineId, customer_group_id: ids.product, quanti
 const companyBuyer = { type: "company_location", company_location_id: ids.companyLocation, purchase_order_number: "PO-7" };
 
 function admin() {
-  return createAdmin({ baseUrl: apiUrl, secretKey: "arky_api_cart" });
+  return createAdmin({ apiUrl: apiUrl, secretKey: "arky_api_cart" });
 }
 
 function storefront(options = {}) {
@@ -35,10 +35,10 @@ test("the exact source Cart Order read preserves the authoritative nullable resp
   const calls = recordFetch(context, () => responses.shift());
   const account = admin();
   const buyer = storefront();
-  assert.deepEqual(await account.eshop.cart.order({ store_id: STORE_ID, id: ids.cart }), placedOrder());
-  assert.equal(await account.eshop.cart.order({ store_id: STORE_ID, id: ids.cart }), null);
-  assert.deepEqual(await buyer.eshop.cart.order({ id: ids.cart }, { headers: { "x-arky-cart-token": "old-cart-recovery-capability" } }), placedOrder());
-  assert.equal(await buyer.eshop.cart.order({ id: ids.cart }), null);
+  assert.deepEqual(await account.eshop.cart.getOrder({ store_id: STORE_ID, id: ids.cart }), placedOrder());
+  assert.equal(await account.eshop.cart.getOrder({ store_id: STORE_ID, id: ids.cart }), null);
+  assert.deepEqual(await buyer.eshop.cart.getOrder({ id: ids.cart }, { headers: { "x-arky-cart-token": "old-cart-recovery-capability" } }), placedOrder());
+  assert.equal(await buyer.eshop.cart.getOrder({ id: ids.cart }), null);
   assert.deepEqual(calls.map(call => [call.method, call.path, call.body]), [
     ["GET", `/v1/stores/${STORE_ID}/carts/${ids.cart}/order`, null],
     ["GET", `/v1/stores/${STORE_ID}/carts/${ids.cart}/order`, null],
@@ -47,7 +47,7 @@ test("the exact source Cart Order read preserves the authoritative nullable resp
   ]);
   assert.equal(calls[2].headers.has("x-arky-cart-token"), false);
   assert.equal(calls[3].headers.has("x-arky-order-token"), false);
-  await assert.rejects(buyer.eshop.cart.order({ id: ids.cart, token: "old-cart-recovery-capability" }), TypeError);
+  await assert.rejects(buyer.eshop.cart.getOrder({ id: ids.cart, token: "old-cart-recovery-capability" }), TypeError);
   assert.equal(calls.length, 4);
 });
 
@@ -129,7 +129,7 @@ test("a storefront location-choice cart is created for the company and then pick
 
 test("Admin quotes carry only the language the caller names; the client has no configured language", async (context) => {
   const calls = recordFetch(context, () => quoteRecord());
-  const client = createAdmin({ baseUrl: apiUrl, secretKey: "arky_api_cart", locale: "bs" });
+  const client = createAdmin({ apiUrl: apiUrl, secretKey: "arky_api_cart", locale: "bs" });
   assert.deepEqual(await client.eshop.cart.quote({ store_id: STORE_ID, id: ids.cart, language: "en" }), quoteRecord());
   assert.deepEqual(calls[0].body, { language: "en" });
   assert.equal(calls[0].path, `/v1/stores/${STORE_ID}/carts/${ids.cart}/quote`);
@@ -305,19 +305,20 @@ test("initialize quotes and checks out a group-only cart through the reviewed qu
     throw new Error(`Unexpected request ${call.method} ${call.path}`);
   });
   const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, locale: "bs", market: "bih", sessionStorage: visitorStorage() });
-  await store.eshop.cart.create({ id: ids.cart, buyer: { type: "customer" }, catalog_id: ids.catalog });
-  assert.equal(store.eshop.cart.item_count.get(), 1);
+  const cart = store.eshop.cart({ buyer: { type: "customer" }, catalog_id: ids.catalog });
+  await cart.create({ id: ids.cart });
+  assert.equal(cart.item_count.get(), 1);
   const { type: _type, ...groupItem } = current.line_items[0];
-  assert.deepEqual(store.eshop.cart.customer_group_items.get(), [groupItem]);
+  assert.deepEqual(cart.customer_group_items.get(), [groupItem]);
   assert.deepEqual(cartCustomerGroupItems(current), [groupItem]);
-  assert.deepEqual(store.eshop.cart.product_items.get(), []);
+  assert.deepEqual(cart.product_items.get(), []);
   const payment = { type: "free" };
-  await assert.rejects(store.eshop.cart.checkout({ order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), contact_email: null, payment }), /Quote the cart before checkout/);
-  await store.eshop.cart.quote();
-  await assert.rejects(store.eshop.cart.checkout({ order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), contact_email: null, payment }), /quote isn't ready/);
+  await assert.rejects(cart.checkout({ order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), contact_email: null, payment }), /Quote the cart before checkout/);
+  await cart.quote();
+  await assert.rejects(cart.checkout({ order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), contact_email: null, payment }), /quote isn't ready/);
   quoted = quoteRecord();
-  assert.deepEqual(await store.eshop.cart.quote(), quoteRecord());
-  assert.deepEqual(await store.eshop.cart.checkout({ order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), contact_email: null, payment, clear_after_checkout: false }), placedAcceptance());
+  assert.deepEqual(await cart.quote(), quoteRecord());
+  assert.deepEqual(await cart.checkout({ order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), contact_email: null, payment, clear_after_checkout: false }), placedAcceptance());
   const accept = calls.find((call) => call.path.endsWith("/carts/accept"));
   assert.deepEqual(accept.body, {
     order_id: ids.order,
@@ -331,8 +332,8 @@ test("initialize quotes and checks out a group-only cart through the reviewed qu
   assert.equal(accept.headers.get("x-arky-cart-token"), "cart-recovery-token");
   assert.equal(calls.filter((call) => call.path.endsWith("/quote")).every((call) => call.headers.get("x-arky-locale") === "bs" && JSON.stringify(call.body) === "{}"), true);
   assert.equal(calls.at(-1).path, `/v1/storefront/orders/${ids.order}`);
-  assert.deepEqual(store.eshop.cart.cart.get(), current);
-  const lastOrder = store.eshop.cart.last_order.get();
+  assert.deepEqual(cart.cart.get(), current);
+  const lastOrder = cart.last_order.get();
   assert.equal(lastOrder.order_id, ids.order);
   assert.equal(lastOrder.cart_id, ids.cart);
   assert.equal(lastOrder.total, quoteRecord().totals.total);
@@ -374,12 +375,13 @@ test("initialize saves future deliveries into the loaded cart and drops its stal
     return updated;
   });
   const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, locale: "bs", sessionStorage: visitorStorage() });
-  await store.eshop.cart.create({ id: ids.cart, buyer: { type: "customer" }, catalog_id: ids.catalog });
-  await store.eshop.cart.quote();
-  assert.notEqual(store.eshop.cart.quote_result.get(), null);
-  assert.deepEqual(await store.eshop.cart.setFutureDeliveries(groups), updated);
-  assert.deepEqual(store.eshop.cart.cart.get(), updated);
-  assert.equal(store.eshop.cart.quote_result.get(), null);
+  const cart = store.eshop.cart({ buyer: { type: "customer" }, catalog_id: ids.catalog });
+  await cart.create({ id: ids.cart });
+  await cart.quote();
+  assert.notEqual(cart.quote_result.get(), null);
+  assert.deepEqual(await cart.setFutureDeliveries({ customer_groups: groups }), updated);
+  assert.deepEqual(cart.cart.get(), updated);
+  assert.equal(cart.quote_result.get(), null);
   assert.deepEqual(calls.at(-1).body, { expected_updated_at: cartRecord().updated_at, customer_groups: groups });
 });
 
@@ -395,47 +397,22 @@ test("initialize refuses a late quote after the language changed and a late deli
     return pending;
   });
   const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, locale: "bs", market: "bih", sessionStorage: visitorStorage() });
-  await store.eshop.cart.create({ id: ids.cart, buyer: { type: "customer" }, catalog_id: ids.catalog });
-  const quote = store.eshop.cart.quote();
+  const cart = store.eshop.cart({ buyer: { type: "customer" }, catalog_id: ids.catalog });
+  await cart.create({ id: ids.cart });
+  const quote = cart.quote();
   await entered;
-  store.setLocale("en");
+  store.setContext({ locale: "en" });
   release(Response.json(quoteRecord({ language: "bs" })));
   await assert.rejects(quote, /language changed while quoting/);
-  assert.equal(store.eshop.cart.quote_result.get(), null);
+  assert.equal(cart.quote_result.get(), null);
   pending = new Promise((resolve) => { release = resolve; });
   entered = new Promise((resolve) => { started = resolve; });
-  const deliveries = store.eshop.cart.quoteFutureDeliveries([]);
+  const deliveries = cart.quoteFutureDeliveries({ customer_groups: [] });
   await entered;
-  store.setMarket("ita");
+  store.setContext({ market: "ita" });
   release(Response.json([]));
   await assert.rejects(deliveries, /context changed during the cart operation/);
-  assert.equal(store.eshop.cart.cart.get(), null);
-});
-
-test("Cart controller fills the loaded cart's id and version and never quotes implicitly", async () => {
-  const calls = [];
-  const current = cartRecord();
-  const controller = createCartController({
-    current: async (params) => { calls.push(["current", params]); return current; },
-    addCustomerGroup: async (input) => { calls.push(["add", input]); return current; },
-    quote: async () => { throw new Error("Must not quote implicitly"); },
-    checkout: async (input) => { calls.push(["checkout", input]); return placedAcceptance(); },
-  });
-  await controller.init({ buyer: { type: "customer" }, catalog_id: ids.catalog });
-  await controller.addCustomerGroup({ customer_group: groupSelection });
-  const reviewed = { order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), presentation_digest: "d".repeat(64), contact_email: null, payment: { type: "free" } };
-  await controller.checkout(reviewed);
-  assert.deepEqual(calls, [
-    ["current", { buyer: { type: "customer" }, catalog_id: ids.catalog }],
-    ["add", { customer_group: groupSelection, id: ids.cart, expected_updated_at: current.updated_at }],
-    ["checkout", { ...reviewed, cart_id: ids.cart, expected_updated_at: current.updated_at }],
-  ]);
-  assert.deepEqual(controller.getState().checkoutResult, placedAcceptance());
-  const empty = createCartController({ current: async () => null });
-  await empty.init({ buyer: { type: "customer" }, catalog_id: ids.catalog });
-  await assert.rejects(empty.addCustomerGroup({ customer_group: groupSelection }), /no cart id was provided/);
-  await assert.rejects(empty.addCustomerGroup({ id: ids.cart, customer_group: groupSelection }), /updated_at of the cart/);
-  assert.equal("addSubscriptionPlan" in controller, false);
+  assert.equal(cart.cart.get(), null);
 });
 
 test("quotes carry transient receipt email without forwarding identity or persisting the cart", async (context) => {
@@ -455,7 +432,7 @@ test("Order capability is sent only with the named Order request and never eleva
   const client = storefront();
   await client.eshop.order.get({ id: ids.order }, { order_token: token });
   await client.eshop.order.find({}, { order_token: token });
-  await client.companies.memberships({}, { order_token: token });
+  await client.companies.membership.find({}, { order_token: token });
   assert.equal(calls[0].headers.get("x-arky-order-token"), token);
   assert.equal(calls[1].headers.has("x-arky-order-token"), false);
   assert.equal(calls[2].headers.has("x-arky-order-token"), false);

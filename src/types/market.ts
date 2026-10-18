@@ -212,6 +212,10 @@ export interface LocationState {
   name: string;
 }
 
+export interface GetCountryParams {
+  code: string;
+}
+
 export interface LocationCountry {
   code: string;
   name: string;

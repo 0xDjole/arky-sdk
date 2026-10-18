@@ -1,17 +1,26 @@
+import { ArkyError } from "../types/apiError";
+
 const SCHEDULED_RESULT_TIMEOUT_MS = 20_000;
 const SCHEDULED_RESULT_INITIAL_DELAY_MS = 50;
 const SCHEDULED_RESULT_MAX_DELAY_MS = 1_000;
 
-export class ScheduledResultTimeoutError<T = unknown> extends Error {
-  readonly lastResult: T;
+const scheduledResultTimeoutErrorBrand = Symbol.for("arky.ScheduledResultTimeoutError");
 
-  constructor(lastResult: T) {
+export class ScheduledResultTimeoutError<T = unknown> extends ArkyError {
+  readonly name: string = "ScheduledResultTimeoutError";
+  readonly code: "timeout" = "timeout";
+  readonly [scheduledResultTimeoutErrorBrand] = true;
+
+  static [Symbol.hasInstance](value: unknown): boolean {
+    return value instanceof Error && scheduledResultTimeoutErrorBrand in value;
+  }
+
+  constructor(readonly lastResult: T) {
     super(
+      "timeout",
       "Scheduled result observation timed out before terminal domain state; " +
         "the mutation may have succeeded",
     );
-    this.name = "ScheduledResultTimeoutError";
-    this.lastResult = lastResult;
   }
 }
 

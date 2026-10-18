@@ -20,20 +20,22 @@ import { requireId } from "../utils/ids";
 import { segment } from "./paths";
 
 export const createPlatformApi = (apiConfig: ApiConfig) => ({
-  getCurrencies(options?: RequestOptions): Promise<string[]> {
-    return apiConfig.httpClient.get<string[]>("/v1/platform/currencies", options);
+  async findCurrencies(options?: RequestOptions): Promise<PaginatedResponse<string>> {
+    const items = await apiConfig.httpClient.get<string[]>("/v1/platform/currencies", options);
+    return { items, cursor: null };
   },
 
-  getWebhookEvents(options?: RequestOptions): Promise<WebhookEventMetadata[]> {
-    return apiConfig.httpClient.get<WebhookEventMetadata[]>("/v1/platform/events", options);
+  async findWebhookEvents(options?: RequestOptions): Promise<PaginatedResponse<WebhookEventMetadata>> {
+    const items = await apiConfig.httpClient.get<WebhookEventMetadata[]>("/v1/platform/events", options);
+    return { items, cursor: null };
   },
 
-  getStorePlans(options?: RequestOptions): Promise<PaginatedResponse<StorePlan>> {
+  findStorePlans(options?: RequestOptions): Promise<PaginatedResponse<StorePlan>> {
     return apiConfig.httpClient.get<PaginatedResponse<StorePlan>>("/v1/stores/plans", options);
   },
 
   administrator: {
-    list(
+    find(
       params: FindPlatformAdministratorsParams = {},
       options?: RequestOptions,
     ): Promise<PaginatedResponse<PlatformAdministrator>> {
@@ -43,7 +45,7 @@ export const createPlatformApi = (apiConfig: ApiConfig) => ({
       });
     },
 
-    me(options?: RequestOptions): Promise<PlatformAdministrator> {
+    getMe(options?: RequestOptions): Promise<PlatformAdministrator> {
       return apiConfig.httpClient.get<PlatformAdministrator>("/v1/platform/administrators/me", options);
     },
 

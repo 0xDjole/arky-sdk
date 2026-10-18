@@ -38,7 +38,7 @@ test("staff own-terms review and acceptance retain quantity, choices, delivery a
     withdrawn: null,
   };
   const calls = recordFetch(context, () => result);
-  const api = createAdmin({ baseUrl: apiUrl, secretKey: "contract" }).eshop
+  const api = createAdmin({ apiUrl: apiUrl, secretKey: "contract" }).eshop
     .customerGroupMember;
   const terms = {
     group: {
@@ -156,7 +156,7 @@ test("buyer current terms reads the canonical member response with authenticatio
     }),
     createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`,
   }).eshop.customerGroupMember;
-  assert.deepEqual(await api.current({ id: memberId }), result);
+  assert.deepEqual(await api.getCurrent({ id: memberId }), result);
   assert.equal(
     calls[0].path,
     `/v1/storefront/customer-group-members/${memberId}/current`,
@@ -198,7 +198,7 @@ test("sale and accepted Product choices keep exact catalog, language and current
     createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`,
   });
   const sale = {
-    identifier: groupId,
+    id: groupId,
     entitlement_id: entitlement,
     catalog_id: ids.catalog,
     quantity: 3,
@@ -212,7 +212,7 @@ test("sale and accepted Product choices keep exact catalog, language and current
     language: result.language,
   };
   const before = structuredClone({ sale, member });
-  assert.deepEqual(await api.eshop.customerGroup.productChoices(sale), result);
+  assert.deepEqual(await api.eshop.customerGroup.getProductChoices(sale), result);
   assert.equal(
     calls[0].path,
     `/v1/storefront/customer-groups/${groupId}/product-choices/${entitlement}`,
@@ -223,7 +223,7 @@ test("sale and accepted Product choices keep exact catalog, language and current
     language: result.language,
   });
   assert.deepEqual(
-    await api.eshop.customerGroupMember.productChoices(member),
+    await api.eshop.customerGroupMember.getProductChoices(member),
     result,
   );
   assert.equal(
@@ -297,7 +297,7 @@ test("member delivery options preserve proposed terms and exact authenticated ve
     billing_address: null,
   };
   const before = structuredClone(input);
-  assert.deepEqual(await api.deliveryOptions(input), result);
+  assert.deepEqual(await api.getDeliveryOptions(input), result);
   const { id: _id, delivery_id: _delivery, ...body } = input;
   assert.equal(
     calls[0].path,

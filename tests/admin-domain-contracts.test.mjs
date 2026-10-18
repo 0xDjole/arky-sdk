@@ -26,20 +26,20 @@ test('removed Store feature APIs are absent and Store code login names its Store
     if (path.endsWith('/code')) return Response.json({ session_id: SESSION_ID, verification_expires_at: now + 60000 });
     return Response.json(issued(now, 1));
   };
-  const admin = createAdmin({ baseUrl: 'https://api.example.test' });
+  const admin = createAdmin({ apiUrl: 'https://api.example.test' });
   for (const removed of ['adminDomain', 'branding', 'commerce', 'customerWorkspace', 'marketZone', 'marketPaymentOption', 'paymentTerms']) {
     assert.equal(removed in admin.store, false, removed);
   }
-  const pending = await admin.account.auth.storeCode(STORE_ID, { email: 'invited@example.test' });
-  const session = await admin.account.auth.storeVerify(STORE_ID, { session_id: pending.session_id, code: '123456' });
+  const pending = await admin.account.auth.requestCode({ email: 'invited@example.test', store_id: STORE_ID });
+  const session = await admin.account.auth.verify({ session_id: pending.session_id, code: '123456', store_id: STORE_ID });
   assert.equal('scope' in session, false);
   assert.deepEqual(admin.session, { id: SESSION_ID, email: 'invited@example.test' });
   assert.deepEqual(calls, [
     { path: `/v1/stores/${STORE_ID}/auth/code`, method: 'POST', body: { email: 'invited@example.test' } },
     { path: `/v1/stores/${STORE_ID}/auth/verify`, method: 'POST', body: { session_id: SESSION_ID, code: '123456' } },
   ]);
-  for (const storeId of [undefined, 'store/one', STORE_ID.toUpperCase()]) {
-    await assert.rejects(() => admin.account.auth.storeCode(storeId, { email: 'invited@example.test' }), TypeError);
+  for (const storeId of ['', 'store/one', STORE_ID.toUpperCase()]) {
+    await assert.rejects(() => admin.account.auth.requestCode({ email: 'invited@example.test', store_id: storeId }), TypeError);
   }
   assert.equal(calls.length, 2);
 });
@@ -64,8 +64,8 @@ test('retained Sessions keep their exact credentials through refresh and a malfo
     return Response.json(issued(now, issuedCount, sessionId));
   };
   const storageKey = 'arky_admin_session:https://api.example.test';
-  const admin = createAdmin({ baseUrl: 'https://api.example.test' });
-  await admin.account.auth.storeVerify(STORE_ID, { session_id: 'pending', code: '123456' });
+  const admin = createAdmin({ apiUrl: 'https://api.example.test' });
+  await admin.account.auth.verify({ session_id: 'pending', code: '123456', store_id: STORE_ID });
   assert.deepEqual(admin.session, { id: SESSION_ID, email: undefined });
   assert.deepEqual(JSON.parse(storage.getItem(storageKey)), {
     id: SESSION_ID, access_token: 'access-1', refresh_token: 'refresh-1', access_expires_at: now + 60000,
@@ -79,7 +79,7 @@ test('retained Sessions keep their exact credentials through refresh and a malfo
   assert.equal(stored.access_token, 'access-2');
   assert.equal(stored.refresh_token, 'refresh-2');
   sessionId = OTHER_SESSION_ID;
-  await assert.rejects(admin.account.auth.refresh({ refresh_token: 'refresh-2' }), TypeError);
+  await assert.rejects(admin.account.auth.refresh({ refresh_token: 'refresh-2' }), { name: 'ArkyError', code: 'answer_mismatch' });
   assert.equal(JSON.parse(storage.getItem(storageKey)).access_token, 'access-2');
   await assert.rejects(admin.account.auth.refresh({ refresh_token: 'refresh-unknown' }), /Account session changed/);
   delete stored.refresh_token;
@@ -108,7 +108,7 @@ test('API-token rejection preserves the native snake_case failure without refres
     return Response.json(response, { status: 401, headers: { 'x-request-id': 'native-auth-rejection' } });
   };
   const token = 'arky_api_native-revoked-credential';
-  const admin = createAdmin({ baseUrl: 'https://api.example.test', secretKey: token });
+  const admin = createAdmin({ apiUrl: 'https://api.example.test', secretKey: token });
   const payload = {
     id: STORE_ID,
     name: 'Account-authorized Store',
@@ -154,7 +154,7 @@ test('a restored Account bearer reaches protected requests and follows caller-ow
     return Response.json({ id: 'account', email: 'staff@example.test' });
   };
   const admin = createAdmin({
-    baseUrl: 'https://api.example.test',
+    apiUrl: 'https://api.example.test',
     forcedHeaders: () => ({ Authorization: `Bearer ${credentials.access_token}` }),
     onUnauthorized: (context) => { rejected.push(context); return false; },
   });

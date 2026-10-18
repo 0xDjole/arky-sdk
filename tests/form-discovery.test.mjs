@@ -10,7 +10,7 @@ const FORM_ID = ids.form;
 const SUBMISSION_ID = ids.submission;
 
 function admin() {
-  return createAdmin({ baseUrl: "https://forms.test", secretKey: "arky_api_forms" });
+  return createAdmin({ apiUrl: "https://forms.test", secretKey: "arky_api_forms" });
 }
 
 function submissionOf(call) {
@@ -62,7 +62,7 @@ test("Form writes carry the app-picked id, typed questions and stages, and the v
   assert.deepEqual(await api.create({ store_id: STORE_ID, ...create }), intake);
   await api.update({ store_id: STORE_ID, id: FORM_ID, expected_updated_at: 1, status: { type: "closed" } });
   await api.get({ store_id: STORE_ID, id: FORM_ID });
-  await api.get({ store_id: STORE_ID, key: "intake/form" });
+  await api.getByKey({ store_id: STORE_ID, key: "intake/form" });
   assert.deepEqual(await api.delete({ store_id: STORE_ID, id: FORM_ID, expected_updated_at: 2 }), { deleted: true });
   assert.deepEqual(calls.map(({ method, path, url, body }) => [method, path, url.search, body]), [
     ["POST", `/v1/stores/${STORE_ID}/forms`, "", create],
@@ -93,18 +93,16 @@ test("submission discovery reads every form or one form and sends the select fil
   assert.equal("form_id" in calls[1].query, false);
 });
 
-test("storefront submitByKey keeps the caller's id and answers across response loss and refuses a different form", async (context) => {
+test("storefront submit with the loaded form keeps the caller's id and answers across response loss", async (context) => {
   let submissions = 0;
   const calls = recordFetch(context, () => {
     if (++submissions === 1) throw new TypeError("response lost");
     return { id: SUBMISSION_ID, form_id: FORM_ID, language: "en", answers: [], stage_id: "new", created_at: 2, updated_at: 2 };
   });
   const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, locale: "en", sessionStorage: visitorStorage() });
-  const request = { id: SUBMISSION_ID, key: "intake", form: intake, language: "en", values: { answer: "kept" } };
-  await assert.rejects(async () => store.forms.submitByKey({ ...request, key: "another-form" }), /isn't the form named by the key/);
-  assert.equal(calls.length, 0);
-  await assert.rejects(store.forms.submitByKey(request), /response lost/);
-  const answer = await store.forms.submitByKey(request);
+  const request = { id: SUBMISSION_ID, form: intake, language: "en", values: { answer: "kept" } };
+  await assert.rejects(store.forms.submit(request), /response lost/);
+  const answer = await store.forms.submit(request);
   assert.equal(answer.stage_id, "new");
   assert.equal(calls.length, 2);
   assert.deepEqual(submissionOf(calls[0]), submissionOf(calls[1]));
@@ -123,7 +121,7 @@ test("a submission against a form that changed since it loaded is refused as FOR
   const calls = recordFetch(context, () => Response.json({ message: "The form changed; reload it", error: "FORM_SUBMISSION.FORM_CHANGED", status_code: 409, validation_errors: [] }, { status: 409 }));
   const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, locale: "en", sessionStorage: visitorStorage() });
   const loaded = { ...intake, questions_updated_at: 7, updated_at: 8 };
-  await assert.rejects(store.forms.submitByKey({ id: SUBMISSION_ID, key: "intake", form: loaded, language: "en", values: { answer: "Kept" } }), (error) => {
+  await assert.rejects(store.forms.submit({ id: SUBMISSION_ID, form: loaded, language: "en", values: { answer: "Kept" } }), (error) => {
     assert.equal(error.code, "FORM_SUBMISSION.FORM_CHANGED");
     assert.equal(error.statusCode, 409);
     return true;
@@ -137,7 +135,7 @@ test("a submission against a form that changed since it loaded is refused as FOR
 test("a refused submission whose answers don't fit the form propagates its field errors without a resubmission", async (context) => {
   const calls = recordFetch(context, () => Response.json({ message: "The answers don't fit the form", error: "FORM_SUBMISSION.INVALID_INPUT", status_code: 400, validation_errors: [{ field: "answers[0].question_id", error: "FORM_SUBMISSION.UNKNOWN_QUESTION" }] }, { status: 400 }));
   const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, locale: "en", sessionStorage: visitorStorage() });
-  await assert.rejects(store.forms.submitByKey({ id: SUBMISSION_ID, key: "intake", form: intake, language: "en", values: { answer: "Kept" } }), (error) => {
+  await assert.rejects(store.forms.submit({ id: SUBMISSION_ID, form: intake, language: "en", values: { answer: "Kept" } }), (error) => {
     assert.equal(error.code, "FORM_SUBMISSION.INVALID_INPUT");
     assert.equal(error.statusCode, 400);
     assert.deepEqual(error.validationErrors, [{ field: "answers[0].question_id", error: "FORM_SUBMISSION.UNKNOWN_QUESTION" }]);

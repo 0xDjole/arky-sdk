@@ -7,12 +7,12 @@ type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
 type Field<T extends CategoryField["type"]> = Extract<CategoryField, { type: T }>;
 
 const store_id = "4b6e2a91-0c5d-4f37-8a2e-1d9c7b3f5e08";
-const admin = createAdmin({ baseUrl: "https://category.test" });
+const admin = createAdmin({ apiUrl: "https://category.test" });
 const storefront = createStorefront(`arky_pk_${"s".repeat(43)}`, { apiUrl: "https://category.test", market: "market-contract", createVisitorIdentity: () => ({ customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A` });
 const filters: FindCategoriesParams = { store_id, status: "active", sort_field: "key", cursor: null };
 const list: Promise<{ items: Category[]; cursor: string | null }> = admin.category.find(filters);
-const children: Promise<{ items: Category[]; cursor: string | null }> = admin.category.getChildren({ store_id, id: "parent", limit: 20, cursor: null });
-const publicChildren: Promise<{ items: Category[]; cursor: string | null }> = storefront.category.getChildren({ id: "parent", cursor: null });
+const children: Promise<{ items: Category[]; cursor: string | null }> = admin.category.findChildren({ store_id, id: "parent", limit: 20, cursor: null });
+const publicChildren: Promise<{ items: Category[]; cursor: string | null }> = storefront.category.findChildren({ id: "parent", cursor: null });
 const bySlug: Promise<Category> = storefront.category.get({ slug: "topics" });
 const byKey: Promise<Category> = storefront.category.getByKey({ key: "topics" });
 const status: CategoryStatus = { type: "draft" };

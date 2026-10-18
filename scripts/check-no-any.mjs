@@ -14,7 +14,6 @@ const guardedPaths = [
   resolve(sourceRoot, "types", "api.ts"),
   resolve(sourceRoot, "utils", "blocks.ts"),
   resolve(sourceRoot, "utils", "queryParams.ts"),
-  resolve(sourceRoot, "utils", "svg.ts"),
 ];
 
 const ANY_RE = /(:\s*any\b|\bas\s+any\b)/;

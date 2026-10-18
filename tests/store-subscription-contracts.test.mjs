@@ -37,7 +37,7 @@ class RecordingStorage {
 }
 
 function admin() {
-  return createAdmin({ baseUrl: "https://api.example.test", secretKey: "contract-token" });
+  return createAdmin({ apiUrl: "https://api.example.test", secretKey: "contract-token" });
 }
 
 test("picking a store plan is one plain request with the plan and the return page, and keeps nothing in the browser", async (context) => {
@@ -75,7 +75,7 @@ test("billing reads, the provider portal and the end of a granted plan use the n
   await api.get({ store_id: storeId });
   assert.deepEqual(await api.createPortalSession({ store_id: storeId, return_url: "https://merchant.test/billing" }), { portal_url: "https://billing.stripe.test/session" });
   await api.endGrant({ store_id: storeId, expected_updated_at: 2 });
-  await admin().store.usage.find({ store_id: storeId });
+  await admin().store.usage.get({ store_id: storeId });
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
     ["GET", `/v1/stores/${storeId}/subscription`, null],
     ["POST", `/v1/stores/${storeId}/subscription/portal`, { return_url: "https://merchant.test/billing" }],

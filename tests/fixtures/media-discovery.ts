@@ -9,14 +9,15 @@ const filters: FindMediaParams = { store_id: '3f8b6d21-c7a4-4e09-9d15-7b2e0a4c6f
 declare const admin: ReturnType<typeof createAdmin>;
 declare const storefront: ReturnType<typeof createStorefront>;
 const page: Promise<{ items: Media[]; cursor: string | null }> = admin.media.find(filters);
-const references: Promise<Media[]> = storefront.media.findByIds({ ids: ['second', 'first'] });
+const references: Promise<{ items: Media[]; cursor: string | null }> = storefront.media.find({ ids: ['second', 'first'] });
 void [page, references];
 
 export type MediaDiscoveryContracts = [
   Assert<Equal<FindMediaParams['sort_field'], 'file_name' | 'created_at' | 'updated_at' | undefined>>,
   Assert<Equal<FindMediaParams['type'], 'image' | 'video' | 'pdf' | undefined>>,
   Assert<Missing<FindMediaParams, 'mime_type'>>,
-  Assert<Equal<keyof Parameters<typeof storefront.media.findByIds>[0], 'ids'>>,
+  Assert<Equal<keyof Parameters<typeof storefront.media.find>[0], 'ids'>>,
+  Assert<Missing<typeof storefront.media, 'findByIds'>>,
   Assert<Equal<MediaContent['type'], 'image' | 'video' | 'pdf'>>,
   Assert<Equal<Extract<MediaContent, { type: 'pdf' }>['original']['url'], string>>,
 ];

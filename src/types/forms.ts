@@ -1,3 +1,4 @@
+import { ArkyError } from "./apiError";
 import type { Email, AlertEmail } from "./notification";
 import type { CalendarDate, EpochMilliseconds } from "./time";
 import type {
@@ -191,7 +192,15 @@ export interface FindFormsParams {
   cursor?: string | null;
 }
 
-export type GetFormParams = { store_id: string } & ({ id: string } | { key: string });
+export interface GetFormParams {
+  store_id: string;
+  id: string;
+}
+
+export interface GetFormByKeyParams {
+  store_id: string;
+  key: string;
+}
 
 export interface CreateFormParams {
   emails?: FormEmails;
@@ -295,13 +304,100 @@ export interface GetFormSubmissionFileParams {
   sha256: string;
 }
 
-export type GetStorefrontFormParams = { id: string } | { key: string };
+export interface GetStorefrontFormParams {
+  id: string;
+}
 
-export interface SubmitFormParams {
+export interface GetStorefrontFormByKeyParams {
+  key: string;
+}
+
+export interface SubmitFormRequest {
   bot_check_token?: string;
   form_id: string;
   questions_updated_at: EpochMilliseconds;
   id: string;
   language: string;
   answers: FormAnswerInput[];
+}
+
+export interface FormAnswersInput {
+  form_id: string;
+  questions_updated_at: EpochMilliseconds;
+  answers: FormAnswerInput[];
+}
+
+export interface FormValuesInput {
+  form: Pick<Form, "id" | "questions" | "questions_updated_at">;
+  values: FormValues;
+}
+
+export type SubmitFormParams = (FormAnswersInput | FormValuesInput) & {
+  id?: string;
+  language: string;
+  bot_check_token?: string;
+};
+
+export type KeptFormAnswer = Exclude<FormAnswer, { type: "file" }>;
+
+export interface KeptFormSubmission {
+  id: string;
+  form_id: string;
+  questions_updated_at: EpochMilliseconds;
+  language: string;
+  answers: KeptFormAnswer[];
+}
+
+export interface KeptFormAnswersInput {
+  form_id: string;
+  questions_updated_at: EpochMilliseconds;
+  answers: KeptFormAnswer[];
+}
+
+export type RetainFormSubmissionParams = (KeptFormAnswersInput | FormValuesInput) & {
+  id?: string;
+  language: string;
+};
+
+export interface PendingFormSubmissionParams {
+  form_id: string;
+}
+
+export interface RecoverFormSubmissionParams {
+  form_id: string;
+  bot_check_token?: string;
+}
+
+export type FormAnswerErrorCode =
+  | "unknown_question"
+  | "required"
+  | "invalid"
+  | "too_short"
+  | "too_long"
+  | "pattern_mismatch"
+  | "too_small"
+  | "too_large"
+  | "unknown_option"
+  | "too_many_files"
+  | "file_size"
+  | "files_too_large"
+  | "file_name";
+
+const formAnswerErrorBrand = Symbol.for("arky.FormAnswerError");
+
+export class FormAnswerError extends ArkyError {
+  readonly name: string = "FormAnswerError";
+  readonly [formAnswerErrorBrand] = true;
+
+  static [Symbol.hasInstance](value: unknown): boolean {
+    return value instanceof Error && formAnswerErrorBrand in value;
+  }
+
+  constructor(
+    readonly code: FormAnswerErrorCode,
+    readonly questionKey: string | null,
+    message: string,
+  ) {
+    super(code, message);
+  }
 }

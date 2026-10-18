@@ -4,11 +4,13 @@ export type { RequestOptions } from "./httpClient";
 
 export interface RequestPendingAccountSessionParams {
   email: string;
+  store_id?: string;
 }
 
 export interface VerifyPendingAccountSessionParams {
   session_id: string;
   code: string;
+  store_id?: string;
 }
 
 export interface RefreshAccountSessionParams {

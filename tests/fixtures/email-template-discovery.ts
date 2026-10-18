@@ -6,7 +6,7 @@ type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
 const store_id = '5f0e7d93-2b46-4c18-9a7d-e1c3b5f82a06';
 const content = { en: { subject: 'Welcome', preheader: null, body: '<p>Welcome</p>' } };
 const create: CreateEmailTemplateParams = { store_id, id: '3a5c7e9b-1d2f-4a6c-8e0b-2d4f6a8c0e1f', key: 'sign-in', type: { type: 'sign_in_code' }, content };
-const client = createAdmin({ baseUrl: 'https://templates.test' });
+const client = createAdmin({ apiUrl: 'https://templates.test' });
 const tested: Promise<OutgoingEmail> = client.notification.template.test({ store_id, id: create.id, outgoing_email_id: create.id, language: 'en', sending_address_id: 'sender' });
 const alert: AlertEmail = { email_template_id: create.id, to: [{ type: 'email', email: 'owner@example.test', language: 'en' }] };
 void [create, tested, alert];

@@ -36,7 +36,7 @@ export const createExperimentsApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.get<Experiment>(experimentPath(params.store_id, params.id), options);
     },
 
-    results(params: GetExperimentParams, options?: RequestOptions): Promise<ExperimentResults> {
+    getResults(params: GetExperimentParams, options?: RequestOptions): Promise<ExperimentResults> {
       return apiConfig.httpClient.get<ExperimentResults>(`${experimentPath(params.store_id, params.id)}/results`, options);
     },
 

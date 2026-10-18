@@ -79,6 +79,10 @@ export interface StorefrontPromotion {
   blocks: Block[];
 }
 
+export interface GetStorefrontPromotionParams {
+  id: string;
+}
+
 export type PromotionCodeStatus =
   | { type: "active" }
   | { type: "archived" }

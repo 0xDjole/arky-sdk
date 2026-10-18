@@ -35,7 +35,7 @@ test("payment reads preserve native Credit-derived status and its snapshot revis
   const returned = [original, credited, original];
   const calls = recordFetch(context, () => returned.shift());
   const api = createAdmin({
-    baseUrl: "https://financial.example.test",
+    apiUrl: "https://financial.example.test",
     secretKey: "arky_api_finance",
   }).eshop.payment;
   const before = await api.get({ store_id: STORE_ID, id: ids.payment });
@@ -66,7 +66,7 @@ test("payment discovery keeps combined scope, status, ordering and opaque contin
     );
   });
   const client = createAdmin({
-    baseUrl: "https://financial.example.test",
+    apiUrl: "https://financial.example.test",
     secretKey: "arky_api_finance",
   });
   const filter = {
@@ -166,7 +166,7 @@ test("financial list failures are errors, not empty pages or replacement money c
     );
   });
   const client = createAdmin({
-    baseUrl: "https://financial.example.test",
+    apiUrl: "https://financial.example.test",
     secretKey: "arky_api_finance",
   });
   await assert.rejects(
@@ -193,7 +193,7 @@ test("financial list failures are errors, not empty pages or replacement money c
 test("collection voids and whole-refund receipts carry only their existing identities and versioned facts", async (context) => {
   const calls = recordFetch(context, () => ({ id: ids.payment }));
   const api = createAdmin({
-    baseUrl: "https://financial.example.test",
+    apiUrl: "https://financial.example.test",
     secretKey: "arky_api_finance",
   }).eshop.payment;
   const refundId = "6e2a9d47-1b85-4c30-9f7e-2d4c8a1b5e93";
@@ -363,7 +363,7 @@ test("hold resolution names the retained hold and leaves recorded history intact
   };
   const calls = recordFetch(context, () => payment);
   const api = createAdmin({
-    baseUrl: "https://financial.example.test",
+    apiUrl: "https://financial.example.test",
     secretKey: "arky_api_finance",
   }).eshop.payment;
   const request = {

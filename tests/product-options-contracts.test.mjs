@@ -10,7 +10,7 @@ const option = "296b1fa0-a628-48c5-8f76-14338a2e2606";
 
 test("product and variant preserve ordered localized options and native validity evidence", async (context) => {
   const calls = recordFetch(context, (_call, index) => index === 1 ? { id: product } : { id: variant, options_valid: false });
-  const api = createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop;
+  const api = createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop;
   const options = [{ id: option, key: "size", label: { en: "Size", bs: "Veličina" },
     values: [{ key: "large", label: { en: "Large" } }, { key: "small", label: { en: "Small" } }] }];
   await api.product.create({ store_id: store, id: product, key: "classic", slugs: {}, blocks: [], options, categories: [] });

@@ -201,7 +201,7 @@ export interface EndStoreGrantParams {
   expected_updated_at: EpochMilliseconds;
 }
 
-export interface FindStoreUsageParams {
+export interface GetStoreUsageParams {
   store_id: string;
 }
 

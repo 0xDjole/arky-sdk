@@ -45,7 +45,7 @@ test("every storefront browse read sends the one named catalog, and lists can so
   await client.eshop.bookingService.find({ ...scope, sort_field: "catalog_order", limit: 10 });
   await client.eshop.bookingService.getAvailability({ booking_service_id: "service", from: 1, to: 2, limit: 5, ...scope });
   await client.eshop.bookingOffering.find({ booking_service_id: "service", ...scope, limit: 10 });
-  await client.eshop.customerGroup.get({ identifier: "monthly", ...scope });
+  await client.eshop.customerGroup.get({ id: "monthly", ...scope });
   await client.eshop.customerGroup.find({ ...scope, sort_field: "catalog_order", limit: 10 });
   assert.deepEqual(calls.map((call) => call.pathname), [
     "/v1/storefront/products/product",

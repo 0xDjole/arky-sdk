@@ -1,18 +1,9 @@
-import type { EpochMilliseconds } from "../types/time";
 import { epochMilliseconds, epochMillisecondsNow } from "../utils/time";
 import { buildQueryString, type QueryParams } from "../utils/queryParams";
-import { ArkyApiError } from "../types/apiError";
+import { ArkyApiError, ArkyNetworkError } from "../types/apiError";
 
-import type { TokenSet, AuthStorage, RequestSuccessContext, RequestErrorContext, RequestOptions, HttpClient, HttpClientConfig, ServerError, HttpRequestErrorDetails } from "../types/httpClient";
+import type { TokenSet, HttpClient, HttpClientConfig, ServerError, TransportOptions } from "../types/httpClient";
 export type { TokenSet, AuthStorage, RequestSuccessContext, RequestErrorContext, RequestOptions, HttpClient, HttpClientConfig } from "../types/httpClient";
-
-function requestError(
-  name: "NetworkError" | "ParseError" | "AbortError",
-  message: string,
-  details: HttpRequestErrorDetails = {},
-): Error & HttpRequestErrorDetails {
-  return Object.assign(new Error(message), { name }, details);
-}
 
 function sessionEnded(message: string): ArkyApiError {
   return new ArkyApiError({ message, code: "GENERAL.UNAUTHENTICATED", statusCode: 401 });
@@ -30,18 +21,6 @@ function omitStorefrontRouting(value: unknown): unknown {
   delete result.store_id;
   delete result.market;
   return result;
-}
-
-function isTokenSet(value: unknown): value is TokenSet {
-  return (
-    isRecord(value) &&
-    typeof value.access_token === "string" &&
-    (value.refresh_token === undefined ||
-      typeof value.refresh_token === "string") &&
-    (value.access_expires_at === undefined ||
-      (typeof value.access_expires_at === "number" &&
-        Number.isSafeInteger(value.access_expires_at)))
-  );
 }
 
 function isValidationError(
@@ -81,74 +60,26 @@ function normalizeValidationErrors(
 
 export function createHttpClient(cfg: HttpClientConfig): HttpClient {
   const { authStorage } = cfg;
-  let refreshPromise: Promise<void> | null = null;
 
-  function getRefreshEndpoint() {
-    const refreshPath =
-      typeof cfg.refreshPath === "function"
-        ? cfg.refreshPath()
-        : cfg.refreshPath || "/v1/auth/refresh";
-    return `${cfg.baseUrl}${refreshPath}`;
-  }
-
-  async function ensureFreshToken(expected: TokenSet | null) {
-    if (cfg.refreshCredentials) return cfg.refreshCredentials(expected);
-    if (refreshPromise) {
-      return refreshPromise;
+  async function refreshedTokens(expected: TokenSet): Promise<TokenSet | null> {
+    if (!cfg.refreshCredentials) return expected;
+    await cfg.refreshCredentials(expected);
+    const refreshed = authStorage.getTokens();
+    if (expected.id && refreshed?.id !== expected.id) {
+      throw sessionEnded("The Account session changed");
     }
-
-    refreshPromise = (async () => {
-      const tokens = authStorage.getTokens();
-      const refresh_token = tokens?.refresh_token;
-      if (!refresh_token) {
-        authStorage.onForcedLogout();
-        throw sessionEnded("No refresh token available");
-      }
-
-      const refRes = await fetch(getRefreshEndpoint(), {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ refresh_token }),
-      });
-
-      if (!refRes.ok) {
-        authStorage.onForcedLogout();
-        throw sessionEnded("Token refresh failed");
-      }
-
-      const data: unknown = await refRes.json();
-      if (!isTokenSet(data)) {
-        authStorage.onForcedLogout();
-        throw requestError(
-          "ParseError",
-          "Token refresh returned an invalid response",
-          { statusCode: refRes.status },
-        );
-      }
-      authStorage.onTokensRefreshed(data);
-    })().finally(() => {
-      refreshPromise = null;
-    });
-
-    return refreshPromise;
+    return refreshed;
   }
 
   async function request<T>(
     method: string,
     path: string,
     body?: unknown,
-    options?: RequestOptions<T> & { body?: unknown },
+    options?: TransportOptions<T> & { body?: unknown },
     retried = false,
   ): Promise<T> {
     if (!cfg.storefrontMode && (options?.locale !== undefined || options?.market !== undefined)) {
       throw new TypeError("A per-call locale or market is a storefront request option");
-    }
-
-    if (!retried && options?.transformRequest) {
-      body = options.transformRequest(body);
     }
 
     if (cfg.storefrontMode) {
@@ -183,12 +114,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
       tokens?.access_expires_at !== undefined &&
       epochMillisecondsNow() >= epochMilliseconds(tokens.access_expires_at)
     ) {
-      await ensureFreshToken(tokens);
-      const refreshed = authStorage.getTokens();
-      if (tokens?.id && refreshed?.id !== tokens.id) {
-        throw sessionEnded("The Account session changed");
-      }
-      tokens = refreshed;
+      tokens = await refreshedTokens(tokens);
     }
 
     if (tokens?.access_token) {
@@ -230,10 +156,10 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
       const aborted =
         options?.signal?.aborted ||
         (error instanceof Error && error.name === "AbortError");
-      const err = requestError(
-        aborted ? "AbortError" : "NetworkError",
+      const err = new ArkyNetworkError(
+        aborted ? "aborted" : "network",
         error instanceof Error ? error.message : "Network request failed",
-        { method, url: fullUrl, aborted },
+        { method, url: fullUrl },
       );
       if (options?.onError && method !== "GET") {
         Promise.resolve(
@@ -254,11 +180,8 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
         if (recovered) {
           return request<T>(method, path, body, options, true);
         }
-      } else {
-        await ensureFreshToken(tokens);
-        if (tokens?.id && authStorage.getTokens()?.id !== tokens.id) {
-          throw sessionEnded("The Account session changed");
-        }
+      } else if (cfg.refreshCredentials && tokens) {
+        await refreshedTokens(tokens);
         return request<T>(method, path, body, options, true);
       }
     }
@@ -277,7 +200,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
         data = await res.json();
       }
     } catch (error) {
-      const err = requestError("ParseError", "Failed to parse response", {
+      const err = new ArkyNetworkError("unreadable_answer", "Failed to parse response", {
         method,
         url: fullUrl,
         statusCode: res.status,
@@ -343,15 +266,15 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
   }
 
   return {
-    get: <T>(path: string, opts?: RequestOptions<T>) =>
+    get: <T>(path: string, opts?: TransportOptions<T>) =>
       request<T>("GET", path, undefined, opts),
-    post: <T>(path: string, body: unknown, opts?: RequestOptions<T>) =>
+    post: <T>(path: string, body: unknown, opts?: TransportOptions<T>) =>
       request<T>("POST", path, body, opts),
-    put: <T>(path: string, body: unknown, opts?: RequestOptions<T>) =>
+    put: <T>(path: string, body: unknown, opts?: TransportOptions<T>) =>
       request<T>("PUT", path, body, opts),
-    patch: <T>(path: string, body: unknown, opts?: RequestOptions<T>) =>
+    patch: <T>(path: string, body: unknown, opts?: TransportOptions<T>) =>
       request<T>("PATCH", path, body, opts),
-    delete: <T>(path: string, opts?: RequestOptions<T> & { body?: unknown }) =>
+    delete: <T>(path: string, opts?: TransportOptions<T> & { body?: unknown }) =>
       request<T>("DELETE", path, opts?.body, opts),
   };
 }

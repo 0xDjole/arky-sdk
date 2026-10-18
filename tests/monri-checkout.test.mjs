@@ -8,6 +8,10 @@ const action = {
   environment: 'test', authenticity_token: 'test-token', client_secret: 'test-session-secret', save_card: false,
 };
 const billing = {
+  full_name: 'Test Buyer', address: 'Test Street 1', city: 'Sarajevo', zip: '71000',
+  phone: '+38761123456', country: 'BA', email: 'buyer@example.test',
+};
+const nativeBilling = {
   fullName: 'Test Buyer', address: 'Test Street 1', city: 'Sarajevo', zip: '71000',
   phone: '+38761123456', country: 'BA', email: 'buyer@example.test',
 };
@@ -66,18 +70,18 @@ test('Monri Components uses hosted card entry for the named payment and one deli
   };
 
   await t.test('invalid actions and insecure origins cannot initialize card entry', async () => {
-    await assert.rejects(mountCheckoutAction({ ...action, merchant_key: 'private' }, target, {}, paymentId), hasCode('invalid_action'));
+    await assert.rejects(mountCheckoutAction({ action: { ...action, merchant_key: 'private' }, element: target, payment_id: paymentId }), hasCode('invalid_action'));
     const { save_card: _saveCard, ...withoutSaveCard } = action;
-    await assert.rejects(mountCheckoutAction(withoutSaveCard, target, {}, paymentId), hasCode('invalid_action'));
-    await assert.rejects(mountCheckoutAction({ ...action, save_card: 'true' }, target, {}, paymentId), hasCode('invalid_action'));
-    await assert.rejects(mountCheckoutAction({ ...action, payment_id: paymentId }, target, {}, paymentId), hasCode('invalid_action'));
-    await assert.rejects(mountCheckoutAction(action, target), /needs the id of the payment it pays/);
-    await assert.rejects(mountCheckoutAction(action, target, {}, ''), /needs the id of the payment it pays/);
+    await assert.rejects(mountCheckoutAction({ action: withoutSaveCard, element: target, payment_id: paymentId }), hasCode('invalid_action'));
+    await assert.rejects(mountCheckoutAction({ action: { ...action, save_card: 'true' }, element: target, payment_id: paymentId }), hasCode('invalid_action'));
+    await assert.rejects(mountCheckoutAction({ action: { ...action, payment_id: paymentId }, element: target, payment_id: paymentId }), hasCode('invalid_action'));
+    await assert.rejects(mountCheckoutAction({ action, element: target }), /needs the payment_id of the payment it pays/);
+    await assert.rejects(mountCheckoutAction({ action, element: target, payment_id: '' }), /needs the payment_id of the payment it pays/);
     window.location.protocol = 'http:';
-    await assert.rejects(mountCheckoutAction(action, target, {}, paymentId), hasCode('unavailable'));
+    await assert.rejects(mountCheckoutAction({ action, element: target, payment_id: paymentId }), hasCode('unavailable'));
     window.location.protocol = 'https:';
     document.scripts = [];
-    await assert.rejects(mountCheckoutAction(action, target, {}, paymentId), hasCode('unavailable'));
+    await assert.rejects(mountCheckoutAction({ action, element: target, payment_id: paymentId }), hasCode('unavailable'));
     document.scripts = [script];
     assert.equal(target.children.length, 0);
   });
@@ -86,16 +90,26 @@ test('Monri Components uses hosted card entry for the named payment and one deli
     setup();
     let completed = 0;
     const errors = [];
-    const mounted = await mountCheckoutAction(action, '#payment', { onComplete: () => { completed += 1; }, onValidationError: (error) => errors.push(error) }, paymentId);
+    const mounted = await mountCheckoutAction({
+      action,
+      element: '#payment',
+      payment_id: paymentId,
+      onComplete: () => { completed += 1; },
+      onValidationError: (error) => errors.push(error),
+    });
     assert.equal(mounted.type, 'monri_components');
     assert.equal(native.calls.length, 0);
     native.changed({ error: { message: 'untrusted provider payload' } });
     native.changed({ error: null });
-    assert.deepEqual(errors, ['Check the card details before submitting payment.', null]);
-    await assert.rejects(mounted.confirm({ ...billing, fullName: '' }), hasCode('invalid_details'));
+    assert.equal(errors.length, 2);
+    assert.ok(hasCode('invalid_card')(errors[0]));
+    assert.equal(errors[0].message.includes('untrusted'), false);
+    assert.equal(errors[1], null);
+    await assert.rejects(mounted.confirm({ ...billing, full_name: '' }), hasCode('invalid_details'));
+    await assert.rejects(mounted.confirm({ ...nativeBilling }), hasCode('invalid_details'));
     assert.equal(native.calls.length, 0);
     assert.equal(await mounted.confirm({ ...billing, unknown: 'must not be forwarded' }), undefined);
-    assert.deepEqual(native.calls, [{ ...billing, orderInfo: `ARKY payment ${paymentId}` }]);
+    assert.deepEqual(native.calls, [{ ...nativeBilling, orderInfo: `ARKY payment ${paymentId}` }]);
     assert.equal(completed, 1);
     await assert.rejects(mounted.confirm(billing), hasCode('already_submitted'));
     assert.equal(native.calls.length, 1);
@@ -115,7 +129,7 @@ test('Monri Components uses hosted card entry for the named payment and one deli
     ]) {
       setup(respond);
       let completed = 0;
-      const mounted = await mountCheckoutAction(action, target, { onComplete: () => { completed += 1; } }, paymentId);
+      const mounted = await mountCheckoutAction({ action, element: target, payment_id: paymentId, onComplete: () => { completed += 1; } });
       await assert.rejects(mounted.confirm(billing), (error) => hasCode('unknown_result')(error) && !error.message.includes('private'));
       await assert.rejects(mounted.confirm(billing), hasCode('already_submitted'));
       assert.equal(native.calls.length, 1);
@@ -127,7 +141,7 @@ test('Monri Components uses hosted card entry for the named payment and one deli
   await t.test('definite decline requests the same authoritative read rather than reporting paid', async () => {
     setup(() => ({ result: { status: 'declined', order_number: paymentId } }));
     let completed = 0;
-    const mounted = await mountCheckoutAction(action, target, { onComplete: () => { completed += 1; } }, paymentId);
+    const mounted = await mountCheckoutAction({ action, element: target, payment_id: paymentId, onComplete: () => { completed += 1; } });
     assert.equal(await mounted.confirm(billing), undefined);
     assert.equal(completed, 1);
     assert.equal(native.calls.length, 1);
@@ -139,7 +153,7 @@ test('Monri Components uses hosted card entry for the named payment and one deli
     let finish;
     setup(() => new Promise((resolve) => { finish = resolve; }));
     let completed = 0;
-    const mounted = await mountCheckoutAction(action, target, { onComplete: () => { completed += 1; } }, paymentId);
+    const mounted = await mountCheckoutAction({ action, element: target, payment_id: paymentId, onComplete: () => { completed += 1; } });
     const pending = mounted.confirm(billing);
     await assert.rejects(mounted.confirm(billing), hasCode('already_submitted'));
     mounted.destroy();
@@ -154,19 +168,19 @@ test('Monri Components uses hosted card entry for the named payment and one deli
     setup();
     native.tokenizePan = true;
     let completed = 0;
-    const mounted = await mountCheckoutAction({ ...action, save_card: true }, target, { onComplete: () => { completed += 1; } }, paymentId);
+    const mounted = await mountCheckoutAction({ action: { ...action, save_card: true }, element: target, payment_id: paymentId, onComplete: () => { completed += 1; } });
     assert.equal(await mounted.confirm(billing), undefined);
-    assert.deepEqual(native.calls, [{ ...billing, orderInfo: `ARKY payment ${paymentId}` }]);
+    assert.deepEqual(native.calls, [{ ...nativeBilling, orderInfo: `ARKY payment ${paymentId}` }]);
     assert.equal(completed, 1);
     mounted.destroy();
     assert.equal(target.children.length, 0);
   });
 
   await t.test('a page cannot mix native provider environments or mount into a missing container', async () => {
-    await assert.rejects(mountCheckoutAction({ ...action, environment: 'live' }, target, {}, paymentId), hasCode('unavailable'));
-    await assert.rejects(mountCheckoutAction(action, '#missing', {}, paymentId), hasCode('unavailable'));
+    await assert.rejects(mountCheckoutAction({ action: { ...action, environment: 'live' }, element: target, payment_id: paymentId }), hasCode('unavailable'));
+    await assert.rejects(mountCheckoutAction({ action, element: '#missing', payment_id: paymentId }), hasCode('unavailable'));
     target.isConnected = false;
-    await assert.rejects(mountCheckoutAction(action, target, {}, paymentId), hasCode('unavailable'));
+    await assert.rejects(mountCheckoutAction({ action, element: target, payment_id: paymentId }), hasCode('unavailable'));
     assert.equal(target.children.length, 0);
   });
 });

@@ -14,7 +14,7 @@ import { requireId } from "../utils/ids";
 import { segment, storePath, storeRecordPath } from "./paths";
 
 export const createMarketApi = (apiConfig: ApiConfig) => ({
-  list(params: FindMarketsParams, options?: RequestOptions): Promise<PaginatedResponse<Market>> {
+  find(params: FindMarketsParams, options?: RequestOptions): Promise<PaginatedResponse<Market>> {
     const { store_id, ...query } = params;
     return apiConfig.httpClient.get<PaginatedResponse<Market>>(storePath(store_id, "markets"), { ...options, params: query });
   },

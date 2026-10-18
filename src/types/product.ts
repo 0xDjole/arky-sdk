@@ -563,7 +563,7 @@ export interface GetBookingOfferingParams {
   id: string;
 }
 
-export interface LookupBookingOfferingParams {
+export interface GetBookingOfferingByServiceAndResourceParams {
   store_id: string;
   booking_service_id: string;
   booking_resource_id: string;
@@ -620,10 +620,7 @@ export interface ArchiveDigitalAssetParams {
   expected_updated_at: EpochMilliseconds;
 }
 
-export type GetStorefrontProductParams = CatalogReadOptions & {
-  id?: string;
-  slug?: string;
-};
+export type GetStorefrontProductParams = CatalogReadOptions & ({ id: string } | { slug: string });
 
 export type GetStorefrontProductByKeyParams = CatalogReadOptions & {
   key: string;
@@ -654,10 +651,7 @@ export type FindStorefrontProductVariantsParams = CatalogReadOptions & {
   cursor?: string | null;
 };
 
-export type GetStorefrontBookingServiceParams = CatalogReadOptions & {
-  id?: string;
-  slug?: string;
-};
+export type GetStorefrontBookingServiceParams = CatalogReadOptions & ({ id: string } | { slug: string });
 
 export type GetStorefrontBookingServiceByKeyParams = CatalogReadOptions & {
   key: string;
@@ -693,6 +687,10 @@ export type GetStorefrontAvailabilityParams = CompanyPartyQuery & {
   limit?: number;
   cursor?: string | null;
 };
+
+export interface GetStorefrontBookingResourceParams {
+  id: string;
+}
 
 export interface FindStorefrontBookingResourcesParams {
   ids?: string[];

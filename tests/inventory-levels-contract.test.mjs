@@ -9,7 +9,7 @@ const actionId = (index) => `3f8a2c61-${String(1000 + index)}-4e7b-9d05-2c6e8a1f
 const levelId = "8b2e6d14-3c97-4a05-b1f8-7e4c2a9d6f30";
 
 function eshop() {
-  return createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_api_inventory_contract" }).eshop;
+  return createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_api_inventory_contract" }).eshop;
 }
 
 test("inventory levels keep combined parent filters, ordering and empty-page continuations", async (context) => {
@@ -63,7 +63,7 @@ test("stock reads keep unavailable and negative available quantities with the it
   const record = { id: "level", inventory_item_id: "item", store_location_id: "location", on_hand: 2, reserved: 5, unavailable: 1, available: -4, item: { key: "stock-item", sku: null, tracking: { type: "tracked" } } };
   const calls = recordFetch(context, () => ({ items: [record], cursor: null }));
   const query = { store_id: OTHER_STORE_ID, inventory_item_id: "item", store_location_id: "location", limit: 5, cursor: "" };
-  assert.deepEqual(await eshop().inventoryLevel.stock(query), { items: [record], cursor: null });
+  assert.deepEqual(await eshop().inventoryLevel.findStock(query), { items: [record], cursor: null });
   assert.equal(calls[0].path, `/v1/stores/${OTHER_STORE_ID}/inventory-levels/stock`);
   assert.deepEqual(calls[0].query, { inventory_item_id: "item", store_location_id: "location", limit: "5", cursor: "" });
 });

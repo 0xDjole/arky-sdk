@@ -87,7 +87,7 @@ for (const definition of definitions) {
         headers: { "content-type": "application/json" },
       });
     });
-    const client = createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" });
+    const client = createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" });
     const api = client.eshop[definition.owner];
     assert.deepEqual(await api.create({ store_id: otherStoreId, id, ...definition.create }), record);
     if (definition.update) {
@@ -138,7 +138,7 @@ for (const definition of definitions) {
 }
 
 test("price lists, assortments and catalog entitlements are gone from the Admin client", () => {
-  const client = createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" });
+  const client = createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" });
   for (const removed of ["priceList", "assortment", "assortmentItem", "catalogEntitlement"]) {
     assert.equal(removed in client.eshop, false);
   }
@@ -169,18 +169,18 @@ test("buyer catalog reads use their exact routes and return the server answer", 
     const body = parsed.pathname.startsWith("/v1/storefront/") ? storefrontCatalogs : [catalog];
     return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const admin = createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" });
+  const admin = createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" });
   const customer = { store_id: storeId, market_id: marketId, sales_channel_id: channelId, customer_id: customerId };
-  assert.deepEqual(await admin.eshop.catalog.findPurchasable(customer), [catalog]);
-  assert.deepEqual(await admin.eshop.catalog.findPurchasable({ ...customer, company_location_id: locationId }), [catalog]);
-  assert.deepEqual(await admin.eshop.catalog.findPurchasable({ ...customer, company_id: companyId }), [catalog]);
+  assert.deepEqual(await admin.eshop.catalog.findPurchasable(customer), { items: [catalog], cursor: null });
+  assert.deepEqual(await admin.eshop.catalog.findPurchasable({ ...customer, company_location_id: locationId }), { items: [catalog], cursor: null });
+  assert.deepEqual(await admin.eshop.catalog.findPurchasable({ ...customer, company_id: companyId }), { items: [catalog], cursor: null });
   const publishableKey = `arky_pk_${"b".repeat(42)}A`;
   const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl: "https://api.example.test", market: "us" });
-  assert.deepEqual(await storefront.eshop.catalog.find(), storefrontCatalogs);
-  assert.deepEqual(await storefront.eshop.catalog.find({ company_location_id: locationId }), storefrontCatalogs);
-  assert.deepEqual(await storefront.eshop.catalog.find({ company_id: companyId }), storefrontCatalogs);
+  assert.deepEqual(await storefront.eshop.catalog.find(), { items: storefrontCatalogs, cursor: null });
+  assert.deepEqual(await storefront.eshop.catalog.find({ company_location_id: locationId }), { items: storefrontCatalogs, cursor: null });
+  assert.deepEqual(await storefront.eshop.catalog.find({ company_id: companyId }), { items: storefrontCatalogs, cursor: null });
   const facade = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl: "https://api.example.test", market: "us" });
-  assert.deepEqual(await facade.eshop.catalog.find(), storefrontCatalogs);
+  assert.deepEqual(await facade.eshop.catalog.find(), { items: storefrontCatalogs, cursor: null });
   assert.deepEqual(
     calls.map(({ url, method, body }) => [method, url.pathname, Object.fromEntries(url.searchParams), body]),
     [
@@ -211,7 +211,7 @@ test("catalog copy and batch writes post their exact bodies with app-picked crea
     const body = parsed.pathname.endsWith("/copy") ? copyResult : parsed.pathname.endsWith("/prices/batch") ? [price] : [item];
     return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const client = createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" });
+  const client = createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" });
   assert.deepEqual(await client.eshop.catalog.copy({ store_id: storeId, id: catalogId, source_catalog_id: id }), copyResult);
   const priceOperations = [
     { type: "create", id, catalog_id: catalogId, sellable, amount: 990, compare_at: null, min_quantity: 1, max_quantity: null, schedule: { type: "scheduled", starts_at: now, ends_at: now + 1 }, status: { type: "active" } },

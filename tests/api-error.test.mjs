@@ -5,6 +5,8 @@ import { ArkyApiError as RootApiError, createAdmin } from "../dist/index.js";
 import { ArkyApiError as AdminApiError } from "../dist/admin.js";
 import {
   ArkyApiError,
+  ArkyError,
+  ArkyNetworkError,
   CartPresentationChangedError,
   createStorefront,
   isArkyApiError,
@@ -39,6 +41,7 @@ test("a refused request throws an ArkyApiError with the Server's code, status, m
   assert.ok(error instanceof RootApiError);
   assert.ok(error instanceof AdminApiError);
   assert.ok(error instanceof Error);
+  assert.ok(error instanceof ArkyError);
   assert.equal(isArkyApiError(error), true);
   assert.equal(error.name, "ApiError");
   assert.equal(error.code, "GENERAL.VALIDATION_FAILED");
@@ -52,12 +55,16 @@ test("a refused request throws an ArkyApiError with the Server's code, status, m
   assert.equal(isDefiniteRefusal(error), true);
 });
 
-test("network failures are not ArkyApiErrors and are not definite refusals", async (context) => {
+test("network failures are ArkyNetworkErrors with a code, not ArkyApiErrors, and not definite refusals", async (context) => {
   recordFetch(context, () => {
     throw new TypeError("socket closed");
   });
   const error = await storefront().customer.getMe().catch((caught) => caught);
   assert.equal(error.name, "NetworkError");
+  assert.ok(error instanceof ArkyNetworkError);
+  assert.ok(error instanceof ArkyError);
+  assert.equal(error.code, "network");
+  assert.equal(error.aborted, false);
   assert.equal(error instanceof ArkyApiError, false);
   assert.equal(isArkyApiError(error), false);
   assert.equal(isDefiniteRefusal(error), false);
@@ -65,7 +72,7 @@ test("network failures are not ArkyApiErrors and are not definite refusals", asy
 
 test("Admin refusals are the same ArkyApiError class", async (context) => {
   recordFetch(context, () => errorResponse(401, "GENERAL.UNAUTHENTICATED", "Expired"));
-  const admin = createAdmin({ baseUrl: apiUrl, secretKey: "arky_sk_test" });
+  const admin = createAdmin({ apiUrl: apiUrl, secretKey: "arky_sk_test" });
   const error = await admin.account.getMe().catch((caught) => caught);
   assert.ok(error instanceof ArkyApiError);
   assert.ok(error instanceof AdminApiError);

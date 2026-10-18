@@ -6,18 +6,31 @@ import { CartPresentationChangedError } from "../types/cartCheckout";
 import { isCanonicalId } from "../utils/ids";
 import {
   clearDurableRequest,
-  DurableRequestStorageError,
+  DurableRequestError,
+  durableRequestKeys,
   durableRequestPayload,
   getOrCreateDurableRequest,
   isDefiniteRefusal,
   readDurableRequest,
   withDurableRequestLock,
+  type DurableRequest,
 } from "../utils/durableRequest";
 
 const label = "Cart checkout";
 
-function storageKey(scope: string): string {
-  return `arky:cart-checkout:v4:${encodeURIComponent(scope)}`;
+function slotKey(scope: string, slot: string | null): string {
+  const shared = `arky:cart-checkout:v4:${encodeURIComponent(scope)}`;
+  return slot === null ? shared : `${shared}:${encodeURIComponent(slot)}`;
+}
+
+export type CartMutationTarget =
+  | { type: "cart"; cart_id: string }
+  | { type: "new_cart"; slot: string }
+  | { type: "reorder" };
+
+interface KeptCheckout {
+  key: string;
+  request: CartCheckoutRequest;
 }
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -70,7 +83,7 @@ export function cartCheckoutRequest(input: unknown): CartCheckoutRequest {
     (input.contact_email !== null && !text(input.contact_email, 320)) ||
     !payment
   ) {
-    throw new DurableRequestStorageError(
+    throw new TypeError(
       "Cart checkout needs the app's order id, the cart id, the cart's updated_at, the reviewed presentation, the contact email or null, and how the order is paid",
     );
   }
@@ -83,6 +96,22 @@ export function cartCheckoutRequest(input: unknown): CartCheckoutRequest {
     contact_email: input.contact_email as string | null,
     payment,
   };
+}
+
+function keptCheckout(pending: DurableRequest): CartCheckoutRequest {
+  try {
+    return cartCheckoutRequest(durableRequestPayload(pending));
+  } catch {
+    throw new DurableRequestError("storage", "The kept cart checkout can't be read; nothing was sent");
+  }
+}
+
+function keptCheckouts(scope: string): KeptCheckout[] {
+  const shared = slotKey(scope, null);
+  return [shared, ...durableRequestKeys(`${shared}:`, label)].flatMap((key) => {
+    const kept = readDurableRequest(key, label);
+    return kept ? [{ key, request: keptCheckout(kept) }] : [];
+  });
 }
 
 function isCartQuote(value: unknown): value is CartQuote {
@@ -147,7 +176,7 @@ async function submit(
   }
   if (record(result) && result.type === "already_member") {
     if (!isCanonicalId(result.customer_group_member_id)) {
-      throw new DurableRequestStorageError("Cart checkout did not name the customer group member the buyer already holds");
+      throw new DurableRequestError("answer_mismatch", "Cart checkout did not name the customer group member the buyer already holds");
     }
     return { result, success };
   }
@@ -159,21 +188,32 @@ async function submit(
     !record(result.payment_action) ||
     (result.payment_id !== null && !isCanonicalId(result.payment_id))
   ) {
-    throw new DurableRequestStorageError("Cart checkout did not return the order it was asked to place");
+    throw new DurableRequestError("answer_mismatch", "Cart checkout did not return the order it was asked to place");
   }
   const order = await transport.getOrder(result.order_id, { signal: options?.signal, order_token: request.order_token });
   if (!record(order) || order.id !== request.order_id || order.source.type !== "cart" || order.source.cart_id !== request.cart_id) {
-    throw new DurableRequestStorageError("Cart checkout did not confirm the order placed from this cart");
+    throw new DurableRequestError("answer_mismatch", "Cart checkout did not confirm the order placed from this cart");
   }
   return { result, success };
 }
 
-export async function withCartMutation<T>(scope: string, operation: () => Promise<T>): Promise<T> {
+export async function withCartMutation<T>(
+  scope: string,
+  target: CartMutationTarget,
+  operation: () => Promise<T>,
+): Promise<T> {
   if (typeof globalThis.window === "undefined") return operation();
-  const key = storageKey(scope);
-  return withDurableRequestLock(key, label, async () => {
-    if (readDurableRequest(key, label)) {
-      throw new DurableRequestStorageError(
+  const shared = slotKey(scope, null);
+  return withDurableRequestLock(shared, label, async () => {
+    const blocked = keptCheckouts(scope).some(
+      (kept) =>
+        kept.key === shared ||
+        (target.type === "cart" && kept.request.cart_id === target.cart_id) ||
+        (target.type === "new_cart" && kept.key === slotKey(scope, target.slot)),
+    );
+    if (blocked) {
+      throw new DurableRequestError(
+        "pending",
         "Recover the unfinished cart checkout before changing the cart or starting another purchase",
       );
     }
@@ -190,10 +230,19 @@ export async function checkoutCart(
   return finishCartCheckoutSubmission(await submit(request, transport, options), options);
 }
 
-export async function retainCartCheckout(scope: string, input: CartCheckoutRequest): Promise<CartCheckoutRequest> {
+export async function retainCartCheckout(
+  scope: string,
+  slot: string | null,
+  input: CartCheckoutRequest,
+): Promise<CartCheckoutRequest> {
   const request = cartCheckoutRequest(input);
-  const key = storageKey(scope);
+  const key = slotKey(scope, slot);
+  const shared = slotKey(scope, null);
   await withDurableRequestLock(key, label, async () => {
+    const elsewhere = keptCheckouts(scope).some(
+      (kept) => kept.key !== key && (kept.key === shared || kept.request.cart_id === request.cart_id),
+    );
+    if (elsewhere) throw new DurableRequestError("pending", "Recover the unfinished cart checkout before starting another one");
     getOrCreateDurableRequest(key, request, label);
     retainOrderToken(scope, request.order_id, request.order_token);
   });
@@ -214,43 +263,45 @@ function sameCheckout(pending: CartCheckoutRequest, draft: CartCheckoutDraft): b
 
 export async function checkoutCartWithNewIds(
   scope: string,
+  slot: string | null,
   draft: CartCheckoutDraft,
   ids: CartCheckoutIds,
   transport: CartCheckoutTransport<CartCheckoutRequest>,
   options?: RequestOptions,
 ): Promise<CheckoutAcceptance> {
-  const pending = await pendingCartCheckout(scope);
+  const pending = await pendingCartCheckout(scope, slot);
   if (pending && !sameCheckout(pending, draft)) {
-    throw new DurableRequestStorageError("Recover the unfinished cart checkout before starting another one");
+    throw new DurableRequestError("pending", "Recover the unfinished cart checkout before starting another one");
   }
   if (!pending) {
-    await retainCartCheckout(scope, { ...draft, order_id: ids.newId("order"), order_token: ids.newOrderToken() });
+    await retainCartCheckout(scope, slot, { ...draft, order_id: ids.newId("order"), order_token: ids.newOrderToken() });
   }
-  const result = await recoverCartCheckout(scope, transport, options);
-  if (!result) throw new DurableRequestStorageError("The kept cart checkout was settled elsewhere; read the order");
+  const result = await recoverCartCheckout(scope, slot, transport, options);
+  if (!result) throw new DurableRequestError("settled_elsewhere", "The kept cart checkout was settled elsewhere; read the order");
   return result;
 }
 
-export async function pendingCartCheckout(scope: string): Promise<CartCheckoutRequest | null> {
+export async function pendingCartCheckout(scope: string, slot: string | null): Promise<CartCheckoutRequest | null> {
   if (typeof globalThis.window === "undefined") return null;
-  const key = storageKey(scope);
+  const key = slotKey(scope, slot);
   return withDurableRequestLock(key, label, async () => {
     const pending = readDurableRequest(key, label);
-    return pending ? cartCheckoutRequest(durableRequestPayload(pending)) : null;
+    return pending ? keptCheckout(pending) : null;
   });
 }
 
 export async function recoverCartCheckout(
   scope: string,
+  slot: string | null,
   transport: CartCheckoutTransport<CartCheckoutRequest>,
   options?: RequestOptions,
 ): Promise<CheckoutAcceptance | null> {
   if (typeof globalThis.window === "undefined") return null;
-  const key = storageKey(scope);
+  const key = slotKey(scope, slot);
   return withDurableRequestLock(key, label, async () => {
     const pending = readDurableRequest(key, label);
     if (!pending) return null;
-    const request = cartCheckoutRequest(durableRequestPayload(pending));
+    const request = keptCheckout(pending);
     const submitted = await submit(request, transport, options, () => clearDurableRequest(pending, label));
     clearDurableRequest(pending, label);
     return finishCartCheckoutSubmission(submitted, options);

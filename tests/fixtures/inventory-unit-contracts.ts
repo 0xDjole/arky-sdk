@@ -7,7 +7,7 @@ import type {
   InventoryUnitWriteOffSource,
   MoveInventoryUnitParams,
   ReceiveInventoryUnitParams,
-  ResolveFulfillmentUnitSlotsParams,
+  GetFulfillmentUnitSlotsParams,
   SelectedUnit,
   WriteOffInventoryUnitParams,
 } from "arky-sdk";
@@ -21,8 +21,8 @@ type Api = ReturnType<typeof createAdmin>["eshop"]["inventoryUnit"];
 type WorkApi = ReturnType<typeof createAdmin>["eshop"]["fulfillmentJob"];
 
 export type UnitContract = [
-  Assert<Equal<Awaited<ReturnType<WorkApi["unitSlots"]>>, FulfillmentUnitSlots>>,
-  Assert<Equal<Parameters<WorkApi["unitSlots"]>[0], ResolveFulfillmentUnitSlotsParams>>,
+  Assert<Equal<Awaited<ReturnType<WorkApi["getUnitSlots"]>>, FulfillmentUnitSlots>>,
+  Assert<Equal<Parameters<WorkApi["getUnitSlots"]>[0], GetFulfillmentUnitSlotsParams>>,
   Assert<Equal<FulfillmentUnitSlots["slots"][number]["inventory_unit"], InventoryUnit | null>>,
   Assert<Equal<InventoryUnit, PublicUnit>>,
   Assert<Equal<keyof InventoryUnit, "id" | "store_id" | "inventory_item_id" | "asset_tag" | "manufacturer_serial" | "status" | "created_at" | "updated_at">>,

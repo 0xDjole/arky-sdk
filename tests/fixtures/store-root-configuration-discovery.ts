@@ -13,6 +13,11 @@ import type {
   StoreLocation,
   StoreLocationStatus,
   StoreRecordParams,
+  StorefrontCountry,
+  StorefrontGetCountryParams,
+  StorefrontGetLocationParams,
+  StorefrontGetMarketByKeyParams,
+  StorefrontGetMarketParams,
   StorefrontPaymentOption,
   StorefrontSetup,
 } from "arky-sdk";
@@ -24,19 +29,25 @@ type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ?
 type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
 
 export type ConfigurationPages = [
-  Assert<Equal<Awaited<ReturnType<Admin["store"]["market"]["list"]>>, PaginatedResponse<Market>>>,
-  Assert<Equal<Awaited<ReturnType<Admin["store"]["location"]["list"]>>, PaginatedResponse<StoreLocation>>>,
-  Assert<Equal<Awaited<ReturnType<Admin["store"]["paymentOption"]["list"]>>, PaginatedResponse<PaymentOption>>>,
+  Assert<Equal<Awaited<ReturnType<Admin["store"]["market"]["find"]>>, PaginatedResponse<Market>>>,
+  Assert<Equal<Awaited<ReturnType<Admin["store"]["location"]["find"]>>, PaginatedResponse<StoreLocation>>>,
+  Assert<Equal<Awaited<ReturnType<Admin["store"]["paymentOption"]["find"]>>, PaginatedResponse<PaymentOption>>>,
   Assert<Equal<Parameters<Admin["store"]["market"]["get"]>[0], StoreRecordParams>>,
   Assert<Equal<Parameters<Admin["store"]["location"]["get"]>[0], StoreRecordParams>>,
   Assert<Equal<NonNullable<FindMarketsParams["status"]>, MarketStatus["type"]>>,
   Assert<Equal<NonNullable<FindStoreLocationsParams["status"]>, StoreLocationStatus["type"]>>,
-  Assert<Equal<NonNullable<Parameters<Front["store"]["market"]["list"]>[0]>, FindStorefrontMarketsParams>>,
-  Assert<Equal<NonNullable<Parameters<Front["store"]["location"]["list"]>[0]>, FindStorefrontLocationsParams>>,
+  Assert<Equal<NonNullable<Parameters<Front["store"]["market"]["find"]>[0]>, FindStorefrontMarketsParams>>,
+  Assert<Equal<NonNullable<Parameters<Front["store"]["location"]["find"]>[0]>, FindStorefrontLocationsParams>>,
   Assert<Missing<FindStorefrontMarketsParams, "store_id" | "status">>,
   Assert<Missing<FindStorefrontLocationsParams, "store_id" | "status" | "query" | "pickup_point">>,
   Assert<Equal<keyof FindStorefrontLocationsParams, "key" | "sort_field" | "sort_direction" | "limit" | "cursor">>,
-  Assert<Equal<Parameters<Front["store"]["market"]["getByKey"]>[0], string>>,
+  Assert<Equal<Parameters<Front["store"]["market"]["getByKey"]>[0], StorefrontGetMarketByKeyParams>>,
+  Assert<Equal<keyof StorefrontGetMarketByKeyParams, "key">>,
+  Assert<Equal<Parameters<Front["store"]["market"]["get"]>[0], StorefrontGetMarketParams>>,
+  Assert<Equal<Parameters<Front["store"]["location"]["get"]>[0], StorefrontGetLocationParams>>,
+  Assert<Equal<Parameters<Front["store"]["country"]["get"]>[0], StorefrontGetCountryParams>>,
+  Assert<Equal<Awaited<ReturnType<Front["store"]["country"]["find"]>>, PaginatedResponse<StorefrontCountry>>>,
+  Assert<Missing<Front["store"]["location"], "getCountries" | "getCountry" | "list">>,
 ];
 
 export type PublicSetup = [

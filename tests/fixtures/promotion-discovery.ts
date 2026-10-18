@@ -2,6 +2,7 @@ import type { createAdmin } from "arky-sdk/admin";
 import type { createStorefront } from "arky-sdk/storefront";
 import type {
   StorefrontPromotion,
+  GetStorefrontPromotionParams,
   CreatePromotionCodeParams,
   CreatePromotionParams,
   FindPromotionCodesParams,
@@ -62,6 +63,7 @@ export type PromotionContracts = [
   Assert<Equal<PromotionEffect["type"], "item_percentage" | "item_fixed" | "order_percentage" | "order_fixed" | "delivery_percentage" | "delivery_fixed" | "buy_x_get_y">>,
   Assert<Equal<StorefrontPromotion, { id: string; key: string; blocks: Block[] }>>,
   Assert<Equal<keyof StorefrontEshop["promotion"], "get">>,
-  Assert<Equal<Parameters<StorefrontEshop["promotion"]["get"]>[0], string>>,
+  Assert<Equal<Parameters<StorefrontEshop["promotion"]["get"]>[0], GetStorefrontPromotionParams>>,
+  Assert<Equal<keyof GetStorefrontPromotionParams, "id">>,
   Assert<Equal<Awaited<ReturnType<StorefrontEshop["promotion"]["get"]>>, StorefrontPromotion>>,
 ];

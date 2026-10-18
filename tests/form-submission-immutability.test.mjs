@@ -7,7 +7,7 @@ import { ids, recordFetch } from "./helpers/arky-fixtures.mjs";
 const STORE_ID = "6d2e8a14-b0c7-4f93-a5d1-3c9e7b0f2a48";
 
 test("FormSubmission answers are read-only and a submission leaves only through a versioned delete", async (context) => {
-  const arky = createAdmin({ baseUrl: "https://api.test", secretKey: "token-contract" });
+  const arky = createAdmin({ apiUrl: "https://api.test", secretKey: "token-contract" });
   for (const removed of ["updateSubmission", "permanentlyDelete", "restoreSubmission"]) assert.equal(removed in arky.forms, false, removed);
   assert.equal(typeof arky.forms.getSubmission, "function");
   assert.equal(typeof arky.forms.deleteSubmission, "function");

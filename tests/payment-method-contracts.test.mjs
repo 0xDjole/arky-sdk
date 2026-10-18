@@ -15,7 +15,7 @@ const owners = [
 ];
 
 function surfaceApi(surface) {
-  if (surface === "admin") return createAdmin({ baseUrl: apiUrl, secretKey: "arky_api_contract" }).eshop.paymentMethod;
+  if (surface === "admin") return createAdmin({ apiUrl: apiUrl, secretKey: "arky_api_contract" }).eshop.paymentMethod;
   const make = surface === "initialized" ? initialize : createStorefront;
   return make(publishableKey, { ...idFactories, apiUrl, sessionStorage: visitorStorage() }).eshop.paymentMethod;
 }
@@ -126,7 +126,7 @@ test("storefront setup exposes each option's own saved-card wording and preserve
   };
   const calls = recordFetch(context, () => setup);
   const api = createStorefront(publishableKey, { ...idFactories, apiUrl, sessionStorage: visitorStorage() });
-  const read = await api.store.getSetup();
+  const read = await api.getSetup();
   assert.deepEqual(read, setup);
   assert.equal(read.payment_options[0].saved_card_terms.bs, terms);
   assert.equal(read.payment_options[0].saved_card_terms.en, undefined);

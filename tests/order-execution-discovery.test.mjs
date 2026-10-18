@@ -20,7 +20,7 @@ test("order execution reads keep empty continuations, the order filter and exact
     [{ fulfillment_job_line_id: "line", order_number: "1042", product_key: "stock-item", product_blocks: [], variant_sku: null, image: null, quantity: 2, source: { type: "order_product", order_product_line_item_id: "product", order_unit_spans: [] } }],
   ];
   const calls = recordFetch(context, () => replies.shift());
-  const api = createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop;
+  const api = createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop;
   const scope = { store_id: STORE_ID, order_id: "accepted", limit: 20 };
   assert.deepEqual(await api.fulfillment.find(scope), { items: [], cursor });
   assert.equal(calls.length, 1);
@@ -28,9 +28,10 @@ test("order execution reads keep empty continuations, the order filter and exact
   assert.deepEqual((await api.fulfillment.get({ store_id: STORE_ID, fulfillment_id: "fulfillment/id" })).type.trackings, []);
   assert.deepEqual(await api.fulfillmentJob.find(scope), { items: [], cursor });
   assert.equal((await api.fulfillmentJob.get({ store_id: STORE_ID, fulfillment_job_id: "work/id" })).type.order_id, "accepted");
-  const items = await api.fulfillmentJob.items({ store_id: STORE_ID, fulfillment_job_id: "work/id" });
-  assert.equal(items[0].product_key, "stock-item");
-  assert.equal(items[0].order_number, "1042");
+  const items = await api.fulfillmentJob.findItems({ store_id: STORE_ID, fulfillment_job_id: "work/id" });
+  assert.equal(items.cursor, null);
+  assert.equal(items.items[0].product_key, "stock-item");
+  assert.equal(items.items[0].order_number, "1042");
   assert.deepEqual(calls[0].query, { order_id: "accepted", limit: "20" });
   assert.deepEqual(calls[1].query, { order_id: "accepted", limit: "20", cursor });
   assert.deepEqual(calls[3].query, { order_id: "accepted", limit: "20" });

@@ -1,6 +1,6 @@
 import type { Payment } from "../types/payment";
 
-export type PaymentOutcome = "paid" | "pay_later" | "awaiting" | "failed";
+export type PaymentOutcome = "paid" | "pay_later" | "awaiting" | "unconfirmed" | "failed";
 
 function collected(payment: Payment): number {
   const type = payment.type;
@@ -21,8 +21,9 @@ export function paymentOutcome(payment: Payment): PaymentOutcome {
     case "pending":
     case "requires_action":
     case "closing":
-    case "unknown":
       return "awaiting";
+    case "unknown":
+      return "unconfirmed";
     case "expired":
     case "cancelled":
     case "declined":

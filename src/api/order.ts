@@ -21,6 +21,7 @@ import type {
   OrderFinancialSummary,
   ResendOrderReceiptParams,
   RescheduleOrderBookingItemParams,
+  ResumeOrderPaymentParams,
   RevokeOrderAccessParams,
   UpdateOrderParams,
 } from "../types/order";
@@ -31,7 +32,7 @@ import type {
   OrderCredit,
   VoidOrderCreditParams,
 } from "../types/orderCredit";
-import type { Payment } from "../types/payment";
+import type { CheckoutPaymentAction, Payment } from "../types/payment";
 import { requireId } from "../utils/ids";
 import { segment, storePath, storeRecordPath } from "./paths";
 
@@ -170,13 +171,22 @@ export const createOrderApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.get<OrderFinancialSummary>(`${orderPath(params.store_id, params.id)}/financial-summary`, options);
     },
 
-    findPayments(params: FindOrderPaymentsParams, options?: RequestOptions): Promise<Payment[]> {
-      return apiConfig.httpClient.get<Payment[]>(`${orderPath(params.store_id, params.order_id)}/payments`, options);
+    async findPayments(params: FindOrderPaymentsParams, options?: RequestOptions): Promise<PaginatedResponse<Payment>> {
+      const items = await apiConfig.httpClient.get<Payment[]>(`${orderPath(params.store_id, params.order_id)}/payments`, options);
+      return { items, cursor: null };
     },
 
     getPayment(params: GetOrderPaymentParams, options?: RequestOptions): Promise<Payment> {
       return apiConfig.httpClient.get<Payment>(
         `${orderPath(params.store_id, params.order_id)}/payments/${segment(params.payment_id)}`,
+        options,
+      );
+    },
+
+    resumePayment(params: ResumeOrderPaymentParams, options?: RequestOptions): Promise<CheckoutPaymentAction> {
+      return apiConfig.httpClient.post<CheckoutPaymentAction>(
+        `${orderPath(params.store_id, params.order_id)}/payment-action`,
+        undefined,
         options,
       );
     },
