@@ -272,6 +272,14 @@ export interface StorefrontFindCompanyLocationsParams {
   cursor?: string | null;
 }
 
+export interface StorefrontGetCompanyLocationParams {
+  id: string;
+}
+
+export interface StorefrontGetCompanyAccessParams {
+  id: string;
+}
+
 export interface CreateCompanyRoleParams {
   store_id: string;
   id: string;

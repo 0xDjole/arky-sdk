@@ -1,4 +1,5 @@
 import type { StorefrontApiConfig } from "../services/clientTypes";
+import { ArkyError } from "../types/apiError";
 import type { SendPageViewParams } from "../types/pageView";
 
 export const PAGE_VIEW_PATH = "/v1/storefront/page-views";
@@ -12,7 +13,7 @@ export const createStorefrontPageViewsApi = (apiConfig: Pick<StorefrontApiConfig
       throw new TypeError("A page view referrer is the browser's referrer URL");
     }
     if (typeof navigator === "undefined" || typeof navigator.sendBeacon !== "function") {
-      throw new Error("Page views are sent from a browser that supports navigator.sendBeacon");
+      throw new TypeError("Page views are sent from a browser that supports navigator.sendBeacon");
     }
     const body = JSON.stringify({
       publishable_key: apiConfig.publishableKey,
@@ -20,7 +21,7 @@ export const createStorefrontPageViewsApi = (apiConfig: Pick<StorefrontApiConfig
       referrer: params.referrer || null,
     });
     if (!navigator.sendBeacon(`${apiConfig.apiUrl}${PAGE_VIEW_PATH}`, body)) {
-      throw new Error("The browser did not queue the page view");
+      throw new ArkyError("not_sent", "The browser did not queue the page view");
     }
   },
 });

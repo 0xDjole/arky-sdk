@@ -69,8 +69,9 @@ export const createEmailTemplateApi = (apiConfig: ApiConfig) => ({
     return apiConfig.httpClient.get<EmailTemplate>(storeRecordPath(params.store_id, "email-templates", params.id), options);
   },
 
-  defaults(params: FindEmailTemplateDefaultsParams, options?: RequestOptions): Promise<EmailTemplateDefault[]> {
-    return apiConfig.httpClient.get<EmailTemplateDefault[]>(storePath(params.store_id, "email-templates/defaults"), options);
+  async findDefaults(params: FindEmailTemplateDefaultsParams, options?: RequestOptions): Promise<PaginatedResponse<EmailTemplateDefault>> {
+    const items = await apiConfig.httpClient.get<EmailTemplateDefault[]>(storePath(params.store_id, "email-templates/defaults"), options);
+    return { items, cursor: null };
   },
 
   create(params: CreateEmailTemplateParams, options?: RequestOptions): Promise<EmailTemplate> {
@@ -130,8 +131,9 @@ export const createEmailProviderApi = (apiConfig: ApiConfig) => ({
   get(params: GetEmailProviderParams, options?: RequestOptions): Promise<EmailProvider | null> {
     return apiConfig.httpClient.get<EmailProvider | null>(storePath(params.store_id, "email-provider"), options);
   },
-  domains(params: FindEmailProviderDomainsParams, options?: RequestOptions): Promise<EmailProviderDomain[]> {
-    return apiConfig.httpClient.get<EmailProviderDomain[]>(storePath(params.store_id, "email-provider/domains"), options);
+  async findDomains(params: FindEmailProviderDomainsParams, options?: RequestOptions): Promise<PaginatedResponse<EmailProviderDomain>> {
+    const items = await apiConfig.httpClient.get<EmailProviderDomain[]>(storePath(params.store_id, "email-provider/domains"), options);
+    return { items, cursor: null };
   },
 });
 

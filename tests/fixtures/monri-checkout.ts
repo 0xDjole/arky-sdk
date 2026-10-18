@@ -1,5 +1,5 @@
 import { MonriCheckoutError, mountCheckoutAction } from "arky-sdk";
-import type { CheckoutPaymentAction, EmbeddedCheckoutCallbacks, EmbeddedCheckoutMount, MonriBuyerDetails, MonriComponentsAction } from "arky-sdk";
+import type { CheckoutPaymentAction, EmbeddedCheckoutMount, MonriBuyerDetails, MonriComponentsAction, MountCheckoutActionParams } from "arky-sdk";
 import { mountCheckoutAction as mountStorefront } from "arky-sdk/storefront";
 
 type Assert<T extends true> = T;
@@ -14,17 +14,20 @@ export type MonriCheckoutContracts = [
   Assert<Missing<MonriComponentsAction, "payment_id" | "expires_at" | "merchant_key">>,
   Assert<Equal<MonriComponentsAction["save_card"], boolean>>,
   Assert<Equal<Parameters<MonriMount["confirm"]>[0], MonriBuyerDetails>>,
+  Assert<Equal<keyof MonriBuyerDetails, "full_name" | "address" | "city" | "zip" | "phone" | "country" | "email">>,
   Assert<Missing<MonriMount, "checkout">>,
   Assert<Missing<StripeMount, "confirm">>,
   Assert<Equal<typeof mountCheckoutAction, typeof mountStorefront>>,
-  Assert<Equal<Parameters<typeof mountCheckoutAction>[3], string | undefined>>,
-  Assert<Equal<NonNullable<Parameters<typeof mountCheckoutAction>[2]>, EmbeddedCheckoutCallbacks>>,
-  Assert<Equal<MonriCheckoutError["code"], "invalid_action" | "unavailable" | "invalid_details" | "already_submitted" | "unknown_result">>,
+  Assert<Equal<Parameters<typeof mountCheckoutAction>, [MountCheckoutActionParams]>>,
+  Assert<Equal<MountCheckoutActionParams["payment_id"], string | null | undefined>>,
+  Assert<Equal<MountCheckoutActionParams["element"], string | HTMLElement>>,
+  Assert<Equal<NonNullable<MountCheckoutActionParams["onValidationError"]>, (error: MonriCheckoutError | null) => void>>,
+  Assert<Equal<MonriCheckoutError["code"], "invalid_action" | "unavailable" | "invalid_card" | "invalid_details" | "already_submitted" | "unknown_result">>,
 ];
 
 export function inspectMount(mount: EmbeddedCheckoutMount): void {
   if (mount.type === "monri_components") {
-    void mount.confirm({ fullName: "Test Buyer", address: "Test Street 1", city: "Sarajevo", zip: "71000", phone: "+38761123456", country: "BA", email: "buyer@example.test" });
+    void mount.confirm({ full_name: "Test Buyer", address: "Test Street 1", city: "Sarajevo", zip: "71000", phone: "+38761123456", country: "BA", email: "buyer@example.test" });
   } else {
     void mount.checkout;
   }

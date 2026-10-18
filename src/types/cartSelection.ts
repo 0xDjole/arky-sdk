@@ -1,3 +1,4 @@
+import { ArkyError } from "./apiError";
 import type { RequestOptions } from "./httpClient";
 import type {
   Cart,
@@ -30,6 +31,30 @@ export interface CartSelectionTransport {
   reorder(params: StorefrontReorderParams, options?: RequestOptions): Promise<ReorderedCart>;
 }
 
-export class CartSelectionError extends Error {
-  readonly name = "CartSelectionError";
+export type CartErrorCode =
+  | "context_changed"
+  | "other_cart"
+  | "no_cart"
+  | "not_ready"
+  | "answer_mismatch"
+  | "busy"
+  | "storage"
+  | "no_session";
+
+const cartErrorBrand = Symbol.for("arky.commerce.CartError");
+
+export class CartError extends ArkyError {
+  readonly name: string = "CartError";
+  readonly [cartErrorBrand] = true;
+
+  static [Symbol.hasInstance](value: unknown): boolean {
+    return value instanceof Error && cartErrorBrand in value;
+  }
+
+  constructor(
+    readonly code: CartErrorCode,
+    message: string,
+  ) {
+    super(code, message);
+  }
 }

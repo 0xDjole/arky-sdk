@@ -1,26 +1,16 @@
-import {
-  ArkyApiError,
-  CartPresentationChangedError,
-  CheckoutFlowError,
-  CustomerGroupJoinError,
-  isDefiniteRefusal,
-} from "arky-sdk/storefront";
-import { store } from "./quick-start.js";
+import { ArkyApiError, ArkyError, CartPresentationChangedError, isDefiniteRefusal } from "arky-sdk/storefront";
+import { arky } from "./setup.js";
 
-export function errorText(error: unknown): string {
-  if (error instanceof CartPresentationChangedError) return `The order changed; the new total is ${error.quote.totals.total}`;
-  if (error instanceof CheckoutFlowError) return `Checkout ${error.code}: ${error.message}`;
-  if (error instanceof CustomerGroupJoinError) return `Sign-up ${error.code}: ${error.message}`;
-  if (error instanceof ArkyApiError) {
-    if (error.code === "GENERAL.VALIDATION_FAILED") return error.validationErrors.map((item) => item.field).join(", ");
-    return `${error.statusCode} ${error.code}: ${error.message}`;
-  }
-  return "Something went wrong; try again";
+export function errorKey(error: unknown): string {
+  if (error instanceof CartPresentationChangedError) return `quote_changed:${error.quote.totals.total}`;
+  if (error instanceof ArkyApiError) return error.code;
+  if (error instanceof ArkyError) return `sdk.${error.name}.${error.code}`;
+  if (error instanceof TypeError) return "bug";
+  return "failed";
 }
 
 try {
-  await store.customer.requestCode({ email: "ana@example.com", language: "en" });
+  await arky.customer.requestCode({ email: "ana@example.com", language: "en" });
 } catch (error) {
-  const retry = !isDefiniteRefusal(error);
-  console.log(errorText(error), retry ? "the same request can be sent again" : "change the request first");
+  console.log(errorKey(error), isDefiniteRefusal(error) ? "change the request first" : "the same request can be sent again");
 }

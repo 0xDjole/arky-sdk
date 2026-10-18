@@ -7,7 +7,7 @@ export interface FulfillmentUnitSelection {
   unit_spans: FulfillmentUnitSpan[];
 }
 
-export interface ResolveFulfillmentUnitSlotsParams {
+export interface GetFulfillmentUnitSlotsParams {
   store_id: string;
   fulfillment_job_id: string;
   expected_updated_at: EpochMilliseconds;

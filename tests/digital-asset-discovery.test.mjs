@@ -15,7 +15,7 @@ test("DigitalAsset keeps native status pagination and exact selection, and the p
     calls.push({ url: new URL(url), method: init.method ?? "GET" });
     return new Response(JSON.stringify(replies.shift()), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const admin = createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" });
+  const admin = createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" });
   const params = { store_id: storeId, status: "active", limit: 20 };
   const first = await admin.eshop.digitalAsset.find(params);
   assert.deepEqual(first, { items: [], cursor });

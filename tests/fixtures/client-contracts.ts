@@ -11,7 +11,7 @@ import type {
   IncomingWebhookTarget,
   ResendEvent,
   EmailFailure,
-  ArkyCartCheckoutInput,
+  ArkyCartCheckoutParams,
   StorefrontContext,
   AccountSession,
   AuthToken,
@@ -48,13 +48,13 @@ import type {
   ResolvePaymentRefundParams,
   SendBroadcastTestParams,
   SendEmailTemplateTestParams,
-  ServerError,
   StorefrontFormSubmission,
   StorefrontOptions,
   StorefrontSetup,
   Store as StoreRecord,
   StoreUsageSummary,
   SubmitFormParams,
+  SubmitFormRequest,
   SupportFlow,
   VerifyCustomerCodeParams,
 } from "arky-sdk";
@@ -74,12 +74,13 @@ type Assert<T extends true> = T;
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
 type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
+type OptionalField<T, K extends keyof T> = {} extends Pick<T, K> ? true : false;
 type Admin = ReturnType<typeof createAdmin>;
 type Storefront = ReturnType<typeof createStorefront>;
 type Store = ReturnType<typeof initialize>;
 type Answer<F extends (...args: never[]) => unknown> = Awaited<ReturnType<F>>;
 
-const admin = createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_api_contract" });
+const admin = createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_api_contract" });
 const storefront = createStorefront(`arky_pk_${"a".repeat(42)}A`, { apiUrl: "https://api.example.test", locale: "bs", market: "bih", createVisitorIdentity: () => ({ customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A` });
 const store_id = "c3d8f1a2-6b47-4e95-8a0c-2f7d5e9b1a63";
 
@@ -87,7 +88,7 @@ export const notificationPage: Promise<PaginatedResponse<OutgoingEmail>> = admin
 export const templatePreview: Promise<EmailTemplatePreview> = admin.notification.template.preview({ store_id, id: "template", language: "bs" });
 export const templateTest: Promise<OutgoingEmail> = admin.notification.template.test({ store_id, id: "template", outgoing_email_id: "8a6d4f2b-9c1e-4e57-b3a8-1f6c9e2d4b70", language: "bs" });
 export const broadcastTest: Promise<OutgoingEmail> = admin.broadcast.test({ store_id, id: "broadcast", outgoing_email_id: "8a6d4f2b-9c1e-4e57-b3a8-1f6c9e2d4b70", language: "en" });
-export const usage: Promise<StoreUsageSummary> = admin.store.usage.find({ store_id });
+export const usage: Promise<StoreUsageSummary> = admin.store.usage.get({ store_id });
 export const setup: Promise<StorefrontSetup> = storefront.getSetup();
 export const formAnswers: FormAnswerInput[] = [{ type: "text", question_id: "q", key: "name", value: "Ana" }];
 export const formValues: FormValues = { name: "Ana", phone: null, notes: undefined, colors: ["red"] };
@@ -97,7 +98,7 @@ export const pausedSending: Promise<StoreRecord> = admin.store.pauseEmailSending
 export const allowedSending: Promise<StoreRecord> = admin.store.allowEmailSending({ store_id, expected_updated_at: createdAt });
 
 export type AdminSurfaceContracts = [
-  Assert<Equal<keyof Admin, "account" | "platform" | "store" | "notification" | "broadcast" | "support" | "media" | "category" | "content" | "forms" | "companies" | "customers" | "actions" | "experiments" | "counts" | "eshop" | "session" | "isAuthenticated" | "onAuthStateChanged" | "logout" | "utils">>,
+  Assert<Equal<keyof Admin, "account" | "platform" | "store" | "notification" | "broadcast" | "support" | "media" | "category" | "content" | "forms" | "companies" | "customers" | "actions" | "experiments" | "counts" | "eshop" | "session" | "isAuthenticated" | "onAuthStateChanged" | "logout">>,
   Assert<Missing<Admin, "automation">>,
   Assert<Missing<Admin, "campaign">>,
   Assert<Missing<Admin, "leadResearch">>,
@@ -117,11 +118,11 @@ export type AdminSurfaceContracts = [
   Assert<Equal<keyof Admin["support"], "flow" | "conversation">>,
   Assert<Missing<Admin["store"], "storefrontClient">>,
   Assert<Equal<keyof Admin["store"]["apiKey"], "find" | "get" | "create" | "revoke" | "delete">>,
-  Assert<Equal<keyof Admin["platform"]["administrator"], "list" | "me" | "add" | "remove">>,
+  Assert<Equal<keyof Admin["platform"]["administrator"], "find" | "getMe" | "add" | "remove">>,
   Assert<Equal<keyof Admin["eshop"]["payment"], "find" | "get" | "createManual" | "recordCollection" | "voidCollection" | "createRefund" | "recordRefundReceipt" | "cancelRefund" | "resolveRefund" | "resolveCharge" | "resolveHold" | "cancel">>,
   Assert<Equal<keyof Admin["notification"]["incomingWebhook"], "find" | "get" | "resolve">>,
   Assert<Equal<Answer<Admin["account"]["getMe"]>, Account>>,
-  Assert<Equal<Answer<Admin["account"]["session"]["list"]>, PaginatedResponse<AccountSession>>>,
+  Assert<Equal<Answer<Admin["account"]["session"]["find"]>, PaginatedResponse<AccountSession>>>,
   Assert<Equal<Answer<Admin["account"]["auth"]["verify"]>, AuthToken>>,
   Assert<Missing<AuthToken, "scope">>,
   Assert<Equal<Answer<Admin["platform"]["administrator"]["add"]>, PlatformAdministrator>>,
@@ -155,7 +156,6 @@ export type AdminSurfaceContracts = [
   Assert<Equal<MonriConfirmation["type"], "made" | "not_made">>,
   Assert<Equal<PaymentType["type"], "stripe_checkout" | "stripe_card" | "monri_checkout" | "monri_card" | "cash_on_delivery" | "manual">>,
   Assert<Equal<CustomerType["type"], "anonymous" | "verified">>,
-  Assert<Equal<keyof ServerError, "message" | "error" | "statusCode" | "validationErrors">>,
   Assert<Missing<Extract<AccountSessionStatus, { type: "pending_verification" }>, "notification_id">>,
   Assert<Equal<ExperimentVariantResult["open_windows"], number>>,
   Assert<Missing<ExperimentResults, "maturing">>,
@@ -177,7 +177,7 @@ export type StorefrontSurfaceContracts = [
   Assert<Missing<Storefront, "customer_group_email_consents">>,
   Assert<Missing<Storefront["customer"], "captureEmail">>,
   Assert<Missing<Storefront["eshop"], "digital">>,
-  Assert<Missing<Storefront["eshop"]["order"], "resumePayment">>,
+  Assert<Missing<Storefront["eshop"]["order"], "paymentAction" | "fulfillments">>,
   Assert<Equal<keyof Storefront["customer"], "identify" | "requestCode" | "verify" | "changeEmail" | "refresh" | "logout" | "getMe" | "updateMe" | "resubscribe" | "unsubscribe">>,
   Assert<Equal<Answer<Storefront["customer"]["unsubscribe"]>, CustomerMe>>,
   Assert<Equal<Answer<Storefront["customer"]["resubscribe"]>, CustomerMe>>,
@@ -186,14 +186,15 @@ export type StorefrontSurfaceContracts = [
   Assert<Equal<keyof ChangeCustomerEmailParams, "code">>,
   Assert<Equal<Answer<Storefront["customer"]["changeEmail"]>, CustomerMe>>,
   Assert<Equal<keyof RequestCustomerCodeParams, "id" | "email" | "language" | "bot_check_token">>,
-  Assert<RequiredField<RequestCustomerCodeParams, "id">>,
+  Assert<OptionalField<RequestCustomerCodeParams, "id">>,
   Assert<RequiredField<RequestCustomerCodeParams, "language">>,
-  Assert<Equal<keyof SubmitFormParams, "form_id" | "questions_updated_at" | "id" | "language" | "answers" | "bot_check_token">>,
+  Assert<Equal<keyof SubmitFormParams, "id" | "language" | "bot_check_token">>,
+  Assert<Equal<keyof SubmitFormRequest, "form_id" | "questions_updated_at" | "id" | "language" | "answers" | "bot_check_token">>,
   Assert<Equal<Answer<Storefront["forms"]["submit"]>, StorefrontFormSubmission>>,
   Assert<Equal<keyof StorefrontFormSubmission, "id" | "form_id" | "language" | "answers" | "stage_id" | "created_at" | "updated_at">>,
-  Assert<Equal<keyof NonNullable<Parameters<Storefront["store"]["location"]["list"]>[0]>, "key" | "sort_field" | "sort_direction" | "limit" | "cursor">>,
-  Assert<Equal<Parameters<Store["eshop"]["cart"]["checkout"]>[0], ArkyCartCheckoutInput>>,
-  Assert<Equal<Answer<Store["eshop"]["cart"]["checkout"]>, CheckoutAcceptance>>,
+  Assert<Equal<keyof NonNullable<Parameters<Storefront["store"]["location"]["find"]>[0]>, "key" | "sort_field" | "sort_direction" | "limit" | "cursor">>,
+  Assert<Equal<Parameters<ReturnType<Store["eshop"]["cart"]>["checkout"]>[0], ArkyCartCheckoutParams>>,
+  Assert<Equal<Answer<ReturnType<Store["eshop"]["cart"]>["checkout"]>, CheckoutAcceptance>>,
   Assert<Equal<keyof StorefrontContext, "locale" | "market">>,
   Assert<Missing<StorefrontOptions, "salesChannel">>,
   Assert<RequiredField<StorefrontOptions, "createVisitorIdentity">>,

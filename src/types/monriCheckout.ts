@@ -1,4 +1,16 @@
+import { ArkyError } from "./apiError";
+
 export interface MonriBuyerDetails {
+  full_name: string;
+  address: string;
+  city: string;
+  zip: string;
+  phone: string;
+  country: string;
+  email: string;
+}
+
+export interface MonriBrowserBuyerDetails {
   fullName: string;
   address: string;
   city: string;
@@ -21,17 +33,33 @@ export interface MonriBrowserClient {
       showInstallmentsSelection: false;
     }): MonriCardComponent;
   };
-  confirmPayment(card: MonriCardComponent, details: MonriBuyerDetails & { orderInfo: string }): Promise<unknown>;
+  confirmPayment(card: MonriCardComponent, details: MonriBrowserBuyerDetails & { orderInfo: string }): Promise<unknown>;
 }
 
 export type MonriBrowserFactory = (authenticityToken: string) => MonriBrowserClient;
 
-export class MonriCheckoutError extends Error {
-  readonly name = "MonriCheckoutError";
+const monriCheckoutErrorBrand = Symbol.for("arky.MonriCheckoutError");
+
+export type MonriCheckoutErrorCode =
+  | "invalid_action"
+  | "unavailable"
+  | "invalid_card"
+  | "invalid_details"
+  | "already_submitted"
+  | "unknown_result";
+
+export class MonriCheckoutError extends ArkyError {
+  readonly name: string = "MonriCheckoutError";
+  readonly [monriCheckoutErrorBrand] = true;
+
+  static [Symbol.hasInstance](value: unknown): boolean {
+    return value instanceof Error && monriCheckoutErrorBrand in value;
+  }
+
   constructor(
-    readonly code: "invalid_action" | "unavailable" | "invalid_details" | "already_submitted" | "unknown_result",
+    readonly code: MonriCheckoutErrorCode,
     message: string,
   ) {
-    super(message);
+    super(code, message);
   }
 }

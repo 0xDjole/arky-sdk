@@ -8,7 +8,7 @@ const hookId = "1c7e3a95-6b28-4d40-8f13-9a2e5c0d7b64";
 const testId = "5d9b1f37-2a84-4c60-b3e7-8f1a6c4d0e29";
 
 function store() {
-  return createAdmin({ baseUrl: "https://hooks.test", secretKey: "arky_api_hooks" }).store;
+  return createAdmin({ apiUrl: "https://hooks.test", secretKey: "arky_api_hooks" }).store;
 }
 
 test("webhook discovery carries its native filters and keeps the empty-page continuation", async (context) => {
@@ -16,9 +16,9 @@ test("webhook discovery carries its native filters and keeps the empty-page cont
   const api = store();
   assert.equal("buildHook" in api, false);
   const params = { store_id: STORE_ID, query: "lookup", status: "disabled", sort_field: "updated_at", sort_direction: "asc", limit: 1 };
-  const page = await api.webhook.list(params);
+  const page = await api.webhook.find(params);
   assert.deepEqual(page, { items: [], cursor: "opaque:+/=" });
-  assert.deepEqual(await api.webhook.list({ ...params, cursor: page.cursor }), page);
+  assert.deepEqual(await api.webhook.find({ ...params, cursor: page.cursor }), page);
   assert.equal(calls.length, 2);
   for (const [index, call] of calls.entries()) {
     assert.equal(call.method, "GET");

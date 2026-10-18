@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
-import { CartPresentationChangedError } from "../dist/index.js";
+import { ArkyError, CartPresentationChangedError, DurableRequestError } from "../dist/index.js";
 import { createStorefront } from "../dist/storefront.js";
 import { ExclusiveLockManager, MemoryStorage } from "./helpers/durable-request-fixtures.mjs";
 import {
@@ -53,7 +53,7 @@ function retained(storage) {
 async function retainAndRecover(input = request, options) {
   const client = storefront();
   await client.eshop.cart.retainCheckout(input);
-  return client.eshop.cart.recoverCheckout(options);
+  return client.eshop.cart.recoverCheckout({}, options);
 }
 
 function success(call) {
@@ -184,7 +184,7 @@ test("every changed checkout field stays blocked after ambiguity without another
     { payment: { type: "free" } }, { payment: { ...request.payment, payment_option_id: ids.otherPaymentOption } },
     { payment: { ...request.payment, return_url: null } },
   ]) {
-    await assert.rejects(storefront().eshop.cart.retainCheckout({ ...request, ...change }), /different unresolved payload/);
+    await assert.rejects(storefront().eshop.cart.retainCheckout({ ...request, ...change }), /still keeps a different unresolved request/);
   }
   assert.equal(calls.length, 0);
   assert.deepEqual(await storefront().eshop.cart.pendingCheckout(), request);
@@ -218,9 +218,13 @@ test("a concurrent tab cannot queue a duplicate checkout or read pending state t
   const { locks } = browser();
   locks.held.add(`arky:durable-request:${storageKey}`);
   const calls = capture(success);
-  await assert.rejects(storefront().eshop.cart.retainCheckout(request), /already active in another tab/);
-  await assert.rejects(storefront().eshop.cart.recoverCheckout(), /already active in another tab/);
-  await assert.rejects(storefront().eshop.cart.pendingCheckout(), /already active in another tab/);
+  for (const call of [
+    () => storefront().eshop.cart.retainCheckout(request),
+    () => storefront().eshop.cart.recoverCheckout(),
+    () => storefront().eshop.cart.pendingCheckout(),
+  ]) {
+    await assert.rejects(call(), (error) => error instanceof DurableRequestError && error.code === "busy");
+  }
   assert.equal(calls.length, 0);
 });
 
@@ -401,7 +405,7 @@ test("saved-method consent survives lost responses and exact recovery", async ()
   await loseResponse(consentRequest);
   assert.deepEqual(await storefront().eshop.cart.pendingCheckout(), consentRequest);
   const calls = capture(success);
-  await assert.rejects(storefront().eshop.cart.retainCheckout({ ...consentRequest, payment: { ...consentRequest.payment, payment_method_terms: "Updated exact card wording." } }), /different unresolved payload/);
+  await assert.rejects(storefront().eshop.cart.retainCheckout({ ...consentRequest, payment: { ...consentRequest.payment, payment_method_terms: "Updated exact card wording." } }), /still keeps a different unresolved request/);
   assert.equal(calls.length, 0);
   assert.deepEqual(await storefront().eshop.cart.recoverCheckout(), placedAcceptance());
   assert.equal(calls[0].body.payment.save_payment_method, true);
@@ -434,4 +438,61 @@ test("server-side checkout uses the caller's exact request without browser stora
   assert.equal(calls.length, 2);
   assert.equal(await storefront().eshop.cart.pendingCheckout(), null);
   assert.equal(await storefront().eshop.cart.recoverCheckout(), null);
+});
+
+test("each branch keeps its own checkout: a pending one blocks only its own cart and new carts in its scope", async () => {
+  const { storage } = browser();
+  const branchA = { buyer: { type: "company_location", company_location_id: ids.companyLocation, purchase_order_number: null }, catalog_id: ids.catalog };
+  const branchB = { buyer: { type: "company_location", company_location_id: ids.otherCompanyLocation, purchase_order_number: null }, catalog_id: ids.catalog };
+  const requestA = checkoutRequest({ cart_id: ids.cart, order_id: ids.order, order_token: `arky_ot_${"A".repeat(42)}A` });
+  const requestB = checkoutRequest({ cart_id: ids.otherCart, order_id: ids.otherOrder, order_token: `arky_ot_${"B".repeat(42)}A` });
+  const lost = capture(() => { throw new TypeError("response lost"); });
+  const client = storefront();
+  await client.eshop.cart.retainCheckout({ ...requestA, scope: branchA });
+  await assert.rejects(client.eshop.cart.recoverCheckout({ scope: branchA }), /response lost/);
+  assert.equal(lost.length, 1);
+  assert.equal(storage.getItem(storageKey), null);
+
+  const writes = capture((call) => {
+    if (call.method === "PUT") return Response.json({ id: ids.otherCart });
+    if (call.path === "/v1/storefront/carts/accept") return Response.json(placedAcceptance({ order_id: call.body.order_id }));
+    return Response.json(placedOrder({ id: ids.otherOrder, source: { type: "cart", cart_id: ids.otherCart, placed_by: { type: "customer", customer_id: ids.customer, customer_session_id: ids.session } } }));
+  });
+  await client.eshop.cart.update({ id: ids.otherCart, expected_updated_at: 1, promotion_codes: [] });
+  await assert.rejects(client.eshop.cart.update({ id: ids.cart, expected_updated_at: 1, promotion_codes: [] }), (error) => error instanceof DurableRequestError && error.code === "pending");
+  await assert.rejects(client.eshop.cart.create({ id: ids.thirdCart, ...branchA }), (error) => error instanceof DurableRequestError && error.code === "pending");
+  await assert.rejects(client.eshop.cart.retainCheckout({ ...requestA, order_id: ids.otherOrder, scope: branchB }), (error) => error instanceof DurableRequestError && error.code === "pending");
+  await client.eshop.cart.retainCheckout({ ...requestB, scope: branchB });
+  assert.deepEqual(await client.eshop.cart.pendingCheckout({ scope: branchA }), requestA);
+  assert.deepEqual(await client.eshop.cart.pendingCheckout({ scope: branchB }), requestB);
+  assert.equal(await client.eshop.cart.pendingCheckout(), null);
+  assert.equal((await client.eshop.cart.recoverCheckout({ scope: branchB })).order_id, ids.otherOrder);
+  assert.equal(await client.eshop.cart.pendingCheckout({ scope: branchB }), null);
+  assert.deepEqual(await client.eshop.cart.pendingCheckout({ scope: branchA }), requestA);
+  assert.deepEqual(writes.map((call) => [call.method, call.path]), [
+    ["PUT", `/v1/storefront/carts/${ids.otherCart}`],
+    ["POST", "/v1/storefront/carts/accept"],
+    ["GET", `/v1/storefront/orders/${ids.otherOrder}`],
+  ]);
+});
+
+test("each kept-checkout failure says what failed: bad input, a held lock, another kept request, a wrong answer or unreadable state", async () => {
+  const { storage, locks } = browser();
+  capture(success);
+  await assert.rejects(storefront().eshop.cart.retainCheckout({ ...request, order_id: "order-1" }), TypeError);
+  locks.held.add(`arky:durable-request:${storageKey}`);
+  await assert.rejects(storefront().eshop.cart.retainCheckout(request), (error) => error instanceof DurableRequestError && error.code === "busy");
+  locks.held.clear();
+  await loseResponse();
+  await assert.rejects(storefront().eshop.cart.retainCheckout({ ...request, expected_updated_at: 2 }), (error) => error instanceof DurableRequestError && error.code === "pending");
+  await assert.rejects(storefront().eshop.cart.update({ id: ids.cart, expected_updated_at: 1 }), (error) => error instanceof DurableRequestError && error.code === "pending");
+  capture(() => Response.json(placedAcceptance({ order_id: ids.otherOrder })));
+  await assert.rejects(storefront().eshop.cart.recoverCheckout(), (error) => error instanceof DurableRequestError && error.code === "answer_mismatch");
+  storage.seed(storageKey, JSON.stringify({ requestJson: JSON.stringify({ id: ids.cart }) }));
+  await assert.rejects(storefront().eshop.cart.pendingCheckout(), (error) => error instanceof DurableRequestError && error.code === "storage");
+  for (const code of ["busy", "storage"]) {
+    const error = new DurableRequestError(code, "x");
+    assert.equal(error instanceof ArkyError, true);
+    assert.equal(error.code, code);
+  }
 });

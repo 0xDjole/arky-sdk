@@ -41,7 +41,7 @@ test("same caller-picked visitor identities share a request without sending cont
 
 test("Admin Customer commands send profile blocks, address changes and explicit staff merge versions", async (context) => {
   const calls = recordFetch(context, (call) => call.method === "GET" && call.path.endsWith("/customers") ? { items: [], cursor: null } : customerRecord());
-  const admin = createAdmin({ baseUrl, secretKey: "arky_secret" });
+  const admin = createAdmin({ apiUrl: baseUrl, secretKey: "arky_secret" });
   await admin.customers.create({ store_id: storeId, id: customerId, profile, blocks: [] });
   await admin.customers.find({ store_id: storeId, type: "verified", has_cart: true });
   await admin.customers.update({ store_id: storeId, id: customerId, expected_updated_at: 2, profile, blocks: [], addresses: [{ id: ids.line, country: "BA", city: "Sarajevo" }], default_shipping_address_id: ids.line });

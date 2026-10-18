@@ -5,6 +5,7 @@ import type {
   CreateStoreLocationParams,
   DeleteStoreLocationParams,
   FindStoreLocationsParams,
+  GetCountryParams,
   LocationCountry,
   StoreLocation,
   StoreRecordByKeyParams,
@@ -14,21 +15,19 @@ import type {
 import { requireId } from "../utils/ids";
 import { segment, storePath, storeRecordPath } from "./paths";
 
-export interface GetCountriesResponse {
-  items: LocationCountry[];
-  cursor: string | null;
-}
+export const createCountryApi = (apiConfig: ApiConfig) => ({
+  find(options?: RequestOptions): Promise<PaginatedResponse<LocationCountry>> {
+    return apiConfig.httpClient.get<PaginatedResponse<LocationCountry>>("/v1/platform/countries", options);
+  },
+
+  get(params: GetCountryParams, options?: RequestOptions): Promise<LocationCountry> {
+    return apiConfig.httpClient.get<LocationCountry>(`/v1/platform/countries/${segment(params.code)}`, options);
+  },
+});
 
 export const createLocationApi = (apiConfig: ApiConfig) => ({
-  getCountries(options?: RequestOptions): Promise<GetCountriesResponse> {
-    return apiConfig.httpClient.get<GetCountriesResponse>("/v1/platform/countries", options);
-  },
 
-  getCountry(countryCode: string, options?: RequestOptions): Promise<LocationCountry> {
-    return apiConfig.httpClient.get<LocationCountry>(`/v1/platform/countries/${segment(countryCode)}`, options);
-  },
-
-  list(params: FindStoreLocationsParams, options?: RequestOptions): Promise<PaginatedResponse<StoreLocation>> {
+  find(params: FindStoreLocationsParams, options?: RequestOptions): Promise<PaginatedResponse<StoreLocation>> {
     const { store_id, ...query } = params;
     return apiConfig.httpClient.get<PaginatedResponse<StoreLocation>>(storePath(store_id, "locations"), {
       ...options,

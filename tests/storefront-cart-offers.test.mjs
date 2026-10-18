@@ -37,11 +37,11 @@ test("offer discovery sends exactly one company location or company id with its 
   };
   const params = { company_location_id: locationId };
   const before = storedValues(storage);
-  const first = await client.eshop.cart.offers(params, options);
+  const first = await client.eshop.cart.findOffers(params, options);
   assert.deepEqual(first, { items: [], cursor });
   const next = { ...params, limit: 100, cursor: first.cursor };
-  assert.deepEqual(await client.eshop.cart.offers(next, options), { items: [], cursor: null });
-  await client.eshop.cart.offers({ company_id: companyId }, options);
+  assert.deepEqual(await client.eshop.cart.findOffers(next, options), { items: [], cursor: null });
+  await client.eshop.cart.findOffers({ company_id: companyId }, options);
   assert.equal(calls.length, 3);
   assert.equal(successCalls, 0);
   assert.deepEqual(params, { company_location_id: locationId });
@@ -70,7 +70,7 @@ test("an offer page keeps every returned cart without selecting one or reading a
   const calls = recordFetch(context, () => page);
   const { client, storage } = signedIn();
   const before = storedValues(storage);
-  assert.deepEqual(await client.eshop.cart.offers({ company_location_id: locationId, limit: 2 }), page);
+  assert.deepEqual(await client.eshop.cart.findOffers({ company_location_id: locationId, limit: 2 }), page);
   assert.equal(calls.length, 1);
   assert.deepEqual(storedValues(storage), before);
   assert.equal(storage.keys("arky:selected-cart:").length, 0);
@@ -94,7 +94,7 @@ test("offer discovery needs exactly one canonical company or company location id
     ...[0, 101, -1, 1.5, "25"].map((limit) => ({ ...valid, limit })),
     ...[0, 101].map((limit) => ({ company_id: companyId, limit })),
   ]) {
-    await assert.rejects(client.eshop.cart.offers(invalid), TypeError);
+    await assert.rejects(client.eshop.cart.findOffers(invalid), TypeError);
   }
   assert.equal(calls.length, 0);
 });
@@ -106,7 +106,7 @@ for (const status of [403, 409, 503]) {
     storage.setItem("arky:selected-cart:retained", JSON.stringify({ version: 3, id: ids.cart }));
     const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: storage });
     const before = storedValues(storage);
-    await assert.rejects(client.eshop.cart.offers({ company_location_id: locationId }), (error) => error.statusCode === status);
+    await assert.rejects(client.eshop.cart.findOffers({ company_location_id: locationId }), (error) => error.statusCode === status);
     assert.deepEqual(calls.map(({ method, path }) => [method, path]), [["GET", "/v1/storefront/carts/offers"]]);
     assert.deepEqual(storedValues(storage), before);
   });

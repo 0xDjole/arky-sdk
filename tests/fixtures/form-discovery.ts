@@ -1,6 +1,5 @@
 import { createAdmin, epochMilliseconds, initialize } from "arky-sdk";
 import type {
-  ArkySubmitFormByKeyParams,
   EpochMilliseconds,
   AssignFormSubmissionParams,
   ChangeFormSubmissionStageParams,
@@ -20,7 +19,10 @@ import type {
   FormSubmission,
   FormSubmissionSnapshot,
   FormSubmissionSource,
+  FormValuesInput,
+  GetFormByKeyParams,
   GetFormParams,
+  GetStorefrontFormByKeyParams,
   GetStorefrontFormParams,
   Note,
   NoteTarget,
@@ -28,6 +30,7 @@ import type {
   SetFormSubmissionCompanyParams,
   StorefrontFormSubmission,
   SubmitFormParams,
+  SubmitFormRequest,
   UpdateFormParams,
 } from "arky-sdk";
 
@@ -42,7 +45,7 @@ type StoreForms = ReturnType<typeof initialize>["forms"];
 const store_id = "a8c41e2f-6d95-4b07-83f1-0e5d7a9c2b36";
 const form_id = "0f6a3c84-2d19-4e75-b8a1-5c9e7d3b2f60";
 const id = "4b9e2d71-8a36-4c05-9f1e-6d3a7b0c5e92";
-const api = createAdmin({ baseUrl: "https://forms.test", secretKey: "arky_api_forms" }).forms;
+const api = createAdmin({ apiUrl: "https://forms.test", secretKey: "arky_api_forms" }).forms;
 
 const stages: FormStage[] = [{ id: "new", key: "new" }, { id: "won", key: "won" }];
 const questions: FormQuestion[] = [
@@ -51,7 +54,8 @@ const questions: FormQuestion[] = [
   { id: "q-topic", key: "topic", type: "select_many", required: false, label: { type: "hidden" }, options: [{ key: "sales", label: { en: "Sales" } }] },
 ];
 const filter: FindFormsParams = { store_id, status: "draft", sort_field: "key", sort_direction: "asc", cursor: null };
-const byKey: GetFormParams = { store_id, key: "intake" };
+const byKey: GetFormByKeyParams = { store_id, key: "intake" };
+const byId: GetFormParams = { store_id, id: form_id };
 const create: CreateFormParams = { store_id, id: form_id, key: "intake", questions, stages };
 const edit: UpdateFormParams = { store_id, id: form_id, expected_updated_at: epochMilliseconds(1), status: { type: "closed" } };
 const submissionFilter: FindFormSubmissionsParams = {
@@ -91,7 +95,8 @@ const unlink: SetFormSubmissionCompanyParams = { store_id, form_id, id, company_
 const remove: DeleteFormSubmissionParams = { store_id, form_id, id, expected_updated_at: epochMilliseconds(3) };
 
 const page: Promise<PaginatedResponse<Form>> = api.find(filter);
-const read: Promise<Form> = api.get(byKey);
+const read: Promise<Form> = api.getByKey(byKey);
+const readById: Promise<Form> = api.get(byId);
 const created: Promise<Form> = api.create(create);
 const edited: Promise<Form> = api.update(edit);
 const submissions: Promise<PaginatedResponse<FormSubmission>> = api.findSubmissions(submissionFilter);
@@ -106,11 +111,12 @@ const noteEdit: Promise<Note> = api.notes.update({ store_id, form_id, form_submi
 
 declare const shown: Form;
 const storefront = initialize(`arky_pk_${"f".repeat(42)}A`, { createVisitorIdentity: () => ({ customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A` });
-const byKeySubmission: ArkySubmitFormByKeyParams = { id, key: "intake", form: shown, language: "en", values: { answer: "Kept", topic: [], files: [brief] } };
-const answered: Promise<StorefrontFormSubmission> = storefront.forms.submitByKey(byKeySubmission);
+const valuesSubmission: SubmitFormParams = { id, form: shown, language: "en", values: { answer: "Kept", topic: [], files: [brief] } };
+const answered: Promise<StorefrontFormSubmission> = storefront.forms.submit(valuesSubmission);
 const raw: SubmitFormParams = { form_id, questions_updated_at: epochMilliseconds(4), id, language: "en", answers: [{ type: "select_many", question_id: "q-topic", key: "topic", option_keys: ["sales"] }] };
 const rawAnswered: Promise<StorefrontFormSubmission> = storefront.forms.submit(raw);
-const loaded: Promise<Form> = storefront.forms.get({ key: "intake" });
+const loaded: Promise<Form> = storefront.forms.getByKey({ key: "intake" });
+const loadedById: Promise<Form> = storefront.forms.get({ id: form_id });
 
 declare const submission: FormSubmission;
 declare const savedNote: Note;
@@ -130,25 +136,30 @@ export type FormContracts = [
   Assert<Equal<Awaited<ReturnType<FormsApi["findSubmissions"]>>, PaginatedResponse<FormSubmission>>>,
   Assert<Equal<Awaited<ReturnType<FormsApi["deleteSubmission"]>>, DeletedResponse>>,
   Assert<Equal<Awaited<ReturnType<FormsApi["notes"]["create"]>>, Note>>,
-  Assert<Equal<Parameters<StoreForms["submitByKey"]>[0], ArkySubmitFormByKeyParams>>,
-  Assert<Equal<Awaited<ReturnType<StoreForms["submitByKey"]>>, StorefrontFormSubmission>>,
+  Assert<Equal<Parameters<FormsApi["getByKey"]>[0], GetFormByKeyParams>>,
+  Assert<Equal<keyof GetFormParams, "store_id" | "id">>,
+  Assert<Equal<Parameters<StoreForms["submit"]>[0], SubmitFormParams>>,
+  Assert<Equal<Awaited<ReturnType<StoreForms["submit"]>>, StorefrontFormSubmission>>,
+  Assert<Missing<StoreForms, "submitByKey" | "state">>,
   Assert<Equal<Parameters<StoreForms["get"]>[0], GetStorefrontFormParams>>,
-  Assert<Equal<GetStorefrontFormParams, { id: string } | { key: string }>>,
-  Assert<OptionalField<ArkySubmitFormByKeyParams, "id">>,
-  Assert<RequiredField<ArkySubmitFormByKeyParams, "form">>,
-  Assert<RequiredField<ArkySubmitFormByKeyParams, "language">>,
-  Assert<RequiredField<SubmitFormParams, "id">>,
+  Assert<Equal<Parameters<StoreForms["getByKey"]>[0], GetStorefrontFormByKeyParams>>,
+  Assert<Equal<GetStorefrontFormParams, { id: string }>>,
+  Assert<Equal<keyof GetStorefrontFormByKeyParams, "key">>,
+  Assert<OptionalField<SubmitFormParams, "id">>,
+  Assert<RequiredField<FormValuesInput, "form">>,
+  Assert<RequiredField<FormValuesInput, "values">>,
+  Assert<RequiredField<SubmitFormRequest, "id">>,
   Assert<RequiredField<SubmitFormParams, "language">>,
-  Assert<RequiredField<SubmitFormParams, "questions_updated_at">>,
+  Assert<RequiredField<SubmitFormRequest, "questions_updated_at">>,
   Assert<RequiredField<Form, "questions_updated_at">>,
   Assert<RequiredField<CreateFormParams, "stages">>,
-  Assert<Equal<SubmitFormParams["questions_updated_at"], EpochMilliseconds>>,
-  Assert<Missing<ArkySubmitFormByKeyParams, "questions_updated_at">>,
+  Assert<Equal<SubmitFormRequest["questions_updated_at"], EpochMilliseconds>>,
+  Assert<Missing<FormValuesInput, "questions_updated_at">>,
   Assert<Equal<keyof FormSubmissionSnapshot, "form_key" | "questions" | "options">>,
   Assert<Equal<FormSubmissionSnapshot["options"], FormOptionSnapshot[]>>,
   Assert<Equal<keyof FormOptionSnapshot, "question_id" | "option_key" | "label">>,
-  Assert<Missing<SubmitFormParams, "store_id" | "locale" | "presentation_digest" | "fields">>,
-  Assert<Missing<ArkySubmitFormByKeyParams, "presentation">>,
+  Assert<Missing<SubmitFormRequest, "store_id" | "locale" | "presentation_digest" | "fields">>,
+  Assert<Missing<FormValuesInput, "presentation">>,
   Assert<RequiredField<CreateFormParams, "id">>,
   Assert<RequiredField<CreateFormParams, "stages">>,
   Assert<Missing<CreateFormParams, "schema">>,
@@ -174,5 +185,5 @@ export type FormContracts = [
   Assert<Equal<Extract<NoteTarget, { type: "form_submission" }>, { type: "form_submission"; form_submission_id: string }>>,
 ];
 
-void [page, read, created, edited, submissions, staffCreated, staged, assigned, unlinked, deleted, noted, notes, noteEdit,
-  answered, rawAnswered, loaded, source, sessionId, stageId, changeNote, formKey, noteTarget, submissionNoteTarget];
+void [page, read, readById, created, edited, submissions, staffCreated, staged, assigned, unlinked, deleted, noted, notes, noteEdit,
+  answered, rawAnswered, loaded, loadedById, source, sessionId, stageId, changeNote, formKey, noteTarget, submissionNoteTarget];

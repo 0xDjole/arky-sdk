@@ -739,11 +739,6 @@ export interface CheckoutCartOnAccountParams extends CheckoutCartOnAccountInput 
   store_id: string;
 }
 
-export interface GetOrderPaymentActionParams {
-  store_id: string;
-  order_id: string;
-}
-
 export interface StorefrontCartTarget {
   id: string;
   token?: string | null;
@@ -826,6 +821,11 @@ export type StorefrontQuoteCartParams = StorefrontCartTarget & { contact_email?:
 
 export interface StorefrontCheckoutCartParams extends StorefrontCheckoutCartInput {
   token?: string | null;
+  scope?: StorefrontCurrentCartParams;
+}
+
+export interface StorefrontKeptCheckoutParams {
+  scope?: StorefrontCurrentCartParams;
 }
 
 export interface StorefrontReorderParams {

@@ -20,7 +20,6 @@ import type {
   FindCartsParams,
   GetCartParams,
   GetCartOrderParams,
-  GetOrderPaymentActionParams,
   PreviewCartAccessProductParams,
   QuoteCartFutureDeliveriesParams,
   QuoteCartParams,
@@ -32,7 +31,6 @@ import type {
   UpdateCartParams,
   WithdrawCartOfferParams,
 } from "../types/cart";
-import type { CheckoutPaymentAction } from "../types/payment";
 import type { Order } from "../types/order";
 import { requireId } from "../utils/ids";
 import { storePath, storeRecordPath } from "./paths";
@@ -57,7 +55,7 @@ export const createCartApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.get<Cart>(cartPath(params.store_id, params.id), options);
     },
 
-    order(params: GetCartOrderParams, options?: RequestOptions): Promise<Order | null> {
+    getOrder(params: GetCartOrderParams, options?: RequestOptions): Promise<Order | null> {
       requireId(params.id, "cart");
       return apiConfig.httpClient.get<Order | null>(`${cartPath(params.store_id, params.id)}/order`, options);
     },
@@ -168,14 +166,6 @@ export const createCartApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.post<CheckoutAcceptance>(
         storePath(store_id, `${collection}/accept-on-account`),
         body,
-        options,
-      );
-    },
-
-    paymentAction(params: GetOrderPaymentActionParams, options?: RequestOptions): Promise<CheckoutPaymentAction> {
-      return apiConfig.httpClient.post<CheckoutPaymentAction>(
-        `${storeRecordPath(params.store_id, "orders", params.order_id)}/payment-action`,
-        undefined,
         options,
       );
     },

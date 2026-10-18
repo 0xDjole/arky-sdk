@@ -32,4 +32,4 @@ export const input: CreateMonriPaymentOptionParams = {
 };
 export const environment: MonriEnvironment = 'live';
 export const config: PaymentOption['type'] = { type: 'monri', environment: 'test', saved_card_terms: {} };
-export const filter: Parameters<Admin['store']['paymentOption']['list']>[0] = { store_id: 'store', type_name: 'monri', limit: 1 };
+export const filter: Parameters<Admin['store']['paymentOption']['find']>[0] = { store_id: 'store', type_name: 'monri', limit: 1 };

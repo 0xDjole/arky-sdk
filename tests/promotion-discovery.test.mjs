@@ -9,7 +9,7 @@ const id = "52718a47-c06b-49aa-b3a7-1ac29f9756a3";
 const codeId = "d31aa72d-5d0e-4b7f-b757-aab89c610d27";
 
 function eshop() {
-  return createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop;
+  return createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop;
 }
 
 test("promotion discovery keeps scoped filters, the opaque continuation and exact reads by key or code", async (context) => {
@@ -120,8 +120,8 @@ test("a storefront reads a promotion's key and blocks by id with one request and
   const shown = { id, key: "winter-sale", blocks: [{ id: "8e2c4a61-7b39-4d05-9f1a-3c6e8b0d2f47", key: "headline", type: "text", value: "Winter sale" }] };
   const calls = recordFetch(context, () => shown);
   const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, locale: "bs", sessionStorage: visitorStorage() });
-  assert.deepEqual(await storefront.eshop.promotion.get(id), shown);
-  await storefront.eshop.promotion.get("promotion/one");
+  assert.deepEqual(await storefront.eshop.promotion.get({ id }), shown);
+  await storefront.eshop.promotion.get({ id: "promotion/one" });
   assert.deepEqual(calls.map((call) => [call.method, call.path, call.body]), [
     ["GET", `/v1/storefront/promotions/${id}`, null],
     ["GET", "/v1/storefront/promotions/promotion%2Fone", null],

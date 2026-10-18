@@ -59,27 +59,27 @@ test("own credential lists forward bounded pages and preserve tagged statuses wi
     const body = { items: [{ id: "credential", status: { type: "revoked" } }], cursor: parsed.searchParams.has("cursor") ? null : cursor };
     return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const admin = createAdmin({ baseUrl: "https://credentials.test", secretKey: "arky_account_access_contract" });
+  const admin = createAdmin({ apiUrl: "https://credentials.test", secretKey: "arky_account_access_contract" });
   for (const [api, path] of [[admin.account.session, "sessions"]]) {
     const count = calls.length;
-    const first = await api.list({ limit: 1 }, { headers: { "X-Trace-Id": "credential-page" } });
+    const first = await api.find({ limit: 1 }, { headers: { "X-Trace-Id": "credential-page" } });
     assert.equal(calls.length, count + 1);
     assert.equal(first.cursor, cursor);
     assert.deepEqual(first.items[0].status, { type: "revoked" });
-    const next = await api.list({ limit: 1, cursor: first.cursor });
+    const next = await api.find({ limit: 1, cursor: first.cursor });
     assert.equal(calls.length, count + 2);
     assert.equal(next.cursor, null);
     assert.equal(calls[count].url.pathname, `/v1/accounts/me/${path}`);
     assert.equal(calls[count].headers.get("X-Trace-Id"), "credential-page");
     assert.deepEqual(Object.fromEntries(calls[count + 1].url.searchParams), { limit: "1", cursor });
-    await api.list();
+    await api.find();
     assert.equal(calls.length, count + 3);
     assert.equal(calls[count + 2].url.search, "");
   }
 });
 
 test("personal credentials have no API token owner", () => {
-  const admin = createAdmin({ baseUrl: "https://credentials.test", secretKey: "arky_secret" });
+  const admin = createAdmin({ apiUrl: "https://credentials.test", secretKey: "arky_secret" });
   assert.equal("apiToken" in admin.account, false);
   assert.equal(typeof admin.store.apiKey.create, "function");
 });
@@ -87,8 +87,8 @@ test("personal credentials have no API token owner", () => {
 test("Admin logout revokes the exact persisted server Session with its current access credential", async (context) => {
   const storage = installWindow(context);
   const calls = recordFetch(context, (call) => call.method === "DELETE" ? [200, true] : [200, issuedCredentials()]);
-  const admin = createAdmin({ baseUrl: logoutBaseUrl });
-  await admin.account.auth.storeVerify(loginStoreId, { session_id: "pending-login", code: "123456" });
+  const admin = createAdmin({ apiUrl: logoutBaseUrl });
+  await admin.account.auth.verify({ session_id: "pending-login", code: "123456", store_id: loginStoreId });
   const persisted = JSON.parse(storage.getItem(logoutStorageKey));
   assert.equal(persisted.id, loginSessionId);
   assert.deepEqual(Object.keys(persisted).sort(), ["access_expires_at", "access_token", "id", "refresh_token"]);
@@ -116,7 +116,7 @@ test("a lost, refused or unexpected revocation response clears that login and re
   ];
   let outcome = outcomes[0];
   const calls = recordFetch(context, () => outcome());
-  const admin = createAdmin({ baseUrl: logoutBaseUrl });
+  const admin = createAdmin({ apiUrl: logoutBaseUrl });
   for (const next of outcomes) {
     outcome = next;
     storage.seed(logoutStorageKey, JSON.stringify(storedLogin()));
@@ -133,8 +133,8 @@ test("a lost, refused or unexpected revocation response clears that login and re
 test("logout without a local login is local-only and a Secret key client revokes nothing", async (context) => {
   installWindow(context);
   const calls = recordFetch(context, () => [200, true]);
-  assert.deepEqual(await createAdmin({ baseUrl: logoutBaseUrl }).logout(), { type: "local_only" });
-  const tokenClient = createAdmin({ baseUrl: logoutBaseUrl, secretKey: "arky_account_access_contract" });
+  assert.deepEqual(await createAdmin({ apiUrl: logoutBaseUrl }).logout(), { type: "local_only" });
+  const tokenClient = createAdmin({ apiUrl: logoutBaseUrl, secretKey: "arky_account_access_contract" });
   assert.deepEqual(await tokenClient.logout(), { type: "secret_key" });
   assert.equal(tokenClient.isAuthenticated, true);
   assert.equal(tokenClient.session, null);
@@ -145,7 +145,7 @@ test("logout refreshes an expired access credential once before its single revoc
   const storage = installWindow(context);
   let refreshed = issuedCredentials({ access_token: "access-rotated", refresh_token: "refresh-rotated" });
   const calls = recordFetch(context, (call) => call.method === "DELETE" ? [200, true] : [200, refreshed]);
-  const admin = createAdmin({ baseUrl: logoutBaseUrl });
+  const admin = createAdmin({ apiUrl: logoutBaseUrl });
   storage.seed(logoutStorageKey, JSON.stringify(storedLogin({ access_expires_at: 1 })));
 
   assert.deepEqual(await admin.logout(), { type: "revoked", session_id: loginSessionId });
@@ -170,7 +170,7 @@ test("a later login survives the completion of an earlier logout", async (contex
     storage.seed(logoutStorageKey, JSON.stringify(laterLogin));
     return [200, true];
   });
-  const admin = createAdmin({ baseUrl: logoutBaseUrl });
+  const admin = createAdmin({ apiUrl: logoutBaseUrl });
   storage.seed(logoutStorageKey, JSON.stringify(storedLogin()));
 
   assert.deepEqual(await admin.logout(), { type: "revoked", session_id: loginSessionId });

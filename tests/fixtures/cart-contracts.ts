@@ -7,7 +7,7 @@ import type {
   QuoteShippingOffer, StorefrontClient, EpochMilliseconds,
   GetCartOrderParams, StorefrontGetCartOrderParams, Order, PaymentMethodSetupStart,
 } from "arky-sdk";
-import type { ArkyCartCheckoutInput } from "arky-sdk/storefront";
+import type { ArkyCartCheckoutParams } from "arky-sdk/storefront";
 import type * as Public from "arky-sdk/types";
 import type { createAdmin } from "arky-sdk/admin";
 
@@ -56,9 +56,9 @@ export type CartContracts = [
   Assert<Equal<ReorderedCart["cart"], CreatedCart>>,
   Assert<Equal<Awaited<ReturnType<StorefrontCart["create"]>>, CreatedCart>>,
   Assert<Equal<Awaited<ReturnType<StorefrontCart["reorder"]>>, ReorderedCart>>,
-  Assert<Equal<Awaited<ReturnType<StorefrontCart["current"]>>, Cart | null>>,
-  Assert<Equal<Awaited<ReturnType<AdminCart["order"]>>, Order | null>>,
-  Assert<Equal<Awaited<ReturnType<StorefrontCart["order"]>>, Order | null>>,
+  Assert<Equal<Awaited<ReturnType<StorefrontCart["getCurrent"]>>, Cart | null>>,
+  Assert<Equal<Awaited<ReturnType<AdminCart["getOrder"]>>, Order | null>>,
+  Assert<Equal<Awaited<ReturnType<StorefrontCart["getOrder"]>>, Order | null>>,
   Assert<Equal<keyof GetCartOrderParams, "store_id" | "id">>,
   Assert<Equal<keyof StorefrontGetCartOrderParams, "id">>,
   Assert<Equal<keyof StorefrontCreateCartParams, "id" | "buyer" | "catalog_id">>,
@@ -114,10 +114,10 @@ export type CartContracts = [
   Assert<RequiredField<StorefrontAddCartProductParams["product"], "id">>,
   Assert<Equal<CartCheckoutRequest, StorefrontCheckoutCartInput>>,
   Assert<Missing<CartCheckoutRequest, "store_id">>,
-  Assert<Equal<keyof ArkyCartCheckoutInput, "order_id" | "order_token" | "contact_email" | "payment" | "clear_after_checkout">>,
-  Assert<OptionalField<ArkyCartCheckoutInput, "order_id">>,
-  Assert<OptionalField<ArkyCartCheckoutInput, "order_token">>,
-  Assert<RequiredField<ArkyCartCheckoutInput, "payment">>,
+  Assert<Equal<keyof ArkyCartCheckoutParams, "order_id" | "order_token" | "contact_email" | "payment" | "clear_after_checkout">>,
+  Assert<OptionalField<ArkyCartCheckoutParams, "order_id">>,
+  Assert<OptionalField<ArkyCartCheckoutParams, "order_token">>,
+  Assert<RequiredField<ArkyCartCheckoutParams, "payment">>,
   Assert<OptionalField<Parameters<StorefrontCart["checkout"]>[0], "order_id">>,
   Assert<RequiredField<Parameters<StorefrontCart["checkout"]>[0], "presentation_digest">>,
   Assert<Equal<CartPresentationChangedError["quote"], CartQuote>>,
@@ -127,4 +127,6 @@ export type CartContracts = [
   Assert<Missing<StorefrontCart, "addDigital" | "addSubscriptionPlan">>,
   Assert<Missing<AdminCart, "addSubscriptionPlan">>,
   Assert<Missing<AdminCart, "acceptFutureDeliveries">>,
+  Assert<Missing<AdminCart, "paymentAction" | "order">>,
+  Assert<Missing<StorefrontCart, "current" | "order" | "offers">>,
 ];

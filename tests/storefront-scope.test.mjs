@@ -123,7 +123,8 @@ test("the setup is read lazily, once, and without creating a visitor", async (co
   const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl });
   assert.equal(calls.length, 0);
   const first = client.getSetup();
-  const second = client.store.getSetup();
+  const second = client.getSetup();
+  assert.equal("getSetup" in client.store, false);
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(calls.length, 1);
   release();
@@ -168,8 +169,8 @@ test("anonymous reads don't identify, and concurrent first stateful calls share 
   const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, locale: "en", market: "bih", sessionStorage: storage });
   await client.eshop.product.find({});
   assert.equal(calls.filter((call) => call.path.endsWith("/customer/identify")).length, 0);
-  const first = client.eshop.cart.current({ buyer: customerBuyer, catalog_id: ids.catalog });
-  const second = client.eshop.cart.current({ buyer: customerBuyer, catalog_id: ids.catalog });
+  const first = client.eshop.cart.getCurrent({ buyer: customerBuyer, catalog_id: ids.catalog });
+  const second = client.eshop.cart.getCurrent({ buyer: customerBuyer, catalog_id: ids.catalog });
   await started;
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(calls.filter((call) => call.path.endsWith("/customer/identify")).length, 1);
@@ -276,7 +277,7 @@ test("server-side rendering allows anonymous reads but needs request-local stora
   const calls = recordFetch(context, () => ({ items: [], cursor: null }));
   const serverClient = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl });
   await serverClient.content.entry.find({ collection_id: "pages" });
-  await assert.rejects(serverClient.eshop.cart.current({ buyer: customerBuyer, catalog_id: ids.catalog }), /request-local sessionStorage adapter/);
+  await assert.rejects(serverClient.eshop.cart.getCurrent({ buyer: customerBuyer, catalog_id: ids.catalog }), /request-local sessionStorage adapter/);
   await assert.rejects(serverClient.customer.identify({ customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }), /request-local sessionStorage adapter/);
   assert.equal(calls.length, 1);
 });

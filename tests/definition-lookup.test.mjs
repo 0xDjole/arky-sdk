@@ -13,14 +13,15 @@ test("Admin payment resume targets the placed Order without creating a new reque
     return new Response(JSON.stringify(action), { headers: { "content-type": "application/json" } });
   };
   try {
-    const api = createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop;
-    assert.deepEqual(await api.cart.paymentAction({ store_id: STORE_ID, order_id: "order/one" }), action);
+    const api = createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop;
+    assert.deepEqual(await api.order.resumePayment({ store_id: STORE_ID, order_id: "order/one" }), action);
     assert.equal(calls.length, 1);
     assert.equal(calls[0].url.pathname, `/v1/stores/${STORE_ID}/orders/order%2Fone/payment-action`);
     assert.equal(calls[0].url.search, "");
     assert.equal(calls[0].method, "POST");
     assert.equal(calls[0].body, undefined);
-    await assert.rejects(async () => api.cart.paymentAction({ order_id: "order" }), TypeError);
+    await assert.rejects(async () => api.order.resumePayment({ order_id: "order" }), TypeError);
+    assert.equal("paymentAction" in api.cart, false);
     assert.equal(calls.length, 1);
     assert.equal("checkout" in api, false);
   } finally { globalThis.fetch = original; }
@@ -34,11 +35,11 @@ test("known commerce definitions use exact key/binding reads without discovery o
     return new Response(JSON.stringify({ id: "retained", key: "selected" }), { headers: { "content-type": "application/json" } });
   };
   try {
-    const api = createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop;
+    const api = createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop;
     for (const owner of [api.product, api.bookingService, api.bookingResource, api.catalog]) {
       assert.equal((await owner.getByKey({ store_id: STORE_ID, key: "demo-key" })).id, "retained");
     }
-    await api.bookingOffering.lookup({ store_id: STORE_ID, booking_service_id: "service", booking_resource_id: "resource" });
+    await api.bookingOffering.getByServiceAndResource({ store_id: STORE_ID, booking_service_id: "service", booking_resource_id: "resource" });
     assert.deepEqual(calls.map(({ url }) => url.pathname), [
       `/v1/stores/${STORE_ID}/products/by-key/demo-key`,
       `/v1/stores/${STORE_ID}/booking-services/by-key/demo-key`,
@@ -57,7 +58,7 @@ test("known commerce definitions use exact key/binding reads without discovery o
       for (const owner of [api.product, api.bookingService, api.bookingResource, api.catalog]) {
         await assert.rejects(owner.getByKey({ store_id: STORE_ID, key: "demo-key" }), (error) => error.statusCode === status);
       }
-      await assert.rejects(api.bookingOffering.lookup({ store_id: STORE_ID, booking_service_id: "service", booking_resource_id: "resource" }), (error) => error.statusCode === status);
+      await assert.rejects(api.bookingOffering.getByServiceAndResource({ store_id: STORE_ID, booking_service_id: "service", booking_resource_id: "resource" }), (error) => error.statusCode === status);
       assert.equal(count, 5);
     }
   } finally {
@@ -74,7 +75,7 @@ test("a known booking offering is read by its exact id for catalog price labels"
     return new Response(JSON.stringify(offering), { headers: { "content-type": "application/json" } });
   };
   try {
-    const api = createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop;
+    const api = createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop;
     assert.deepEqual(await api.bookingOffering.get({ store_id: STORE_ID, id: "offering/one" }), offering);
     assert.deepEqual(calls.map(({ url, method }) => [method, url.pathname, url.search]), [
       ["GET", `/v1/stores/${STORE_ID}/booking-offerings/offering%2Fone`, ""],

@@ -1,17 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { DurableRequestStorageError as RootDurableRequestStorageError } from "../dist/index.js";
+import { DurableRequestError as RootDurableRequestError } from "../dist/index.js";
 import {
+  ArkyError,
   createStorefront,
-  DurableRequestStorageError,
+  DurableRequestError,
+  formValuesFromAnswers,
   initialize,
-  isDurableRequestStorageError,
 } from "../dist/storefront.js";
-import {
-  DurableRequestStorageError as UtilsDurableRequestStorageError,
-  isDurableRequestStorageError as utilsIsDurableRequestStorageError,
-} from "../dist/utils.js";
+import { DurableRequestError as UtilsDurableRequestError } from "../dist/utils.js";
 import { ExclusiveLockManager, MemoryStorage } from "./helpers/durable-request-fixtures.mjs";
 import {
   apiUrl,
@@ -108,29 +106,28 @@ test("an explicit form id is sent as is, and a factory id needs browser storage"
   assert.equal(calls.length, 1);
 });
 
-test("a storage failure is the same DurableRequestStorageError whichever bundle checks it", async (context) => {
+test("a storage failure is a DurableRequestError with code storage, recognised whichever bundle checks it", async (context) => {
   const calls = recordFetch(context, () => {
     throw new Error("Nothing may be sent");
   });
   const error = await storefront(idSequence()).forms.submit(formParams).catch((caught) => caught);
   assert.match(error.message, /Cannot safely start form submission/);
-  assert.equal(error.name, "DurableRequestStorageError");
-  assert.ok(error instanceof DurableRequestStorageError);
-  assert.ok(error instanceof UtilsDurableRequestStorageError);
-  assert.ok(error instanceof RootDurableRequestStorageError);
-  assert.equal(isDurableRequestStorageError(error), true);
-  assert.equal(utilsIsDurableRequestStorageError(error), true);
-  const fromUtils = new UtilsDurableRequestStorageError("The saved request can't be read");
-  assert.ok(fromUtils instanceof DurableRequestStorageError);
-  assert.equal(isDurableRequestStorageError(fromUtils), true);
-  const lookalike = Object.assign(new Error("The saved request can't be read"), { name: "DurableRequestStorageError" });
-  assert.equal(isDurableRequestStorageError(lookalike), false);
-  assert.equal(utilsIsDurableRequestStorageError(lookalike), false);
-  assert.equal(lookalike instanceof DurableRequestStorageError, false);
+  assert.equal(error.name, "DurableRequestError");
+  assert.equal(error.code, "storage");
+  assert.ok(error instanceof DurableRequestError);
+  assert.ok(error instanceof UtilsDurableRequestError);
+  assert.ok(error instanceof RootDurableRequestError);
+  assert.ok(error instanceof ArkyError);
+  const fromUtils = new UtilsDurableRequestError("storage", "The saved request can't be read");
+  assert.ok(fromUtils instanceof DurableRequestError);
+  assert.equal(fromUtils.code, "storage");
+  const lookalike = Object.assign(new Error("The saved request can't be read"), { name: "DurableRequestError", code: "storage" });
+  assert.equal(lookalike instanceof DurableRequestError, false);
+  assert.equal(lookalike instanceof ArkyError, false);
   assert.equal(calls.length, 0);
 });
 
-test("the store's submitByKey takes its id from the factory when none is given", async (context) => {
+test("the store's forms.submit with a loaded form takes its id from the factory when none is given and sends the bot-check token", async (context) => {
   browser(context);
   const form = {
     id: ids.form,
@@ -140,9 +137,10 @@ test("the store's submitByKey takes its id from the factory when none is given",
   };
   const calls = recordFetch(context, (call) => submission(submissionBody(call).id));
   const store = initialize(publishableKey, { ...idFactories, createId: idSequence(factoryId(7)), apiUrl, locale: "en", sessionStorage: visitorStorage() });
-  const result = await store.forms.submitByKey({ key: "contact", form, values: { message: "Hello" }, language: "en" });
+  const result = await store.forms.submit({ form, values: { message: "Hello" }, language: "en", bot_check_token: "turnstile-token" });
   assert.equal(result.id, factoryId(7));
   assert.equal(submissionBody(calls[0]).questions_updated_at, form.questions_updated_at);
+  assert.equal(submissionBody(calls[0]).bot_check_token, "turnstile-token");
 });
 
 test("support start and send reuse their factory ids after a lost answer", async (context) => {
@@ -242,4 +240,47 @@ test("a checkout without ids takes them from the factories, keeps them, and bloc
   assert.deepEqual(accepts[0].body, accepts[1].body);
   assert.equal(accepts[0].body.order_id, orderId);
   await assert.rejects(client.eshop.cart.checkout({ ...draft, order_id: orderId }), /both its order_id and order_token/);
+});
+
+test("a kept form submission keeps its answers for a reload, refuses a different one, and sends the same id again", async (context) => {
+  const storage = browser(context);
+  let answer = "lost";
+  const calls = recordFetch(context, (call) => {
+    if (answer === "lost") throw new TypeError("Lost response");
+    return submission(submissionBody(call).id);
+  });
+  const client = storefront(idSequence(factoryId(1)));
+  const kept = await client.forms.retainSubmission(formParams);
+  assert.equal(kept.id, factoryId(1));
+  await assert.rejects(client.forms.recoverSubmission({ form_id: ids.form, bot_check_token: "first-token" }), /Lost response/);
+
+  const reloaded = storefront(idSequence());
+  const pending = await reloaded.forms.pendingSubmission({ form_id: ids.form });
+  assert.deepEqual(pending, { id: factoryId(1), ...formParams });
+  assert.deepEqual(formValuesFromAnswers(pending.answers), { message: "Hello" });
+  assert.deepEqual(await reloaded.forms.retainSubmission(formParams), pending);
+  await assert.rejects(
+    reloaded.forms.retainSubmission({ ...formParams, answers: [{ ...answers[0], value: "Changed" }] }),
+    (error) => error instanceof DurableRequestError && error.code === "pending",
+  );
+  await assert.rejects(reloaded.forms.retainSubmission({ ...formParams, answers: [{ type: "file", question_id: ids.line, key: "file", files: [] }] }), TypeError);
+
+  answer = "ok";
+  assert.equal((await reloaded.forms.recoverSubmission({ form_id: ids.form, bot_check_token: "second-token" })).id, factoryId(1));
+  assert.equal(await reloaded.forms.pendingSubmission({ form_id: ids.form }), null);
+  assert.equal(await reloaded.forms.recoverSubmission({ form_id: ids.form }), null);
+  assert.deepEqual(calls.map((call) => [submissionBody(call).id, submissionBody(call).bot_check_token]), [
+    [factoryId(1), "first-token"],
+    [factoryId(1), "second-token"],
+  ]);
+  assert.deepEqual(pendingKeys(storage), []);
+});
+
+test("a kept form submission refused by the Server is dropped, so the form can be sent again", async (context) => {
+  browser(context);
+  recordFetch(context, () => errorResponse(409, "FORM_SUBMISSION.FORM_CHANGED", "The form changed; reload it"));
+  const client = storefront(idSequence(factoryId(1)));
+  await client.forms.retainSubmission(formParams);
+  await assert.rejects(client.forms.recoverSubmission({ form_id: ids.form }), (error) => error.code === "FORM_SUBMISSION.FORM_CHANGED");
+  assert.equal(await client.forms.pendingSubmission({ form_id: ids.form }), null);
 });

@@ -17,7 +17,7 @@ for (const definition of [
 ]) {
   test(`${definition.route} keep the empty-page continuation and the exact store and filters`, async (context) => {
     const calls = recordFetch(context, (_call, count) => count === 1 ? { items: [], cursor } : { items: [{ id, store_id: selectedStoreId }], cursor: null });
-    const admin = createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" });
+    const admin = createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" });
     const api = definition.path.reduce((owner, key) => owner[key], admin);
     const query = { store_id: selectedStoreId, ...definition.filters, limit: 20 };
     const first = await api.find(query);
@@ -43,7 +43,7 @@ test("a publishable key is caller-picked, bound to one sales channel and revoked
   const key = { id, store_id: selectedStoreId, name: "Web shop", type: { ...type, token: "arky_pk_key" }, status: { type: "active" }, created_at: 1, updated_at: 1 };
   const revoked = { ...key, status: { type: "revoked", revoked_at: 2 }, updated_at: 2 };
   const calls = recordFetch(context, (call) => call.path.endsWith("/revoke") ? revoked : call.method === "POST" ? { type: "created", key } : key);
-  const api = createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" }).store.apiKey;
+  const api = createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" }).store.apiKey;
   assert.deepEqual((await api.create({ store_id: selectedStoreId, id, name: "Web shop", type })).key, key);
   assert.deepEqual(await api.get({ store_id: selectedStoreId, id }), key);
   assert.deepEqual(await api.revoke({ store_id: selectedStoreId, id, expected_updated_at: 1 }), revoked);
@@ -58,7 +58,7 @@ test("a publishable key is caller-picked, bound to one sales channel and revoked
 });
 
 test("the Admin client has no remembered store and no payment-terms definitions", () => {
-  const admin = createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" });
+  const admin = createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" });
   assert.equal("setStoreId" in admin, false);
   assert.equal("storeId" in admin, false);
   assert.equal("paymentTerms" in admin.store, false);

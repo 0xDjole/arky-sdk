@@ -1,6 +1,6 @@
 import type { createAdmin } from "arky-sdk/admin";
-import type { createStorefront, initialize } from "arky-sdk/storefront";
-import type { CheckoutPaymentAction, GetOrderPaymentActionParams } from "arky-sdk";
+import type { ArkyCheckoutState, createStorefront, initialize } from "arky-sdk/storefront";
+import type { CheckoutPaymentAction, ResumeOrderPaymentParams, StorefrontResumeOrderPaymentParams } from "arky-sdk";
 
 type Admin = ReturnType<typeof createAdmin>;
 type Storefront = ReturnType<typeof createStorefront>;
@@ -10,13 +10,16 @@ type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ?
 type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
 
 export type CheckoutResumeContracts = [
-  Assert<Equal<Parameters<Admin["eshop"]["cart"]["paymentAction"]>[0], GetOrderPaymentActionParams>>,
-  Assert<Equal<keyof GetOrderPaymentActionParams, "store_id" | "order_id">>,
-  Assert<Equal<Awaited<ReturnType<Admin["eshop"]["cart"]["paymentAction"]>>, CheckoutPaymentAction>>,
-  Assert<Equal<Parameters<Storefront["eshop"]["order"]["paymentAction"]>[0], { order_id: string }>>,
-  Assert<Equal<Awaited<ReturnType<Storefront["eshop"]["order"]["paymentAction"]>>, CheckoutPaymentAction>>,
-  Assert<Equal<Parameters<Initialized["eshop"]["cart"]["paymentAction"]>, [orderId: string]>>,
-  Assert<Equal<Awaited<ReturnType<Initialized["eshop"]["cart"]["paymentAction"]>>, CheckoutPaymentAction>>,
+  Assert<Equal<Parameters<Admin["eshop"]["order"]["resumePayment"]>[0], ResumeOrderPaymentParams>>,
+  Assert<Equal<keyof ResumeOrderPaymentParams, "store_id" | "order_id">>,
+  Assert<Equal<Awaited<ReturnType<Admin["eshop"]["order"]["resumePayment"]>>, CheckoutPaymentAction>>,
+  Assert<Equal<Parameters<Storefront["eshop"]["order"]["resumePayment"]>[0], StorefrontResumeOrderPaymentParams>>,
+  Assert<Equal<keyof StorefrontResumeOrderPaymentParams, "order_id">>,
+  Assert<Equal<Awaited<ReturnType<Storefront["eshop"]["order"]["resumePayment"]>>, CheckoutPaymentAction>>,
+  Assert<Equal<Awaited<ReturnType<ReturnType<Initialized["eshop"]["checkoutFlow"]>["resumePayment"]>>, ArkyCheckoutState>>,
+  Assert<Missing<Admin["eshop"]["cart"], "paymentAction">>,
+  Assert<Missing<Storefront["eshop"]["order"], "paymentAction">>,
+  Assert<Missing<ReturnType<Initialized["eshop"]["cart"]>, "paymentAction">>,
   Assert<Missing<Admin["eshop"], "checkout">>,
   Assert<Missing<Storefront["eshop"], "checkout">>,
   Assert<Equal<CheckoutPaymentAction["type"], "none" | "stripe_embedded_checkout" | "monri_components">>,

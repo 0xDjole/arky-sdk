@@ -10,8 +10,8 @@ type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
 export type CartOfferContracts = [
   Assert<Equal<FindStorefrontCartOffersParams, PublicParams>>,
   Assert<Equal<FindStorefrontCartOffersParams, StorefrontParams>>,
-  Assert<Equal<Parameters<StorefrontClient["eshop"]["cart"]["offers"]>[0], FindStorefrontCartOffersParams>>,
-  Assert<Equal<Awaited<ReturnType<StorefrontClient["eshop"]["cart"]["offers"]>>, PaginatedResponse<Cart>>>,
+  Assert<Equal<Parameters<StorefrontClient["eshop"]["cart"]["findOffers"]>[0], FindStorefrontCartOffersParams>>,
+  Assert<Equal<Awaited<ReturnType<StorefrontClient["eshop"]["cart"]["findOffers"]>>, PaginatedResponse<Cart>>>,
   Assert<Equal<FindStorefrontCartOffersParams, ({ company_id: string; company_location_id?: never } | { company_id?: never; company_location_id: string }) & { limit?: number; cursor?: string | null }>>,
   Assert<Equal<keyof FindStorefrontCartOffersParams, "company_id" | "company_location_id" | "limit" | "cursor">>,
   Assert<RequiredField<Extract<FindStorefrontCartOffersParams, { company_id: string }>, "company_id">>,

@@ -15,7 +15,7 @@ function setup(context, respond = () => ({})) {
     calls.push(call);
     return new Response(JSON.stringify(respond(call)), { headers: { "content-type": "application/json" } });
   });
-  return { client: createAdmin({ baseUrl: "https://templates.test", secretKey: "arky_api_templates" }), calls };
+  return { client: createAdmin({ apiUrl: "https://templates.test", secretKey: "arky_api_templates" }), calls };
 }
 
 test("reusable template discovery filters by fixed data type and returns named defaults", async (context) => {
@@ -24,9 +24,10 @@ test("reusable template discovery filters by fixed data type and returns named d
     : { items: [], cursor: calls.length === 1 ? "next:+/=" : null });
   const first = await client.notification.template.find({ store_id: store, type: "order", limit: 1 });
   await client.notification.template.find({ store_id: store, type: "order", limit: 1, cursor: first.cursor });
-  const defaults = await client.notification.template.defaults({ store_id: store });
-  assert.equal(defaults[0].key, "order-receipt");
-  assert.equal(defaults[0].type.type, "order");
+  const defaults = await client.notification.template.findDefaults({ store_id: store });
+  assert.equal(defaults.cursor, null);
+  assert.equal(defaults.items[0].key, "order-receipt");
+  assert.equal(defaults.items[0].type.type, "order");
   assert.deepEqual(Object.fromEntries(calls[0].url.searchParams), { type: "order", limit: "1" });
   assert.equal(calls[1].url.searchParams.get("cursor"), first.cursor);
   assert.equal(calls[2].url.pathname, `/v1/stores/${store}/email-templates/defaults`);
@@ -49,7 +50,7 @@ test("store provider domains are live reads and sending addresses use provider-i
   const { client, calls } = setup(context);
   await client.notification.emailProvider.connect({ store_id: store, id: provider, api_key: "resend-secret" });
   await client.notification.emailProvider.get({ store_id: store });
-  await client.notification.emailProvider.domains({ store_id: store });
+  await client.notification.emailProvider.findDomains({ store_id: store });
   const sending = { from_name: "Shop", reply_to: "support@example.test" };
   await client.notification.emailAddress.create({ store_id: store, id: address, email: "orders@example.test", type: { type: "sending", sending } });
   await client.notification.emailAddress.update({ store_id: store, id: address, expected_updated_at: 2, type: { type: "sending", sending: { ...sending, from_name: "Team" } } });
@@ -73,7 +74,7 @@ test("a store replaces its Resend key on the same provider with the version it r
   assert.deepEqual(calls.map((call) => [call.method, call.url.pathname, call.body]), [
     ["PUT", `/v1/stores/${store}/email-provider`, { expected_updated_at: 8, api_key: "re_next_key" }],
   ]);
-  assert.deepEqual(Object.keys(client.notification.emailProvider).sort(), ["connect", "domains", "get", "replaceKey"]);
+  assert.deepEqual(Object.keys(client.notification.emailProvider).sort(), ["connect", "findDomains", "get", "replaceKey"]);
 });
 
 test("partially verified and partially failed domains are read as the Server names them", async (context) => {
@@ -84,6 +85,6 @@ test("partially verified and partially failed domains are read as the Server nam
     records: [{ type: "TXT", name: "send", value: "v=spf1", priority: null }],
   }));
   const { client, calls } = setup(context, () => domains);
-  assert.deepEqual(await client.notification.emailProvider.domains({ store_id: store }), domains);
+  assert.deepEqual(await client.notification.emailProvider.findDomains({ store_id: store }), { items: domains, cursor: null });
   assert.deepEqual(calls.map((call) => [call.method, call.url.pathname]), [["GET", `/v1/stores/${store}/email-provider/domains`]]);
 });

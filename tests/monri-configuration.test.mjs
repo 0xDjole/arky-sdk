@@ -8,7 +8,7 @@ const OTHER_STORE_ID = "1f6b8d23-4e97-4a50-b2c8-7d0e5a9c3f16";
 const savedCardTerms = { bs: "Kartica će se koristiti za vaše prihvaćene obnove." };
 
 function paymentOptions() {
-  return createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" }).store.paymentOption;
+  return createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" }).store.paymentOption;
 }
 
 test("Monri creation sends the app-picked id and explicit credentials once to the named store and returns the safe record", async (context) => {
@@ -62,7 +62,7 @@ test("a local payment option update explicitly carries no saved-card wording", a
 test("payment options are listed with native filters and read by id or by key", async (context) => {
   const calls = recordFetch(context, (call) => call.path.endsWith("payment-options") ? { items: [], cursor: null } : { id: ids.paymentOption });
   const api = paymentOptions();
-  await api.list({ store_id: STORE_ID, limit: 5, cursor: "next" });
+  await api.find({ store_id: STORE_ID, limit: 5, cursor: "next" });
   await api.get({ store_id: STORE_ID, id: ids.paymentOption });
   await api.getByKey({ store_id: STORE_ID, key: "cards/eu" });
   assert.deepEqual(calls.map(({ path, query }) => [path, query]), [

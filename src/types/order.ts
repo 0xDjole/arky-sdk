@@ -621,6 +621,11 @@ export interface FindOrderPaymentsParams {
   order_id: string;
 }
 
+export interface ResumeOrderPaymentParams {
+  store_id: string;
+  order_id: string;
+}
+
 export type StorefrontFindOrdersParams = CompanyPartyQuery &
   Omit<FindOrdersParams, "store_id" | "customer_id" | "company_id" | "company_location_id">;
 
@@ -649,6 +654,20 @@ export interface StorefrontOrderPaymentParams {
 
 export interface StorefrontFindOrderPaymentsParams {
   order_id: string;
+}
+
+export interface StorefrontResumeOrderPaymentParams {
+  order_id: string;
+}
+
+export interface StorefrontRetainedOrderTokenParams {
+  order_id: string;
+}
+
+export interface StorefrontDownloadOrderAssetParams {
+  order_id: string;
+  line_item_id: string;
+  asset_id: string;
 }
 
 export function orderLineItemsOfType<T extends OrderLineItemType>(

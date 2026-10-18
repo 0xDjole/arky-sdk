@@ -37,7 +37,3 @@ export function toKey(input: string): string {
     .replace(/^[-_]+|[-_]+$/g, "")
     .replace(/[-_]{2,}/g, "_");
 }
-
-export function nameToKey(name: string): string {
-  return toKey(name);
-}

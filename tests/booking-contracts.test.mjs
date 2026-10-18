@@ -114,7 +114,7 @@ test("Resource discovery preserves bounded opaque continuation and ordered filte
       ? { items: [], cursor }
       : { items: [bookingResource()], cursor: null });
   });
-  const admin = createAdmin({ baseUrl: apiUrl, secretKey: "token" });
+  const admin = createAdmin({ apiUrl: apiUrl, secretKey: "token" });
   const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: visitorStorage() });
   const adminFilters = {
     booking_service_id: serviceId, query: "room", status: "active", limit: 1,
@@ -152,7 +152,7 @@ test("Admin booking runtime creates service, resource and offering under app-pic
     if (path.endsWith("/booking-offerings")) return jsonResponse(bookingOffering());
     return jsonResponse(order());
   });
-  const admin = createAdmin({ baseUrl: apiUrl, secretKey: "token" });
+  const admin = createAdmin({ apiUrl: apiUrl, secretKey: "token" });
   const { id: _serviceId, store_id: _serviceStore, created_at: _serviceCreated, updated_at: _serviceUpdated, price: _servicePrice, ...serviceFields } = bookingService();
   const service = { id: serviceId, ...serviceFields };
   const { id: _resourceId, store_id: _resourceStore, created_at: _resourceCreated, updated_at: _resourceUpdated, ...resourceFields } = bookingResource();
@@ -257,7 +257,7 @@ test("booking cancellation resends the caller's credit id after an uncertain res
     if (calls.length % 2 === 1) return jsonResponse({ message: "Response unavailable", status_code: 503 }, 503);
     return jsonResponse(order());
   });
-  const admin = createAdmin({ baseUrl: apiUrl, secretKey: "token" });
+  const admin = createAdmin({ apiUrl: apiUrl, secretKey: "token" });
   const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, market: "bih", sessionStorage: visitorStorage() });
   for (const [client, target] of [[admin, { store_id: storeId }], [storefront, {}]]) {
     const request = { ...target, order_id: "order/booking", line_item_id: "item/booking", credit_id: creditId, expected_updated_at: 9 };
@@ -325,7 +325,7 @@ test("booking discovery forwards the price filter and sort as query fields and n
   for (const removed of ["status", "from", "to"]) assert.equal(called.searchParams.has(removed), false, removed);
 });
 
-test("high-level booking flow adds one cart line per appointment under the ids the app gives", async (context) => {
+test("the booking calendar adds one cart line per appointment under the ids the app gives", async (context) => {
   const calls = [];
   const calendarDate = new Date();
   const availableLocalDate = `${calendarDate.getFullYear()}-${String(calendarDate.getMonth() + 1).padStart(2, "0")}-01`;
@@ -368,26 +368,28 @@ test("high-level booking flow adds one cart line per appointment under the ids t
   });
 
   const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, locale: "en", sessionStorage: visitorStorage() });
-  await store.eshop.cart.create({ id: ids.cart, buyer: { type: "customer" }, catalog_id: ids.catalog });
-  await store.eshop.bookingService.select(bookingService(), { catalog_id: ids.catalog });
-  const availableDay = store.eshop.bookingService.state.get().calendar.find((day) => day.iso === availableLocalDate);
+  const scope = { buyer: { type: "customer" }, catalog_id: ids.catalog };
+  await store.eshop.cart(scope).create({ id: ids.cart });
+  const calendar = store.eshop.bookingCalendar(scope);
+  const selected = await calendar.select({ booking_service_id: serviceId });
+  assert.equal(selected.booking_service.id, serviceId);
+  const availableDay = calendar.state.get().days.find((day) => day.iso === availableLocalDate);
   assert.equal(availableDay?.available, true);
-  store.eshop.bookingService.selectDate(availableDay);
-  const slots = store.eshop.bookingService.state.get().slots;
-  const timezone = store.eshop.bookingService.state.get().timezone;
+  calendar.selectDate({ date: availableDay.iso });
+  const { slots, timezone } = calendar.state.get();
   assert.equal(slots.length, 1);
   const [slot] = slots;
   assert.equal(slot.from, 1_800_000_000_000);
-  assert.equal(slot.bookingOfferingId, offeringId);
-  assert.equal(slot.bookingResourceId, resourceId);
-  assert.equal(slot.dateText, new Date(slot.from).toLocaleDateString("en", { weekday: "short", month: "short", day: "numeric", timeZone: timezone }));
-  assert.equal(slot.timeText, [slot.from, slot.to].map((value) => new Date(value).toLocaleTimeString("en", {
+  assert.equal(slot.booking_offering_id, offeringId);
+  assert.equal(slot.booking_resource_id, resourceId);
+  assert.equal(slot.date_text, new Date(slot.from).toLocaleDateString("en", { weekday: "short", month: "short", day: "numeric", timeZone: timezone }));
+  assert.equal(slot.time_text, [slot.from, slot.to].map((value) => new Date(value).toLocaleTimeString("en", {
     hour: "2-digit", minute: "2-digit", timeZone: timezone,
   })).join(" - "));
-  await assert.rejects(store.eshop.bookingService.addToCart([{ id: "slot-line", slot }]), TypeError);
-  const result = await store.eshop.bookingService.addToCart([{ id: lineId, slot, form_submission_id: ids.submission }]);
+  await assert.rejects(calendar.addToCart({ id: "slot-line", slot }), TypeError);
+  const result = await calendar.addToCart({ id: lineId, slot, form_submission_id: ids.submission });
   assert.equal(result.line_items.length, 1);
-  await store.eshop.bookingService.loadMonth();
+  await calendar.nextMonth();
 
   const availabilityCalls = calls.filter((call) => call.url.pathname.endsWith("/booking-services/availability"));
   const firstBounds = availabilityCalls[0].url.searchParams;
@@ -410,11 +412,11 @@ test("high-level booking flow adds one cart line per appointment under the ids t
     },
   });
   assert.equal(additions[0].headers.get("x-arky-cart-token"), "cart-recovery-token");
-  assert.equal(store.eshop.bookingService.state.get().cartId, ids.cart);
-  assert.equal("bookingItemsFromSlots" in store.eshop.bookingService, false);
+  assert.equal(store.eshop.cart(scope).cart.get().id, ids.cart);
+  for (const removed of ["select", "state", "addToCart", "list", "listOfferings"]) assert.equal(removed in store.eshop.bookingService, false, removed);
 });
 
-test("booking selection retains the company location context and explicitly follows Offering and availability pages", async (context) => {
+test("the booking calendar keeps the company location context of its cart and explicitly follows Offering and availability pages", async (context) => {
   const offeringCalls = [];
   const resourceCalls = [];
   const availabilityCalls = [];
@@ -427,6 +429,7 @@ test("booking selection retains the company location context and explicitly foll
     if (!request.pathname.endsWith("/booking-resources")) {
       assert.equal(request.searchParams.has("company_id"), false);
       assert.equal(request.searchParams.get("company_location_id"), ids.companyLocation);
+      assert.equal(request.searchParams.get("catalog_id"), ids.catalog);
     }
     if (request.pathname.endsWith(`/booking-services/${serviceId}`)) return jsonResponse(bookingService());
     if (request.pathname.endsWith("/booking-offerings")) {
@@ -460,39 +463,42 @@ test("booking selection retains the company location context and explicitly foll
     throw new Error(`Unexpected request ${url}`);
   });
   const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, locale: "en", sessionStorage: visitorStorage() });
-  await store.eshop.bookingService.select(bookingService(), { company_location_id: ids.companyLocation });
+  const calendar = store.eshop.bookingCalendar({
+    buyer: { type: "company_location", company_location_id: ids.companyLocation, purchase_order_number: null },
+    catalog_id: ids.catalog,
+  });
+  await calendar.select({ booking_service_id: serviceId });
   assert.equal(offeringCalls.length, 1);
   assert.equal(availabilityCalls.length, 1, "availability must not eagerly follow continuations");
-  assert.equal(store.eshop.bookingService.state.get().availability.cursor, "availability-next");
-  assert.equal(store.eshop.bookingService.state.get().bookingOfferingsCursor, "offering-next");
-  await store.eshop.bookingService.loadMoreOfferings();
-  const state = store.eshop.bookingService.state.get();
+  assert.equal(calendar.state.get().availability.cursor, "availability-next");
+  assert.equal(calendar.state.get().booking_offerings_cursor, "offering-next");
+  const state = await calendar.loadMoreOfferings();
   assert.equal(offeringCalls.length, 2);
   assert.equal(offeringCalls[1].searchParams.get("cursor"), "offering-next");
-  assert.deepEqual(state.bookingOfferings.map((row) => row.id), [offeringId, laterOffering.id]);
-  assert.deepEqual(state.bookingResources.map((row) => row.id), [resourceId, laterResourceId]);
-  assert.equal(state.bookingOfferingsCursor, null);
-  assert.equal(state.loadingOfferings, false);
-  await store.eshop.bookingService.loadMoreOfferings();
+  assert.deepEqual(state.booking_offerings.map((row) => row.id), [offeringId, laterOffering.id]);
+  assert.deepEqual(state.booking_resources.map((row) => row.id), [resourceId, laterResourceId]);
+  assert.equal(state.booking_offerings_cursor, null);
+  assert.equal(state.loading_offerings, false);
+  await calendar.loadMoreOfferings();
   assert.equal(offeringCalls.length, 2, "an exhausted list makes no further request");
   assert.equal(resourceCalls.length, 2);
   repeatAvailabilityCursor = true;
-  await assert.rejects(store.eshop.bookingService.loadMoreAvailability(), /didn't advance/);
-  assert.equal(store.eshop.bookingService.state.get().availability.cursor, "availability-next");
-  assert.equal(store.eshop.bookingService.state.get().availability.booking_resources.length, 1);
-  assert.equal(store.eshop.bookingService.state.get().loading, false);
+  await assert.rejects(calendar.loadMoreAvailability(), (error) => error.name === "ArkyError" && error.code === "answer_mismatch" && /didn't advance/.test(error.message));
+  assert.equal(calendar.state.get().availability.cursor, "availability-next");
+  assert.equal(calendar.state.get().availability.booking_resources.length, 1);
+  assert.equal(calendar.state.get().loading, false);
   repeatAvailabilityCursor = false;
-  await store.eshop.bookingService.loadMoreAvailability();
+  await calendar.loadMoreAvailability();
   assert.equal(availabilityCalls.length, 3);
   assert.equal(availabilityCalls[1].searchParams.get("cursor"), "availability-next");
   assert.equal(availabilityCalls[1].searchParams.get("from"), availabilityCalls[0].searchParams.get("from"));
-  assert.deepEqual(store.eshop.bookingService.state.get().availability.booking_resources.map((row) => row.booking_resource_id), [resourceId, laterResourceId]);
-  assert.equal(store.eshop.bookingService.state.get().availability.cursor, null);
-  await store.eshop.bookingService.loadMoreAvailability();
+  assert.deepEqual(calendar.state.get().availability.booking_resources.map((row) => row.booking_resource_id), [resourceId, laterResourceId]);
+  assert.equal(calendar.state.get().availability.cursor, null);
+  await calendar.loadMoreAvailability();
   assert.equal(availabilityCalls.length, 3);
 });
 
-test("late availability cannot replace a newer Service selection or its shared read state", async (context) => {
+test("late availability cannot replace a newer booking service selection in the calendar", async (context) => {
   let announcePending;
   let releaseOld;
   const pending = new Promise((resolve) => { announcePending = resolve; });
@@ -518,18 +524,18 @@ test("late availability cannot replace a newer Service selection or its shared r
     throw new Error(`Unexpected request ${url}`);
   });
   const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, locale: "en", sessionStorage: visitorStorage() });
+  const calendar = store.eshop.bookingCalendar({ buyer: { type: "customer" }, catalog_id: ids.catalog });
   try {
-    const first = store.eshop.bookingService.select(bookingService(), { catalog_id: ids.catalog });
+    const first = calendar.select({ booking_service_id: serviceId });
     await pending;
-    await store.eshop.bookingService.select(bookingService({ id: newServiceId }));
+    await calendar.select({ booking_service_id: newServiceId });
     releaseOld();
     await first;
-    const state = store.eshop.bookingService.state.get();
-    assert.equal(state.bookingService.id, newServiceId);
+    const state = calendar.state.get();
+    assert.equal(state.booking_service.id, newServiceId);
     assert.equal(state.availability.booking_resources[0].booking_resource_id, newServiceId);
     assert.equal(state.loading, false);
-    assert.equal(store.eshop.state.get().availability.booking_resources[0].booking_resource_id, newServiceId);
-    assert.equal(store.eshop.state.get().loading_availability, false);
+    assert.equal("state" in store.eshop, false);
   } finally {
     releaseOld?.();
   }

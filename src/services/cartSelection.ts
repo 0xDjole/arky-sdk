@@ -9,7 +9,7 @@ import type {
   StorefrontReorderParams,
 } from "../types/cart";
 import type { CartSelectionContext, CartSelectionTransport, SelectedCart } from "../types/cartSelection";
-import { CartSelectionError } from "../types/cartSelection";
+import { CartError } from "../types/cartSelection";
 import { isCanonicalId, requireId } from "../utils/ids";
 import { withCartMutation } from "./cartCheckout";
 
@@ -27,6 +27,10 @@ export function cartBuyerKey(buyer: CartBuyer | undefined): string {
   if (!buyer || buyer.type === "customer") return "customer";
   if (buyer.type === "company_location") return `company_location:${buyer.company_location_id}`;
   return `${buyer.type}:${buyer.company_id}`;
+}
+
+export function cartScopeKey(scope: StorefrontCurrentCartParams): string {
+  return `${cartBuyerKey(scope.buyer)}|${scope.catalog_id}`;
 }
 
 function sameBuyer(cart: Cart, buyer: CartBuyer | undefined): boolean {
@@ -85,7 +89,7 @@ export function createCartSelection(
 ) {
   function requireStorage(): SelectionStorage {
     if (!context.storage) {
-      throw new CartSelectionError("Selecting a cart requires working session storage");
+      throw new CartError("storage", "Selecting a cart requires working session storage");
     }
     return context.storage;
   }
@@ -93,7 +97,7 @@ export function createCartSelection(
   function requireCustomerId(): string {
     const customerId = context.customerId();
     if (!customerId) {
-      throw new CartSelectionError("Selecting a cart requires a customer session");
+      throw new CartError("no_session", "Selecting a cart requires a customer session");
     }
     return customerId;
   }
@@ -130,10 +134,10 @@ export function createCartSelection(
 
   function assertCart(cart: Cart, customerId: string | null, params: StorefrontCurrentCartParams): void {
     if (!cart || typeof cart.id !== "string" || cart.customer_id !== customerId || !sameBuyer(cart, params.buyer)) {
-      throw new CartSelectionError("The cart does not belong to this customer and buyer");
+      throw new CartError("other_cart", "The cart does not belong to this customer and buyer");
     }
     if (cart.catalog_id !== params.catalog_id) {
-      throw new CartSelectionError("The selected cart uses a different catalog");
+      throw new CartError("other_cart", "The selected cart uses a different catalog");
     }
   }
 
@@ -181,7 +185,7 @@ export function createCartSelection(
       throw error;
     }
     if (!cart || cart.id !== id) {
-      throw new CartSelectionError("The cart read returned a different cart");
+      throw new CartError("answer_mismatch", "The cart read returned a different cart");
     }
     return cart;
   }
@@ -273,7 +277,8 @@ export function createCartSelection(
       if (created.type === "created") storage.setItem(tokenKey(created.cart.id), created.recovery_token);
       storage.setItem(key, JSON.stringify({ version: 3, id: created.cart.id }));
     } catch {
-      throw new CartSelectionError(
+      throw new CartError(
+        "storage",
         "The cart was created but its selection could not be saved; retry with the same cart id",
       );
     }
@@ -286,10 +291,10 @@ export function createCartSelection(
     const customerId = requireCustomerId();
     const selected = { buyer: params.buyer, catalog_id: params.catalog_id };
     const key = selectionKey(customerId, selected);
-    return withCartMutation(checkoutScope, async () => {
+    return withCartMutation(checkoutScope, { type: "new_cart", slot: cartScopeKey(selected) }, async () => {
       const created = await transport.create(params, options);
       if (!created || !created.cart || created.cart.id !== params.id) {
-        throw new CartSelectionError("Cart creation returned a different cart");
+        throw new CartError("answer_mismatch", "Cart creation returned a different cart");
       }
       assertCart(created.cart, customerId, selected);
       keep(storage, key, customerId, selected, created);
@@ -301,11 +306,11 @@ export function createCartSelection(
     requireId(params.id, "cart");
     const storage = requireStorage();
     const customerId = requireCustomerId();
-    return withCartMutation(checkoutScope, async () => {
+    return withCartMutation(checkoutScope, { type: "reorder" }, async () => {
       const reordered = await transport.reorder(params, options);
       const created = reordered?.cart;
       if (!created || !created.cart || created.cart.id !== params.id) {
-        throw new CartSelectionError("The reorder returned a different cart");
+        throw new CartError("answer_mismatch", "The reorder returned a different cart");
       }
       const selected = { buyer: params.buyer, catalog_id: created.cart.catalog_id };
       assertCart(created.cart, customerId, selected);

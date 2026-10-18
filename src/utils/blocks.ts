@@ -72,29 +72,6 @@ export function getBlockValues(entry: BlockContainer | null | undefined, key: st
   return block?.type === "array" ? block.value : [];
 }
 
-export function getBlockObjectValues(
-  entry: BlockContainer | null | undefined,
-  key: string,
-  locale: string,
-  defaultLocale?: string | null,
-): Record<string, unknown>[] {
-  return getBlockValues(entry, key)
-    .filter((item) => item.type === "object")
-    .map((item) => blockContent(item, locale, defaultLocale) as Record<string, unknown>);
-}
-
-export function getBlockFromArray(
-  entry: BlockContainer | null | undefined,
-  key: string,
-  locale: string,
-  defaultLocale?: string | null,
-): Record<string, unknown> {
-  const block = findBlock(entry, key);
-  if (!block) return {};
-  if (block.type === "object") return blockContent(block, locale, defaultLocale) as Record<string, unknown>;
-  return { [block.key]: blockContent(block, locale, defaultLocale) };
-}
-
 export function getBlockLabel(block: Pick<Block, "key"> | null | undefined): string {
   return block?.key.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()) ?? "";
 }
@@ -108,15 +85,11 @@ export function formatBlockValue(block: Block | null | undefined, locale: string
   return getBlockTextValue(block, locale, defaultLocale);
 }
 
-export function extractBlockValues(blocks: readonly Block[]): Record<string, unknown> {
-  return Object.fromEntries(blocks.map((block) => [block.key, block.value]));
-}
-
 export interface BlockReferences {
-  mediaIds: string[];
-  entryIds: string[];
-  formIds: string[];
-  productIds: string[];
+  media_ids: string[];
+  entry_ids: string[];
+  form_ids: string[];
+  product_ids: string[];
 }
 
 export function collectBlockReferences(blocks: readonly Block[]): BlockReferences {
@@ -135,10 +108,10 @@ export function collectBlockReferences(blocks: readonly Block[]): BlockReference
 
   blocks.forEach(visit);
   return {
-    mediaIds: [...mediaIds],
-    entryIds: [...entryIds],
-    formIds: [...formIds],
-    productIds: [...productIds],
+    media_ids: [...mediaIds],
+    entry_ids: [...entryIds],
+    form_ids: [...formIds],
+    product_ids: [...productIds],
   };
 }
 

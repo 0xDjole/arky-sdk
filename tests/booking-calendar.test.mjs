@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { CartSelectionError, initialize } from "../dist/storefront.js";
+import { initialize } from "../dist/storefront.js";
 import {
   apiUrl,
   cartRecord,
@@ -17,6 +17,7 @@ import {
 const serviceId = "a3c5e7f9-1b2d-4f68-8a0c-2e4f6a8c0b1d";
 const resourceId = "b4d6f8a0-2c3e-4a79-9b1d-3f5a7b9d1c2e";
 const offeringId = "c5e7a9b1-3d4f-4b8a-8c2e-4a6b8c0e2d3f";
+const customer = { type: "customer" };
 
 const now = new Date();
 const year = now.getFullYear();
@@ -46,7 +47,7 @@ function bookingService() {
   };
 }
 
-function bookingOffering(currency = "eur") {
+function bookingOffering() {
   return {
     id: offeringId,
     store_id: ids.store,
@@ -57,15 +58,15 @@ function bookingOffering(currency = "eur") {
     status: { type: "active" },
     created_at: 1,
     updated_at: 1,
-    price: { tax_mode: "inclusive", unit_price: { amount: 5000, currency }, compare_at: null, min_quantity: 1, max_quantity: null, priced_at: 1 },
+    price: { tax_mode: "inclusive", unit_price: { amount: 5000, currency: "eur" }, compare_at: null, min_quantity: 1, max_quantity: null, priced_at: 1 },
   };
 }
 
-function wizardServer(context, { currency = "eur" } = {}) {
+function calendarServer(context) {
   let cart = null;
   return recordFetch(context, (call) => {
     if (call.path === `/v1/storefront/booking-services/${serviceId}`) return bookingService();
-    if (call.path === "/v1/storefront/booking-offerings") return { items: [bookingOffering(currency)], cursor: null };
+    if (call.path === "/v1/storefront/booking-offerings") return { items: [bookingOffering()], cursor: null };
     if (call.path === "/v1/storefront/booking-resources") return { items: [{ id: resourceId, key: "apartment-one", blocks: [] }], cursor: null };
     if (call.path === "/v1/storefront/booking-services/availability") {
       return {
@@ -93,53 +94,63 @@ function wizardServer(context, { currency = "eur" } = {}) {
   });
 }
 
-function wizardStore(createId = idSequence(factoryId(1), factoryId(2))) {
+function calendarStore(createId = idSequence(factoryId(1), factoryId(2))) {
   return initialize(publishableKey, { ...idFactories, createId, apiUrl, locale: "en", sessionStorage: visitorStorage() });
 }
 
-async function pickStay(store, catalogId = ids.catalog) {
-  const wizard = store.eshop.bookingService;
-  await wizard.select(bookingService(), { catalog_id: catalogId });
-  wizard.setTimezone("UTC");
-  const cell = wizard.state.get().calendar.find((candidate) => candidate.iso === day(10));
-  wizard.selectDate(cell);
-  const [slot] = wizard.state.get().slots;
-  wizard.selectTimeSlot(slot);
+async function pickStay(calendar) {
+  await calendar.select({ booking_service_id: serviceId });
+  calendar.setTimezone({ timezone: "UTC" });
+  calendar.selectDate({ date: day(10) });
+  const [slot] = calendar.state.get().slots;
+  calendar.selectSlot({ slot });
   return slot;
 }
 
 test("a stay over several nights is a multi-day slot shown as a date range across its calendar days", async (context) => {
-  wizardServer(context);
-  const store = wizardStore();
-  const slot = await pickStay(store);
-  assert.equal(slot.isMultiDay, true);
+  calendarServer(context);
+  const calendar = calendarStore().eshop.bookingCalendar({ buyer: customer, catalog_id: ids.catalog });
+  const slot = await pickStay(calendar);
+  assert.equal(slot.is_multi_day, true);
+  assert.equal(slot.booking_offering_id, offeringId);
   const format = (ts) => new Date(ts).toLocaleDateString("en", { month: "short", day: "numeric", timeZone: "UTC" });
-  assert.equal(slot.timeText, `${format(slot.from)} - ${format(slot.to)}`);
-  const inRange = store.eshop.bookingService.state.get().calendar.filter((cell) => cell.isInRange).map((cell) => cell.iso);
-  assert.deepEqual(inRange, [day(10), day(11), day(12)]);
+  assert.equal(slot.time_text, `${format(slot.from)} - ${format(slot.to)}`);
+  const state = calendar.state.get();
+  assert.deepEqual(state.days.filter((cell) => cell.is_in_range).map((cell) => cell.iso), [day(10), day(11), day(12)]);
+  assert.deepEqual(state.days.filter((cell) => cell.is_selected).map((cell) => cell.iso), [day(10)]);
+  assert.equal(state.selected_slot.id, slot.id);
+  assert.equal(calendar.month_label.get(), now.toLocaleString("en", { month: "long", year: "numeric" }));
 });
 
-test("addToCart creates the cart for the booking's catalog and takes the line id from the factory", async (context) => {
-  const calls = wizardServer(context);
-  const store = wizardStore();
-  const slot = await pickStay(store);
-  const cart = await store.eshop.bookingService.addToCart([{ slot }]);
+test("addToCart creates the cart of the calendar's buyer and catalog and takes the line id from the factory", async (context) => {
+  const calls = calendarServer(context);
+  const store = calendarStore();
+  const scope = { buyer: customer, catalog_id: ids.otherCatalog };
+  const calendar = store.eshop.bookingCalendar(scope);
+  const slot = await pickStay(calendar);
+  const cart = await calendar.addToCart({ slot });
   assert.equal(cart.id, factoryId(1));
-  assert.equal(store.eshop.cart.cart.get().id, factoryId(1));
-  assert.deepEqual(store.eshop.cart.scope, { buyer: { type: "customer" }, catalog_id: ids.catalog });
+  assert.equal(cart.catalog_id, ids.otherCatalog);
+  assert.equal(store.eshop.cart(scope).cart.get().id, factoryId(1));
+  assert.equal(store.eshop.cart(scope).booking_items.get().length, 1);
+  assert.equal(store.eshop.checkoutFlow(scope).cart.booking_items.get().length, 1);
   const create = calls.find((call) => call.path === "/v1/storefront/carts");
-  assert.deepEqual(create.body, { id: factoryId(1), buyer: { type: "customer" }, catalog_id: ids.catalog });
+  assert.deepEqual(create.body, { id: factoryId(1), buyer: customer, catalog_id: ids.otherCatalog });
   const add = calls.find((call) => call.path.endsWith("/booking-items"));
   assert.equal(add.body.booking.id, factoryId(2));
   assert.deepEqual(add.body.booking.requested_interval, { from: slot.from, to: slot.to });
-  assert.equal(store.eshop.bookingService.state.get().cartId, factoryId(1));
+  assert.equal(calendar.state.get().selected_slot, null);
+  assert.deepEqual(calendar.state.get().slots, []);
 });
 
-test("addToCart refuses a cart of another catalog and the price no longer hides a formatting failure", async (context) => {
-  wizardServer(context, { currency: "not-a-currency" });
-  const store = wizardStore();
-  await store.eshop.cart.create({ id: ids.cart, buyer: { type: "customer" }, catalog_id: ids.otherCatalog });
-  const slot = await pickStay(store);
-  await assert.rejects(store.eshop.bookingService.addToCart([{ slot }]), CartSelectionError);
-  assert.throws(() => store.eshop.bookingService.getBookingServicePrice());
+test("a slot of another booking service is refused before anything is sent", async (context) => {
+  const calls = calendarServer(context);
+  const calendar = calendarStore().eshop.bookingCalendar({ buyer: customer, catalog_id: ids.catalog });
+  const slot = await pickStay(calendar);
+  const other = { ...slot, booking_service_id: ids.product };
+  assert.throws(() => calendar.selectSlot({ slot: other }), TypeError);
+  await assert.rejects(calendar.addToCart({ slot: other }), TypeError);
+  assert.equal(calls.some((call) => call.path === "/v1/storefront/carts"), false);
+  calendar.selectFirstAvailableDate();
+  assert.equal(calendar.state.get().selected_date, day(10));
 });

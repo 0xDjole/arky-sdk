@@ -40,7 +40,3 @@ export class CartPresentationChangedError extends ArkyApiError {
     });
   }
 }
-
-export interface RecoverCartCheckoutParams {
-  store_id: string;
-}

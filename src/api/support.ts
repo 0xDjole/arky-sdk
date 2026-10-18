@@ -38,10 +38,6 @@ import { requireId } from "../utils/ids";
 import { segment, storePath, storeRecordPath } from "./paths";
 import { createConversationNoteApi } from "./note";
 
-export type StartConversationInput = Omit<StartConversationParams, "id"> & { id?: string };
-
-export type SendConversationMessageInput = Omit<SendConversationMessageParams, "id"> & { id?: string };
-
 export function createStorefrontSupportApi(
   httpClient: HttpClient,
   ensureSession: () => Promise<void>,
@@ -52,7 +48,7 @@ export function createStorefrontSupportApi(
 
   return {
     conversation: {
-      async start(params: StartConversationInput, options?: RequestOptions): Promise<StorefrontConversationReply> {
+      async start(params: StartConversationParams, options?: RequestOptions): Promise<StorefrontConversationReply> {
         const send = (id: string) =>
           httpClient.post<StorefrontConversationReply>(
             base,
@@ -81,10 +77,7 @@ export function createStorefrontSupportApi(
 
       async get(params: StorefrontGetConversationParams, options?: RequestOptions): Promise<StorefrontConversation> {
         await ensureSession();
-        return httpClient.get<StorefrontConversation>(
-          conversationPath(params.conversation_id),
-          options,
-        );
+        return httpClient.get<StorefrontConversation>(conversationPath(params.id), options);
       },
 
       async findMessages(
@@ -110,7 +103,7 @@ export function createStorefrontSupportApi(
         );
       },
 
-      async sendMessage(params: SendConversationMessageInput, options?: RequestOptions): Promise<StorefrontConversationReply> {
+      async sendMessage(params: SendConversationMessageParams, options?: RequestOptions): Promise<StorefrontConversationReply> {
         const send = (id: string) =>
           httpClient.post<StorefrontConversationReply>(
             `${conversationPath(params.conversation_id)}/messages`,
@@ -214,7 +207,7 @@ export function createAdminSupportApi(apiConfig: ApiConfig) {
         );
       },
 
-      attachmentLink(
+      getAttachmentLink(
         params: GetConversationAttachmentLinkParams,
         options?: RequestOptions,
       ): Promise<ConversationAttachmentLink> {

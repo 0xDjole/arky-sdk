@@ -21,7 +21,7 @@ type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ?
 type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
 type AdminCart = ReturnType<typeof createAdmin>["eshop"]["cart"];
 type StorefrontCart = ReturnType<typeof createStorefront>["eshop"]["cart"];
-type InitializedCart = ReturnType<typeof initialize>["eshop"]["cart"];
+type InitializedCart = ReturnType<ReturnType<typeof initialize>["eshop"]["cart"]>;
 
 export type DeliveryContracts = [
   Assert<Equal<CartDeliveryDestination, PublicDestination>>,
@@ -38,8 +38,8 @@ export type DeliveryContracts = [
   Assert<Equal<SetCartFutureDeliveriesParams["customer_groups"], CartCustomerGroupDeliveries[]>>,
   Assert<Missing<SetCartFutureDeliveriesParams, "plans">>,
   Assert<Missing<QuoteCartFutureDeliveriesParams, "plans">>,
-  Assert<Equal<Parameters<InitializedCart["quoteFutureDeliveries"]>[0], CustomerGroupDeliveryChoices[]>>,
-  Assert<Equal<Parameters<InitializedCart["setFutureDeliveries"]>[0], CartCustomerGroupDeliveries[]>>,
+  Assert<Equal<Parameters<InitializedCart["quoteFutureDeliveries"]>[0]["customer_groups"], CustomerGroupDeliveryChoices[]>>,
+  Assert<Equal<Parameters<InitializedCart["setFutureDeliveries"]>[0]["customer_groups"], CartCustomerGroupDeliveries[]>>,
   Assert<Equal<Awaited<ReturnType<AdminCart["quoteFutureDeliveries"]>>, CustomerGroupDeliveryOffers[]>>,
   Assert<Equal<Awaited<ReturnType<StorefrontCart["quoteFutureDeliveries"]>>, CustomerGroupDeliveryOffers[]>>,
   Assert<Equal<QuoteCartFutureDeliveriesParams["language"], string>>,

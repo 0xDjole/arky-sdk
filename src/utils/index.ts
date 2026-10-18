@@ -1,4 +1,4 @@
-export { isValidKey, validateKey, toKey, nameToKey } from "./keyValidation";
+export { isValidKey, validateKey, toKey } from "./keyValidation";
 export {
   epochMilliseconds,
   epochMillisecondsFromDate,
@@ -22,16 +22,15 @@ export {
 } from "./price";
 
 export {
-  DurableRequestStorageError,
+  DurableRequestError,
   clearDurableRequest,
   durableRequestPayload,
   getOrCreateDurableRequest,
   isDefiniteRefusal,
-  isDurableRequestStorageError,
   readDurableRequest,
   withDurableRequestLock,
 } from "./durableRequest";
-export type { DurableRequest } from "./durableRequest";
+export type { DurableRequest, DurableRequestErrorCode } from "./durableRequest";
 
 export { readPendingMediaCreate } from "./durableMediaCreate";
 
@@ -39,23 +38,23 @@ export { paginate, readAllPages } from "./paginate";
 export type { PageRead, PaginateOptions } from "./paginate";
 export { latestPayment, paymentOutcome } from "./paymentOutcome";
 export type { PaymentOutcome } from "./paymentOutcome";
+export { paymentAmounts } from "./paymentAmounts";
+export type { PaymentAmounts } from "./paymentAmounts";
 
 export {
   blockContent,
   collectBlockReferences,
-  extractBlockValues,
   findBlock,
   formatBlockValue,
   getBlockContentValue,
-  getBlockFromArray,
   getBlockLabel,
-  getBlockObjectValues,
   getBlockTextValue,
   getBlockValue,
   getBlockValues,
   getImageUrl,
   selectLocalizedText,
 } from "./blocks";
+export { buildFormAnswers, formValuesFromAnswers } from "./formAnswers";
 export type { BlockReferences } from "./blocks";
 
 export { ScheduledResultTimeoutError, pollScheduledResult } from "./scheduledResult";

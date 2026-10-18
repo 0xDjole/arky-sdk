@@ -166,9 +166,23 @@ export interface FindCollectionsParams {
   cursor?: string | null;
 }
 
-export type GetCollectionParams = { store_id: string } & ({ id: string } | { key: string });
+export interface GetCollectionParams {
+  store_id: string;
+  id: string;
+}
 
-export type StorefrontGetCollectionParams = { id: string } | { key: string };
+export interface GetCollectionByKeyParams {
+  store_id: string;
+  key: string;
+}
+
+export interface StorefrontGetCollectionParams {
+  id: string;
+}
+
+export interface StorefrontGetCollectionByKeyParams {
+  key: string;
+}
 
 export interface CreateCollectionParams {
   store_id: string;
@@ -195,10 +209,12 @@ export interface DeleteCollectionParams {
   expected_updated_at: EpochMilliseconds;
 }
 
-export interface FindEntriesParams {
+export interface FindCollectionEntriesParams {
   store_id: string;
   collection_id: string;
   key?: string;
+  slug?: string;
+  language?: string;
   status?: EntryStatus["type"];
   query?: string;
   filters?: BlockQuery[];
@@ -210,23 +226,48 @@ export interface FindEntriesParams {
   cursor?: string | null;
 }
 
-export interface FindEntryBySlugParams {
-  store_id: string;
-  collection_id: string;
-  slug: string;
-  language: string;
-}
-
 export interface FindEntriesByIdsParams {
   store_id: string;
   ids: string[];
+  limit?: number;
+  cursor?: string | null;
 }
 
-export type StorefrontFindEntriesParams = Omit<FindEntriesParams, "store_id" | "status">;
+export type FindEntriesParams = FindCollectionEntriesParams | FindEntriesByIdsParams;
+
+export interface StorefrontFindCollectionEntriesParams {
+  collection_id: string;
+  key?: string;
+  slug?: string;
+  query?: string;
+  filters?: BlockQuery[];
+  sort_field?: "key" | "status" | "created_at" | "updated_at";
+  sort_direction?: SortDirection;
+  created_at_from?: EpochMilliseconds;
+  created_at_to?: EpochMilliseconds;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface StorefrontFindEntriesByIdsParams {
+  ids: string[];
+  limit?: number;
+  cursor?: string | null;
+}
+
+export type StorefrontFindEntriesParams = StorefrontFindCollectionEntriesParams | StorefrontFindEntriesByIdsParams;
 
 export interface StorefrontFindEntryBySlugParams {
   collection_id: string;
   slug: string;
+}
+
+export interface StorefrontGetEntryParams {
+  id: string;
+}
+
+export interface StorefrontFindMediaParams {
+  ids: string[];
 }
 
 export interface GetEntryParams {
@@ -284,6 +325,12 @@ export type StorefrontGetCategoryParams = { id: string } | { slug: string };
 
 export interface StorefrontGetCategoryByKeyParams {
   key: string;
+}
+
+export interface StorefrontFindCategoryChildrenParams {
+  id: string;
+  limit?: number;
+  cursor?: string | null;
 }
 
 export interface FindCategoryChildrenParams {

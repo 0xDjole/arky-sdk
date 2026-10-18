@@ -53,15 +53,18 @@ export interface StorefrontCountry {
   states: StorefrontCountryState[];
 }
 
-export interface StorefrontCountries {
-  items: StorefrontCountry[];
-  cursor: string | null;
+export interface StorefrontGetLocationParams {
+  id: string;
 }
 
-export interface StorefrontPageParams {
-  limit?: number;
-  cursor?: string | null;
-  sort_direction?: SortDirection;
+export interface StorefrontGetMarketParams {
+  id: string;
 }
 
-export type StorefrontParams<T> = Omit<T, "store_id">;
+export interface StorefrontGetMarketByKeyParams {
+  key: string;
+}
+
+export interface StorefrontGetCountryParams {
+  code: string;
+}

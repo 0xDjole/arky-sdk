@@ -9,7 +9,7 @@ const methodId = "9d4b2e61-7a35-4c08-b1f9-3e6a0c8d5b72";
 const zoneId = "2e8a6c14-9b37-4d50-a2f8-6c1e4b9d0a35";
 
 function store() {
-  return createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" }).store;
+  return createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" }).store;
 }
 
 test("a tax category carries its rules with exact treatments and explicit schedule boundaries", async (context) => {

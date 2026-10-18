@@ -1,4 +1,5 @@
 import type { RequestOptions } from '../types/httpClient';
+import { ArkyError } from '../types/apiError';
 import { isCanonicalId } from './ids';
 
 export function isOrderToken(value: unknown): value is string {
@@ -12,8 +13,9 @@ export function createOrderToken(): string {
 
 export function orderTokenOptions(options?: RequestOptions): RequestOptions | undefined {
   if (options?.order_token === undefined) return options;
-  if (!isOrderToken(options.order_token)) throw new TypeError('The order token must contain 32 random bytes in canonical base64url');
   const { order_token, ...transport } = options;
+  if (order_token === null) return transport;
+  if (!isOrderToken(order_token)) throw new TypeError('The order token must contain 32 random bytes in canonical base64url');
   const headers = Object.fromEntries(Object.entries(transport.headers ?? {}).filter(([name]) => name.toLowerCase() !== 'x-arky-order-token'));
   return { ...transport, headers: { ...headers, 'X-Arky-Order-Token': order_token } };
 }
@@ -27,14 +29,14 @@ export function retainOrderToken(scope: string, orderId: string, token: string):
   if (!isOrderToken(token)) throw new TypeError('Invalid order token');
   const key = tokenKey(scope, orderId);
   const previous = globalThis.localStorage.getItem(key);
-  if (previous !== null && previous !== token) throw new Error('This Order already has a different retained token');
+  if (previous !== null && previous !== token) throw new ArkyError('token_conflict', 'This Order already has a different retained token');
   globalThis.localStorage.setItem(key, token);
-  if (globalThis.localStorage.getItem(key) !== token) throw new Error('The Order token could not be retained');
+  if (globalThis.localStorage.getItem(key) !== token) throw new ArkyError('storage', 'The Order token could not be retained');
 }
 
 export function readOrderToken(scope: string, orderId: string): string | null {
   const token = globalThis.localStorage.getItem(tokenKey(scope, orderId));
-  if (token !== null && !isOrderToken(token)) throw new Error('The retained Order token is invalid');
+  if (token !== null && !isOrderToken(token)) throw new ArkyError('storage', 'The retained Order token is invalid');
   return token;
 }
 
@@ -42,5 +44,5 @@ export function replaceOrderToken(scope: string, orderId: string, token: string)
   if (!isOrderToken(token)) throw new TypeError('Invalid order token');
   const key = tokenKey(scope, orderId);
   globalThis.localStorage.setItem(key, token);
-  if (globalThis.localStorage.getItem(key) !== token) throw new Error('The Order token could not be retained');
+  if (globalThis.localStorage.getItem(key) !== token) throw new ArkyError('storage', 'The Order token could not be retained');
 }

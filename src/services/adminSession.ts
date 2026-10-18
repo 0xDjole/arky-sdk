@@ -4,6 +4,7 @@ import type { TokenSet } from '../types/httpClient';
 import { epochMillisecondsNow } from '../utils/time';
 import type { EpochMilliseconds } from '../types/time';
 import { isCanonicalId } from '../utils/ids';
+import { ArkyError, ArkyNetworkError } from '../types/apiError';
 
 export type AdminLogoutResult =
   | { type: 'revoked'; session_id: string }
@@ -35,9 +36,9 @@ function sameCredentials(left: AdminSessionInternal | null, right: AdminSessionI
     && left.refresh_token === right.refresh_token;
 }
 
-function changedLogin(): Error {
-  return Object.assign(new Error('The Account session changed while this request was pending'), {
-    name: 'SessionChangedError', statusCode: 401,
+function changedLogin(): ArkyError {
+  return Object.assign(new ArkyError('session_changed', 'The Account session changed while this request was pending'), {
+    statusCode: 401,
   });
 }
 
@@ -61,7 +62,7 @@ export function createAdminSessionState(baseUrl: string, refreshPath?: string | 
   }
 
   function write(value: AdminSessionInternal | null): void {
-    if (value !== null && !validSession(value)) throw new TypeError('Invalid Account session');
+    if (value !== null && !validSession(value)) throw new ArkyError('answer_mismatch', 'The Account session answer is invalid');
     memory = value;
     if (typeof window === 'undefined') return;
     try {
@@ -115,7 +116,7 @@ export function createAdminSessionState(baseUrl: string, refreshPath?: string | 
     try {
       const response = await fetch(`${apiUrl}${path}`, { ...init, signal: controller.signal });
       const body = await response.text();
-      if (body.length > 16_384) throw new TypeError('Account session response exceeds its bound');
+      if (body.length > 16_384) throw new ArkyNetworkError('unreadable_answer', 'Account session response exceeds its bound', { url: `${apiUrl}${path}`, statusCode: response.status });
       return { ok: response.ok, status: response.status, data: response.ok ? JSON.parse(body) : null };
     } finally {
       clearTimeout(timer);
@@ -131,14 +132,14 @@ export function createAdminSessionState(baseUrl: string, refreshPath?: string | 
     });
     if (!response.ok) {
       if (response.status === 401 && sameCredentials(read(), expected)) write(null);
-      throw Object.assign(new Error('Account session refresh failed'), { statusCode: response.status });
+      throw Object.assign(new ArkyError('refresh_failed', 'Account session refresh failed'), { statusCode: response.status });
     }
     const result = response.data;
     if (!validSession(result) || result.id !== expected.id
       || !record(result) || !isEpochMilliseconds(result.refresh_expires_at)
       || !isEpochMilliseconds(result.authenticated_at) || !isEpochMilliseconds(result.created_at)
       || !isEpochMilliseconds(result.updated_at)) {
-      throw new TypeError('Account session refresh returned invalid credentials');
+      throw new ArkyError('answer_mismatch', 'Account session refresh returned invalid credentials');
     }
     return result as unknown as AuthToken;
   }

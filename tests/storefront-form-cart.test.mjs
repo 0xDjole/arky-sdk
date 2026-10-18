@@ -18,6 +18,7 @@ import {
 } from "./helpers/arky-fixtures.mjs";
 
 const customerBuyer = { type: "customer" };
+const scope = { buyer: customerBuyer, catalog_id: ids.catalog };
 
 const contactForm = {
   id: ids.form,
@@ -91,19 +92,21 @@ test("a fresh visitor's first cart load identifies once and reads no cart, and a
     throw new Error(`Unexpected cart request: ${call.method} ${call.path}`);
   });
   const firstPage = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, market: "ita", sessionStorage: storage });
-  assert.equal(await firstPage.eshop.cart.load({ buyer: customerBuyer, catalog_id: ids.catalog }), null);
-  assert.equal(firstPage.eshop.cart.status.get().error, null);
+  const firstCart = firstPage.eshop.cart(scope);
+  assert.equal(await firstCart.load(), null);
+  assert.equal(firstCart.status.get().error, null);
   assert.equal(firstPage.hasSession, true);
   assert.deepEqual(calls.map(({ method, path }) => [method, path]), [["POST", "/v1/storefront/customer/identify"]]);
-  assert.equal((await firstPage.eshop.cart.create({ id: ids.cart, buyer: customerBuyer, catalog_id: ids.catalog })).id, ids.cart);
+  assert.equal((await firstCart.create({ id: ids.cart })).id, ids.cart);
   const { type: _type, ...productItem } = line;
-  assert.deepEqual(firstPage.eshop.cart.product_items.get(), [productItem]);
-  assert.equal(firstPage.eshop.cart.item_count.get(), 2);
+  assert.deepEqual(firstCart.product_items.get(), [productItem]);
+  assert.equal(firstCart.item_count.get(), 2);
 
   const reloaded = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, market: "ita", sessionStorage: storage });
   assert.equal(reloaded.hasSession, true);
-  assert.equal((await reloaded.eshop.cart.load({ buyer: customerBuyer, catalog_id: ids.catalog })).id, ids.cart);
-  assert.deepEqual(reloaded.eshop.cart.cart.get(), cart);
+  const reloadedCart = reloaded.eshop.cart(scope);
+  assert.equal((await reloadedCart.load()).id, ids.cart);
+  assert.deepEqual(reloadedCart.cart.get(), cart);
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
     ["POST", "/v1/storefront/customer/identify", { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }],
     ["POST", "/v1/storefront/carts", { id: ids.cart, buyer: customerBuyer, catalog_id: ids.catalog }],
@@ -136,16 +139,17 @@ test("a cart operation that starts with a session still refuses when the store c
     throw new Error(`Unexpected cart request: ${call.method} ${call.path}`);
   });
   const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: visitorStorage() });
-  await store.eshop.cart.create({ id: ids.cart, buyer: customerBuyer, catalog_id: ids.catalog });
-  const loading = store.eshop.cart.load({ buyer: customerBuyer, catalog_id: ids.catalog });
+  const cart = store.eshop.cart(scope);
+  await cart.create({ id: ids.cart });
+  const loading = cart.load();
   await new Promise((resolve) => setImmediate(resolve));
   store.setContext({ market: "deu" });
   releaseRead();
-  await assert.rejects(loading, /changed during the cart operation/);
-  assert.equal(store.eshop.cart.cart.get(), null);
+  await assert.rejects(loading, (error) => error.name === "CartError" && error.code === "context_changed" && /changed during the cart operation/.test(error.message));
+  assert.equal(cart.cart.get(), null);
 });
 
-test("submitByKey reads the form anonymously, identifies lazily and submits only given answers as multipart with no store routing", async (context) => {
+test("forms.submit with the loaded form reads it anonymously, identifies lazily and submits only given answers as multipart with no store routing", async (context) => {
   const storage = new SessionStorage();
   const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, locale: "it", market: "ita", sessionStorage: storage });
   const calls = recordFetch(context, (call) => {
@@ -156,12 +160,10 @@ test("submitByKey reads the form anonymously, identifies lazily and submits only
     }
     throw new Error(`Unexpected form request: ${call.method} ${call.path}`);
   });
-  const form = await store.forms.get({ key: "contact-form" });
-  assert.equal(store.forms.state.get().forms[`key:contact-form`], form);
-  assert.equal(store.forms.state.get().forms[`id:${ids.form}`], form);
-  const result = await store.forms.submitByKey({
+  const form = await store.forms.getByKey({ key: "contact-form" });
+  assert.equal("state" in store.forms, false);
+  const result = await store.forms.submit({
     id: ids.submission,
-    key: "contact-form",
     form,
     language: "it",
     values: { name: "Jane", age: 32, member: false, location: { lat: 43.8563, lon: 18.4131 }, note: "   ", topics: [] },
@@ -194,7 +196,7 @@ test("submitByKey reads the form anonymously, identifies lazily and submits only
   assert.equal(storedSessionOf(storage).version, 4);
 });
 
-test("submitByKey checks the shown form before identifying or submitting, and a whitespace-only required answer is missing", async (context) => {
+test("forms.submit checks the values against the shown form before identifying or submitting, and a whitespace-only required answer is missing", async (context) => {
   const storage = new SessionStorage();
   const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: storage });
   const calls = recordFetch(context, (call) => {
@@ -202,12 +204,12 @@ test("submitByKey checks the shown form before identifying or submitting, and a 
     throw new Error(`Validation must not issue ${call.method} ${call.path}`);
   });
   const form = await store.forms.get({ id: ids.form });
-  const request = { id: ids.submission, key: "contact-form", form, language: "it" };
-  await assert.rejects(async () => store.forms.submitByKey({ ...request, values: { name: "Jane", unknown: "no" } }), /'unknown' isn't part of the form/);
-  await assert.rejects(async () => store.forms.submitByKey({ ...request, values: {} }), /'name': an answer is required/);
-  await assert.rejects(async () => store.forms.submitByKey({ ...request, values: { name: "   " } }), /'name': an answer is required/);
-  await assert.rejects(async () => store.forms.submitByKey({ ...request, values: { name: 42 } }), /'name': expected text/);
-  await assert.rejects(async () => store.forms.submitByKey({ ...request, values: { name: "Jane", topics: ["sales", "sales"] } }), /'topics': contains an unknown or repeated option/);
+  const request = { id: ids.submission, form, language: "it" };
+  await assert.rejects(async () => store.forms.submit({ ...request, values: { name: "Jane", unknown: "no" } }), { name: "FormAnswerError", code: "unknown_question", questionKey: "unknown" });
+  await assert.rejects(async () => store.forms.submit({ ...request, values: {} }), { name: "FormAnswerError", code: "required", questionKey: "name" });
+  await assert.rejects(async () => store.forms.submit({ ...request, values: { name: "   " } }), /'name': an answer is required/);
+  await assert.rejects(async () => store.forms.submit({ ...request, values: { name: 42 } }), /'name': expected text/);
+  await assert.rejects(async () => store.forms.submit({ ...request, values: { name: "Jane", topics: ["sales", "sales"] } }), { name: "FormAnswerError", code: "unknown_option", questionKey: "topics" });
   assert.deepEqual(calls.map(({ method, path }) => [method, path]), [["GET", `/v1/storefront/forms/${ids.form}`]]);
   assert.equal(storedSessionOf(storage), null);
   assert.equal(store.hasSession, false);

@@ -1,6 +1,6 @@
-import type { EmbeddedCheckoutCallbacks, EmbeddedCheckoutMount } from "../types/embeddedCheckout";
+import type { EmbeddedCheckoutMount, MountCheckoutActionParams } from "../types/embeddedCheckout";
 import type { MonriComponentsAction, MonriEnvironment } from "../types/payment";
-import type { MonriBrowserFactory, MonriBuyerDetails } from "../types/monriCheckout";
+import type { MonriBrowserBuyerDetails, MonriBrowserFactory, MonriBuyerDetails } from "../types/monriCheckout";
 import { MonriCheckoutError } from "../types/monriCheckout";
 
 let loaded: { environment: MonriEnvironment; factory: Promise<MonriBrowserFactory> } | undefined;
@@ -68,18 +68,24 @@ function loadMonri(environment: MonriEnvironment): Promise<MonriBrowserFactory> 
   return factory;
 }
 
-function buyerDetails(value: MonriBuyerDetails): MonriBuyerDetails {
-  const bounds = { fullName: [3, 30], address: [3, 100], city: [3, 30], zip: [3, 9], phone: [3, 30], country: [2, 3], email: [3, 100] } as const;
-  const result = {} as MonriBuyerDetails;
+function buyerDetails(value: MonriBuyerDetails): MonriBrowserBuyerDetails {
+  const bounds = { full_name: [3, 30], address: [3, 100], city: [3, 30], zip: [3, 9], phone: [3, 30], country: [2, 3], email: [3, 100] } as const;
   for (const field of Object.keys(bounds) as (keyof MonriBuyerDetails)[]) {
     const input = value[field];
     const [minimum, maximum] = bounds[field];
     if (typeof input !== "string" || input !== input.trim() || input.length < minimum || input.length > maximum || /[\u0000-\u001f\u007f]/.test(input)) {
       throw new MonriCheckoutError("invalid_details", `Check the billing ${field} before submitting payment.`);
     }
-    result[field] = input;
   }
-  return result;
+  return {
+    fullName: value.full_name,
+    address: value.address,
+    city: value.city,
+    zip: value.zip,
+    phone: value.phone,
+    country: value.country,
+    email: value.email,
+  };
 }
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -91,15 +97,15 @@ let monriHostSequence = 0;
 export async function mountMonriCheckoutAction(
   action: MonriComponentsAction,
   paymentId: string,
-  location: string | HTMLElement,
-  callbacks: EmbeddedCheckoutCallbacks,
+  element: string | HTMLElement,
+  callbacks: Pick<MountCheckoutActionParams, "onComplete" | "onValidationError">,
 ): Promise<Extract<EmbeddedCheckoutMount, { type: "monri_components" }>> {
   if (!isMonriComponentsAction(action) || typeof paymentId !== "string" || !paymentId.length) {
     throw new MonriCheckoutError("invalid_action", "The Monri payment action is invalid.");
   }
   const accepted = { ...action, environment: action.environment as MonriEnvironment, payment_id: paymentId };
   const factory = await loadMonri(accepted.environment);
-  const target = typeof location === "string" ? document.querySelector<HTMLElement>(location) : location;
+  const target = typeof element === "string" ? document.querySelector<HTMLElement>(element) : element;
   if (!target || !target.isConnected) throw new MonriCheckoutError("unavailable", "The payment form container is unavailable.");
   const host = document.createElement("div");
   monriHostSequence += 1;
@@ -114,7 +120,11 @@ export async function mountMonriCheckoutAction(
       tokenizePan: accepted.save_card, tokenizePanOffered: false, showInstallmentsSelection: false,
     });
     card.onChange((event) => {
-      if (!disposed) callbacks.onValidationError?.(event.error ? "Check the card details before submitting payment." : null);
+      if (!disposed) {
+        callbacks.onValidationError?.(
+          event.error ? new MonriCheckoutError("invalid_card", "Check the card details before submitting payment.") : null,
+        );
+      }
     });
     card.mount(host.id);
     return {

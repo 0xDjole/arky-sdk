@@ -1,3 +1,5 @@
+import { ArkyError } from "./apiError";
+
 export type CustomerGroupJoinErrorCode =
   | "sign_in_required"
   | "email_mismatch"
@@ -7,8 +9,8 @@ export type CustomerGroupJoinErrorCode =
 
 const joinErrorBrand = Symbol.for("arky.commerce.CustomerGroupJoinError");
 
-export class CustomerGroupJoinError extends Error {
-  readonly name = "CustomerGroupJoinError";
+export class CustomerGroupJoinError extends ArkyError {
+  readonly name: string = "CustomerGroupJoinError";
   readonly [joinErrorBrand] = true;
 
   static [Symbol.hasInstance](value: unknown): boolean {
@@ -19,28 +21,27 @@ export class CustomerGroupJoinError extends Error {
     readonly code: CustomerGroupJoinErrorCode,
     message: string,
   ) {
-    super(message);
+    super(code, message);
   }
 }
 
-export interface JoinFreeCustomerGroupParams {
-  identifier: string;
+export type JoinFreeCustomerGroupParams = ({ id: string } | { key: string }) & {
   catalog_id: string;
-}
+};
 
 export type JoinFreeCustomerGroupResult =
   | { type: "joined"; order_id: string }
   | { type: "already_member"; customer_group_member_id: string };
 
-export interface SendNewsletterCodeParams {
+export interface RequestNewsletterCodeParams {
   email: string;
   language: string;
-  bot_check_token?: string | null;
+  bot_check_token?: string;
 }
 
-export type SendNewsletterCodeResult = { type: "code_sent" } | { type: "verified" };
+export type RequestNewsletterCodeResult = { type: "code_sent" } | { type: "verified" };
 
-export interface JoinNewsletterParams extends JoinFreeCustomerGroupParams {
+export type JoinNewsletterParams = JoinFreeCustomerGroupParams & {
   email: string;
   code?: string;
-}
+};

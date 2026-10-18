@@ -16,16 +16,20 @@ export {
   orderCustomerGroupItems,
   orderRentalUseItems,
   orderPurchaseAccessItems,
+  ArkyError,
   ArkyApiError,
+  ArkyNetworkError,
   isArkyApiError,
   CartPresentationChangedError,
+  FormAnswerError,
   FulfillmentSelectionError,
+  MonriCheckoutError,
 } from "./types";
 export type { AdminLogoutResult } from "./services/adminSession";
-export type { AdminSessionInternal, AdminSessionUpdater, ApiConfig } from "./services/clientTypes";
-export type { GetCountriesResponse } from "./api/location";
 export type { RecordNoteApi } from "./api/note";
 export type { FindAdminRentalReturnOptionsParams } from "./api/return";
 export { isCanonicalId, requireId } from "./utils/ids";
-export { mountCheckoutAction, mountPaymentMethodSetup, createStripeEmbeddedCheckout } from "./checkout";
-export type { PaymentMethodSetupMount } from "./checkout";
+export { DurableRequestError, isDefiniteRefusal } from "./utils/durableRequest";
+export { mountCheckoutAction, mountPaymentMethodSetup } from "./checkout";
+export { isSimulatedPayment, simulatePayment } from "./paymentSimulator";
+export type { PaymentSimulation, SimulatePaymentOptions, SimulatePaymentParams } from "./paymentSimulator";

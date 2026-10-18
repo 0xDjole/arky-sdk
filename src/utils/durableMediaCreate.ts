@@ -1,6 +1,6 @@
 import type { LocalizedText } from "../types/common";
 import type { CreateMediaParams } from "../types/content";
-import { DurableRequestStorageError } from "./durableRequest";
+import { DurableRequestError } from "./durableRequest";
 import { isCanonicalId } from "./ids";
 
 const databaseName = "arky-durable-requests-v1";
@@ -36,8 +36,9 @@ interface UrlMediaCreatePayload {
 
 type MediaCreatePayload = FileMediaCreatePayload | UrlMediaCreatePayload;
 
-function unavailable(reason: string): DurableRequestStorageError {
-  return new DurableRequestStorageError(
+function unavailable(reason: string): DurableRequestError {
+  return new DurableRequestError(
+    "storage",
     `Cannot safely start ${mediaCreateLabel} because its durable IndexedDB request ${reason}`,
   );
 }
@@ -374,7 +375,7 @@ export async function getOrCreatePendingMediaCreate(
   if (existing !== null) {
     const decoded = await decodeDurable(existing, storageKey);
     if (decoded.durable.requestJson !== requestJson) {
-      throw unavailable("has a different unresolved payload");
+      throw new DurableRequestError("pending", `${mediaCreateLabel} still keeps a different unresolved request; finish that one first`);
     }
     return {
       durable: decoded.durable,

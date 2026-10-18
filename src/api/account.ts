@@ -4,9 +4,9 @@ import type { PaginatedResponse } from "../types/common";
 import type {
   Account,
   AccountSession,
-  ListAccountSessionsParams,
+  FindAccountSessionsParams,
+  FindAccountsParams,
   RevokeAccountSessionParams,
-  SearchAccountsParams,
 } from "../types/account";
 import { segment } from "./paths";
 
@@ -24,12 +24,12 @@ export const createAccountApi = (apiConfig: ApiConfig) => ({
     return apiConfig.httpClient.delete<DeleteAccountResult>("/v1/accounts", options);
   },
 
-  search(params: SearchAccountsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<Account>> {
+  find(params: FindAccountsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<Account>> {
     return apiConfig.httpClient.get<PaginatedResponse<Account>>("/v1/accounts/search", { ...options, params });
   },
 
   session: {
-    list(params: ListAccountSessionsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<AccountSession>> {
+    find(params: FindAccountSessionsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<AccountSession>> {
       return apiConfig.httpClient.get<PaginatedResponse<AccountSession>>("/v1/accounts/me/sessions", {
         ...options,
         params,

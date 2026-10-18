@@ -10,7 +10,7 @@ const ENTRY_ID = "3d5f7b9c-1e2a-4b4d-8f6c-8e0a2c4e6f7b";
 const publishableKey = `arky_pk_${"s".repeat(43)}`;
 
 function admin() {
-  return createAdmin({ baseUrl: "https://content-contract.test", secretKey: "arky_api_content" });
+  return createAdmin({ apiUrl: "https://content-contract.test", secretKey: "arky_api_content" });
 }
 
 test("Collection discovery retains native filters and empty-page continuation", async (context) => {
@@ -53,7 +53,7 @@ test("Collection writes carry the app-picked id, typed schema and tagged editori
   assert.deepEqual(await api.create({ store_id: STORE_ID, id: COLLECTION_ID, key: "guides", schema, blocks: [] }), collection);
   const updated = await api.update({ store_id: STORE_ID, id: COLLECTION_ID, expected_updated_at: 1, status: { type: "archived" } });
   assert.deepEqual(updated.status, { type: "archived" });
-  await api.get({ store_id: STORE_ID, key: "guides/all" });
+  await api.getByKey({ store_id: STORE_ID, key: "guides/all" });
   await api.get({ store_id: STORE_ID, id: COLLECTION_ID });
   assert.deepEqual(calls.map(({ method, url, body }) => [method, url.pathname, body]), [
     ["POST", `/v1/stores/${STORE_ID}/collections`, { id: COLLECTION_ID, key: "guides", schema, blocks: [] }],
@@ -62,7 +62,7 @@ test("Collection writes carry the app-picked id, typed schema and tagged editori
     ["GET", `/v1/stores/${STORE_ID}/collections/${COLLECTION_ID}`, undefined],
   ]);
   await assert.rejects(async () => api.create({ store_id: STORE_ID, id: "guides", key: "guides", schema, blocks: [] }), TypeError);
-  await assert.rejects(async () => api.get({ key: "guides" }), TypeError);
+  await assert.rejects(async () => api.getByKey({ key: "guides" }), TypeError);
   assert.equal(calls.length, 4);
 });
 
@@ -111,11 +111,11 @@ test("entry slug lookups name their collection; Admin names the language and the
     calls.push({ url: new URL(url), headers: new Headers(init.headers) });
     return new Response(JSON.stringify({ items, cursor: null }), { headers: { "content-type": "application/json" } });
   });
-  assert.deepEqual(await admin().content.entry.findBySlug({ store_id: STORE_ID, collection_id: COLLECTION_ID, slug: "vodic", language: "bs" }), entry);
+  assert.deepEqual(await admin().content.entry.find({ store_id: STORE_ID, collection_id: COLLECTION_ID, slug: "vodic", language: "bs" }), { items: [entry], cursor: null });
   const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl: "https://entry.test", locale: "bs", sessionStorage: new SessionStorage() });
-  assert.deepEqual(await storefront.content.entry.findBySlug({ collection_id: COLLECTION_ID, slug: "vodic", language: "en" }), entry);
+  assert.deepEqual(await storefront.content.entry.find({ collection_id: COLLECTION_ID, slug: "vodic" }), { items: [entry], cursor: null });
   items = [];
-  assert.equal(await storefront.content.entry.findBySlug({ collection_id: COLLECTION_ID, slug: "missing" }), null);
+  assert.deepEqual(await storefront.content.entry.find({ collection_id: COLLECTION_ID, slug: "missing" }), { items: [], cursor: null });
   assert.deepEqual(Object.fromEntries(calls[0].url.searchParams), { collection_id: COLLECTION_ID, slug: "vodic", language: "bs" });
   assert.deepEqual(Object.fromEntries(calls[1].url.searchParams), { collection_id: COLLECTION_ID, slug: "vodic" });
   assert.equal(calls[1].url.pathname, "/v1/storefront/entries");
@@ -137,7 +137,7 @@ test("Entry writes use the app-picked id, slugs per language, tagged status and 
   assert.deepEqual((await api.update({ store_id: STORE_ID, id: ENTRY_ID, expected_updated_at: 1, status: { type: "draft" } })).status, { type: "draft" });
   assert.equal(calls[1].url.pathname, `/v1/stores/${STORE_ID}/entries/${ENTRY_ID}`);
   assert.deepEqual(calls[1].body, { expected_updated_at: 1, status: { type: "draft" } });
-  assert.deepEqual(await api.findByIds({ store_id: STORE_ID, ids: [ENTRY_ID] }), { items: [entry], cursor: null });
+  assert.deepEqual(await api.find({ store_id: STORE_ID, ids: [ENTRY_ID] }), { items: [entry], cursor: null });
   assert.equal(calls[2].url.pathname, `/v1/stores/${STORE_ID}/entries`);
   assert.deepEqual(JSON.parse(calls[2].url.searchParams.get("ids")), [ENTRY_ID]);
   assert.equal(calls[2].url.searchParams.has("cursor"), false);

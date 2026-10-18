@@ -23,7 +23,7 @@ import type {
   UpdateFulfillmentTrackingParams,
 } from "../types/fulfillment";
 import type { Payment } from "../types/payment";
-import type { FulfillmentUnitSlots, ResolveFulfillmentUnitSlotsParams } from "../types/fulfillmentUnitSelection";
+import type { FulfillmentUnitSlots, GetFulfillmentUnitSlotsParams } from "../types/fulfillmentUnitSelection";
 import { requireId } from "../utils/ids";
 import { storePath, storeRecordPath } from "./paths";
 
@@ -53,14 +53,15 @@ export const createFulfillmentJobApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.get<FulfillmentJob>(jobPath(params.store_id, params.fulfillment_job_id), options);
     },
 
-    items(params: GetFulfillmentJobParams, options?: RequestOptions): Promise<FulfillmentJobItem[]> {
-      return apiConfig.httpClient.get<FulfillmentJobItem[]>(
+    async findItems(params: GetFulfillmentJobParams, options?: RequestOptions): Promise<PaginatedResponse<FulfillmentJobItem>> {
+      const items = await apiConfig.httpClient.get<FulfillmentJobItem[]>(
         `${jobPath(params.store_id, params.fulfillment_job_id)}/items`,
         options,
       );
+      return { items, cursor: null };
     },
 
-    unitSlots(params: ResolveFulfillmentUnitSlotsParams, options?: RequestOptions): Promise<FulfillmentUnitSlots> {
+    getUnitSlots(params: GetFulfillmentUnitSlotsParams, options?: RequestOptions): Promise<FulfillmentUnitSlots> {
       const { store_id, fulfillment_job_id, ...body } = params;
       return apiConfig.httpClient.post<FulfillmentUnitSlots>(`${jobPath(store_id, fulfillment_job_id)}/unit-slots`, body, options);
     },

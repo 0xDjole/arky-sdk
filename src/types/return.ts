@@ -226,7 +226,11 @@ export interface StorefrontCreateReturnParams {
 }
 
 export interface StorefrontGetReturnParams {
-  return_id: string;
+  id: string;
+}
+
+export interface StorefrontGetOrderReturnOptionsParams {
+  order_id: string;
 }
 
 export interface StorefrontFindReturnsParams {

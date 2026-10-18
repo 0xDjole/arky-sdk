@@ -15,7 +15,7 @@ const version = 1_700_000_000_000;
 const choices = [{ entitlement_id: "dc78a8a7-27c3-47c2-8063-2f62c7f7a661", variant_id: ids.variant }];
 
 function members() {
-  return createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop.customerGroupMember;
+  return createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop.customerGroupMember;
 }
 
 function change(member = { id: memberId }) {
@@ -116,8 +116,8 @@ test("the calendar and purchase access read the member's next occurrence and gra
   };
   const calls = recordFetch(context, (call) => call.path.endsWith("/calendar") ? calendar : access);
   const api = members();
-  assert.deepEqual(await api.calendar({ store_id: store, id: memberId }), calendar);
-  assert.deepEqual(await api.purchaseAccess({ store_id: store, id: memberId, catalog_id: catalogId, sales_channel_id: ids.channel, variant_ids: [ids.variant], limit: 10, cursor: "next" }), access);
+  assert.deepEqual(await api.getCalendar({ store_id: store, id: memberId }), calendar);
+  assert.deepEqual(await api.getPurchaseAccess({ store_id: store, id: memberId, catalog_id: catalogId, sales_channel_id: ids.channel, variant_ids: [ids.variant], limit: 10, cursor: "next" }), access);
   const base = `/v1/stores/${store}/customer-group-members/${memberId}`;
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
     ["GET", `${base}/calendar`, {}, null],
@@ -145,8 +145,8 @@ test("a buyer acts on and reads their own member through storefront routes and g
   assert.deepEqual(await api.reviewSwitch(switchTo), change(self));
   await api.switch({ ...switchTo, catalog_id: catalogId });
   await api.withdrawRevision({ id: memberId, expected_updated_at: 10, revision_id: revisionId, reason: "Changed my mind" });
-  await api.calendar({ id: memberId });
-  await api.purchaseAccess({ id: memberId, catalog_id: catalogId, variant_ids: [ids.variant], limit: 5 });
+  await api.getCalendar({ id: memberId });
+  await api.getPurchaseAccess({ id: memberId, catalog_id: catalogId, variant_ids: [ids.variant], limit: 5 });
   await api.get({ id: memberId });
   await api.getRevision({ customer_group_member_id: memberId, revision_id: revisionId });
   await api.findOrders({ id: memberId, limit: 5, cursor: "next" });

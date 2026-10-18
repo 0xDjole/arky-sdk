@@ -154,5 +154,5 @@ export interface FindCustomerRentalsParams {
 }
 
 export interface GetCustomerRentalParams {
-  rental_id: string;
+  id: string;
 }

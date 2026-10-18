@@ -1,3 +1,4 @@
+import { ArkyError } from "./types/apiError";
 import { requireId } from "./utils/ids";
 import { isDefiniteRefusal } from "./utils/durableRequest";
 import { isOrderToken } from "./utils/orderToken";
@@ -17,8 +18,8 @@ import {
   CustomerGroupJoinError,
   type JoinFreeCustomerGroupResult,
   type JoinNewsletterParams,
-  type SendNewsletterCodeParams,
-  type SendNewsletterCodeResult,
+  type RequestNewsletterCodeParams,
+  type RequestNewsletterCodeResult,
 } from "./types/customerGroupJoin";
 import type {
   ChangeCustomerEmailParams,
@@ -67,7 +68,7 @@ import { createInventoryItemApi } from "./api/inventoryItem";
 import { createInventoryLevelApi } from "./api/inventoryLevel";
 import { createInventoryMovementApi } from "./api/inventoryMovement";
 import { createInventoryUnitApi } from "./api/inventoryUnit";
-import { createLocationApi } from "./api/location";
+import { createCountryApi, createLocationApi } from "./api/location";
 import { createMarketApi } from "./api/market";
 import { createMediaApi } from "./api/media";
 import {
@@ -105,7 +106,7 @@ import {
   type CustomerSessionUpdater,
   type RefreshCustomerSessionParams,
   type IdentifyCustomerParams,
-  type RequestCustomerCodeInput,
+  type RequestCustomerCodeParams,
   type VerifyCustomerCodeParams,
 } from "./api/storefront";
 import { createStorefrontPageViewsApi } from "./api/pageViews";
@@ -113,23 +114,55 @@ import { createAdminSupportApi, createStorefrontSupportApi } from "./api/support
 import { createTaxCategoryApi } from "./api/taxCategory";
 import { createWebhookApi } from "./api/webhook";
 import { createZoneApi } from "./api/zone";
-import {
+import { isValidKey } from "./utils/keyValidation";
+
+export * from "./types";
+export type { AdminLogoutResult } from "./services/adminSession";
+export type { RecordNoteApi } from "./api/note";
+export type { FindAdminRentalReturnOptionsParams } from "./api/return";
+export { COMMON_CUSTOMER_ACTION_KEYS } from "./api/storefront";
+export type {
+  CommonCustomerActionKey,
+  IdentifyCustomerParams,
+  OrderFromLink,
+  OrderFromLinkParams,
+  RefreshCustomerSessionParams,
+  RequestCustomerCodeParams,
+  StorefrontCheckoutCartRequest,
+  VerifyCustomerCodeParams,
+} from "./api/storefront";
+export { ScheduledResultTimeoutError } from "./utils/scheduledResult";
+export { isValidKey, validateKey, toKey } from "./utils/keyValidation";
+export {
+  epochMilliseconds,
+  epochMillisecondsFromDate,
+  epochMillisecondsNow,
+  epochMillisecondsToDate,
+} from "./utils/time";
+export { isCanonicalId, requireId } from "./utils/ids";
+export { DurableRequestError, isDefiniteRefusal } from "./utils/durableRequest";
+export type { DurableRequestErrorCode } from "./utils/durableRequest";
+export { paginate, readAllPages } from "./utils/paginate";
+export type { PageRead, PaginateOptions } from "./utils/paginate";
+export { latestPayment, paymentOutcome } from "./utils/paymentOutcome";
+export type { PaymentOutcome } from "./utils/paymentOutcome";
+export { paymentAmounts } from "./utils/paymentAmounts";
+export type { PaymentAmounts } from "./utils/paymentAmounts";
+export {
   blockContent,
   collectBlockReferences,
-  extractBlockValues,
   findBlock,
   formatBlockValue,
   getBlockContentValue,
-  getBlockFromArray,
   getBlockLabel,
-  getBlockObjectValues,
   getBlockTextValue,
   getBlockValue,
   getBlockValues,
   getImageUrl,
   selectLocalizedText,
 } from "./utils/blocks";
-import {
+export type { BlockReferences } from "./utils/blocks";
+export {
   convertToMajor,
   convertToMinor,
   formatMinor,
@@ -140,67 +173,14 @@ import {
   getCurrencySymbol,
   getPriceAmount,
 } from "./utils/price";
-import { validatePhoneNumber } from "./utils/validation";
-import { findTimeZone, tzGroups } from "./utils/timezone";
-import { categorify, formatDate, humanize, slugify } from "./utils/text";
-import { fetchSvgContent, getSvgContentForAstro, injectSvgIntoElement } from "./utils/svg";
-import { isValidKey, nameToKey, toKey, validateKey } from "./utils/keyValidation";
-
-export * from "./types";
-export type { AdminLogoutResult } from "./services/adminSession";
-export type { AdminSessionInternal, AdminSessionUpdater, ApiConfig, StorefrontApiConfig } from "./services/clientTypes";
-export type { GetCountriesResponse } from "./api/location";
-export type { RecordNoteApi } from "./api/note";
-export type { FindAdminRentalReturnOptionsParams } from "./api/return";
-export {
-  COMMON_CUSTOMER_ACTION_KEYS,
-} from "./api/storefront";
-export type {
-  CommonCustomerActionKey,
-  CustomerSessionInternal,
-  CustomerSessionUpdater,
-  IdentifyCustomerParams,
-  OrderFromLink,
-  OrderFromLinkParams,
-  RequestCustomerCodeInput,
-  RequestCustomerCodeParams,
-  StorefrontCheckoutCartRequest,
-  StorefrontLifecycle,
-  SubmitFormInput,
-  VerifyCustomerCodeParams,
-} from "./api/storefront";
-export type { SendConversationMessageInput, StartConversationInput } from "./api/support";
-export { ScheduledResultTimeoutError } from "./utils/scheduledResult";
-export { isValidKey, validateKey, toKey, nameToKey } from "./utils/keyValidation";
-export {
-  epochMilliseconds,
-  epochMillisecondsFromDate,
-  epochMillisecondsNow,
-  epochMillisecondsToDate,
-} from "./utils/time";
-export { isCanonicalId, requireId } from "./utils/ids";
-export { DurableRequestStorageError, isDefiniteRefusal, isDurableRequestStorageError } from "./utils/durableRequest";
-export { paginate, readAllPages } from "./utils/paginate";
-export type { PageRead, PaginateOptions } from "./utils/paginate";
-export { latestPayment, paymentOutcome } from "./utils/paymentOutcome";
-export type { PaymentOutcome } from "./utils/paymentOutcome";
-export {
-  blockContent,
-  collectBlockReferences,
-  getBlockContentValue,
-  getBlockTextValue,
-  getImageUrl,
-  selectLocalizedText,
-} from "./utils/blocks";
-export type { BlockReferences } from "./utils/blocks";
-export { createStripeEmbeddedCheckout, mountCheckoutAction, mountPaymentMethodSetup } from "./checkout";
-export type { PaymentMethodSetupMount } from "./checkout";
-export { createCartController } from "./cartController";
-export { buildFormAnswers, CheckoutFlowError, initialize } from "./storefrontStore";
+export { buildFormAnswers, formValuesFromAnswers } from "./utils/formAnswers";
+export { mountCheckoutAction, mountPaymentMethodSetup } from "./checkout";
+export { isSimulatedPayment, simulatePayment } from "./paymentSimulator";
+export type { PaymentSimulation, SimulatePaymentOptions, SimulatePaymentParams } from "./paymentSimulator";
+export { CheckoutFlowError, initialize } from "./storefrontStore";
 export type * from "./storefrontStore";
 
-export const SDK_VERSION = "0.26.91";
-export const SUPPORTED_FRAMEWORKS = ["astro", "react", "vue", "svelte", "vanilla"] as const;
+export const SDK_VERSION = "0.26.92";
 
 export interface AdminSession {
   id: string;
@@ -216,54 +196,16 @@ export interface StorefrontCustomerSession {
 
 export type AuthStateListener<T> = (session: T | null) => void;
 
-function createUtilitySurface() {
-  return {
-    getImageUrl,
-    findBlock,
-    blockContent,
-    getBlockValue,
-    getBlockTextValue,
-    getBlockContentValue,
-    getBlockValues,
-    getBlockLabel,
-    getBlockObjectValues,
-    getBlockFromArray,
-    formatBlockValue,
-    extractBlockValues,
-    collectBlockReferences,
-    selectLocalizedText,
-    formatPrice,
-    formatMoney,
-    formatMinor,
-    getPriceAmount,
-    getCurrencySymbol,
-    getCurrencyName,
-    getCurrencyMinorUnits,
-    convertToMajor,
-    convertToMinor,
-    validatePhoneNumber,
-    tzGroups,
-    findTimeZone,
-    slugify,
-    humanize,
-    categorify,
-    formatDate,
-    getSvgContentForAstro,
-    fetchSvgContent,
-    injectSvgIntoElement,
-    isValidKey,
-    validateKey,
-    toKey,
-    nameToKey,
-  };
+export interface CreateAdminConfig {
+  apiUrl: string;
+  secretKey?: string;
+  refreshPath?: string | (() => string);
+  forcedHeaders?: HttpClientConfig["forcedHeaders"];
+  onUnauthorized?: HttpClientConfig["onUnauthorized"];
 }
 
-export type CreateAdminConfig = Omit<HttpClientConfig, "authStorage" | "refreshCredentials"> & {
-  secretKey?: string;
-};
-
 export function createAdmin(config: CreateAdminConfig) {
-  const sessionState = createAdminSessionState(config.baseUrl, config.refreshPath);
+  const sessionState = createAdminSessionState(config.apiUrl, config.refreshPath);
   const readAdminSession = sessionState.read;
   const writeAdminSession = sessionState.write;
   let unsubscribeStorage: (() => void) | null = null;
@@ -290,11 +232,7 @@ export function createAdmin(config: CreateAdminConfig) {
 
   const secretKey = config.secretKey;
   const authStorage: AuthStorage = secretKey
-    ? {
-        getTokens: () => ({ access_token: secretKey }),
-        onTokensRefreshed: () => {},
-        onForcedLogout: () => {},
-      }
+    ? { getTokens: () => ({ access_token: secretKey }) }
     : {
         getTokens() {
           const session = readAdminSession();
@@ -306,25 +244,20 @@ export function createAdmin(config: CreateAdminConfig) {
             access_expires_at: session.access_expires_at,
           };
         },
-        onTokensRefreshed() {},
-        onForcedLogout() {},
       };
 
   const httpClient = createHttpClient({
-    baseUrl: config.baseUrl,
+    baseUrl: config.apiUrl,
     forcedHeaders: config.forcedHeaders,
-    refreshPath: config.refreshPath,
     refreshCredentials: secretKey ? undefined : sessionState.refresh,
     onUnauthorized: secretKey ? () => false : config.onUnauthorized,
-    navigate: config.navigate,
-    loginFallbackPath: config.loginFallbackPath,
     authStorage,
   });
 
-  const apiConfig: ApiConfig = { httpClient, baseUrl: config.baseUrl, authStorage };
+  const apiConfig: ApiConfig = { httpClient, baseUrl: config.apiUrl, authStorage };
   const authHttpClient = createHttpClient({
-    baseUrl: config.baseUrl,
-    authStorage: { getTokens: () => null, onTokensRefreshed() {}, onForcedLogout() {} },
+    baseUrl: config.apiUrl,
+    authStorage: { getTokens: () => null },
     onUnauthorized: () => false,
   });
 
@@ -338,6 +271,7 @@ export function createAdmin(config: CreateAdminConfig) {
     platform: createPlatformApi(apiConfig),
     store: {
       ...createStoreApi(apiConfig),
+      country: createCountryApi(apiConfig),
       role: createStoreRoleApi(apiConfig),
       webhook: createWebhookApi(apiConfig),
       location: createLocationApi(apiConfig),
@@ -455,8 +389,6 @@ export function createAdmin(config: CreateAdminConfig) {
       emit();
       return result;
     },
-
-    utils: createUtilitySurface(),
   };
 }
 
@@ -500,19 +432,19 @@ function normalizeStorefrontApiUrl(value: string | undefined): string {
   try {
     parsed = new URL(input);
   } catch {
-    throw new Error("Storefront apiUrl must be a valid HTTP(S) URL");
+    throw new TypeError("Storefront apiUrl must be a valid HTTP(S) URL");
   }
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    throw new Error("Storefront apiUrl must use HTTP or HTTPS");
+    throw new TypeError("Storefront apiUrl must use HTTP or HTTPS");
   }
   return input.replace(/\/+$/, "");
 }
 
 function validatePublishableKey(publishableKey: string): string {
   const message = "A valid Arky publishable key is required (arky_pk_ followed by 43 URL-safe characters)";
-  if (typeof publishableKey !== "string") throw new Error(message);
+  if (typeof publishableKey !== "string") throw new TypeError(message);
   const key = publishableKey.trim();
-  if (!/^arky_pk_[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/.test(key)) throw new Error(message);
+  if (!/^arky_pk_[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/.test(key)) throw new TypeError(message);
   return key;
 }
 
@@ -608,7 +540,7 @@ function parseStoredCustomerSession(value: string | null): CustomerSessionIntern
 
 function contextKey(value: string | undefined, label: string): string {
   const key = value?.trim() ?? "";
-  if (key && !isValidKey(key)) throw new Error(`The ${label} must be a valid exact key`);
+  if (key && !isValidKey(key)) throw new TypeError(`The ${label} must be a valid exact key`);
   return key;
 }
 
@@ -714,11 +646,6 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
         ? { access_token: issued.token }
         : { access_token: issued.access_token, refresh_token: issued.refresh_token };
     },
-    onTokensRefreshed() {},
-    onForcedLogout() {
-      identifyPromise = null;
-      updateSession(() => null);
-    },
   };
 
   let recoverUnauthorized: (authorizationToken: string | null, path: string) => Promise<boolean> = async () => false;
@@ -756,7 +683,7 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
   });
   const publishableKeyHttpClient = createHttpClient({
     baseUrl: apiUrl,
-    authStorage: { getTokens: () => null, onTokensRefreshed: () => {}, onForcedLogout: () => {} },
+    authStorage: { getTokens: () => null },
     storefrontMode: true,
     forcedHeaders: storefrontHeaders,
     onUnauthorized: () => false,
@@ -766,7 +693,7 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
 
   function requireVisitorSessionCapability(): void {
     if (!canCreateVisitorSession) {
-      throw new Error("Stateful storefront calls during SSR need an explicit request-local sessionStorage adapter");
+      throw new TypeError("Stateful storefront calls during SSR need an explicit request-local sessionStorage adapter");
     }
   }
 
@@ -805,7 +732,7 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
 
   function pendingKey(flow: string, target: string): string {
     const customerId = memorySession?.customer.id;
-    if (!customerId) throw new Error("A retry-safe create needs the customer session first");
+    if (!customerId) throw new ArkyError("no_session", "A retry-safe create needs the customer session first");
     return durableCreateKey(storageKey, flow, customerId, target);
   }
 
@@ -821,7 +748,7 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
     pendingKey,
     locale(requestOptions) {
       const value = requestLocale(requestOptions?.locale);
-      if (!value) throw new Error("Set the storefront locale, or pass one with the call");
+      if (!value) throw new TypeError("Set the storefront locale with setContext({ locale }), or pass one with the call");
       return value;
     },
     verifiedEmail,
@@ -881,7 +808,7 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
     return promise;
   }
 
-  async function requestCode(params: RequestCustomerCodeInput): Promise<CustomerCodeResult> {
+  async function requestCode(params: RequestCustomerCodeParams): Promise<CustomerCodeResult> {
     requireVisitorSessionCapability();
     if (params.id !== undefined) requireId(params.id, "sign-in email");
     await ensureVisitorSession();
@@ -991,7 +918,7 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
     }
   }
 
-  async function sendNewsletterCode(params: SendNewsletterCodeParams): Promise<SendNewsletterCodeResult> {
+  async function requestNewsletterCode(params: RequestNewsletterCodeParams): Promise<RequestNewsletterCodeResult> {
     const signedIn = verifiedEmail();
     if (signedIn !== null && sameEmail(signedIn, params.email)) return { type: "verified" };
     if (memorySession?.session.type === "email_authenticated") await logout();
@@ -1011,7 +938,10 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
     if (signedIn === null || !sameEmail(signedIn, params.email)) {
       throw new CustomerGroupJoinError("sign_in_required", "Confirm the email address with its code first");
     }
-    return storefrontApi.eshop.customerGroup.joinFree({ identifier: params.identifier, catalog_id: params.catalog_id }, requestOptions);
+    return storefrontApi.eshop.customerGroup.joinFree(
+      "id" in params ? { id: params.id, catalog_id: params.catalog_id } : { key: params.key, catalog_id: params.catalog_id },
+      requestOptions,
+    );
   }
 
   function setMarket(value: string): void {
@@ -1116,7 +1046,7 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
       unsubscribe,
     },
     newsletter: {
-      sendCode: sendNewsletterCode,
+      requestCode: requestNewsletterCode,
       join: joinNewsletter,
     },
     actions: storefrontApi.actions,
@@ -1125,11 +1055,8 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
     support: createStorefrontSupportApi(httpClient, ensureVisitorSession, flows),
     getSetup,
     setContext,
-    setMarket,
     getMarket: () => market,
-    setLocale,
     getLocale: () => locale,
-    utils: createUtilitySurface(),
   };
 }
 

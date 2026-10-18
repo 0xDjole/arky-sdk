@@ -1,4 +1,4 @@
-import type { RequestOptions } from "../types/httpClient";
+import type { RequestOptions, TransportOptions } from "../types/httpClient";
 import type {
   CartProductPurchase,
   FindStorefrontCartOffersParams,
@@ -35,26 +35,21 @@ export function copyCartProductPurchase(purchase: CartProductPurchase): CartProd
         entitlement_id: purchase.entitlement_id,
       };
     default:
-      throw new Error("A cart product needs an explicit supported purchase route");
+      throw new TypeError("A cart product needs an explicit supported purchase route");
   }
 }
 
 export function cartTokenOptions(options?: RequestOptions, token?: string | null): RequestOptions {
   if (options?.market !== undefined) {
-    throw new TypeError("A cart call uses the storefront's market; change it with setMarket while the cart is empty");
+    throw new TypeError("A cart call uses the storefront's market; change it with setContext({ market })");
   }
+  const { params: _params, ...caller } = (options ?? {}) as TransportOptions;
   const headers = Object.fromEntries(
-    Object.entries(options?.headers ?? {}).filter(([name]) => name.toLowerCase() !== "x-arky-cart-token"),
+    Object.entries(caller.headers ?? {}).filter(([name]) => name.toLowerCase() !== "x-arky-cart-token"),
   );
-  const params = options?.params
-    ? Object.fromEntries(
-        Object.entries(options.params).filter(([name]) => !["token", "cart_token"].includes(name.toLowerCase())),
-      )
-    : undefined;
   return {
-    ...options,
+    ...caller,
     headers: { ...headers, ...(token ? { "X-Arky-Cart-Token": token } : {}) },
-    ...(params ? { params } : {}),
   };
 }
 
@@ -122,7 +117,7 @@ export function storefrontCartLineItems(items: readonly StorefrontCartLineItemIn
       case "customer_group":
         return { type: "customer_group", ...storefrontCartCustomerGroup(item) };
       default:
-        throw new Error("A cart line must be a product, a booking or a customer group");
+        throw new TypeError("A cart line must be a product, a booking or a customer group");
     }
   });
 }

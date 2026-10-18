@@ -40,7 +40,7 @@ export const createInventoryLevelApi = (apiConfig: ApiConfig) => {
       });
     },
 
-    stock(params: FindInventoryLevelsParams, options?: RequestOptions): Promise<PaginatedResponse<InventoryStockLevel>> {
+    findStock(params: FindInventoryLevelsParams, options?: RequestOptions): Promise<PaginatedResponse<InventoryStockLevel>> {
       const { store_id, ...query } = params;
       return apiConfig.httpClient.get<PaginatedResponse<InventoryStockLevel>>(storePath(store_id, `${collection}/stock`), {
         ...options,

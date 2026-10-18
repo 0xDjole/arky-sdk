@@ -20,6 +20,7 @@ import type {
   StorefrontCurrentCartParams,
   StorefrontGetCartParams,
   StorefrontGetCartOrderParams,
+  StorefrontKeptCheckoutParams,
   StorefrontPreviewCartAccessProductParams,
   StorefrontQuoteCartFutureDeliveriesParams,
   StorefrontQuoteCartParams,
@@ -32,7 +33,16 @@ import type {
 import type { CartCheckoutRequest, CartCheckoutTransport } from "../types/cartCheckout";
 import type { LoadContentEntriesParams, LoadContentParams, LoadedContent, LoadedContentFor } from "../types/contentView";
 import type { JoinFreeCustomerGroupParams, JoinFreeCustomerGroupResult } from "../types/customerGroupJoin";
-import type { StorefrontFormSubmission, SubmitFormParams } from "../types/forms";
+import type {
+  FormAnswerInput,
+  KeptFormSubmission,
+  PendingFormSubmissionParams,
+  RecoverFormSubmissionParams,
+  RetainFormSubmissionParams,
+  StorefrontFormSubmission,
+  SubmitFormParams,
+  SubmitFormRequest,
+} from "../types/forms";
 import type { CartSelectionContext } from "../types/cartSelection";
 import type { CatalogReadOptions, FindStorefrontCatalogsParams, StorefrontCatalog } from "../types/catalog";
 import type {
@@ -41,20 +51,22 @@ import type {
   CompanyMembership,
   StorefrontFindCompanyLocationsParams,
   StorefrontFindCompanyMembershipsParams,
+  StorefrontGetCompanyAccessParams,
+  StorefrontGetCompanyLocationParams,
 } from "../types/company";
 import type {
   Category,
   Collection,
   Entry,
-  FindCategoryChildrenParams,
-  FindEntriesByIdsParams,
-  GetEntryParams,
   Media,
+  StorefrontFindCategoryChildrenParams,
   StorefrontFindEntriesParams,
-  StorefrontFindEntryBySlugParams,
+  StorefrontFindMediaParams,
   StorefrontGetCategoryByKeyParams,
   StorefrontGetCategoryParams,
+  StorefrontGetCollectionByKeyParams,
   StorefrontGetCollectionParams,
+  StorefrontGetEntryParams,
 } from "../types/content";
 import type {
   ChangeCustomerEmailParams,
@@ -77,14 +89,27 @@ import type {
   Order,
   StorefrontCancelOrderBookingItemParams,
   StorefrontCancelOrderProductItemParams,
+  StorefrontDownloadOrderAssetParams,
   StorefrontFindOrderPaymentsParams,
   StorefrontFindOrdersParams,
   StorefrontGetOrderParams,
   StorefrontOrderPaymentParams,
   StorefrontRescheduleOrderBookingItemParams,
+  StorefrontResumeOrderPaymentParams,
+  StorefrontRetainedOrderTokenParams,
 } from "../types/order";
-import type { CheckoutPaymentAction, Payment } from "../types/payment";
-import type { StorefrontPromotion } from "../types/promotion";
+import type {
+  CheckoutPaymentAction,
+  Payment,
+  PaymentMethod,
+  PaymentMethodSetupStart,
+  StorefrontCancelPaymentMethodSetupParams,
+  StorefrontFindPaymentMethodsParams,
+  StorefrontGetPaymentMethodParams,
+  StorefrontRequestPaymentMethodSetupParams,
+  StorefrontRevokePaymentMethodParams,
+} from "../types/payment";
+import type { GetStorefrontPromotionParams, StorefrontPromotion } from "../types/promotion";
 import type {
   AvailabilityResponse,
   DigitalDownload,
@@ -98,6 +123,7 @@ import type {
   FindStorefrontProductVariantsParams,
   GetLibraryProductParams,
   GetStorefrontAvailabilityParams,
+  GetStorefrontBookingResourceParams,
   GetStorefrontBookingServiceByKeyParams,
   GetStorefrontBookingServiceParams,
   GetStorefrontProductByKeyParams,
@@ -120,19 +146,22 @@ import type {
   Return,
   StorefrontCreateReturnParams,
   StorefrontFindReturnsParams,
+  StorefrontGetOrderReturnOptionsParams,
   StorefrontGetReturnParams,
 } from "../types/return";
 import type {
   FindStorefrontLocationsParams,
   FindStorefrontMarketsParams,
-  StorefrontCountries,
   StorefrontCountry,
+  StorefrontGetCountryParams,
+  StorefrontGetLocationParams,
+  StorefrontGetMarketByKeyParams,
+  StorefrontGetMarketParams,
   StorefrontLocation,
   StorefrontMarket,
-  StorefrontParams,
   StorefrontSetup,
 } from "../types/storefront";
-import { createCartSelection } from "../services/cartSelection";
+import { cartScopeKey, createCartSelection } from "../services/cartSelection";
 import {
   checkoutCart,
   checkoutCartWithNewIds,
@@ -143,6 +172,7 @@ import {
 } from "../services/cartCheckout";
 import { loadContent, loadContentEntries, type ContentReads } from "../services/contentLoad";
 import { runDurableCreate } from "../services/durableCreate";
+import { pendingFormSubmission, recoverFormSubmission, retainFormSubmission } from "../services/keptFormSubmission";
 import { joinFreeCustomerGroup, type FreeJoinDeps } from "../services/freeJoin";
 import {
   cartOffersQuery,
@@ -152,6 +182,8 @@ import {
   storefrontCartProduct,
   storefrontCartUpdateBody,
 } from "../utils/cartInputs";
+import { ArkyError } from "../types/apiError";
+import { buildFormAnswers } from "../utils/formAnswers";
 import { requireId } from "../utils/ids";
 import { createStorefrontCustomerGroupApi } from "./customerGroup";
 import { createStorefrontFormsApi } from "./forms";
@@ -177,20 +209,18 @@ export interface IdentifyCustomerParams {
   session_id: string;
 }
 
-export interface RequestCustomerCodeParams {
+export interface RequestCustomerCodeRequest {
   id: string;
   email: string;
   language: string;
-  bot_check_token?: string | null;
+  bot_check_token?: string;
 }
 
-export type RequestCustomerCodeInput = Omit<RequestCustomerCodeParams, "id"> & { id?: string };
+export type RequestCustomerCodeParams = Omit<RequestCustomerCodeRequest, "id"> & { id?: string };
 
 export interface VerifyCustomerCodeParams {
   code: string;
 }
-
-export type SubmitFormInput = Omit<SubmitFormParams, "id"> & { id?: string };
 
 export type StorefrontCheckoutCartRequest = Omit<StorefrontCheckoutCartParams, "order_id" | "order_token"> & {
   order_id?: string;
@@ -205,6 +235,7 @@ export interface OrderFromLinkParams {
 export interface OrderFromLink {
   order: Order;
   url: string;
+  order_token: string | null;
 }
 
 export interface RefreshCustomerSessionParams { session_id: string }
@@ -225,6 +256,34 @@ export const COMMON_CUSTOMER_ACTION_KEYS = [
 export type CommonCustomerActionKey = (typeof COMMON_CUSTOMER_ACTION_KEYS)[number];
 
 const base = "/v1/storefront";
+
+const mediaIdsPerRead = 100;
+
+function page<T>(items: T[]): PaginatedResponse<T> {
+  return { items, cursor: null };
+}
+
+function submissionDraft(params: SubmitFormParams | RetainFormSubmissionParams): {
+  form_id: string;
+  questions_updated_at: SubmitFormRequest["questions_updated_at"];
+  language: string;
+  answers: FormAnswerInput[];
+} {
+  if ("form" in params) {
+    return {
+      form_id: params.form.id,
+      questions_updated_at: params.form.questions_updated_at,
+      language: params.language,
+      answers: buildFormAnswers(params.form, params.values),
+    };
+  }
+  return {
+    form_id: params.form_id,
+    questions_updated_at: params.questions_updated_at,
+    language: params.language,
+    answers: params.answers,
+  };
+}
 
 function catalogQuery(params: CatalogReadOptions) {
   return {
@@ -262,9 +321,14 @@ export const createStorefrontApi = (
   });
   const cartToken = (target: { id: string; token?: string | null }) => target.token ?? cartSelection.token(target.id);
   const cartMutation = <T>(target: { id: string; token?: string | null }, path: string, body: () => object, options?: RequestOptions) =>
-    withCartMutation(checkoutScope, () =>
+    withCartMutation(checkoutScope, { type: "cart", cart_id: target.id }, () =>
       httpClient.post<T>(`${cartPath(target.id)}/${path}`, body(), cartTokenOptions(options, cartToken(target))),
     );
+  const keptSlot = (scope: StorefrontCurrentCartParams | undefined) => {
+    if (scope === undefined) return null;
+    requireId(scope.catalog_id, "catalog");
+    return cartScopeKey(scope);
+  };
   const checkoutTransport: CartCheckoutTransport<CartCheckoutRequest> = {
     async post(request, options) {
       await lifecycle.ensureVisitorSession();
@@ -307,10 +371,12 @@ export const createStorefrontApi = (
     newId: flows.newId,
     newOrderToken: flows.newOrderToken,
     retainToken: (orderId, token) => retainOrderToken(checkoutScope, orderId, token),
-    getGroup: (params, options) => customerGroups.customerGroup.get(params, options),
+    getGroup: (params, options) =>
+      "id" in params ? customerGroups.customerGroup.get(params, options) : customerGroups.customerGroup.getByKey(params, options),
     async createCart(params, options) {
       requireId(params.id, "cart");
-      return withCartMutation(checkoutScope, () =>
+      const slot = cartScopeKey({ buyer: params.buyer, catalog_id: params.catalog_id });
+      return withCartMutation(checkoutScope, { type: "new_cart", slot }, () =>
         httpClient.post<CreatedCart>(
           `${base}/carts`,
           { id: params.id, buyer: params.buyer, catalog_id: params.catalog_id },
@@ -330,28 +396,67 @@ export const createStorefrontApi = (
     getOrder: (id, orderToken, options) => httpClient.get<Order>(orderPath(id), orderTokenOptions({ ...options, order_token: orderToken })),
   };
 
-  async function submitForm(params: SubmitFormInput, options?: RequestOptions): Promise<StorefrontFormSubmission> {
-    const { id, ...draft } = params;
-    if (id !== undefined) {
-      requireId(id, "form submission");
+  async function submitForm(params: SubmitFormParams, options?: RequestOptions): Promise<StorefrontFormSubmission> {
+    const draft = submissionDraft(params);
+    const request = (id: string): SubmitFormRequest => ({
+      ...draft,
+      id,
+      ...(params.bot_check_token !== undefined ? { bot_check_token: params.bot_check_token } : {}),
+    });
+    if (params.id !== undefined) {
+      requireId(params.id, "form submission");
       await lifecycle.ensureVisitorSession();
-      return forms.submit({ ...draft, id }, options);
+      return forms.submit(request(params.id), options);
     }
     await lifecycle.ensureVisitorSession();
     return runDurableCreate({
       key: flows.pendingKey("form-submission", draft.form_id),
       label: "form submission",
-      input: { form_id: draft.form_id, questions_updated_at: draft.questions_updated_at, language: draft.language, answers: draft.answers },
+      input: draft,
       newId: () => flows.newId("form submission"),
-      send: (submissionId) => forms.submit({ ...draft, id: submissionId }, options),
+      send: (submissionId) => forms.submit(request(submissionId), options),
       confirms: (submission, submissionId) => submission.id === submissionId && submission.form_id === draft.form_id,
     });
+  }
+
+  const keptFormKey = (formId: string) => flows.pendingKey("kept-form-submission", formId);
+
+  async function retainSubmission(params: RetainFormSubmissionParams): Promise<KeptFormSubmission> {
+    if (params.id !== undefined) requireId(params.id, "form submission");
+    const draft = submissionDraft(params);
+    await lifecycle.ensureVisitorSession();
+    return retainFormSubmission(
+      keptFormKey(draft.form_id),
+      { ...draft, ...(params.id !== undefined ? { id: params.id } : {}) },
+      () => flows.newId("form submission"),
+    );
+  }
+
+  async function pendingSubmission(params: PendingFormSubmissionParams): Promise<KeptFormSubmission | null> {
+    await lifecycle.ensureVisitorSession();
+    return pendingFormSubmission(keptFormKey(params.form_id));
+  }
+
+  async function recoverSubmission(
+    params: RecoverFormSubmissionParams,
+    options?: RequestOptions,
+  ): Promise<StorefrontFormSubmission | null> {
+    await lifecycle.ensureVisitorSession();
+    return recoverFormSubmission(
+      keptFormKey(params.form_id),
+      (kept, sendOptions) =>
+        forms.submit(
+          { ...kept, ...(params.bot_check_token !== undefined ? { bot_check_token: params.bot_check_token } : {}) },
+          sendOptions,
+        ),
+      options,
+    );
   }
 
   async function orderFromLink(params: OrderFromLinkParams, options?: RequestOptions): Promise<OrderFromLink> {
     requireId(params.id, "order");
     if (typeof globalThis.localStorage === "undefined") {
-      throw new Error("order.fromLink keeps the order token in localStorage; call it in the browser");
+      throw new TypeError("order.fromLink keeps the order token in localStorage; call it in the browser");
     }
     const link = new URL(params.url);
     const fragment = new URLSearchParams(link.hash.slice(1));
@@ -359,22 +464,22 @@ export const createStorefrontApi = (
     await lifecycle.ensureVisitorSession();
     if (tokens.length > 0) {
       const [token] = tokens;
-      if (tokens.length !== 1 || !isOrderToken(token)) throw new TypeError("The order link carries an invalid order token");
+      if (tokens.length !== 1 || !isOrderToken(token)) throw new ArkyError("invalid_link", "The order link carries an invalid order token");
       const order = await httpClient.get<Order>(orderPath(params.id), orderTokenOptions({ ...options, order_token: token }));
-      if (order.id !== params.id) throw new Error("The order link opened another order");
+      if (order.id !== params.id) throw new ArkyError("answer_mismatch", "The order link opened another order");
       replaceOrderToken(checkoutScope, params.id, token);
       fragment.delete("order_token");
       const rest = fragment.toString();
       link.hash = rest ? `#${rest}` : "";
-      return { order, url: link.toString() };
+      return { order, url: link.toString(), order_token: token };
     }
     const retained = readOrderToken(checkoutScope, params.id);
     const order = await httpClient.get<Order>(
       orderPath(params.id),
       orderTokenOptions(retained ? { ...options, order_token: retained } : options),
     );
-    if (order.id !== params.id) throw new Error("The order read answered another order");
-    return { order, url: link.toString() };
+    if (order.id !== params.id) throw new ArkyError("answer_mismatch", "The order read answered another order");
+    return { order, url: link.toString(), order_token: retained };
   }
 
   function persistIssuedSession<T extends CustomerSessionResult>(result: T): T {
@@ -385,7 +490,7 @@ export const createStorefrontApi = (
   function persistCustomerRead(result: CustomerMe): CustomerMe {
     if (result.session.customer_id !== result.customer.id ||
         result.session.store_id !== result.customer.store_id) {
-      throw new Error("The customer answer does not match its customer session");
+      throw new ArkyError("answer_mismatch", "The customer answer does not match its customer session");
     }
     updateCustomerSession((previous) => {
       if (!previous || previous.session.id !== result.session.id ||
@@ -412,7 +517,7 @@ export const createStorefrontApi = (
         return persistIssuedSession(result);
       },
 
-      async requestCode(params: RequestCustomerCodeParams, options?: RequestOptions): Promise<CustomerCodeResult> {
+      async requestCode(params: RequestCustomerCodeRequest, options?: RequestOptions): Promise<CustomerCodeResult> {
         requireId(params.id, "sign-in email");
         const result = await httpClient.post<CustomerCodeResult>(
           `${base}/customer/request-code`,
@@ -425,7 +530,7 @@ export const createStorefrontApi = (
             previous.session.id !== result.session.id ||
             previous.session.customer_id !== result.session.customer_id
           ) {
-            throw new Error("The code answer does not match the active customer session");
+            throw new ArkyError("answer_mismatch", "The code answer does not match the active customer session");
           }
           return { ...previous, customer: result.customer };
         });
@@ -444,7 +549,7 @@ export const createStorefrontApi = (
               previous.customer.id !== result.customer.id ||
               previous.customer.store_id !== result.customer.store_id ||
               result.session.store_id !== result.customer.store_id) {
-            throw new Error("The email-change answer does not match the active customer session");
+            throw new ArkyError("answer_mismatch", "The email-change answer does not match the active customer session");
           }
           return { ...previous, customer: result.customer };
         });
@@ -465,7 +570,7 @@ export const createStorefrontApi = (
 
       async refresh(params: RefreshCustomerSessionParams, options?: RequestOptions): Promise<CustomerSessionResult> {
         const refreshToken = apiConfig.authStorage.getTokens()?.refresh_token;
-        if (!refreshToken) throw new Error("An email-authenticated customer session is required");
+        if (!refreshToken) throw new ArkyError("no_session", "An email-authenticated customer session is required");
         const result = await apiConfig.publishableKeyHttpClient.post<CustomerSessionResult>(
           `${base}/customer/refresh`,
           { session_id: requireId(params.session_id, "customer session"), refresh_token: refreshToken },
@@ -500,62 +605,60 @@ export const createStorefrontApi = (
     },
 
     store: {
-      getSetup: lifecycle.getSetup,
+      country: {
+        find(options?: RequestOptions): Promise<PaginatedResponse<StorefrontCountry>> {
+          return httpClient.get<PaginatedResponse<StorefrontCountry>>("/v1/platform/countries", options);
+        },
+        get(params: StorefrontGetCountryParams, options?: RequestOptions): Promise<StorefrontCountry> {
+          return httpClient.get<StorefrontCountry>(`/v1/platform/countries/${segment(params.code)}`, options);
+        },
+      },
       location: {
-        getCountries(options?: RequestOptions): Promise<StorefrontCountries> {
-          return httpClient.get<StorefrontCountries>("/v1/platform/countries", options);
-        },
-        getCountry(countryCode: string, options?: RequestOptions): Promise<StorefrontCountry> {
-          return httpClient.get<StorefrontCountry>(`/v1/platform/countries/${segment(countryCode)}`, options);
-        },
-        list(params: FindStorefrontLocationsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<StorefrontLocation>> {
+        find(params: FindStorefrontLocationsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<StorefrontLocation>> {
           return httpClient.get<PaginatedResponse<StorefrontLocation>>(`${base}/locations`, { ...options, params });
         },
-        get(id: string, options?: RequestOptions): Promise<StorefrontLocation> {
-          return httpClient.get<StorefrontLocation>(`${base}/locations/${segment(id)}`, options);
+        get(params: StorefrontGetLocationParams, options?: RequestOptions): Promise<StorefrontLocation> {
+          return httpClient.get<StorefrontLocation>(`${base}/locations/${segment(params.id)}`, options);
         },
       },
       market: {
-        getByKey(key: string, options?: RequestOptions): Promise<StorefrontMarket> {
-          return httpClient.get<StorefrontMarket>(`${base}/markets/by-key/${segment(key)}`, options);
-        },
-        list(params: FindStorefrontMarketsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<StorefrontMarket>> {
+        find(params: FindStorefrontMarketsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<StorefrontMarket>> {
           return httpClient.get<PaginatedResponse<StorefrontMarket>>(`${base}/markets`, { ...options, params });
         },
-        get(id: string, options?: RequestOptions): Promise<StorefrontMarket> {
-          return httpClient.get<StorefrontMarket>(`${base}/markets/${segment(id)}`, options);
+        get(params: StorefrontGetMarketParams, options?: RequestOptions): Promise<StorefrontMarket> {
+          return httpClient.get<StorefrontMarket>(`${base}/markets/${segment(params.id)}`, options);
+        },
+        getByKey(params: StorefrontGetMarketByKeyParams, options?: RequestOptions): Promise<StorefrontMarket> {
+          return httpClient.get<StorefrontMarket>(`${base}/markets/by-key/${segment(params.key)}`, options);
         },
       },
     },
 
     media: {
-      findByIds(params: { ids: string[] }, options?: RequestOptions): Promise<Media[]> {
-        return httpClient.get<Media[]>(`${base}/media`, { ...options, params: { ids: params.ids } });
+      async find(params: StorefrontFindMediaParams, options?: RequestOptions): Promise<PaginatedResponse<Media>> {
+        const items: Media[] = [];
+        for (let start = 0; start < params.ids.length; start += mediaIdsPerRead) {
+          const ids = params.ids.slice(start, start + mediaIdsPerRead);
+          items.push(...(await httpClient.get<Media[]>(`${base}/media`, { ...options, params: { ids } })));
+        }
+        return page(items);
       },
     },
 
     content: {
       collection: {
         get(params: StorefrontGetCollectionParams, options?: RequestOptions): Promise<Collection> {
-          const identifier = "id" in params ? params.id : params.key;
-          return httpClient.get<Collection>(`${base}/collections/${segment(identifier)}`, options);
+          return httpClient.get<Collection>(`${base}/collections/${segment(params.id)}`, options);
+        },
+        getByKey(params: StorefrontGetCollectionByKeyParams, options?: RequestOptions): Promise<Collection> {
+          return httpClient.get<Collection>(`${base}/collections/${segment(params.key)}`, options);
         },
       },
       entry: {
         find(params: StorefrontFindEntriesParams, options?: RequestOptions): Promise<PaginatedResponse<Entry>> {
           return httpClient.get<PaginatedResponse<Entry>>(`${base}/entries`, { ...options, params });
         },
-        findByIds(params: StorefrontParams<FindEntriesByIdsParams>, options?: RequestOptions): Promise<PaginatedResponse<Entry>> {
-          return httpClient.get<PaginatedResponse<Entry>>(`${base}/entries`, { ...options, params: { ids: params.ids } });
-        },
-        async findBySlug(params: StorefrontFindEntryBySlugParams, options?: RequestOptions): Promise<Entry | null> {
-          const page = await httpClient.get<PaginatedResponse<Entry>>(`${base}/entries`, {
-            ...options,
-            params: { collection_id: params.collection_id, slug: params.slug },
-          });
-          return page.items[0] ?? null;
-        },
-        get(params: StorefrontParams<GetEntryParams>, options?: RequestOptions): Promise<Entry> {
+        get(params: StorefrontGetEntryParams, options?: RequestOptions): Promise<Entry> {
           return httpClient.get<Entry>(`${base}/entries/${segment(params.id)}`, options);
         },
       },
@@ -571,13 +674,13 @@ export const createStorefrontApi = (
     category: {
       get(params: StorefrontGetCategoryParams, options?: RequestOptions): Promise<Category> {
         const identifier = "id" in params ? params.id : params.slug;
-        if (!identifier) throw new Error("A category read needs its id or its slug; a key is read with getByKey");
+        if (!identifier) throw new TypeError("A category read needs its id or its slug; a key is read with getByKey");
         return httpClient.get<Category>(`${base}/categories/${segment(identifier)}`, options);
       },
       getByKey(params: StorefrontGetCategoryByKeyParams, options?: RequestOptions): Promise<Category> {
         return httpClient.get<Category>(`${base}/categories/by-key/${segment(params.key)}`, options);
       },
-      getChildren(params: StorefrontParams<FindCategoryChildrenParams>, options?: RequestOptions): Promise<PaginatedResponse<Category>> {
+      findChildren(params: StorefrontFindCategoryChildrenParams, options?: RequestOptions): Promise<PaginatedResponse<Category>> {
         const { id, ...query } = params;
         return httpClient.get<PaginatedResponse<Category>>(`${base}/categories/${segment(id)}/children`, {
           ...options,
@@ -588,20 +691,24 @@ export const createStorefrontApi = (
 
     forms: {
       get: forms.get,
+      getByKey: forms.getByKey,
       submit: submitForm,
+      retainSubmission,
+      pendingSubmission,
+      recoverSubmission,
     },
 
     eshop: {
       catalog: {
-        find(params: FindStorefrontCatalogsParams = {}, options?: RequestOptions): Promise<StorefrontCatalog[]> {
-          return httpClient.get<StorefrontCatalog[]>(`${base}/catalogs`, { ...options, params });
+        async find(params: FindStorefrontCatalogsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<StorefrontCatalog>> {
+          return page(await httpClient.get<StorefrontCatalog[]>(`${base}/catalogs`, { ...options, params }));
         },
       },
 
       product: {
         get(params: GetStorefrontProductParams, options?: RequestOptions): Promise<StorefrontProduct> {
-          const identifier = params.id ?? params.slug;
-          if (!identifier) throw new Error("A product read needs its id or its slug");
+          const identifier = "id" in params ? params.id : params.slug;
+          if (!identifier) throw new TypeError("A product read needs its id or its slug; a key is read with getByKey");
           return httpClient.get<StorefrontProduct>(`${base}/products/${segment(identifier)}`, {
             ...options,
             params: catalogQuery(params),
@@ -640,8 +747,8 @@ export const createStorefrontApi = (
 
       bookingService: {
         get(params: GetStorefrontBookingServiceParams, options?: RequestOptions): Promise<StorefrontBookingService> {
-          const identifier = params.id ?? params.slug;
-          if (!identifier) throw new Error("A booking service read needs its id or its slug");
+          const identifier = "id" in params ? params.id : params.slug;
+          if (!identifier) throw new TypeError("A booking service read needs its id or its slug; a key is read with getByKey");
           return httpClient.get<StorefrontBookingService>(`${base}/booking-services/${segment(identifier)}`, {
             ...options,
             params: catalogQuery(params),
@@ -668,8 +775,8 @@ export const createStorefrontApi = (
       },
 
       promotion: {
-        get(id: string, options?: RequestOptions): Promise<StorefrontPromotion> {
-          return httpClient.get<StorefrontPromotion>(`${base}/promotions/${segment(id)}`, options);
+        get(params: GetStorefrontPromotionParams, options?: RequestOptions): Promise<StorefrontPromotion> {
+          return httpClient.get<StorefrontPromotion>(`${base}/promotions/${segment(params.id)}`, options);
         },
       },
 
@@ -686,8 +793,8 @@ export const createStorefrontApi = (
       },
 
       bookingResource: {
-        get(id: string, options?: RequestOptions): Promise<StorefrontBookingResource> {
-          return httpClient.get<StorefrontBookingResource>(`${base}/booking-resources/${segment(id)}`, options);
+        get(params: GetStorefrontBookingResourceParams, options?: RequestOptions): Promise<StorefrontBookingResource> {
+          return httpClient.get<StorefrontBookingResource>(`${base}/booking-resources/${segment(params.id)}`, options);
         },
         find(
           params: FindStorefrontBookingResourcesParams = {},
@@ -706,7 +813,7 @@ export const createStorefrontApi = (
           return cartSelection.create(params, options);
         },
 
-        async current(params: StorefrontCurrentCartParams, options?: RequestOptions): Promise<Cart | null> {
+        async getCurrent(params: StorefrontCurrentCartParams, options?: RequestOptions): Promise<Cart | null> {
           await lifecycle.ensureVisitorSession();
           return cartSelection.current(params, options);
         },
@@ -720,14 +827,14 @@ export const createStorefrontApi = (
           return httpClient.get<Cart>(cartPath(params.id), cartTokenOptions(options, cartToken(params)));
         },
 
-        async order(params: StorefrontGetCartOrderParams, options?: RequestOptions): Promise<Order | null> {
+        async getOrder(params: StorefrontGetCartOrderParams, options?: RequestOptions): Promise<Order | null> {
           requireId(params.id, "cart");
           if ("token" in params) throw new TypeError("A Cart-to-Order read uses current buyer authorization");
           await lifecycle.ensureVisitorSession();
           return httpClient.get<Order | null>(`${cartPath(params.id)}/order`, cartTokenOptions(options, null));
         },
 
-        async offers(params: FindStorefrontCartOffersParams, options?: RequestOptions): Promise<PaginatedResponse<Cart>> {
+        async findOffers(params: FindStorefrontCartOffersParams, options?: RequestOptions): Promise<PaginatedResponse<Cart>> {
           const query = cartOffersQuery(params);
           await lifecycle.ensureVisitorSession();
           return httpClient.get<PaginatedResponse<Cart>>(`${base}/carts/offers`, { ...cartTokenOptions(options, null), params: query });
@@ -741,7 +848,7 @@ export const createStorefrontApi = (
 
         async update(params: StorefrontUpdateCartParams, options?: RequestOptions): Promise<Cart> {
           await lifecycle.ensureVisitorSession();
-          return withCartMutation(checkoutScope, () =>
+          return withCartMutation(checkoutScope, { type: "cart", cart_id: params.id }, () =>
             httpClient.put<Cart>(cartPath(params.id), storefrontCartUpdateBody(params), cartTokenOptions(options, cartToken(params))),
           );
         },
@@ -806,7 +913,7 @@ export const createStorefrontApi = (
 
         async setFutureDeliveries(params: StorefrontSetCartFutureDeliveriesParams, options?: RequestOptions): Promise<Cart> {
           await lifecycle.ensureVisitorSession();
-          return withCartMutation(checkoutScope, () =>
+          return withCartMutation(checkoutScope, { type: "cart", cart_id: params.id }, () =>
             httpClient.put<Cart>(
               `${cartPath(params.id)}/future-deliveries`,
               { expected_updated_at: params.expected_updated_at, customer_groups: params.customer_groups },
@@ -850,36 +957,31 @@ export const createStorefrontApi = (
         },
 
         async checkout(params: StorefrontCheckoutCartRequest, options?: RequestOptions): Promise<CheckoutAcceptance> {
-          const { token: _token, order_id, order_token, ...draft } = params;
+          const { token: _token, scope, order_id, order_token, ...draft } = params;
           if (order_id !== undefined && order_token !== undefined) {
             return checkoutCart({ ...draft, order_id, order_token }, checkoutTransport, options);
           }
           if (order_id !== undefined || order_token !== undefined) {
             throw new TypeError("A checkout names both its order_id and order_token, or neither so the app's factories pick them");
           }
-          return checkoutCartWithNewIds(checkoutScope, draft, flows, checkoutTransport, options);
+          return checkoutCartWithNewIds(checkoutScope, keptSlot(scope), draft, flows, checkoutTransport, options);
         },
 
         async retainCheckout(params: StorefrontCheckoutCartParams): Promise<CartCheckoutRequest> {
-          const { token: _token, ...request } = params;
-          return retainCartCheckout(checkoutScope, request);
+          const { token: _token, scope, ...request } = params;
+          return retainCartCheckout(checkoutScope, keptSlot(scope), request);
         },
 
-        pendingCheckout(): Promise<CartCheckoutRequest | null> {
-          return pendingCartCheckout(checkoutScope);
+        pendingCheckout(params: StorefrontKeptCheckoutParams = {}): Promise<CartCheckoutRequest | null> {
+          return pendingCartCheckout(checkoutScope, keptSlot(params.scope));
         },
 
-        recoverCheckout(options?: RequestOptions): Promise<CheckoutAcceptance | null> {
-          return recoverCartCheckout(checkoutScope, checkoutTransport, options);
+        recoverCheckout(params: StorefrontKeptCheckoutParams = {}, options?: RequestOptions): Promise<CheckoutAcceptance | null> {
+          return recoverCartCheckout(checkoutScope, keptSlot(params.scope), checkoutTransport, options);
         },
       },
 
       order: {
-        async downloadAsset(params: { order_id: string; line_item_id: string; asset_id: string; order_token: string }, options?: RequestOptions): Promise<DigitalDownload> {
-          await lifecycle.ensureVisitorSession();
-          return httpClient.get<DigitalDownload>(`${base}/orders/${segment(params.order_id)}/digital-lines/${segment(params.line_item_id)}/assets/${segment(params.asset_id)}/download`, orderTokenOptions({ ...options, order_token: params.order_token }));
-        },
-
         async find(params: StorefrontFindOrdersParams = {}, options?: RequestOptions): Promise<PaginatedResponse<Order>> {
           await lifecycle.ensureVisitorSession();
           return httpClient.get<PaginatedResponse<Order>>(`${base}/orders`, { ...options, params });
@@ -892,22 +994,27 @@ export const createStorefrontApi = (
 
         fromLink: orderFromLink,
 
-        retainedToken(id: string): string | null {
-          requireId(id, "order");
-          return typeof globalThis.localStorage === "undefined" ? null : readOrderToken(checkoutScope, id);
+        retainedToken(params: StorefrontRetainedOrderTokenParams): string | null {
+          requireId(params.order_id, "order");
+          return typeof globalThis.localStorage === "undefined" ? null : readOrderToken(checkoutScope, params.order_id);
         },
 
-        async fulfillments(
+        async findFulfillments(
           params: FindCustomerOrderFulfillmentsParams,
           options?: RequestOptions,
-        ): Promise<CustomerOrderFulfillment[]> {
+        ): Promise<PaginatedResponse<CustomerOrderFulfillment>> {
           await lifecycle.ensureVisitorSession();
-          return httpClient.get<CustomerOrderFulfillment[]>(`${base}/orders/${segment(params.order_id)}/fulfillments`, orderTokenOptions(options));
+          return page(
+            await httpClient.get<CustomerOrderFulfillment[]>(
+              `${base}/orders/${segment(params.order_id)}/fulfillments`,
+              orderTokenOptions(options),
+            ),
+          );
         },
 
-        async findPayments(params: StorefrontFindOrderPaymentsParams, options?: RequestOptions): Promise<Payment[]> {
+        async findPayments(params: StorefrontFindOrderPaymentsParams, options?: RequestOptions): Promise<PaginatedResponse<Payment>> {
           await lifecycle.ensureVisitorSession();
-          return httpClient.get<Payment[]>(`${base}/orders/${segment(params.order_id)}/payments`, orderTokenOptions(options));
+          return page(await httpClient.get<Payment[]>(`${base}/orders/${segment(params.order_id)}/payments`, orderTokenOptions(options)));
         },
 
         async getPayment(params: StorefrontOrderPaymentParams, options?: RequestOptions): Promise<Payment> {
@@ -918,11 +1025,19 @@ export const createStorefrontApi = (
           );
         },
 
-        async paymentAction(params: { order_id: string }, options?: RequestOptions): Promise<CheckoutPaymentAction> {
+        async resumePayment(params: StorefrontResumeOrderPaymentParams, options?: RequestOptions): Promise<CheckoutPaymentAction> {
           await lifecycle.ensureVisitorSession();
           return httpClient.post<CheckoutPaymentAction>(
             `${base}/orders/${segment(params.order_id)}/payment-action`,
             undefined,
+            orderTokenOptions(options),
+          );
+        },
+
+        async downloadAsset(params: StorefrontDownloadOrderAssetParams, options?: RequestOptions): Promise<DigitalDownload> {
+          await lifecycle.ensureVisitorSession();
+          return httpClient.get<DigitalDownload>(
+            `${base}/orders/${segment(params.order_id)}/digital-lines/${segment(params.line_item_id)}/assets/${segment(params.asset_id)}/download`,
             orderTokenOptions(options),
           );
         },
@@ -992,33 +1107,33 @@ export const createStorefrontApi = (
       },
 
       paymentMethod: {
-        async find(...args: Parameters<typeof paymentMethods.find>) {
+        async find(params: StorefrontFindPaymentMethodsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<PaymentMethod>> {
           await lifecycle.ensureVisitorSession();
-          return paymentMethods.find(...args);
+          return paymentMethods.find(params, options);
         },
-        async get(...args: Parameters<typeof paymentMethods.get>) {
+        async get(params: StorefrontGetPaymentMethodParams, options?: RequestOptions): Promise<PaymentMethod> {
           await lifecycle.ensureVisitorSession();
-          return paymentMethods.get(...args);
+          return paymentMethods.get(params, options);
         },
-        async requestSetup(...args: Parameters<typeof paymentMethods.requestSetup>) {
+        async requestSetup(params: StorefrontRequestPaymentMethodSetupParams, options?: RequestOptions): Promise<PaymentMethod> {
           await lifecycle.ensureVisitorSession();
-          return paymentMethods.requestSetup(...args);
+          return paymentMethods.requestSetup(params, options);
         },
-        async startSetup(...args: Parameters<typeof paymentMethods.startSetup>) {
+        async startSetup(params: StorefrontGetPaymentMethodParams, options?: RequestOptions): Promise<PaymentMethodSetupStart> {
           await lifecycle.ensureVisitorSession();
-          return paymentMethods.startSetup(...args);
+          return paymentMethods.startSetup(params, options);
         },
-        async completeSetup(...args: Parameters<typeof paymentMethods.completeSetup>) {
+        async completeSetup(params: StorefrontGetPaymentMethodParams, options?: RequestOptions): Promise<PaymentMethod> {
           await lifecycle.ensureVisitorSession();
-          return paymentMethods.completeSetup(...args);
+          return paymentMethods.completeSetup(params, options);
         },
-        async cancelSetup(...args: Parameters<typeof paymentMethods.cancelSetup>) {
+        async cancelSetup(params: StorefrontCancelPaymentMethodSetupParams, options?: RequestOptions): Promise<PaymentMethod> {
           await lifecycle.ensureVisitorSession();
-          return paymentMethods.cancelSetup(...args);
+          return paymentMethods.cancelSetup(params, options);
         },
-        async revoke(...args: Parameters<typeof paymentMethods.revoke>) {
+        async revoke(params: StorefrontRevokePaymentMethodParams, options?: RequestOptions): Promise<PaymentMethod> {
           await lifecycle.ensureVisitorSession();
-          return paymentMethods.revoke(...args);
+          return paymentMethods.revoke(params, options);
         },
       },
 
@@ -1046,7 +1161,7 @@ export const createStorefrontApi = (
 
         async get(params: GetCustomerRentalParams, options?: RequestOptions): Promise<CustomerRental> {
           await lifecycle.ensureVisitorSession();
-          return httpClient.get<CustomerRental>(`${base}/rentals/${segment(params.rental_id)}`, options);
+          return httpClient.get<CustomerRental>(`${base}/rentals/${segment(params.id)}`, options);
         },
       },
 
@@ -1059,7 +1174,7 @@ export const createStorefrontApi = (
 
         async get(params: StorefrontGetReturnParams, options?: RequestOptions): Promise<Return> {
           await lifecycle.ensureVisitorSession();
-          return httpClient.get<Return>(`${base}/returns/${segment(params.return_id)}`, orderTokenOptions(options));
+          return httpClient.get<Return>(`${base}/returns/${segment(params.id)}`, orderTokenOptions(options));
         },
 
         async find(params: StorefrontFindReturnsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<Return>> {
@@ -1067,12 +1182,12 @@ export const createStorefrontApi = (
           return httpClient.get<PaginatedResponse<Return>>(`${base}/returns`, { ...(params.order_id ? orderTokenOptions(options) : options), params });
         },
 
-        async orderOptions(params: { order_id: string }, options?: RequestOptions): Promise<OrderReturnOptions> {
+        async getOrderOptions(params: StorefrontGetOrderReturnOptionsParams, options?: RequestOptions): Promise<OrderReturnOptions> {
           await lifecycle.ensureVisitorSession();
           return httpClient.get<OrderReturnOptions>(`${base}/returns/orders/${segment(params.order_id)}/options`, orderTokenOptions(options));
         },
 
-        async rentalOptions(
+        async findRentalOptions(
           params: FindRentalReturnOptionsParams,
           options?: RequestOptions,
         ): Promise<PaginatedResponse<RentalReturnUnitOption>> {
@@ -1087,35 +1202,38 @@ export const createStorefrontApi = (
     },
 
     companies: {
-      async memberships(
-        params: StorefrontFindCompanyMembershipsParams = {},
-        options?: RequestOptions,
-      ): Promise<PaginatedResponse<CompanyMembership>> {
-        await lifecycle.ensureVisitorSession();
-        return httpClient.get<PaginatedResponse<CompanyMembership>>(`${base}/company-memberships`, { ...options, params });
-      },
-
-      async access(params: { id: string }, options?: RequestOptions): Promise<CompanyCustomerAccess> {
+      async getAccess(params: StorefrontGetCompanyAccessParams, options?: RequestOptions): Promise<CompanyCustomerAccess> {
         await lifecycle.ensureVisitorSession();
         return httpClient.get<CompanyCustomerAccess>(`${base}/companies/${segment(params.id)}/access`, options);
       },
 
-      async locations(
-        params: StorefrontFindCompanyLocationsParams = {},
-        options?: RequestOptions,
-      ): Promise<PaginatedResponse<CompanyLocation>> {
-        await lifecycle.ensureVisitorSession();
-        return httpClient.get<PaginatedResponse<CompanyLocation>>(`${base}/company-locations`, { ...options, params });
+      membership: {
+        async find(
+          params: StorefrontFindCompanyMembershipsParams = {},
+          options?: RequestOptions,
+        ): Promise<PaginatedResponse<CompanyMembership>> {
+          await lifecycle.ensureVisitorSession();
+          return httpClient.get<PaginatedResponse<CompanyMembership>>(`${base}/company-memberships`, { ...options, params });
+        },
       },
 
-      async location(params: { id: string }, options?: RequestOptions): Promise<CompanyLocation> {
-        await lifecycle.ensureVisitorSession();
-        return httpClient.get<CompanyLocation>(`${base}/company-locations/${segment(params.id)}`, options);
+      location: {
+        async find(
+          params: StorefrontFindCompanyLocationsParams = {},
+          options?: RequestOptions,
+        ): Promise<PaginatedResponse<CompanyLocation>> {
+          await lifecycle.ensureVisitorSession();
+          return httpClient.get<PaginatedResponse<CompanyLocation>>(`${base}/company-locations`, { ...options, params });
+        },
+
+        async get(params: StorefrontGetCompanyLocationParams, options?: RequestOptions): Promise<CompanyLocation> {
+          await lifecycle.ensureVisitorSession();
+          return httpClient.get<CompanyLocation>(`${base}/company-locations/${segment(params.id)}`, options);
+        },
       },
     },
 
     actions: {
-      COMMON_CUSTOMER_ACTION_KEYS,
       async track(params: TrackCustomerActionParams, options?: RequestOptions): Promise<void> {
         await lifecycle.ensureVisitorSession();
         await httpClient.post<void>(

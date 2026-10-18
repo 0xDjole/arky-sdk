@@ -31,7 +31,7 @@ type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
 
 const store_id = "56c82765-4f5a-47e9-bd6d-dba7c6354919";
 const admin = createAdmin({
-  baseUrl: "https://api.example.test",
+  apiUrl: "https://api.example.test",
   secretKey: "arky_secret_test",
 });
 const members: FindCustomerGroupMembersParams = {
@@ -45,7 +45,7 @@ const members: FindCustomerGroupMembersParams = {
 };
 void admin.eshop.customerGroupMember.find(members);
 const current: Promise<CustomerGroupMemberCurrent> =
-  admin.eshop.customerGroupMember.current({ store_id, id: "member" });
+  admin.eshop.customerGroupMember.getCurrent({ store_id, id: "member" });
 const orders: Promise<PaginatedResponse<Order>> =
   admin.eshop.customerGroupMember.findOrders({
     store_id,
@@ -53,7 +53,7 @@ const orders: Promise<PaginatedResponse<Order>> =
     limit: 20,
   });
 const revisions: Promise<PaginatedResponse<CustomerGroupMemberRevision>> =
-  admin.eshop.customerGroupMember.revisions({ store_id, id: "member" });
+  admin.eshop.customerGroupMember.findRevisions({ store_id, id: "member" });
 const revision: Promise<CustomerGroupMemberRevisionDetail> =
   admin.eshop.customerGroupMember.getRevision({
     store_id,
@@ -62,7 +62,7 @@ const revision: Promise<CustomerGroupMemberRevisionDetail> =
   });
 const limits: Promise<
   PaginatedResponse<CustomerGroupMemberPurchaseLimitUsage>
-> = admin.eshop.customerGroupMember.purchaseLimits({ store_id, id: "member" });
+> = admin.eshop.customerGroupMember.findPurchaseLimits({ store_id, id: "member" });
 void [current, orders, revisions, revision, limits];
 
 export type CustomerGroupHistoryContracts = [

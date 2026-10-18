@@ -21,49 +21,49 @@ const minorUnitExceptions = { bhd: 3, bif: 0, clp: 0, djf: 0, gnf: 0, isk: 0, jo
 
 const adminSurface = {
   "(root)": ["logout", "onAuthStateChanged"],
-  account: ["delete", "getMe", "search"],
-  "account.auth": ["code", "refresh", "storeCode", "storeVerify", "verify"],
-  "account.session": ["list", "revoke"],
+  account: ["delete", "find", "getMe"],
+  "account.auth": ["refresh", "requestCode", "verify"],
+  "account.session": ["find", "revoke"],
   actions: ["find"],
-  counts: ["report", "statuses"],
+  counts: ["getReport", "getStatuses"],
   broadcast: ["create", "delete", "find", "get", "preview", "schedule", "send", "test", "unschedule", "update"],
-  category: ["create", "delete", "find", "get", "getChildren", "update"],
+  category: ["create", "delete", "find", "findChildren", "get", "update"],
   companies: ["create", "delete", "find", "get", "reviewTaxRegistration", "setPurchasing", "setTax", "submitTaxRegistration", "update"],
   "companies.location": ["create", "delete", "find", "get", "reviewTaxRegistration", "setFulfillment", "setPurchasing", "setTax", "submitTaxRegistration", "update"],
   "companies.membership": ["create", "delete", "find", "get", "resendInvite", "update"],
   "companies.notes": ["create", "delete", "find", "update"],
   "companies.role": ["create", "delete", "find", "get", "update"],
-  "content.collection": ["create", "delete", "find", "get", "update"],
-  "content.entry": ["create", "delete", "find", "findByIds", "findBySlug", "get", "update"],
+  "content.collection": ["create", "delete", "find", "get", "getByKey", "update"],
+  "content.entry": ["create", "delete", "find", "get", "update"],
   customers: ["create", "erase", "find", "findSessions", "get", "import", "merge", "previewImport", "revokeAllSessions", "revokeSession", "update"],
   "customers.emailSuppression": ["block", "find", "get", "recordResubscribe", "recordUnsubscribe", "unblock"],
   "customers.notes": ["create", "delete", "find", "update"],
-  "eshop.bookingOffering": ["create", "delete", "find", "get", "lookup", "update"],
+  "eshop.bookingOffering": ["create", "delete", "find", "get", "getByServiceAndResource", "update"],
   "eshop.bookingResource": ["create", "delete", "find", "get", "getByKey", "update"],
   "eshop.bookingService": ["create", "delete", "find", "get", "getAvailability", "getByKey", "update"],
-  "eshop.cart": ["addBooking", "addCustomerGroup", "addProduct", "checkout", "checkoutOnAccount", "clear", "create", "find", "get", "order", "paymentAction", "previewAccessProduct", "quote", "quoteFutureDeliveries", "quotePurchase", "removeItem", "selectShippingMethod", "setFutureDeliveries", "update"],
+  "eshop.cart": ["addBooking", "addCustomerGroup", "addProduct", "checkout", "checkoutOnAccount", "clear", "create", "find", "get", "getOrder", "previewAccessProduct", "quote", "quoteFutureDeliveries", "quotePurchase", "removeItem", "selectShippingMethod", "setFutureDeliveries", "update"],
   "eshop.cart.offer": ["create", "send", "withdraw"],
   "eshop.catalog": ["copy", "create", "delete", "find", "findPurchasable", "get", "getByKey", "update"],
   "eshop.catalogAccess": ["create", "delete", "find", "get"],
   "eshop.catalogItem": ["batch", "create", "delete", "find", "get", "update"],
   "eshop.customerGroup": ["create", "delete", "find", "get", "getByKey", "update"],
   "eshop.customerGroupMember": [
-    "assign", "calendar", "cancel", "changePurchaseRequirement", "changeTerms", "current", "find", "findOrders", "get",
-    "getRevision", "pause", "purchaseAccess", "purchaseLimits", "purchaseRequirement", "resume", "reviewPurchaseRequirement",
-    "reviewSwitch", "reviewTerms", "revisions", "revoke", "scheduleEnd", "selectPaymentMethod", "skipNext", "switch",
+    "assign", "cancel", "changePurchaseRequirement", "changeTerms", "find", "findOrders", "findPurchaseLimits", "findRevisions", "get",
+    "getCalendar", "getCurrent", "getPurchaseAccess", "getPurchaseRequirement", "getRevision", "pause", "resume", "reviewPurchaseRequirement",
+    "reviewSwitch", "reviewTerms", "revoke", "scheduleEnd", "selectPaymentMethod", "skipNext", "switch",
     "transferPurchaseRequirement", "withdrawRevision",
   ],
   "eshop.customerGroupOffering": ["create", "delete", "find", "get", "getByKey", "update"],
   "eshop.digitalAsset": ["archive", "find", "get", "upload"],
   "eshop.fulfillment": ["create", "execute", "find", "get", "markDelivered", "updateTracking"],
-  "eshop.fulfillmentJob": ["decide", "find", "get", "getPickupCash", "items", "recordPickupCash", "unitSlots"],
+  "eshop.fulfillmentJob": ["decide", "find", "findItems", "get", "getPickupCash", "getUnitSlots", "recordPickupCash"],
   "eshop.fulfillmentRouting": ["get", "update"],
   "eshop.inventoryItem": ["create", "delete", "find", "get", "getByKey", "update"],
-  "eshop.inventoryLevel": ["create", "find", "get", "makeAvailable", "move", "receiveMove", "remove", "setAside", "stock"],
+  "eshop.inventoryLevel": ["create", "find", "findStock", "get", "makeAvailable", "move", "receiveMove", "remove", "setAside"],
   "eshop.inventoryMovement": ["find", "get", "record"],
   "eshop.inventoryUnit": ["allocate", "find", "get", "makeAvailable", "move", "receive", "setAside", "unassign", "writeOff"],
   "eshop.minimumProgress": ["get"],
-  "eshop.order": ["addInvoice", "attendBookingItem", "cancel", "cancelBookingItem", "cancelProductItem", "correctDeliveryAddress", "deleteInvoice", "find", "findBookingItems", "findPayments", "get", "getFinancialSummary", "getPayment", "markBookingItemNoShow", "rescheduleBookingItem", "resendReceipt", "revokeAccess", "update"],
+  "eshop.order": ["addInvoice", "attendBookingItem", "cancel", "cancelBookingItem", "cancelProductItem", "correctDeliveryAddress", "deleteInvoice", "find", "findBookingItems", "findPayments", "get", "getFinancialSummary", "getPayment", "markBookingItemNoShow", "rescheduleBookingItem", "resendReceipt", "resumePayment", "revokeAccess", "update"],
   "eshop.order.credit": ["create", "find", "get", "void"],
   "eshop.order.notes": ["create", "delete", "find", "update"],
   "eshop.payment": ["cancel", "cancelRefund", "createManual", "createRefund", "find", "get", "recordCollection", "recordRefundReceipt", "resolveCharge", "resolveHold", "resolveRefund", "voidCollection"],
@@ -75,25 +75,26 @@ const adminSurface = {
   "eshop.promotionCode": ["create", "delete", "find", "get", "getByCode", "update"],
   "notification.incomingWebhook": ["find", "get", "resolve"],
   "eshop.rental": ["execute", "find", "get"],
-  "eshop.return": ["create", "credit", "destinationOptions", "execute", "find", "get", "inspectionUnit", "orderOptions", "rentalOptions"],
-  experiments: ["complete", "create", "delete", "find", "get", "pause", "results", "resume", "start", "update"],
-  forms: ["assignSubmission", "changeSubmissionStage", "create", "createSubmission", "delete", "deleteSubmission", "find", "findSubmissions", "get", "getSubmission", "getSubmissionFile", "setSubmissionCompany", "update"],
+  "eshop.return": ["create", "credit", "execute", "find", "findRentalOptions", "get", "getDestinationOptions", "getInspectionUnit", "getOrderOptions"],
+  experiments: ["complete", "create", "delete", "find", "get", "getResults", "pause", "resume", "start", "update"],
+  forms: ["assignSubmission", "changeSubmissionStage", "create", "createSubmission", "delete", "deleteSubmission", "find", "findSubmissions", "get", "getByKey", "getSubmission", "getSubmissionFile", "setSubmissionCompany", "update"],
   "forms.notes": ["create", "delete", "find", "update"],
   media: ["create", "delete", "find", "get", "replaceContent", "update"],
   "notification.outgoingEmail": ["find", "get"],
   "notification.outgoingWebhook": ["find", "get"],
   "notification.emailAddress": ["activate", "archive", "create", "delete", "find", "get", "update"],
-  "notification.emailProvider": ["connect", "domains", "get", "replaceKey"],
-  "notification.template": ["create", "defaults", "delete", "find", "get", "preview", "test", "update"],
-  platform: ["getCurrencies", "getStorePlans", "getWebhookEvents"],
-  "platform.administrator": ["add", "list", "me", "remove"],
+  "notification.emailProvider": ["connect", "findDomains", "get", "replaceKey"],
+  "notification.template": ["create", "delete", "find", "findDefaults", "get", "preview", "test", "update"],
+  platform: ["findCurrencies", "findStorePlans", "findWebhookEvents"],
+  "platform.administrator": ["add", "find", "getMe", "remove"],
   "platform.resendEvent": ["find", "resolve"],
   "platform.stripeBillingEvent": ["find", "resolve"],
   store: ["allowEmailSending", "create", "find", "get", "pauseEmailSending", "requestDeletion", "update"],
-  "store.location": ["create", "delete", "get", "getByKey", "getCountries", "getCountry", "list", "update"],
-  "store.market": ["create", "delete", "get", "getByKey", "list", "update"],
+  "store.country": ["find", "get"],
+  "store.location": ["create", "delete", "find", "get", "getByKey", "update"],
+  "store.market": ["create", "delete", "find", "get", "getByKey", "update"],
   "store.member": ["acceptInvite", "changeStatus", "find", "findOwn", "getOwn", "invite", "remove", "resendInvite", "transferOwnership", "updateRoles"],
-  "store.paymentOption": ["create", "get", "getByKey", "list", "update"],
+  "store.paymentOption": ["create", "find", "get", "getByKey", "update"],
   "store.paymentOption.monri": ["create"],
   "store.paymentOption.stripe": ["connect", "createWebhook", "refresh", "replaceKeys", "rotateWebhookSecret"],
   "store.role": ["create", "delete", "find", "get", "update"],
@@ -104,10 +105,10 @@ const adminSurface = {
   "store.emails": ["get", "update"],
   "store.subscription": ["createPortalSession", "endGrant", "get", "select"],
   "store.taxCategory": ["create", "delete", "find", "get", "getByKey", "update"],
-  "store.usage": ["find"],
-  "store.webhook": ["create", "delete", "list", "test", "update"],
+  "store.usage": ["get"],
+  "store.webhook": ["create", "delete", "find", "test", "update"],
   "store.zone": ["create", "delete", "find", "get", "getByKey", "update"],
-  "support.conversation": ["assign", "attachmentLink", "changeChatVisibility", "find", "findMessages", "get", "getMessage", "reply", "resolve", "selectSendingAddress", "startEmail"],
+  "support.conversation": ["assign", "changeChatVisibility", "find", "findMessages", "get", "getAttachmentLink", "getMessage", "reply", "resolve", "selectSendingAddress", "startEmail"],
   "support.conversation.notes": ["create", "delete", "find", "update"],
   "support.flow": ["create", "delete", "find", "get", "update"],
 };
@@ -116,7 +117,6 @@ function surfaceOf(client) {
   const groups = {};
   const walk = (value, path) => {
     for (const key of Object.keys(value).sort()) {
-      if (path === "" && key === "utils") continue;
       const child = value[key];
       if (typeof child === "function") (groups[path || "(root)"] ??= []).push(key);
       else if (child && typeof child === "object") walk(child, path ? `${path}.${key}` : key);
@@ -127,7 +127,7 @@ function surfaceOf(client) {
 }
 
 function admin() {
-  return createAdmin({ baseUrl: API, secretKey: "contract-token" });
+  return createAdmin({ apiUrl: API, secretKey: "contract-token" });
 }
 
 test("store currencies and minor units match the Server's currency table, in its order", () => {
@@ -254,10 +254,10 @@ test("platform reads and administrator changes use the platform routes, and a ne
   const administratorId = "2f6a9c13-8b47-4d05-a1e8-7c3b0d5f9e26";
   const calls = recordFetch(context, (call) => call.path === "/v1/platform/currencies" ? ["eur"] : call.path === "/v1/platform/events" ? [] : call.method === "DELETE" ? true : { items: [], cursor: null });
   const platform = admin().platform;
-  await platform.getCurrencies();
-  await platform.getWebhookEvents();
-  await platform.getStorePlans();
-  await platform.administrator.list({ cursor: "next" });
+  assert.deepEqual(await platform.findCurrencies(), { items: ["eur"], cursor: null });
+  assert.deepEqual(await platform.findWebhookEvents(), { items: [], cursor: null });
+  await platform.findStorePlans();
+  await platform.administrator.find({ cursor: "next" });
   await platform.administrator.add({ id: administratorId, account_id: "account" });
   await platform.administrator.remove({ id: administratorId });
   await platform.stripeBillingEvent.find({ status: "review", limit: 10 });

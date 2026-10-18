@@ -37,7 +37,7 @@ import type {
   DeleteCustomerGroupOfferingParams,
   DeleteCustomerGroupParams,
   FindCustomerGroupMemberPageParams,
-  FindCustomerGroupMemberPurchaseAccessParams,
+  GetCustomerGroupMemberPurchaseAccessParams,
   FindCustomerGroupMembersParams,
   FindCustomerGroupOfferingsParams,
   FindCustomerGroupsParams,
@@ -49,6 +49,8 @@ import type {
   GetCustomerGroupOfferingByKeyParams,
   GetCustomerGroupOfferingParams,
   GetCustomerGroupParams,
+  GetStorefrontCustomerGroupByKeyParams,
+  GetStorefrontCustomerGroupOfferingByKeyParams,
   GetStorefrontCustomerGroupOfferingParams,
   GetStorefrontCustomerGroupParams,
   PauseCustomerGroupMemberParams,
@@ -61,7 +63,7 @@ import type {
   StorefrontChangeCustomerGroupMemberTermsParams,
   StorefrontCustomerGroupOffering,
   StorefrontFindCustomerGroupMemberOrdersParams,
-  StorefrontFindCustomerGroupMemberPurchaseAccessParams,
+  StorefrontGetCustomerGroupMemberPurchaseAccessParams,
   StorefrontFindCustomerGroupMembersParams,
   StorefrontGetCustomerGroupMemberParams,
   StorefrontGetCustomerGroupMemberRevisionParams,
@@ -281,7 +283,7 @@ export const createCustomerGroupMemberApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    current(
+    getCurrent(
       params: GetCustomerGroupMemberParams,
       options?: RequestOptions,
     ): Promise<CustomerGroupMemberCurrent> {
@@ -291,7 +293,7 @@ export const createCustomerGroupMemberApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    revisions(
+    findRevisions(
       params: FindCustomerGroupMemberPageParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<CustomerGroupMemberRevision>> {
@@ -328,7 +330,7 @@ export const createCustomerGroupMemberApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    purchaseRequirement(
+    getPurchaseRequirement(
       params: GetCustomerGroupMemberPurchaseRequirementParams,
       options?: RequestOptions,
     ): Promise<CustomerGroupMemberPurchaseRequirement> {
@@ -339,7 +341,7 @@ export const createCustomerGroupMemberApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    purchaseLimits(
+    findPurchaseLimits(
       params: FindCustomerGroupMemberPageParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<CustomerGroupMemberPurchaseLimitUsage>> {
@@ -352,8 +354,8 @@ export const createCustomerGroupMemberApi = (apiConfig: ApiConfig) => {
       });
     },
 
-    purchaseAccess(
-      params: FindCustomerGroupMemberPurchaseAccessParams,
+    getPurchaseAccess(
+      params: GetCustomerGroupMemberPurchaseAccessParams,
       options?: RequestOptions,
     ): Promise<CustomerGroupMemberPurchaseAccessPage> {
       const { store_id, id, ...query } = params;
@@ -366,7 +368,7 @@ export const createCustomerGroupMemberApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    calendar(
+    getCalendar(
       params: GetCustomerGroupMemberParams,
       options?: RequestOptions,
     ): Promise<CustomerGroupMemberCalendar> {
@@ -544,9 +546,9 @@ export function createStorefrontCustomerGroupApi(
         params: GetStorefrontCustomerGroupParams,
         options?: RequestOptions,
       ): Promise<StorefrontCustomerGroup> {
-        const { identifier, ...query } = params;
+        const { id, ...query } = params;
         return httpClient.get<StorefrontCustomerGroup>(
-          `${base}/customer-groups/${segment(identifier)}`,
+          `${base}/customer-groups/${segment(id)}`,
           {
             ...options,
             params: query,
@@ -554,13 +556,35 @@ export function createStorefrontCustomerGroupApi(
         );
       },
 
-      productChoices(
+      getByKey(
+        params: GetStorefrontCustomerGroupByKeyParams,
+        options?: RequestOptions,
+      ): Promise<StorefrontCustomerGroup> {
+        const { key, ...query } = params;
+        return httpClient.get<StorefrontCustomerGroup>(
+          `${base}/customer-groups/${segment(key)}`,
+          {
+            ...options,
+            params: query,
+          },
+        );
+      },
+
+      getProductChoices(
         params: GetStorefrontCustomerGroupProductChoicesParams,
         options?: RequestOptions,
       ): Promise<CustomerGroupProductChoices> {
-        const { identifier, entitlement_id, ...query } = params;
+        const identifier = "id" in params ? params.id : params.key;
+        if (!identifier) throw new TypeError("Product choices name their customer group by id or by key");
+        const query = {
+          company_id: params.company_id,
+          company_location_id: params.company_location_id,
+          catalog_id: params.catalog_id,
+          quantity: params.quantity,
+          language: params.language,
+        };
         return httpClient.get<CustomerGroupProductChoices>(
-          `${base}/customer-groups/${segment(identifier)}/product-choices/${segment(entitlement_id)}`,
+          `${base}/customer-groups/${segment(identifier)}/product-choices/${segment(params.entitlement_id)}`,
           { ...options, params: query },
         );
       },
@@ -572,7 +596,17 @@ export function createStorefrontCustomerGroupApi(
         options?: RequestOptions,
       ): Promise<StorefrontCustomerGroupOffering> {
         return httpClient.get<StorefrontCustomerGroupOffering>(
-          `${base}/customer-group-offerings/${segment(params.identifier)}`,
+          `${base}/customer-group-offerings/${segment(params.id)}`,
+          options,
+        );
+      },
+
+      getByKey(
+        params: GetStorefrontCustomerGroupOfferingByKeyParams,
+        options?: RequestOptions,
+      ): Promise<StorefrontCustomerGroupOffering> {
+        return httpClient.get<StorefrontCustomerGroupOffering>(
+          `${base}/customer-group-offerings/${segment(params.key)}`,
           options,
         );
       },
@@ -604,7 +638,7 @@ export function createStorefrontCustomerGroupApi(
         );
       },
 
-      async current(
+      async getCurrent(
         params: StorefrontGetCustomerGroupMemberParams,
         options?: RequestOptions,
       ): Promise<CustomerGroupMemberCurrentSelf> {
@@ -615,7 +649,7 @@ export function createStorefrontCustomerGroupApi(
         );
       },
 
-      async productChoices(
+      async getProductChoices(
         params: StorefrontGetCustomerGroupMemberProductChoicesParams,
         options?: RequestOptions,
       ): Promise<CustomerGroupMemberProductChoices> {
@@ -650,8 +684,8 @@ export function createStorefrontCustomerGroupApi(
         );
       },
 
-      async purchaseAccess(
-        params: StorefrontFindCustomerGroupMemberPurchaseAccessParams,
+      async getPurchaseAccess(
+        params: StorefrontGetCustomerGroupMemberPurchaseAccessParams,
         options?: RequestOptions,
       ): Promise<CustomerGroupMemberPurchaseAccessPage> {
         await ensureVisitorSession();
@@ -665,7 +699,7 @@ export function createStorefrontCustomerGroupApi(
         );
       },
 
-      async calendar(
+      async getCalendar(
         params: StorefrontGetCustomerGroupMemberParams,
         options?: RequestOptions,
       ): Promise<CustomerGroupMemberCalendarSelf> {
@@ -733,7 +767,7 @@ export function createStorefrontCustomerGroupApi(
         return action<CustomerGroupMemberChangeSelf>(params, "switch", options);
       },
 
-      async deliveryOptions(
+      async getDeliveryOptions(
         params: StorefrontGetCustomerGroupMemberDeliveryOptionsParams,
         options?: RequestOptions,
       ): Promise<CustomerGroupMemberDeliveryOptions> {

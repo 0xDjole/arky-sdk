@@ -26,7 +26,7 @@ export const createCategoryApi = (apiConfig: ApiConfig) => ({
     return apiConfig.httpClient.get<Category>(storeRecordPath(params.store_id, "categories", params.id), options);
   },
 
-  getChildren(params: FindCategoryChildrenParams, options?: RequestOptions): Promise<PaginatedResponse<Category>> {
+  findChildren(params: FindCategoryChildrenParams, options?: RequestOptions): Promise<PaginatedResponse<Category>> {
     const { store_id, id, ...query } = params;
     return apiConfig.httpClient.get<PaginatedResponse<Category>>(`${storeRecordPath(store_id, "categories", id)}/children`, {
       ...options,

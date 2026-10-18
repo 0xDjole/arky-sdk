@@ -33,7 +33,7 @@ test('LocalizedText is decoded recursively without treating translation keys as 
 	assert.deepEqual(getBlockContentValue(entry, 'items', 'de'), [{ name: 'Hemd' }]);
 	assert.deepEqual(getBlockContentValue(entry, 'items', 'fr'), [{ name: null }]);
 	assert.deepEqual(getBlockContentValue(entry, 'items', 'fr', 'en'), [{ name: 'Shirt' }]);
-	assert.deepEqual(collectBlockReferences(entry.blocks), { mediaIds: [], entryIds: [], formIds: [], productIds: [] });
+	assert.deepEqual(collectBlockReferences(entry.blocks), { media_ids: [], entry_ids: [], form_ids: [], product_ids: [] });
 });
 
 test('LocalizedMarkdown blocks and plain Markdown use the same explicit language rule', () => {
@@ -132,9 +132,9 @@ test('block references are collected recursively by resource type without hydrat
 	];
 
 	assert.deepEqual(collectBlockReferences(blocks), {
-		mediaIds: ['media-1'],
-		entryIds: ['entry-1'],
-		formIds: ['form-1'],
-		productIds: ['product-1', 'product-2'],
+		media_ids: ['media-1'],
+		entry_ids: ['entry-1'],
+		form_ids: ['form-1'],
+		product_ids: ['product-1', 'product-2'],
 	});
 });

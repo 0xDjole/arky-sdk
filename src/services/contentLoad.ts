@@ -7,20 +7,21 @@ import type {
   Media,
   StorefrontFindEntriesParams,
   StorefrontFindEntryBySlugParams,
-  StorefrontGetCollectionParams,
 } from "../types/content";
 import type {
   ContentBlocks,
+  LoadContentCollectionParams,
   LoadContentEntriesParams,
   LoadContentEntryParams,
   LoadContentParams,
   LoadedContent,
 } from "../types/contentView";
+import { ArkyError } from "../types/apiError";
 import { collectBlockReferences, selectLocalizedText } from "../utils/blocks";
 import { readAllPages } from "../utils/paginate";
 
 export interface ContentReads {
-  getCollection(params: StorefrontGetCollectionParams, options?: RequestOptions): Promise<Collection>;
+  getCollection(params: LoadContentCollectionParams, options?: RequestOptions): Promise<Collection>;
   getEntry(params: { id: string }, options?: RequestOptions): Promise<Entry>;
   findEntries(params: StorefrontFindEntriesParams, options?: RequestOptions): Promise<PaginatedResponse<Entry>>;
   findEntryBySlug(params: StorefrontFindEntryBySlugParams, options?: RequestOptions): Promise<Entry | null>;
@@ -71,14 +72,14 @@ async function readMedia(
   records: readonly { blocks: readonly Block[] }[],
   options?: RequestOptions,
 ): Promise<Record<string, Media>> {
-  const ids = [...new Set(records.flatMap((record) => collectBlockReferences(record.blocks).mediaIds))];
+  const ids = [...new Set(records.flatMap((record) => collectBlockReferences(record.blocks).media_ids))];
   const media: Record<string, Media> = {};
   for (let start = 0; start < ids.length; start += mediaIdsPerRead) {
     const asked = ids.slice(start, start + mediaIdsPerRead);
     const found = await reads.findMedia({ ids: asked }, options);
-    if (!Array.isArray(found)) throw new TypeError("The media read did not answer a list");
+    if (!Array.isArray(found)) throw new ArkyError("answer_mismatch", "The media read did not answer a list");
     for (const item of found) {
-      if (!asked.includes(item.id)) throw new Error("The media read answered a file it was not asked for");
+      if (!asked.includes(item.id)) throw new ArkyError("answer_mismatch", "The media read answered a file it was not asked for");
       media[item.id] = item;
     }
   }
@@ -93,12 +94,12 @@ async function readEntry(reads: ContentReads, params: LoadContentEntryParams, op
   if ("id" in params) return reads.getEntry({ id: params.id }, options);
   if ("slug" in params) {
     const found = await reads.findEntryBySlug({ collection_id: params.collection_id, slug: params.slug }, options);
-    if (!found) throw new Error(`No entry has the slug '${params.slug}' in this collection`);
+    if (!found) throw new ArkyError("not_found", `No entry has the slug '${params.slug}' in this collection`);
     return found;
   }
   const page = await reads.findEntries({ collection_id: params.collection_id, key: params.key, limit: 1 }, options);
   const found = page.items[0];
-  if (!found || found.key !== params.key) throw new Error(`No entry has the key '${params.key}' in this collection`);
+  if (!found || found.key !== params.key) throw new ArkyError("not_found", `No entry has the key '${params.key}' in this collection`);
   return found;
 }
 

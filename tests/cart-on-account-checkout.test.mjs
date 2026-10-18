@@ -30,7 +30,7 @@ const onAccount = {
 };
 
 function admin(token = "arky_api_current") {
-  return createAdmin({ baseUrl: apiUrl, secretKey: token });
+  return createAdmin({ apiUrl: apiUrl, secretKey: token });
 }
 
 test("Admin on-account checkout sends the reviewed cart, app-picked order id, language, terms and reason in one POST", async (context) => {

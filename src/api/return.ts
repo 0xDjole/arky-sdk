@@ -44,28 +44,28 @@ export const createReturnApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.post<Return>(storePath(store_id, "returns"), body, options);
     },
 
-    destinationOptions(params: GetReturnParams, options?: RequestOptions): Promise<ReturnDestinationOptions> {
+    getDestinationOptions(params: GetReturnParams, options?: RequestOptions): Promise<ReturnDestinationOptions> {
       return apiConfig.httpClient.get<ReturnDestinationOptions>(
         `${returnPath(params.store_id, params.return_id)}/destination-options`,
         options,
       );
     },
 
-    inspectionUnit(params: GetReturnInspectionUnitParams, options?: RequestOptions): Promise<ReturnInspectionUnit> {
+    getInspectionUnit(params: GetReturnInspectionUnitParams, options?: RequestOptions): Promise<ReturnInspectionUnit> {
       return apiConfig.httpClient.get<ReturnInspectionUnit>(
         `${returnPath(params.store_id, params.return_id)}/inspection-units/${segment(params.inventory_unit_id)}`,
         options,
       );
     },
 
-    orderOptions(params: GetOrderReturnOptionsParams, options?: RequestOptions): Promise<OrderReturnOptions> {
+    getOrderOptions(params: GetOrderReturnOptionsParams, options?: RequestOptions): Promise<OrderReturnOptions> {
       return apiConfig.httpClient.get<OrderReturnOptions>(
         `${storeRecordPath(params.store_id, "orders", params.order_id)}/return-options`,
         options,
       );
     },
 
-    rentalOptions(
+    findRentalOptions(
       params: FindAdminRentalReturnOptionsParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<RentalReturnUnitOption>> {

@@ -10,8 +10,6 @@ export interface TokenSet {
 
 export interface AuthStorage {
   getTokens(): TokenSet | null;
-  onTokensRefreshed(tokens: TokenSet): void;
-  onForcedLogout(): void;
 }
 
 export interface RequestSuccessContext<T = unknown> {
@@ -37,25 +35,25 @@ export interface RequestErrorContext {
 }
 
 export interface RequestOptions<T = unknown> {
-  order_token?: string;
+  order_token?: string | null;
   locale?: string;
   market?: string;
   headers?: Record<string, string>;
-  params?: QueryParams;
   signal?: AbortSignal;
-  transformRequest?: (data: unknown) => unknown;
   onSuccess?: (ctx: RequestSuccessContext<T>) => void | Promise<void>;
   onError?: (ctx: RequestErrorContext) => void | Promise<void>;
 }
 
+export type TransportOptions<T = unknown> = RequestOptions<T> & { params?: QueryParams };
+
 export type RequestContextOverride = Pick<RequestOptions, "locale" | "market">;
 
 export interface HttpClient {
-  get<T>(path: string, opts?: RequestOptions<T>): Promise<T>;
-  post<T>(path: string, body: unknown, opts?: RequestOptions<T>): Promise<T>;
-  put<T>(path: string, body: unknown, opts?: RequestOptions<T>): Promise<T>;
-  patch<T>(path: string, body: unknown, opts?: RequestOptions<T>): Promise<T>;
-  delete<T>(path: string, opts?: RequestOptions<T> & { body?: unknown }): Promise<T>;
+  get<T>(path: string, opts?: TransportOptions<T>): Promise<T>;
+  post<T>(path: string, body: unknown, opts?: TransportOptions<T>): Promise<T>;
+  put<T>(path: string, body: unknown, opts?: TransportOptions<T>): Promise<T>;
+  patch<T>(path: string, body: unknown, opts?: TransportOptions<T>): Promise<T>;
+  delete<T>(path: string, opts?: TransportOptions<T> & { body?: unknown }): Promise<T>;
 }
 
 export interface HttpClientConfig {
@@ -68,10 +66,7 @@ export interface HttpClientConfig {
     authorizationToken: string | null;
     path: string;
   }) => boolean | Promise<boolean>;
-  refreshPath?: string | (() => string);
   refreshCredentials?: (expected: TokenSet | null) => Promise<void>;
-  navigate?: (path: string) => void;
-  loginFallbackPath?: string;
 }
 
 export interface ServerError {
@@ -79,15 +74,4 @@ export interface ServerError {
   error: string;
   statusCode: number;
   validationErrors: Array<{ field: string; error: string }>;
-}
-
-export interface HttpRequestErrorDetails {
-  code?: string;
-  response?: unknown;
-  statusCode?: number;
-  validationErrors?: ServerError["validationErrors"];
-  method?: string;
-  url?: string;
-  requestId?: string;
-  aborted?: boolean;
 }

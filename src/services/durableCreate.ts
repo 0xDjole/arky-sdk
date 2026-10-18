@@ -1,6 +1,6 @@
 import {
   clearDurableRequest,
-  DurableRequestStorageError,
+  DurableRequestError,
   durableRequestPayload,
   getOrCreateDurableRequest,
   isDefiniteRefusal,
@@ -35,7 +35,7 @@ function pendingCreate(request: DurableRequest, label: string): PendingCreate {
     !isCanonicalId((value as Record<string, unknown>).id) ||
     typeof (value as Record<string, unknown>).input !== "string"
   ) {
-    throw new DurableRequestStorageError(`The saved ${label} can't be read; nothing was sent`);
+    throw new DurableRequestError("storage", `The saved ${label} can't be read; nothing was sent`);
   }
   return value as PendingCreate;
 }
@@ -67,7 +67,7 @@ export function runDurableCreate<T>(create: DurableCreate<T>): Promise<T> {
       throw error;
     }
     if (!create.confirms(result, id)) {
-      throw new DurableRequestStorageError(`The ${create.label} answer names another record; the request is kept for a retry`);
+      throw new DurableRequestError("answer_mismatch", `The ${create.label} answer names another record; the request is kept for a retry`);
     }
     clearDurableRequest(durable, create.label);
     return result;

@@ -11,7 +11,7 @@ const promptId = "8b3e5d71-2c96-4f04-a7d1-9e2c4b6a8f30";
 const addressId = "4b6d8f0a-2e3a-4b7d-9f1c-3e5a7b9d1f2a";
 
 function support() {
-  return createAdmin({ baseUrl: "https://support-contract.test", secretKey: "arky_api_support" }).support;
+  return createAdmin({ apiUrl: "https://support-contract.test", secretKey: "arky_api_support" }).support;
 }
 
 function storefront() {
@@ -143,7 +143,7 @@ test("conversation history pages its messages with the empty-page continuation, 
   assert.deepEqual(first, { items: [], cursor: "older:+/=" });
   assert.deepEqual(await api.findMessages({ store_id: STORE_ID, conversation_id: conversationId, limit: 1, cursor: first.cursor }), { items: [message], cursor: null });
   assert.deepEqual(await api.getMessage({ store_id: STORE_ID, conversation_id: conversationId, message_id: messageId }), message);
-  assert.deepEqual(await api.attachmentLink({ store_id: STORE_ID, conversation_id: conversationId, message_id: messageId, sha256: "e".repeat(64) }), { url: "https://files.example.test/a", expires_at: 9 });
+  assert.deepEqual(await api.getAttachmentLink({ store_id: STORE_ID, conversation_id: conversationId, message_id: messageId, sha256: "e".repeat(64) }), { url: "https://files.example.test/a", expires_at: 9 });
   assert.equal(calls.length, 5);
   assert.ok(calls.every((call) => call.method === "GET" && call.body === null));
   const base = `/v1/stores/${STORE_ID}/conversations/${conversationId}`;
@@ -187,7 +187,7 @@ test("support writes carry the app-picked id or the conversation version", async
 test("an account reply is one write of the app-picked message id, its text and its delivery", async (context) => {
   const answer = { conversation: { id: conversationId }, message: { id: messageId } };
   const calls = recordFetch(context, () => answer);
-  const admin = createAdmin({ baseUrl: apiUrl, secretKey: "arky_api_support" });
+  const admin = createAdmin({ apiUrl: apiUrl, secretKey: "arky_api_support" });
   assert.equal("sendConversationMessage" in admin.support.conversation, false);
   assert.deepEqual(await admin.support.conversation.reply({ store_id: ids.store, conversation_id: conversationId, id: messageId, expected_updated_at: 4, text: "I can help from here.", delivery: "chat_and_email", resolve: false }), answer);
   await admin.support.conversation.reply({ store_id: ids.store, conversation_id: conversationId, id: promptId, expected_updated_at: 5, text: "Done.", delivery: "email" });
@@ -208,7 +208,7 @@ test("storefront support starts with an app-picked id and uses its real customer
   const client = storefront();
   assert.deepEqual(await client.support.conversation.start({ id: conversationId, language: "bs" }), started);
   await client.support.conversation.start({ id: conversationId, language: "en", flow_key: "returns" });
-  const read = await client.support.conversation.get({ conversation_id: conversationId });
+  const read = await client.support.conversation.get({ id: conversationId });
   assert.deepEqual(read, storefrontConversation());
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
     ["POST", "/v1/storefront/conversations", { id: conversationId, language: "bs" }],

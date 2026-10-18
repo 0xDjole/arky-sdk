@@ -9,7 +9,7 @@ const OTHER_STORE_ID = "a0d6f2b8-3e51-4c79-9f24-7b1e5a3c8d60";
 const marketId = "4e8b2d61-7c35-4a09-9f1e-2b6d8a0c3e57";
 
 function store() {
-  return createAdmin({ baseUrl: "https://api.example.test", secretKey: "arky_secret_test" }).store;
+  return createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" }).store;
 }
 
 test("market changes use the named store, an app-picked id and the version, without routing fields in the body", async (context) => {
@@ -57,13 +57,13 @@ for (const [owner, path, params] of [
     let failure = null;
     const calls = recordFetch(context, () => failure ? errorResponse(failure) : { items: [], cursor: "next" });
     const api = store()[owner];
-    assert.deepEqual(await api.list({ store_id: STORE_ID, ...params }), { items: [], cursor: "next" });
+    assert.deepEqual(await api.find({ store_id: STORE_ID, ...params }), { items: [], cursor: "next" });
     assert.equal(calls.length, 1);
     assert.equal(calls[0].path, `/v1/stores/${STORE_ID}/${path}`);
     assert.deepEqual(calls[0].query, Object.fromEntries(Object.entries(params).map(([key, value]) => [key, String(value)])));
     for (const status of [403, 409, 503]) {
       failure = status;
-      await assert.rejects(api.list({ store_id: STORE_ID, ...params }), (error) => error.statusCode === status);
+      await assert.rejects(api.find({ store_id: STORE_ID, ...params }), (error) => error.statusCode === status);
     }
   });
 }
@@ -101,7 +101,7 @@ test("storefront markets and locations are listed in pages within the publishabl
   const calls = recordFetch(context, () => ({ items: [], cursor: "next" }));
   const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, market: "configured" });
   for (const owner of ["market", "location"]) {
-    assert.deepEqual(await client.store[owner].list({ key: "trade", sort_field: "updated_at", limit: 1, cursor: "previous", sort_direction: "asc" }), { items: [], cursor: "next" });
+    assert.deepEqual(await client.store[owner].find({ key: "trade", sort_field: "updated_at", limit: 1, cursor: "previous", sort_direction: "asc" }), { items: [], cursor: "next" });
     const call = calls.at(-1);
     assert.equal(call.path, `/v1/storefront/${owner === "market" ? "markets" : "locations"}`);
     assert.deepEqual(call.query, { key: "trade", sort_field: "updated_at", limit: "1", cursor: "previous", sort_direction: "asc" });

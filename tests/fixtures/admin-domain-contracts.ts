@@ -8,9 +8,9 @@ type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
 type Admin = ReturnType<typeof createAdmin>;
 
 const store_id = 'a4219f3b-50b1-4a78-902b-d7264ae027a9';
-const admin = createAdmin({ baseUrl: 'https://api.example.test' });
-admin.account.auth.storeCode(store_id, { email: 'invited@example.test' });
-admin.account.auth.storeVerify(store_id, { session_id: 'pending', code: '123456' });
+const admin = createAdmin({ apiUrl: 'https://api.example.test' });
+admin.account.auth.requestCode({ email: 'invited@example.test', store_id });
+admin.account.auth.verify({ session_id: 'pending', code: '123456', store_id });
 
 export type AdminDomainContracts = [
   Assert<Equal<keyof AdminSession, 'id' | 'email'>>,
@@ -18,7 +18,7 @@ export type AdminDomainContracts = [
   Assert<Missing<CreateAdminConfig, 'storeId'>>,
   Assert<Missing<CreateAdminConfig, 'market'>>,
   Assert<Missing<CreateAdminConfig, 'locale'>>,
-  Assert<Equal<keyof RequestPendingAccountSessionParams, 'email'>>,
+  Assert<Equal<keyof RequestPendingAccountSessionParams, 'email' | 'store_id'>>,
   Assert<Missing<Admin['store'], 'adminDomain'>>,
   Assert<Missing<Admin['store'], 'branding'>>,
   Assert<Missing<Admin['store'], 'customerWorkspace'>>,

@@ -8,6 +8,7 @@ import type {
   StorefrontProduct,
   FindPurchasableCatalogsParams,
   FindStorefrontCatalogsParams,
+  PaginatedResponse,
   StorefrontCatalog,
 } from "arky-sdk";
 import type { createAdmin } from "arky-sdk/admin";
@@ -39,9 +40,9 @@ export const buyerCatalogValues = [customer, company, location, anyone, storefro
 
 export type BuyerCatalogContracts = [
   AssertTrue<Same<Parameters<AdminCatalogApi["findPurchasable"]>[0], FindPurchasableCatalogsParams>>,
-  AssertTrue<Same<Awaited<ReturnType<AdminCatalogApi["findPurchasable"]>>, Catalog[]>>,
-  AssertTrue<Same<Awaited<ReturnType<StorefrontCatalogApi["find"]>>, StorefrontCatalog[]>>,
-  AssertTrue<Same<Awaited<ReturnType<FacadeCatalogApi["find"]>>, StorefrontCatalog[]>>,
+  AssertTrue<Same<Awaited<ReturnType<AdminCatalogApi["findPurchasable"]>>, PaginatedResponse<Catalog>>>,
+  AssertTrue<Same<Awaited<ReturnType<StorefrontCatalogApi["find"]>>, PaginatedResponse<StorefrontCatalog>>>,
+  AssertTrue<Same<Awaited<ReturnType<FacadeCatalogApi["find"]>>, PaginatedResponse<StorefrontCatalog>>>,
   AssertTrue<Same<keyof StorefrontCatalogApi, "find">>,
   AssertTrue<Same<keyof StorefrontCatalog, "id" | "key" | "level">>,
   AssertTrue<Same<StorefrontCatalog["level"], CatalogAccessLevel>>,
