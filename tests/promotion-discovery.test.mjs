@@ -84,6 +84,29 @@ test("a promotion is created under the app-picked id and may target whole catego
   assert.equal(calls.length, 2);
 });
 
+test("an item quantity condition sends its target and both bounds, with an open maximum as null", async (context) => {
+  const calls = recordFetch(context, () => ({ id }));
+  const bounded = { type: "item_quantity", target: { type: "products", product_ids: [codeId] }, min_quantity: 2, max_quantity: 5 };
+  const open = { type: "item_quantity", target: { type: "categories", category_ids: ["kitchen"] }, min_quantity: 3, max_quantity: null };
+  const create = {
+    id,
+    key: "bulk-coffee",
+    blocks: [],
+    conditions: [bounded, open],
+    effects: [{ type: "item_percentage", id: "effect", target: { type: "products", product_ids: [codeId] }, basis_points: 500 }],
+    stacking: { type: "combinable" },
+    priority: 0,
+    max_uses: null,
+    max_uses_per_customer: null,
+    schedule: { type: "always" },
+    status: { type: "active" },
+  };
+  await eshop().promotion.create({ store_id: store, ...create });
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0].body, create);
+  assert.deepEqual(calls[0].body.conditions[1], { type: "item_quantity", target: { type: "categories", category_ids: ["kitchen"] }, min_quantity: 3, max_quantity: null });
+});
+
 test("a promotion code is created under the app-picked id and edited by version", async (context) => {
   const calls = recordFetch(context, () => ({ id: codeId }));
   await eshop().promotionCode.create({ store_id: store, id: codeId, promotion_id: id, code: "WINTER_10", max_uses: 100, status: { type: "active" } });

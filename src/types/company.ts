@@ -1,6 +1,6 @@
 import type { EpochMilliseconds } from "./time";
 import type { Block } from "./block";
-import type { PostalAddress, PostalAddressInput, SortDirection } from "./common";
+import type { EmailContact, PostalAddress, PostalAddressInput, SortDirection } from "./common";
 
 export type CompanyStatus =
   | { type: "active" }
@@ -51,7 +51,7 @@ export interface Company {
   id: string;
   store_id: string;
   name: string;
-  contact_email: string;
+  contact: EmailContact | null;
   tax: BuyerTax;
   purchasing: CompanyPurchasingPolicy;
   blocks: Block[];
@@ -120,7 +120,7 @@ export interface CompanyMembershipGrant {
 }
 
 export type CompanyMembershipStatus =
-  | { type: "invited"; email: string }
+  | { type: "invited"; contact: EmailContact }
   | { type: "active"; customer_id: string }
   | { type: "disabled"; customer_id: string };
 
@@ -148,7 +148,7 @@ export interface CreateCompanyParams {
   store_id: string;
   id: string;
   name: string;
-  contact_email: string;
+  contact?: EmailContact | null;
   billing_address?: PostalAddressInput | null;
   blocks: Block[];
   status: CompanyEditableStatus;
@@ -164,7 +164,7 @@ export interface UpdateCompanyParams {
   id: string;
   expected_updated_at: EpochMilliseconds;
   name: string;
-  contact_email: string;
+  contact: EmailContact | null;
   billing_address: PostalAddressInput | null;
   blocks: Block[];
   status: CompanyEditableStatus;
@@ -316,8 +316,7 @@ export interface CreateCompanyMembershipParams {
   store_id: string;
   id: string;
   company_id: string;
-  email: string;
-  language: string;
+  contact: EmailContact;
   grants: CompanyMembershipGrant[];
 }
 
@@ -354,4 +353,8 @@ export interface StorefrontFindCompanyMembershipsParams {
   cursor?: string | null;
 }
 
-export interface ResendCompanyInviteParams { store_id: string; id: string; language: string; expected_updated_at: EpochMilliseconds }
+export interface ResendCompanyInviteParams {
+  store_id: string;
+  id: string;
+  expected_updated_at: EpochMilliseconds;
+}

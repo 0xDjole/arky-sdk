@@ -27,12 +27,15 @@ import type {
   CustomerMe,
   CustomerSearchSnapshot,
   EmailAddress,
+  EmailContact,
   EmailTemplate,
   EmailTemplatePreview,
   FormAnswerInput,
   FormValues,
   MonriConfirmation,
   OutgoingEmail,
+  OutgoingEmailSummary,
+  Email,
   CustomerType,
   BroadcastMembers,
   BroadcastCondition,
@@ -84,9 +87,9 @@ const admin = createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky
 const storefront = createStorefront(`arky_pk_${"a".repeat(42)}A`, { apiUrl: "https://api.example.test", locale: "bs", market: "bih", createVisitorIdentity: () => ({ customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A` });
 const store_id = "c3d8f1a2-6b47-4e95-8a0c-2f7d5e9b1a63";
 
-export const notificationPage: Promise<PaginatedResponse<OutgoingEmail>> = admin.notification.outgoingEmail.find({ store_id, to: "buyer@example.test", type: "event_email", limit: 20 });
+export const notificationPage: Promise<PaginatedResponse<OutgoingEmailSummary>> = admin.notification.outgoingEmail.find({ store_id, to: "buyer@example.test", type: "event_email", limit: 20 });
 export const templatePreview: Promise<EmailTemplatePreview> = admin.notification.template.preview({ store_id, id: "template", language: "bs" });
-export const templateTest: Promise<OutgoingEmail> = admin.notification.template.test({ store_id, id: "template", outgoing_email_id: "8a6d4f2b-9c1e-4e57-b3a8-1f6c9e2d4b70", language: "bs" });
+export const templateTest: Promise<OutgoingEmail> = admin.notification.template.test({ store_id, id: "template", outgoing_email_id: "8a6d4f2b-9c1e-4e57-b3a8-1f6c9e2d4b70", language: "bs", sending_address_id: "4b6d8f0a-2e3a-4b7d-9f1c-3e5a7b9d1f2a", from_name: "Shop", reply_to: { type: "external", email: "help@example.test" } });
 export const broadcastTest: Promise<OutgoingEmail> = admin.broadcast.test({ store_id, id: "broadcast", outgoing_email_id: "8a6d4f2b-9c1e-4e57-b3a8-1f6c9e2d4b70", language: "en" });
 export const usage: Promise<StoreUsageSummary> = admin.store.usage.get({ store_id });
 export const setup: Promise<StorefrontSetup> = storefront.getSetup();
@@ -112,8 +115,8 @@ export type AdminSurfaceContracts = [
   Assert<Missing<Admin["eshop"], "subscriptionPlanEntitlement">>,
   Assert<Missing<Admin["eshop"], "customerGroupEmailConsent">>,
   Assert<Missing<Admin["store"], "commerce">>,
-  Assert<Equal<keyof Admin["notification"], "outgoingEmail" | "outgoingWebhook" | "incomingWebhook" | "template" | "emailProvider" | "emailAddress">>,
-  Assert<Equal<keyof Admin["notification"]["emailAddress"], "find" | "get" | "create" | "update" | "archive" | "activate" | "delete">>,
+  Assert<Equal<keyof Admin["notification"], "outgoingEmail" | "outgoingWebhook" | "incomingWebhook" | "template" | "layout" | "emailProvider" | "emailAddress" | "resendEvent">>,
+  Assert<Equal<keyof Admin["notification"]["emailAddress"], "find" | "get" | "create" | "delete" | "getReadiness">>,
   Assert<Equal<keyof Admin["broadcast"], "find" | "get" | "create" | "update" | "delete" | "schedule" | "unschedule" | "send" | "preview" | "test">>,
   Assert<Equal<keyof Admin["support"], "flow" | "conversation">>,
   Assert<Missing<Admin["store"], "storefrontClient">>,
@@ -156,12 +159,14 @@ export type AdminSurfaceContracts = [
   Assert<Equal<MonriConfirmation["type"], "made" | "not_made">>,
   Assert<Equal<PaymentType["type"], "stripe_checkout" | "stripe_card" | "monri_checkout" | "monri_card" | "cash_on_delivery" | "manual">>,
   Assert<Equal<CustomerType["type"], "anonymous" | "verified">>,
+  Assert<Equal<Extract<CustomerType, { type: "verified" }>["contact"], EmailContact>>,
+  Assert<Missing<Extract<CustomerType, { type: "verified" }>, "email">>,
   Assert<Missing<Extract<AccountSessionStatus, { type: "pending_verification" }>, "notification_id">>,
   Assert<Equal<ExperimentVariantResult["open_windows"], number>>,
   Assert<Missing<ExperimentResults, "maturing">>,
   Assert<Equal<BroadcastAudience, { include: BroadcastMembers[]; exclude: BroadcastMembers[]; conditions: BroadcastCondition[] }>>,
-  Assert<Equal<Broadcast["sending_address_id"], string>>,
-  Assert<Missing<Broadcast, "sender_id">>,
+  Assert<Equal<Broadcast["email"], Email>>,
+  Assert<Missing<Broadcast, "sender_id" | "sending_address_id" | "content">>,
   Assert<Equal<IncomingWebhookStatus["type"], "waiting" | "processing" | "applied" | "ignored" | "review">>,
   Assert<Equal<IncomingWebhookStatusName, "waiting" | "unmatched" | "processing" | "applied" | "ignored" | "review">>,
   Assert<Equal<IncomingWebhookTarget["type"], "conversation_message" | "outgoing_email" | "email_suppression" | "payment" | "payment_method" | "store_subscription">>,
@@ -185,9 +190,10 @@ export type StorefrontSurfaceContracts = [
   Assert<Equal<Store["eshop"]["promotion"], Storefront["eshop"]["promotion"]>>,
   Assert<Equal<keyof ChangeCustomerEmailParams, "code">>,
   Assert<Equal<Answer<Storefront["customer"]["changeEmail"]>, CustomerMe>>,
-  Assert<Equal<keyof RequestCustomerCodeParams, "id" | "email" | "language" | "bot_check_token">>,
+  Assert<Equal<keyof RequestCustomerCodeParams, "id" | "contact" | "bot_check_token">>,
   Assert<OptionalField<RequestCustomerCodeParams, "id">>,
-  Assert<RequiredField<RequestCustomerCodeParams, "language">>,
+  Assert<RequiredField<RequestCustomerCodeParams, "contact">>,
+  Assert<Equal<RequestCustomerCodeParams["contact"], EmailContact>>,
   Assert<Equal<keyof SubmitFormParams, "id" | "language" | "bot_check_token">>,
   Assert<Equal<keyof SubmitFormRequest, "form_id" | "questions_updated_at" | "id" | "language" | "answers" | "bot_check_token">>,
   Assert<Equal<Answer<Storefront["forms"]["submit"]>, StorefrontFormSubmission>>,

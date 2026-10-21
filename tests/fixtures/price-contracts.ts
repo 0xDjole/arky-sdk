@@ -1,98 +1,103 @@
 import type {
-  Price,
-  CreatePriceParams,
-  UpdatePriceParams,
-  FindPricesParams,
-  ManualPriceInput,
-  ManualPrice,
+  CatalogItemPrice,
+  CatalogItemPricePage,
+  CreateCatalogItemPriceParams,
+  UpdateCatalogItemPriceParams,
+  FindCatalogItemPricesParams,
   ProductVariant,
   BookingOffering,
   StorefrontProduct,
   StorefrontProductVariant,
   StorefrontBookingOffering,
+  StorefrontBookingService,
   StorefrontPrice,
   CreateProductVariantParams,
   CreateBookingOfferingParams,
   OrderProductSnapshot,
   OrderBookingSnapshot,
   OrderLinePrice,
-  DeletePriceParams,
+  DeleteCatalogItemPriceParams,
   SellableRef,
   Schedule,
-  PriceBatchOperation,
-  BatchPricesParams,
+  CatalogItemPriceBatchOperation,
+  BatchCatalogItemPricesParams,
+  CartBookingLineItemInput,
+  CartCustomerGroupLineItemInput,
+  CartProductLineItemInput,
 } from "arky-sdk";
 import type { createAdmin } from "arky-sdk/admin";
-import type { Price as PublicPrice } from "arky-sdk/types";
+import type { CatalogItemPrice as PublicCatalogItemPrice } from "arky-sdk/types";
 
 type True<T extends true> = T;
 type False<T extends false> = T;
 type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
-type PriceApi = ReturnType<typeof createAdmin>["eshop"]["price"];
+type Eshop = ReturnType<typeof createAdmin>["eshop"];
+type PriceApi = Eshop["catalogItemPrice"];
 
 export type PriceContracts = [
-  True<Same<PublicPrice, Price>>,
-  True<RequiredField<Price, "catalog_id">>,
-  True<RequiredField<Price, "sellable">>,
-  True<Same<Price["sellable"], SellableRef>>,
-  True<Same<Price["schedule"], Schedule>>,
-  False<"starts_at" | "ends_at" extends keyof Price ? true : false>,
+  True<Same<PublicCatalogItemPrice, CatalogItemPrice>>,
+  True<RequiredField<CatalogItemPrice, "catalog_item_id">>,
+  True<RequiredField<CatalogItemPrice, "sellable">>,
+  True<Same<CatalogItemPrice["sellable"], SellableRef>>,
+  True<Same<CatalogItemPrice["schedule"], Schedule>>,
+  False<"catalog_id" | "min_quantity" | "max_quantity" extends keyof CatalogItemPrice ? true : false>,
+  False<"starts_at" | "ends_at" extends keyof CatalogItemPrice ? true : false>,
   False<
-
-      | "priced"
-      | "scope"
-      | "currency"
-      | "price_list_id"
-      | "market"
-      | "audience_id" extends keyof Price
+    | "priced"
+    | "scope"
+    | "currency"
+    | "price_list_id"
+    | "market"
+    | "audience_id" extends keyof CatalogItemPrice
       ? true
       : false
   >,
-  True<Same<Price["status"]["type"], "active" | "archived">>,
-  True<RequiredField<CreatePriceParams, "id">>,
-  True<RequiredField<CreatePriceParams, "catalog_id">>,
-  True<RequiredField<CreatePriceParams, "sellable">>,
-  True<RequiredField<CreatePriceParams, "schedule">>,
-  True<RequiredField<CreatePriceParams, "compare_at">>,
-  True<RequiredField<CreatePriceParams, "max_quantity">>,
-  False<"currency" extends keyof CreatePriceParams ? true : false>,
+  True<Same<CatalogItemPrice["status"]["type"], "active" | "archived">>,
+  True<RequiredField<CreateCatalogItemPriceParams, "id">>,
+  True<RequiredField<CreateCatalogItemPriceParams, "catalog_item_id">>,
+  True<RequiredField<CreateCatalogItemPriceParams, "sellable">>,
+  True<RequiredField<CreateCatalogItemPriceParams, "schedule">>,
+  True<RequiredField<CreateCatalogItemPriceParams, "compare_at">>,
+  False<"currency" | "catalog_id" | "min_quantity" | "max_quantity" extends keyof CreateCatalogItemPriceParams ? true : false>,
   False<
-
-      | "sellable"
-      | "catalog_id"
-      | "currency"
-      | "billing" extends keyof UpdatePriceParams
+    | "sellable"
+    | "catalog_item_id"
+    | "catalog_id"
+    | "currency"
+    | "billing" extends keyof UpdateCatalogItemPriceParams
       ? true
       : false
   >,
-  True<RequiredField<UpdatePriceParams, "schedule">>,
-  True<RequiredField<UpdatePriceParams, "expected_updated_at">>,
-  True<RequiredField<UpdatePriceParams, "compare_at">>,
-  True<RequiredField<UpdatePriceParams, "max_quantity">>,
-  True<RequiredField<DeletePriceParams, "expected_updated_at">>,
+  True<RequiredField<UpdateCatalogItemPriceParams, "schedule">>,
+  True<RequiredField<UpdateCatalogItemPriceParams, "expected_updated_at">>,
+  True<RequiredField<UpdateCatalogItemPriceParams, "compare_at">>,
+  True<RequiredField<DeleteCatalogItemPriceParams, "expected_updated_at">>,
   True<Same<Awaited<ReturnType<PriceApi["delete"]>>, void>>,
-  True<Same<PriceBatchOperation["type"], "create" | "update" | "delete">>,
-  True<Same<Parameters<PriceApi["batch"]>[0], BatchPricesParams>>,
-  True<Same<Awaited<ReturnType<PriceApi["batch"]>>, Price[]>>,
-  True<Same<NonNullable<FindPricesParams["sellable"]>, SellableRef>>,
+  True<Same<CatalogItemPriceBatchOperation["type"], "create" | "update" | "delete">>,
+  True<Same<Parameters<PriceApi["batch"]>[0], BatchCatalogItemPricesParams>>,
+  True<Same<Awaited<ReturnType<PriceApi["batch"]>>, CatalogItemPrice[]>>,
+  True<Same<Parameters<PriceApi["find"]>[0], FindCatalogItemPricesParams>>,
+  True<Same<Awaited<ReturnType<PriceApi["find"]>>, CatalogItemPricePage>>,
+  True<Same<NonNullable<FindCatalogItemPricesParams["sellable"]>, SellableRef>>,
   False<
-    "base_only" | "currency" | "price_list_id" extends keyof FindPricesParams
+    "base_only" | "currency" | "price_list_id" | "catalog_id" extends keyof FindCatalogItemPricesParams
       ? true
       : false
   >,
+  False<"price" extends keyof Eshop ? true : false>,
   True<
     Same<
       OrderLinePrice["type"],
       | "catalog"
       | "purchase_access"
-      | "manual"
       | "offer"
       | "customer_group_allocation"
     >
   >,
-  True<Same<Extract<OrderLinePrice, { type: "manual" }>["catalog_id"], string>>,
-  True<RequiredField<Extract<OrderLinePrice, { type: "manual" }>, "reason">>,
+  True<Same<Extract<OrderLinePrice, { type: "catalog" }>["catalog_item_price_id"], string>>,
+  True<Same<Extract<OrderLinePrice, { type: "offer" }>["catalog_item_price_id"], string>>,
+  True<Same<Extract<OrderLinePrice, { type: "purchase_access" }>["catalog_item_price_id"], string>>,
   True<
     Same<
       Extract<
@@ -115,9 +120,12 @@ export type PriceContracts = [
   False<"prices" extends keyof CreateProductVariantParams ? true : false>,
   False<"prices" extends keyof CreateBookingOfferingParams ? true : false>,
   False<"status" extends keyof StorefrontProduct ? true : false>,
-  True<
-    StorefrontProduct["price"] extends StorefrontPrice | null ? true : false
-  >,
+  False<"price" extends keyof StorefrontProduct ? true : false>,
+  False<"price" extends keyof StorefrontBookingService ? true : false>,
+  True<Same<StorefrontProduct["catalog_item_id"], string>>,
+  True<Same<StorefrontBookingService["catalog_item_id"], string>>,
+  True<Same<StorefrontProductVariant["catalog_item_id"], string>>,
+  True<Same<StorefrontBookingOffering["catalog_item_id"], string>>,
   True<
     StorefrontProductVariant["price"] extends StorefrontPrice | null
       ? true
@@ -136,10 +144,12 @@ export type PriceContracts = [
     "purchase_allowed" extends keyof StorefrontBookingOffering ? true : false
   >,
   False<"source" extends keyof StorefrontPrice ? true : false>,
+  True<RequiredField<StorefrontPrice, "catalog_item_price_id">>,
   True<Same<OrderProductSnapshot["price"], OrderLinePrice>>,
   True<Same<OrderBookingSnapshot["price"], OrderLinePrice>>,
-  True<RequiredField<ManualPriceInput, "reason">>,
-  True<RequiredField<ManualPriceInput, "allow_promotions">>,
-  False<"authorized_by" extends keyof ManualPriceInput ? true : false>,
-  True<RequiredField<ManualPrice, "authorized_by">>,
+  False<"price_override" extends keyof CartProductLineItemInput ? true : false>,
+  False<"price_override" extends keyof CartBookingLineItemInput ? true : false>,
+  False<"price_override" extends keyof CartCustomerGroupLineItemInput ? true : false>,
+  True<RequiredField<CartBookingLineItemInput, "catalog_item_price_id">>,
+  True<RequiredField<CartCustomerGroupLineItemInput, "catalog_item_price_id">>,
 ];

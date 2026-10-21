@@ -19,7 +19,8 @@ import {
 const STORE_ID = ids.store;
 const OTHER_STORE_ID = ids.otherStore;
 const groupLineId = ids.otherLine;
-const groupSelection = { id: groupLineId, customer_group_id: ids.product, quantity: 1, choices: [], start: { type: "on_acceptance" }, deliveries: [] };
+const groupSelection = { id: groupLineId, customer_group_id: ids.product, quantity: 1, choices: [], start: { type: "on_acceptance" }, deliveries: [], catalog_item_price_id: ids.price };
+const assignedAccess = { type: "assigned_purchase_access", customer_group_member_id: ids.customerGroupMember, entitlement_id: ids.catalog };
 const companyBuyer = { type: "company_location", company_location_id: ids.companyLocation, purchase_order_number: "PO-7" };
 
 function admin() {
@@ -88,8 +89,8 @@ test("Admin Cart commands send exactly the caller's ids, buyer, channel and cata
     () => admin().eshop.cart.create({ store_id: STORE_ID, ...create, id: "cart-one" }),
     () => admin().eshop.cart.create({ store_id: "store-one", ...create }),
     () => admin().eshop.cart.addCustomerGroup({ store_id: STORE_ID, id: ids.cart, expected_updated_at: 6, customer_group: { ...groupSelection, id: "group-line" } }),
-    () => admin().eshop.cart.addProduct({ store_id: STORE_ID, id: ids.cart, expected_updated_at: 6, product: { product_id: ids.product, variant_id: ids.variant, quantity: 1, purchase: { type: "catalog" } } }),
-    () => admin().eshop.cart.addBooking({ store_id: STORE_ID, id: ids.cart, expected_updated_at: 6, booking: { id: "booking-line", booking_offering_id: ids.product, requested_interval: { from: 1, to: 2 }, capacity_units: 1 } }),
+    () => admin().eshop.cart.addProduct({ store_id: STORE_ID, id: ids.cart, expected_updated_at: 6, product: { product_id: ids.product, variant_id: ids.variant, quantity: 1, purchase: { type: "catalog", catalog_item_price_id: ids.price } } }),
+    () => admin().eshop.cart.addBooking({ store_id: STORE_ID, id: ids.cart, expected_updated_at: 6, booking: { id: "booking-line", booking_offering_id: ids.product, requested_interval: { from: 1, to: 2 }, capacity_units: 1, catalog_item_price_id: ids.price } }),
   ]) await assert.rejects(async () => operation(), TypeError);
   assert.equal(calls.length, 5);
 });
@@ -152,8 +153,8 @@ test("Admin quotes carry only the language the caller names; the client has no c
   assert.equal(calls[2].path, `/v1/stores/${STORE_ID}/orders/quote`);
   await client.eshop.cart.quoteFutureDeliveries({ store_id: STORE_ID, id: ids.cart, language: "en", customer_groups: [] });
   assert.deepEqual(calls[3].body, { language: "en", customer_groups: [] });
-  await client.eshop.cart.previewAccessProduct({ store_id: STORE_ID, id: ids.cart, language: "en", line_item_id: ids.line, variant_id: ids.variant, quantity: 1, purchase: { type: "catalog" } });
-  assert.deepEqual(calls[4].body, { language: "en", line_item_id: ids.line, variant_id: ids.variant, quantity: 1, purchase: { type: "catalog" } });
+  await client.eshop.cart.previewAccessProduct({ store_id: STORE_ID, id: ids.cart, language: "en", line_item_id: ids.line, variant_id: ids.variant, quantity: 1, purchase: assignedAccess });
+  assert.deepEqual(calls[4].body, { language: "en", line_item_id: ids.line, variant_id: ids.variant, quantity: 1, purchase: assignedAccess });
   for (const call of calls) assert.equal(call.headers.has("x-arky-locale"), false);
 });
 
@@ -206,12 +207,12 @@ test("storefront quote, delivery quote and access preview send no body language;
   await client.eshop.cart.quote({ id: ids.cart, language: "en" });
   await client.eshop.cart.quote({ id: ids.cart, token: "explicit-cart-token" });
   await client.eshop.cart.quoteFutureDeliveries({ id: ids.cart, language: "en", customer_groups: [{ cart_line_item_id: groupLineId, deliveries: [] }] });
-  await client.eshop.cart.previewAccessProduct({ id: ids.cart, language: "en", line_item_id: ids.line, variant_id: ids.variant, quantity: 2, purchase: { type: "catalog" } });
+  await client.eshop.cart.previewAccessProduct({ id: ids.cart, language: "en", line_item_id: ids.line, variant_id: ids.variant, quantity: 2, purchase: assignedAccess });
   assert.deepEqual(calls.map((call) => [call.method, call.path, call.body]), [
     ["POST", `/v1/storefront/carts/${ids.cart}/quote`, {}],
     ["POST", `/v1/storefront/carts/${ids.cart}/quote`, {}],
     ["POST", `/v1/storefront/carts/${ids.cart}/future-delivery-quote`, { customer_groups: [{ cart_line_item_id: groupLineId, deliveries: [] }] }],
-    ["POST", `/v1/storefront/carts/${ids.cart}/access-product-preview`, { line_item_id: ids.line, variant_id: ids.variant, quantity: 2, purchase: { type: "catalog" } }],
+    ["POST", `/v1/storefront/carts/${ids.cart}/access-product-preview`, { line_item_id: ids.line, variant_id: ids.variant, quantity: 2, purchase: assignedAccess }],
   ]);
   for (const call of calls) {
     assert.equal(JSON.stringify(call.body).includes("language"), false);
@@ -221,7 +222,7 @@ test("storefront quote, delivery quote and access preview send no body language;
   assert.equal(calls[1].headers.get("x-arky-cart-token"), "explicit-cart-token");
 });
 
-test("Storefront Cart lines carry their own ids and strip price overrides and other browser authority", async (context) => {
+test("Storefront Cart lines carry their own ids and listing prices and strip invented prices and other browser authority", async (context) => {
   const calls = recordFetch(context, () => cartRecord());
   const client = storefront();
   const override = { allow_promotions: true, currency: "bam", amount: 1, reason: "browser" };
@@ -230,12 +231,12 @@ test("Storefront Cart lines carry their own ids and strip price overrides and ot
     sales_channel_id: ids.channel,
     buyer: { type: "customer" },
     line_items: [
-      { type: "product", id: ids.line, product_id: ids.product, variant_id: ids.variant, quantity: 2, price_override: override, purchase: { type: "catalog", spoof: true }, store_id: "spoof" },
+      { type: "product", id: ids.line, product_id: ids.product, variant_id: ids.variant, quantity: 2, price_override: override, purchase: { type: "catalog", catalog_item_price_id: ids.price, spoof: true }, store_id: "spoof" },
       { type: "product", id: ids.otherLine, product_id: ids.product, variant_id: ids.variant, quantity: 1, price_override: override,
         purchase: { type: "existing_purchase_access", grant: { order_id: ids.order, order_purchase_access_line_item_id: ids.line, price: 0 } } },
       { type: "product", id: ids.otherOrder, variant_id: ids.variant, quantity: 1, price_override: override,
         purchase: { type: "assigned_purchase_access", customer_group_member_id: ids.customerGroupMember, entitlement_id: ids.catalog, price: 0 } },
-      { type: "booking", id: ids.credit, booking_offering_id: ids.product, requested_interval: { from: 0, to: 60000, timezone: "spoof" }, capacity_units: 1, price_override: override },
+      { type: "booking", id: ids.credit, booking_offering_id: ids.product, requested_interval: { from: 0, to: 60000, timezone: "spoof" }, capacity_units: 1, catalog_item_price_id: ids.otherPrice, price_override: override },
       { type: "customer_group", ...groupSelection, id: ids.submission, price_override: override },
     ],
   });
@@ -243,12 +244,12 @@ test("Storefront Cart lines carry their own ids and strip price overrides and ot
     expected_updated_at: 3,
     buyer: { type: "customer" },
     line_items: [
-      { type: "product", id: ids.line, variant_id: ids.variant, quantity: 2, purchase: { type: "catalog" } },
+      { type: "product", id: ids.line, variant_id: ids.variant, quantity: 2, purchase: { type: "catalog", catalog_item_price_id: ids.price } },
       { type: "product", id: ids.otherLine, variant_id: ids.variant, quantity: 1,
         purchase: { type: "existing_purchase_access", grant: { order_id: ids.order, order_purchase_access_line_item_id: ids.line } } },
       { type: "product", id: ids.otherOrder, variant_id: ids.variant, quantity: 1,
         purchase: { type: "assigned_purchase_access", customer_group_member_id: ids.customerGroupMember, entitlement_id: ids.catalog } },
-      { type: "booking", id: ids.credit, booking_offering_id: ids.product, requested_interval: { from: 0, to: 60000 }, capacity_units: 1 },
+      { type: "booking", id: ids.credit, booking_offering_id: ids.product, requested_interval: { from: 0, to: 60000 }, capacity_units: 1, catalog_item_price_id: ids.otherPrice },
       { type: "customer_group", ...groupSelection, id: ids.submission },
     ],
   });
@@ -295,7 +296,7 @@ test("checkout: Admin names the order language and the storefront does not; a ch
 });
 
 test("initialize quotes and checks out a group-only cart through the reviewed quote and keeps the cart when asked", async (context) => {
-  const current = cartRecord({ line_items: [{ type: "customer_group", ...groupSelection, price_override: null }] });
+  const current = cartRecord({ line_items: [{ type: "customer_group", ...groupSelection }] });
   let quoted = quoteRecord({ ready: false });
   const calls = recordFetch(context, (call) => {
     if (call.path === "/v1/storefront/carts") return { type: "created", cart: current, recovery_token: "cart-recovery-token" };

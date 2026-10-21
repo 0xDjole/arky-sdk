@@ -9,6 +9,10 @@ const conversationId = "7c2e9a41-5b3d-4f86-a1e0-3d4c2b9f6e18";
 const messageId = "2a6d8f13-9c47-4e05-b1a8-6f3e0c2d7b95";
 const promptId = "8b3e5d71-2c96-4f04-a7d1-9e2c4b6a8f30";
 const addressId = "4b6d8f0a-2e3a-4b7d-9f1c-3e5a7b9d1f2a";
+const templateId = "5e1a9c37-4b28-4d60-8f13-2c7a6e0b9d45";
+const returnsAddressId = "8e0a2c4e-6b7d-4f9a-b1c3-5d7f9b1d3f5a";
+const reply = { email_template_id: templateId, sending_address_id: addressId, from_name: "Support", reply_to: { type: "address", email_address_id: addressId } };
+const contact = { email: "buyer@example.test", language: "bs" };
 
 function support() {
   return createAdmin({ apiUrl: "https://support-contract.test", secretKey: "arky_api_support" }).support;
@@ -18,36 +22,39 @@ function storefront() {
   return createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, locale: "bs", sessionStorage: visitorStorage() });
 }
 
-function storefrontConversation(status = { type: "flow", step_key: "start" }) {
-  return { id: conversationId, language: "bs", status, created_at: 1, updated_at: 1 };
+function storefrontConversation(state = "flow") {
+  return { id: conversationId, language: "bs", state, created_at: 1, updated_at: 1 };
 }
 
-test("staff starts an email conversation with retained caller-picked conversation and message IDs", async (context) => {
-  const reply = { conversation: { id: conversationId, language: "bs", type: { type: "email", email: { customer_email: "buyer@example.test", subject: "Delivery", sending_address_id: addressId } } }, message: { id: messageId } };
-  const calls = recordFetch(context, () => reply);
-  const params = { store_id: STORE_ID, id: conversationId, message_id: messageId, customer_id: ids.customer, email: "buyer@example.test", subject: "Delivery", language: "bs", sending_address_id: addressId, text: "We can help." };
-  assert.deepEqual(await support().conversation.startEmail(params), reply);
-  assert.deepEqual(await support().conversation.startEmail(params), reply);
+test("staff starts an email conversation for a contact with a reply selection and retained caller-picked IDs", async (context) => {
+  const answer = {
+    conversation: { id: conversationId, state: { type: "waiting_for_team", flow: null }, type: { type: "email", email: { contact, subject: "Delivery", reply } } },
+    message: { id: messageId },
+  };
+  const calls = recordFetch(context, () => answer);
+  const params = { store_id: STORE_ID, id: conversationId, message_id: messageId, customer_id: ids.customer, contact, subject: "Delivery", reply, text: "We can help." };
+  assert.deepEqual(await support().conversation.startEmail(params), answer);
+  assert.deepEqual(await support().conversation.startEmail(params), answer);
   assert.equal(calls.length, 2);
   assert.equal(calls[0].path, `/v1/stores/${STORE_ID}/conversations`);
   const { store_id, ...body } = params;
   assert.deepEqual(calls[0].body, body);
   assert.deepEqual(calls[1].body, body);
+  for (const removed of ["email", "language", "sending_address_id", "email_template_id"]) assert.equal(removed in calls[0].body, false, removed);
 });
 
-test("staff start an email thread or reply from a SupportReply template, sending the template and no text of their own", async (context) => {
-  const templateId = "5e1a9c37-4b28-4d60-8f13-2c7a6e0b9d45";
+test("staff choose the conversation's reply email, and a reply sends its own text without a template", async (context) => {
   const answer = { conversation: { id: conversationId }, message: { id: messageId } };
-  const calls = recordFetch(context, () => answer);
-  const start = { store_id: STORE_ID, id: conversationId, message_id: messageId, customer_id: ids.customer, email: "buyer@example.test", subject: "Delivery", language: "bs", sending_address_id: addressId, email_template_id: templateId };
-  assert.deepEqual(await support().conversation.startEmail(start), answer);
-  await support().conversation.reply({ store_id: STORE_ID, conversation_id: conversationId, id: promptId, expected_updated_at: 6, email_template_id: templateId, delivery: "email" });
-  const { store_id: _store, ...startBody } = start;
+  const calls = recordFetch(context, (call) => call.path.endsWith("/reply-email") ? { id: conversationId } : answer);
+  const api = support().conversation;
+  const other = { ...reply, from_name: "Returns", reply_to: { type: "address", email_address_id: returnsAddressId } };
+  assert.deepEqual(await api.selectReplyEmail({ store_id: STORE_ID, conversation_id: conversationId, expected_updated_at: 5, reply: other }), { id: conversationId });
+  await api.reply({ store_id: STORE_ID, conversation_id: conversationId, id: promptId, expected_updated_at: 6, text: "Your parcel ships today.", delivery: "email" });
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
-    ["POST", `/v1/stores/${STORE_ID}/conversations`, startBody],
-    ["POST", `/v1/stores/${STORE_ID}/conversations/${conversationId}/messages`, { id: promptId, expected_updated_at: 6, email_template_id: templateId, delivery: "email" }],
+    ["POST", `/v1/stores/${STORE_ID}/conversations/${conversationId}/reply-email`, { expected_updated_at: 5, reply: other }],
+    ["POST", `/v1/stores/${STORE_ID}/conversations/${conversationId}/messages`, { id: promptId, expected_updated_at: 6, text: "Your parcel ships today.", delivery: "email" }],
   ]);
-  assert.ok(calls.every((call) => !("text" in call.body)));
+  assert.equal("selectSendingAddress" in api, false);
 });
 
 test("staff show or hide a received email in the chat with the message version they read", async (context) => {
@@ -71,7 +78,7 @@ test("the conversation inbox keeps native multi-status filters, the contact filt
   const calls = recordFetch(context, () => ({ items: [], cursor: "next:+/=" }));
   const filters = {
     store_id: STORE_ID,
-    statuses: ["flow", "team"],
+    statuses: ["flow", "waiting_for_team"],
     contact: "email",
     customer_id: ids.customer,
     assigned_account_id: ids.account,
@@ -123,10 +130,8 @@ test("conversation history pages its messages with the empty-page continuation, 
     store_id: STORE_ID,
     customer_id: ids.customer,
     assigned_account_id: null,
-    status: { type: "team" },
-    chat: { language: "bs" },
-    email: null,
-    flow: null,
+    state: { type: "waiting_for_team", flow: null },
+    type: { type: "chat_and_email", chat_language: "bs", email: { contact, subject: "Chat follow-up", reply } },
     next_message_sequence: 2,
     created_at: 0,
     updated_at: 2,
@@ -162,26 +167,30 @@ test("support writes carry the app-picked id or the conversation version", async
   const flowId = "3f8a1c62-9d4e-4b07-a5c3-8e1d6f2b9a40";
   const steps = {
     start: { type: "chat_choice", text: { en: "How can we help?" }, buttons: [{ label: { en: "Talk to a person" }, next_step_key: "contact" }] },
-    contact: { type: "collect_email_contact", text: { en: "Your email?" }, subject: { en: "Chat follow-up" }, initial_sending_address_id: addressId, next_step_key: "team" },
+    contact: { type: "collect_email_contact", text: { en: "Your email?" }, subject: { en: "Chat follow-up" }, reply, next_step_key: "thanks" },
+    thanks: { type: "send_email", email: { ...reply, email_template_id: "2c4e6a8c-0e1f-4b3d-9f5a-7c9e1b3d5f7a" }, next_step_key: "team" },
     team: { type: "hand_to_team" },
   };
-  await api.flow.create({ store_id: STORE_ID, id: flowId, key: "welcome", start_step_key: "start", steps });
-  await api.flow.update({ store_id: STORE_ID, id: flowId, expected_updated_at: 3, key: "hello", start_step_key: "start", steps });
+  const entries = [
+    { type: "chat", start_step_key: "start" },
+    { type: "incoming_email", email_address_id: addressId, reply_language: "en", reply, start_step_key: "team" },
+  ];
+  await api.flow.create({ store_id: STORE_ID, id: flowId, key: "welcome", entries, steps });
+  await api.flow.update({ store_id: STORE_ID, id: flowId, expected_updated_at: 3, key: "hello", entries, steps });
   await api.flow.delete({ store_id: STORE_ID, id: flowId, expected_updated_at: 4 });
-  await api.conversation.selectSendingAddress({ store_id: STORE_ID, conversation_id: conversationId, expected_updated_at: 6, sending_address_id: addressId });
   await api.conversation.resolve({ store_id: STORE_ID, conversation_id: conversationId, expected_updated_at: 7 });
   await api.conversation.assign({ store_id: STORE_ID, conversation_id: conversationId, expected_updated_at: 8, account_id: null });
   const base = `/v1/stores/${STORE_ID}/conversations/${conversationId}`;
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
-    ["POST", `/v1/stores/${STORE_ID}/support-flows`, {}, { id: flowId, key: "welcome", start_step_key: "start", steps }],
-    ["PUT", `/v1/stores/${STORE_ID}/support-flows/${flowId}`, {}, { expected_updated_at: 3, key: "hello", start_step_key: "start", steps }],
+    ["POST", `/v1/stores/${STORE_ID}/support-flows`, {}, { id: flowId, key: "welcome", entries, steps }],
+    ["PUT", `/v1/stores/${STORE_ID}/support-flows/${flowId}`, {}, { expected_updated_at: 3, key: "hello", entries, steps }],
     ["DELETE", `/v1/stores/${STORE_ID}/support-flows/${flowId}`, { expected_updated_at: "4" }, null],
-    ["POST", `${base}/select-sending-address`, {}, { expected_updated_at: 6, sending_address_id: addressId }],
     ["POST", `${base}/resolve`, {}, { expected_updated_at: 7 }],
     ["POST", `${base}/assign`, {}, { expected_updated_at: 8, account_id: null }],
   ]);
-  await assert.rejects(async () => api.flow.create({ store_id: STORE_ID, id: "welcome", key: "welcome", start_step_key: "start", steps }), TypeError);
-  assert.equal(calls.length, 6);
+  for (const body of [calls[0].body, calls[1].body]) assert.equal("start_step_key" in body, false);
+  await assert.rejects(async () => api.flow.create({ store_id: STORE_ID, id: "welcome", key: "welcome", entries, steps }), TypeError);
+  assert.equal(calls.length, 5);
 });
 
 test("an account reply is one write of the app-picked message id, its text and its delivery", async (context) => {
@@ -226,23 +235,23 @@ test("storefront support starts with an app-picked id and uses its real customer
 });
 
 test("a storefront chat message is one write with the app-picked id, the input and the answered prompt, and returns the flow's reply", async (context) => {
-  const reply = {
-    conversation: storefrontConversation({ type: "flow", step_key: "contact" }),
+  const flowReply = {
+    conversation: storefrontConversation("flow"),
     messages: [
       { id: messageId, conversation_id: conversationId, sequence: 2, type: { type: "customer_chat", text: "Talk to a person" }, created_at: 2, updated_at: 2 },
-      { id: "flow-reply", conversation_id: conversationId, sequence: 3, type: { type: "flow_question", text: "Your email?", input_type: "email" }, created_at: 2, updated_at: 2 },
+      { id: "flow-reply", conversation_id: conversationId, sequence: 3, type: { type: "flow_email_contact", text: "Your email?" }, created_at: 2, updated_at: 2 },
     ],
   };
-  const calls = recordFetch(context, (call) => call.method === "POST" ? reply : call.path.endsWith("/messages") ? { items: reply.messages, cursor: null } : reply.messages[1]);
+  const calls = recordFetch(context, (call) => call.method === "POST" ? flowReply : call.path.endsWith("/messages") ? { items: flowReply.messages, cursor: null } : flowReply.messages[1]);
   const client = storefront().support.conversation;
-  assert.deepEqual(await client.sendMessage({ conversation_id: conversationId, id: messageId, input: { type: "button", label: "Talk to a person" }, prompt_message_id: promptId }), reply);
-  await client.sendMessage({ conversation_id: conversationId, id: promptId, input: { type: "text", text: "buyer@example.test" } });
-  assert.deepEqual(await client.findMessages({ conversation_id: conversationId, limit: 20, cursor: "older" }), { items: reply.messages, cursor: null });
-  assert.deepEqual(await client.getMessage({ conversation_id: conversationId, message_id: "flow-reply" }), reply.messages[1]);
+  assert.deepEqual(await client.sendMessage({ conversation_id: conversationId, id: messageId, input: { type: "button", label: "Talk to a person" }, prompt_message_id: promptId }), flowReply);
+  await client.sendMessage({ conversation_id: conversationId, id: promptId, input: { type: "email_contact", contact } });
+  assert.deepEqual(await client.findMessages({ conversation_id: conversationId, limit: 20, cursor: "older" }), { items: flowReply.messages, cursor: null });
+  assert.deepEqual(await client.getMessage({ conversation_id: conversationId, message_id: "flow-reply" }), flowReply.messages[1]);
   const base = `/v1/storefront/conversations/${conversationId}`;
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
     ["POST", `${base}/messages`, {}, { id: messageId, input: { type: "button", label: "Talk to a person" }, prompt_message_id: promptId }],
-    ["POST", `${base}/messages`, {}, { id: promptId, input: { type: "text", text: "buyer@example.test" } }],
+    ["POST", `${base}/messages`, {}, { id: promptId, input: { type: "email_contact", contact } }],
     ["GET", `${base}/messages`, { limit: "20", cursor: "older" }, null],
     ["GET", `${base}/messages/flow-reply`, {}, null],
   ]);

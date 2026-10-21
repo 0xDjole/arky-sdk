@@ -8,7 +8,7 @@ arky.session.subscribe((session) => {
 const { bot_check } = await arky.getSetup();
 const bot_check_token = bot_check.type === "off" ? undefined : "token-from-the-provider-widget";
 
-await arky.customer.requestCode({ email: "ana@example.com", language: "en", bot_check_token });
+await arky.customer.requestCode({ contact: { email: "ana@example.com", language: "en" }, bot_check_token });
 
 try {
   await arky.customer.verify({ code: "123456" });

@@ -1,5 +1,5 @@
 import type { EpochMilliseconds } from "./time";
-import type { SortDirection } from "./common";
+import type { EmailContact, SortDirection } from "./common";
 import type { Account, AccountSortField } from "./account";
 
 export type LocationReach =
@@ -36,7 +36,7 @@ export interface StoreAccess {
 }
 
 export type StoreMembershipStatus =
-  | { type: "invited"; email: string }
+  | { type: "invited"; contact: EmailContact }
   | { type: "active"; account_id: string }
   | { type: "disabled"; account_id: string };
 
@@ -96,7 +96,7 @@ export interface FindStoreRolesParams {
 export interface InviteStoreMemberParams {
   store_id: string;
   id: string;
-  email: string;
+  contact: EmailContact;
   role_ids: string[];
 }
 

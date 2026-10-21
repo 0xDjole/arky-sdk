@@ -10,6 +10,7 @@ import type {
 import { ArkyApiError, ArkyError, ArkyNetworkError } from "../types/apiError";
 import { CartPresentationChangedError } from "../types/cartCheckout";
 import { CartError } from "../types/cartSelection";
+import type { EmailContact } from "../types/common";
 import type { Payment } from "../types/payment";
 import type { StorefrontClient } from "../index";
 import { DurableRequestError, isDefiniteRefusal } from "../utils/durableRequest";
@@ -60,7 +61,7 @@ export interface CheckoutFlowContext {
 
 interface CheckoutLocal {
   busy: boolean;
-  contact_email: string | null;
+  contact_email: EmailContact | null;
   destination: CartDeliveryDestination | null;
   payment_option_id: string | null;
   pending: ArkyCheckoutState["pending"];
@@ -201,8 +202,14 @@ export function createCheckoutFlow(context: CheckoutFlowContext, cart: CartStore
   }
 
   function contact(): ArkyCartQuoteParams {
-    const email = local.get().contact_email;
-    return email === null ? {} : { contact_email: email };
+    const current = local.get().contact_email;
+    return current === null ? {} : { contact_email: current.email };
+  }
+
+  function billingContact(current: Cart): EmailContact | null {
+    const email = current.billing_address?.email?.trim();
+    const language = client.getLocale();
+    return email && language ? { email, language } : null;
   }
 
   async function quote(operation: CartScope): Promise<CartQuote | null> {
@@ -311,10 +318,10 @@ export function createCheckoutFlow(context: CheckoutFlowContext, cart: CartStore
         operation.assertCurrent();
         if (current) {
           const customer = client.session?.customer;
-          const signedIn = customer?.type.type === "verified" ? customer.type.email : null;
+          const signedIn = customer?.type.type === "verified" ? customer.type.contact : null;
           patch({
             destination: destinationOf(current),
-            contact_email: local.get().contact_email ?? current.billing_address?.email ?? signedIn,
+            contact_email: local.get().contact_email ?? billingContact(current) ?? signedIn,
           });
           await quote(operation);
         }
@@ -323,9 +330,11 @@ export function createCheckoutFlow(context: CheckoutFlowContext, cart: CartStore
     },
 
     setContact(params: ArkySetContactParams): void {
-      const value = params.contact_email.trim();
-      if (!value) throw new CheckoutFlowError("not_ready", "The contact email is empty");
-      patch({ contact_email: value, error: null });
+      const email = params.contact_email.email.trim();
+      const language = params.contact_email.language.trim();
+      if (!email) throw new CheckoutFlowError("not_ready", "The contact email is empty");
+      if (!language) throw new CheckoutFlowError("not_ready", "The contact language is empty");
+      patch({ contact_email: { email, language }, error: null });
     },
 
     shipTo(params: ArkyCheckoutShipToParams): Promise<ArkyCheckoutState> {

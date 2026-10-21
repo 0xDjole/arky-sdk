@@ -23,7 +23,7 @@ const onAccount = {
   expected_updated_at: 1_800_000_000_000,
   presentation_digest: "a".repeat(64),
   language: "bs",
-  contact_email: "location@example.test",
+  contact_email: { email: "location@example.test", language: "bs" },
   payment_option_id: ids.paymentOption,
   terms: { type: "net_days", days: 30 },
   reason: "Merchant approved Net30 for this one-time location purchase",

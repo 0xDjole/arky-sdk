@@ -1,32 +1,50 @@
-import { findBlock, formatPrice, getBlockTextValue, getImageUrl } from "arky-sdk/storefront";
-import type { Media, StorefrontProduct } from "arky-sdk/storefront";
+import { findBlock, formatMinor, formatPrice, getBlockTextValue, getImageUrl } from "arky-sdk/storefront";
+import type { CatalogListing, Media } from "arky-sdk/storefront";
 import { arky, catalog } from "./setup.js";
 
-const page = await arky.eshop.product.find({ catalog_id: catalog.id, include_price: true, limit: 24 });
+const page = await arky.eshop.catalogItem.find({
+  catalog_id: catalog.id,
+  include_price: true,
+  selection: { types: ["product"], text: "coffee", sort: "relevance" },
+  limit: 24,
+});
 
-const imageIds = page.items.flatMap((product) => {
-  const image = findBlock(product, "image");
+const imageIds = page.items.flatMap((listing) => {
+  const image = findBlock(listing.content, "image");
   return image?.type === "media" && image.value ? [image.value] : [];
 });
 const { items: images } = await arky.media.find({ ids: imageIds });
 const imageById = new Map<string, Media>(images.map((image) => [image.id, image]));
 
-function card(product: StorefrontProduct) {
-  const image = findBlock(product, "image");
+function startingPrice(listing: CatalogListing): string {
+  const summary = listing.price_summary;
+  return summary?.type === "comparable" && listing.currency ? formatMinor(summary.min_amount, listing.currency, "en") : "";
+}
+
+function card(listing: CatalogListing) {
+  const image = findBlock(listing.content, "image");
   return {
-    name: getBlockTextValue(findBlock(product, "name"), "en"),
+    name: getBlockTextValue(findBlock(listing.content, "name"), "en"),
     image: image?.type === "media" && image.value ? getImageUrl(imageById.get(image.value), "medium") : null,
-    price: formatPrice(product.price, "en"),
-    href: `/products/${product.slugs.en}`,
+    price: startingPrice(listing),
+    href: `/products/${listing.content.slugs.en}`,
   };
 }
 
 console.log(page.items.map(card), page.cursor);
 
-const product = await arky.eshop.product.get({ slug: "classic", catalog_id: catalog.id, include_price: true });
-const { items: variants } = await arky.eshop.productVariant.find({
-  product_id: product.id,
+const product = await arky.eshop.product.get({ slug: "classic", catalog_id: catalog.id });
+const { items: choices } = await arky.eshop.catalogItem.findPrices({
+  catalog_item_id: product.catalog_item_id,
   catalog_id: catalog.id,
   include_price: true,
 });
-console.log(card(product), variants.map((variant) => ({ id: variant.id, sku: variant.sku, price: formatPrice(variant.price, "en") })));
+console.log(
+  getBlockTextValue(findBlock(product, "name"), "en"),
+  choices.map((choice) => ({
+    catalog_item_price_id: choice.catalog_item_price_id,
+    sku: choice.content.sku,
+    size: getBlockTextValue(findBlock(choice.content, "size"), "en"),
+    price: formatPrice(choice.price, "en"),
+  })),
+);

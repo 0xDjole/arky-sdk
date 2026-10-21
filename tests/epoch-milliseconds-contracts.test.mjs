@@ -95,7 +95,7 @@ test("auth cutover ignores old-unit namespaces without changing durable effect r
   storage.seed("arky_admin_session", JSON.stringify(adminSession(knownInstant)));
   storage.seed("arky_admin_session:v2", JSON.stringify({ version: 2, session: adminSession(knownInstant) }));
   storage.seed(customerKey().replace(":v4:", ":v2:"), JSON.stringify({ ...customerSession(1_700_000_000), version: 2 }));
-  const durableKey = "arky:cart-checkout:v4:pending-request";
+  const durableKey = "arky:cart-checkout:v5:pending-request";
   storage.seed(durableKey, JSON.stringify({ requestId: "frozen-id", payload: { amount: 200 } }));
   const before = [...storage.values];
   context.mock.method(globalThis, "fetch", () => { throw new Error("No network during initialization"); });

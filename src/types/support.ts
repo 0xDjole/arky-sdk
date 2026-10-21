@@ -1,6 +1,6 @@
 import type { EpochMilliseconds } from "./time";
-import type { AccountActor, LocalizedText, SortDirection } from "./common";
-import type { EmailDeliveryReport } from "./notification";
+import type { AccountActor, EmailContact, LocalizedText, SortDirection } from "./common";
+import type { Email, EmailDeliveryReport } from "./notification";
 
 export type ChatInputType = "text" | "email" | "phone";
 
@@ -17,41 +17,34 @@ export type SupportStep =
       type: "collect_email_contact";
       text: LocalizedText;
       subject: LocalizedText;
-      initial_sending_address_id: string | null;
+      reply: Email;
       next_step_key: string;
     }
-  | { type: "send_email"; email_template_id: string; next_step_key: string }
+  | { type: "send_email"; email: Email; next_step_key: string }
   | { type: "hand_to_team" }
   | { type: "resolve" };
 
 export type SupportStepType = SupportStep["type"];
 
+export type SupportEntry =
+  | { type: "chat"; start_step_key: string }
+  | {
+      type: "incoming_email";
+      email_address_id: string;
+      reply_language: string;
+      reply: Email;
+      start_step_key: string;
+    };
+
 export interface SupportFlow {
   id: string;
   store_id: string;
   key: string;
-  start_step_key: string;
+  entries: SupportEntry[];
   steps: Record<string, SupportStep>;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
-
-export type ConversationStatus = { type: "flow"; step_key: string } | { type: "team" } | { type: "resolved" };
-
-export type ConversationStatusName = ConversationStatus["type"];
-
-export type ConversationContactName = "chat" | "email";
-
-export interface ConversationEmail {
-  customer_email: string;
-  subject: string;
-  sending_address_id: string | null;
-}
-
-export type ConversationType =
-  | { type: "chat" }
-  | { type: "email"; email: ConversationEmail }
-  | { type: "chat_and_email"; email: ConversationEmail };
 
 export interface ConversationFlowFailure {
   step_key: string;
@@ -66,15 +59,33 @@ export interface ConversationFlow {
   failure: ConversationFlowFailure | null;
 }
 
+export type ConversationState =
+  | { type: "flow"; step_key: string; flow: ConversationFlow }
+  | { type: "waiting_for_team"; flow: ConversationFlow | null }
+  | { type: "resolved"; flow: ConversationFlow | null };
+
+export type ConversationStateName = ConversationState["type"];
+
+export type ConversationContactName = "chat" | "email";
+
+export interface ConversationEmail {
+  contact: EmailContact;
+  subject: string;
+  reply: Email;
+}
+
+export type ConversationType =
+  | { type: "chat"; language: string }
+  | { type: "email"; email: ConversationEmail }
+  | { type: "chat_and_email"; chat_language: string; email: ConversationEmail };
+
 export interface Conversation {
   id: string;
   store_id: string;
   customer_id: string;
   assigned_account_id: string | null;
-  status: ConversationStatus;
+  state: ConversationState;
   type: ConversationType;
-  language: string;
-  flow: ConversationFlow | null;
   next_message_sequence: number;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
@@ -119,6 +130,7 @@ export type ConversationEmailSendStatus =
   | { type: "maybe_sent"; at: EpochMilliseconds };
 
 export interface ReplyEmail {
+  email_provider_id: string;
   sending_address_id: string;
   outgoing_email_id: string;
   provider_email_id: string | null;
@@ -182,7 +194,7 @@ export interface ConversationAttachmentLink {
 export interface StorefrontConversation {
   id: string;
   language: string;
-  status: ConversationStatus;
+  state: ConversationStateName;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
@@ -193,6 +205,7 @@ export type StorefrontConversationMessageType =
   | { type: "flow_message"; text: string }
   | { type: "flow_choice"; text: string; buttons: string[] }
   | { type: "flow_question"; text: string; input_type: ChatInputType }
+  | { type: "flow_email_contact"; text: string }
   | { type: "reply"; text: string };
 
 export interface StorefrontConversationMessage {
@@ -209,7 +222,10 @@ export interface StorefrontConversationReply {
   messages: StorefrontConversationMessage[];
 }
 
-export type ChatInput = { type: "button"; label: string } | { type: "text"; text: string };
+export type ChatInput =
+  | { type: "button"; label: string }
+  | { type: "text"; text: string }
+  | { type: "email_contact"; contact: EmailContact };
 
 export interface StartConversationParams {
   id?: string;
@@ -244,12 +260,10 @@ export interface StartEmailConversationParams {
   id: string;
   message_id: string;
   customer_id: string;
-  email: string;
+  contact: EmailContact;
   subject: string;
-  language: string;
-  sending_address_id: string;
+  reply: Email;
   text?: string;
-  email_template_id?: string;
 }
 
 export interface FindSupportFlowsParams {
@@ -271,7 +285,7 @@ export interface CreateSupportFlowParams {
   store_id: string;
   id: string;
   key: string;
-  start_step_key: string;
+  entries: SupportEntry[];
   steps: Record<string, SupportStep>;
 }
 
@@ -280,7 +294,7 @@ export interface UpdateSupportFlowParams {
   id: string;
   expected_updated_at: EpochMilliseconds;
   key?: string;
-  start_step_key: string;
+  entries: SupportEntry[];
   steps: Record<string, SupportStep>;
 }
 
@@ -292,7 +306,7 @@ export interface DeleteSupportFlowParams {
 
 export interface FindConversationsParams {
   store_id: string;
-  statuses?: ConversationStatusName[];
+  statuses?: ConversationStateName[];
   contact?: ConversationContactName;
   customer_id?: string;
   assigned_account_id?: string;
@@ -334,7 +348,6 @@ export interface ReplyConversationParams {
   id: string;
   expected_updated_at: EpochMilliseconds;
   text?: string;
-  email_template_id?: string;
   delivery: ReplyDeliveryName;
   resolve?: boolean;
 }
@@ -347,11 +360,11 @@ export interface ChangeConversationChatVisibilityParams {
   visible_in_chat: boolean;
 }
 
-export interface SelectConversationSendingAddressParams {
+export interface SelectConversationReplyEmailParams {
   store_id: string;
   conversation_id: string;
   expected_updated_at: EpochMilliseconds;
-  sending_address_id: string;
+  reply: Email;
 }
 
 export interface ResolveConversationParams {

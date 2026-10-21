@@ -6,12 +6,12 @@ import type {
   CartDeliveryDestination,
   CartDeliveryGroup,
   CartLineItem,
+  CartLineItemInput,
   CartProductLineItem,
   CartQuote,
   CheckoutAcceptance,
   CustomerGroupDeliveryOffers,
   QuoteLine,
-  StorefrontCartLineItemInput,
   StorefrontCheckoutCartInput,
   StorefrontCurrentCartParams,
 } from "../types/cart";
@@ -86,7 +86,7 @@ function quoteBody(id: string, params: ArkyCartQuoteParams): { id: string; conta
   return params.contact_email !== undefined ? { id, contact_email: params.contact_email } : { id };
 }
 
-function cartLineInput(line: CartLineItem): StorefrontCartLineItemInput {
+function cartLineInput(line: CartLineItem): CartLineItemInput {
   switch (line.type) {
     case "product":
       return {
@@ -105,6 +105,7 @@ function cartLineInput(line: CartLineItem): StorefrontCartLineItemInput {
         requested_interval: { from: line.requested_interval.from, to: line.requested_interval.to },
         capacity_units: line.capacity_units,
         form_submission_id: line.form_submission_id,
+        catalog_item_price_id: line.catalog_item_price_id,
       };
     case "customer_group":
       return {
@@ -115,6 +116,7 @@ function cartLineInput(line: CartLineItem): StorefrontCartLineItemInput {
         choices: line.choices.map(({ entitlement_id, variant_id }) => ({ entitlement_id, variant_id })),
         start: line.start,
         deliveries: line.deliveries,
+        catalog_item_price_id: line.catalog_item_price_id,
       };
   }
 }

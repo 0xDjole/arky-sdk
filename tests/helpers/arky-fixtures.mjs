@@ -36,6 +36,9 @@ export const ids = {
   form: "0f6a3c84-2d19-4e75-b8a1-5c9e7d3b2f60",
   submission: "4b9e2d71-8a36-4c05-9f1e-6d3a7b0c5e92",
   account: "ca60db1c-68d1-42d5-8b55-8a1e04f2cb2f",
+  price: "2c9e4a7b-5d31-4f86-a0b2-7e3c9d1f5a64",
+  otherPrice: "7f3b1d95-0c2e-4a68-b4d1-9e6a2c8f0b37",
+  catalogItem: "5a8d2f61-3b7e-4c09-9f14-6d2b8e0a4c73",
 };
 
 export const factoryOrderToken = `arky_ot_${"F".repeat(42)}A`;
@@ -137,7 +140,7 @@ export function emailSession(customerId = ids.customer, sessionId = ids.session,
 
 export function sessionResult(customerId = ids.customer, session = visitorSession(customerId)) {
   const customer = customerRecord(customerId);
-  if (session.type === "email_authenticated") customer.type = { type: "verified", email: "customer@example.test", addresses: [], default_shipping_address_id: null, default_billing_address_id: null };
+  if (session.type === "email_authenticated") customer.type = { type: "verified", contact: { email: "customer@example.test", language: "en" }, addresses: [], default_shipping_address_id: null, default_billing_address_id: null };
   return { customer, session };
 }
 
@@ -260,7 +263,7 @@ export function checkoutRequest(overrides = {}) {
     cart_id: ids.cart,
     expected_updated_at: 1_700_000_000_001,
     presentation_digest: "d".repeat(64),
-    contact_email: "buyer@example.test",
+    contact_email: { email: "buyer@example.test", language: "en" },
     payment: {
       type: "payment_option",
       payment_option_id: ids.paymentOption,

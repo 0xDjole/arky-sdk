@@ -341,7 +341,7 @@ test("cart ids are the app's: creation and reorder refuse a missing or non-canon
 
 test("a visitor who signs in as an existing customer lands on the cart the server merged their guest cart into", async (context) => {
   const storage = visitorStorage(ids.customer, ids.session);
-  const guestLine = { type: "product", id: ids.line, variant_id: ids.variant, quantity: 1, form_submission_id: null, price_override: null, purchase: { type: "catalog" } };
+  const guestLine = { type: "product", id: ids.line, variant_id: ids.variant, quantity: 1, form_submission_id: null, purchase: { type: "catalog", catalog_item_price_id: ids.price } };
   const store = carts();
   const target = cartRecord({ id: ids.otherCart, customer_id: ids.otherCustomer, line_items: [guestLine] });
   const calls = recordFetch(context, (call) => {
@@ -366,8 +366,8 @@ test("a visitor who signs in as an existing customer lands on the cart the serve
   });
   const storefront = client(storage);
   await storefront.eshop.cart.create({ id: ids.cart, buyer: customerBuyer, catalog_id: ids.catalog });
-  await storefront.eshop.cart.addProduct({ id: ids.cart, expected_updated_at: 1, product: { id: ids.line, variant_id: ids.variant, quantity: 1, purchase: { type: "catalog" } } });
-  await storefront.customer.requestCode({ id: ids.form, email: "buyer@example.test", language: "en" });
+  await storefront.eshop.cart.addProduct({ id: ids.cart, expected_updated_at: 1, product: { id: ids.line, variant_id: ids.variant, quantity: 1, purchase: { type: "catalog", catalog_item_price_id: ids.price } } });
+  await storefront.customer.requestCode({ id: ids.form, contact: { email: "buyer@example.test", language: "en" } });
   await storefront.customer.verify({ code: "123456" });
   assert.equal(storefront.session.customer.id, ids.otherCustomer);
   const signInLinks = storage.keys("arky:cart-sign-in:v1:");

@@ -10,7 +10,7 @@ export interface StoreStatusCountSegments {
   forms_by_status: "active" | "draft" | "closed";
   customer_groups_by_status: "draft" | "active" | "closed" | "archived";
   broadcasts_by_status: "draft" | "scheduled" | "sending" | "sent";
-  conversations_by_status: "flow" | "team" | "resolved";
+  conversations_by_status: "flow" | "waiting_for_team" | "resolved";
   carts_by_status: "active" | "abandoned" | "converted" | "superseded" | "merged" | "expired";
   customers_by_type: "anonymous" | "verified";
   orders_by_status: "pending" | "confirmed" | "partially_cancelled" | "cancelled";

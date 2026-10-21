@@ -12,16 +12,17 @@ function admin() {
   return createAdmin({ apiUrl: "https://api.example.test", secretKey: "contract" });
 }
 
-test("a staff offer is made from the reviewed quote, sent in the buyer's language and withdrawn by version", async (context) => {
+test("a staff offer is made from the reviewed quote for the buyer's contact, sent with its expiry and note and withdrawn by version", async (context) => {
   const calls = recordFetch(context, () => ({ id: ids.cart }));
   const offer = admin().eshop.cart.offer;
-  await offer.create({ store_id: storeId, id: ids.cart, expected_updated_at: 123, language: "bs", presentation_digest: "a".repeat(64), supersedes_cart_id: ids.otherCart });
-  await offer.send({ store_id: storeId, id: ids.cart, expected_updated_at: 124, language: "bs" });
+  const contact = { email: "buyer@example.test", language: "bs" };
+  await offer.create({ store_id: storeId, id: ids.cart, contact, expected_updated_at: 123, language: "bs", presentation_digest: "a".repeat(64), supersedes_cart_id: ids.otherCart });
+  await offer.send({ store_id: storeId, id: ids.cart, expected_updated_at: 124, expires_at: 1_900_000_000_000, note: "Prices hold for a week" });
   await offer.withdraw({ store_id: storeId, id: ids.cart, expected_updated_at: 125 });
   const base = `/v1/stores/${storeId}/carts/${ids.cart}`;
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
-    ["POST", `${base}/offer`, { expected_updated_at: 123, language: "bs", presentation_digest: "a".repeat(64), supersedes_cart_id: ids.otherCart }],
-    ["POST", `${base}/offer/send`, { expected_updated_at: 124, language: "bs" }],
+    ["POST", `${base}/offer`, { contact, expected_updated_at: 123, language: "bs", presentation_digest: "a".repeat(64), supersedes_cart_id: ids.otherCart }],
+    ["POST", `${base}/offer/send`, { expected_updated_at: 124, expires_at: 1_900_000_000_000, note: "Prices hold for a week" }],
     ["POST", `${base}/offer/withdraw`, { expected_updated_at: 125 }],
   ]);
   for (const removed of ["reviewFirstOrderTerms", "sealFirstOrderTerms", "withdrawFirstOrderTerms"]) assert.equal(removed in admin().eshop.cart, false, removed);
@@ -40,7 +41,7 @@ test("notification history and a template preview send only their own fields, an
   await api.outgoingEmail.find({ store_id: storeId, to: "buyer@example.test", type: "receipt_resend", order_id: ids.order, limit: 25, cursor: "opaque:+/=" }, { signal, headers: { "x-request-trace": "delivery-contract" } });
   await api.outgoingEmail.find({ store_id: storeId, type: "broadcast_email", broadcast_id: ids.form });
   await api.outgoingEmail.get({ store_id: storeId, id: notificationId });
-  const content = { subject: "Narudžba {{order.number}}", preheader: null, body: "<p>{{order.number}}</p>" };
+  const content = { subject: "Narudžba {{order.number}}", preheader: null, html: "<p>{{order.number}}</p>", text: "{{order.number}}" };
   await api.template.preview({ store_id: storeId, id: templateId, language: "bs", content });
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
     ["GET", `/v1/stores/${storeId}/outgoing-emails`, { to: "buyer@example.test", type: "receipt_resend", order_id: ids.order, limit: "25", cursor: "opaque:+/=" }, null],

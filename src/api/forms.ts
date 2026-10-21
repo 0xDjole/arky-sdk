@@ -3,7 +3,6 @@ import type { HttpClient } from "../types/httpClient";
 import type { RequestOptions } from "../types/api";
 import type { DeletedResponse, PaginatedResponse } from "../types/common";
 import type {
-  AssignFormSubmissionParams,
   ChangeFormSubmissionStageParams,
   CreateFormParams,
   CreateFormSubmissionParams,
@@ -21,7 +20,6 @@ import type {
   GetFormSubmissionParams,
   GetStorefrontFormByKeyParams,
   GetStorefrontFormParams,
-  SetFormSubmissionCompanyParams,
   StorefrontFormSubmission,
   SubmitFormRequest,
   UpdateFormParams,
@@ -141,22 +139,6 @@ export const createFormsApi = (apiConfig: ApiConfig) => {
       if (params.note) requireId(params.note.id, "note");
       const { store_id, form_id, id, ...body } = params;
       return apiConfig.httpClient.post<FormSubmission>(`${submissionPath(store_id, form_id, id)}/stage`, body, options);
-    },
-
-    assignSubmission(params: AssignFormSubmissionParams, options?: RequestOptions): Promise<FormSubmission> {
-      return apiConfig.httpClient.put<FormSubmission>(
-        `${submissionPath(params.store_id, params.form_id, params.id)}/assignee`,
-        { assignee_account_id: params.assignee_account_id },
-        options,
-      );
-    },
-
-    setSubmissionCompany(params: SetFormSubmissionCompanyParams, options?: RequestOptions): Promise<FormSubmission> {
-      return apiConfig.httpClient.put<FormSubmission>(
-        `${submissionPath(params.store_id, params.form_id, params.id)}/company`,
-        { company_id: params.company_id },
-        options,
-      );
     },
 
     getSubmissionFile(params: GetFormSubmissionFileParams, options?: RequestOptions): Promise<FormSubmissionFileLink> {

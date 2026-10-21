@@ -143,6 +143,28 @@ test("upcoming booked slots are one day total over the span the caller names", a
   });
 });
 
+test("conversation counts name the team's waiting segment as the Server does", async (context) => {
+  const answer = {
+    counts: [
+      {
+        type: "conversations_by_status",
+        segments: [
+          { segment: "flow", value: 2 },
+          { segment: "waiting_for_team", value: 5 },
+          { segment: "resolved", value: 9 },
+        ],
+      },
+      { type: "broadcasts_by_status", segments: [{ segment: "draft", value: 1 }, { segment: "scheduled", value: 0 }, { segment: "sending", value: 0 }, { segment: "sent", value: 3 }] },
+    ],
+  };
+  const calls = recordFetch(context, () => answer);
+  const read = await admin().counts.getStatuses({ store_id: storeId, types: ["conversations_by_status", "broadcasts_by_status"] });
+  assert.deepEqual(read, answer);
+  assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
+    ["GET", `/v1/stores/${storeId}/counts/statuses`, { types: JSON.stringify(["conversations_by_status", "broadcasts_by_status"]) }],
+  ]);
+});
+
 test("count reads refuse a store id that is not canonical before sending", async (context) => {
   const calls = recordFetch(context, () => ({ counts: [] }));
   await assert.rejects(async () => admin().counts.getStatuses({ store_id: "", types: ["orders_by_status"] }), TypeError);

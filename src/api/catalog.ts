@@ -2,35 +2,36 @@ import type { ApiConfig } from "../services/clientTypes";
 import type { RequestOptions } from "../types/api";
 import type { PaginatedResponse } from "../types/common";
 import type {
+  BatchCatalogItemPricesParams,
   BatchCatalogItemsParams,
-  BatchPricesParams,
   Catalog,
   CatalogAccess,
   CatalogCopyResult,
   CatalogItem,
+  CatalogItemPrice,
+  CatalogItemPricePage,
   CopyCatalogParams,
   CreateCatalogAccessParams,
   CreateCatalogItemParams,
+  CreateCatalogItemPriceParams,
   CreateCatalogParams,
-  CreatePriceParams,
   DeleteCatalogAccessParams,
   DeleteCatalogItemParams,
+  DeleteCatalogItemPriceParams,
   DeleteCatalogParams,
-  DeletePriceParams,
   FindCatalogAccessesParams,
+  FindCatalogItemPricesParams,
   FindCatalogItemsParams,
   FindCatalogsParams,
-  FindPricesParams,
   FindPurchasableCatalogsParams,
   GetCatalogAccessParams,
   GetCatalogByKeyParams,
   GetCatalogItemParams,
+  GetCatalogItemPriceParams,
   GetCatalogParams,
-  GetPriceParams,
-  Price,
   UpdateCatalogItemParams,
+  UpdateCatalogItemPriceParams,
   UpdateCatalogParams,
-  UpdatePriceParams,
 } from "../types/catalog";
 import { requireId } from "../utils/ids";
 import { segment, storePath, storeRecordPath } from "./paths";
@@ -69,7 +70,7 @@ export const createCatalogApi = (apiConfig: ApiConfig) => ({
   copy(params: CopyCatalogParams, options?: RequestOptions): Promise<CatalogCopyResult> {
     return apiConfig.httpClient.post<CatalogCopyResult>(
       `${storeRecordPath(params.store_id, "catalogs", params.id)}/copy`,
-      { source_catalog_id: params.source_catalog_id },
+      { source_catalog_id: params.source_catalog_id, cursor: params.cursor ?? null },
       options,
     );
   },
@@ -82,40 +83,46 @@ export const createCatalogApi = (apiConfig: ApiConfig) => ({
   },
 });
 
-export const createPriceApi = (apiConfig: ApiConfig) => ({
-  find(params: FindPricesParams, options?: RequestOptions): Promise<PaginatedResponse<Price>> {
+export const createCatalogItemPriceApi = (apiConfig: ApiConfig) => ({
+  find(params: FindCatalogItemPricesParams, options?: RequestOptions): Promise<CatalogItemPricePage> {
     const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<PaginatedResponse<Price>>(storePath(store_id, "prices"), { ...options, params: query });
+    return apiConfig.httpClient.get<CatalogItemPricePage>(storePath(store_id, "catalog-item-prices"), {
+      ...options,
+      params: query,
+    });
   },
 
-  get(params: GetPriceParams, options?: RequestOptions): Promise<Price> {
-    return apiConfig.httpClient.get<Price>(storeRecordPath(params.store_id, "prices", params.id), options);
+  get(params: GetCatalogItemPriceParams, options?: RequestOptions): Promise<CatalogItemPrice> {
+    return apiConfig.httpClient.get<CatalogItemPrice>(
+      storeRecordPath(params.store_id, "catalog-item-prices", params.id),
+      options,
+    );
   },
 
-  create(params: CreatePriceParams, options?: RequestOptions): Promise<Price> {
-    requireId(params.id, "price");
+  create(params: CreateCatalogItemPriceParams, options?: RequestOptions): Promise<CatalogItemPrice> {
+    requireId(params.id, "catalog item price");
     const { store_id, ...body } = params;
-    return apiConfig.httpClient.post<Price>(storePath(store_id, "prices"), body, options);
+    return apiConfig.httpClient.post<CatalogItemPrice>(storePath(store_id, "catalog-item-prices"), body, options);
   },
 
-  update(params: UpdatePriceParams, options?: RequestOptions): Promise<Price> {
+  update(params: UpdateCatalogItemPriceParams, options?: RequestOptions): Promise<CatalogItemPrice> {
     const { store_id, id, ...body } = params;
-    return apiConfig.httpClient.put<Price>(storeRecordPath(store_id, "prices", id), body, options);
+    return apiConfig.httpClient.put<CatalogItemPrice>(storeRecordPath(store_id, "catalog-item-prices", id), body, options);
   },
 
-  batch(params: BatchPricesParams, options?: RequestOptions): Promise<Price[]> {
+  batch(params: BatchCatalogItemPricesParams, options?: RequestOptions): Promise<CatalogItemPrice[]> {
     for (const operation of params.operations) {
-      if (operation.type === "create") requireId(operation.id, "price");
+      if (operation.type === "create") requireId(operation.id, "catalog item price");
     }
-    return apiConfig.httpClient.post<Price[]>(
-      storePath(params.store_id, "prices/batch"),
+    return apiConfig.httpClient.post<CatalogItemPrice[]>(
+      storePath(params.store_id, "catalog-item-prices/batch"),
       { operations: params.operations },
       options,
     );
   },
 
-  delete(params: DeletePriceParams, options?: RequestOptions): Promise<void> {
-    return apiConfig.httpClient.delete<void>(storeRecordPath(params.store_id, "prices", params.id), {
+  delete(params: DeleteCatalogItemPriceParams, options?: RequestOptions): Promise<void> {
+    return apiConfig.httpClient.delete<void>(storeRecordPath(params.store_id, "catalog-item-prices", params.id), {
       ...options,
       params: { expected_updated_at: params.expected_updated_at },
     });

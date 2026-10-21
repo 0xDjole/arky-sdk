@@ -46,6 +46,7 @@ declare global {
   const catalog_id: string;
   const collection_id: string;
   const variant_id: string;
+  const catalog_item_price_id: string;
   const orderId: string;
   const address: PostalAddress;
   function solveBotCheck(provider: "turnstile" | "h_captcha", siteKey: string): Promise<string>;

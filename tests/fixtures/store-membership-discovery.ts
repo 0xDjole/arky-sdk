@@ -24,7 +24,7 @@ import type {
   UpdateStoreMemberRolesParams,
 } from "arky-sdk";
 import type { createAdmin } from "arky-sdk/admin";
-import type { EpochMilliseconds } from "arky-sdk";
+import type { EmailContact, EpochMilliseconds } from "arky-sdk";
 
 type Assert<T extends true> = T;
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
@@ -50,7 +50,8 @@ export type MembershipDiscoveryContracts = [
   Assert<Equal<Parameters<Admin["store"]["member"]["resendInvite"]>[0], ResendStoreInviteParams>>,
   Assert<RequiredField<RemoveStoreMemberParams, "expected_updated_at">>,
   Assert<RequiredField<TransferStoreOwnershipParams, "expected_updated_at">>,
-  Assert<Missing<InviteStoreMemberParams, "access" | "role">>,
+  Assert<Missing<InviteStoreMemberParams, "access" | "role" | "email">>,
+  Assert<Equal<InviteStoreMemberParams["contact"], EmailContact>>,
   Assert<Equal<StorePermission["type"], "admin" | "payments" | "catalog" | "orders" | "customers" | "fulfillment" | "inventory" | "marketing" | "content" | "support" | "email" | "analytics">>,
   Assert<Equal<Extract<StorePermission, { type: "fulfillment" }>["locations"], LocationReach>>,
   Assert<Equal<Extract<StorePermission, { type: "inventory" }>["locations"], LocationReach>>,
@@ -64,7 +65,7 @@ export type MembershipDiscoveryContracts = [
   Assert<Equal<ReturnType<Admin["store"]["member"]["changeStatus"]>, Promise<StoreMembership>>>,
   Assert<Equal<ChangeStoreMemberStatusParams["status"], StoreMembershipEditableStatus>>,
   Assert<Equal<StoreMembershipEditableStatus, { type: "active" } | { type: "disabled" }>>,
-  Assert<Equal<StoreMembershipStatus, { type: "invited"; email: string } | { type: "active"; account_id: string } | { type: "disabled"; account_id: string }>>,
+  Assert<Equal<StoreMembershipStatus, { type: "invited"; contact: EmailContact } | { type: "active"; account_id: string } | { type: "disabled"; account_id: string }>>,
   Assert<Equal<Parameters<Admin["store"]["member"]["acceptInvite"]>[0], AcceptStoreInviteParams>>,
   Assert<Equal<ReturnType<Admin["store"]["member"]["acceptInvite"]>, Promise<StoreMembership>>>,
   Assert<Equal<keyof AcceptStoreInviteParams, "store_id" | "expected_updated_at">>,

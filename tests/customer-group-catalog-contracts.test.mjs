@@ -15,43 +15,25 @@ function admin() {
   return createAdmin({ secretKey: "test-token", apiUrl: apiUrl });
 }
 
-test("storefront group discovery forwards the catalog, offering, price filter, ordering and continuation", async (context) => {
-  const calls = recordFetch(context, (call) => call.path === "/v1/storefront/customer-groups" ? { items: [], cursor: null } : { id: groupId });
+test("storefront group and offering reads name their catalog, answer their listing and never ask for a price", async (context) => {
+  const calls = recordFetch(context, (call) => call.path.includes("/customer-group-offerings/")
+    ? { id: offeringId, key: "members-club", blocks: [], catalog_item_id: ids.catalogItem, customer_group_ids: [groupId] }
+    : { id: groupId, catalog_item_id: ids.catalogItem });
   const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, market: "us", locale: "en" });
-  await client.eshop.customerGroup.find({
-    customer_group_offering_id: offeringId,
-    catalog_id: ids.catalog,
-    company_location_id: ids.companyLocation,
-    include_price: true,
-    query: "monthly",
-    price_filter: { min_amount: 0, max_amount: 900, quantity: 1 },
-    sort_field: "price",
-    sort_direction: "asc",
-    limit: 10,
-    cursor: "protected-position",
-    created_at_from: 1000,
-    created_at_to: 2000,
-  });
-  await client.eshop.customerGroup.getByKey({ key: "monthly/plan", catalog_id: ids.catalog, company_id: ids.company, include_price: true });
-  await client.eshop.customerGroupOffering.getByKey({ key: "members-club" });
-  assert.deepEqual(calls[0].query, {
-    customer_group_offering_id: offeringId,
-    catalog_id: ids.catalog,
-    company_location_id: ids.companyLocation,
-    include_price: "true",
-    query: "monthly",
-    price_filter: JSON.stringify({ min_amount: 0, max_amount: 900, quantity: 1 }),
-    sort_field: "price",
-    sort_direction: "asc",
-    limit: "10",
-    cursor: "protected-position",
-    created_at_from: "1000",
-    created_at_to: "2000",
-  });
-  assert.equal(calls[1].path, "/v1/storefront/customer-groups/monthly%2Fplan");
-  assert.deepEqual(calls[1].query, { catalog_id: ids.catalog, company_id: ids.company, include_price: "true" });
-  assert.equal(calls[2].path, "/v1/storefront/customer-group-offerings/members-club");
-  assert.deepEqual(calls[2].query, {});
+  const group = await client.eshop.customerGroup.getByKey({ key: "monthly/plan", catalog_id: ids.catalog, company_id: ids.company });
+  assert.equal(group.catalog_item_id, ids.catalogItem);
+  await client.eshop.customerGroup.get({ id: groupId, catalog_id: ids.catalog, company_location_id: ids.companyLocation });
+  const offering = await client.eshop.customerGroupOffering.getByKey({ key: "members-club", catalog_id: ids.catalog });
+  assert.deepEqual(offering.customer_group_ids, [groupId]);
+  await client.eshop.customerGroupOffering.get({ id: offeringId, catalog_id: ids.catalog, company_id: ids.company });
+  await client.eshop.customerGroup.getProductChoices({ key: "monthly", entitlement_id: entitlementId, quantity: 2, catalog_id: ids.catalog, company_location_id: ids.companyLocation });
+  assert.deepEqual(calls.map((call) => [call.path, call.query]), [
+    ["/v1/storefront/customer-groups/monthly%2Fplan", { catalog_id: ids.catalog, company_id: ids.company }],
+    [`/v1/storefront/customer-groups/${groupId}`, { catalog_id: ids.catalog, company_location_id: ids.companyLocation }],
+    ["/v1/storefront/customer-group-offerings/members-club", { catalog_id: ids.catalog }],
+    [`/v1/storefront/customer-group-offerings/${offeringId}`, { catalog_id: ids.catalog, company_id: ids.company }],
+    [`/v1/storefront/customer-groups/monthly/product-choices/${entitlementId}`, { catalog_id: ids.catalog, company_location_id: ids.companyLocation, quantity: "2" }],
+  ]);
   for (const call of calls) {
     assert.equal(call.method, "GET");
     assert.equal(call.headers.get("x-arky-market"), "us");
@@ -59,6 +41,7 @@ test("storefront group discovery forwards the catalog, offering, price filter, o
     assert.equal(call.headers.get("authorization"), null);
     assert.equal(call.headers.has("x-arky-sales-channel"), false);
   }
+  assert.equal("find" in client.eshop.customerGroup, false);
   for (const removed of ["subscription_plans", "subscription_offerings"]) assert.equal(removed in client, false, removed);
 });
 

@@ -1,6 +1,6 @@
 import type { Currency, Money } from "../types/common";
 import { CURRENCY_MINOR_UNITS } from "../types/common";
-import type { StorefrontPrice } from "../types/product";
+import type { StorefrontPrice } from "../types/catalog";
 
 export const SUPPORTED_STORE_CURRENCIES = Object.freeze(Object.keys(CURRENCY_MINOR_UNITS) as Currency[]);
 

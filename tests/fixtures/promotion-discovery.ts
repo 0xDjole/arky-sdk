@@ -46,6 +46,8 @@ export type PromotionContracts = [
   Assert<Missing<CreatePromotionParams, "activation">>,
   Assert<Equal<Extract<PromotionTarget, { type: "product_variants" }>, { type: "product_variants"; variant_ids: string[] }>>,
   Assert<Equal<Extract<PromotionCondition, { type: "minimum_subtotal" }>, { type: "minimum_subtotal"; amounts: Money[] }>>,
+  Assert<Equal<Extract<PromotionCondition, { type: "item_quantity" }>, { type: "item_quantity"; target: PromotionTarget; min_quantity: number; max_quantity: number | null }>>,
+  Assert<Equal<PromotionCondition["type"], "signed_in" | "customer" | "customer_group" | "customer_group_offering" | "company" | "company_location" | "market" | "sales_channel" | "minimum_subtotal" | "item_quantity">>,
   Assert<Equal<Extract<PromotionEffect, { type: "item_fixed" }>["scope"], PromotionFixedScope>>,
   Assert<Equal<Extract<PromotionEffect, { type: "item_fixed" }>["amounts"], Money[]>>,
   Assert<Missing<Extract<PromotionEffect, { type: "item_fixed" }>, "money">>,

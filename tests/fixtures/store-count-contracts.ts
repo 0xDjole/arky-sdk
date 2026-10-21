@@ -28,6 +28,8 @@ export type StoreCountContracts = [
     >
   >,
   Assert<Equal<StoreStatusCountSegments["open_shipments_by_type"], "fulfillment_job" | "fulfillment">>,
+  Assert<Equal<StoreStatusCountSegments["conversations_by_status"], "flow" | "waiting_for_team" | "resolved">>,
+  Assert<Equal<Segment<"conversations_by_status">, StoreStatusCountSegments["conversations_by_status"]>>,
   Assert<Equal<Segment<"open_recurring_members_by_status">, StoreStatusCountSegments["open_recurring_members_by_status"]>>,
   Assert<Equal<Segment<"open_rentals_by_status">, StoreStatusCountSegments["open_rentals_by_status"]>>,
   Assert<Equal<Segment<"open_payments_by_type">, StoreStatusCountSegments["open_payments_by_type"]>>,

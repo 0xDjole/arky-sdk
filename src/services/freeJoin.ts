@@ -1,4 +1,7 @@
 import type { RequestOptions } from "../types/httpClient";
+import { ArkyError } from "../types/apiError";
+import type { CatalogChoice, FindStorefrontCatalogItemPricesParams } from "../types/catalog";
+import type { EmailContact, PaginatedResponse } from "../types/common";
 import type {
   Cart,
   CartQuote,
@@ -33,7 +36,7 @@ import { isCanonicalId, requireId } from "../utils/ids";
 import { isOrderToken } from "../utils/orderToken";
 
 export interface FreeJoinDeps {
-  verifiedEmail(): string | null;
+  verifiedContact(): EmailContact | null;
   pendingKey(flow: string, target: string): string;
   newId(label: string): string;
   newOrderToken(): string;
@@ -42,6 +45,10 @@ export interface FreeJoinDeps {
     params: GetStorefrontCustomerGroupParams | GetStorefrontCustomerGroupByKeyParams,
     options?: RequestOptions,
   ): Promise<StorefrontCustomerGroup>;
+  findChoices(
+    params: FindStorefrontCatalogItemPricesParams,
+    options?: RequestOptions,
+  ): Promise<PaginatedResponse<CatalogChoice>>;
   createCart(params: StorefrontCreateCartParams, options?: RequestOptions): Promise<CreatedCart>;
   addGroupLine(params: StorefrontAddCartCustomerGroupParams, options?: RequestOptions): Promise<Cart>;
   quote(params: { id: string }, options?: RequestOptions): Promise<CartQuote>;
@@ -85,10 +92,40 @@ function savedJoin(request: DurableRequest): FreeJoinRequest {
   };
 }
 
+async function groupChoice(
+  deps: FreeJoinDeps,
+  group: StorefrontCustomerGroup,
+  catalogId: string,
+  options?: RequestOptions,
+): Promise<CatalogChoice> {
+  let cursor: string | null = null;
+  do {
+    const page: PaginatedResponse<CatalogChoice> = await deps.findChoices(
+      {
+        catalog_item_id: group.catalog_item_id,
+        catalog_id: catalogId,
+        include_price: true,
+        ...(cursor === null ? {} : { cursor }),
+      },
+      options,
+    );
+    const choice = page.items.find(
+      (item) => item.sellable.type === "customer_group" && item.sellable.customer_group_id === group.id,
+    );
+    if (choice) return choice;
+    if (page.cursor !== null && page.cursor === cursor) {
+      throw new ArkyError("answer_mismatch", "The customer group's price page didn't advance");
+    }
+    cursor = page.cursor;
+  } while (cursor !== null);
+  throw new CustomerGroupJoinError("not_free", "This customer group has no price in this catalog");
+}
+
 async function place(
   deps: FreeJoinDeps,
   request: FreeJoinRequest,
-  email: string,
+  catalogItemPriceId: string,
+  contact: EmailContact,
   options?: RequestOptions,
 ): Promise<JoinFreeCustomerGroupResult> {
   const created = await deps.createCart(
@@ -118,6 +155,7 @@ async function place(
           quantity: 1,
           choices: [],
           start: { type: "on_acceptance" },
+          catalog_item_price_id: catalogItemPriceId,
         },
       },
       options,
@@ -134,7 +172,7 @@ async function place(
       cart_id: cart.id,
       expected_updated_at: cart.updated_at,
       presentation_digest: quote.presentation_digest,
-      contact_email: email,
+      contact_email: { email: contact.email, language: contact.language },
       payment: { type: "free" },
     },
     options,
@@ -151,20 +189,22 @@ export async function joinFreeCustomerGroup(
   params: JoinFreeCustomerGroupParams,
   options?: RequestOptions,
 ): Promise<JoinFreeCustomerGroupResult> {
-  const email = deps.verifiedEmail();
-  if (!email) {
+  const contact = deps.verifiedContact();
+  if (!contact) {
     throw new CustomerGroupJoinError("sign_in_required", "Joining a free group needs a signed-in customer with a verified email");
   }
   const catalogId = requireId(params.catalog_id, "catalog");
   const identifier = "id" in params ? params.id : params.key;
   if (!identifier) throw new TypeError("A free sign-up names its customer group by id or by key");
   const group = await deps.getGroup(
-    "id" in params
-      ? { id: params.id, catalog_id: catalogId, include_price: true }
-      : { key: params.key, catalog_id: catalogId, include_price: true },
+    "id" in params ? { id: params.id, catalog_id: catalogId } : { key: params.key, catalog_id: catalogId },
     options,
   );
-  if (group.term.type !== "permanent" || group.entitlements.length > 0 || group.price?.unit_price.amount !== 0) {
+  if (group.term.type !== "permanent" || group.entitlements.length > 0) {
+    throw new CustomerGroupJoinError("not_free", "This customer group isn't a free sign-up in this catalog");
+  }
+  const choice = await groupChoice(deps, group, catalogId, options);
+  if (choice.price?.unit_price.amount !== 0) {
     throw new CustomerGroupJoinError("not_free", "This customer group isn't a free sign-up in this catalog");
   }
   const key = deps.pendingKey("free-join", group.id);
@@ -189,7 +229,7 @@ export async function joinFreeCustomerGroup(
     const { durable, request } = kept;
     let result: JoinFreeCustomerGroupResult;
     try {
-      result = await place(deps, request, email, options);
+      result = await place(deps, request, choice.catalog_item_price_id, contact, options);
     } catch (error) {
       if (isDefiniteRefusal(error) || error instanceof CustomerGroupJoinError) clearDurableRequest(durable, label);
       throw error;

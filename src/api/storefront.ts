@@ -44,7 +44,19 @@ import type {
   SubmitFormRequest,
 } from "../types/forms";
 import type { CartSelectionContext } from "../types/cartSelection";
-import type { CatalogReadOptions, FindStorefrontCatalogsParams, StorefrontCatalog } from "../types/catalog";
+import type {
+  CatalogChoice,
+  CatalogContext,
+  CatalogListing,
+  CatalogListingDetails,
+  CatalogReadOptions,
+  FindStorefrontCatalogItemPricesParams,
+  FindStorefrontCatalogItemsParams,
+  FindStorefrontCatalogsParams,
+  GetStorefrontCatalogItemByParentParams,
+  StorefrontCatalog,
+} from "../types/catalog";
+import type { EmailContact } from "../types/common";
 import type {
   CompanyCustomerAccess,
   CompanyLocation,
@@ -116,13 +128,9 @@ import type {
   DownloadLibraryAssetParams,
   FindLibraryAssetsParams,
   FindLibraryParams,
-  FindStorefrontBookingOfferingsParams,
-  FindStorefrontBookingResourcesParams,
-  FindStorefrontBookingServicesParams,
-  FindStorefrontProductsParams,
-  FindStorefrontProductVariantsParams,
   GetLibraryProductParams,
   GetStorefrontAvailabilityParams,
+  GetStorefrontBookingOfferingParams,
   GetStorefrontBookingResourceParams,
   GetStorefrontBookingServiceByKeyParams,
   GetStorefrontBookingServiceParams,
@@ -211,8 +219,7 @@ export interface IdentifyCustomerParams {
 
 export interface RequestCustomerCodeRequest {
   id: string;
-  email: string;
-  language: string;
+  contact: EmailContact;
   bot_check_token?: string;
 }
 
@@ -285,13 +292,16 @@ function submissionDraft(params: SubmitFormParams | RetainFormSubmissionParams):
   };
 }
 
-function catalogQuery(params: CatalogReadOptions) {
+function catalogContextQuery(params: CatalogContext) {
   return {
     catalog_id: params.catalog_id,
     company_id: params.company_id,
     company_location_id: params.company_location_id,
-    include_price: params.include_price,
   };
+}
+
+function catalogQuery(params: CatalogReadOptions) {
+  return { ...catalogContextQuery(params), include_price: params.include_price };
 }
 
 export const createStorefrontApi = (
@@ -365,14 +375,38 @@ export const createStorefrontApi = (
     findMedia: (params, options) => httpClient.get<Media[]>(`${base}/media`, { ...options, params: { ids: params.ids } }),
   };
 
+  const catalogItems = {
+    find(params: FindStorefrontCatalogItemsParams, options?: RequestOptions): Promise<PaginatedResponse<CatalogListing>> {
+      return httpClient.get<PaginatedResponse<CatalogListing>>(`${base}/catalog-items`, {
+        ...options,
+        params: { ...catalogQuery(params), selection: params.selection, limit: params.limit, cursor: params.cursor },
+      });
+    },
+
+    getByParent(params: GetStorefrontCatalogItemByParentParams, options?: RequestOptions): Promise<CatalogListingDetails> {
+      return httpClient.get<CatalogListingDetails>(`${base}/catalog-items/by-parent`, {
+        ...options,
+        params: { ...catalogContextQuery(params), item: params.item },
+      });
+    },
+
+    findPrices(params: FindStorefrontCatalogItemPricesParams, options?: RequestOptions): Promise<PaginatedResponse<CatalogChoice>> {
+      return httpClient.get<PaginatedResponse<CatalogChoice>>(`${base}/catalog-items/${segment(params.catalog_item_id)}/prices`, {
+        ...options,
+        params: { ...catalogQuery(params), limit: params.limit, cursor: params.cursor },
+      });
+    },
+  };
+
   const freeJoin: FreeJoinDeps = {
-    verifiedEmail: flows.verifiedEmail,
+    verifiedContact: flows.verifiedContact,
     pendingKey: flows.pendingKey,
     newId: flows.newId,
     newOrderToken: flows.newOrderToken,
     retainToken: (orderId, token) => retainOrderToken(checkoutScope, orderId, token),
     getGroup: (params, options) =>
       "id" in params ? customerGroups.customerGroup.get(params, options) : customerGroups.customerGroup.getByKey(params, options),
+    findChoices: (params, options) => catalogItems.findPrices(params, options),
     async createCart(params, options) {
       requireId(params.id, "cart");
       const slot = cartScopeKey({ buyer: params.buyer, catalog_id: params.catalog_id });
@@ -521,7 +555,7 @@ export const createStorefrontApi = (
         requireId(params.id, "sign-in email");
         const result = await httpClient.post<CustomerCodeResult>(
           `${base}/customer/request-code`,
-          { id: params.id, email: params.email, language: params.language, bot_check_token: params.bot_check_token },
+          { id: params.id, contact: { email: params.contact.email, language: params.contact.language }, bot_check_token: params.bot_check_token },
           options,
         );
         updateCustomerSession((previous) => {
@@ -705,42 +739,30 @@ export const createStorefrontApi = (
         },
       },
 
+      catalogItem: catalogItems,
+
       product: {
         get(params: GetStorefrontProductParams, options?: RequestOptions): Promise<StorefrontProduct> {
           const identifier = "id" in params ? params.id : params.slug;
           if (!identifier) throw new TypeError("A product read needs its id or its slug; a key is read with getByKey");
           return httpClient.get<StorefrontProduct>(`${base}/products/${segment(identifier)}`, {
             ...options,
-            params: catalogQuery(params),
+            params: catalogContextQuery(params),
           });
         },
         getByKey(params: GetStorefrontProductByKeyParams, options?: RequestOptions): Promise<StorefrontProduct> {
           return httpClient.get<StorefrontProduct>(`${base}/products/by-key/${segment(params.key)}`, {
             ...options,
-            params: catalogQuery(params),
+            params: catalogContextQuery(params),
           });
-        },
-        find(params: FindStorefrontProductsParams, options?: RequestOptions): Promise<PaginatedResponse<StorefrontProduct>> {
-          return httpClient.get<PaginatedResponse<StorefrontProduct>>(`${base}/products`, { ...options, params });
         },
       },
 
       productVariant: {
         get(params: GetStorefrontProductVariantParams, options?: RequestOptions): Promise<StorefrontProductVariant> {
-          const { product_id, id, ...query } = params;
           return httpClient.get<StorefrontProductVariant>(
-            `${base}/products/${segment(product_id)}/variants/${segment(id)}`,
-            { ...options, params: query },
-          );
-        },
-        find(
-          params: FindStorefrontProductVariantsParams,
-          options?: RequestOptions,
-        ): Promise<PaginatedResponse<StorefrontProductVariant>> {
-          const { product_id, ...query } = params;
-          return httpClient.get<PaginatedResponse<StorefrontProductVariant>>(
-            `${base}/products/${segment(product_id)}/variants`,
-            { ...options, params: query },
+            `${base}/products/${segment(params.product_id)}/variants/${segment(params.id)}`,
+            { ...options, params: catalogQuery(params) },
           );
         },
       },
@@ -751,26 +773,28 @@ export const createStorefrontApi = (
           if (!identifier) throw new TypeError("A booking service read needs its id or its slug; a key is read with getByKey");
           return httpClient.get<StorefrontBookingService>(`${base}/booking-services/${segment(identifier)}`, {
             ...options,
-            params: catalogQuery(params),
+            params: catalogContextQuery(params),
           });
         },
         getByKey(params: GetStorefrontBookingServiceByKeyParams, options?: RequestOptions): Promise<StorefrontBookingService> {
           return httpClient.get<StorefrontBookingService>(`${base}/booking-services/by-key/${segment(params.key)}`, {
             ...options,
-            params: catalogQuery(params),
-          });
-        },
-        find(
-          params: FindStorefrontBookingServicesParams,
-          options?: RequestOptions,
-        ): Promise<PaginatedResponse<StorefrontBookingService>> {
-          return httpClient.get<PaginatedResponse<StorefrontBookingService>>(`${base}/booking-services`, {
-            ...options,
-            params,
+            params: catalogContextQuery(params),
           });
         },
         getAvailability(params: GetStorefrontAvailabilityParams, options?: RequestOptions): Promise<AvailabilityResponse> {
-          return httpClient.get<AvailabilityResponse>(`${base}/booking-services/availability`, { ...options, params });
+          return httpClient.get<AvailabilityResponse>(`${base}/booking-services/availability`, {
+            ...options,
+            params: {
+              ...catalogContextQuery(params),
+              booking_service_id: params.booking_service_id,
+              booking_resource_id: params.booking_resource_id,
+              from: params.from,
+              to: params.to,
+              limit: params.limit,
+              cursor: params.cursor,
+            },
+          });
         },
       },
 
@@ -781,28 +805,19 @@ export const createStorefrontApi = (
       },
 
       bookingOffering: {
-        find(
-          params: FindStorefrontBookingOfferingsParams,
-          options?: RequestOptions,
-        ): Promise<PaginatedResponse<StorefrontBookingOffering>> {
-          return httpClient.get<PaginatedResponse<StorefrontBookingOffering>>(`${base}/booking-offerings`, {
+        get(params: GetStorefrontBookingOfferingParams, options?: RequestOptions): Promise<StorefrontBookingOffering> {
+          return httpClient.get<StorefrontBookingOffering>(`${base}/booking-offerings/${segment(params.id)}`, {
             ...options,
-            params,
+            params: catalogQuery(params),
           });
         },
       },
 
       bookingResource: {
         get(params: GetStorefrontBookingResourceParams, options?: RequestOptions): Promise<StorefrontBookingResource> {
-          return httpClient.get<StorefrontBookingResource>(`${base}/booking-resources/${segment(params.id)}`, options);
-        },
-        find(
-          params: FindStorefrontBookingResourcesParams = {},
-          options?: RequestOptions,
-        ): Promise<PaginatedResponse<StorefrontBookingResource>> {
-          return httpClient.get<PaginatedResponse<StorefrontBookingResource>>(`${base}/booking-resources`, {
+          return httpClient.get<StorefrontBookingResource>(`${base}/booking-resources/${segment(params.id)}`, {
             ...options,
-            params,
+            params: { ...catalogContextQuery(params), offering_id: params.offering_id },
           });
         },
       },

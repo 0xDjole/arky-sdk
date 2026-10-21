@@ -14,7 +14,7 @@ import {
   visitorStorage,
 } from "./helpers/arky-fixtures.mjs";
 
-const storageKey = `arky:cart-checkout:v4:${encodeURIComponent(`storefront:${apiUrl}:${publishableKey}`)}`;
+const storageKey = `arky:cart-checkout:v5:${encodeURIComponent(`storefront:${apiUrl}:${publishableKey}`)}`;
 const request = checkoutRequest();
 const originals = new Map(["fetch", "localStorage", "navigator", "window"].map((name) => [name, Object.getOwnPropertyDescriptor(globalThis, name)]));
 
@@ -145,7 +145,9 @@ test("checkout input the app did not decide explicitly fails before persisting o
     { cart_id: undefined }, { cart_id: "cart-1" },
     { expected_updated_at: undefined }, { expected_updated_at: 1.5 }, { expected_updated_at: "1" },
     { presentation_digest: "" }, { presentation_digest: " digest" }, { presentation_digest: "d".repeat(257) },
-    { contact_email: undefined }, { contact_email: "" }, { contact_email: " buyer@example.test" },
+    { contact_email: undefined }, { contact_email: "" }, { contact_email: "buyer@example.test" },
+    { contact_email: { email: " buyer@example.test", language: "en" } }, { contact_email: { email: "buyer@example.test" } },
+    { contact_email: { email: "buyer@example.test", language: "" } }, { contact_email: { email: "buyer@example.test", language: "en", name: "Ana" } },
     { payment: undefined }, { payment: { type: "card" } }, { payment: { type: "free", amount: 0 } },
     { payment: { type: "on_account", payment_option_id: "terms" } },
     { payment: { ...request.payment, payment_option_id: "card" } },
@@ -180,7 +182,8 @@ test("every changed checkout field stays blocked after ambiguity without another
   const calls = capture(success);
   for (const change of [
     { order_token: "arky_ot_" + "C".repeat(42) + "A" }, { order_id: ids.otherOrder }, { cart_id: ids.otherCart }, { expected_updated_at: 2 },
-    { presentation_digest: "e".repeat(64) }, { contact_email: null }, { contact_email: "other@example.test" },
+    { presentation_digest: "e".repeat(64) }, { contact_email: null }, { contact_email: { email: "other@example.test", language: "en" } },
+    { contact_email: { email: "buyer@example.test", language: "bs" } },
     { payment: { type: "free" } }, { payment: { ...request.payment, payment_option_id: ids.otherPaymentOption } },
     { payment: { ...request.payment, return_url: null } },
   ]) {

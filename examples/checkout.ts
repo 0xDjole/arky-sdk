@@ -8,7 +8,7 @@ checkout.state.subscribe((state) => {
 });
 
 let state = await checkout.open();
-checkout.setContact({ contact_email: "ana@example.com" });
+checkout.setContact({ contact_email: { email: "ana@example.com", language: "en" } });
 state = await checkout.shipTo({
   destination: {
     type: "delivery",

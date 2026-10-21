@@ -2,7 +2,6 @@ import type { EpochMilliseconds } from "./time";
 import type { Block } from "./block";
 import type { ZoneArea } from "./market";
 import type {
-  AccountActor,
   Actor,
   CommerceParty,
   CommercePartyQuery,
@@ -14,8 +13,7 @@ import type {
 } from "./common";
 import type { OrderDeliveryDestination } from "./order";
 import type { CustomerGroupDeliveryRateOffer } from "./cart";
-import type { CatalogPriceFilter, StorefrontPrice } from "./product";
-import type { CatalogReadOptions } from "./catalog";
+import type { CatalogContext } from "./catalog";
 
 export type BillingInterval = "day" | "week" | "month" | "year";
 
@@ -168,9 +166,8 @@ export interface CustomerGroup {
 }
 
 export type CustomerGroupPrice =
-  | { type: "catalog"; price_id: string; catalog_id: string }
-  | { type: "manual"; catalog_id: string; actor: AccountActor; reason: string }
-  | { type: "offer" };
+  | { type: "catalog"; catalog_item_price_id: string; catalog_id: string }
+  | { type: "offer"; catalog_item_price_id: string; catalog_id: string };
 
 export interface CustomerGroupSnapshot {
   customer_group_id: string;
@@ -184,7 +181,13 @@ export interface CustomerGroupSnapshot {
 export type CustomerGroupStart =
   | { type: "on_acceptance" }
   | { type: "scheduled"; starts_at: EpochMilliseconds }
-  | { type: "switch"; customer_group_member_id: string };
+  | { type: "switch"; customer_group_member_id: string }
+  | {
+      type: "amend";
+      customer_group_member_id: string;
+      expected_updated_at: EpochMilliseconds;
+      reason: string;
+    };
 
 export type CustomerGroupOccurrence =
   | { type: "permanent"; starts_at: EpochMilliseconds }
@@ -211,6 +214,7 @@ export interface StorefrontCustomerGroupOffering {
   id: string;
   key: string;
   blocks: Block[];
+  catalog_item_id: string;
   customer_group_ids: string[];
 }
 
@@ -226,7 +230,7 @@ export interface StorefrontCustomerGroup {
   term: CustomerGroupTerm;
   purchase_requirement: PurchaseRequirement | null;
   entitlements: StorefrontCustomerGroupEntitlement[];
-  price: StorefrontPrice | null;
+  catalog_item_id: string;
 }
 
 export interface CustomerGroupMemberPaymentMethodAuthorization {
@@ -364,17 +368,11 @@ export interface CustomerGroupProductChoice {
   variant_id: string;
 }
 
-export interface CustomerGroupProductOptionLabel {
-  label: string | null;
-  value: string | null;
-}
-
 export interface CustomerGroupProductAlternative {
   variant_id: string;
-  product_name: string | null;
-  variant_name: string | null;
   sku: string | null;
-  options: CustomerGroupProductOptionLabel[];
+  product_blocks: Block[];
+  variant_blocks: Block[];
   available: boolean;
 }
 
@@ -382,7 +380,6 @@ export interface CustomerGroupProductChoices {
   customer_group_id: string;
   group_updated_at: EpochMilliseconds;
   entitlement_id: string;
-  language: string;
   alternatives: CustomerGroupProductAlternative[];
 }
 
@@ -390,7 +387,6 @@ export interface CustomerGroupMemberProductChoices {
   customer_group_member: CustomerGroupMemberSelf;
   revision_id: string;
   entitlement_id: string;
-  language: string;
   alternatives: CustomerGroupProductAlternative[];
 }
 
@@ -403,6 +399,7 @@ export type CustomerGroupMemberRevisionOrigin =
       type: "change";
       previous_revision_id: string;
       change: CustomerGroupMemberRevisionChange;
+      reason: string;
     };
 
 export type CustomerGroupMemberTermsSource =
@@ -453,9 +450,8 @@ export interface CustomerGroupMemberCurrent {
 }
 
 export type CustomerGroupSelfPrice =
-  | { type: "catalog"; price_id: string; catalog_id: string }
-  | { type: "manual"; catalog_id: string }
-  | { type: "offer" };
+  | { type: "catalog"; catalog_item_price_id: string; catalog_id: string }
+  | { type: "offer"; catalog_item_price_id: string; catalog_id: string };
 
 export interface CustomerGroupSelfSnapshot {
   customer_group_id: string;
@@ -762,7 +758,6 @@ export interface CustomerGroupMemberActionParams {
 
 export interface CancelCustomerGroupMemberParams extends CustomerGroupMemberActionParams {
   notify_customer: boolean;
-  language: string | null;
 }
 
 export interface ScheduleCustomerGroupMemberEndParams extends CancelCustomerGroupMemberParams {
@@ -785,7 +780,8 @@ export interface SelectCustomerGroupMemberPaymentMethodParams extends CustomerGr
 export interface SwitchCustomerGroupMemberParams extends CustomerGroupMemberActionParams {
   to_customer_group_id: string;
   choices: CustomerGroupProductChoice[];
-  catalog_id?: string;
+  catalog_id: string;
+  catalog_item_price_id: string;
   reason: string;
 }
 
@@ -824,17 +820,12 @@ export interface CustomerGroupMemberDeliveryOptions {
 export interface StorefrontGetCustomerGroupMemberProductChoicesParams extends StorefrontCustomerGroupMemberActionParams {
   entitlement_id: string;
   revision_id: string;
-  language: string;
 }
 
-export type GetStorefrontCustomerGroupProductChoicesParams = Omit<
-  CatalogReadOptions,
-  "include_price"
-> &
+export type GetStorefrontCustomerGroupProductChoicesParams = CatalogContext &
   ({ id: string } | { key: string }) & {
     entitlement_id: string;
     quantity: number;
-    language: string;
   };
 
 export interface ChangeCustomerGroupMemberPurchaseRequirementParams extends CustomerGroupMemberActionParams {
@@ -859,33 +850,21 @@ export interface TransferCustomerGroupMemberPurchaseRequirementParams {
   reason: string;
 }
 
-export type FindStorefrontCustomerGroupsParams = CatalogReadOptions & {
-  customer_group_offering_id?: string;
-  query?: string;
-  price_filter?: CatalogPriceFilter;
-  sort_field?: "key" | "created_at" | "price" | "catalog_order";
-  sort_direction?: SortDirection;
-  created_at_from?: EpochMilliseconds;
-  created_at_to?: EpochMilliseconds;
-  limit?: number;
-  cursor?: string | null;
-};
-
-export type GetStorefrontCustomerGroupParams = CatalogReadOptions & {
+export type GetStorefrontCustomerGroupParams = CatalogContext & {
   id: string;
 };
 
-export type GetStorefrontCustomerGroupByKeyParams = CatalogReadOptions & {
+export type GetStorefrontCustomerGroupByKeyParams = CatalogContext & {
   key: string;
 };
 
-export interface GetStorefrontCustomerGroupOfferingParams {
+export type GetStorefrontCustomerGroupOfferingParams = CatalogContext & {
   id: string;
-}
+};
 
-export interface GetStorefrontCustomerGroupOfferingByKeyParams {
+export type GetStorefrontCustomerGroupOfferingByKeyParams = CatalogContext & {
   key: string;
-}
+};
 
 export type StorefrontFindCustomerGroupMembersParams = CompanyPartyQuery & {
   status?: CustomerGroupMemberStatusName;

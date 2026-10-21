@@ -1,5 +1,8 @@
 import type { EpochMilliseconds } from "./time";
-import type { CompanyPartyQuery, Schedule, SortDirection } from "./common";
+import type { Block, BlockQuery } from "./block";
+import type { CompanyPartyQuery, Currency, Money, Schedule, SortDirection, TaxMode } from "./common";
+import type { CategoryEntry, CategoryQuery } from "./content";
+import type { RecurringCadence } from "./customerGroup";
 
 export type SellableRef =
   | { type: "product_variant"; variant_id: string }
@@ -8,19 +11,23 @@ export type SellableRef =
 
 export type PriceStatus = { type: "active" } | { type: "archived" };
 
-export interface Price {
+export interface CatalogItemPrice {
   id: string;
   store_id: string;
-  catalog_id: string;
+  catalog_item_id: string;
   sellable: SellableRef;
   amount: number;
   compare_at: number | null;
-  min_quantity: number;
-  max_quantity: number | null;
   schedule: Schedule;
   status: PriceStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
+}
+
+export interface CatalogItemPricePage {
+  items: CatalogItemPrice[];
+  cursor: string | null;
+  repairing: number;
 }
 
 export type CatalogStatus =
@@ -48,11 +55,15 @@ export type CatalogItemRef =
   | { type: "customer_group_offering"; customer_group_offering_id: string }
   | { type: "customer_group"; customer_group_id: string };
 
+export type CatalogItemStatus = { type: "active" } | { type: "archived" };
+
 export interface CatalogItem {
   id: string;
   store_id: string;
   catalog_id: string;
   item: CatalogItemRef;
+  schedule: Schedule;
+  status: CatalogItemStatus;
   position: number;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
@@ -96,19 +107,136 @@ export interface StorefrontCatalog {
 export interface CatalogCopyResult {
   items_created: number;
   items_kept: number;
+  items_skipped: number;
   prices_created: number;
   prices_kept: number;
+  prices_skipped: number;
+  cursor: string | null;
 }
 
-export type CatalogReadOptions = CompanyPartyQuery & {
+export type CatalogContext = CompanyPartyQuery & {
   catalog_id: string;
+};
+
+export type CatalogReadOptions = CatalogContext & {
   include_price?: boolean;
 };
 
-export interface FindPricesParams {
+export interface StorefrontPrice {
+  catalog_item_price_id: string;
+  tax_mode: TaxMode;
+  unit_price: Money;
+  compare_at: number | null;
+  priced_at: EpochMilliseconds;
+}
+
+export type CatalogListingType = "product" | "booking_service" | "customer_group" | "customer_group_offering";
+
+export type CatalogListingSort = "catalog_order" | "relevance" | "starting_price";
+
+export type CatalogPriceBasis =
+  | { type: "product_unit" }
+  | { type: "booking_option" }
+  | { type: "permanent_agreement" }
+  | { type: "recurring_agreement"; cadence: RecurringCadence };
+
+export type CatalogPriceFilter =
+  | { min_amount: number; max_amount?: number | null }
+  | { min_amount?: number | null; max_amount: number };
+
+export interface CatalogChoiceFilter {
+  sku?: string;
+  blocks?: BlockQuery[];
+  price?: CatalogPriceFilter;
+}
+
+export interface CatalogListingSelection {
+  types?: CatalogListingType[];
+  text?: string;
+  categories?: CategoryQuery[];
+  blocks?: BlockQuery[];
+  choice?: CatalogChoiceFilter;
+  price_basis?: CatalogPriceBasis;
+  sort?: CatalogListingSort;
+  direction?: SortDirection;
+}
+
+export interface CatalogParentDefinition {
+  key: string;
+  slugs: Record<string, string>;
+  blocks: Block[];
+  categories: CategoryEntry[];
+}
+
+export interface CatalogChoiceDefinition {
+  sku: string | null;
+  blocks: Block[];
+  basis: CatalogPriceBasis;
+}
+
+export type CatalogPriceSummary =
+  | {
+      type: "comparable";
+      basis: CatalogPriceBasis;
+      min_amount: number;
+      max_amount: number;
+      choice_count: number;
+    }
+  | { type: "different_bases"; choice_count: number };
+
+export interface CatalogMatchingPrice {
+  catalog_item_price_id: string;
+  amount: number;
+  basis: CatalogPriceBasis;
+}
+
+export interface CatalogListing {
+  catalog_item_id: string;
+  catalog_id: string;
+  item: CatalogItemRef;
+  position: number;
+  content: CatalogParentDefinition;
+  access: CatalogAccessLevel;
+  currency: Currency | null;
+  price_summary: CatalogPriceSummary | null;
+  matching_price: CatalogMatchingPrice | null;
+  catalog_item_price_id: string | null;
+}
+
+export interface CatalogListingDetails {
+  catalog_item_id: string;
+  catalog_id: string;
+  item: CatalogItemRef;
+  position: number;
+  content: CatalogParentDefinition;
+  access: CatalogAccessLevel;
+}
+
+export interface CatalogChoice {
+  catalog_item_price_id: string;
+  sellable: SellableRef;
+  content: CatalogChoiceDefinition;
+  price: StorefrontPrice | null;
+}
+
+export type FindStorefrontCatalogItemsParams = CatalogReadOptions & {
+  selection?: CatalogListingSelection;
+  limit?: number;
+  cursor?: string | null;
+};
+
+export type GetStorefrontCatalogItemByParentParams = CatalogContext & {
+  item: CatalogItemRef;
+};
+
+export type FindStorefrontCatalogItemPricesParams = CatalogReadOptions & {
+  catalog_item_id: string;
+  limit?: number;
+  cursor?: string | null;
+};
+
+interface CatalogItemPriceListFilters {
   store_id: string;
-  catalog_id?: string;
-  sellable?: SellableRef;
   status?: PriceStatus["type"];
   sort_field?: "created_at" | "updated_at";
   sort_direction?: SortDirection;
@@ -116,50 +244,49 @@ export interface FindPricesParams {
   cursor?: string | null;
 }
 
-export interface GetPriceParams {
+export type FindCatalogItemPricesParams = CatalogItemPriceListFilters &
+  ({ catalog_item_id: string; sellable?: SellableRef } | { catalog_item_id?: string; sellable: SellableRef });
+
+export interface GetCatalogItemPriceParams {
   store_id: string;
   id: string;
 }
 
-export interface CreatePriceParams {
+export interface CreateCatalogItemPriceParams {
   store_id: string;
   id: string;
-  catalog_id: string;
+  catalog_item_id: string;
   sellable: SellableRef;
   amount: number;
   compare_at: number | null;
-  min_quantity: number;
-  max_quantity: number | null;
   schedule: Schedule;
   status: PriceStatus;
 }
 
-export interface UpdatePriceParams {
+export interface UpdateCatalogItemPriceParams {
   store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   amount: number;
   compare_at: number | null;
-  min_quantity: number;
-  max_quantity: number | null;
   schedule: Schedule;
   status: PriceStatus;
 }
 
-export interface DeletePriceParams {
+export interface DeleteCatalogItemPriceParams {
   store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
-export type PriceBatchOperation =
-  | ({ type: "create" } & Omit<CreatePriceParams, "store_id">)
-  | ({ type: "update" } & Omit<UpdatePriceParams, "store_id">)
+export type CatalogItemPriceBatchOperation =
+  | ({ type: "create" } & Omit<CreateCatalogItemPriceParams, "store_id">)
+  | ({ type: "update" } & Omit<UpdateCatalogItemPriceParams, "store_id">)
   | { type: "delete"; id: string; expected_updated_at: EpochMilliseconds };
 
-export interface BatchPricesParams {
+export interface BatchCatalogItemPricesParams {
   store_id: string;
-  operations: PriceBatchOperation[];
+  operations: CatalogItemPriceBatchOperation[];
 }
 
 export interface FindCatalogsParams {
@@ -210,6 +337,7 @@ export interface CopyCatalogParams {
   store_id: string;
   id: string;
   source_catalog_id: string;
+  cursor?: string | null;
 }
 
 export type FindPurchasableCatalogsParams = CompanyPartyQuery & {
@@ -239,6 +367,8 @@ export interface CreateCatalogItemParams {
   id: string;
   catalog_id: string;
   item: CatalogItemRef;
+  schedule: Schedule;
+  status: CatalogItemStatus;
 }
 
 export interface UpdateCatalogItemParams {
@@ -246,6 +376,8 @@ export interface UpdateCatalogItemParams {
   id: string;
   expected_updated_at: EpochMilliseconds;
   position: number;
+  schedule: Schedule;
+  status: CatalogItemStatus;
 }
 
 export interface DeleteCatalogItemParams {
@@ -255,8 +387,8 @@ export interface DeleteCatalogItemParams {
 }
 
 export type CatalogItemBatchOperation =
-  | { type: "create"; id: string; catalog_id: string; item: CatalogItemRef }
-  | { type: "update"; id: string; expected_updated_at: EpochMilliseconds; position: number }
+  | ({ type: "create" } & Omit<CreateCatalogItemParams, "store_id">)
+  | ({ type: "update" } & Omit<UpdateCatalogItemParams, "store_id">)
   | { type: "delete"; id: string; expected_updated_at: EpochMilliseconds };
 
 export interface BatchCatalogItemsParams {

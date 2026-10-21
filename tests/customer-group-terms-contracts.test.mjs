@@ -46,7 +46,7 @@ test("staff own-terms review and acceptance retain quantity, choices, delivery a
       term,
       purchase_requirement: null,
       unit_price: 1200,
-      price: { type: "offer" },
+      price: { type: "offer", catalog_item_price_id: ids.price, catalog_id: ids.catalog },
       entitlements: [],
     },
     quantity: 3,
@@ -166,19 +166,17 @@ test("buyer current terms reads the canonical member response with authenticatio
   assert.equal(calls[0].url.search, "");
 });
 
-test("sale and accepted Product choices keep exact catalog, language and current member revision fences", async (context) => {
+test("sale and accepted Product choices keep exact catalog and current member revision fences and answer blocks, not names", async (context) => {
   const entitlement = choices[0].entitlement_id;
   const revision = "c5de228a-691f-45b1-aaeb-8e30bf0249a0";
   const result = {
     entitlement_id: entitlement,
-    language: "sr-Latn-BA",
     alternatives: [
       {
         variant_id: ids.variant,
-        product_name: "Klasik",
-        variant_name: null,
         sku: "SKU-1",
-        options: [{ label: "Ukus", value: "Blagi" }],
+        product_blocks: [{ id: ids.line, key: "name", type: "localized_text", value: { "sr-Latn-BA": "Klasik" } }],
+        variant_blocks: [{ id: ids.otherLine, key: "flavor", type: "localized_text", value: { "sr-Latn-BA": "Blagi" } }],
         available: true,
       },
     ],
@@ -202,14 +200,12 @@ test("sale and accepted Product choices keep exact catalog, language and current
     entitlement_id: entitlement,
     catalog_id: ids.catalog,
     quantity: 3,
-    language: result.language,
   };
   const member = {
     id: memberId,
     entitlement_id: entitlement,
     expected_updated_at: version,
     revision_id: revision,
-    language: result.language,
   };
   const before = structuredClone({ sale, member });
   assert.deepEqual(await api.eshop.customerGroup.getProductChoices(sale), result);
@@ -220,7 +216,6 @@ test("sale and accepted Product choices keep exact catalog, language and current
   assert.deepEqual(calls[0].query, {
     catalog_id: ids.catalog,
     quantity: "3",
-    language: result.language,
   });
   assert.deepEqual(
     await api.eshop.customerGroupMember.getProductChoices(member),
@@ -233,7 +228,6 @@ test("sale and accepted Product choices keep exact catalog, language and current
   assert.deepEqual(calls[1].query, {
     expected_updated_at: String(version),
     revision_id: revision,
-    language: result.language,
   });
   assert.equal(calls[1].headers.get("authorization"), `Bearer ${visitorToken}`);
   assert.deepEqual({ sale, member }, before);

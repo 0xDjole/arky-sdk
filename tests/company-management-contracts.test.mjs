@@ -37,17 +37,17 @@ const definitions = [
   {
     path: ["companies"],
     route: "companies",
-    response: { tax_registrations: [], purchasing: standardCheckout },
-    create: { name: "Buyer", contact_email: "accounts@example.test", billing_address: null, blocks: detailBlocks, status: { type: "active" } },
-    update: { name: "Buyer 2", contact_email: "orders@example.test", billing_address: address, blocks: [], status: { type: "archived" } },
+    response: { tax: { type: "standard", registrations: [] }, purchasing: standardCheckout },
+    create: { name: "Buyer", contact: { email: "accounts@example.test", language: "bs" }, billing_address: null, blocks: detailBlocks, status: { type: "active" } },
+    update: { name: "Buyer 2", contact: null, billing_address: address, blocks: [], status: { type: "archived" } },
     query: { query: "Buyer registration", status: "archived", sort_field: "updated_at", sort_direction: "asc" },
     deletion: "deleting",
   },
   {
     path: ["companies", "membership"],
     route: "company-memberships",
-    create: { company_id: selectedStoreId, customer_id: otherId, grants: [{ scope: { type: "company_location", company_location_id: otherId }, role_ids: [otherId] }] },
-    update: { grants: [{ scope: { type: "company" }, role_ids: [selectedStoreId] }, { scope: { type: "all_locations" }, role_ids: [] }], status: { type: "disabled" } },
+    create: { company_id: selectedStoreId, contact: { email: "buyer@example.test", language: "en" }, grants: [{ scope: { type: "company_location", company_location_id: otherId }, role_ids: [otherId] }] },
+    update: { grants: [{ scope: { type: "company" }, role_ids: [selectedStoreId] }, { scope: { type: "company_location", company_location_id: otherId }, role_ids: [] }], status: { type: "disabled" } },
     query: { company_id: selectedStoreId, customer_id: otherId, role_id: otherId },
     deletion: "deleted",
   },
@@ -63,7 +63,7 @@ const definitions = [
     path: ["companies", "location"],
     route: "company-locations",
     response: {
-      tax_registrations: [],
+      tax: { type: "standard", registrations: [] },
       purchasing: standardCheckout,
       fulfillment: { type: "routing" },
     },
@@ -102,26 +102,28 @@ const getApi = (client, path) => path.reduce((owner, key) => owner[key], client)
 const createClient = () => createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" });
 const response = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
-test("company-wide and all-locations grants are sent explicitly and survive exact reads", async (context) => {
+test("company-wide and per-location grants are sent explicitly for an invited contact and survive exact reads", async (context) => {
   const grants = [
     { scope: { type: "company" }, role_ids: [] },
-    { scope: { type: "all_locations" }, role_ids: [otherId] },
     { scope: { type: "company_location", company_location_id: selectedStoreId }, role_ids: [otherId, id] },
   ];
-  const record = { id, store_id: storeId, company_id: selectedStoreId, customer_id: otherId, grants, status: { type: "active" }, created_at: now, updated_at: now };
+  const contact = { email: "buyer@example.test", language: "bs" };
+  const record = { id, store_id: storeId, company_id: selectedStoreId, grants, status: { type: "invited", contact }, created_at: now, updated_at: now };
   const calls = [];
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     calls.push({ path: new URL(url).pathname, body: init.body ? JSON.parse(init.body) : null });
     return response(record);
   });
   const api = createClient().companies.membership;
-  assert.deepEqual(await api.create({ store_id: storeId, id, company_id: selectedStoreId, customer_id: otherId, grants }), record);
-  assert.deepEqual(calls[0].body, { id, company_id: selectedStoreId, customer_id: otherId, grants });
-  for (const removed of ["scope", "locations", "role_ids"]) assert.equal(removed in calls[0].body, false, removed);
+  assert.deepEqual(await api.create({ store_id: storeId, id, company_id: selectedStoreId, contact, grants }), record);
+  assert.deepEqual(calls[0].body, { id, company_id: selectedStoreId, contact, grants });
+  for (const removed of ["scope", "locations", "role_ids", "email", "language", "customer_id"]) assert.equal(removed in calls[0].body, false, removed);
   assert.equal(calls[0].path, `/v1/stores/${storeId}/company-memberships`);
   assert.deepEqual(await api.get({ store_id: storeId, id }), record);
   assert.equal(calls[1].path, `/v1/stores/${storeId}/company-memberships/${id}`);
-  assert.equal(calls.length, 2);
+  assert.deepEqual(await api.resendInvite({ store_id: storeId, id, expected_updated_at: now }), record);
+  assert.deepEqual(calls[2], { path: `/v1/stores/${storeId}/company-memberships/${id}/resend-invite`, body: { expected_updated_at: now } });
+  assert.equal(calls.length, 3);
 });
 
 test("a company location is served from a store location or by routing, set with its version", async (context) => {
@@ -310,9 +312,9 @@ test("B2B management keeps server denials and conflicts without replacing the mu
 
 test("a buyer reads their company access as scoped grants, their memberships and the locations they may buy for", async (context) => {
   const access = {
-    company: { id: selectedStoreId, store_id: storeId, name: "Buyer", contact_email: "accounts@example.test", tax_registrations: [], purchasing: standardCheckout, blocks: [], status: { type: "active" }, created_at: now, updated_at: now },
+    company: { id: selectedStoreId, store_id: storeId, name: "Buyer", contact: { email: "accounts@example.test", language: "en" }, tax: { type: "standard", registrations: [] }, purchasing: standardCheckout, blocks: [], status: { type: "active" }, created_at: now, updated_at: now },
     grants: [
-      { scope: { type: "all_locations" }, permissions: ["place_orders", "join_customer_groups"] },
+      { scope: { type: "company" }, permissions: ["place_orders", "join_customer_groups"] },
       { scope: { type: "company_location", company_location_id: otherId }, permissions: ["view_company_orders", "manage_company_customer_groups"] },
     ],
   };

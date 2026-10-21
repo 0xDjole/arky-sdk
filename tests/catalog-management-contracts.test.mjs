@@ -14,27 +14,24 @@ const now = 1788862721000;
 const sellable = { type: "product_variant", variant_id: otherStoreId };
 const definitions = [
   {
-    owner: "price",
-    route: "prices",
+    owner: "catalogItemPrice",
+    route: "catalog-item-prices",
     create: {
-      catalog_id: catalogId,
+      catalog_item_id: id,
       sellable,
       amount: 2500,
       compare_at: 3000,
-      min_quantity: 1,
-      max_quantity: 9,
       schedule: { type: "scheduled", starts_at: now, ends_at: now + 86_400_000 },
       status: { type: "active" },
     },
     update: {
       amount: 2000,
       compare_at: null,
-      min_quantity: 10,
-      max_quantity: null,
       schedule: { type: "always" },
       status: { type: "archived" },
     },
-    query: { catalog_id: catalogId, sellable, status: "active", sort_field: "updated_at", sort_direction: "asc" },
+    query: { catalog_item_id: id, sellable, status: "active", sort_field: "updated_at", sort_direction: "asc" },
+    page: { repairing: 1 },
     deletion: "empty",
   },
   {
@@ -48,8 +45,12 @@ const definitions = [
   {
     owner: "catalogItem",
     route: "catalog-items",
-    create: { catalog_id: catalogId, item: { type: "product", product_id: id } },
-    update: { position: -2147483648 },
+    create: { catalog_id: catalogId, item: { type: "product", product_id: id }, schedule: { type: "always" }, status: { type: "active" } },
+    update: {
+      position: -2147483648,
+      schedule: { type: "scheduled", starts_at: now, ends_at: now + 86_400_000 },
+      status: { type: "archived" },
+    },
     query: { catalog_id: catalogId, item: { type: "booking_service", booking_service_id: id } },
     deletion: "empty",
   },
@@ -80,7 +81,7 @@ for (const definition of definitions) {
       const body = call.method === "DELETE"
         ? deleting
         : call.method === "GET" && parsed.pathname.endsWith(`/${definition.route}`)
-          ? { items: [record], cursor: "next-page" }
+          ? { items: [record], cursor: "next-page", ...definition.page }
           : record;
       return new Response(JSON.stringify(body), {
         status: call.method === "DELETE" ? 202 : call.method === "POST" ? 201 : 200,
@@ -98,7 +99,7 @@ for (const definition of definitions) {
     assert.deepEqual(await api.get({ store_id: otherStoreId, id }), record);
     assert.deepEqual(
       await api.find({ store_id: otherStoreId, ...definition.query, limit: 20, cursor: "previous-page" }),
-      { items: [record], cursor: "next-page" },
+      { items: [record], cursor: "next-page", ...definition.page },
     );
     const deleted = await api.delete({ store_id: otherStoreId, id, expected_updated_at: now });
     assert.deepEqual(deleted, definition.deletion === "empty" ? undefined : deleting);
@@ -139,7 +140,7 @@ for (const definition of definitions) {
 
 test("price lists, assortments and catalog entitlements are gone from the Admin client", () => {
   const client = createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" });
-  for (const removed of ["priceList", "assortment", "assortmentItem", "catalogEntitlement"]) {
+  for (const removed of ["priceList", "assortment", "assortmentItem", "catalogEntitlement", "price"]) {
     assert.equal(removed in client.eshop, false);
   }
 });
@@ -148,9 +149,10 @@ test("catalog management is not attached to the storefront acquisition API", () 
   const storefront = createStorefront(`arky_pk_${"a".repeat(42)}A`, idFactories);
   for (const { owner } of definitions) {
     assert.equal(owner in storefront, false);
-    if (owner !== "catalog") assert.equal(owner in storefront.eshop, false);
+    if (owner !== "catalog" && owner !== "catalogItem") assert.equal(owner in storefront.eshop, false);
   }
   assert.deepEqual(Object.keys(storefront.eshop.catalog), ["find"]);
+  assert.deepEqual(Object.keys(storefront.eshop.catalogItem), ["find", "getByParent", "findPrices"]);
 });
 
 test("buyer catalog reads use their exact routes and return the server answer", async (context) => {
@@ -202,35 +204,41 @@ test("buyer catalog reads use their exact routes and return the server answer", 
 
 test("catalog copy and batch writes post their exact bodies with app-picked create ids", async (context) => {
   const calls = [];
-  const copyResult = { items_created: 3, items_kept: 1, prices_created: 5, prices_kept: 0 };
-  const price = { id, store_id: storeId, catalog_id: catalogId, sellable, amount: 990, schedule: { type: "always" }, created_at: now, updated_at: now };
-  const item = { id, store_id: storeId, catalog_id: catalogId, item: { type: "product", product_id: id }, position: 1, created_at: now, updated_at: now };
+  const copyResult = { items_created: 3, items_kept: 1, items_skipped: 1, prices_created: 5, prices_kept: 0, prices_skipped: 2, cursor: "copy-next" };
+  const finished = { ...copyResult, cursor: null };
+  const price = { id, store_id: storeId, catalog_item_id: id, sellable, amount: 990, compare_at: null, schedule: { type: "always" }, status: { type: "active" }, created_at: now, updated_at: now };
+  const item = { id, store_id: storeId, catalog_id: catalogId, item: { type: "product", product_id: id }, schedule: { type: "always" }, status: { type: "active" }, position: 1, created_at: now, updated_at: now };
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     const parsed = new URL(url);
     calls.push({ url: parsed, method: init.method ?? "GET", body: init.body ? JSON.parse(init.body) : null });
-    const body = parsed.pathname.endsWith("/copy") ? copyResult : parsed.pathname.endsWith("/prices/batch") ? [price] : [item];
+    const copied = calls.filter((call) => call.url.pathname.endsWith("/copy")).length;
+    const body = parsed.pathname.endsWith("/copy")
+      ? (copied === 1 ? copyResult : finished)
+      : parsed.pathname.endsWith("/catalog-item-prices/batch") ? [price] : [item];
     return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
   });
   const client = createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" });
   assert.deepEqual(await client.eshop.catalog.copy({ store_id: storeId, id: catalogId, source_catalog_id: id }), copyResult);
+  assert.deepEqual(await client.eshop.catalog.copy({ store_id: storeId, id: catalogId, source_catalog_id: id, cursor: copyResult.cursor }), finished);
   const priceOperations = [
-    { type: "create", id, catalog_id: catalogId, sellable, amount: 990, compare_at: null, min_quantity: 1, max_quantity: null, schedule: { type: "scheduled", starts_at: now, ends_at: now + 1 }, status: { type: "active" } },
-    { type: "update", id: otherStoreId, expected_updated_at: now, amount: 1000, compare_at: null, min_quantity: 1, max_quantity: null, schedule: { type: "always" }, status: { type: "active" } },
+    { type: "create", id, catalog_item_id: id, sellable, amount: 990, compare_at: null, schedule: { type: "scheduled", starts_at: now, ends_at: now + 1 }, status: { type: "active" } },
+    { type: "update", id: otherStoreId, expected_updated_at: now, amount: 1000, compare_at: null, schedule: { type: "always" }, status: { type: "active" } },
     { type: "delete", id: catalogId, expected_updated_at: now },
   ];
-  assert.deepEqual(await client.eshop.price.batch({ store_id: storeId, operations: priceOperations }), [price]);
+  assert.deepEqual(await client.eshop.catalogItemPrice.batch({ store_id: storeId, operations: priceOperations }), [price]);
   const itemOperations = [
-    { type: "create", id, catalog_id: catalogId, item: { type: "product", product_id: id } },
-    { type: "update", id: otherStoreId, expected_updated_at: now, position: 2 },
+    { type: "create", id, catalog_id: catalogId, item: { type: "product", product_id: id }, schedule: { type: "always" }, status: { type: "active" } },
+    { type: "update", id: otherStoreId, expected_updated_at: now, position: 2, schedule: { type: "always" }, status: { type: "archived" } },
     { type: "delete", id: catalogId, expected_updated_at: now },
   ];
   assert.deepEqual(await client.eshop.catalogItem.batch({ store_id: storeId, operations: itemOperations }), [item]);
   assert.deepEqual(calls.map(({ url, method, body }) => [method, url.pathname, body]), [
-    ["POST", `/v1/stores/${storeId}/catalogs/${catalogId}/copy`, { source_catalog_id: id }],
-    ["POST", `/v1/stores/${storeId}/prices/batch`, { operations: priceOperations }],
+    ["POST", `/v1/stores/${storeId}/catalogs/${catalogId}/copy`, { source_catalog_id: id, cursor: null }],
+    ["POST", `/v1/stores/${storeId}/catalogs/${catalogId}/copy`, { source_catalog_id: id, cursor: "copy-next" }],
+    ["POST", `/v1/stores/${storeId}/catalog-item-prices/batch`, { operations: priceOperations }],
     ["POST", `/v1/stores/${storeId}/catalog-items/batch`, { operations: itemOperations }],
   ]);
-  await assert.rejects(async () => client.eshop.price.batch({ store_id: storeId, operations: [{ ...priceOperations[0], id: "price-1" }] }), TypeError);
+  await assert.rejects(async () => client.eshop.catalogItemPrice.batch({ store_id: storeId, operations: [{ ...priceOperations[0], id: "price-1" }] }), TypeError);
   await assert.rejects(async () => client.eshop.catalogItem.batch({ store_id: storeId, operations: [{ ...itemOperations[0], id: undefined }] }), TypeError);
-  assert.equal(calls.length, 3);
+  assert.equal(calls.length, 4);
 });

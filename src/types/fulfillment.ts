@@ -1,6 +1,6 @@
 import type { EpochMilliseconds } from "./time";
 import type { Block } from "./block";
-import type { AccountActor, CommerceParty, Money, PostalAddress, SortDirection, UnitSpan } from "./common";
+import type { AccountActor, CommerceParty, EmailContact, Money, PostalAddress, SortDirection, UnitSpan } from "./common";
 import type { InventoryRequirement } from "./product";
 import type { OrderDeliveryTiming } from "./order";
 import type { PurchaseRequirementScope } from "./customerGroup";
@@ -119,7 +119,7 @@ export type FulfillmentJobBuyer =
     };
 
 export interface FulfillmentJobContact {
-  email: string | null;
+  email: EmailContact | null;
   first_name: string | null;
   last_name: string | null;
   phone: string | null;
@@ -184,10 +184,16 @@ export interface FulfillmentLine {
   lot_reference: string | null;
 }
 
+export interface FulfillmentOrder {
+  order_id: string;
+  buyer: CommerceParty;
+}
+
 export interface Fulfillment {
   id: string;
   store_id: string;
   fulfillment_job_id: string;
+  order: FulfillmentOrder | null;
   created_by: AccountActor;
   lines: FulfillmentLine[];
   type: FulfillmentType;
@@ -206,6 +212,7 @@ export interface FulfillmentJobItem {
   product_key: string;
   product_blocks: Block[];
   variant_sku: string | null;
+  variant_blocks: Block[];
   image: FulfillmentJobItemImage | null;
   quantity: number;
   source: FulfillmentJobLineSource;

@@ -98,6 +98,55 @@ const removedIdentifiers = [
   "SkipNextCustomerGroupMemberPurchaseParams",
   "StorefrontSkipNextCustomerGroupMemberPurchaseParams",
   "completeBookingItem",
+  "createPriceApi",
+  "FindPricesParams",
+  "GetPriceParams",
+  "CreatePriceParams",
+  "UpdatePriceParams",
+  "DeletePriceParams",
+  "PriceBatchOperation",
+  "BatchPricesParams",
+  "ManualPrice",
+  "ManualPriceInput",
+  "ProductOption",
+  "ProductVariantOption",
+  "CustomerGroupProductOptionLabel",
+  "OrderVariantOption",
+  "FindStorefrontProductsParams",
+  "FindStorefrontProductVariantsParams",
+  "FindStorefrontBookingServicesParams",
+  "FindStorefrontBookingOfferingsParams",
+  "FindStorefrontBookingResourcesParams",
+  "FindStorefrontCustomerGroupsParams",
+  "StorefrontCartProductLineItemInput",
+  "StorefrontCartBookingLineItemInput",
+  "StorefrontCartCustomerGroupLineItemInput",
+  "StorefrontCartLineItemInput",
+  "price_override",
+  "options_valid",
+  "loadMoreOfferings",
+  "TimedEmail",
+  "AlertEmail",
+  "EmailAddressSending",
+  "EmailAddressReceiving",
+  "EmailAddressReceivingInput",
+  "EmailAddressStatus",
+  "EmailAddressType",
+  "EmailAddressInputType",
+  "UpdateEmailAddressParams",
+  "ChangeEmailAddressStatusParams",
+  "BROADCAST_FIELDS",
+  "BroadcastField",
+  "BROADCAST_BLOCK_FIELD_PREFIXES",
+  "BroadcastBlockField",
+  "ConversationStatus",
+  "ConversationStatusName",
+  "SelectConversationSendingAddressParams",
+  "AssignFormSubmissionParams",
+  "SetFormSubmissionCompanyParams",
+  "assignSubmission",
+  "setSubmissionCompany",
+  "selectSendingAddress",
 ];
 
 const removedIdentifierPattern = new RegExp(`\\b(?:${removedIdentifiers.join("|")})\\b`, "g");
@@ -164,10 +213,10 @@ requirePattern("api/payment.ts", /incoming-webhooks/, "incoming webhooks have a 
 requirePattern("api/platform.ts", /\/v1\/platform\/administrators\/me/, "platform administrators read their own record");
 forbidPattern("index.ts", /X-Arky-Sales-Channel/i, "a storefront request sells through its key's channel and names none");
 requirePattern("index.ts", /"X-Arky-Locale"/, "storefront requests name their language");
-requirePattern("api/storefront.ts", /export interface RequestCustomerCodeRequest\s*\{\s*id:\s*string;\s*email:\s*string;\s*language:\s*string;\s*bot_check_token\?:\s*string;\s*\}/,
-  "a sign-in code request requires id, email and language with optional bot-check proof");
-requirePattern("api/storefront.ts", /\/customer\/request-code`,\s*\{\s*id:\s*params\.id,\s*email:\s*params\.email,\s*language:\s*params\.language,\s*bot_check_token:\s*params\.bot_check_token\s*,?\s*\}/,
-  "a sign-in code request posts the caller's id, email, explicit language and optional bot-check proof");
+requirePattern("api/storefront.ts", /export interface RequestCustomerCodeRequest\s*\{\s*id:\s*string;\s*contact:\s*EmailContact;\s*bot_check_token\?:\s*string;\s*\}/,
+  "a sign-in code request requires id and the email contact with optional bot-check proof");
+requirePattern("api/storefront.ts", /\/customer\/request-code`,\s*\{\s*id:\s*params\.id,\s*contact:\s*\{\s*email:\s*params\.contact\.email,\s*language:\s*params\.contact\.language\s*\},\s*bot_check_token:\s*params\.bot_check_token\s*,?\s*\}/,
+  "a sign-in code request posts the caller's id, the email contact with its explicit language and optional bot-check proof");
 forbidPattern("types/market.ts", /export interface CreateStorefrontKeyParams\s*\{[^}]*publishable_key/,
   "Arky generates the publishable key; the create carries none");
 requirePattern("api/order.ts", /resend-receipt`,\s*\{\s*id:\s*params\.id,\s*expected_updated_at:\s*params\.expected_updated_at\s*\}/, "a receipt resend posts the app's id and exact retained Order version");
@@ -194,7 +243,7 @@ requirePattern("api/storefront.ts", /cartSelection\.signedIn\(/, "verify records
 requirePattern("api/storefront.ts", /cartSelection\.reorder\(/, "a reordered cart becomes the cart selection, as a created one does");
 requirePattern("types/customerGroup.ts", /export interface StorefrontCustomerGroup \{[^}]*\bentitlements: StorefrontCustomerGroupEntitlement\[\];/, "the storefront group card lists the card copy of its entitlements");
 forbidPattern("types/customerGroup.ts", /export interface StorefrontCustomerGroupEntitlement \{[^}]*\ballocation_weight\b/, "the storefront group card hides allocation_weight");
-requirePattern("types/customerGroup.ts", /export interface SwitchCustomerGroupMemberParams extends CustomerGroupMemberActionParams \{[^}]*\bcatalog_id\?: string;/, "a group switch may name the catalog it is priced from");
+requirePattern("types/customerGroup.ts", /export interface SwitchCustomerGroupMemberParams extends CustomerGroupMemberActionParams \{[^}]*\bcatalog_id: string;[^}]*\bcatalog_item_price_id: string;/, "a group switch names the catalog and the catalog item price it is priced from");
 forbidPattern("types/customerGroup.ts", /export interface SwitchCustomerGroupMemberParams extends CustomerGroupMemberActionParams \{[^}]*\brentals\b/, "rentals move by one rule when the new terms start; a switch names none");
 
 for (const route of ["categories", "products", "booking-services"]) {

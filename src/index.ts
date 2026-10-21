@@ -32,6 +32,7 @@ import type {
   UpdateCustomerMeParams,
 } from "./types/customer";
 import type { StorefrontSetup } from "./types/storefront";
+import type { EmailContact } from "./types/common";
 import { createAccountApi } from "./api/account";
 import { createActionsApi } from "./api/actions";
 import { createCountsApi } from "./api/counts";
@@ -39,7 +40,7 @@ import { createAuthApi } from "./api/auth";
 import { createBookingOfferingApi, createBookingResourceApi, createBookingServiceApi } from "./api/booking";
 import { createBroadcastApi } from "./api/broadcast";
 import { createCartApi } from "./api/cart";
-import { createCatalogAccessApi, createCatalogApi, createCatalogItemApi, createPriceApi } from "./api/catalog";
+import { createCatalogAccessApi, createCatalogApi, createCatalogItemApi, createCatalogItemPriceApi } from "./api/catalog";
 import { createCategoryApi } from "./api/category";
 import {
   createCompanyApi,
@@ -80,10 +81,12 @@ import {
 import {
   createStoreEmailsApi,
   createEmailAddressApi,
+  createEmailLayoutApi,
   createEmailProviderApi,
   createEmailTemplateApi,
   createOutgoingEmailApi,
   createOutgoingWebhookApi,
+  createStoreResendEventApi,
 } from "./api/notification";
 import { createOrderApi } from "./api/order";
 import { createPaymentApi, createIncomingWebhookApi } from "./api/payment";
@@ -180,7 +183,7 @@ export type { PaymentSimulation, SimulatePaymentOptions, SimulatePaymentParams }
 export { CheckoutFlowError, initialize } from "./storefrontStore";
 export type * from "./storefrontStore";
 
-export const SDK_VERSION = "0.26.92";
+export const SDK_VERSION = "0.26.93";
 
 export interface AdminSession {
   id: string;
@@ -290,8 +293,10 @@ export function createAdmin(config: CreateAdminConfig) {
       outgoingEmail: createOutgoingEmailApi(apiConfig),
       outgoingWebhook: createOutgoingWebhookApi(apiConfig),
       template: createEmailTemplateApi(apiConfig),
+      layout: createEmailLayoutApi(apiConfig),
       emailProvider: createEmailProviderApi(apiConfig),
       emailAddress: createEmailAddressApi(apiConfig),
+      resendEvent: createStoreResendEventApi(apiConfig),
     },
     broadcast: createBroadcastApi(apiConfig),
     support: supportApi,
@@ -327,9 +332,9 @@ export function createAdmin(config: CreateAdminConfig) {
       bookingService: createBookingServiceApi(apiConfig),
       bookingResource: createBookingResourceApi(apiConfig),
       bookingOffering: createBookingOfferingApi(apiConfig),
-      price: createPriceApi(apiConfig),
       catalog: createCatalogApi(apiConfig),
       catalogItem: createCatalogItemApi(apiConfig),
+      catalogItemPrice: createCatalogItemPriceApi(apiConfig),
       catalogAccess: createCatalogAccessApi(apiConfig),
       promotion: createPromotionApi(apiConfig),
       promotionCode: createPromotionCodeApi(apiConfig),
@@ -505,6 +510,10 @@ function isIssuedCustomerSession(value: unknown): value is CustomerSessionIssued
   );
 }
 
+function isStoredContact(value: unknown): value is EmailContact {
+  return isRecord(value) && typeof value.email === "string" && typeof value.language === "string";
+}
+
 function isStoredCustomer(value: unknown): value is StorefrontCustomer {
   return (
     isRecord(value) &&
@@ -513,7 +522,7 @@ function isStoredCustomer(value: unknown): value is StorefrontCustomer {
     Array.isArray(value.profile) &&
     isRecord(value.type) &&
     (value.type.type === "anonymous" ||
-      (value.type.type === "verified" && typeof value.type.email === "string" && Array.isArray(value.type.addresses))) &&
+      (value.type.type === "verified" && isStoredContact(value.type.contact) && Array.isArray(value.type.addresses))) &&
     isEpochMilliseconds(value.created_at) &&
     isEpochMilliseconds(value.updated_at)
   );
@@ -736,10 +745,10 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
     return durableCreateKey(storageKey, flow, customerId, target);
   }
 
-  function verifiedEmail(): string | null {
+  function verifiedContact(): EmailContact | null {
     const current = memorySession;
     if (!current || current.session.type !== "email_authenticated" || current.customer.type.type !== "verified") return null;
-    return current.customer.type.email;
+    return current.customer.type.contact;
   }
 
   const flows: StorefrontFlowContext = {
@@ -751,7 +760,7 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
       if (!value) throw new TypeError("Set the storefront locale with setContext({ locale }), or pass one with the call");
       return value;
     },
-    verifiedEmail,
+    verifiedContact,
   };
 
   const storefrontApi = createStorefrontApi(
@@ -813,14 +822,14 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
     if (params.id !== undefined) requireId(params.id, "sign-in email");
     await ensureVisitorSession();
     const send = (id: string) =>
-      customerApi.requestCode({ id, email: params.email, language: params.language, bot_check_token: params.bot_check_token });
+      customerApi.requestCode({ id, contact: params.contact, bot_check_token: params.bot_check_token });
     const result =
       params.id !== undefined
         ? await send(params.id)
         : await runDurableCreate({
             key: pendingKey("sign-in-email", ""),
             label: "sign-in code request",
-            input: { email: params.email, language: params.language },
+            input: { contact: { email: params.contact.email, language: params.contact.language } },
             newId: () => newId("sign-in email"),
             send,
             confirms: () => true,
@@ -919,23 +928,23 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
   }
 
   async function requestNewsletterCode(params: RequestNewsletterCodeParams): Promise<RequestNewsletterCodeResult> {
-    const signedIn = verifiedEmail();
-    if (signedIn !== null && sameEmail(signedIn, params.email)) return { type: "verified" };
+    const signedIn = verifiedContact();
+    if (signedIn !== null && sameEmail(signedIn.email, params.contact.email)) return { type: "verified" };
     if (memorySession?.session.type === "email_authenticated") await logout();
-    await requestCode({ email: params.email, language: params.language, bot_check_token: params.bot_check_token });
+    await requestCode({ contact: params.contact, bot_check_token: params.bot_check_token });
     return { type: "code_sent" };
   }
 
   async function joinNewsletter(params: JoinNewsletterParams, requestOptions?: RequestOptions): Promise<JoinFreeCustomerGroupResult> {
     if (params.code !== undefined) {
       const result = await verify({ code: params.code });
-      const email = result.customer.type.type === "verified" ? result.customer.type.email : null;
+      const email = result.customer.type.type === "verified" ? result.customer.type.contact.email : null;
       if (result.session.type !== "email_authenticated" || email === null || !sameEmail(email, params.email)) {
         throw new CustomerGroupJoinError("email_mismatch", "The code confirmed another email address; start again");
       }
     }
-    const signedIn = verifiedEmail();
-    if (signedIn === null || !sameEmail(signedIn, params.email)) {
+    const signedIn = verifiedContact();
+    if (signedIn === null || !sameEmail(signedIn.email, params.email)) {
       throw new CustomerGroupJoinError("sign_in_required", "Confirm the email address with its code first");
     }
     return storefrontApi.eshop.customerGroup.joinFree(

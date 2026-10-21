@@ -41,7 +41,8 @@ export type PromotionCondition =
   | { type: "company_location"; ids: string[] }
   | { type: "market"; ids: string[] }
   | { type: "sales_channel"; ids: string[] }
-  | { type: "minimum_subtotal"; amounts: Money[] };
+  | { type: "minimum_subtotal"; amounts: Money[] }
+  | { type: "item_quantity"; target: PromotionTarget; min_quantity: number; max_quantity: number | null };
 
 export type PromotionFixedScope = { type: "per_unit" } | { type: "once_per_order" };
 

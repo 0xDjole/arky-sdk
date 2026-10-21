@@ -74,10 +74,10 @@ test("the webhook event list carries the ten customer group member events and no
   assert.deepEqual(WEBHOOK_UNIT_EVENT_TYPES.filter((event) => event.startsWith("customer_group_member.")), memberEvents);
   for (const kept of ["customer_group.created", "customer_group.updated"]) assert.ok(WEBHOOK_UNIT_EVENT_TYPES.includes(kept), kept);
   for (const retired of ["customer_group.member_added", "customer_group.member_removed"]) assert.equal(WEBHOOK_UNIT_EVENT_TYPES.includes(retired), false, retired);
-  for (const added of ["refund.created", "refund.failed", "fulfillment.dispatched", "order_booking_item.attended", "product_variant.created", "price.deleted", "inventory_level.updated", "promotion.created", "company_location.created", "customer_group.deleted"]) {
+  for (const added of ["refund.created", "refund.failed", "fulfillment.dispatched", "order_booking_item.attended", "product_variant.created", "catalog_item_price.deleted", "inventory_level.updated", "promotion.created", "company_location.created", "customer_group.deleted"]) {
     assert.ok(WEBHOOK_UNIT_EVENT_TYPES.includes(added), added);
   }
-  for (const retired of ["order.refunded", "fulfillment.sent", "order_booking_item.completed", "customer_group_member.next_purchase_skipped", "store.created", "account.updated"]) {
+  for (const retired of ["order.refunded", "fulfillment.sent", "order_booking_item.completed", "customer_group_member.next_purchase_skipped", "store.created", "account.updated", "price.created", "price.updated", "price.deleted"]) {
     assert.equal(WEBHOOK_UNIT_EVENT_TYPES.includes(retired), false, retired);
   }
   assert.deepEqual(WEBHOOK_UNIT_EVENT_TYPES.filter((event) => event.startsWith("subscription.")), []);

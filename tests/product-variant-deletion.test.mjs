@@ -28,7 +28,7 @@ test("variant deletion preserves the version and distinguishes accepted deletion
   const id = "5b572371-c4fe-4a59-88c5-a8e704724b13";
   const expected = 1789822000000;
   const value = { id, store_id: storeId, product_id: "467f22db-ff1f-4559-8558-2f27aa1a5aed", sku: null,
-    blocks: [], options: [], options_valid: true, fulfillment: { type: "none" }, tax_category_id: "standard",
+    blocks: [], fulfillment: { type: "none" }, tax_category_id: "standard",
     status: { type: "deleting" }, created_at: expected - 1000, updated_at: expected + 1 };
   const calls = [];
   let status = 202;

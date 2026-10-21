@@ -28,7 +28,7 @@ const addressA = { name: "Ana", company: null, street1: "Main 1", street2: null,
 const addressB = { ...addressA, street1: "Side 2" };
 
 function productLine(id, variantId, quantity = 1) {
-  return { type: "product", id, variant_id: variantId, quantity, form_submission_id: null, price_override: null, purchase: { type: "catalog" } };
+  return { type: "product", id, variant_id: variantId, quantity, form_submission_id: null, purchase: { type: "catalog", catalog_item_price_id: ids.price } };
 }
 
 function quoteLine(lineId, productId, variantId) {
@@ -41,10 +41,10 @@ function variant(id, productId, profile) {
     product_id: productId,
     sku: null,
     blocks: [],
-    options: [],
     fulfillment: { type: "physical", shipping_profile_id: profile, inventory_requirements: [], backorder: { type: "disallow" } },
     tax_category_id: ids.paymentOption,
     status: { type: "active" },
+    catalog_item_id: ids.catalogItem,
     price: null,
   };
 }
@@ -115,7 +115,7 @@ test("addProduct takes its line id from the factory when none is given", async (
   const arky = store(idSequence(factoryId(5)));
   const cart = arky.eshop.cart({ buyer: customer, catalog_id: ids.catalog });
   await cart.create({ id: ids.cart });
-  await cart.addProduct({ variant_id: ids.variant, quantity: 1, purchase: { type: "catalog" } });
+  await cart.addProduct({ variant_id: ids.variant, quantity: 1, purchase: { type: "catalog", catalog_item_price_id: ids.price } });
   assert.equal(calls[1].body.product.id, factoryId(5));
   assert.equal(cart.item_count.get(), 1);
 });
@@ -145,7 +145,7 @@ test("a cart write whose answer is lost drops the cart view, so ensure reads the
   const scoped = arky.eshop.cart({ buyer: customer, catalog_id: ids.catalog });
   await scoped.create({ id: ids.cart });
 
-  await assert.rejects(scoped.addProduct({ variant_id: ids.variant, quantity: 1, purchase: { type: "catalog" } }), /Lost response/);
+  await assert.rejects(scoped.addProduct({ variant_id: ids.variant, quantity: 1, purchase: { type: "catalog", catalog_item_price_id: ids.price } }), /Lost response/);
   assert.equal(scoped.cart.get(), null);
   assert.equal(scoped.quote_result.get(), null);
   assert.equal(scoped.status.get().error.code, "network");
@@ -315,7 +315,7 @@ test("the cart store of a scope is the one its checkout flow and booking calenda
   assert.equal(calendar.scope, cart.scope);
   assert.equal(arky.eshop.cart({ buyer: customer, catalog_id: ids.catalog }), cart);
   await cart.ensure();
-  await cart.addProduct({ variant_id: ids.variant, quantity: 1, purchase: { type: "catalog" } });
+  await cart.addProduct({ variant_id: ids.variant, quantity: 1, purchase: { type: "catalog", catalog_item_price_id: ids.price } });
   assert.equal(checkout.state.get().cart.line_items.length, 1);
   assert.equal(checkout.cart.item_count.get(), 1);
   assert.equal("carts" in arky.eshop, false);
@@ -339,7 +339,7 @@ test("a signed-in shopper's token refresh during a cart write keeps the cart vie
   const arky = initialize(publishableKey, { ...idFactories, createId: idSequence(factoryId(1)), apiUrl, locale: "en", market: "hrv", sessionStorage: signedInStorage() });
   const scoped = arky.eshop.cart({ buyer: customer, catalog_id: ids.catalog });
   await scoped.create({ id: ids.cart });
-  const written = await scoped.addProduct({ variant_id: ids.variant, quantity: 1, purchase: { type: "catalog" } });
+  const written = await scoped.addProduct({ variant_id: ids.variant, quantity: 1, purchase: { type: "catalog", catalog_item_price_id: ids.price } });
   assert.deepEqual(written.line_items.map((line) => line.id), [factoryId(1)]);
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(arky.client.session.id, ids.otherSession);

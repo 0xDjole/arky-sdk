@@ -43,7 +43,7 @@ test("Admin reads need no Market or Store context and invent none", async (conte
 });
 
 test("email and webhook histories use distinct routes and preserve their public delivery states", async (context) => {
-  const email = { id: ids.payment, type: { type: "receipt_resend", sending_address_id: ids.paymentOption, order_id: ids.order }, to: "buyer@example.test", send_before: null, status: { type: "waiting" }, created_at: 1, updated_at: 1 };
+  const email = { id: ids.payment, type: { type: "receipt_resend", sending_address_id: ids.paymentOption, order_id: ids.order }, to: "buyer@example.test", email_provider_id: null, delivery_report: null, complained_at: null, preview: null, send_before: null, status: { type: "waiting" }, created_at: 1, updated_at: 1 };
   const webhook = { id: ids.credit, store_id: storeId, webhook_id: ids.form, event_id: ids.submission, event_type: "order.created", status: { type: "acknowledged", at: 2 }, created_at: 1, updated_at: 2 };
   const responses = [{ items: [email], cursor: null }, email, { items: [webhook], cursor: null }];
   const calls = recordFetch(context, () => responses.shift());
@@ -80,13 +80,13 @@ test("Store invitation login names its Store and wraps the platform-wide pending
   const responses = [{ session_id: "session-invitation-contract", verification_expires_at: 900 }, issued({ id: "0b8e4d27-5f13-4a69-9c2e-7d1a6f3b8e40" })];
   const calls = recordFetch(context, () => responses.shift());
   const client = createAdmin({ apiUrl: baseUrl });
-  const pending = await client.account.auth.requestCode({ email: "invitee@example.test", store_id: otherStoreId });
+  const pending = await client.account.auth.requestCode({ email: "invitee@example.test", store_id: otherStoreId, language: "bs" });
   const verified = await client.account.auth.verify({ session_id: pending.session_id, code: "123456", store_id: otherStoreId });
   assert.equal(verified.id, "0b8e4d27-5f13-4a69-9c2e-7d1a6f3b8e40");
-  await assert.rejects(async () => client.account.auth.requestCode({ email: "invitee@example.test", store_id: "store-invitation-contract" }), TypeError);
+  await assert.rejects(async () => client.account.auth.requestCode({ email: "invitee@example.test", store_id: "store-invitation-contract", language: "bs" }), TypeError);
   await assert.rejects(async () => client.account.auth.verify({ session_id: "pending", code: "123456", store_id: "" }), TypeError);
   assert.deepEqual(calls.map((call) => [call.method, call.href, call.body]), [
-    ["POST", `${baseUrl}/v1/stores/${otherStoreId}/auth/code`, { email: "invitee@example.test" }],
+    ["POST", `${baseUrl}/v1/stores/${otherStoreId}/auth/code`, { email: "invitee@example.test", language: "bs" }],
     ["POST", `${baseUrl}/v1/stores/${otherStoreId}/auth/verify`, { session_id: "session-invitation-contract", code: "123456" }],
   ]);
 });
@@ -166,6 +166,7 @@ test("Store create carries the app-picked id, its languages, first market and ch
     name: "Client Contract",
     timezone: "Europe/Sarajevo",
     languages: ["en", "bs"],
+    location_address: { country: "BA", city: "Sarajevo", postal_code: "71000", street1: "1 Contract Way" },
     market: { key: "bih", currency: "bam", tax_mode: "inclusive" },
     sales_channel: { key: "web" },
   };
@@ -333,10 +334,10 @@ test("admin Product writes carry the app-picked id and version and InventoryLeve
 test("storefront variant read carries the exact product and buyer context", async (context) => {
   const calls = recordFetch(context, () => ({}));
   const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl: baseUrl, locale: "en" });
-  await storefront.eshop.productVariant.get({ product_id: "lean-product", id: "variant-one", company_location_id: "location-one", include_price: true });
-  await storefront.eshop.productVariant.get({ product_id: "lean-product", id: "variant-one", company_id: "company-one" });
-  assert.equal(calls[0].href, `${baseUrl}/v1/storefront/products/lean-product/variants/variant-one?company_location_id=location-one&include_price=true`);
-  assert.equal(calls[1].href, `${baseUrl}/v1/storefront/products/lean-product/variants/variant-one?company_id=company-one`);
+  await storefront.eshop.productVariant.get({ product_id: "lean-product", id: "variant-one", catalog_id: ids.catalog, company_location_id: "location-one", include_price: true });
+  await storefront.eshop.productVariant.get({ product_id: "lean-product", id: "variant-one", catalog_id: ids.catalog, company_id: "company-one" });
+  assert.equal(calls[0].href, `${baseUrl}/v1/storefront/products/lean-product/variants/variant-one?catalog_id=${ids.catalog}&company_location_id=location-one&include_price=true`);
+  assert.equal(calls[1].href, `${baseUrl}/v1/storefront/products/lean-product/variants/variant-one?catalog_id=${ids.catalog}&company_id=company-one`);
   assert.equal(calls[0].headers.get("x-arky-publishable-key"), publishableKey);
 });
 
@@ -362,7 +363,7 @@ test("storefront money helpers preserve exact zero, need an explicit locale and 
   const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl: baseUrl, market: "ita" });
   assert.equal("utils" in storefront, false);
   assert.equal("utils" in admin(), false);
-  const price = { tax_mode: "inclusive", unit_price: { amount: 0, currency: "eur" }, compare_at: null, min_quantity: 1, max_quantity: null, priced_at: 1 };
+  const price = { catalog_item_price_id: ids.price, tax_mode: "inclusive", unit_price: { amount: 0, currency: "eur" }, compare_at: null, priced_at: 1 };
   assert.equal(getPriceAmount(price), 0);
   assert.equal(formatPrice(price, "it"), formatMinor(0, "eur", "it"));
   assert.notEqual(formatPrice(price, "it"), "");
@@ -377,7 +378,7 @@ test("storefront money helpers preserve exact zero, need an explicit locale and 
 test("SDK_VERSION equals the package version", async () => {
   const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
   assert.equal(SDK_VERSION, packageJson.version);
-  assert.equal(SDK_VERSION, "0.26.92");
+  assert.equal(SDK_VERSION, "0.26.93");
 });
 
 test("recursive storefront declarations never degrade to any", async () => {

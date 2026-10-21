@@ -23,8 +23,7 @@ const productLine = {
   variant_id: ids.variant,
   quantity: 1,
   form_submission_id: null,
-  price_override: null,
-  purchase: { type: "catalog" },
+  purchase: { type: "catalog", catalog_item_price_id: ids.price },
 };
 const otherVisitorToken = `customer_visitor_${"w".repeat(64)}`;
 
@@ -201,7 +200,7 @@ test("a buyer or market change leaves an unresolved checkout request byte for by
   await assert.rejects(store.client.eshop.cart.recoverCheckout({ scope }), /response lost/);
   const pending = await scoped.pendingCheckout();
   assert.deepEqual(pending, request);
-  const key = `arky:cart-checkout:v4:${encodeURIComponent(`storefront:${apiUrl}:${publishableKey}`)}:${encodeURIComponent(`customer|${ids.catalog}`)}`;
+  const key = `arky:cart-checkout:v5:${encodeURIComponent(`storefront:${apiUrl}:${publishableKey}`)}:${encodeURIComponent(`customer|${ids.catalog}`)}`;
   const retained = durable.getItem(key);
   assert.ok(retained);
   store.setContext({ market: "market-b" });

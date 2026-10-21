@@ -106,10 +106,11 @@ test("members are invited by caller-picked identity and re-roled by membership i
     return new Response(JSON.stringify(String(url).endsWith("/roles") ? { id: "member", role_ids: [roleId] } : true), { status: 200, headers: { "content-type": "application/json" } });
   });
   const admin = createAdmin({ apiUrl: baseUrl, secretKey: "arky_account_access_contract" });
-  await admin.store.member.invite({ store_id: storeId, id: accountId, email: "packer@example.test", role_ids: [roleId] });
+  const contact = { email: "packer@example.test", language: "bs" };
+  await admin.store.member.invite({ store_id: storeId, id: accountId, contact, role_ids: [roleId] });
   await admin.store.member.updateRoles({ store_id: storeId, id: accountId, expected_updated_at: 5, role_ids: [roleId] });
   assert.deepEqual(calls.map(({ url, method, body }) => [method, url.pathname, body]), [
-    ["POST", `/v1/stores/${storeId}/invitation`, { id: accountId, email: "packer@example.test", role_ids: [roleId] }],
+    ["POST", `/v1/stores/${storeId}/invitation`, { id: accountId, contact, role_ids: [roleId] }],
     ["PUT", `/v1/stores/${storeId}/members/${accountId}/roles`, { expected_updated_at: 5, role_ids: [roleId] }],
   ]);
   await assert.rejects(async () => admin.store.member.updateRoles({ store_id: storeId, id: "slug", expected_updated_at: 5, role_ids: [] }), { name: "TypeError", message: /membership id must be a canonical UUID/ });
@@ -195,7 +196,8 @@ test("own workspace discovery retains each Store name and access without public 
 });
 
 test("a nonexpiring email invite is explicitly resent and accepted with its current version", async (context) => {
-  const invited = { id: "member", store_id: storeId, store_name: "Contract Store", role_ids: [roleId], access: { permissions: [] }, status: { type: "invited", email: "packer@example.test" }, created_at: 1, updated_at: 2 };
+  const contact = { email: "packer@example.test", language: "en" };
+  const invited = { id: "member", store_id: storeId, store_name: "Contract Store", role_ids: [roleId], access: { permissions: [] }, status: { type: "invited", contact }, created_at: 1, updated_at: 2 };
   const accepted = { id: "member", store_id: storeId, role_ids: [roleId], status: { type: "active", account_id: accountId }, created_at: 1, updated_at: 3 };
   const calls = [];
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
@@ -206,14 +208,14 @@ test("a nonexpiring email invite is explicitly resent and accepted with its curr
     return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
   });
   const admin = createAdmin({ apiUrl: baseUrl, secretKey: "arky_account_access_contract" });
-  const invite = { store_id: storeId, id: accountId, email: "packer@example.test", role_ids: [roleId] };
+  const invite = { store_id: storeId, id: accountId, contact, role_ids: [roleId] };
   assert.equal(await admin.store.member.invite(invite), true);
   assert.equal(await admin.store.member.resendInvite({ store_id: storeId, id: accountId, expected_updated_at: 2 }), true);
   const own = await admin.store.member.getOwn({ store_id: storeId });
-  assert.deepEqual(own.status, { type: "invited", email: invite.email });
+  assert.deepEqual(own.status, { type: "invited", contact });
   assert.deepEqual(await admin.store.member.acceptInvite({ store_id: storeId, expected_updated_at: own.updated_at }), accepted);
   assert.deepEqual(calls.map(({ url, method, body }) => [method, url.pathname, body]), [
-    ["POST", `/v1/stores/${storeId}/invitation`, { id: accountId, email: "packer@example.test", role_ids: [roleId] }],
+    ["POST", `/v1/stores/${storeId}/invitation`, { id: accountId, contact, role_ids: [roleId] }],
     ["POST", `/v1/stores/${storeId}/members/${accountId}/invitation`, { expected_updated_at: 2 }],
     ["GET", `/v1/stores/${storeId}/membership`, null],
     ["POST", `/v1/stores/${storeId}/membership/accept`, { expected_updated_at: 2 }],

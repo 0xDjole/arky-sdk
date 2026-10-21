@@ -153,7 +153,7 @@ test("support start and send reuse their factory ids after a lost answer", async
       lose = false;
       throw new TypeError("Lost response");
     }
-    const conversation = { id: conversationId, language: "en", status: { type: "team" }, created_at: 1, updated_at: 1 };
+    const conversation = { id: conversationId, language: "en", state: "waiting_for_team", created_at: 1, updated_at: 1 };
     if (call.path === "/v1/storefront/conversations") return { conversation, messages: [] };
     return {
       conversation,
@@ -192,16 +192,18 @@ test("requestCode keeps its factory id for the same email and takes a new one fo
       email_verification: { issued_at: 1, expires_at: 2 },
     };
   });
-  const client = storefront(idSequence(factoryId(1), factoryId(2)));
-  await assert.rejects(client.customer.requestCode({ email: "ana@example.test", language: "en" }), /Lost response/);
-  await client.customer.requestCode({ email: "ana@example.test", language: "en", bot_check_token: "fresh-token" });
-  await client.customer.requestCode({ email: "ivo@example.test", language: "en" });
-  await client.customer.requestCode({ id: ids.submission, email: "ivo@example.test", language: "en" });
-  assert.deepEqual(calls.map((call) => [call.body.id, call.body.email]), [
-    [factoryId(1), "ana@example.test"],
-    [factoryId(1), "ana@example.test"],
-    [factoryId(2), "ivo@example.test"],
-    [ids.submission, "ivo@example.test"],
+  const client = storefront(idSequence(factoryId(1), factoryId(2), factoryId(3)));
+  await assert.rejects(client.customer.requestCode({ contact: { email: "ana@example.test", language: "en" } }), /Lost response/);
+  await client.customer.requestCode({ contact: { email: "ana@example.test", language: "en" }, bot_check_token: "fresh-token" });
+  await client.customer.requestCode({ contact: { email: "ivo@example.test", language: "en" } });
+  await client.customer.requestCode({ contact: { email: "ivo@example.test", language: "hr" } });
+  await client.customer.requestCode({ id: ids.submission, contact: { email: "ivo@example.test", language: "en" } });
+  assert.deepEqual(calls.map((call) => [call.body.id, call.body.contact]), [
+    [factoryId(1), { email: "ana@example.test", language: "en" }],
+    [factoryId(1), { email: "ana@example.test", language: "en" }],
+    [factoryId(2), { email: "ivo@example.test", language: "en" }],
+    [factoryId(3), { email: "ivo@example.test", language: "hr" }],
+    [ids.submission, { email: "ivo@example.test", language: "en" }],
   ]);
   assert.equal(calls[1].body.bot_check_token, "fresh-token");
 });
@@ -232,7 +234,7 @@ test("a checkout without ids takes them from the factories, keeps them, and bloc
   const { order_id: _orderId, order_token: _orderToken, ...draft } = checkoutRequest();
   await assert.rejects(client.eshop.cart.checkout(draft), /Lost response/);
   assert.equal((await client.eshop.cart.pendingCheckout()).order_id, orderId);
-  await assert.rejects(client.eshop.cart.checkout({ ...draft, contact_email: "other@example.test" }), /Recover the unfinished cart checkout/);
+  await assert.rejects(client.eshop.cart.checkout({ ...draft, contact_email: { email: "other@example.test", language: "en" } }), /Recover the unfinished cart checkout/);
   assert.deepEqual(await client.eshop.cart.checkout(draft), placedAcceptance());
   assert.equal(await client.eshop.cart.pendingCheckout(), null);
   const accepts = calls.filter((call) => call.path === "/v1/storefront/carts/accept");

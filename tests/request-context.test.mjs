@@ -21,8 +21,8 @@ function storefront() {
 test("a per-call locale and market change one request's headers on the same session", async (context) => {
   const calls = recordFetch(context, (call) => (call.path === "/v1/storefront/customer/me" ? { customer: {}, session: {} } : { items: [], cursor: null }));
   const client = storefront();
-  await client.eshop.product.find({ catalog_id: ids.catalog, limit: 1 }, { locale: "it" });
-  await client.eshop.product.find({ catalog_id: ids.catalog, limit: 1 }, { locale: "it", market: "ita" });
+  await client.eshop.catalogItem.find({ catalog_id: ids.catalog, limit: 1 }, { locale: "it" });
+  await client.eshop.catalogItem.find({ catalog_id: ids.catalog, limit: 1 }, { locale: "it", market: "ita" });
   await client.content.entry.find({ collection_id: ids.form, limit: 1 });
   assert.deepEqual(
     calls.map((call) => [call.headers.get("x-arky-locale"), call.headers.get("x-arky-market")]),
@@ -40,8 +40,8 @@ test("a per-call locale and market change one request's headers on the same sess
 test("per-call context is checked, refused on cart calls and refused by Admin", async (context) => {
   const calls = recordFetch(context, () => cartRecord());
   const client = storefront();
-  await assert.rejects(client.eshop.product.find({ catalog_id: ids.catalog }, { locale: "  " }), /per-call locale/);
-  await assert.rejects(client.eshop.product.find({ catalog_id: ids.catalog }, { market: "Not A Key" }), /market/);
+  await assert.rejects(client.eshop.catalogItem.find({ catalog_id: ids.catalog }, { locale: "  " }), /per-call locale/);
+  await assert.rejects(client.eshop.catalogItem.find({ catalog_id: ids.catalog }, { market: "Not A Key" }), /market/);
   await assert.rejects(client.eshop.cart.get({ id: ids.cart }, { market: "ita" }), /storefront's market/);
   await assert.rejects(
     client.eshop.cart.create({ id: ids.cart, buyer: { type: "customer" }, catalog_id: ids.catalog }, { market: "ita" }),

@@ -46,11 +46,10 @@ export const createAuthApi = (
       params: RequestPendingAccountSessionParams,
       options?: RequestOptions,
     ): Promise<PendingAccountSession> {
-      const result = await apiConfig.httpClient.post<PendingAccountSession>(
-        authPath(params.store_id, "code"),
-        { email: params.email },
-        options,
-      );
+      const body = params.store_id === undefined
+        ? { email: params.email }
+        : { email: params.email, language: params.language };
+      const result = await apiConfig.httpClient.post<PendingAccountSession>(authPath(params.store_id, "code"), body, options);
       pendingEmails.set(result.session_id, params.email);
       return result;
     },

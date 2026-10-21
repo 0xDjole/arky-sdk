@@ -32,19 +32,33 @@ export function formatServiceSlotRange(from: EpochMilliseconds, to: EpochMillise
   return `${format(from)} - ${format(to)}`;
 }
 
+export interface AvailableSlot {
+  from: EpochMilliseconds;
+  to: EpochMilliseconds;
+  bookingResourceId: string;
+  bookingOfferingId: string;
+}
+
 export function getSlotsForDate(
   availability: AvailabilityResponse | null,
   dateStr: string,
   bookingResourceId?: string | null,
-): { from: EpochMilliseconds; to: EpochMilliseconds; bookingResourceId: string }[] {
+): AvailableSlot[] {
   if (!availability) return [];
-  const slots: { from: EpochMilliseconds; to: EpochMilliseconds; bookingResourceId: string }[] = [];
+  const slots: AvailableSlot[] = [];
   for (const resource of availability.booking_resources) {
     if (bookingResourceId && resource.booking_resource_id !== bookingResourceId) continue;
     const day = resource.days.find((candidate) => candidate.date === dateStr);
     if (!day) continue;
     for (const slot of day.slots) {
-      if (slot.spots > 0) slots.push({ from: slot.from, to: slot.to, bookingResourceId: resource.booking_resource_id });
+      if (slot.spots > 0) {
+        slots.push({
+          from: slot.from,
+          to: slot.to,
+          bookingResourceId: resource.booking_resource_id,
+          bookingOfferingId: resource.booking_offering_id,
+        });
+      }
     }
   }
   return slots.sort((a, b) => a.from - b.from);

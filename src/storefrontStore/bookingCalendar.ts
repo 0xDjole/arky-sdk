@@ -1,11 +1,11 @@
 import { computed, map, type ReadableAtom } from "nanostores";
 import type { EpochMilliseconds } from "../types/time";
 import type { Cart } from "../types/cart";
-import type { CatalogReadOptions } from "../types/catalog";
+import type { CatalogChoice, CatalogContext } from "../types/catalog";
 import type {
   AvailabilityResponse,
+  BookingResourceAvailability,
   GetStorefrontAvailabilityParams,
-  StorefrontBookingOffering,
   StorefrontBookingResource,
 } from "../types/product";
 import { ArkyError } from "../types/apiError";
@@ -38,8 +38,7 @@ export interface BookingCalendarContext {
   requireLocale(): string;
 }
 
-const offeringsPerRead = 200;
-const resourcesPerRead = 200;
+const choicesPerRead = 100;
 const availabilityPerRead = 20;
 const chainedDays = 31;
 
@@ -50,8 +49,8 @@ function firstOfMonth(date: Date): Date {
 function emptyState(): ArkyBookingCalendarState {
   return {
     booking_service: null,
-    booking_offerings: [],
-    booking_offerings_cursor: null,
+    booking_choices: [],
+    booking_choices_cursor: null,
     booking_resources: [],
     selected_booking_resource_id: null,
     availability: null,
@@ -62,18 +61,37 @@ function emptyState(): ArkyBookingCalendarState {
     selected_slot: null,
     timezone: typeof window !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC",
     loading: false,
-    loading_offerings: false,
+    loading_choices: false,
   };
 }
 
-function mergeById<T extends { id: string }>(current: T[], added: T[]): T[] {
-  return [...new Map([...current, ...added].map((item) => [item.id, item])).values()];
+function mergeResources(current: StorefrontBookingResource[], added: StorefrontBookingResource[]): StorefrontBookingResource[] {
+  return [...new Map([...current, ...added].map((resource) => [resource.id, resource])).values()];
+}
+
+function mergeChoices(current: CatalogChoice[], added: CatalogChoice[]): CatalogChoice[] {
+  return [...new Map([...current, ...added].map((choice) => [choice.catalog_item_price_id, choice])).values()];
+}
+
+function choiceFor(current: ArkyBookingCalendarState, bookingOfferingId: string): CatalogChoice | null {
+  return (
+    current.booking_choices.find(
+      (choice) => choice.sellable.type === "booking_offering" && choice.sellable.booking_offering_id === bookingOfferingId,
+    ) ?? null
+  );
+}
+
+function resourceAvailability(
+  current: ArkyBookingCalendarState,
+  bookingResourceId: string,
+): BookingResourceAvailability | null {
+  return current.availability?.booking_resources.find((resource) => resource.booking_resource_id === bookingResourceId) ?? null;
 }
 
 export function createBookingCalendar(context: BookingCalendarContext, cart: CartStore) {
   const { client, locale } = context;
   const scope = cart.scope;
-  const catalog: CatalogReadOptions = { ...buyerParty(scope.buyer), catalog_id: scope.catalog_id };
+  const catalog: CatalogContext = { ...buyerParty(scope.buyer), catalog_id: scope.catalog_id };
   const state = map<ArkyBookingCalendarState>(emptyState());
   const month_label = computed([state, locale], (current, language) =>
     language ? current.month.toLocaleString(language, { month: "long", year: "numeric" }) : "",
@@ -87,15 +105,6 @@ export function createBookingCalendar(context: BookingCalendarContext, cart: Car
 
   function patch(values: Partial<ArkyBookingCalendarState>): void {
     state.set({ ...state.get(), ...values });
-  }
-
-  function offeringFor(current: ArkyBookingCalendarState, bookingResourceId: string | null): StorefrontBookingOffering | null {
-    const serviceId = current.booking_service?.id;
-    if (!serviceId) return null;
-    const offerings = current.booking_offerings.filter((offering) => offering.booking_service_id === serviceId);
-    const resourceId = bookingResourceId ?? current.selected_slot?.booking_resource_id ?? current.selected_booking_resource_id;
-    if (resourceId) return offerings.find((offering) => offering.booking_resource_id === resourceId) ?? null;
-    return offerings.length === 1 ? offerings[0] : null;
   }
 
   function days(current: ArkyBookingCalendarState): ArkyCalendarDay[] {
@@ -146,17 +155,17 @@ export function createBookingCalendar(context: BookingCalendarContext, cart: Car
     if (!service) return [];
     const language = context.requireLocale();
     return getSlotsForDate(current.availability, date, current.selected_booking_resource_id).flatMap((slot, index) => {
-      const offering = current.booking_offerings.find(
-        (candidate) => candidate.booking_service_id === service.id && candidate.booking_resource_id === slot.bookingResourceId,
-      );
-      if (!offering) return [];
+      const choice = choiceFor(current, slot.bookingOfferingId);
+      if (!choice) return [];
       const multiDay = slotSpansDays(slot.from, slot.to, current.timezone);
       return [
         {
-          id: `${offering.id}-${slot.from}-${index}`,
+          id: `${slot.bookingOfferingId}-${slot.from}-${index}`,
           booking_service_id: service.id,
           booking_resource_id: slot.bookingResourceId,
-          booking_offering_id: offering.id,
+          booking_offering_id: slot.bookingOfferingId,
+          catalog_item_price_id: choice.catalog_item_price_id,
+          price: choice.price,
           from: slot.from,
           to: slot.to,
           is_multi_day: multiDay,
@@ -221,8 +230,11 @@ export function createBookingCalendar(context: BookingCalendarContext, cart: Car
         ...(current.selected_booking_resource_id ? { booking_resource_id: current.selected_booking_resource_id } : {}),
       });
       if (selection !== selectionRevision || requestRevision !== availabilityRevision) return;
+      const resources = await readResources(availability);
+      if (selection !== selectionRevision || requestRevision !== availabilityRevision) return;
       const previous = state.get().availability;
       patch({
+        booking_resources: mergeResources(state.get().booking_resources, resources),
         availability:
           cursor && previous
             ? {
@@ -244,14 +256,45 @@ export function createBookingCalendar(context: BookingCalendarContext, cart: Car
     }
   }
 
-  async function readResources(offerings: StorefrontBookingOffering[]): Promise<StorefrontBookingResource[]> {
-    const ids = [...new Set(offerings.map((offering) => offering.booking_resource_id))];
-    if (!ids.length) return [];
-    return (await client.eshop.bookingResource.find({ ids, limit: resourcesPerRead })).items;
+  async function readResources(availability: AvailabilityResponse): Promise<StorefrontBookingResource[]> {
+    const known = new Set(state.get().booking_resources.map((resource) => resource.id));
+    const missing = new Map<string, string>();
+    for (const resource of availability.booking_resources) {
+      if (!known.has(resource.booking_resource_id)) missing.set(resource.booking_resource_id, resource.booking_offering_id);
+    }
+    const read = await Promise.all(
+      [...missing].map(([id, offeringId]) => client.eshop.bookingResource.get({ ...catalog, id, offering_id: offeringId })),
+    );
+    for (const resource of read) {
+      if (!missing.has(resource.id)) throw new ArkyError("answer_mismatch", "A booking resource read answered another resource");
+    }
+    return read;
+  }
+
+  async function readChoices(catalogItemId: string, cursor: string | null) {
+    const page = await client.eshop.catalogItem.findPrices({
+      ...catalog,
+      catalog_item_id: catalogItemId,
+      include_price: true,
+      limit: choicesPerRead,
+      ...(cursor === null ? {} : { cursor }),
+    });
+    if (cursor !== null && page.cursor === cursor) throw new ArkyError("answer_mismatch", "Price paging didn't advance");
+    return page;
   }
 
   function clearSelection(): Partial<ArkyBookingCalendarState> {
     return { selected_date: null, slots: [], selected_slot: null };
+  }
+
+  function assertBookable(current: ArkyBookingCalendarState, slot: ArkyBookingSlot): void {
+    const resource = resourceAvailability(current, slot.booking_resource_id);
+    if (!resource || resource.booking_offering_id !== slot.booking_offering_id) {
+      throw new TypeError(`Booking resource ${slot.booking_resource_id} has no matching offering`);
+    }
+    if (choiceFor(current, slot.booking_offering_id)?.catalog_item_price_id !== slot.catalog_item_price_id) {
+      throw new TypeError(`Booking offering ${slot.booking_offering_id} has no matching price in this catalog`);
+    }
   }
 
   return {
@@ -264,32 +307,24 @@ export function createBookingCalendar(context: BookingCalendarContext, cart: Car
       availabilityRevision += 1;
       patch({
         booking_service: null,
-        booking_offerings: [],
-        booking_offerings_cursor: null,
+        booking_choices: [],
+        booking_choices_cursor: null,
         booking_resources: [],
         selected_booking_resource_id: null,
         availability: null,
         ...clearSelection(),
         loading: true,
-        loading_offerings: false,
+        loading_choices: false,
       });
       try {
-        const [service, offeringPage] = await Promise.all([
-          client.eshop.bookingService.get({ ...catalog, id: params.booking_service_id, include_price: true }),
-          client.eshop.bookingOffering.find({
-            ...catalog,
-            booking_service_id: params.booking_service_id,
-            include_price: true,
-            limit: offeringsPerRead,
-          }),
-        ]);
-        const resources = await readResources(offeringPage.items);
+        const service = await client.eshop.bookingService.get({ ...catalog, id: params.booking_service_id });
+        if (service.id !== params.booking_service_id) throw new ArkyError("answer_mismatch", "The booking service read answered another service");
+        const page = await readChoices(service.catalog_item_id, null);
         if (selection !== selectionRevision) return state.get();
         patch({
           booking_service: service,
-          booking_offerings: offeringPage.items,
-          booking_offerings_cursor: offeringPage.cursor,
-          booking_resources: resources,
+          booking_choices: page.items,
+          booking_choices_cursor: page.cursor,
           month: firstOfMonth(new Date()),
           loading: false,
         });
@@ -301,33 +336,23 @@ export function createBookingCalendar(context: BookingCalendarContext, cart: Car
       }
     },
 
-    async loadMoreOfferings(): Promise<ArkyBookingCalendarState> {
+    async loadMoreChoices(): Promise<ArkyBookingCalendarState> {
       const current = state.get();
-      if (!current.booking_service || !current.booking_offerings_cursor || current.loading_offerings) return current;
-      const serviceId = current.booking_service.id;
-      const cursor = current.booking_offerings_cursor;
+      if (!current.booking_service || !current.booking_choices_cursor || current.loading_choices) return current;
+      const service = current.booking_service;
       const selection = selectionRevision;
-      patch({ loading_offerings: true });
+      patch({ loading_choices: true });
       try {
-        const page = await client.eshop.bookingOffering.find({
-          ...catalog,
-          booking_service_id: serviceId,
-          include_price: true,
-          cursor,
-          limit: offeringsPerRead,
-        });
-        if (page.cursor === cursor) throw new ArkyError("answer_mismatch", "Offering paging didn't advance");
-        const resources = await readResources(page.items);
+        const page = await readChoices(service.catalog_item_id, current.booking_choices_cursor);
         const latest = state.get();
-        if (selection !== selectionRevision || latest.booking_service?.id !== serviceId) return latest;
+        if (selection !== selectionRevision || latest.booking_service?.id !== service.id) return latest;
         patch({
-          booking_offerings: mergeById(latest.booking_offerings, page.items),
-          booking_resources: mergeById(latest.booking_resources, resources),
-          booking_offerings_cursor: page.cursor,
+          booking_choices: mergeChoices(latest.booking_choices, page.items),
+          booking_choices_cursor: page.cursor,
         });
         refresh();
       } finally {
-        if (selection === selectionRevision) patch({ loading_offerings: false });
+        if (selection === selectionRevision) patch({ loading_choices: false });
       }
       return state.get();
     },
@@ -355,7 +380,7 @@ export function createBookingCalendar(context: BookingCalendarContext, cart: Car
 
     async selectResource(params: ArkySelectBookingResourceParams): Promise<ArkyBookingCalendarState> {
       const current = state.get();
-      if (params.booking_resource_id && !offeringFor(current, params.booking_resource_id)) {
+      if (params.booking_resource_id && !resourceAvailability(current, params.booking_resource_id)) {
         throw new TypeError(`Booking resource ${params.booking_resource_id} has no offering for the selected booking service`);
       }
       patch({ selected_booking_resource_id: params.booking_resource_id, ...clearSelection() });
@@ -390,10 +415,7 @@ export function createBookingCalendar(context: BookingCalendarContext, cart: Car
         if (current.selected_booking_resource_id && slot.booking_resource_id !== current.selected_booking_resource_id) {
           throw new TypeError("The slot doesn't belong to the selected booking resource");
         }
-        const offering = offeringFor(current, slot.booking_resource_id);
-        if (!offering || offering.id !== slot.booking_offering_id) {
-          throw new TypeError(`Booking resource ${slot.booking_resource_id} has no matching offering`);
-        }
+        assertBookable(current, slot);
       }
       const next = { ...current, selected_slot: slot };
       state.set({ ...next, days: days(next) });
@@ -405,10 +427,7 @@ export function createBookingCalendar(context: BookingCalendarContext, cart: Car
       if (!current.booking_service || slot.booking_service_id !== current.booking_service.id) {
         throw new TypeError("The slot doesn't belong to the selected booking service");
       }
-      const offering = offeringFor(current, slot.booking_resource_id);
-      if (!offering || offering.id !== slot.booking_offering_id) {
-        throw new TypeError(`Booking resource ${slot.booking_resource_id} has no matching offering`);
-      }
+      assertBookable(current, slot);
       await cart.ensure();
       const result = await cart.addBooking({
         ...(params.id !== undefined ? { id: params.id } : {}),
@@ -416,6 +435,7 @@ export function createBookingCalendar(context: BookingCalendarContext, cart: Car
         requested_interval: { from: slot.from, to: slot.to },
         capacity_units: params.capacity_units ?? 1,
         form_submission_id: params.form_submission_id ?? null,
+        catalog_item_price_id: slot.catalog_item_price_id,
       });
       patch(clearSelection());
       refresh();

@@ -48,5 +48,5 @@ export type NoteContracts = [
   Assert<Equal<keyof NoteCreateParams, "id" | "body">>,
   Assert<Equal<keyof NoteUpdateParams, "id" | "expected_updated_at" | "body">>,
   Assert<Missing<Admin["forms"], "createSubmissionNote" | "findSubmissionNotes" | "updateSubmissionNote" | "deleteSubmissionNote">>,
-  Assert<Equal<Awaited<ReturnType<Admin["forms"]["setSubmissionCompany"]>>["company_id"], string | null>>,
+  Assert<Missing<Admin["forms"], "setSubmissionCompany" | "assignSubmission">>,
 ];

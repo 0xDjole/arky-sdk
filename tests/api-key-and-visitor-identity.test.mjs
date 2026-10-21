@@ -38,8 +38,8 @@ test("visitor identity and code sends use caller-picked UUIDs without exposing s
   const memory = new Map();
   const client = createStorefront(publishableKey, { ...idFactories, apiUrl: "https://api.example.test", locale: "en", sessionStorage: { getItem: (key) => memory.get(key) ?? null, setItem: (key, value) => memory.set(key, value), removeItem: (key) => memory.delete(key) }, visitorIdentity: { customer_id: customerId, session_id: sessionId } });
   await client.customer.identify({ customer_id: customerId, session_id: sessionId });
-  await client.customer.requestCode({ id: emailId, email: "buyer@example.test", language: "en" });
-  assert.deepEqual(calls.map((call) => call.body), [{ customer_id: customerId, session_id: sessionId }, { id: emailId, email: "buyer@example.test", language: "en" }]);
+  await client.customer.requestCode({ id: emailId, contact: { email: "buyer@example.test", language: "en" } });
+  assert.deepEqual(calls.map((call) => call.body), [{ customer_id: customerId, session_id: sessionId }, { id: emailId, contact: { email: "buyer@example.test", language: "en" } }]);
   assert.equal("blocks" in client.session.customer, false);
   assert.equal(calls[1].headers.get("X-Arky-Locale"), "en");
 });

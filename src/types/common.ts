@@ -35,6 +35,11 @@ export interface PostalAddress {
 
 export type PostalAddressInput = Pick<PostalAddress, "country"> & Partial<Omit<PostalAddress, "country">>;
 
+export interface EmailContact {
+  email: string;
+  language: string;
+}
+
 export interface Coordinates {
   lat: number;
   lon: number;

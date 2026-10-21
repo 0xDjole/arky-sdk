@@ -1,11 +1,11 @@
 import type { RequestOptions, TransportOptions } from "../types/httpClient";
 import type {
+  CartBookingLineItemInput,
+  CartCustomerGroupLineItemInput,
+  CartLineItemInput,
+  CartProductLineItemInput,
   CartProductPurchase,
   FindStorefrontCartOffersParams,
-  StorefrontCartBookingLineItemInput,
-  StorefrontCartLineItemInput,
-  StorefrontCartProductLineItemInput,
-  StorefrontCartCustomerGroupLineItemInput,
   StorefrontUpdateCartParams,
 } from "../types/cart";
 import { requireId } from "./ids";
@@ -13,7 +13,7 @@ import { requireId } from "./ids";
 export function copyCartProductPurchase(purchase: CartProductPurchase): CartProductPurchase {
   switch (purchase.type) {
     case "catalog":
-      return { type: "catalog" };
+      return { type: "catalog", catalog_item_price_id: purchase.catalog_item_price_id };
     case "existing_purchase_access":
       return {
         type: "existing_purchase_access",
@@ -71,7 +71,7 @@ export function cartOffersQuery(input: FindStorefrontCartOffersParams): FindStor
   };
 }
 
-export function storefrontCartProduct(item: StorefrontCartProductLineItemInput): StorefrontCartProductLineItemInput {
+export function storefrontCartProduct(item: CartProductLineItemInput): CartProductLineItemInput {
   requireId(item.id, "cart line");
   return {
     id: item.id,
@@ -82,20 +82,19 @@ export function storefrontCartProduct(item: StorefrontCartProductLineItemInput):
   };
 }
 
-export function storefrontCartBooking(item: StorefrontCartBookingLineItemInput): StorefrontCartBookingLineItemInput {
+export function storefrontCartBooking(item: CartBookingLineItemInput): CartBookingLineItemInput {
   requireId(item.id, "cart line");
   return {
     id: item.id,
     booking_offering_id: item.booking_offering_id,
     requested_interval: { from: item.requested_interval.from, to: item.requested_interval.to },
     capacity_units: item.capacity_units,
+    catalog_item_price_id: item.catalog_item_price_id,
     ...(item.form_submission_id !== undefined ? { form_submission_id: item.form_submission_id } : {}),
   };
 }
 
-export function storefrontCartCustomerGroup(
-  item: StorefrontCartCustomerGroupLineItemInput,
-): StorefrontCartCustomerGroupLineItemInput {
+export function storefrontCartCustomerGroup(item: CartCustomerGroupLineItemInput): CartCustomerGroupLineItemInput {
   requireId(item.id, "cart line");
   return {
     id: item.id,
@@ -103,11 +102,12 @@ export function storefrontCartCustomerGroup(
     quantity: item.quantity,
     choices: item.choices.map(({ entitlement_id, variant_id }) => ({ entitlement_id, variant_id })),
     start: item.start,
+    catalog_item_price_id: item.catalog_item_price_id,
     ...(item.deliveries !== undefined ? { deliveries: item.deliveries } : {}),
   };
 }
 
-export function storefrontCartLineItems(items: readonly StorefrontCartLineItemInput[]): StorefrontCartLineItemInput[] {
+export function storefrontCartLineItems(items: readonly CartLineItemInput[]): CartLineItemInput[] {
   return items.map((item) => {
     switch (item.type) {
       case "product":

@@ -4,6 +4,7 @@ import type {
   Actor,
   CompanyPartyQuery,
   Currency,
+  EmailContact,
   PostalAddress,
   SortDirection,
   TaxMode,
@@ -35,7 +36,7 @@ export type OrderSource =
     };
 
 export interface OrderContact {
-  email: string | null;
+  email: EmailContact | null;
   first_name: string | null;
   last_name: string | null;
   phone: string | null;
@@ -106,11 +107,6 @@ export interface OrderAccessRevocation {
   reason: string;
 }
 
-export interface OrderVariantOption {
-  key: string;
-  value: string;
-}
-
 export interface OrderInventoryRequirementSnapshot {
   inventory_item_id: string;
   inventory_item_key: string;
@@ -138,21 +134,20 @@ export type OrderProductFulfillmentSnapshot =
     };
 
 export type OrderLinePrice =
-  | { type: "catalog"; price_id: string; catalog_id: string }
+  | { type: "catalog"; catalog_item_price_id: string; catalog_id: string }
   | {
       type: "purchase_access";
-      price_id: string;
+      catalog_item_price_id: string;
       catalog_id: string;
       customer_group_member_id: string | null;
     }
-  | { type: "manual"; catalog_id: string; actor: AccountActor; reason: string }
-  | { type: "offer" }
+  | { type: "offer"; catalog_item_price_id: string; catalog_id: string }
   | { type: "customer_group_allocation" };
 
 export interface OrderProductSnapshot {
   product_key: string;
   variant_sku: string | null;
-  options: OrderVariantOption[];
+  variant_blocks: Block[];
   price: OrderLinePrice;
   fulfillment: OrderProductFulfillmentSnapshot;
 }

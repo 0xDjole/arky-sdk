@@ -43,22 +43,16 @@ function bookingService() {
     status: { type: "active" },
     created_at: 1,
     updated_at: 1,
-    price: null,
+    catalog_item_id: ids.catalogItem,
   };
 }
 
-function bookingOffering() {
+function offeringChoice() {
   return {
-    id: offeringId,
-    store_id: ids.store,
-    booking_service_id: serviceId,
-    booking_resource_id: resourceId,
-    hours: { type: "resource" },
-    venue: { type: "store_location", store_location_id: ids.companyLocation },
-    status: { type: "active" },
-    created_at: 1,
-    updated_at: 1,
-    price: { tax_mode: "inclusive", unit_price: { amount: 5000, currency: "eur" }, compare_at: null, min_quantity: 1, max_quantity: null, priced_at: 1 },
+    catalog_item_price_id: ids.price,
+    sellable: { type: "booking_offering", booking_offering_id: offeringId },
+    content: { sku: null, blocks: [], basis: { type: "booking_option" } },
+    price: { catalog_item_price_id: ids.price, tax_mode: "inclusive", unit_price: { amount: 5000, currency: "eur" }, compare_at: null, priced_at: 1 },
   };
 }
 
@@ -66,8 +60,8 @@ function calendarServer(context) {
   let cart = null;
   return recordFetch(context, (call) => {
     if (call.path === `/v1/storefront/booking-services/${serviceId}`) return bookingService();
-    if (call.path === "/v1/storefront/booking-offerings") return { items: [bookingOffering()], cursor: null };
-    if (call.path === "/v1/storefront/booking-resources") return { items: [{ id: resourceId, key: "apartment-one", blocks: [] }], cursor: null };
+    if (call.path === `/v1/storefront/catalog-items/${ids.catalogItem}/prices`) return { items: [offeringChoice()], cursor: null };
+    if (call.path === `/v1/storefront/booking-resources/${resourceId}`) return { id: resourceId, key: "apartment-one", blocks: [] };
     if (call.path === "/v1/storefront/booking-services/availability") {
       return {
         from: Number(call.query.from),
@@ -87,7 +81,7 @@ function calendarServer(context) {
       return { type: "created", cart, recovery_token: "token" };
     }
     if (call.path.endsWith("/booking-items")) {
-      cart = { ...cart, updated_at: cart.updated_at + 1, line_items: [...cart.line_items, { type: "booking", ...call.body.booking, price_override: null }] };
+      cart = { ...cart, updated_at: cart.updated_at + 1, line_items: [...cart.line_items, { type: "booking", ...call.body.booking }] };
       return cart;
     }
     throw new Error(`Unexpected request ${call.method} ${call.path}`);
@@ -139,6 +133,7 @@ test("addToCart creates the cart of the calendar's buyer and catalog and takes t
   const add = calls.find((call) => call.path.endsWith("/booking-items"));
   assert.equal(add.body.booking.id, factoryId(2));
   assert.deepEqual(add.body.booking.requested_interval, { from: slot.from, to: slot.to });
+  assert.equal(add.body.booking.catalog_item_price_id, ids.price);
   assert.equal(calendar.state.get().selected_slot, null);
   assert.deepEqual(calendar.state.get().slots, []);
 });

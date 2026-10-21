@@ -1,10 +1,11 @@
 import { ArkyError } from "./apiError";
-import type { Email, AlertEmail } from "./notification";
+import type { AlertRecipient, Email } from "./notification";
 import type { CalendarDate, EpochMilliseconds } from "./time";
 import type {
   AccountActor,
   Coordinates,
   CustomerAuthenticationSnapshot,
+  EmailContact,
   LocalizedText,
   SelectOption,
   SortDirection,
@@ -50,7 +51,8 @@ export type FormStatus = { type: "active" } | { type: "draft" } | { type: "close
 export interface FormEmails {
   received: Email | null;
   stage_changed: Record<string, Email>;
-  alert: AlertEmail | null;
+  new_submission_alert: Email | null;
+  alert_recipients: AlertRecipient[];
 }
 
 export interface Form {
@@ -146,14 +148,13 @@ export interface FormSubmission {
   form_id: string;
   store_id: string;
   customer_id: string;
-  company_id: string | null;
   source: FormSubmissionSource;
   language: string;
+  email_contact: EmailContact | null;
   snapshot: FormSubmissionSnapshot;
   answers: FormAnswer[];
   stage: FormSubmissionStage;
   stage_history: FormSubmissionStageChange[];
-  assignee_account_id: string | null;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
@@ -233,9 +234,7 @@ export interface FindFormSubmissionsParams {
   form_id?: string;
   form_ids?: string[];
   customer_id?: string;
-  company_id?: string;
   stage_id?: string;
-  assignee_account_id?: string;
   select?: FormSubmissionSelectFilter[];
   query?: string;
   sort_field?: "created_at";
@@ -281,20 +280,6 @@ export interface ChangeFormSubmissionStageParams {
   expected_changed_at: EpochMilliseconds;
   to_stage_id: string;
   note: FormSubmissionStageNote | null;
-}
-
-export interface AssignFormSubmissionParams {
-  store_id: string;
-  form_id: string;
-  id: string;
-  assignee_account_id: string | null;
-}
-
-export interface SetFormSubmissionCompanyParams {
-  store_id: string;
-  form_id: string;
-  id: string;
-  company_id: string | null;
 }
 
 export interface GetFormSubmissionFileParams {

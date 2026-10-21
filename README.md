@@ -55,53 +55,62 @@ console.log(setup.name, setup.languages, arky.currency.get(), catalog?.id);
 - **`apiUrl`** defaults to `https://api.arky.io`. Only an `arky_pk_...` publishable key is accepted.
 - **Sessions** are kept in `localStorage`. During server rendering, pass a request-local `sessionStorage` adapter. `visitorIdentity` restores a visitor pair your app picked earlier.
 - **`arky.store.load()`** reads the store's setup and the current market and fills the `setup`, `market`, `currency` and `allowed_payment_option_ids` atoms. `arky.getSetup()` only answers the setup: `name`, `timezone`, `languages`, `payment_options` and `bot_check`.
-- **Catalogs.** `eshop.catalog.find()` lists the catalogs open to this buyer in the current market and sales channel, each with its access `level`. Pick yours by its `key`; every product, booking and cart call names its `catalog_id`.
+- **Catalogs.** `eshop.catalog.find()` lists the catalogs open to this buyer in the current market and sales channel, each with its access `level`. Pick yours by its `key`; every listing, product, booking and cart call names its `catalog_id`.
 - **`setContext({ locale, market })`** changes the language or the market. A market change clears every cart view; each market keeps its own carts, and switching back reads them again.
 
 The store has the same calls as the plain client, under the same names. On top of them it has atoms (`session`, `setup`, `market`, `currency`, `locale`, …) and three helpers, each for one buyer and catalog: `eshop.cart(scope)`, `eshop.checkoutFlow(scope)` and `eshop.bookingCalendar(scope)`. The plain client's own cart calls stay reachable at `arky.client.eshop.cart`.
 
 ## 2. Products
 
-A product card is the product's name block, its image and its price:
+A catalog lists products, booking services, customer groups and group offerings. `eshop.catalogItem.find` pages them as cards, one per listing:
 
 ```typescript
-import { findBlock, formatPrice, getBlockTextValue, getImageUrl } from "arky-sdk/storefront";
-import type { Media } from "arky-sdk/storefront";
+import { findBlock, formatMinor, getBlockTextValue, getImageUrl } from "arky-sdk/storefront";
+import type { CatalogListing, Media } from "arky-sdk/storefront";
 
-const page = await arky.eshop.product.find({ catalog_id, include_price: true, limit: 24 });
-const imageIds = page.items.flatMap((product) => {
-  const image = findBlock(product, "image");
+const page = await arky.eshop.catalogItem.find({ catalog_id, include_price: true, selection: { types: ["product"] }, limit: 24 });
+const imageIds = page.items.flatMap((listing) => {
+  const image = findBlock(listing.content, "image");
   return image?.type === "media" && image.value ? [image.value] : [];
 });
 const { items: images } = await arky.media.find({ ids: imageIds });
 const imageById = new Map<string, Media>(images.map((image) => [image.id, image]));
 
-const cards = page.items.map((product) => {
-  const image = findBlock(product, "image");
+const cards = page.items.map((listing: CatalogListing) => {
+  const image = findBlock(listing.content, "image");
+  const summary = listing.price_summary;
   return {
-    name: getBlockTextValue(findBlock(product, "name"), "en"),
+    name: getBlockTextValue(findBlock(listing.content, "name"), "en"),
     image: image?.type === "media" && image.value ? getImageUrl(imageById.get(image.value), "medium") : null,
-    price: formatPrice(product.price, "en"),
-    href: `/products/${product.slugs.en}`,
+    from: summary?.type === "comparable" && listing.currency ? formatMinor(summary.min_amount, listing.currency, "en") : "",
+    href: `/products/${listing.content.slugs.en}`,
   };
 });
 console.log(cards, page.cursor);
 ```
 
-- **Filters.** `product.find` filters by `ids`, `query`, `category_query`, block `filters` and `price_filter`, and sorts by `sort_field`. `include_price: true` adds the catalog price for the buyer.
+- **One search for every listing.** A card names its `catalog_item_id`, what it lists (`item`), its `position` and the listed record's `content` (`key`, `slugs`, `blocks`, `categories`). `selection` narrows and orders the cards:
+  - `types` (`product`, `booking_service`, `customer_group`, `customer_group_offering`), `text`, `categories` (for products and booking services) and block filters `blocks`;
+  - `choice`, a filter on the priced choices: a `sku` (products only), choice `blocks` and `price: { min_amount?, max_amount? }`;
+  - `price_basis` (`product_unit`, `booking_option`, `permanent_agreement` or `recurring_agreement` with its `cadence`);
+  - `sort`: `catalog_order` (the default), `relevance` (needs `text`) or `starting_price` (needs `price_basis`), and `direction`, `asc` unless you ask for `desc`. Relevance has no descending order.
+- **Prices on cards.** With `include_price: true` and an access level that shows prices, a card has its `currency` and `price_summary`: `{ type: "comparable", basis, min_amount, max_amount, choice_count }`, or `{ type: "different_bases", choice_count }` when its choices aren't priced the same way. A price filter or a starting-price sort also answers the card's `matching_price`. A standalone customer group card names its only price, `catalog_item_price_id`.
+- **Pages.** A page holds 20 cards unless you ask for more, and a page can come back short with a `cursor`: follow it.
 - **Media.** `media.find({ ids })` takes any number of ids and reads them 100 at a time. Every file has its public URL at `content.original.url`. Images also come as `thumbnail`, `small`, `medium` and `large`, and `getImageUrl(media, size)` picks one.
 - **Texts are blocks.** `findBlock(record, key)` finds a block and `getBlockTextValue(block, locale)` reads its text in the language you name, never another; an empty string means there is none. Pass a second language as the third argument when your page has one to show instead.
 
-A product page reads the product by its slug in the current language, then its variants:
+A product page reads the product by its slug in the current language, then the prices of its listing:
 
 ```typescript
-const product = await arky.eshop.product.get({ slug: "classic", catalog_id, include_price: true });
-const { items: variants } = await arky.eshop.productVariant.find({ product_id: product.id, catalog_id, include_price: true });
+const product = await arky.eshop.product.get({ slug: "classic", catalog_id });
+const { items: choices } = await arky.eshop.catalogItem.findPrices({ catalog_item_id: product.catalog_item_id, catalog_id, include_price: true });
 const byKey = await arky.eshop.product.getByKey({ key: "classic-x1", catalog_id });
-console.log(product.options, variants.map((variant) => variant.price), byKey.id);
+console.log(choices.map((choice) => [choice.catalog_item_price_id, choice.content.sku, choice.price?.unit_price.amount]), byKey.id);
 ```
 
-`get` takes `{ id }` or `{ slug }`; a key is read with `getByKey({ key })`. Booking services and categories read the same way; collections, forms, markets, customer groups and their offerings read by `{ id }` or with `getByKey({ key })`.
+- **Reads.** `get` takes `{ id }` or `{ slug }`; a key is read with `getByKey({ key })`. Both answer the product with the `catalog_item_id` of its listing in that catalog. Booking services and categories read the same way; collections, forms, markets, customer groups and their offerings read by `{ id }` or with `getByKey({ key })`.
+- **Choices.** `catalogItem.findPrices({ catalog_item_id })` pages a listing's choices. Each names its `catalog_item_price_id`, the `sellable` it prices (a `product_variant`, `booking_offering` or `customer_group`), its `content` (`sku`, `blocks` and the price `basis`) and, with `include_price: true`, its `price`. A cart line names the `catalog_item_price_id` it is bought at.
+- **More reads.** `catalogItem.getByParent({ item: { type: "product", product_id } })` reads the listing of a record, and `productVariant.get({ product_id, id })` reads one variant, with its price when you pass `include_price: true`.
 
 ## 3. Cart
 
@@ -113,7 +122,7 @@ cart.item_count.subscribe((count) => console.log("items", count));
 cart.status.subscribe((status) => console.log(status.error?.code));
 
 await cart.ensure();
-await cart.addProduct({ variant_id, quantity: 1, purchase: { type: "catalog" } });
+await cart.addProduct({ variant_id, quantity: 1, purchase: { type: "catalog", catalog_item_price_id } });
 const [line] = cart.product_items.get();
 if (line) {
   await cart.setProductQuantity({ line_item_id: line.id, quantity: 2 });
@@ -132,7 +141,7 @@ if (line) {
   - group deliveries: `setFutureDeliveries({ customer_groups })` and `quoteFutureDeliveries({ customer_groups })`.
 - **Quote and checkout:** `quote({ contact_email? })`, `checkout(...)`, `retainCheckout(...)`, `pendingCheckout()` and `recoverCheckout()`. Most pages use the [checkout flow](#4-checkout) instead.
 - **After a failed write:** a write whose answer is lost, or that is refused because the cart changed (409), drops the view: `cart` and `quote_result` turn `null`, and the next `ensure()` reads the current cart. `reset()` drops the view by hand; `clear()` empties the cart in Arky.
-- **Purchase routes.** A product line names how it is bought: `purchase: { type: "catalog" }` for the catalog price. Lines that use a customer group's purchase access name `existing_purchase_access`, `same_cart_purchase_access` or `assigned_purchase_access` instead.
+- **Prices.** A product line names how it is bought: `purchase: { type: "catalog", catalog_item_price_id }` for one of its listing's prices, read with `catalogItem.findPrices`. Lines that use a customer group's purchase access name `existing_purchase_access`, `same_cart_purchase_access` or `assigned_purchase_access` instead. Booking and customer group lines name their `catalog_item_price_id` too.
 
 A cart line names its variant. To show names, quote the cart and read its products:
 
@@ -143,12 +152,12 @@ const cart = arky.eshop.cart({ buyer: { type: "customer" }, catalog_id });
 await cart.ensure();
 const quote = await cart.quote();
 const productIds = [...new Set(quote.lines.flatMap((line) => (line.type === "product" ? [line.product_id] : [])))];
-const { items: products } = await arky.eshop.product.find({ ids: productIds, catalog_id, limit: 100 });
+const products = await Promise.all(productIds.map((id) => arky.eshop.product.get({ id, catalog_id })));
 const names = new Map<string, string>(products.map((product) => [product.id, getBlockTextValue(findBlock(product, "name"), "en")]));
 console.log(quote.lines.map((line) => (line.type === "product" ? names.get(line.product_id) : line.type)), quote.totals.total);
 ```
 
-The quote is in the store's locale. `quote.ready` is false while `quote.blockers` lists what is missing: a delivery, a shipping choice, a billing address, a taken booking slot, and so on. Each delivery's `offers` name their shipping method by `shipping_method_key` and `shipping_method_blocks`, so a page can show "Courier €45". A rate that needs a weight Arky doesn't know is left out of `offers` and listed in the delivery's `unavailable` with its `code` (`SHIPPING.WEIGHT_UNKNOWN`).
+The quote is in the store's locale, and each product line's `snapshot` keeps the variant's `variant_sku` and `variant_blocks` as they were quoted. `quote.ready` is false while `quote.blockers` lists what is missing: a delivery, a shipping choice, a billing address, a taken booking slot, and so on. Each delivery's `offers` name their shipping method by `shipping_method_key` and `shipping_method_blocks`, so a page can show "Courier €45". A rate that needs a weight Arky doesn't know is left out of `offers` and listed in the delivery's `unavailable` with its `code` (`SHIPPING.WEIGHT_UNKNOWN`).
 
 ## 4. Checkout
 
@@ -161,7 +170,7 @@ const checkout = arky.eshop.checkoutFlow({ buyer: { type: "customer" }, catalog_
 checkout.state.subscribe((state) => console.log(state.step, state.error?.code));
 
 let state = await checkout.open();
-checkout.setContact({ contact_email: "ana@example.com" });
+checkout.setContact({ contact_email: { email: "ana@example.com", language: "en" } });
 state = await checkout.shipTo({ destination: { type: "delivery", address } });
 for (const delivery of state.quote?.deliveries ?? []) {
   const [offer] = delivery.offers;
@@ -191,12 +200,12 @@ if (placed && placed.payment_action.type !== "none") {
 - **State:** the `cart`, the `quote` with its `blockers`, `contact_email`, `destination`, `billing_address`, the chosen `payment_option_id` (the quote's suggestion until you pick one), the `pending` request, the `placed` order, its `payment` and `outcome`, `busy` and `error`.
 - **Steps you call.** Each step that reads or writes Arky answers the new state. `setContact` and `selectPaymentOption` only change the state.
   - `open()` and `refresh()` (quote again);
-  - `setContact({ contact_email })`, `shipTo({ destination })`, `setBillingAddress({ billing_address })`;
+  - `setContact({ contact_email: { email, language } })`, `shipTo({ destination })`, `setBillingAddress({ billing_address })`;
   - `selectShipping({ delivery_group_id, shipping_method_id, rate_id })` and `selectPaymentOption({ payment_option_id })`;
   - `setPromotionCodes({ promotion_codes })`;
   - `place({ return_url?, save_payment_method?, payment_method_terms? })`.
-- **Contact email.** After `setContact`, every quote sends the email, so a guest can use a promotion code limited to one use per customer. A company buyer's purchase order number is set with `checkout.cart.setBuyer({ buyer })`.
-- **On account.** `place` pays with one of the quote's payment options, or places a free order. A company buyer with on-account terms checks out through the cart store instead: `checkout.cart.checkout({ contact_email, payment: { type: "on_account", payment_option_id } })`.
+- **Contact email.** The order's contact is an email with the language its emails are written in. `open()` starts from the signed-in customer's verified contact, or the billing address email in the store's locale. After `setContact`, every quote sends the email, so a guest can use a promotion code limited to one use per customer. A company buyer's purchase order number is set with `checkout.cart.setBuyer({ buyer })`.
+- **On account.** `place` pays with one of the quote's payment options, or places a free order. A company buyer with on-account terms checks out through the cart store instead: `checkout.cart.checkout({ contact_email: { email, language }, payment: { type: "on_account", payment_option_id } })`.
 - **After placing:** `recover()` finishes a kept checkout, `resumePayment()` asks for a new payment action for an unpaid order, `refreshPayment()` reads the payment again, and `openOrder({ order_id, url })` reopens an order after a payment redirect. `openOrder` answers `{ state, url }`, where `url` is the link without its order token.
 - **Errors:** every step throws a `CheckoutFlowError` and records `{ code, message }` in `state.error`. The codes are:
   - `busy` (a step is already running), `not_ready` and `pending` (recover the kept checkout first);
@@ -267,7 +276,7 @@ console.log(opened.order.number, latest ? paymentOutcome(latest) : null, payment
 ```typescript
 arky.session.subscribe((session) => console.log(session?.type));
 
-await arky.customer.requestCode({ email: "ana@example.com", language: "en" });
+await arky.customer.requestCode({ contact: { email: "ana@example.com", language: "en" } });
 await arky.customer.verify({ code: "123456" });
 const me = await arky.customer.getMe();
 await arky.customer.updateMe({
@@ -279,7 +288,7 @@ console.log(orders.length);
 await arky.customer.logout();
 ```
 
-- **Visitors and customers.** Customers are anonymous visitors until they verify their inbox. `requestCode` takes the code email's id from `createId` and names its language; a lost answer is retried under the same id, so the customer gets one email.
+- **Visitors and customers.** Customers are anonymous visitors until they verify their inbox. `requestCode({ contact: { email, language } })` takes the code email's id from `createId`; a lost answer is retried under the same id, so the customer gets one email. A verified customer's `type.contact` keeps the email and the language their emails use.
 - **`verify`** signs the customer in under a new session id from `createSessionId`. When the visitor signs in as a customer who already exists, Arky merges the visitor's cart into that customer's cart, and the cart store follows it.
 - **Session lifetime.** A signed-in session's access token lasts an hour; the SDK refreshes it on the first 401 and keeps every cart and checkout view. A session that can't be refreshed is cleared and reported to `onAuthStateChanged` and the `session` atom. Changing the shopper, signing out or switching markets clears checkout contact, delivery, payment selection and the displayed order. A late response from the previous context cannot restore them; kept checkout requests remain available for explicit recovery.
 - **Email changes.** On a signed-in session, `requestCode` starts an email change: the code goes to the new address and `changeEmail({ code })` proves it. `updateMe` changes the profile blocks and the addresses, never a verified email. `unsubscribe()` and `resubscribe()` record the customer's email choice.
@@ -327,12 +336,12 @@ console.log(restored, sent?.id);
 `arky.eshop.bookingCalendar({ buyer, catalog_id })` builds a month calendar and the free slots of a booking service, and adds a chosen slot to that buyer's cart:
 
 ```typescript
-const { items: services } = await arky.eshop.bookingService.find({ catalog_id, include_price: true, limit: 20 });
+const { items: services } = await arky.eshop.catalogItem.find({ catalog_id, selection: { types: ["booking_service"] }, limit: 20 });
 const calendar = arky.eshop.bookingCalendar({ buyer: { type: "customer" }, catalog_id });
 
 const [service] = services;
-if (service) {
-  const state = await calendar.select({ booking_service_id: service.id });
+if (service?.item.type === "booking_service") {
+  const state = await calendar.select({ booking_service_id: service.item.booking_service_id });
   const day = state.days.find((cell) => cell.available);
   if (day) calendar.selectDate({ date: day.iso });
   const [slot] = calendar.state.get().slots;
@@ -341,17 +350,18 @@ if (service) {
 ```
 
 - **State:**
-  - the service: `booking_service`, `booking_offerings`, `booking_resources`, `selected_booking_resource_id`, `availability`, `timezone` and `loading`;
+  - the service: `booking_service`, `booking_choices` (the prices of its offerings in this catalog), `booking_resources`, `selected_booking_resource_id`, `availability`, `timezone` and `loading`;
   - the calendar: `month` and `days` (`date`, `iso`, `available`, `is_selected`, `is_in_range`, `is_today`, `blank`), plus the `calendar.month_label` atom with the shown month in the store's language;
-  - the choice: `selected_date`, `slots` (`booking_offering_id`, `from`, `to`, `time_text`, `date_text`, `is_multi_day`) and `selected_slot`.
+  - the choice: `selected_date`, `slots` (`booking_offering_id`, `catalog_item_price_id`, `price`, `from`, `to`, `time_text`, `date_text`, `is_multi_day`) and `selected_slot`.
 - **Calls.** Steps that read Arky answer the new state; picks only change the state.
-  - reads: `select({ booking_service_id })`, `prevMonth()`, `nextMonth()`, `selectResource({ booking_resource_id })`, `loadMoreOfferings()` and `loadMoreAvailability()`;
+  - reads: `select({ booking_service_id })`, `prevMonth()`, `nextMonth()`, `selectResource({ booking_resource_id })`, `loadMoreChoices()` and `loadMoreAvailability()`;
   - picks: `selectDate({ date })`, `selectFirstAvailableDate()`, `selectSlot({ slot })` and `setTimezone({ timezone })`;
   - `addToCart({ slot, id?, capacity_units?, form_submission_id? })` answers the cart.
+- **Prices and resources.** `select` reads the service and the first page of its listing's prices; a slot shows once its offering's price is loaded, so call `loadMoreChoices()` while `booking_choices_cursor` is set. The resources come with the availability, and the calendar reads each new one once.
 - **Stays.** A slot that spans days (a stay of several nights) is `is_multi_day`, its `time_text` is the date range, and its days are `is_in_range` once it is chosen. With bookings already in the cart, the calendar starts after the last one.
 
 The cart and the checkout are the same as for products: the `checkoutFlow` of the same buyer and catalog sees the booking lines.
-- **Without the calendar,** read `bookingService.getAvailability({ catalog_id, booking_service_id, from, to })` (at most 60 days per read; follow `cursor`) and add a slot with `cart.addBooking({ booking_offering_id, requested_interval, capacity_units })`. `bookingOffering.find` and `bookingResource.find` / `get` read what a service offers and who provides it.
+- **Without the calendar,** read the service with `bookingService.get({ id, catalog_id })`, its offerings' prices with `catalogItem.findPrices({ catalog_item_id, catalog_id })`, and the free slots with `bookingService.getAvailability({ catalog_id, booking_service_id, from, to })` (at most 60 days per read; follow `cursor`). Add a slot with `cart.addBooking({ booking_offering_id, requested_interval, capacity_units, catalog_item_price_id })`. `bookingOffering.get({ id, catalog_id })` reads one offering with its price, and `bookingResource.get({ id, offering_id, catalog_id })` the resource that provides it.
 - **Taken slots.** The quote checks the slot again: a taken slot is a `booking_unavailable` blocker.
 - **Later changes.** `eshop.order.cancelBookingItem` and `rescheduleBookingItem` change a booking after the order.
 
@@ -433,21 +443,21 @@ const client = createStorefront("arky_pk_...", {
   createOrderToken,
 });
 
-const products = await readAllPages((cursor) => client.eshop.product.find({ catalog_id, limit: 100, cursor }));
+const listings = await readAllPages((cursor) => client.eshop.catalogItem.find({ catalog_id, selection: { types: ["product"] }, limit: 100, cursor }));
 const created = await client.eshop.cart.create({ id: crypto.randomUUID(), buyer: { type: "customer" }, catalog_id });
 const cart = await client.eshop.cart.addProduct({
   id: created.cart.id,
   expected_updated_at: created.cart.updated_at,
-  product: { id: crypto.randomUUID(), variant_id, quantity: 1, purchase: { type: "catalog" } },
+  product: { id: crypto.randomUUID(), variant_id, quantity: 1, purchase: { type: "catalog", catalog_item_price_id } },
 });
 const quote = await client.eshop.cart.quote({ id: cart.id, contact_email: "ana@example.com" });
-console.log(products.length, quote.ready, quote.blockers);
+console.log(listings.length, quote.ready, quote.blockers);
 ```
 
 Its cart calls name the cart and its version:
 - **Selection:** `cart.create`, `getCurrent({ buyer, catalog_id })` (the cart this browser selected, or `null`), `forget({ buyer, catalog_id })` and `reorder({ id, order_id, buyer })`.
 - **Reads and changes:** `get`, `update`, `addProduct`, `addBooking`, `addCustomerGroup`, `removeItem`, `clear` and `selectShippingMethod`.
-- **Quote and checkout:** `quote({ id, contact_email? })`, `checkout`, `retainCheckout`, `pendingCheckout` and `recoverCheckout`.
+- **Quote and checkout:** `quote({ id, contact_email? })`, `checkout`, `retainCheckout`, `pendingCheckout` and `recoverCheckout`. A quote takes the guest's email as a string; a checkout's `contact_email` is `{ email, language }` or `null`.
 - **After checkout:** `getOrder({ id })` (the order the cart became, or `null`) and `findOffers` (a company's offered carts).
 
 A checkout refused because the quote changed throws a `CartPresentationChangedError` with the new quote. Send the guest's `contact_email` with the quote once you know it: a promotion code limited to one use per customer counts a guest by that email, and without it the quote is refused with 409 `CART.PROMOTION_EMAIL_REQUIRED`.
@@ -457,11 +467,12 @@ A checkout refused because the quote changed throws a `CartPresentationChangedEr
 - **`eshop.order`:** `find`, `get`, `fromLink`, `retainedToken`, `findPayments`, `getPayment`, `findFulfillments`, `resumePayment` (a new payment action for an unpaid order), `downloadAsset`, `cancelProductItem`, `cancelBookingItem` and `rescheduleBookingItem`. Order lists filter booking lines by `booking_statuses`.
 - **`eshop.promotion.get({ id })`:** the text shoppers see for a promotion, `{ id, key, blocks }`.
 - **`eshop.library`:** `find`, `getProduct`, `findAssets` and `download`, for the digital files the buyer owns. Pass `company_id` or `company_location_id` for a company's.
-- **Customer groups:** groups a store sells are read like products: `eshop.customerGroup` (`find`, `get`, `getByKey`, `getProductChoices`, `joinFree`) and `eshop.customerGroupOffering` (`get`, `getByKey`).
-  - `joinFree({ key, catalog_id })` (or `{ id, catalog_id }`) joins a signed-in customer to a free permanent group. It creates its own cart, checks the quote is free and places the zero-price order, with every id from the factories. It answers `{ type: "joined", order_id }` or `{ type: "already_member", customer_group_member_id }`.
-  - A cart buys a group with `addCustomerGroup({ customer_group_id, quantity, choices, start })`, where `start` is `{ type: "on_acceptance" }`, `{ type: "scheduled", starts_at }` or `{ type: "switch", customer_group_member_id }`.
+- **Customer groups:** groups a store sells are listed with `catalogItem.find` and read like products: `eshop.customerGroup` (`get`, `getByKey`, `getProductChoices`, `joinFree`) and `eshop.customerGroupOffering` (`get`, `getByKey`), each with the `catalog_id` it is listed in. A group or offering read answers its `catalog_item_id`; `catalogItem.findPrices` pages its prices.
+  - `joinFree({ key, catalog_id })` (or `{ id, catalog_id }`) joins a signed-in customer to a free permanent group. It reads the group's price in that catalog, creates its own cart, checks the quote is free and places the zero-price order, with every id from the factories. It answers `{ type: "joined", order_id }` or `{ type: "already_member", customer_group_member_id }`.
+  - A cart buys a group with `addCustomerGroup({ customer_group_id, quantity, choices, start, catalog_item_price_id })`, where `start` is `{ type: "on_acceptance" }`, `{ type: "scheduled", starts_at }` or `{ type: "switch", customer_group_member_id }`.
+  - `getProductChoices` answers a group's product alternatives with their `sku`, `product_blocks` and `variant_blocks`.
 - **`newsletter`:**
-  - `requestCode({ email, language })` answers `{ type: "verified" }` when that address is already signed in. Otherwise it signs out another address and sends a code, answering `{ type: "code_sent" }`.
+  - `requestCode({ contact: { email, language } })` answers `{ type: "verified" }` when that address is already signed in. Otherwise it signs out another address and sends a code, answering `{ type: "code_sent" }`.
   - `join({ email, code, key, catalog_id })` verifies the code and runs `joinFree`.
 - **`eshop.customerGroupMember`:**
   - reads: `find`, `get`, `getCurrent`, `findOrders`, `getRevision`, `getPurchaseAccess`, `getCalendar`, `getProductChoices` and `getDeliveryOptions`;
@@ -470,7 +481,7 @@ A checkout refused because the quote changed throws a `CartPresentationChangedEr
 - **`companies`,** the signed-in customer's companies: `getAccess({ id })`, `membership.find`, `location.find` and `location.get({ id })`.
 - **`store`:** `country.find`, `country.get({ code })`, `location.find`, `location.get({ id })`, `market.find`, `market.get({ id })`, `market.getByKey({ key })` and `load()` (on the store only).
 - **`category`:** `get`, `getByKey` and `findChildren({ id })`.
-- **`support.conversation`:** `start({ language, flow_key? })`, `get({ id })`, `findMessages({ conversation_id })`, `getMessage({ conversation_id, message_id })` and `sendMessage({ conversation_id, input, prompt_message_id? })`, under the customer's own session. `start` and `sendMessage` take their ids from `createId`.
+- **`support.conversation`:** `start({ language, flow_key? })`, `get({ id })`, `findMessages({ conversation_id })`, `getMessage({ conversation_id, message_id })` and `sendMessage({ conversation_id, input, prompt_message_id? })`, under the customer's own session. `start` and `sendMessage` take their ids from `createId`. A `flow_email_contact` prompt is answered with `input: { type: "email_contact", contact }`.
 - **Tracking:**
   - `actions.track({ key, data? })`;
   - `experiments.use({ key })`: call it only where that version is shown;
@@ -498,7 +509,7 @@ await admin.account.auth.verify({ session_id: pending.session_id, code: "123456"
 console.log(admin.session?.email);
 ```
 
-- **Store sign-in.** Pass `store_id` to both calls to sign in through a store's own site.
+- **Store sign-in.** Pass `store_id` and the code email's `language` to `requestCode`, and `store_id` to `verify`, to sign in through a store's own site.
 - **Restored tokens.** A process restoring an Account access token can pass a `forcedHeaders` callback with its Bearer `Authorization` header and `onUnauthorized: () => false`.
 - **API keys.** Store API keys are made with `admin.store.apiKey`: a publishable key belongs to one sales channel, and a secret key carries explicit store permissions.
 
@@ -507,19 +518,19 @@ console.log(admin.session?.email);
 | `account` | `getMe`, `find`, `delete`, `session`, `auth` |
 | `platform` | `findCurrencies`, `findWebhookEvents`, `findStorePlans`, `administrator`, `stripeBillingEvent`, `resendEvent` |
 | `store` | the store, `subscription`, `usage`, `member`, `emails`, `role`, `webhook`, `country`, `location`, `market`, `salesChannel`, `apiKey`, `paymentOption`, `zone`, `taxCategory`, `shippingProfile`, `shippingMethod` |
-| `notification` | `outgoingEmail`, `outgoingWebhook`, `incomingWebhook`, `template`, `emailProvider`, `emailAddress` |
+| `notification` | `outgoingEmail`, `outgoingWebhook`, `incomingWebhook`, `template`, `layout`, `emailProvider`, `emailAddress`, `resendEvent` |
 | `broadcast` | one email to the members of customer groups |
 | `support` | `flow` and `conversation` (chat and email in one record) |
 | `media`, `category`, `content` | files, categories, collections and entries |
 | `forms` | forms, submissions, stage changes, files, `notes` |
 | `companies`, `customers` | companies with locations, roles, memberships and notes; customers with sessions, email suppressions, notes, `erase` and `merge` |
 | `actions`, `experiments`, `counts` | the customer timeline, A/B tests (`getResults`), the store's counts (`getStatuses`, `getReport`) |
-| `eshop` | products, variants, digital assets, bookings, prices, catalogs, promotions, customer groups and members, payment methods, payments, carts, orders (with `resumePayment`, credits and notes), inventory, fulfillment, returns and rentals |
+| `eshop` | products, variants, digital assets, bookings, catalogs with their items and `catalogItemPrice`, promotions, customer groups and members, payment methods, payments, carts, orders (with `resumePayment`, credits and notes), inventory, fulfillment, returns and rentals |
 
 What a delete answers is what Arky answers:
 - the record marked `deleting`, for records that clean up after themselves: markets, store and company locations, catalogs, products, booking services, offerings and resources, categories, collections, media and companies. Variants, inventory items, promotions and promotion codes answer it too, or nothing when the record is already gone;
-- nothing, for prices, catalog items and accesses, customer groups and their offerings, and experiments;
-- `true` or `false`, for email templates and email addresses;
+- nothing, for catalog item prices, catalog items and accesses, customer groups and their offerings, and experiments;
+- `true` or `false`, for email templates, layouts, providers and addresses;
 - the note, for notes;
 - `{ deleted }`, for every other delete.
 
