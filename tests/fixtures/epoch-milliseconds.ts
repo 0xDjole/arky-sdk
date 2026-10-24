@@ -30,6 +30,7 @@ import type {
   Order,
   Fulfillment,
   CatalogItemPrice,
+  CatalogItemPriceChange,
   StoreSubscriptionPaymentAction,
   TimeRange,
 } from "arky-sdk";
@@ -79,6 +80,10 @@ export type ContractChecks = [
   Assert<Checked<Extract<Order["line_items"][number], { type: "booking" }>["interval"]["from"]>>,
   Assert<Unchecked<CatalogItemPrice["compare_at"]>>,
   Assert<Checked<CatalogItemPrice["created_at"]>>,
+  Assert<Checked<CatalogItemPriceChange["starts_at"]>>,
+  Assert<Unchecked<CatalogItemPriceChange["amount"]>>,
+  Assert<Unchecked<CatalogItemPriceChange["compare_at"]>>,
+  Assert<number extends CatalogItemPriceChange["starts_at"] ? false : true>,
   Assert<Unchecked<Money["amount"]>>,
   Assert<Unchecked<BookingService["reminder_offsets_minutes"][number]>>,
   Assert<NonNullable<DateBlock["value"]> extends CalendarDate ? true : false>,

@@ -48,12 +48,13 @@ test("staff choose the conversation's reply email, and a reply sends its own tex
   const calls = recordFetch(context, (call) => call.path.endsWith("/reply-email") ? { id: conversationId } : answer);
   const api = support().conversation;
   const other = { ...reply, from_name: "Returns", reply_to: { type: "address", email_address_id: returnsAddressId } };
-  assert.deepEqual(await api.selectReplyEmail({ store_id: STORE_ID, conversation_id: conversationId, expected_updated_at: 5, reply: other }), { id: conversationId });
+  assert.deepEqual(await api.selectReplyEmail({ store_id: STORE_ID, conversation_id: conversationId, expected_reply: reply, reply: other }), { id: conversationId });
   await api.reply({ store_id: STORE_ID, conversation_id: conversationId, id: promptId, expected_updated_at: 6, text: "Your parcel ships today.", delivery: "email" });
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
-    ["POST", `/v1/stores/${STORE_ID}/conversations/${conversationId}/reply-email`, { expected_updated_at: 5, reply: other }],
+    ["POST", `/v1/stores/${STORE_ID}/conversations/${conversationId}/reply-email`, { expected_reply: reply, reply: other }],
     ["POST", `/v1/stores/${STORE_ID}/conversations/${conversationId}/messages`, { id: promptId, expected_updated_at: 6, text: "Your parcel ships today.", delivery: "email" }],
   ]);
+  assert.equal("expected_updated_at" in calls[0].body, false);
   assert.equal("selectSendingAddress" in api, false);
 });
 
@@ -161,7 +162,7 @@ test("conversation history pages its messages with the empty-page continuation, 
   ]);
 });
 
-test("support writes carry the app-picked id or the conversation version", async (context) => {
+test("support writes carry the app-picked id, the conversation version or, for an assignment, the assignee they read", async (context) => {
   const calls = recordFetch(context, (call) => call.method === "DELETE" ? { deleted: true } : { id: "record" });
   const api = support();
   const flowId = "3f8a1c62-9d4e-4b07-a5c3-8e1d6f2b9a40";
@@ -179,18 +180,21 @@ test("support writes carry the app-picked id or the conversation version", async
   await api.flow.update({ store_id: STORE_ID, id: flowId, expected_updated_at: 3, key: "hello", entries, steps });
   await api.flow.delete({ store_id: STORE_ID, id: flowId, expected_updated_at: 4 });
   await api.conversation.resolve({ store_id: STORE_ID, conversation_id: conversationId, expected_updated_at: 7 });
-  await api.conversation.assign({ store_id: STORE_ID, conversation_id: conversationId, expected_updated_at: 8, account_id: null });
+  await api.conversation.assign({ store_id: STORE_ID, conversation_id: conversationId, expected_account_id: ids.account, account_id: null });
+  await api.conversation.assign({ store_id: STORE_ID, conversation_id: conversationId, expected_account_id: null, account_id: ids.account });
   const base = `/v1/stores/${STORE_ID}/conversations/${conversationId}`;
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
     ["POST", `/v1/stores/${STORE_ID}/support-flows`, {}, { id: flowId, key: "welcome", entries, steps }],
     ["PUT", `/v1/stores/${STORE_ID}/support-flows/${flowId}`, {}, { expected_updated_at: 3, key: "hello", entries, steps }],
     ["DELETE", `/v1/stores/${STORE_ID}/support-flows/${flowId}`, { expected_updated_at: "4" }, null],
     ["POST", `${base}/resolve`, {}, { expected_updated_at: 7 }],
-    ["POST", `${base}/assign`, {}, { expected_updated_at: 8, account_id: null }],
+    ["POST", `${base}/assign`, {}, { expected_account_id: ids.account, account_id: null }],
+    ["POST", `${base}/assign`, {}, { expected_account_id: null, account_id: ids.account }],
   ]);
   for (const body of [calls[0].body, calls[1].body]) assert.equal("start_step_key" in body, false);
+  for (const assignment of calls.slice(4)) assert.equal("expected_updated_at" in assignment.body, false);
   await assert.rejects(async () => api.flow.create({ store_id: STORE_ID, id: "welcome", key: "welcome", entries, steps }), TypeError);
-  assert.equal(calls.length, 5);
+  assert.equal(calls.length, 6);
 });
 
 test("an account reply is one write of the app-picked message id, its text and its delivery", async (context) => {

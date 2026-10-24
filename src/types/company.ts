@@ -47,18 +47,19 @@ export interface CompanyPurchasingPolicy {
   purchase_order_number_required: boolean;
 }
 
-export interface Company {
+export interface StorefrontCompany {
   id: string;
   store_id: string;
   name: string;
   contact: EmailContact | null;
   tax: BuyerTax;
   purchasing: CompanyPurchasingPolicy;
-  blocks: Block[];
   status: CompanyStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
+
+export interface Company extends StorefrontCompany { blocks: Block[] }
 
 export type CompanyLocationFulfillment =
   | { type: "routing" }
@@ -66,12 +67,11 @@ export type CompanyLocationFulfillment =
 
 export type CompanyLocationStatus =
   | { type: "active" }
-  | { type: "archived" }
-  | { type: "deleting" };
+  | { type: "archived" };
 
-export type CompanyLocationEditableStatus = Exclude<CompanyLocationStatus, { type: "deleting" }>;
+export type CompanyLocationEditableStatus = CompanyLocationStatus;
 
-export interface CompanyLocation {
+export interface StorefrontCompanyLocation {
   id: string;
   store_id: string;
   company_id: string;
@@ -83,8 +83,9 @@ export interface CompanyLocation {
   status: CompanyLocationStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
-  blocks: Block[];
 }
+
+export interface CompanyLocation extends StorefrontCompanyLocation { blocks: Block[] }
 
 export type CompanyPermission =
   | "admin"
@@ -140,7 +141,7 @@ export interface CompanyAccessGrant {
 }
 
 export interface CompanyCustomerAccess {
-  company: Company;
+  company: StorefrontCompany;
   grants: CompanyAccessGrant[];
 }
 
@@ -280,6 +281,38 @@ export interface StorefrontGetCompanyAccessParams {
   id: string;
 }
 
+export interface StorefrontUpdateCompanyParams {
+  id: string;
+  expected_updated_at: EpochMilliseconds;
+  name: string;
+  contact: EmailContact | null;
+  billing_address: PostalAddressInput | null;
+}
+
+export interface StorefrontCreateCompanyLocationParams {
+  id: string;
+  company_id: string;
+  name: string;
+  shipping_address: PostalAddressInput | null;
+  billing_address: PostalAddressInput | null;
+  status: CompanyLocationEditableStatus;
+  blocks: [];
+}
+
+export interface StorefrontUpdateCompanyLocationParams {
+  id: string;
+  expected_updated_at: EpochMilliseconds;
+  name: string;
+  shipping_address: PostalAddressInput | null;
+  billing_address: PostalAddressInput | null;
+  status: CompanyLocationEditableStatus;
+}
+
+export interface StorefrontDeleteCompanyLocationParams {
+  id: string;
+  expected_updated_at: EpochMilliseconds;
+}
+
 export interface CreateCompanyRoleParams {
   store_id: string;
   id: string;
@@ -349,6 +382,38 @@ export interface FindCompanyMembershipsParams {
 }
 
 export interface StorefrontFindCompanyMembershipsParams {
+  company_id?: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface StorefrontCreateCompanyMembershipParams {
+  id: string;
+  company_id: string;
+  contact: EmailContact;
+  grants: CompanyMembershipGrant[];
+}
+
+export interface StorefrontUpdateCompanyMembershipParams {
+  id: string;
+  expected_updated_at: EpochMilliseconds;
+  grants: CompanyMembershipGrant[];
+  status?: { type: "active" } | { type: "disabled" };
+}
+
+export interface StorefrontDeleteCompanyMembershipParams {
+  id: string;
+  expected_updated_at: EpochMilliseconds;
+}
+
+export interface StorefrontResendCompanyInviteParams {
+  id: string;
+  expected_updated_at: EpochMilliseconds;
+}
+
+export interface StorefrontFindCompanyRolesParams {
+  company_id: string;
+  key?: string;
   limit?: number;
   cursor?: string | null;
 }

@@ -182,6 +182,7 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig) {
     getLocale: () => locale.get(),
     customer: client.customer,
     newsletter: client.newsletter,
+    broadcast: client.broadcast,
     store: {
       ...client.store,
       load: loadSetup,

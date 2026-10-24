@@ -73,9 +73,10 @@ export function errorResponse(status, error = "GENERAL.REFUSED", message = "Refu
   return jsonResponse({ message, error, status_code: status, validation_errors: [], ...extra }, status);
 }
 
-function decodeBody(body) {
+function decodeBody(body, headers) {
   if (body === undefined || body === null) return null;
   if (typeof FormData !== "undefined" && body instanceof FormData) return body;
+  if (headers.get("content-type") === "application/x-www-form-urlencoded") return String(body);
   return JSON.parse(String(body));
 }
 
@@ -83,14 +84,15 @@ export function recordFetch(context, respond) {
   const calls = [];
   context.mock.method(globalThis, "fetch", async (input, init = {}) => {
     const url = new URL(String(input));
+    const headers = new Headers(init.headers);
     const call = {
       url,
       href: url.href,
       path: url.pathname,
       query: Object.fromEntries(url.searchParams),
       method: init.method ?? "GET",
-      headers: new Headers(init.headers),
-      body: decodeBody(init.body),
+      headers,
+      body: decodeBody(init.body, headers),
       signal: init.signal,
     };
     calls.push(call);
@@ -219,6 +221,7 @@ export function quoteRecord(overrides = {}) {
     lines: [],
     deliveries: [],
     promotions: [],
+    promotion_codes: [],
     billing_address: null,
     totals: { subtotal: 2500, delivery: 0, discount: 0, tax: 0, total: 2500 },
     payment_option_ids: [ids.paymentOption],

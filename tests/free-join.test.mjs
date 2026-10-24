@@ -98,13 +98,13 @@ function joinServer(context, { loseAccept = false, groupRecord = group(), choice
 test("joinFree places one zero-price order with factory ids and refuses a visitor", async (context) => {
   const storage = browser(context);
   const calls = joinServer(context);
-  await assert.rejects(client(visitorStorage()).eshop.customerGroup.joinFree({ key: "newsletter", catalog_id: ids.catalog }), (error) => {
+  await assert.rejects(client(visitorStorage()).eshop.customerGroup.joinFree({ key: "newsletter", catalog_id: ids.catalog, language: "en" }), (error) => {
     assert.ok(error instanceof CustomerGroupJoinError);
     assert.equal(error.code, "sign_in_required");
     return true;
   });
   assert.equal(calls.length, 0);
-  const result = await client(signedInStorage()).eshop.customerGroup.joinFree({ key: "newsletter", catalog_id: ids.catalog });
+  const result = await client(signedInStorage()).eshop.customerGroup.joinFree({ key: "newsletter", catalog_id: ids.catalog, language: "en" });
   assert.deepEqual(result, { type: "joined", order_id: ids.order });
   assert.deepEqual(calls.map((call) => [call.method, call.path]), [
     ["GET", "/v1/storefront/customer-groups/newsletter"],
@@ -131,8 +131,8 @@ test("a lost sign-up answer is finished from the converted cart's order on the r
   browser(context);
   const calls = joinServer(context, { loseAccept: true });
   const api = client(signedInStorage());
-  await assert.rejects(api.eshop.customerGroup.joinFree({ key: "newsletter", catalog_id: ids.catalog }), /Lost response/);
-  const result = await api.eshop.customerGroup.joinFree({ key: "newsletter", catalog_id: ids.catalog });
+  await assert.rejects(api.eshop.customerGroup.joinFree({ key: "newsletter", catalog_id: ids.catalog, language: "en" }), /Lost response/);
+  const result = await api.eshop.customerGroup.joinFree({ key: "newsletter", catalog_id: ids.catalog, language: "en" });
   assert.deepEqual(result, { type: "joined", order_id: ids.order });
   const creates = calls.filter((call) => call.path === "/v1/storefront/carts");
   assert.deepEqual(creates.map((call) => call.body.id), [factoryId(1), factoryId(1)]);
@@ -149,7 +149,7 @@ test("a group that isn't a free permanent sign-up is refused before any cart", a
   });
   for (const refused of [group({ term: { type: "recurring" } }), group({ entitlements: [{}] })]) {
     groupRecord = refused;
-    await assert.rejects(client(signedInStorage()).eshop.customerGroup.joinFree({ key: "newsletter", catalog_id: ids.catalog }), (error) => error instanceof CustomerGroupJoinError && error.code === "not_free");
+    await assert.rejects(client(signedInStorage()).eshop.customerGroup.joinFree({ key: "newsletter", catalog_id: ids.catalog, language: "en" }), (error) => error instanceof CustomerGroupJoinError && error.code === "not_free");
   }
   assert.deepEqual(calls.map((call) => call.path), Array(2).fill("/v1/storefront/customer-groups/newsletter"));
 });
@@ -164,7 +164,7 @@ test("a free sign-up follows the listing's price pages to the group's own price 
       { items: [groupChoice()], cursor: null },
     ],
   });
-  assert.deepEqual(await client(signedInStorage()).eshop.customerGroup.joinFree({ key: "newsletter", catalog_id: ids.catalog }), { type: "joined", order_id: ids.order });
+  assert.deepEqual(await client(signedInStorage()).eshop.customerGroup.joinFree({ key: "newsletter", catalog_id: ids.catalog, language: "en" }), { type: "joined", order_id: ids.order });
   const reads = calls.filter((call) => call.path === choicesPath);
   assert.deepEqual(reads.map((call) => call.query.cursor ?? null), [null, "1", "2"]);
   const line = calls.find((call) => call.path.endsWith("/customer-group-items"));
@@ -176,12 +176,12 @@ test("a free sign-up follows the listing's price pages to the group's own price 
   ]) {
     context.mock.restoreAll();
     const refusedCalls = joinServer(context, { choicePages: pages });
-    await assert.rejects(client(signedInStorage()).eshop.customerGroup.joinFree({ key: "newsletter", catalog_id: ids.catalog }), (error) => error instanceof CustomerGroupJoinError && error.code === "not_free");
+    await assert.rejects(client(signedInStorage()).eshop.customerGroup.joinFree({ key: "newsletter", catalog_id: ids.catalog, language: "en" }), (error) => error instanceof CustomerGroupJoinError && error.code === "not_free");
     assert.equal(refusedCalls.some((call) => call.path === "/v1/storefront/carts"), false);
   }
   context.mock.restoreAll();
   joinServer(context, { choicePages: [{ items: [], cursor: "0" }] });
-  await assert.rejects(client(signedInStorage()).eshop.customerGroup.joinFree({ key: "newsletter", catalog_id: ids.catalog }), (error) => error.code === "answer_mismatch");
+  await assert.rejects(client(signedInStorage()).eshop.customerGroup.joinFree({ key: "newsletter", catalog_id: ids.catalog, language: "en" }), (error) => error.code === "answer_mismatch");
 });
 
 test("newsletter.requestCode skips a code for the signed-in address and signs out another one first", async (context) => {
@@ -213,11 +213,11 @@ test("newsletter.requestCode skips a code for the signed-in address and signs ou
   assert.deepEqual(calls[2].body, { id: factoryId(4), contact: { email: "reader@example.test", language: "en" } });
 });
 
-test("newsletter.join verifies the code, checks the address and joins", async (context) => {
+test("newsletter.join verifies the code, checks the address and joins in the caller's language, not the verified contact's", async (context) => {
   browser(context);
   const signedIn = sessionResult(ids.customer, emailSession(ids.customer, ids.otherSession));
   let joined = false;
-  recordFetch(context, (call) => {
+  const calls = recordFetch(context, (call) => {
     if (call.path === "/v1/storefront/customer/verify") return signedIn;
     if (call.path === "/v1/storefront/customer-groups/newsletter") return group();
     if (call.path === choicesPath) return { items: [groupChoice()], cursor: null };
@@ -231,8 +231,26 @@ test("newsletter.join verifies the code, checks the address and joins", async (c
     throw new Error(`Unexpected request ${call.path}`);
   });
   const api = client(new SessionStorage(storedSession(ids.customer, visitorSession(ids.customer, ids.session))));
-  await assert.rejects(api.newsletter.join({ email: verifiedEmail, key: "newsletter", catalog_id: ids.catalog }), (error) => error instanceof CustomerGroupJoinError && error.code === "sign_in_required");
-  await assert.rejects(api.newsletter.join({ email: "other@example.test", code: "123456", key: "newsletter", catalog_id: ids.catalog }), (error) => error instanceof CustomerGroupJoinError && error.code === "email_mismatch");
+  await assert.rejects(api.newsletter.join({ email: verifiedEmail, key: "newsletter", catalog_id: ids.catalog, language: "en" }), (error) => error instanceof CustomerGroupJoinError && error.code === "sign_in_required");
+  await assert.rejects(api.newsletter.join({ email: "other@example.test", code: "123456", key: "newsletter", catalog_id: ids.catalog, language: "en" }), (error) => error instanceof CustomerGroupJoinError && error.code === "email_mismatch");
   assert.equal(joined, false);
-  assert.deepEqual(await api.newsletter.join({ email: verifiedEmail, key: "newsletter", catalog_id: ids.catalog }), { type: "joined", order_id: ids.order });
+  assert.deepEqual(api.session.customer.type.contact, { email: verifiedEmail, language: "en" });
+  assert.deepEqual(await api.newsletter.join({ email: verifiedEmail, key: "newsletter", catalog_id: ids.catalog, language: "bs" }), { type: "joined", order_id: ids.order });
+  const accept = calls.find((call) => call.path === "/v1/storefront/carts/accept");
+  assert.deepEqual(accept.body.contact_email, { email: verifiedEmail, language: "bs" });
+});
+
+function signedInWithLanguage(language) {
+  const signedIn = sessionResult(ids.customer, emailSession());
+  signedIn.customer.type.contact = { email: verifiedEmail, language };
+  return new SessionStorage(JSON.stringify({ version: 4, ...signedIn }));
+}
+
+test("a free sign-up names the Order contact in the caller's language, not the language the verified contact saved", async (context) => {
+  browser(context);
+  const calls = joinServer(context);
+  const result = await client(signedInWithLanguage("fr")).eshop.customerGroup.joinFree({ key: "newsletter", catalog_id: ids.catalog, language: "bs" });
+  assert.deepEqual(result, { type: "joined", order_id: ids.order });
+  const accept = calls.find((call) => call.path === "/v1/storefront/carts/accept");
+  assert.deepEqual(accept.body.contact_email, { email: verifiedEmail, language: "bs" });
 });

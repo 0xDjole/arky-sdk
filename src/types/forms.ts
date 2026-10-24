@@ -365,7 +365,6 @@ export type FormAnswerErrorCode =
   | "unknown_option"
   | "too_many_files"
   | "file_size"
-  | "files_too_large"
   | "file_name";
 
 const formAnswerErrorBrand = Symbol.for("arky.FormAnswerError");

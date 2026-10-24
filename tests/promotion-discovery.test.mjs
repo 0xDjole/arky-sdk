@@ -61,22 +61,26 @@ test("a promotion is created under the app-picked id and may target whole catego
     id,
     key: "warm-drinks",
     blocks: [],
+    activation: { type: "codes" },
     conditions: [{ type: "minimum_subtotal", amounts: [{ amount: 2000, currency: "eur" }] }],
     effects: [effect],
-    stacking: { type: "combinable" },
+    stacking: { type: "continue" },
     priority: 0,
     max_uses: null,
     max_uses_per_customer: null,
     schedule: { type: "scheduled", starts_at: 1_800_000_000_000, ends_at: null },
     status: { type: "active" },
   };
+  const { activation: _activation, ...editable } = create;
   await eshop().promotion.create({ store_id: store, ...create });
-  await eshop().promotion.update({ store_id: store, ...create, expected_updated_at: 2, schedule: { type: "always" } });
-  const { id: _id, ...updateBody } = { ...create, expected_updated_at: 2, schedule: { type: "always" } };
+  await eshop().promotion.update({ store_id: store, ...editable, expected_updated_at: 2, stacking: { type: "stop_after" }, schedule: { type: "always" } });
+  const { id: _id, ...updateBody } = { ...editable, expected_updated_at: 2, stacking: { type: "stop_after" }, schedule: { type: "always" } };
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
     ["POST", `/v1/stores/${store}/promotions`, create],
     ["PUT", `/v1/stores/${store}/promotions/${id}`, updateBody],
   ]);
+  assert.deepEqual(calls[0].body.activation, { type: "codes" });
+  assert.equal("activation" in calls[1].body, false);
   await assert.rejects(async () => eshop().promotion.create({ store_id: store, ...create, id: "warm-drinks" }), {
     name: "TypeError",
     message: "The promotion id must be a canonical UUID v4 picked by the app",
@@ -92,9 +96,10 @@ test("an item quantity condition sends its target and both bounds, with an open 
     id,
     key: "bulk-coffee",
     blocks: [],
+    activation: { type: "automatic" },
     conditions: [bounded, open],
     effects: [{ type: "item_percentage", id: "effect", target: { type: "products", product_ids: [codeId] }, basis_points: 500 }],
-    stacking: { type: "combinable" },
+    stacking: { type: "stop_after" },
     priority: 0,
     max_uses: null,
     max_uses_per_customer: null,
@@ -120,20 +125,20 @@ test("a promotion code is created under the app-picked id and edited by version"
 });
 
 
-test("fixed promotion transports currency alternatives and explicit item scope without activation", async (context) => {
+test("fixed promotion transports currency alternatives, explicit item scope and the activation it was made with", async (context) => {
   const calls = recordFetch(context, () => ({ id }));
   const params = {
-    store_id: store, id, key: "two-currencies", blocks: [],
+    store_id: store, id, key: "two-currencies", blocks: [], activation: { type: "codes" },
     conditions: [{ type: "minimum_subtotal", amounts: [{ amount: 100, currency: "eur" }, { amount: 200, currency: "bam" }] }],
     effects: [{ type: "item_fixed", id: codeId, target: { type: "product_variants", variant_ids: [codeId] },
       amounts: [{ amount: 10, currency: "eur" }, { amount: 20, currency: "bam" }], scope: { type: "once_per_order" } }],
-    stacking: { type: "combinable" }, priority: 1, max_uses: null, max_uses_per_customer: null,
+    stacking: { type: "continue" }, priority: 1, max_uses: null, max_uses_per_customer: null,
     schedule: { type: "always" }, status: { type: "active" },
   };
   await eshop().promotion.create(params);
   const { store_id, ...body } = params;
   assert.deepEqual(calls[0].body, body);
-  assert.equal("activation" in calls[0].body, false);
+  assert.deepEqual(calls[0].body.activation, { type: "codes" });
   assert.equal("money" in calls[0].body.effects[0], false);
   assert.equal("product_id" in calls[0].body.effects[0].target, false);
   assert.deepEqual(params.effects[0].amounts, [{ amount: 10, currency: "eur" }, { amount: 20, currency: "bam" }]);

@@ -193,6 +193,23 @@ for (const method of ["getMe", "updateMe"]) {
   });
 }
 
+test("a signed-in customer changes the language of their emails with the profile version they read", async (context) => {
+  const storage = signedInStorage();
+  const storefront = client(storage);
+  const before = structuredClone(storefront.session);
+  const verified = { ...before.customer.type, contact: { email: "customer@example.test", language: "bs" } };
+  const response = { customer: customerRecord(customerId, { type: verified }), session: { id: before.id, customer_id: customerId, store_id: storeId } };
+  const calls = recordFetch(context, () => response);
+  assert.deepEqual(await storefront.customer.updateMe({ expected_updated_at: 2, language: "bs" }), response);
+  assert.deepEqual(calls.map((call) => [call.method, call.path, call.body]), [
+    ["PATCH", "/v1/storefront/customer/me", { expected_updated_at: 2, language: "bs" }],
+  ]);
+  assert.equal(calls[0].headers.get("authorization"), `Bearer ${accessToken}`);
+  assert.deepEqual(storefront.session.customer.type.contact, { email: "customer@example.test", language: "bs" });
+  await storefront.customer.updateMe({ expected_updated_at: 3, profile });
+  assert.equal("language" in calls[1].body, false);
+});
+
 test("a signed-in customer unsubscribes and resubscribes on the storefront with no body and keeps the session", async (context) => {
   const storage = signedInStorage();
   const storefront = client(storage);

@@ -18,7 +18,7 @@ import type {
 } from "../types/cart";
 import type { CatalogChoice, StorefrontPrice } from "../types/catalog";
 import type { Currency, EmailContact, PostalAddress } from "../types/common";
-import type { CheckoutPaymentAction, Payment } from "../types/payment";
+import type { CheckoutPaymentAction, Payment, PaymentMethodSetupStart } from "../types/payment";
 import type { PaymentOutcome } from "../utils/paymentOutcome";
 import type { AvailabilityResponse, StorefrontBookingResource, StorefrontBookingService } from "../types/product";
 
@@ -111,6 +111,8 @@ export interface ArkyCartCheckoutParams {
   order_token?: string;
   order_id?: string;
   contact_email: EmailContact | null;
+  contact_first_name?: string | null;
+  contact_last_name?: string | null;
   payment: CheckoutPaymentChoice;
   clear_after_checkout?: boolean;
 }
@@ -122,6 +124,8 @@ export interface ArkyPlacedCheckout {
   number: string | null;
   payment_id: string | null;
   payment_action: CheckoutPaymentAction;
+  payment_method_id: string | null;
+  payment_method_setup: PaymentMethodSetupStart | null;
 }
 
 export type ArkyCheckoutErrorCode =
@@ -140,6 +144,8 @@ export interface ArkyCheckoutState {
   cart: Cart | null;
   quote: CartQuote | null;
   contact_email: EmailContact | null;
+  contact_first_name: string | null;
+  contact_last_name: string | null;
   destination: CartDeliveryDestination | null;
   billing_address: PostalAddress | null;
   payment_option_id: string | null;
@@ -152,6 +158,8 @@ export interface ArkyCheckoutState {
 
 export interface ArkySetContactParams {
   contact_email: EmailContact;
+  contact_first_name?: string | null;
+  contact_last_name?: string | null;
 }
 
 export interface ArkyCheckoutShipToParams {

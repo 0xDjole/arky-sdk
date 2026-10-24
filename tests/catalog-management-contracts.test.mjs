@@ -21,12 +21,14 @@ const definitions = [
       sellable,
       amount: 2500,
       compare_at: 3000,
+      changes: [{ starts_at: now + 86_400_000, amount: 3000, compare_at: null }],
       schedule: { type: "scheduled", starts_at: now, ends_at: now + 86_400_000 },
       status: { type: "active" },
     },
     update: {
       amount: 2000,
       compare_at: null,
+      changes: [],
       schedule: { type: "always" },
       status: { type: "archived" },
     },
@@ -39,7 +41,7 @@ const definitions = [
     route: "catalogs",
     create: { key: "retail", market_id: marketId, schedule: { type: "always" }, status: { type: "active" } },
     update: { schedule: { type: "scheduled", starts_at: now, ends_at: null }, status: { type: "archived" } },
-    query: { key: "retail", market_id: marketId, status: "draft", sort_field: "key", sort_direction: "desc" },
+    query: { key: "retail", market_id: marketId, status: "draft", sort_field: "updated_at", sort_direction: "desc" },
     deletion: "deleting",
   },
   {
@@ -206,7 +208,7 @@ test("catalog copy and batch writes post their exact bodies with app-picked crea
   const calls = [];
   const copyResult = { items_created: 3, items_kept: 1, items_skipped: 1, prices_created: 5, prices_kept: 0, prices_skipped: 2, cursor: "copy-next" };
   const finished = { ...copyResult, cursor: null };
-  const price = { id, store_id: storeId, catalog_item_id: id, sellable, amount: 990, compare_at: null, schedule: { type: "always" }, status: { type: "active" }, created_at: now, updated_at: now };
+  const price = { id, store_id: storeId, catalog_item_id: id, sellable, amount: 990, compare_at: null, changes: [], schedule: { type: "always" }, status: { type: "active" }, created_at: now, updated_at: now };
   const item = { id, store_id: storeId, catalog_id: catalogId, item: { type: "product", product_id: id }, schedule: { type: "always" }, status: { type: "active" }, position: 1, created_at: now, updated_at: now };
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     const parsed = new URL(url);
@@ -221,8 +223,8 @@ test("catalog copy and batch writes post their exact bodies with app-picked crea
   assert.deepEqual(await client.eshop.catalog.copy({ store_id: storeId, id: catalogId, source_catalog_id: id }), copyResult);
   assert.deepEqual(await client.eshop.catalog.copy({ store_id: storeId, id: catalogId, source_catalog_id: id, cursor: copyResult.cursor }), finished);
   const priceOperations = [
-    { type: "create", id, catalog_item_id: id, sellable, amount: 990, compare_at: null, schedule: { type: "scheduled", starts_at: now, ends_at: now + 1 }, status: { type: "active" } },
-    { type: "update", id: otherStoreId, expected_updated_at: now, amount: 1000, compare_at: null, schedule: { type: "always" }, status: { type: "active" } },
+    { type: "create", id, catalog_item_id: id, sellable, amount: 990, compare_at: null, changes: [], schedule: { type: "scheduled", starts_at: now, ends_at: now + 1 }, status: { type: "active" } },
+    { type: "update", id: otherStoreId, expected_updated_at: now, amount: 1000, compare_at: null, changes: [{ starts_at: now + 3_600_000, amount: 900, compare_at: 1000 }], schedule: { type: "always" }, status: { type: "active" } },
     { type: "delete", id: catalogId, expected_updated_at: now },
   ];
   assert.deepEqual(await client.eshop.catalogItemPrice.batch({ store_id: storeId, operations: priceOperations }), [price]);

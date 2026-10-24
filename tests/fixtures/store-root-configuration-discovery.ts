@@ -6,6 +6,10 @@ import type {
   FindStoreLocationsParams,
   FindStorefrontLocationsParams,
   FindStorefrontMarketsParams,
+  CreateStoreLocationParams,
+  UpdateStoreLocationParams,
+  UpdateMarketParams,
+  PostalAddressInput,
   Market,
   MarketStatus,
   PaginatedResponse,
@@ -27,6 +31,7 @@ type Front = ReturnType<typeof createStorefront>;
 type Assert<T extends true> = T;
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
+type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
 
 export type ConfigurationPages = [
   Assert<Equal<Awaited<ReturnType<Admin["store"]["market"]["find"]>>, PaginatedResponse<Market>>>,
@@ -48,6 +53,15 @@ export type ConfigurationPages = [
   Assert<Equal<Parameters<Front["store"]["country"]["get"]>[0], StorefrontGetCountryParams>>,
   Assert<Equal<Awaited<ReturnType<Front["store"]["country"]["find"]>>, PaginatedResponse<StorefrontCountry>>>,
   Assert<Missing<Front["store"]["location"], "getCountries" | "getCountry" | "list">>,
+  Assert<Missing<FindStoreLocationsParams, "query">>,
+  Assert<Equal<FindStoreLocationsParams["key"], string | undefined>>,
+  Assert<Equal<NonNullable<FindStoreLocationsParams["sort_field"]>, "created_at" | "updated_at">>,
+  Assert<Equal<NonNullable<FindMarketsParams["sort_field"]>, "created_at" | "updated_at">>,
+  Assert<Equal<NonNullable<FindPaymentOptionsParams["sort_field"]>, "created_at" | "updated_at">>,
+  Assert<RequiredField<CreateStoreLocationParams, "address">>,
+  Assert<Equal<CreateStoreLocationParams["address"], PostalAddressInput>>,
+  Assert<Equal<RequiredField<UpdateStoreLocationParams, "address">, false>>,
+  Assert<Missing<UpdateMarketParams, "tax_mode">>,
 ];
 
 export type PublicSetup = [
@@ -59,5 +73,5 @@ export type PublicSetup = [
 ];
 
 export const market: FindMarketsParams = { store_id: "5c9e1a37-8d24-4f60-b3a5-0e7f2c4d6b18", currency: "eur", status: "active", limit: 1, cursor: "opaque" };
-export const location: FindStoreLocationsParams = { store_id: market.store_id, query: "warehouse", status: "archived", sort_field: "updated_at" };
+export const location: FindStoreLocationsParams = { store_id: market.store_id, key: "warehouse", status: "archived", sort_field: "updated_at" };
 export const provider: FindPaymentOptionsParams = { store_id: market.store_id, type_name: "stripe", status: "disabled", cursor: "opaque" };

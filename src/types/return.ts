@@ -160,7 +160,7 @@ export interface DisposeReturnItem extends ReceiveReturnItem {
   disposition: ReturnDisposition;
 }
 
-export type ReturnAction =
+export type ReturnCommand =
   | { type: "approve"; destination_store_location_id: string | null; notify_customer: boolean }
   | { type: "decide"; store_location_id: string }
   | { type: "decline"; reason: string; notify_customer: boolean }
@@ -188,7 +188,7 @@ export interface CreateReturnParams {
 
 export interface ActOnReturnParams extends GetReturnParams {
   expected_updated_at: EpochMilliseconds;
-  command: ReturnAction;
+  command: ReturnCommand;
 }
 
 export interface CreditReturnParams extends GetReturnParams {

@@ -16,8 +16,8 @@ import type {
   PaginatedResponse,
   PostalAddress,
   Rental,
-  RentalAction,
   RentalActor,
+  RentalCommand,
   RentalDetail,
   RentalIssueReplacement,
   RentalReplacementMethod,
@@ -33,7 +33,7 @@ type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
 type Admin = ReturnType<typeof createAdmin>["eshop"];
 type RentalApi = Admin["rental"];
 type BuyerRentals = ReturnType<typeof createStorefront>["eshop"]["rental"];
-type Action<T extends RentalAction["type"]> = Extract<RentalAction, { type: T }>;
+type Action<T extends RentalCommand["type"]> = Extract<RentalCommand, { type: T }>;
 type Ending = Extract<RentalStatus, { type: "ending" }>;
 
 export type RentalContract = [
@@ -50,7 +50,7 @@ export type RentalContract = [
   Assert<Equal<RentalActor["type"], "account" | "system">>,
   Assert<Equal<keyof RentalTerms, "product_id" | "variant_id" | "quantity" | "inventory_item_id" | "product_key" | "variant_sku">>,
   Assert<Equal<keyof RentalDetail, "rental" | "terms">>,
-  Assert<Equal<RentalAction["type"], "request_replacement" | "end" | "close" | "resume" | "cancel_issue">>,
+  Assert<Equal<RentalCommand["type"], "request_replacement" | "end" | "close" | "resume" | "cancel_issue">>,
   Assert<Equal<Action<"request_replacement">["replacement"], RentalIssueReplacement>>,
   Assert<Equal<Action<"request_replacement">["method"], RentalReplacementMethod>>,
   Assert<Equal<RentalReplacementMethod, { type: "delivery"; destination: PostalAddress } | { type: "pickup" }>>,
@@ -63,8 +63,9 @@ export type RentalContract = [
   Assert<Equal<Parameters<RentalApi["get"]>[0], GetRentalParams>>,
   Assert<Equal<Awaited<ReturnType<RentalApi["get"]>>, RentalDetail>>,
   Assert<Equal<Parameters<RentalApi["execute"]>[0], ActOnRentalParams>>,
-  Assert<Equal<keyof ActOnRentalParams, "store_id" | "id" | "expected_updated_at" | "action">>,
-  Assert<Missing<ActOnRentalParams, "request_id">>,
+  Assert<Equal<keyof ActOnRentalParams, "store_id" | "id" | "expected_updated_at" | "command">>,
+  Assert<Equal<ActOnRentalParams["command"], RentalCommand>>,
+  Assert<Missing<ActOnRentalParams, "request_id" | "action" | "type">>,
   Assert<Equal<Awaited<ReturnType<RentalApi["execute"]>>, Rental>>,
   Assert<Equal<Parameters<BuyerRentals["find"]>[0], FindCustomerRentalsParams>>,
   Assert<RequiredField<FindCustomerRentalsParams, "customer_group_member_id">>,
@@ -82,8 +83,8 @@ export type RentalWorkContract = [
   Assert<Equal<FindInventoryUnitsParams["rental_id"], string | undefined>>,
 ];
 
-const ending: RentalAction = { type: "end", reason: "Customer ended the agreement", return_due_at: null };
-const replacement: RentalAction = {
+const ending: RentalCommand = { type: "end", reason: "Customer ended the agreement", return_due_at: null };
+const replacement: RentalCommand = {
   type: "request_replacement",
   fulfillment_job_id: "7f3c1a85-4e29-4b60-a1d7-9c2e5b8f0a36",
   fulfillment_job_line_id: "2d8e4b61-9a37-4c05-8f1e-6b3d0a7c5e92",

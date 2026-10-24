@@ -184,16 +184,15 @@ export interface FulfillmentLine {
   lot_reference: string | null;
 }
 
-export interface FulfillmentOrder {
-  order_id: string;
-  buyer: CommerceParty;
-}
+export type FulfillmentSource =
+  | { type: "order_delivery"; order_id: string; buyer: CommerceParty }
+  | { type: "rental_replacement" };
 
 export interface Fulfillment {
   id: string;
   store_id: string;
   fulfillment_job_id: string;
-  order: FulfillmentOrder | null;
+  source: FulfillmentSource;
   created_by: AccountActor;
   lines: FulfillmentLine[];
   type: FulfillmentType;
@@ -223,7 +222,7 @@ export interface FulfillmentJobMoveLine {
   unit_spans: FulfillmentUnitSpan[];
 }
 
-export type FulfillmentJobAction =
+export type FulfillmentJobCommand =
   | { type: "move"; to_store_location_id: string }
   | {
       type: "split";
@@ -253,7 +252,7 @@ export interface GetFulfillmentJobParams {
 
 export interface ActOnFulfillmentJobParams extends GetFulfillmentJobParams {
   expected_updated_at: EpochMilliseconds;
-  action: FulfillmentJobAction;
+  command: FulfillmentJobCommand;
 }
 
 export interface RecordPickupCashParams {
@@ -315,17 +314,20 @@ export interface FulfillmentLotReference {
   lot_reference: string;
 }
 
-export type FulfillmentAction =
-  | { type: "ready" }
-  | { type: "fulfill"; timing: FulfillmentExecutionTiming }
+export type FulfillmentCommand =
+  | { type: "ready"; notify_customer: boolean }
+  | {
+      type: "fulfill";
+      timing: FulfillmentExecutionTiming;
+      notify_customer: boolean;
+      trackings?: Tracking[];
+      lot_references?: FulfillmentLotReference[];
+    }
   | { type: "cancel" };
 
 export interface ActOnFulfillmentParams extends GetFulfillmentParams {
   expected_updated_at: EpochMilliseconds;
-  action: FulfillmentAction;
-  notify_customer: boolean;
-  trackings: Tracking[];
-  lot_references: FulfillmentLotReference[];
+  command: FulfillmentCommand;
 }
 
 export interface UpdateFulfillmentTrackingParams extends GetFulfillmentParams {

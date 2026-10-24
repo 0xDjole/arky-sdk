@@ -55,6 +55,21 @@ test("Admin on-account checkout sends the reviewed cart, app-picked order id, la
   assert.equal(calls.length, 1);
 });
 
+test("Admin checkouts carry the contact names staff typed, and leave them out when staff typed none", async (context) => {
+  const calls = recordFetch(context, () => placedAcceptance());
+  const names = { contact_first_name: "Ana", contact_last_name: "Horvat" };
+  await admin().eshop.cart.checkoutOnAccount({ ...target, ...onAccount, ...names });
+  await admin().eshop.cart.checkout({ ...target, ...checkoutRequest(), language: "en", contact_first_name: null, contact_last_name: "Horvat" });
+  await admin().eshop.cart.checkout({ ...target, ...checkoutRequest(), language: "en" });
+  assert.deepEqual(calls.map(({ path, body }) => [path, body.contact_first_name, body.contact_last_name]), [
+    [`/v1/stores/${ids.store}/carts/accept-on-account`, "Ana", "Horvat"],
+    [`/v1/stores/${ids.store}/carts/accept`, null, "Horvat"],
+    [`/v1/stores/${ids.store}/carts/accept`, undefined, undefined],
+  ]);
+  assert.deepEqual(calls[0].body, { ...onAccount, ...names });
+  for (const key of ["contact_first_name", "contact_last_name"]) assert.equal(key in calls[2].body, false, key);
+});
+
 test("an already_member answer is passed through unchanged for the Admin to show as finished", async (context) => {
   const answer = { type: "already_member", customer_group_member_id: ids.customerGroupMember };
   recordFetch(context, () => answer);

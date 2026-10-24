@@ -174,7 +174,7 @@ test("financial list failures are errors, not empty pages or replacement money c
     (error) => error.statusCode === 409,
   );
   await assert.rejects(
-    client.notification.incomingWebhook.find({ store_id: STORE_ID }),
+    client.notification.incomingWebhook.find({ store_id: STORE_ID, payment_option_id: ids.paymentOption, status: "review" }),
     (error) => error.statusCode === 409,
   );
   assert.deepEqual(methods, ["GET", "GET"]);

@@ -10,6 +10,9 @@ export interface FormFilter {
 }
 
 export const WEBHOOK_UNIT_EVENT_TYPES = [
+  "conversation.created",
+  "conversation.updated",
+  "conversation_message.created",
   "order.created",
   "order.updated",
   "order.confirmed",
@@ -55,6 +58,14 @@ export const WEBHOOK_UNIT_EVENT_TYPES = [
   "product_variant.created",
   "product_variant.updated",
   "product_variant.deleted",
+  "catalog.created",
+  "catalog.updated",
+  "catalog.deleted",
+  "catalog_item.created",
+  "catalog_item.updated",
+  "catalog_item.deleted",
+  "catalog_access.created",
+  "catalog_access.deleted",
   "catalog_item_price.created",
   "catalog_item_price.updated",
   "catalog_item_price.deleted",
@@ -70,6 +81,9 @@ export const WEBHOOK_UNIT_EVENT_TYPES = [
   "booking_service.created",
   "booking_service.updated",
   "booking_service.deleted",
+  "booking_offering.created",
+  "booking_offering.updated",
+  "booking_offering.deleted",
   "media.created",
   "media.updated",
   "media.deleted",
@@ -80,6 +94,9 @@ export const WEBHOOK_UNIT_EVENT_TYPES = [
   "customer_group.created",
   "customer_group.updated",
   "customer_group.deleted",
+  "customer_group_offering.created",
+  "customer_group_offering.updated",
+  "customer_group_offering.deleted",
   "customer.verified",
   "customer.updated",
   "customer.merged",
@@ -147,6 +164,8 @@ export type WebhookEvent =
   | { type: "entry.updated"; collections: CollectionFilter; entries: KeyFilter }
   | { type: "entry.deleted"; collections: CollectionFilter; entries: KeyFilter }
   | { type: "form_submission.created"; forms: FormFilter }
+  | { type: "form_submission.stage_changed"; forms: FormFilter }
+  | { type: "form_submission.deleted"; forms: FormFilter }
   | { type: WebhookUnitEventType };
 
 export type WebhookEventName = WebhookEvent["type"];

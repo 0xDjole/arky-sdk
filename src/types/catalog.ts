@@ -11,6 +11,12 @@ export type SellableRef =
 
 export type PriceStatus = { type: "active" } | { type: "archived" };
 
+export interface CatalogItemPriceChange {
+  starts_at: EpochMilliseconds;
+  amount: number;
+  compare_at: number | null;
+}
+
 export interface CatalogItemPrice {
   id: string;
   store_id: string;
@@ -18,6 +24,7 @@ export interface CatalogItemPrice {
   sellable: SellableRef;
   amount: number;
   compare_at: number | null;
+  changes: CatalogItemPriceChange[];
   schedule: Schedule;
   status: PriceStatus;
   created_at: EpochMilliseconds;
@@ -259,6 +266,7 @@ export interface CreateCatalogItemPriceParams {
   sellable: SellableRef;
   amount: number;
   compare_at: number | null;
+  changes: CatalogItemPriceChange[];
   schedule: Schedule;
   status: PriceStatus;
 }
@@ -269,6 +277,7 @@ export interface UpdateCatalogItemPriceParams {
   expected_updated_at: EpochMilliseconds;
   amount: number;
   compare_at: number | null;
+  changes: CatalogItemPriceChange[];
   schedule: Schedule;
   status: PriceStatus;
 }
@@ -294,7 +303,7 @@ export interface FindCatalogsParams {
   key?: string;
   market_id?: string;
   status?: CatalogStatus["type"];
-  sort_field?: "key" | "created_at" | "updated_at";
+  sort_field?: "created_at" | "updated_at";
   sort_direction?: SortDirection;
   limit?: number;
   cursor?: string | null;

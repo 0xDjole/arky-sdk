@@ -66,6 +66,30 @@ test("Collection writes carry the app-picked id, typed schema and tagged editori
   assert.equal(calls.length, 4);
 });
 
+test("a deleting collection's cleanup is a live read that answers each state with the references that block it", async (context) => {
+  const reference = { table: "entries", id: ENTRY_ID, path: "blocks.0.value" };
+  const states = [
+    { type: "running" },
+    { type: "stopped_at_entry", entry_id: ENTRY_ID, blocked_by: [reference] },
+    { type: "stopped_at_collection", blocked_by: [{ table: "products", id: "5b8c1e47-3d29-4a6f-9c15-7e0d2f4a8b31", path: "blocks.2.value" }] },
+  ];
+  const calls = [];
+  context.mock.method(globalThis, "fetch", async (url, init = {}) => {
+    calls.push({ url: new URL(url), method: init.method ?? "GET", body: init.body });
+    return new Response(JSON.stringify(states[calls.length - 1]), { headers: { "content-type": "application/json" } });
+  });
+  const api = admin().content.collection;
+  for (const state of states) assert.deepEqual(await api.getCleanup({ store_id: STORE_ID, id: COLLECTION_ID }), state);
+  assert.deepEqual(calls.map(({ method, url, body }) => [method, url.pathname, url.search, body]), Array(3).fill(["GET", `/v1/stores/${STORE_ID}/collections/${COLLECTION_ID}/cleanup`, "", undefined]));
+  await assert.rejects(async () => api.getCleanup({ id: COLLECTION_ID }), TypeError);
+  assert.equal(calls.length, 3);
+});
+
+test("a cleanup read of a live collection comes back as the Server's not-deleting refusal", async (context) => {
+  context.mock.method(globalThis, "fetch", async () => new Response(JSON.stringify({ message: "The collection isn't being deleted", error: "COLLECTION.NOT_DELETING", status_code: 409, validation_errors: [] }), { status: 409, headers: { "content-type": "application/json" } }));
+  await assert.rejects(admin().content.collection.getCleanup({ store_id: STORE_ID, id: COLLECTION_ID }), (error) => error.statusCode === 409 && error.code === "COLLECTION.NOT_DELETING");
+});
+
 test("Entry discovery preserves Block predicates, native ordering and opaque continuations for both clients", async (context) => {
   const calls = [];
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {

@@ -30,16 +30,16 @@ test('removed Store feature APIs are absent and Store code login names its Store
   for (const removed of ['adminDomain', 'branding', 'commerce', 'customerWorkspace', 'marketZone', 'marketPaymentOption', 'paymentTerms']) {
     assert.equal(removed in admin.store, false, removed);
   }
-  const pending = await admin.account.auth.requestCode({ email: 'invited@example.test', store_id: STORE_ID, language: 'en' });
+  const pending = await admin.account.auth.requestCode({ session_id: SESSION_ID, email: 'invited@example.test', store_id: STORE_ID, language: 'en' });
   const session = await admin.account.auth.verify({ session_id: pending.session_id, code: '123456', store_id: STORE_ID });
   assert.equal('scope' in session, false);
   assert.deepEqual(admin.session, { id: SESSION_ID, email: 'invited@example.test' });
   assert.deepEqual(calls, [
-    { path: `/v1/stores/${STORE_ID}/auth/code`, method: 'POST', body: { email: 'invited@example.test', language: 'en' } },
+    { path: `/v1/stores/${STORE_ID}/auth/code`, method: 'POST', body: { session_id: SESSION_ID, email: 'invited@example.test', language: 'en' } },
     { path: `/v1/stores/${STORE_ID}/auth/verify`, method: 'POST', body: { session_id: SESSION_ID, code: '123456' } },
   ]);
   for (const storeId of ['', 'store/one', STORE_ID.toUpperCase()]) {
-    await assert.rejects(() => admin.account.auth.requestCode({ email: 'invited@example.test', store_id: storeId, language: 'en' }), TypeError);
+    await assert.rejects(() => admin.account.auth.requestCode({ session_id: SESSION_ID, email: 'invited@example.test', store_id: storeId, language: 'en' }), TypeError);
   }
   assert.equal(calls.length, 2);
 });

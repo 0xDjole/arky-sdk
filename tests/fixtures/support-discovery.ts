@@ -2,6 +2,7 @@ import { epochMilliseconds } from "arky-sdk";
 import type { createAdmin } from "arky-sdk/admin";
 import type { createStorefront } from "arky-sdk/storefront";
 import type {
+  AssignConversationParams,
   ChangeConversationChatVisibilityParams,
   ChatInput,
   EmailContact,
@@ -92,7 +93,8 @@ const flow: CreateSupportFlowParams = {
   entries: [{ type: "chat", start_step_key: "start" }, { type: "incoming_email", email_address_id: selection.sending_address_id, reply_language: "en", reply: selection, start_step_key: "team" }],
   steps,
 };
-const replyEmail: SelectConversationReplyEmailParams = { store_id: filters.store_id, conversation_id: "conversation", expected_updated_at: epochMilliseconds(5), reply: selection };
+const replyEmail: SelectConversationReplyEmailParams = { store_id: filters.store_id, conversation_id: "conversation", expected_reply: selection, reply: { ...selection, from_name: "Returns" } };
+const assignment: AssignConversationParams = { store_id: filters.store_id, conversation_id: "conversation", expected_account_id: null, account_id: "account" };
 
 export type SupportContracts = [
   Assert<Equal<keyof AdminSupport, "flow" | "conversation">>,
@@ -104,9 +106,17 @@ export type SupportContracts = [
   Assert<Equal<Parameters<AdminSupport["conversation"]["changeChatVisibility"]>[0], ChangeConversationChatVisibilityParams>>,
   Assert<Equal<Awaited<ReturnType<AdminSupport["conversation"]["changeChatVisibility"]>>, ConversationMessage>>,
   Assert<Equal<ChangeConversationChatVisibilityParams, { store_id: string; conversation_id: string; message_id: string; expected_updated_at: EpochMilliseconds; visible_in_chat: boolean }>>,
-  Assert<OptionalField<ReplyConversationParams, "text">>,
+  Assert<RequiredField<ReplyConversationParams, "text">>,
+  Assert<Equal<ReplyConversationParams["text"], string>>,
   Assert<Missing<ReplyConversationParams, "email_template_id">>,
-  Assert<OptionalField<StartEmailConversationParams, "text">>,
+  Assert<RequiredField<StartEmailConversationParams, "text">>,
+  Assert<Equal<StartEmailConversationParams["text"], string>>,
+  Assert<Equal<SelectConversationReplyEmailParams, { store_id: string; conversation_id: string; expected_reply: Email; reply: Email }>>,
+  Assert<Missing<SelectConversationReplyEmailParams, "expected_updated_at">>,
+  Assert<Equal<AssignConversationParams, { store_id: string; conversation_id: string; expected_account_id: string | null; account_id: string | null }>>,
+  Assert<RequiredField<AssignConversationParams, "expected_account_id">>,
+  Assert<Missing<AssignConversationParams, "expected_updated_at">>,
+  Assert<Equal<Parameters<AdminSupport["conversation"]["assign"]>[0], AssignConversationParams>>,
   Assert<Equal<StartEmailConversationParams["contact"], EmailContact>>,
   Assert<Equal<StartEmailConversationParams["reply"], Email>>,
   Assert<Missing<StartEmailConversationParams, "email" | "language" | "sending_address_id" | "email_template_id">>,
@@ -168,4 +178,4 @@ export type SupportContracts = [
   Assert<Missing<Extract<StorefrontConversationMessageType, { type: "reply" }>, "author" | "delivery">>,
 ];
 
-void [filters, reply, send, steps, flow, replyEmail];
+void [filters, reply, send, steps, flow, replyEmail, assignment];

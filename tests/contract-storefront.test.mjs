@@ -173,6 +173,22 @@ test("checkout from the store sends the reviewed cart through keyless routes wit
   });
 });
 
+test("checkout from the store sends the contact names only when the page gives them", async (context) => {
+  const calls = recordFetch(context, (call) => call.path === "/v1/storefront/carts/accept" ? placedAcceptance({ order_id: call.body.order_id }) : placedOrder({ id: call.path.split("/").at(-1) }));
+  const contact = { email: "buyer@example.test", language: "it" };
+  const named = checkoutCart();
+  await named.checkout({ order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), contact_email: contact, contact_first_name: "Ana", contact_last_name: null, payment: cardPayment() });
+  const unnamed = checkoutCart();
+  await unnamed.checkout({ order_id: ids.otherOrder, order_token: "arky_ot_" + "C".repeat(42) + "A", contact_email: contact, payment: cardPayment() });
+  const accepts = calls.filter((call) => call.path === "/v1/storefront/carts/accept");
+  assert.equal(accepts.length, 2);
+  assert.equal(accepts[0].body.contact_first_name, "Ana");
+  assert.equal(accepts[0].body.contact_last_name, null);
+  assert.equal("contact_first_name" in accepts[1].body, false);
+  assert.equal("contact_last_name" in accepts[1].body, false);
+  assert.deepEqual(accepts[1].body.contact_email, contact);
+});
+
 test("a free checkout needs no payment option and still clears the stale cart state", async (context) => {
   recordFetch(context, (call) => call.path === "/v1/storefront/carts/accept" ? placedAcceptance({ number: "1000" }) : placedOrder({ number: "1000" }));
   const cart = checkoutCart();

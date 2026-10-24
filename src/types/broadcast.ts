@@ -112,3 +112,13 @@ export interface SendBroadcastTestParams {
   outgoing_email_id: string;
   language: string;
 }
+
+export type BroadcastUnsubscribeResult = "unsubscribed";
+
+export interface BroadcastUnsubscribeResponse {
+  result: BroadcastUnsubscribeResult;
+}
+
+export interface UnsubscribeBroadcastParams {
+  token: string;
+}

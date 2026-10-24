@@ -38,7 +38,7 @@ import { createActionsApi } from "./api/actions";
 import { createCountsApi } from "./api/counts";
 import { createAuthApi } from "./api/auth";
 import { createBookingOfferingApi, createBookingResourceApi, createBookingServiceApi } from "./api/booking";
-import { createBroadcastApi } from "./api/broadcast";
+import { createBroadcastApi, createStorefrontBroadcastApi } from "./api/broadcast";
 import { createCartApi } from "./api/cart";
 import { createCatalogAccessApi, createCatalogApi, createCatalogItemApi, createCatalogItemPriceApi } from "./api/catalog";
 import { createCategoryApi } from "./api/category";
@@ -183,7 +183,7 @@ export type { PaymentSimulation, SimulatePaymentOptions, SimulatePaymentParams }
 export { CheckoutFlowError, initialize } from "./storefrontStore";
 export type * from "./storefrontStore";
 
-export const SDK_VERSION = "0.26.93";
+export const SDK_VERSION = "0.26.94";
 
 export interface AdminSession {
   id: string;
@@ -948,7 +948,9 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
       throw new CustomerGroupJoinError("sign_in_required", "Confirm the email address with its code first");
     }
     return storefrontApi.eshop.customerGroup.joinFree(
-      "id" in params ? { id: params.id, catalog_id: params.catalog_id } : { key: params.key, catalog_id: params.catalog_id },
+      "id" in params
+        ? { id: params.id, catalog_id: params.catalog_id, language: params.language }
+        : { key: params.key, catalog_id: params.catalog_id, language: params.language },
       requestOptions,
     );
   }
@@ -1062,6 +1064,7 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
     experiments: storefrontApi.experiments,
     pageViews: createStorefrontPageViewsApi(apiConfig),
     support: createStorefrontSupportApi(httpClient, ensureVisitorSession, flows),
+    broadcast: createStorefrontBroadcastApi(publishableKeyHttpClient),
     getSetup,
     setContext,
     getMarket: () => market,

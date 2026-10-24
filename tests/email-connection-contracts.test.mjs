@@ -18,20 +18,44 @@ test("a store keeps several named email connections, each read, rekeyed and remo
   const api = notification().emailProvider;
   assert.deepEqual(await api.find({ store_id: store, limit: 10, cursor: "previous" }), { items: [connection], cursor: null });
   assert.deepEqual(await api.get({ store_id: store, id: provider }), connection);
-  assert.deepEqual(await api.connect({ store_id: store, id: provider, name: "Main Resend", api_key: "re_first_key" }), connection);
-  assert.deepEqual(await api.replaceKey({ store_id: store, id: provider, expected_updated_at: 2, api_key: "re_next_key" }), connection);
+  assert.deepEqual(await api.connect({ store_id: store, id: provider, name: "Main Resend", api_key: "re_first_key", webhook_secret: "whsec_first_secret" }), connection);
+  assert.deepEqual(await api.replaceKey({ store_id: store, id: provider, expected_updated_at: 2, api_key: "re_next_key", webhook_secret: "whsec_next_secret" }), connection);
   assert.equal(await api.delete({ store_id: store, id: provider, expected_updated_at: 3 }), true);
   const base = `/v1/stores/${store}/email-providers`;
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
     ["GET", base, { limit: "10", cursor: "previous" }, null],
     ["GET", `${base}/${provider}`, {}, null],
-    ["POST", base, {}, { id: provider, name: "Main Resend", api_key: "re_first_key" }],
-    ["PUT", `${base}/${provider}`, {}, { expected_updated_at: 2, api_key: "re_next_key" }],
+    ["POST", base, {}, { id: provider, name: "Main Resend", api_key: "re_first_key", webhook_secret: "whsec_first_secret" }],
+    ["PUT", `${base}/${provider}`, {}, { expected_updated_at: 2, api_key: "re_next_key", webhook_secret: "whsec_next_secret" }],
     ["DELETE", `${base}/${provider}`, { expected_updated_at: "3" }, null],
   ]);
-  await assert.rejects(async () => api.connect({ store_id: store, id: "resend", name: "Main Resend", api_key: "re_first_key" }), TypeError);
+  await assert.rejects(async () => api.connect({ store_id: store, id: "resend", name: "Main Resend", api_key: "re_first_key", webhook_secret: "whsec_first_secret" }), TypeError);
   assert.equal(calls.length, 5);
-  assert.deepEqual(Object.keys(api).sort(), ["connect", "delete", "find", "findDomains", "get", "replaceKey"]);
+  assert.deepEqual(Object.keys(api).sort(), ["checkSetup", "connect", "delete", "find", "findDomains", "get", "replaceKey"]);
+});
+
+test("checking a connection's setup is a live read of the webhook Resend must call and every problem found", async (context) => {
+  const setup = {
+    webhook_address: "https://api.example.test/v1/webhooks/resend/connection",
+    events: ["email.sent", "email.delivered", "email.bounced", "email.complained", "email.received"],
+    webhook_id: "wh_resend_1",
+    problems: [
+      { type: "webhook_missing" },
+      { type: "webhook_duplicated", webhook_ids: ["wh_resend_1", "wh_resend_2"] },
+      { type: "webhook_secret_mismatch" },
+      { type: "webhook_disabled" },
+      { type: "webhook_events_missing", events: ["email.received"] },
+    ],
+  };
+  const calls = recordFetch(context, () => setup);
+  const api = notification().emailProvider;
+  assert.deepEqual(await api.checkSetup({ store_id: store, id: provider }), setup);
+  assert.deepEqual(await api.checkSetup({ store_id: store, id: "connection/one" }), setup);
+  assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
+    ["GET", `/v1/stores/${store}/email-providers/${provider}/setup`, {}, null],
+    ["GET", `/v1/stores/${store}/email-providers/connection%2Fone/setup`, {}, null],
+  ]);
+  for (const call of calls) assert.equal(call.url.search, "");
 });
 
 test("a connection's domains are a live read with their DNS records and capabilities", async (context) => {

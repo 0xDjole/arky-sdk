@@ -161,6 +161,7 @@ export type EmailTemplateTypeName =
   | "new_form_submission_alert"
   | "new_order_alert"
   | "new_return_alert"
+  | "new_conversation_message_alert"
   | "support_message"
   | "broadcast";
 
@@ -203,9 +204,11 @@ export interface StoreEmailSettings {
   membership_cancelled: Email | null;
   new_order_alert: Email | null;
   new_return_alert: Email | null;
+  new_conversation_message_alert: Email | null;
   offer_reminder_after_days: number;
   new_order_alert_recipients: AlertRecipient[];
   new_return_alert_recipients: AlertRecipient[];
+  new_conversation_message_alert_recipients: AlertRecipient[];
   creation_templates: EmailCreationTemplates;
 }
 
@@ -273,6 +276,20 @@ export interface EmailProvider {
   updated_at: EpochMilliseconds;
 }
 
+export type EmailProviderSetupProblem =
+  | { type: "webhook_missing" }
+  | { type: "webhook_duplicated"; webhook_ids: string[] }
+  | { type: "webhook_secret_mismatch" }
+  | { type: "webhook_disabled" }
+  | { type: "webhook_events_missing"; events: string[] };
+
+export interface EmailProviderSetup {
+  webhook_address: string;
+  events: string[];
+  webhook_id: string | null;
+  problems: EmailProviderSetupProblem[];
+}
+
 export type EmailProviderDomainStatus =
   | "not_started"
   | "pending"
@@ -317,15 +334,17 @@ export interface EmailAddressReadiness {
   receiving: EmailCapabilityReadiness;
 }
 
-export interface FindOutgoingEmailsParams {
+interface FindOutgoingEmailsFilters {
   store_id: string;
   to?: string;
-  type?: OutgoingEmailType["type"];
-  order_id?: string;
   broadcast_id?: string;
   limit?: number;
   cursor?: string | null;
 }
+
+export type FindOutgoingEmailsParams =
+  | (FindOutgoingEmailsFilters & { type?: OutgoingEmailType["type"]; order_id?: never })
+  | (FindOutgoingEmailsFilters & { type: "receipt_resend"; order_id: string });
 
 export interface FindOutgoingWebhooksParams {
   store_id: string;
@@ -457,6 +476,7 @@ export interface ConnectEmailProviderParams {
   id: string;
   name: string;
   api_key: string;
+  webhook_secret: string;
 }
 
 export interface ReplaceEmailProviderKeyParams {
@@ -464,6 +484,7 @@ export interface ReplaceEmailProviderKeyParams {
   id: string;
   expected_updated_at: EpochMilliseconds;
   api_key: string;
+  webhook_secret: string;
 }
 
 export interface DeleteEmailProviderParams {
@@ -473,6 +494,11 @@ export interface DeleteEmailProviderParams {
 }
 
 export interface FindEmailProviderDomainsParams {
+  store_id: string;
+  id: string;
+}
+
+export interface CheckEmailProviderSetupParams {
   store_id: string;
   id: string;
 }

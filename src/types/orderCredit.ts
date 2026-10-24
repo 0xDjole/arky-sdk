@@ -3,9 +3,9 @@ import type { AccountActor, Actor, Currency, SortDirection, UnitSpan } from "./c
 
 export type OrderCreditSource =
   | { type: "cancellation"; by: Actor }
-  | { type: "return"; return_id: string }
+  | { type: "return"; return_id: string; actor: AccountActor }
   | { type: "account"; actor: AccountActor; reason: string }
-  | { type: "system"; reason: string };
+  | { type: "system" };
 
 export type CreditTarget =
   | { type: "product"; line_item_id: string; span: UnitSpan }
@@ -13,6 +13,15 @@ export type CreditTarget =
   | { type: "rental_use"; line_item_id: string }
   | { type: "purchase_access"; line_item_id: string }
   | { type: "delivery"; delivery_group_id: string };
+
+export type OrderCreditAmount =
+  | { type: "remaining" }
+  | { type: "part"; subtotal_reduction: number };
+
+export interface OrderCreditRequestTarget {
+  target: CreditTarget;
+  amount: OrderCreditAmount;
+}
 
 export interface DiscountReversal {
   promotion_id: string;
@@ -58,7 +67,7 @@ export interface CreateOrderCreditParams {
   store_id: string;
   order_id: string;
   id: string;
-  targets: CreditTarget[];
+  targets: OrderCreditRequestTarget[];
   reason: string;
 }
 

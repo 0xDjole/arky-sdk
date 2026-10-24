@@ -62,6 +62,8 @@ export interface CheckoutFlowContext {
 interface CheckoutLocal {
   busy: boolean;
   contact_email: EmailContact | null;
+  contact_first_name: string | null;
+  contact_last_name: string | null;
   destination: CartDeliveryDestination | null;
   payment_option_id: string | null;
   pending: ArkyCheckoutState["pending"];
@@ -70,10 +72,11 @@ interface CheckoutLocal {
   error: ArkyCheckoutState["error"];
 }
 
-const lineBlockers: QuoteBlocker["type"][] = ["booking_unavailable", "purchase_limit_exceeded"];
+const lineBlockers: QuoteBlocker["type"][] = ["booking_unavailable", "tax_unavailable", "purchase_limit_exceeded"];
 
 const detailBlockers: QuoteBlocker["type"][] = [
   "units_without_delivery",
+  "delivery_unavailable",
   "billing_address_required",
   "purchase_order_number_required",
   "customer_group_delivery_required",
@@ -84,6 +87,8 @@ const placedOutcomes = ["paid", "pay_later", "unconfirmed"];
 const initialLocal: CheckoutLocal = {
   busy: false,
   contact_email: null,
+  contact_first_name: null,
+  contact_last_name: null,
   destination: null,
   payment_option_id: null,
   pending: null,
@@ -145,6 +150,8 @@ export function createCheckoutFlow(context: CheckoutFlowContext, cart: CartStore
     cart: currentCart,
     quote: currentQuote,
     contact_email: current.contact_email,
+    contact_first_name: current.contact_first_name,
+    contact_last_name: current.contact_last_name,
     destination: current.destination,
     billing_address: currentCart?.billing_address ?? null,
     payment_option_id: current.payment_option_id,
@@ -206,10 +213,12 @@ export function createCheckoutFlow(context: CheckoutFlowContext, cart: CartStore
     return current === null ? {} : { contact_email: current.email };
   }
 
-  function billingContact(current: Cart): EmailContact | null {
-    const email = current.billing_address?.email?.trim();
-    const language = client.getLocale();
-    return email && language ? { email, language } : null;
+  function contactNames(): { contact_first_name?: string; contact_last_name?: string } {
+    const { contact_first_name: firstName, contact_last_name: lastName } = local.get();
+    return {
+      ...(firstName !== null ? { contact_first_name: firstName } : {}),
+      ...(lastName !== null ? { contact_last_name: lastName } : {}),
+    };
   }
 
   async function quote(operation: CartScope): Promise<CartQuote | null> {
@@ -259,6 +268,8 @@ export function createCheckoutFlow(context: CheckoutFlowContext, cart: CartStore
       number: result.number,
       payment_id: result.payment_id,
       payment_action: result.payment_action,
+      payment_method_id: result.payment_method_id,
+      payment_method_setup: result.payment_method_setup,
     };
     patch({ pending: null, placed, payment: null });
     if (placed.payment_id !== null && placed.payment_action.type === "none") {
@@ -290,13 +301,13 @@ export function createCheckoutFlow(context: CheckoutFlowContext, cart: CartStore
   }
 
   function paymentChoice(current: CartQuote, orderId: string, params: ArkyCheckoutPlaceParams): CheckoutPaymentChoice {
-    if (current.totals.total === 0) return { type: "free" };
+    const saveCard = params.save_payment_method === true;
+    if (current.totals.total === 0 && !saveCard) return { type: "free" };
     const paymentOptionId = local.get().payment_option_id;
     if (paymentOptionId === null || !current.payment_option_ids.includes(paymentOptionId)) {
       throw new CheckoutFlowError("not_ready", "Choose one of the quote's payment options first");
     }
     const returnUrl = typeof params.return_url === "function" ? params.return_url(orderId) : (params.return_url ?? null);
-    const saveCard = params.save_payment_method === true;
     return {
       type: "payment_option",
       payment_option_id: paymentOptionId,
@@ -317,12 +328,7 @@ export function createCheckoutFlow(context: CheckoutFlowContext, cart: CartStore
         const current = await cart.load();
         operation.assertCurrent();
         if (current) {
-          const customer = client.session?.customer;
-          const signedIn = customer?.type.type === "verified" ? customer.type.contact : null;
-          patch({
-            destination: destinationOf(current),
-            contact_email: local.get().contact_email ?? billingContact(current) ?? signedIn,
-          });
+          patch({ destination: destinationOf(current) });
           await quote(operation);
         }
         return state.get();
@@ -334,7 +340,12 @@ export function createCheckoutFlow(context: CheckoutFlowContext, cart: CartStore
       const language = params.contact_email.language.trim();
       if (!email) throw new CheckoutFlowError("not_ready", "The contact email is empty");
       if (!language) throw new CheckoutFlowError("not_ready", "The contact language is empty");
-      patch({ contact_email: { email, language }, error: null });
+      patch({
+        contact_email: { email, language },
+        contact_first_name: params.contact_first_name ?? null,
+        contact_last_name: params.contact_last_name ?? null,
+        error: null,
+      });
     },
 
     shipTo(params: ArkyCheckoutShipToParams): Promise<ArkyCheckoutState> {
@@ -418,7 +429,13 @@ export function createCheckoutFlow(context: CheckoutFlowContext, cart: CartStore
         if (contactEmail === null) throw new CheckoutFlowError("not_ready", "Add the contact email first");
         const orderId = context.newId("order");
         const payment = paymentChoice(reviewed, orderId, params);
-        await cart.retainCheckout({ order_id: orderId, order_token: context.newOrderToken(), contact_email: contactEmail, payment });
+        await cart.retainCheckout({
+          order_id: orderId,
+          order_token: context.newOrderToken(),
+          contact_email: contactEmail,
+          ...contactNames(),
+          payment,
+        });
         const result = await recoverKept(operation);
         if (!result) throw new CheckoutFlowError("interrupted", "The kept checkout was settled elsewhere; read the order");
         return accepted(operation, result, orderId);
@@ -482,6 +499,8 @@ export function createCheckoutFlow(context: CheckoutFlowContext, cart: CartStore
             number: opened.order.number,
             payment_id: payment?.id ?? null,
             payment_action: { type: "none" },
+            payment_method_id: null,
+            payment_method_setup: null,
           },
           payment,
         });

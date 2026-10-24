@@ -46,7 +46,9 @@ export type PromotionCondition =
 
 export type PromotionFixedScope = { type: "per_unit" } | { type: "once_per_order" };
 
-export type PromotionStacking = { type: "combinable" } | { type: "exclusive" };
+export type PromotionActivation = { type: "codes" } | { type: "automatic" };
+
+export type PromotionStacking = { type: "continue" } | { type: "stop_after" };
 
 export type PromotionStatus =
   | { type: "draft" }
@@ -61,6 +63,7 @@ export interface Promotion {
   store_id: string;
   key: string;
   blocks: Block[];
+  activation: PromotionActivation;
   conditions: PromotionCondition[];
   effects: PromotionEffect[];
   stacking: PromotionStacking;
@@ -108,6 +111,7 @@ export interface CreatePromotionParams {
   id: string;
   key: string;
   blocks: Block[];
+  activation: PromotionActivation;
   conditions: PromotionCondition[];
   effects: PromotionEffect[];
   stacking: PromotionStacking;

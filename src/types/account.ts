@@ -35,8 +35,11 @@ export type AccountSessionStatus =
   | { type: "superseded" }
   | { type: "revoked" };
 
+export type AccountSessionScope = { type: "arky" } | { type: "store"; store_id: string };
+
 export interface AccountSession {
   id: string;
+  scope: AccountSessionScope;
   status: AccountSessionStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;

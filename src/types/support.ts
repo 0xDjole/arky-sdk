@@ -263,7 +263,7 @@ export interface StartEmailConversationParams {
   contact: EmailContact;
   subject: string;
   reply: Email;
-  text?: string;
+  text: string;
 }
 
 export interface FindSupportFlowsParams {
@@ -347,7 +347,7 @@ export interface ReplyConversationParams {
   conversation_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
-  text?: string;
+  text: string;
   delivery: ReplyDeliveryName;
   resolve?: boolean;
 }
@@ -363,7 +363,7 @@ export interface ChangeConversationChatVisibilityParams {
 export interface SelectConversationReplyEmailParams {
   store_id: string;
   conversation_id: string;
-  expected_updated_at: EpochMilliseconds;
+  expected_reply: Email;
   reply: Email;
 }
 
@@ -376,6 +376,6 @@ export interface ResolveConversationParams {
 export interface AssignConversationParams {
   store_id: string;
   conversation_id: string;
-  expected_updated_at: EpochMilliseconds;
+  expected_account_id: string | null;
   account_id: string | null;
 }

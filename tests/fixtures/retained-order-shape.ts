@@ -117,7 +117,7 @@ export const typedRetainedOrder: Order = {
   ],
   delivery_groups: [],
   currency: "usd",
-  promotions: [{ promotion_id: "promotion", promotion_key: "spring", code: { promotion_code_id: "code", code: "SPRING" } }],
+  promotions: [{ promotion_id: "promotion", promotion_key: "spring", activation: { type: "code", promotion_code_id: "code", code: "SPRING" } }],
   billing_address: billingAddress,
   language: "en",
   created_at: placedAt,

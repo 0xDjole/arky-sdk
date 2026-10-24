@@ -28,7 +28,10 @@ type Location = Admin["companies"]["location"];
 export type OnAccountContracts = [
   Assert<Equal<CheckoutCartOnAccountParams, Public.CheckoutCartOnAccountParams>>,
   Assert<Equal<SetCompanyPurchasingParams, Public.SetCompanyPurchasingParams>>,
-  Assert<Equal<keyof CheckoutCartOnAccountParams, "store_id" | "order_id" | "order_token" | "cart_id" | "expected_updated_at" | "presentation_digest" | "language" | "contact_email" | "payment_option_id" | "terms" | "reason">>,
+  Assert<Equal<keyof CheckoutCartOnAccountParams, "store_id" | "order_id" | "order_token" | "cart_id" | "expected_updated_at" | "presentation_digest" | "language" | "contact_email" | "contact_first_name" | "contact_last_name" | "payment_option_id" | "terms" | "reason">>,
+  Assert<Equal<Required<CheckoutCartOnAccountParams, "contact_first_name">, false>>,
+  Assert<Equal<Required<CheckoutCartOnAccountParams, "contact_last_name">, false>>,
+  Assert<Equal<CheckoutCartOnAccountParams["contact_first_name"], string | null | undefined>>,
   Assert<Equal<CheckoutCartOnAccountInput, Omit<CheckoutCartOnAccountParams, "store_id">>>,
   Assert<Required<CheckoutCartOnAccountParams, "reason">>,
   Assert<Required<CheckoutCartOnAccountParams, "language">>,

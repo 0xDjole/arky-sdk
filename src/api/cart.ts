@@ -22,6 +22,7 @@ import type {
   GetCartOrderParams,
   PreviewCartAccessProductParams,
   QuoteCartFutureDeliveriesParams,
+  QuoteCartOfferParams,
   QuoteCartParams,
   QuotePurchaseParams,
   RemoveCartItemParams,
@@ -134,6 +135,16 @@ export const createCartApi = (apiConfig: ApiConfig) => {
       create(params: CreateCartOfferParams, options?: RequestOptions): Promise<Cart> {
         const { store_id, id, ...body } = params;
         return action<Cart>(store_id, id, "offer", body, options);
+      },
+
+      quote(params: QuoteCartOfferParams, options?: RequestOptions): Promise<CartQuote> {
+        return action<CartQuote>(
+          params.store_id,
+          params.id,
+          "offer/quote",
+          { expected_updated_at: params.expected_updated_at, language: params.language },
+          options,
+        );
       },
 
       send(params: SendCartOfferParams, options?: RequestOptions): Promise<Cart> {

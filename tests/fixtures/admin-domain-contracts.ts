@@ -9,8 +9,9 @@ type Admin = ReturnType<typeof createAdmin>;
 
 const store_id = 'a4219f3b-50b1-4a78-902b-d7264ae027a9';
 const admin = createAdmin({ apiUrl: 'https://api.example.test' });
-admin.account.auth.requestCode({ email: 'invited@example.test', store_id, language: 'bs' });
-admin.account.auth.requestCode({ email: 'owner@example.test' });
+const session_id = '6f1d3b85-2c47-4e90-a8b3-5d7f9e1c3a62';
+admin.account.auth.requestCode({ session_id, email: 'invited@example.test', store_id, language: 'bs' });
+admin.account.auth.requestCode({ session_id, email: 'owner@example.test' });
 admin.account.auth.verify({ session_id: 'pending', code: '123456', store_id });
 
 export type AdminDomainContracts = [
@@ -19,7 +20,8 @@ export type AdminDomainContracts = [
   Assert<Missing<CreateAdminConfig, 'storeId'>>,
   Assert<Missing<CreateAdminConfig, 'market'>>,
   Assert<Missing<CreateAdminConfig, 'locale'>>,
-  Assert<Equal<RequestPendingAccountSessionParams, { email: string; store_id?: undefined } | { email: string; store_id: string; language: string }>>,
+  Assert<Equal<RequestPendingAccountSessionParams, { session_id: string; email: string; store_id?: undefined } | { session_id: string; email: string; store_id: string; language: string }>>,
+  Assert<Equal<Parameters<Admin['account']['auth']['requestCode']>[0], RequestPendingAccountSessionParams>>,
   Assert<Missing<Admin['store'], 'adminDomain'>>,
   Assert<Missing<Admin['store'], 'branding'>>,
   Assert<Missing<Admin['store'], 'customerWorkspace'>>,

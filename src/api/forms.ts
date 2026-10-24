@@ -28,10 +28,6 @@ import { FormAnswerError } from "../types/forms";
 import { requireId } from "../utils/ids";
 import { segment, storePath, storeRecordPath } from "./paths";
 
-const MAX_FORM_FILE_BYTES = 10 * 1024 * 1024;
-const MAX_FORM_SUBMISSION_FILES = 20;
-const MAX_FORM_SUBMISSION_FILE_BYTES = 50 * 1024 * 1024;
-
 function isGiven(answer: FormAnswerInput): boolean {
   if ((answer.type === "text" || answer.type === "email")) return answer.value.trim() !== "";
   if (answer.type === "select_many") return answer.option_keys.length > 0;
@@ -40,19 +36,9 @@ function isGiven(answer: FormAnswerInput): boolean {
 }
 
 function requireFormFiles(files: File[]): void {
-  if (files.length > MAX_FORM_SUBMISSION_FILES) {
-    throw new FormAnswerError("too_many_files", null, `A form submission carries at most ${MAX_FORM_SUBMISSION_FILES} files`);
-  }
-  let total = 0;
   for (const file of files) {
-    if (file.size < 1 || file.size > MAX_FORM_FILE_BYTES) {
-      throw new FormAnswerError("file_size", null, `The file '${file.name}' must be between 1 byte and 10 MiB`);
-    }
+    if (file.size < 1) throw new FormAnswerError("file_size", null, `The file '${file.name}' is empty`);
     if (!file.name) throw new FormAnswerError("file_name", null, "Every form file needs a file name");
-    total += file.size;
-  }
-  if (total > MAX_FORM_SUBMISSION_FILE_BYTES) {
-    throw new FormAnswerError("files_too_large", null, "A form submission's files are at most 50 MiB together");
   }
 }
 

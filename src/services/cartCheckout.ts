@@ -47,6 +47,10 @@ function contactEmail(value: unknown): CartCheckoutRequest["contact_email"] | un
   return { email: value.email, language: value.language };
 }
 
+function contactName(value: unknown): value is string | null | undefined {
+  return value === undefined || value === null || typeof value === "string";
+}
+
 function cardTerms(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0 && new TextEncoder().encode(value).length <= 40_000;
 }
@@ -79,6 +83,8 @@ function checkoutPayment(value: unknown): CartCheckoutRequest["payment"] | null 
 export function cartCheckoutRequest(input: unknown): CartCheckoutRequest {
   const payment = record(input) ? checkoutPayment(input.payment) : null;
   const contact = record(input) ? contactEmail(input.contact_email) : undefined;
+  const firstName = record(input) ? input.contact_first_name : undefined;
+  const lastName = record(input) ? input.contact_last_name : undefined;
   if (
     !record(input) ||
     !isCanonicalId(input.order_id) ||
@@ -88,10 +94,12 @@ export function cartCheckoutRequest(input: unknown): CartCheckoutRequest {
     !Number.isSafeInteger(input.expected_updated_at) ||
     !text(input.presentation_digest, 256) ||
     contact === undefined ||
+    !contactName(firstName) ||
+    !contactName(lastName) ||
     !payment
   ) {
     throw new TypeError(
-      "Cart checkout needs the app's order id, the cart id, the cart's updated_at, the reviewed presentation, the contact email and language or null, and how the order is paid",
+      "Cart checkout needs the app's order id, the cart id, the cart's updated_at, the reviewed presentation, the contact email and language or null, any contact names as text or null, and how the order is paid",
     );
   }
   return {
@@ -101,6 +109,8 @@ export function cartCheckoutRequest(input: unknown): CartCheckoutRequest {
     expected_updated_at: input.expected_updated_at as CartCheckoutRequest["expected_updated_at"],
     presentation_digest: input.presentation_digest as string,
     contact_email: contact,
+    ...(firstName !== undefined ? { contact_first_name: firstName } : {}),
+    ...(lastName !== undefined ? { contact_last_name: lastName } : {}),
     payment,
   };
 }

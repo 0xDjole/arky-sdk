@@ -279,6 +279,7 @@ export interface UpdateCustomerMeParams {
   addresses?: CustomerAddressInput[];
   default_shipping_address_id?: string | null;
   default_billing_address_id?: string | null;
+  language?: string;
 }
 
 export interface ChangeCustomerEmailParams {

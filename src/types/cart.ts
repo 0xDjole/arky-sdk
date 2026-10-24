@@ -290,7 +290,7 @@ export interface QuotePurchaseAccess {
   limits: QuotePurchaseLimit[];
 }
 
-export type QuoteTaxWait = "no_delivery" | "no_billing_address";
+export type QuoteTaxWait = "no_delivery" | "no_billing_address" | "fixed_above_price";
 
 export interface QuoteUntaxedRun {
   span: UnitSpan;
@@ -375,6 +375,7 @@ export interface QuoteCustomerGroupLine {
   entitlements: QuoteEntitlementLine[];
   tax_groups: OrderTaxGroup[];
   deliveries: CustomerGroupDeliveryTerms[];
+  saves_card: boolean;
 }
 
 export type QuoteLine =
@@ -427,6 +428,8 @@ export type QuoteBlocker =
   | { type: "billing_address_required" }
   | { type: "shipping_required"; delivery_group_id: string }
   | { type: "booking_unavailable"; line_item_id: string; code: string }
+  | { type: "tax_unavailable"; line_item_id: string; code: string }
+  | { type: "delivery_unavailable"; delivery_group_id: string; code: string }
   | { type: "customer_group_delivery_required"; line_item_id: string; entitlement_id: string }
   | { type: "customer_group_shipping_required"; line_item_id: string; delivery_id: string }
   | { type: "customer_group_delivery_fee_varies"; line_item_id: string; delivery_id: string }
@@ -456,6 +459,15 @@ export interface QuoteTotals {
   total: number;
 }
 
+export type QuotePromotionCodeState = "applied" | "stopped" | "not_applied";
+
+export interface QuotePromotionCode {
+  promotion_code_id: string;
+  code: string;
+  promotion_id: string;
+  state: QuotePromotionCodeState;
+}
+
 export interface CartQuote {
   cart_id: string | null;
   store_id: string;
@@ -470,6 +482,7 @@ export interface CartQuote {
   lines: QuoteLine[];
   deliveries: QuoteDelivery[];
   promotions: OrderPromotion[];
+  promotion_codes: QuotePromotionCode[];
   billing_address: PostalAddress | null;
   totals: QuoteTotals;
   payment_option_ids: string[];
@@ -499,6 +512,8 @@ export interface CheckoutCartInput {
   presentation_digest: string;
   language: string;
   contact_email: EmailContact | null;
+  contact_first_name?: string | null;
+  contact_last_name?: string | null;
   payment: CheckoutPaymentChoice;
 }
 
@@ -509,6 +524,8 @@ export interface StorefrontCheckoutCartInput {
   expected_updated_at: EpochMilliseconds;
   presentation_digest: string;
   contact_email: EmailContact | null;
+  contact_first_name?: string | null;
+  contact_last_name?: string | null;
   payment: CheckoutPaymentChoice;
 }
 
@@ -520,6 +537,8 @@ export interface CheckoutCartOnAccountInput {
   presentation_digest: string;
   language: string;
   contact_email: EmailContact | null;
+  contact_first_name?: string | null;
+  contact_last_name?: string | null;
   payment_option_id: string;
   terms: PaymentTerms;
   reason: string;
@@ -686,6 +705,13 @@ export interface CreateCartOfferParams {
   language: string;
   presentation_digest: string;
   supersedes_cart_id: string | null;
+}
+
+export interface QuoteCartOfferParams {
+  store_id: string;
+  id: string;
+  expected_updated_at: EpochMilliseconds;
+  language: string;
 }
 
 export interface SendCartOfferParams {
