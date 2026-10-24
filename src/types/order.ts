@@ -354,15 +354,14 @@ export interface OrderDeliveryGroup {
   money: LineMoney;
 }
 
-export interface OrderPromotionCode {
-  promotion_code_id: string;
-  code: string;
-}
+export type OrderPromotionActivation =
+  | { type: "code"; promotion_code_id: string; code: string }
+  | { type: "automatic" };
 
 export interface OrderPromotion {
   promotion_id: string;
   promotion_key: string;
-  code: OrderPromotionCode;
+  activation: OrderPromotionActivation;
 }
 
 export type OrderStatus = "pending" | "confirmed" | "partially_cancelled" | "cancelled";
@@ -639,8 +638,6 @@ export type StorefrontRescheduleOrderBookingItemParams = Omit<
   RescheduleOrderBookingItemParams,
   "store_id" | "notify_customer"
 >;
-
-export type StorefrontCancelOrderProductItemParams = Omit<CancelOrderProductItemParams, "store_id" | "notify_customer">;
 
 export interface StorefrontOrderPaymentParams {
   order_id: string;

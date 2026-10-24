@@ -66,11 +66,11 @@ export const createFulfillmentJobApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.post<FulfillmentUnitSlots>(`${jobPath(store_id, fulfillment_job_id)}/unit-slots`, body, options);
     },
 
-    decide(params: ActOnFulfillmentJobParams, options?: RequestOptions): Promise<FulfillmentJob> {
-      if (params.action.type === "split") requireId(params.action.fulfillment_job_id, "fulfillment job");
+    execute(params: ActOnFulfillmentJobParams, options?: RequestOptions): Promise<FulfillmentJob> {
+      if (params.command.type === "split") requireId(params.command.fulfillment_job_id, "fulfillment job");
       return apiConfig.httpClient.post<FulfillmentJob>(
-        `${jobPath(params.store_id, params.fulfillment_job_id)}/decisions`,
-        { expected_updated_at: params.expected_updated_at, action: params.action },
+        `${jobPath(params.store_id, params.fulfillment_job_id)}/execute`,
+        { expected_updated_at: params.expected_updated_at, command: params.command },
         options,
       );
     },
@@ -122,8 +122,11 @@ export const createFulfillmentApi = (apiConfig: ApiConfig) => {
     },
 
     execute(params: ActOnFulfillmentParams, options?: RequestOptions): Promise<Fulfillment> {
-      const { store_id, fulfillment_id, ...body } = params;
-      return apiConfig.httpClient.post<Fulfillment>(`${fulfillmentPath(store_id, fulfillment_id)}/commands`, body, options);
+      return apiConfig.httpClient.post<Fulfillment>(
+        `${fulfillmentPath(params.store_id, params.fulfillment_id)}/execute`,
+        { expected_updated_at: params.expected_updated_at, command: params.command },
+        options,
+      );
     },
 
     updateTracking(params: UpdateFulfillmentTrackingParams, options?: RequestOptions): Promise<Fulfillment> {

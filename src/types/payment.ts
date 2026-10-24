@@ -22,16 +22,34 @@ export interface StripeSigningSecretOverlap {
 
 export interface StripeWebhookEndpoint {
   endpoint_id: string;
-  endpoint_url: string;
   api_version: string;
   enabled_events: string[];
   previous_signing_secret: StripeSigningSecretOverlap | null;
 }
 
 export type StripeWebhook =
-  | { type: "not_created" }
+  | { type: "not_configured" }
   | ({ type: "awaiting_first_event" } & StripeWebhookEndpoint)
   | ({ type: "verified" } & StripeWebhookEndpoint);
+
+export type StripeSetupProblem =
+  | { type: "charges_disabled" }
+  | { type: "webhook_secret_missing" }
+  | { type: "webhook_unreadable" }
+  | { type: "webhook_missing" }
+  | { type: "webhook_duplicated"; webhook_ids: string[] }
+  | { type: "webhook_disabled" }
+  | { type: "webhook_events_missing"; events: string[] }
+  | { type: "webhook_api_version"; api_version: string | null }
+  | { type: "webhook_replaced"; saved_webhook_id: string };
+
+export interface StripeSetup {
+  webhook_address: string;
+  api_version: string;
+  events: string[];
+  webhook_id: string | null;
+  problems: StripeSetupProblem[];
+}
 
 export interface StripeConnection {
   account_id: string;
@@ -591,7 +609,7 @@ export interface FindPaymentOptionsParams {
   key?: string;
   type_name?: PaymentOptionTypeName;
   status?: PaymentOptionStatus;
-  sort_field?: "key" | "created_at" | "updated_at";
+  sort_field?: "created_at" | "updated_at";
   sort_direction?: SortDirection;
   limit?: number;
   cursor?: string | null;
@@ -628,6 +646,13 @@ export interface CreateMonriPaymentOptionParams {
   saved_card_terms: LocalizedMarkdown;
 }
 
+export interface ReplaceMonriMerchantKeyParams {
+  store_id: string;
+  id: string;
+  expected_updated_at: EpochMilliseconds;
+  merchant_key: string;
+}
+
 export interface ConnectStripePaymentOptionParams {
   store_id: string;
   id: string;
@@ -648,18 +673,17 @@ export interface UpdatePaymentOptionParams {
   saved_card_terms: LocalizedMarkdown | null;
 }
 
-export interface CreateStripeWebhookParams {
-  store_id: string;
-  id: string;
-  expected_updated_at: EpochMilliseconds;
-}
-
-export interface RotateStripeWebhookSecretParams {
+export interface SaveStripeWebhookSecretParams {
   store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   signing_secret: string;
   previous_secret_expires_at: EpochMilliseconds | null;
+}
+
+export interface CheckStripeSetupParams {
+  store_id: string;
+  id: string;
 }
 
 export interface ReplaceStripeKeysParams {
@@ -798,6 +822,17 @@ export interface CreatePaymentRefundParams {
   notify_customer: boolean;
 }
 
+export interface RecordMadeRefundParams {
+  store_id: string;
+  payment_id: string;
+  id: string;
+  money: Money;
+  reason: RefundReason;
+  application: RefundApplication;
+  notify_customer: boolean;
+  transaction_id: string;
+}
+
 export type RefundReceiptInput =
   { type: "sent"; reference: string } | { type: "returned"; reference: string };
 
@@ -850,7 +885,8 @@ export interface CancelPaymentParams {
 
 export interface FindIncomingWebhooksParams {
   store_id: string;
-  status?: IncomingWebhookStatusName;
+  payment_option_id: string;
+  status: IncomingWebhookStatusName;
   limit?: number;
   cursor?: string | null;
 }

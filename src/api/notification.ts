@@ -3,6 +3,7 @@ import type { RequestOptions } from "../types/api";
 import type { PaginatedResponse } from "../types/common";
 import type { IncomingWebhook } from "../types/payment";
 import type {
+  CheckEmailProviderSetupParams,
   ConnectEmailProviderParams,
   CreateEmailAddressParams,
   CreateEmailLayoutParams,
@@ -16,6 +17,7 @@ import type {
   EmailLayout,
   EmailProvider,
   EmailProviderDomain,
+  EmailProviderSetup,
   EmailTemplate,
   EmailTemplateDefault,
   EmailTemplatePreview,
@@ -186,7 +188,7 @@ export const createEmailProviderApi = (apiConfig: ApiConfig) => ({
   replaceKey(params: ReplaceEmailProviderKeyParams, options?: RequestOptions): Promise<EmailProvider> {
     return apiConfig.httpClient.put<EmailProvider>(
       storeRecordPath(params.store_id, "email-providers", params.id),
-      { expected_updated_at: params.expected_updated_at, api_key: params.api_key },
+      { expected_updated_at: params.expected_updated_at, api_key: params.api_key, webhook_secret: params.webhook_secret },
       options,
     );
   },
@@ -204,6 +206,13 @@ export const createEmailProviderApi = (apiConfig: ApiConfig) => ({
       options,
     );
     return { items, cursor: null };
+  },
+
+  checkSetup(params: CheckEmailProviderSetupParams, options?: RequestOptions): Promise<EmailProviderSetup> {
+    return apiConfig.httpClient.get<EmailProviderSetup>(
+      `${storeRecordPath(params.store_id, "email-providers", params.id)}/setup`,
+      options,
+    );
   },
 });
 

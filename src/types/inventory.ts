@@ -93,7 +93,7 @@ export interface InventoryMovement {
 
 export type ManualInventoryMovementReason =
   | { type: "receiving"; reference: string | null }
-  | { type: "adjustment"; note: string }
+  | { type: "adjustment"; note: string; expected_count: number }
   | { type: "damage"; reference: string | null };
 
 export interface InventoryUnitAllocation {
@@ -217,7 +217,6 @@ export interface ChangeSetAsideParams {
   store_id: string;
   id: string;
   action_id: string;
-  expected_updated_at: EpochMilliseconds;
   quantity: number;
   note: string;
 }
@@ -226,7 +225,6 @@ export interface MoveInventoryParams {
   store_id: string;
   id: string;
   action_id: string;
-  expected_updated_at: EpochMilliseconds;
   to_store_location_id: string;
   quantity: number;
 }
@@ -239,7 +237,6 @@ export interface ReceiveStockMoveParams {
   store_id: string;
   id: string;
   action_id: string;
-  expected_updated_at: EpochMilliseconds;
   type: IncomingStock;
 }
 
@@ -249,7 +246,6 @@ export interface RecordInventoryMovementParams {
   store_location_id: string;
   action_id: string;
   expected_level_id: string;
-  expected_level_updated_at: EpochMilliseconds;
   delta: number;
   from_set_aside: boolean;
   reason: ManualInventoryMovementReason;
@@ -298,7 +294,6 @@ export interface ReceiveInventoryUnitParams {
   asset_tag: string;
   manufacturer_serial: string | null;
   expected_level_id: string;
-  expected_level_updated_at: EpochMilliseconds;
 }
 
 export interface AllocateInventoryUnitParams extends GetInventoryUnitParams {

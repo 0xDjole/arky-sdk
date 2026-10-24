@@ -504,7 +504,7 @@ export interface CreateBookingOfferingParams {
   booking_service_id: string;
   booking_resource_id: string;
   venue: BookingVenue;
-  status?: BookingOfferingEditableStatus;
+  status: BookingOfferingEditableStatus;
   hours: BookingOfferingHours;
 }
 

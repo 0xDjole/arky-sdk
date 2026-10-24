@@ -1,5 +1,5 @@
-import { createAdmin, epochMilliseconds, type Collection, type CollectionStatus, type CreateCollectionParams,
-  type FindCollectionsParams, type UpdateCollectionParams, type Entry, type EntryStatus, type UpdateEntryParams } from "../../dist/index.js";
+import { createAdmin, epochMilliseconds, type Collection, type CollectionCleanup, type CollectionCleanupReference, type CollectionStatus, type CreateCollectionParams,
+  type FindCollectionsParams, type GetCollectionCleanupParams, type UpdateCollectionParams, type Entry, type EntryStatus, type UpdateEntryParams } from "../../dist/index.js";
 
 type Assert<T extends true> = T;
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
@@ -32,4 +32,11 @@ export type CollectionDiscoveryContracts = [
   Assert<RequiredField<CreateCollectionParams, "blocks">>,
   Assert<RequiredField<CreateCollectionParams, "store_id">>,
   Assert<RequiredField<UpdateCollectionParams, "expected_updated_at">>,
+  Assert<Equal<Parameters<typeof api.getCleanup>[0], GetCollectionCleanupParams>>,
+  Assert<Equal<GetCollectionCleanupParams, { store_id: string; id: string }>>,
+  Assert<Equal<Awaited<ReturnType<typeof api.getCleanup>>, CollectionCleanup>>,
+  Assert<Equal<CollectionCleanup["type"], "running" | "stopped_at_entry" | "stopped_at_collection">>,
+  Assert<Equal<Extract<CollectionCleanup, { type: "stopped_at_entry" }>, { type: "stopped_at_entry"; entry_id: string; blocked_by: CollectionCleanupReference[] }>>,
+  Assert<Equal<Extract<CollectionCleanup, { type: "stopped_at_collection" }>, { type: "stopped_at_collection"; blocked_by: CollectionCleanupReference[] }>>,
+  Assert<Equal<CollectionCleanupReference, { table: string; id: string; path: string }>>,
 ];

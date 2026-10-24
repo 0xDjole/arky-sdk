@@ -58,15 +58,6 @@ import type {
 } from "../types/catalog";
 import type { EmailContact } from "../types/common";
 import type {
-  CompanyCustomerAccess,
-  CompanyLocation,
-  CompanyMembership,
-  StorefrontFindCompanyLocationsParams,
-  StorefrontFindCompanyMembershipsParams,
-  StorefrontGetCompanyAccessParams,
-  StorefrontGetCompanyLocationParams,
-} from "../types/company";
-import type {
   Category,
   Collection,
   Entry,
@@ -100,7 +91,6 @@ import type {
 import type {
   Order,
   StorefrontCancelOrderBookingItemParams,
-  StorefrontCancelOrderProductItemParams,
   StorefrontDownloadOrderAssetParams,
   StorefrontFindOrderPaymentsParams,
   StorefrontFindOrdersParams,
@@ -193,6 +183,7 @@ import {
 import { ArkyError } from "../types/apiError";
 import { buildFormAnswers } from "../utils/formAnswers";
 import { requireId } from "../utils/ids";
+import { createStorefrontCompanyApi } from "./company";
 import { createStorefrontCustomerGroupApi } from "./customerGroup";
 import { createStorefrontFormsApi } from "./forms";
 import { createStorefrontPaymentMethodApi } from "./paymentMethod";
@@ -1075,16 +1066,6 @@ export const createStorefrontApi = (
             orderTokenOptions(options),
           );
         },
-
-        async cancelProductItem(params: StorefrontCancelOrderProductItemParams, options?: RequestOptions): Promise<Order> {
-          requireId(params.credit_id, "credit");
-          await lifecycle.ensureVisitorSession();
-          return httpClient.post<Order>(
-            `${base}/orders/${segment(params.order_id)}/product-items/${segment(params.line_item_id)}/cancel`,
-            { credit_id: params.credit_id, expected_updated_at: params.expected_updated_at, units: params.units },
-            orderTokenOptions(options),
-          );
-        },
       },
 
       library: {
@@ -1216,37 +1197,7 @@ export const createStorefrontApi = (
       },
     },
 
-    companies: {
-      async getAccess(params: StorefrontGetCompanyAccessParams, options?: RequestOptions): Promise<CompanyCustomerAccess> {
-        await lifecycle.ensureVisitorSession();
-        return httpClient.get<CompanyCustomerAccess>(`${base}/companies/${segment(params.id)}/access`, options);
-      },
-
-      membership: {
-        async find(
-          params: StorefrontFindCompanyMembershipsParams = {},
-          options?: RequestOptions,
-        ): Promise<PaginatedResponse<CompanyMembership>> {
-          await lifecycle.ensureVisitorSession();
-          return httpClient.get<PaginatedResponse<CompanyMembership>>(`${base}/company-memberships`, { ...options, params });
-        },
-      },
-
-      location: {
-        async find(
-          params: StorefrontFindCompanyLocationsParams = {},
-          options?: RequestOptions,
-        ): Promise<PaginatedResponse<CompanyLocation>> {
-          await lifecycle.ensureVisitorSession();
-          return httpClient.get<PaginatedResponse<CompanyLocation>>(`${base}/company-locations`, { ...options, params });
-        },
-
-        async get(params: StorefrontGetCompanyLocationParams, options?: RequestOptions): Promise<CompanyLocation> {
-          await lifecycle.ensureVisitorSession();
-          return httpClient.get<CompanyLocation>(`${base}/company-locations/${segment(params.id)}`, options);
-        },
-      },
-    },
+    companies: createStorefrontCompanyApi(httpClient, lifecycle.ensureVisitorSession),
 
     actions: {
       async track(params: TrackCustomerActionParams, options?: RequestOptions): Promise<void> {

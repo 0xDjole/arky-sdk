@@ -3,8 +3,8 @@ import type { EpochMilliseconds } from "./time";
 export type { RequestOptions } from "./httpClient";
 
 export type RequestPendingAccountSessionParams =
-  | { email: string; store_id?: undefined }
-  | { email: string; store_id: string; language: string };
+  | { session_id: string; email: string; store_id?: undefined }
+  | { session_id: string; email: string; store_id: string; language: string };
 
 export interface VerifyPendingAccountSessionParams {
   session_id: string;

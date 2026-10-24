@@ -33,7 +33,7 @@ const adminSurface = {
   "companies.membership": ["create", "delete", "find", "get", "resendInvite", "update"],
   "companies.notes": ["create", "delete", "find", "update"],
   "companies.role": ["create", "delete", "find", "get", "update"],
-  "content.collection": ["create", "delete", "find", "get", "getByKey", "update"],
+  "content.collection": ["create", "delete", "find", "get", "getByKey", "getCleanup", "update"],
   "content.entry": ["create", "delete", "find", "get", "update"],
   customers: ["create", "erase", "find", "findSessions", "get", "import", "merge", "previewImport", "revokeAllSessions", "revokeSession", "update"],
   "customers.emailSuppression": ["block", "find", "get", "recordResubscribe", "recordUnsubscribe", "unblock"],
@@ -42,7 +42,7 @@ const adminSurface = {
   "eshop.bookingResource": ["create", "delete", "find", "get", "getByKey", "update"],
   "eshop.bookingService": ["create", "delete", "find", "get", "getAvailability", "getByKey", "update"],
   "eshop.cart": ["addBooking", "addCustomerGroup", "addProduct", "checkout", "checkoutOnAccount", "clear", "create", "find", "get", "getOrder", "previewAccessProduct", "quote", "quoteFutureDeliveries", "quotePurchase", "removeItem", "selectShippingMethod", "setFutureDeliveries", "update"],
-  "eshop.cart.offer": ["create", "send", "withdraw"],
+  "eshop.cart.offer": ["create", "quote", "send", "withdraw"],
   "eshop.catalog": ["copy", "create", "delete", "find", "findPurchasable", "get", "getByKey", "update"],
   "eshop.catalogAccess": ["create", "delete", "find", "get"],
   "eshop.catalogItem": ["batch", "create", "delete", "find", "get", "update"],
@@ -57,7 +57,7 @@ const adminSurface = {
   "eshop.customerGroupOffering": ["create", "delete", "find", "get", "getByKey", "update"],
   "eshop.digitalAsset": ["archive", "find", "get", "upload"],
   "eshop.fulfillment": ["create", "execute", "find", "get", "markDelivered", "updateTracking"],
-  "eshop.fulfillmentJob": ["decide", "find", "findItems", "get", "getPickupCash", "getUnitSlots", "recordPickupCash"],
+  "eshop.fulfillmentJob": ["execute", "find", "findItems", "get", "getPickupCash", "getUnitSlots", "recordPickupCash"],
   "eshop.fulfillmentRouting": ["get", "update"],
   "eshop.inventoryItem": ["create", "delete", "find", "get", "getByKey", "update"],
   "eshop.inventoryLevel": ["create", "find", "findStock", "get", "makeAvailable", "move", "receiveMove", "remove", "setAside"],
@@ -67,7 +67,7 @@ const adminSurface = {
   "eshop.order": ["addInvoice", "attendBookingItem", "cancel", "cancelBookingItem", "cancelProductItem", "correctDeliveryAddress", "deleteInvoice", "find", "findBookingItems", "findPayments", "get", "getFinancialSummary", "getPayment", "markBookingItemNoShow", "rescheduleBookingItem", "resendReceipt", "resumePayment", "revokeAccess", "update"],
   "eshop.order.credit": ["create", "find", "get", "void"],
   "eshop.order.notes": ["create", "delete", "find", "update"],
-  "eshop.payment": ["cancel", "cancelRefund", "createManual", "createRefund", "find", "get", "recordCollection", "recordRefundReceipt", "resolveCharge", "resolveHold", "resolveRefund", "voidCollection"],
+  "eshop.payment": ["cancel", "cancelRefund", "createManual", "createRefund", "find", "get", "recordCollection", "recordMadeRefund", "recordRefundReceipt", "resolveCharge", "resolveHold", "resolveRefund", "voidCollection"],
   "eshop.paymentMethod": ["cancelSetup", "completeSetup", "find", "get", "requestSetup", "revoke", "startSetup"],
   "eshop.product": ["create", "delete", "find", "get", "getByKey", "update"],
   "eshop.productVariant": ["create", "delete", "find", "get", "update"],
@@ -83,7 +83,7 @@ const adminSurface = {
   "notification.outgoingEmail": ["find", "get"],
   "notification.outgoingWebhook": ["find", "get"],
   "notification.emailAddress": ["create", "delete", "find", "get", "getReadiness"],
-  "notification.emailProvider": ["connect", "delete", "find", "findDomains", "get", "replaceKey"],
+  "notification.emailProvider": ["checkSetup", "connect", "delete", "find", "findDomains", "get", "replaceKey"],
   "notification.layout": ["create", "delete", "find", "get", "update"],
   "notification.resendEvent": ["find", "resolve"],
   "notification.template": ["create", "delete", "find", "findDefaults", "get", "preview", "test", "update"],
@@ -97,8 +97,8 @@ const adminSurface = {
   "store.market": ["create", "delete", "find", "get", "getByKey", "update"],
   "store.member": ["acceptInvite", "changeStatus", "find", "findOwn", "getOwn", "invite", "remove", "resendInvite", "transferOwnership", "updateRoles"],
   "store.paymentOption": ["create", "find", "get", "getByKey", "update"],
-  "store.paymentOption.monri": ["create"],
-  "store.paymentOption.stripe": ["connect", "createWebhook", "refresh", "replaceKeys", "rotateWebhookSecret"],
+  "store.paymentOption.monri": ["create", "replaceMerchantKey"],
+  "store.paymentOption.stripe": ["checkSetup", "connect", "refresh", "replaceKeys", "saveWebhookSecret"],
   "store.role": ["create", "delete", "find", "get", "update"],
   "store.salesChannel": ["create", "delete", "find", "get", "getByKey", "update"],
   "store.shippingMethod": ["create", "delete", "find", "get", "getByKey", "update"],
@@ -175,9 +175,10 @@ test("deleted features and store switching are absent from the Admin client", ()
   for (const removed of ["getCheckout", "retainSelection", "recoverSelection", "pendingSelection", "cancel", "reactivate", "getPlans"]) {
     assert.equal(removed in client.store.subscription, false, removed);
   }
-  for (const removed of ["setup", "configure", "cancelConfiguration", "getConfigurationChange", "openDashboard", "getConnection"]) {
+  for (const removed of ["setup", "configure", "cancelConfiguration", "getConfigurationChange", "openDashboard", "getConnection", "createWebhook", "rotateWebhookSecret"]) {
     assert.equal(removed in client.store.paymentOption.stripe, false, removed);
   }
+  assert.equal("decide" in client.eshop.fulfillmentJob, false);
   assert.equal("googleStart" in client.account.auth, false);
   assert.equal("update" in client.account, false);
 });

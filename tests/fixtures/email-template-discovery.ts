@@ -1,5 +1,5 @@
 import { createAdmin } from '../../dist/index.js';
-import type { AlertRecipient, ConnectEmailProviderParams, CreateEmailAddressParams, CreateEmailLayoutParams, CreateEmailTemplateParams, Email, EmailAddress, EmailAddressReadiness, EmailCapabilityReadiness, EmailContent, EmailCreationTemplates, EmailLayout, EmailLayoutContent, EmailPreview, EmailPreviewSummary, EmailProvider, EmailProviderDnsRecord, EmailProviderDomain, EmailProviderDomainStatus, EmailReplyTo, EmailTemplate, EmailTemplateDefault, EmailTemplateType, EmailTemplateTypeName, EpochMilliseconds, FindEmailTemplatesParams, IncomingWebhook, OutgoingEmail, OutgoingEmailSummary, PaginatedResponse, ReplaceEmailProviderKeyParams, SendEmailTemplateTestParams, StoreEmailSettings, UpdateEmailLayoutParams, UpdateEmailTemplateParams } from '../../dist/index.js';
+import type { AlertRecipient, CheckEmailProviderSetupParams, ConnectEmailProviderParams, CreateEmailAddressParams, CreateEmailLayoutParams, CreateEmailTemplateParams, Email, EmailAddress, EmailAddressReadiness, EmailCapabilityReadiness, EmailContent, EmailCreationTemplates, EmailLayout, EmailLayoutContent, EmailPreview, EmailPreviewSummary, EmailProvider, EmailProviderDnsRecord, EmailProviderDomain, EmailProviderDomainStatus, EmailProviderSetup, EmailProviderSetupProblem, EmailReplyTo, EmailTemplate, EmailTemplateDefault, EmailTemplateType, EmailTemplateTypeName, EpochMilliseconds, FindEmailTemplatesParams, FindOutgoingEmailsParams, IncomingWebhook, OutgoingEmail, OutgoingEmailSummary, PaginatedResponse, ReplaceEmailProviderKeyParams, SendEmailTemplateTestParams, StoreEmailSettings, UpdateEmailLayoutParams, UpdateEmailTemplateParams } from '../../dist/index.js';
 type Assert<T extends true> = T;
 type Equal<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
@@ -15,13 +15,15 @@ const tested: Promise<OutgoingEmail> = client.notification.template.test({ store
 const selection: Email = { email_template_id: create.id, sending_address_id: '4b6d8f0a-2e3a-4b7d-9f1c-3e5a7b9d1f2a', from_name: 'Shop', reply_to: { type: 'external', email: 'help@example.test' } };
 const recipients: AlertRecipient[] = [{ type: 'email', email: 'owner@example.test', language: 'en' }, { type: 'store_role', store_role_id: '5b7e2c94-1d38-4f60-a9e5-3c8d0f2b6a17', language: 'bs' }];
 const layout: CreateEmailLayoutParams = { store_id, id: layout_id, key: 'plain', name: 'Plain', content: { en: { html: '{{{body}}}', text: '{{body}}' } } };
-const connection: ConnectEmailProviderParams = { store_id, id: '6d8f0a2c-4e5b-4d9f-b1e3-5a7c9e1b3d4f', name: 'Main Resend', api_key: 're_key' };
+const connection: ConnectEmailProviderParams = { store_id, id: '6d8f0a2c-4e5b-4d9f-b1e3-5a7c9e1b3d4f', name: 'Main Resend', api_key: 're_key', webhook_secret: 'whsec_secret' };
+const setup: Promise<EmailProviderSetup> = client.notification.emailProvider.checkSetup({ store_id, id: connection.id });
+const receiptResends: Promise<PaginatedResponse<OutgoingEmailSummary>> = client.notification.outgoingEmail.find({ store_id, type: 'receipt_resend', order_id: '4a2c7c0d-4389-4aae-b3d7-02ff834a024d' });
 const address: CreateEmailAddressParams = { store_id, id: '4b6d8f0a-2e3a-4b7d-9f1c-3e5a7b9d1f2a', email: 'orders@example.test', email_provider_id: connection.id };
 const sent: Promise<PaginatedResponse<OutgoingEmailSummary>> = client.notification.outgoingEmail.find({ store_id, type: 'store_admin_sign_in' });
 const ready: Promise<EmailAddressReadiness> = client.notification.emailAddress.getReadiness({ store_id, id: address.id });
 const inbox: Promise<PaginatedResponse<IncomingWebhook>> = client.notification.resendEvent.find({ store_id, email_provider_id: connection.id, status: 'review' });
 const layouts: Promise<PaginatedResponse<EmailLayout>> = client.notification.layout.find({ store_id, limit: 20 });
-void [create, tested, selection, recipients, layout, connection, address, sent, ready, inbox, layouts];
+void [create, tested, selection, recipients, layout, connection, setup, receiptResends, address, sent, ready, inbox, layouts];
 export type EmailTemplateContracts = [
   Assert<Equal<keyof EmailTemplate, 'id' | 'store_id' | 'key' | 'name' | 'default_language' | 'layout_id' | 'type' | 'content' | 'created_at' | 'updated_at'>>,
   Assert<Equal<EmailTemplate['type'], EmailTemplateType>>,
@@ -31,7 +33,7 @@ export type EmailTemplateContracts = [
     | 'booking_reminder' | 'booking_cancelled' | 'offer_sent' | 'offer_revised' | 'offer_reminder' | 'company_invite' | 'company_access_notice'
     | 'store_admin_invite' | 'return_requested' | 'return_approved' | 'return_declined' | 'renewal_upcoming' | 'renewal_payment_failed'
     | 'membership_cancelled' | 'form_received' | 'form_stage_changed' | 'new_form_submission_alert' | 'new_order_alert' | 'new_return_alert'
-    | 'support_message' | 'broadcast'>>,
+    | 'new_conversation_message_alert' | 'support_message' | 'broadcast'>>,
   Assert<Equal<EmailTemplate['content'], Record<string, EmailContent>>>,
   Assert<Equal<keyof EmailContent, 'subject' | 'preheader' | 'html' | 'text'>>,
   Assert<Equal<keyof EmailTemplateDefault, 'key' | 'name' | 'type' | 'content' | 'allowed_fields'>>,
@@ -49,6 +51,10 @@ export type EmailTemplateContracts = [
   Assert<Equal<StoreEmailSettings['customer_sign_in'], Email | null>>,
   Assert<Equal<StoreEmailSettings['new_order_alert'], Email | null>>,
   Assert<Equal<StoreEmailSettings['new_order_alert_recipients'], AlertRecipient[]>>,
+  Assert<RequiredField<StoreEmailSettings, 'new_conversation_message_alert'>>,
+  Assert<Equal<StoreEmailSettings['new_conversation_message_alert'], Email | null>>,
+  Assert<RequiredField<StoreEmailSettings, 'new_conversation_message_alert_recipients'>>,
+  Assert<Equal<StoreEmailSettings['new_conversation_message_alert_recipients'], AlertRecipient[]>>,
   Assert<Equal<StoreEmailSettings['creation_templates'], EmailCreationTemplates>>,
   Assert<Equal<keyof EmailCreationTemplates, 'form_received' | 'form_stage_changed' | 'new_form_submission_alert' | 'support_message' | 'broadcast'>>,
   Assert<Missing<StoreEmailSettings, 'staff_new_order' | 'staff_new_return' | 'sign_in_code' | 'sending_address_id'>>,
@@ -61,7 +67,20 @@ export type EmailTemplateContracts = [
   Assert<Equal<EmailProviderDomain['status'], EmailProviderDomainStatus>>,
   Assert<Equal<EmailProviderDomain['records'], EmailProviderDnsRecord[]>>,
   Assert<Equal<keyof EmailProviderDnsRecord, 'record' | 'status' | 'type' | 'name' | 'value' | 'priority'>>,
-  Assert<Equal<ReplaceEmailProviderKeyParams, { store_id: string; id: string; expected_updated_at: EpochMilliseconds; api_key: string }>>,
+  Assert<Equal<ReplaceEmailProviderKeyParams, { store_id: string; id: string; expected_updated_at: EpochMilliseconds; api_key: string; webhook_secret: string }>>,
+  Assert<Equal<ConnectEmailProviderParams, { store_id: string; id: string; name: string; api_key: string; webhook_secret: string }>>,
+  Assert<Equal<Parameters<typeof client.notification.emailProvider.checkSetup>[0], CheckEmailProviderSetupParams>>,
+  Assert<Equal<CheckEmailProviderSetupParams, { store_id: string; id: string }>>,
+  Assert<Equal<Awaited<ReturnType<typeof client.notification.emailProvider.checkSetup>>, EmailProviderSetup>>,
+  Assert<Equal<EmailProviderSetup, { webhook_address: string; events: string[]; webhook_id: string | null; problems: EmailProviderSetupProblem[] }>>,
+  Assert<Equal<EmailProviderSetupProblem['type'], 'webhook_missing' | 'webhook_duplicated' | 'webhook_secret_mismatch' | 'webhook_disabled' | 'webhook_events_missing'>>,
+  Assert<Equal<Extract<EmailProviderSetupProblem, { type: 'webhook_duplicated' }>, { type: 'webhook_duplicated'; webhook_ids: string[] }>>,
+  Assert<Equal<Extract<EmailProviderSetupProblem, { type: 'webhook_events_missing' }>, { type: 'webhook_events_missing'; events: string[] }>>,
+  Assert<Equal<Extract<FindOutgoingEmailsParams, { order_id: string }>['type'], 'receipt_resend'>>,
+  Assert<{ store_id: string; order_id: string } extends FindOutgoingEmailsParams ? false : true>,
+  Assert<{ store_id: string; type: 'event_email'; order_id: string } extends FindOutgoingEmailsParams ? false : true>,
+  Assert<{ store_id: string; type: 'receipt_resend'; order_id: string } extends FindOutgoingEmailsParams ? true : false>,
+  Assert<{ store_id: string; type: 'event_email' } extends FindOutgoingEmailsParams ? true : false>,
   Assert<Equal<Parameters<typeof client.notification.emailProvider.replaceKey>[0], ReplaceEmailProviderKeyParams>>,
   Assert<Equal<Awaited<ReturnType<typeof client.notification.emailProvider.replaceKey>>, EmailProvider>>,
   Assert<Equal<Awaited<ReturnType<typeof client.notification.emailProvider.find>>, PaginatedResponse<EmailProvider>>>,

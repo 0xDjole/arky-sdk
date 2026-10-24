@@ -153,6 +153,7 @@ test("checkout input the app did not decide explicitly fails before persisting o
     { payment: { ...request.payment, payment_option_id: "card" } },
     { payment: { ...request.payment, return_url: "" } },
     { payment: { ...request.payment, save_payment_method: undefined } },
+    { contact_first_name: 5 }, { contact_last_name: { text: "Horvat" } }, { contact_first_name: ["Ana"] },
   ];
   for (const change of invalid) {
     const { storage } = browser();
@@ -161,6 +162,19 @@ test("checkout input the app did not decide explicitly fails before persisting o
     await assert.rejects(storefront().eshop.cart.retainCheckout({ ...request, ...change }));
     assert.equal(calls.length, 0, JSON.stringify(change));
     assert.equal(storage.getItem(storageKey), null);
+  }
+});
+
+test("contact names are kept and posted exactly as the app gave them, text or null, and left out when it gave none", async () => {
+  for (const names of [{ contact_first_name: "Ana", contact_last_name: "Horvat" }, { contact_first_name: null, contact_last_name: "Horvat" }, { contact_first_name: "Ana" }, {}]) {
+    const { storage } = browser();
+    const calls = capture(success);
+    const input = { ...request, ...names };
+    await storefront().eshop.cart.retainCheckout(input);
+    assert.deepEqual(retained(storage), input);
+    assert.deepEqual(await storefront().eshop.cart.recoverCheckout(), placedAcceptance());
+    assert.deepEqual(calls[0].body, input);
+    for (const key of ["contact_first_name", "contact_last_name"]) assert.equal(key in calls[0].body, key in names, key);
   }
 });
 
@@ -186,6 +200,7 @@ test("every changed checkout field stays blocked after ambiguity without another
     { contact_email: { email: "buyer@example.test", language: "bs" } },
     { payment: { type: "free" } }, { payment: { ...request.payment, payment_option_id: ids.otherPaymentOption } },
     { payment: { ...request.payment, return_url: null } },
+    { contact_first_name: "Ana" }, { contact_last_name: "Horvat" },
   ]) {
     await assert.rejects(storefront().eshop.cart.retainCheckout({ ...request, ...change }), /still keeps a different unresolved request/);
   }

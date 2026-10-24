@@ -189,10 +189,11 @@ export async function joinFreeCustomerGroup(
   params: JoinFreeCustomerGroupParams,
   options?: RequestOptions,
 ): Promise<JoinFreeCustomerGroupResult> {
-  const contact = deps.verifiedContact();
-  if (!contact) {
+  const verified = deps.verifiedContact();
+  if (!verified) {
     throw new CustomerGroupJoinError("sign_in_required", "Joining a free group needs a signed-in customer with a verified email");
   }
+  const contact: EmailContact = { email: verified.email, language: params.language };
   const catalogId = requireId(params.catalog_id, "catalog");
   const identifier = "id" in params ? params.id : params.key;
   if (!identifier) throw new TypeError("A free sign-up names its customer group by id or by key");

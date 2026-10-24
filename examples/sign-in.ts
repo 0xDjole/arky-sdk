@@ -13,8 +13,11 @@ await arky.customer.requestCode({ contact: { email: "ana@example.com", language:
 try {
   await arky.customer.verify({ code: "123456" });
 } catch (error) {
-  if (error instanceof ArkyApiError && error.statusCode === 400) console.log("the code is wrong or expired", error.code);
-  else throw error;
+  if (error instanceof ArkyApiError && (error.code === "CUSTOMER_SIGN_IN.CODE_INVALID" || error.code === "CUSTOMER_SIGN_IN.ATTEMPTS_EXHAUSTED")) {
+    console.log("show the CMS text for", error.code);
+  } else {
+    throw error;
+  }
 }
 
 const me = await arky.customer.getMe();

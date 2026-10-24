@@ -36,6 +36,8 @@ export type CustomerSessionContracts = [
   Assert<Equal<keyof ChangeCustomerEmailParams, 'code'>>,
   Assert<Equal<Awaited<ReturnType<StorefrontClient['customer']['changeEmail']>>, CustomerMe>>,
   Assert<Missing<UpdateCustomerMeParams, 'email'>>,
+  Assert<Equal<UpdateCustomerMeParams['language'], string | undefined>>,
+  Assert<Equal<Parameters<StorefrontClient['customer']['updateMe']>[0], UpdateCustomerMeParams>>,
 ];
 
 void [status, visitor, record];

@@ -242,7 +242,7 @@ export function createAdminSupportApi(apiConfig: ApiConfig) {
       selectReplyEmail(params: SelectConversationReplyEmailParams, options?: RequestOptions): Promise<Conversation> {
         return apiConfig.httpClient.post<Conversation>(
           `${conversationPath(params.store_id, params.conversation_id)}/reply-email`,
-          { expected_updated_at: params.expected_updated_at, reply: params.reply },
+          { expected_reply: params.expected_reply, reply: params.reply },
           options,
         );
       },

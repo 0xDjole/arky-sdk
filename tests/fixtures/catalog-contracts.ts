@@ -58,6 +58,8 @@ export type CatalogContracts = [
   AssertTrue<RequiredField<UpdateCatalogParams, "schedule">>,
   AssertTrue<RequiredField<UpdateCatalogParams, "expected_updated_at">>,
   AssertFalse<"key" extends keyof UpdateCatalogParams ? true : false>,
+  AssertTrue<Same<NonNullable<FindCatalogsParams["sort_field"]>, "created_at" | "updated_at">>,
+  AssertFalse<"key" extends NonNullable<FindCatalogsParams["sort_field"]> ? true : false>,
   AssertFalse<"deleting" extends CreateCatalogParams["status"]["type"] ? true : false>,
   AssertTrue<"deleting" extends Catalog["status"]["type"] ? true : false>,
   AssertTrue<Same<CatalogItem["status"], CatalogItemStatus>>,

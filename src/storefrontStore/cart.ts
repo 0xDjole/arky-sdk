@@ -12,15 +12,14 @@ import type {
   CheckoutAcceptance,
   CustomerGroupDeliveryOffers,
   QuoteLine,
+  QuotePromotionCode,
   StorefrontCheckoutCartInput,
-  StorefrontCurrentCartParams,
 } from "../types/cart";
 import { cartBookingItems, cartCustomerGroupItems, cartProductItems } from "../types/cart";
 import { CartError } from "../types/cartSelection";
 import { ArkyApiError, ArkyNetworkError, errorInfo } from "../types/apiError";
 import type { CompanyPartyQuery } from "../types/common";
 import type { StorefrontCheckoutCartRequest, StorefrontClient } from "../index";
-import { cartBuyerKey } from "../services/cartSelection";
 import { isDefiniteRefusal } from "../utils/durableRequest";
 import { fingerprint } from "../utils/fingerprint";
 import { epochMillisecondsNow } from "../utils/time";
@@ -121,10 +120,6 @@ function cartLineInput(line: CartLineItem): CartLineItemInput {
   }
 }
 
-export function sameCartScope(left: StorefrontCurrentCartParams, right: StorefrontCurrentCartParams): boolean {
-  return cartBuyerKey(left.buyer) === cartBuyerKey(right.buyer) && left.catalog_id === right.catalog_id;
-}
-
 function cartMayHaveChanged(error: unknown): boolean {
   if (error instanceof ArkyApiError) return error.statusCode === 409 || !isDefiniteRefusal(error);
   if (error instanceof ArkyNetworkError) return error.code !== "unreadable_answer" || !isDefiniteRefusal(error);
@@ -197,9 +192,7 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
     [product_item_count, booking_items, customer_group_items],
     (products, bookings, groups) => products + bookings.length + groups.length,
   );
-  const promotion_codes = computed(quote, (value) =>
-    (value?.promotions ?? []).flatMap((promotion) => (promotion.code ? [promotion.code.code] : [])),
-  );
+  const promotion_codes = computed(quote, (value): QuotePromotionCode[] => value?.promotion_codes ?? []);
 
   let cartRevision = 0;
   let pendingCartId: string | null = null;
@@ -495,6 +488,8 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
       expected_updated_at: current.updated_at,
       presentation_digest: reviewed.presentation_digest,
       contact_email: params.contact_email,
+      ...(params.contact_first_name !== undefined ? { contact_first_name: params.contact_first_name } : {}),
+      ...(params.contact_last_name !== undefined ? { contact_last_name: params.contact_last_name } : {}),
       payment: params.payment,
       scope,
     };

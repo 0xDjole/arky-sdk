@@ -47,7 +47,7 @@ test("a fulfillment is prepared under the app-picked id with exact unit selectio
   assert.equal(calls.length, 1);
 });
 
-test("a fulfillment action carries the loaded version, tracking lists, the notification choice and the lot references", async (context) => {
+test("a fulfillment command carries the loaded version and the command with its notification choice, tracking lists and lot references", async (context) => {
   const calls = recordFetch(context, () => ({ id: fulfillmentId }));
   const api = eshop().fulfillment;
   assert.deepEqual(Object.keys(api).sort(), ["create", "execute", "find", "get", "markDelivered", "updateTracking"]);
@@ -55,21 +55,27 @@ test("a fulfillment action carries the loaded version, tracking lists, the notif
     assert.equal(removed in eshop(), false, removed);
   }
   const tracking = { carrier: "Courier", number: "TRACK-42", url: "https://tracking.example.test/42" };
-  const actions = [
-    [{ type: "ready" }, [], false, []],
-    [{ type: "cancel" }, [], false, []],
-    [{ type: "fulfill", timing: { type: "on_time" } }, [tracking], true, [{ fulfillment_job_line_id: "line", lot_reference: "batch-42" }]],
-    [{ type: "fulfill", timing: { type: "late", reason: "Customer agreed to a later collection" } }, [], true, []],
+  const commands = [
+    { type: "ready", notify_customer: false },
+    { type: "ready", notify_customer: true },
+    { type: "cancel" },
+    { type: "fulfill", timing: { type: "on_time" }, notify_customer: true, trackings: [tracking], lot_references: [{ fulfillment_job_line_id: "line", lot_reference: "batch-42" }] },
+    { type: "fulfill", timing: { type: "late", reason: "Customer agreed to a later collection" }, notify_customer: false, trackings: [], lot_references: [] },
+    { type: "fulfill", timing: { type: "on_time" }, notify_customer: true },
   ];
-  for (const [action, trackingValue, notify_customer, lotReferences] of actions) {
-    const request = { store_id: storeId, fulfillment_id: "fulfillment/id", expected_updated_at: revision, action, trackings: trackingValue, notify_customer, lot_references: lotReferences };
+  for (const command of commands) {
+    const request = { store_id: storeId, fulfillment_id: "fulfillment/id", expected_updated_at: revision, command };
     const before = structuredClone(request);
     await api.execute(request);
     assert.deepEqual(request, before);
-    assert.deepEqual(calls.at(-1).body, { expected_updated_at: revision, action, trackings: trackingValue, notify_customer, lot_references: lotReferences });
-    assert.equal(calls.at(-1).href, `${baseUrl}/v1/stores/${storeId}/fulfillments/fulfillment%2Fid/commands`);
+    assert.deepEqual(calls.at(-1).body, { expected_updated_at: revision, command });
+    assert.equal(calls.at(-1).method, "POST");
+    assert.equal(calls.at(-1).href, `${baseUrl}/v1/stores/${storeId}/fulfillments/fulfillment%2Fid/execute`);
+    for (const moved of ["action", "notify_customer", "trackings", "lot_references"]) assert.equal(moved in calls.at(-1).body, false, moved);
   }
-  assert.equal(calls.length, actions.length);
+  assert.equal("trackings" in calls.at(-1).body.command, false);
+  assert.equal("lot_references" in calls.at(-1).body.command, false);
+  assert.equal(calls.length, commands.length);
 });
 
 test("tracking changes and delivery confirmation carry the loaded version", async (context) => {
@@ -86,31 +92,33 @@ test("tracking changes and delivery confirmation carry the loaded version", asyn
   ]);
 });
 
-test("warehouse job decisions carry the job version and the exact action, and a split brings its app-picked job id", async (context) => {
+test("warehouse job commands carry the job version and the exact command, and a split brings its app-picked job id", async (context) => {
   const calls = recordFetch(context, () => ({ id: "work/id" }));
   const api = eshop().fulfillmentJob;
   const lines = [{ fulfillment_job_line_id: "line", unit_spans: [{ first_unit: 2, quantity: 3 }] }];
-  const actions = [
+  const commands = [
     { type: "move", to_store_location_id: "destination" },
     { type: "split", fulfillment_job_id: splitJobId, to_store_location_id: "destination", lines },
     { type: "hand_back", note: "Staff will fulfill" },
     { type: "hold", note: "Awaiting customer confirmation" },
     { type: "release_hold", hold_id: "hold/id" },
   ];
-  for (const action of actions) {
-    const request = { store_id: storeId, fulfillment_job_id: "work/id", expected_updated_at: revision, action };
+  for (const command of commands) {
+    const request = { store_id: storeId, fulfillment_job_id: "work/id", expected_updated_at: revision, command };
     const before = structuredClone(request);
-    await api.decide(request);
+    await api.execute(request);
     assert.deepEqual(request, before);
-    assert.deepEqual(calls.at(-1).body, { expected_updated_at: revision, action });
-    assert.equal(calls.at(-1).href, `${baseUrl}/v1/stores/${storeId}/fulfillment-jobs/work%2Fid/decisions`);
+    assert.deepEqual(calls.at(-1).body, { expected_updated_at: revision, command });
+    assert.equal(calls.at(-1).method, "POST");
+    assert.equal(calls.at(-1).href, `${baseUrl}/v1/stores/${storeId}/fulfillment-jobs/work%2Fid/execute`);
   }
-  await assert.rejects(async () => api.decide({ store_id: storeId, fulfillment_job_id: "work/id", expected_updated_at: revision, action: { ...actions[1], fulfillment_job_id: "split-1" } }), {
+  await assert.rejects(async () => api.execute({ store_id: storeId, fulfillment_job_id: "work/id", expected_updated_at: revision, command: { ...commands[1], fulfillment_job_id: "split-1" } }), {
     name: "TypeError",
     message: "The fulfillment job id must be a canonical UUID v4 picked by the app",
   });
-  assert.equal(calls.length, actions.length);
-  assert.deepEqual(Object.keys(api).sort(), ["decide", "find", "findItems", "get", "getPickupCash", "getUnitSlots", "recordPickupCash"]);
+  assert.equal(calls.length, commands.length);
+  assert.deepEqual(Object.keys(api).sort(), ["execute", "find", "findItems", "get", "getPickupCash", "getUnitSlots", "recordPickupCash"]);
+  assert.equal("decide" in api, false);
   for (const removed of ["fulfillmentOrder", "fulfillmentPartner", "fulfillmentRoutingPolicy"]) assert.equal(removed in eshop(), false, removed);
 });
 

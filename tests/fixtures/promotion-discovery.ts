@@ -19,9 +19,12 @@ import type {
   Block,
   Schedule,
   PromotionCondition,
+  PromotionActivation,
+  PromotionStacking,
   PromotionStatus,
   PromotionTarget,
   ShippingRateCondition,
+  UpdatePromotionParams,
 } from "arky-sdk/types";
 
 type Assert<T extends true> = T;
@@ -43,7 +46,14 @@ export type PromotionContracts = [
   Assert<RequiredField<CreatePromotionParams, "id">>,
   Assert<RequiredField<CreatePromotionParams, "blocks">>,
   Assert<Equal<CreatePromotionParams["blocks"], Block[]>>,
-  Assert<Missing<CreatePromotionParams, "activation">>,
+  Assert<RequiredField<CreatePromotionParams, "activation">>,
+  Assert<Equal<CreatePromotionParams["activation"], PromotionActivation>>,
+  Assert<Missing<UpdatePromotionParams, "activation">>,
+  Assert<Equal<Promotion["activation"], PromotionActivation>>,
+  Assert<Equal<PromotionActivation["type"], "codes" | "automatic">>,
+  Assert<Equal<PromotionStacking["type"], "continue" | "stop_after">>,
+  Assert<Equal<CreatePromotionParams["stacking"], PromotionStacking>>,
+  Assert<Equal<UpdatePromotionParams["stacking"], PromotionStacking>>,
   Assert<Equal<Extract<PromotionTarget, { type: "product_variants" }>, { type: "product_variants"; variant_ids: string[] }>>,
   Assert<Equal<Extract<PromotionCondition, { type: "minimum_subtotal" }>, { type: "minimum_subtotal"; amounts: Money[] }>>,
   Assert<Equal<Extract<PromotionCondition, { type: "item_quantity" }>, { type: "item_quantity"; target: PromotionTarget; min_quantity: number; max_quantity: number | null }>>,

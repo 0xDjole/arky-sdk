@@ -104,9 +104,11 @@ test("store emails name every selection, the alert recipients and the creation t
     membership_cancelled: null,
     new_order_alert: selection(template),
     new_return_alert: null,
+    new_conversation_message_alert: selection(template),
     offer_reminder_after_days: 7,
     new_order_alert_recipients: [{ type: "store_role", store_role_id: role, language: "en" }, { type: "email", email: "owner@example.test", language: "bs" }],
     new_return_alert_recipients: [],
+    new_conversation_message_alert_recipients: [{ type: "store_role", store_role_id: role, language: "bs" }],
     creation_templates: { form_received: template, form_stage_changed: template, new_form_submission_alert: template, support_message: template, broadcast: template },
   };
   const saved = { id: "2d4f6a8c-0e1f-4a3c-9e5b-7d9f1b3d5f7a", store_id: store, ...settings, created_at: 1, updated_at: 2 };
@@ -120,4 +122,6 @@ test("store emails name every selection, the alert recipients and the creation t
   for (const removed of ["staff_new_order", "staff_new_return", "staff_new_order_recipients", "staff_new_return_recipients", "sending_address_id", "sign_in_code"]) {
     assert.equal(removed in calls[1].body, false, removed);
   }
+  assert.deepEqual(calls[1].body.new_conversation_message_alert, selection(template));
+  assert.deepEqual(calls[1].body.new_conversation_message_alert_recipients, [{ type: "store_role", store_role_id: role, language: "bs" }]);
 });

@@ -6,12 +6,14 @@ export type LocationReach =
   | { type: "everywhere" }
   | { type: "only"; store_location_ids: string[] };
 
+export type StorePermissionAccess = "read_write" | "read_only";
+
 export type StorePermission =
   | { type: "admin" }
   | { type: "catalog" }
-  | { type: "orders" }
-  | { type: "payments" }
-  | { type: "customers" }
+  | { type: "orders"; access: StorePermissionAccess }
+  | { type: "payments"; access: StorePermissionAccess }
+  | { type: "customers"; access: StorePermissionAccess }
   | { type: "fulfillment"; locations: LocationReach }
   | { type: "inventory"; locations: LocationReach }
   | { type: "marketing" }

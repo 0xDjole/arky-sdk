@@ -21,6 +21,17 @@ export interface Collection {
   updated_at: EpochMilliseconds;
 }
 
+export interface CollectionCleanupReference {
+  table: string;
+  id: string;
+  path: string;
+}
+
+export type CollectionCleanup =
+  | { type: "running" }
+  | { type: "stopped_at_entry"; entry_id: string; blocked_by: CollectionCleanupReference[] }
+  | { type: "stopped_at_collection"; blocked_by: CollectionCleanupReference[] };
+
 export type EntryStatus =
   | { type: "active" }
   | { type: "draft" }
@@ -174,6 +185,11 @@ export interface GetCollectionParams {
 export interface GetCollectionByKeyParams {
   store_id: string;
   key: string;
+}
+
+export interface GetCollectionCleanupParams {
+  store_id: string;
+  id: string;
 }
 
 export interface StorefrontGetCollectionParams {

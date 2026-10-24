@@ -17,7 +17,7 @@ test("market changes use the named store, an app-picked id and the version, with
   const calls = recordFetch(context, () => failure ? errorResponse(failure, "MARKET.REFUSED", "failed") : { id: marketId });
   const api = store().market;
   const create = { id: marketId, key: "europe", currency: "eur", tax_mode: "inclusive" };
-  const update = { expected_updated_at: 123, tax_mode: "exclusive", payment_option_ids: ["5b8c1e47-3d29-4a6f-9c15-7e0d2f4a8b31"] };
+  const update = { expected_updated_at: 123, payment_option_ids: ["5b8c1e47-3d29-4a6f-9c15-7e0d2f4a8b31"] };
   for (const store_id of [STORE_ID, OTHER_STORE_ID]) {
     await api.create({ store_id, ...create });
     await api.update({ store_id, id: marketId, ...update });
@@ -27,6 +27,7 @@ test("market changes use the named store, an app-picked id and the version, with
       ["PUT", `/v1/stores/${store_id}/markets/${marketId}`, {}, update],
       ["DELETE", `/v1/stores/${store_id}/markets/${marketId}`, { expected_updated_at: "124" }, null],
     ]);
+    assert.equal("tax_mode" in calls.at(-2).body, false);
   }
   for (const store_id of [undefined, "default", "selected"]) {
     await assert.rejects(async () => api.create({ store_id, ...create }), TypeError);
@@ -50,7 +51,7 @@ test("market changes use the named store, an app-picked id and the version, with
 
 for (const [owner, path, params] of [
   ["market", "markets", { key: "trade", currency: "eur", status: "active", sort_field: "updated_at", sort_direction: "asc", limit: 1, cursor: "previous" }],
-  ["location", "locations", { query: "warehouse", status: "archived", sort_field: "key", sort_direction: "asc", limit: 1, cursor: "previous" }],
+  ["location", "locations", { key: "warehouse", status: "archived", sort_field: "updated_at", sort_direction: "asc", limit: 1, cursor: "previous" }],
   ["paymentOption", "payment-options", { key: "cards", type_name: "stripe", status: "disabled", sort_field: "updated_at", sort_direction: "asc", limit: 1, cursor: "previous" }],
 ]) {
   test(`${owner} lists one bounded page with its filters and keeps the continuation`, async (context) => {

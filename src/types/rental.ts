@@ -47,7 +47,7 @@ export type RentalReplacementMethod =
   | { type: "delivery"; destination: PostalAddress }
   | { type: "pickup" };
 
-export type RentalAction =
+export type RentalCommand =
   | {
       type: "request_replacement";
       fulfillment_job_id: string;
@@ -78,7 +78,7 @@ export interface FindRentalsParams {
 
 export interface ActOnRentalParams extends GetRentalParams {
   expected_updated_at: EpochMilliseconds;
-  action: RentalAction;
+  command: RentalCommand;
 }
 
 export type CustomerRentalStatus =

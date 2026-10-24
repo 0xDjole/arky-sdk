@@ -147,6 +147,24 @@ const removedIdentifiers = [
   "assignSubmission",
   "setSubmissionCompany",
   "selectSendingAddress",
+  "CreateStripeWebhookParams",
+  "RotateStripeWebhookSecretParams",
+  "createWebhook",
+  "rotateWebhookSecret",
+  "not_created",
+  "endpoint_url",
+  "StorefrontCancelOrderProductItemParams",
+  "FulfillmentOrder",
+  "FulfillmentAction",
+  "FulfillmentJobAction",
+  "RentalAction",
+  "ReturnAction",
+  "OrderPromotionCode",
+  "combinable",
+  "expected_level_updated_at",
+  "files_too_large",
+  "sameCartScope",
+  "appendQueryString",
 ];
 
 const removedIdentifierPattern = new RegExp(`\\b(?:${removedIdentifiers.join("|")})\\b`, "g");
@@ -232,6 +250,21 @@ requirePattern("api/notification.ts", /replaceKey\(/, "a store replaces its Rese
 requirePattern("api/support.ts", /\/chat-visibility`/, "staff show or hide a received email in the chat");
 requirePattern("utils/cartInputs.ts", /case "assigned_purchase_access":/, "an assigned member buys through its group's purchase access");
 requirePattern("api/return.ts", /\/execute`/, "return actions post to the return's execute route");
+requirePattern("api/fulfillment.ts", /\$\{jobPath\(params\.store_id, params\.fulfillment_job_id\)\}\/execute`/, "fulfillment job commands post to the job's execute route");
+requirePattern("api/fulfillment.ts", /\$\{fulfillmentPath\(params\.store_id, params\.fulfillment_id\)\}\/execute`/, "fulfillment commands post to the fulfillment's execute route");
+requirePattern("api/rental.ts", /"rentals", params\.id\)\}\/execute`/, "rental commands post to the rental's execute route");
+requirePattern("api/paymentOption.ts", /stripeAction\(params\.store_id, params\.id, "webhook-secret"/, "a Stripe option saves the webhook signing secret the merchant pasted");
+requirePattern("api/paymentOption.ts", /stripePath\(params\.store_id, params\.id, "setup"\)/, "staff check a Stripe option's webhook setup");
+requirePattern("api/paymentOption.ts", /\/monri\/\$\{segment\(params\.id\)\}\/replace-merchant-key`/, "a Monri option takes a new merchant key");
+requirePattern("api/notification.ts", /"email-providers", params\.id\)\}\/setup`/, "staff check a Resend connection's webhook setup");
+requirePattern("api/payment.ts", /\/refunds\/made`/, "staff record a refund already made in Monri's back office");
+requirePattern("api/cart.ts", /"offer\/quote"/, "staff read an offer's quote before making it");
+requirePattern("api/content.ts", /"collections", params\.id\)\}\/cleanup`/, "staff follow a deleting collection's cleanup");
+requirePattern("api/broadcast.ts", /"\/v1\/broadcasts\/unsubscribe"/, "a store's own unsubscribe page posts the token through the SDK");
+requirePattern("index.ts", /broadcast: createStorefrontBroadcastApi\(publishableKeyHttpClient\)/, "the storefront client unsubscribes with the publishable key alone");
+requirePattern("api/company.ts", /export function createStorefrontCompanyApi\b/, "company members manage their company from the storefront");
+requirePattern("api/storefront.ts", /companies: createStorefrontCompanyApi\(/, "storefront company calls answer the member copies without blocks");
+forbidPattern("api/storefront.ts", /orders\/\$\{segment\(params\.order_id\)\}\/product-items/, "customers cancel booking items only; staff cancel product items");
 requirePattern("api/return.ts", /\/credit`/, "a received return is credited through its own route");
 requirePattern("api/payment.ts", /\/resolve-charge`/, "a team member settles an unknown Monri card charge");
 requirePattern("api/media.ts", /isDefiniteRefusal\(error\)/, "a refused upload releases the saved media create");

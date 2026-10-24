@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
-import { createStorefront } from "../dist/storefront.js";
+import { createStorefront, initialize } from "../dist/storefront.js";
 import { apiUrl, publishableKey, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
 
 const storeId = "3b21b61d-7162-414c-a73a-888ccbc57c3e";
@@ -70,7 +70,7 @@ const definitions = [
     create: { company_id: selectedStoreId, blocks: detailBlocks, name: "Depot", shipping_address: null, billing_address: null, status: { type: "active" } },
     update: { name: "Depot 2", blocks: [], shipping_address: address, billing_address: null, status: { type: "archived" } },
     query: { company_id: selectedStoreId },
-    deletion: "deleting",
+    deletion: "deleted",
   },
   {
     path: ["eshop", "customerGroup"],
@@ -246,10 +246,10 @@ test("a company or one of its locations is assigned to a customer group under th
   assert.equal(calls.length, 3);
 });
 
-test("Market management sends explicit creation, payment option order and versioned deletion", async (context) => {
+test("Market management sends explicit creation, a tax mode fixed at creation, payment option order and versioned deletion", async (context) => {
   const calls = [];
   const record = { id, store_id: storeId, key: "bih", currency: "bam", tax_mode: "inclusive", payment_option_ids: [], status: { type: "active" }, created_at: now, updated_at: now };
-  const updated = { ...record, tax_mode: "exclusive", payment_option_ids: [otherId], updated_at: now + 1 };
+  const updated = { ...record, payment_option_ids: [otherId], updated_at: now + 1 };
   const deleting = { ...updated, status: { type: "deleting" }, updated_at: now + 2 };
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     const call = { target: new URL(url), method: init.method ?? "GET", headers: new Headers(init.headers), body: init.body ? JSON.parse(init.body) : null, signal: init.signal };
@@ -271,9 +271,11 @@ test("Market management sends explicit creation, payment option order and versio
   assert.deepEqual(await api.get({ store_id: storeId, id }), record);
   await api.getByKey({ store_id: storeId, key: "bih" });
   assert.equal(calls.at(-1).target.pathname, `/v1/stores/${storeId}/markets/by-key/bih`);
-  const update = { expected_updated_at: now, tax_mode: "exclusive", payment_option_ids: [otherId] };
+  const update = { expected_updated_at: now, payment_option_ids: [otherId] };
   assert.deepEqual(await api.update({ store_id: storeId, id, ...update }), updated);
   assert.deepEqual(calls.at(-1).body, update);
+  assert.equal("tax_mode" in calls.at(-1).body, false);
+  assert.equal(updated.tax_mode, "inclusive");
   assert.equal(calls.at(-1).method, "PUT");
   assert.deepEqual(await api.delete({ store_id: storeId, id, expected_updated_at: now + 1 }), deleting);
   assert.equal(calls.at(-1).method, "DELETE");
@@ -312,7 +314,7 @@ test("B2B management keeps server denials and conflicts without replacing the mu
 
 test("a buyer reads their company access as scoped grants, their memberships and the locations they may buy for", async (context) => {
   const access = {
-    company: { id: selectedStoreId, store_id: storeId, name: "Buyer", contact: { email: "accounts@example.test", language: "en" }, tax: { type: "standard", registrations: [] }, purchasing: standardCheckout, blocks: [], status: { type: "active" }, created_at: now, updated_at: now },
+    company: { id: selectedStoreId, store_id: storeId, name: "Buyer", contact: { email: "accounts@example.test", language: "en" }, tax: { type: "standard", registrations: [] }, purchasing: standardCheckout, status: { type: "active" }, created_at: now, updated_at: now },
     grants: [
       { scope: { type: "company" }, permissions: ["place_orders", "join_customer_groups"] },
       { scope: { type: "company_location", company_location_id: otherId }, permissions: ["view_company_orders", "manage_company_customer_groups"] },
@@ -339,4 +341,141 @@ test("a buyer reads their company access as scoped grants, their memberships and
   ]);
   for (const call of calls) assert.equal(call.headers.get("authorization"), `Bearer ${visitorToken}`);
   for (const removed of ["minimumProgress", "setPurchasing"]) assert.equal(removed in shop, false, removed);
+});
+
+function storefrontCompanies() {
+  return createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: visitorStorage() }).companies;
+}
+
+test("a company manager changes the company, its locations and its members through the storefront twins of the staff routes", async (context) => {
+  const calls = [];
+  context.mock.method(globalThis, "fetch", async (url, init = {}) => {
+    const target = new URL(url);
+    const call = { method: init.method ?? "GET", path: target.pathname, query: Object.fromEntries(target.searchParams), headers: new Headers(init.headers), body: init.body ? JSON.parse(init.body) : null };
+    calls.push(call);
+    if (call.method === "DELETE") return response({ deleted: true });
+    if (call.method === "GET") return response({ items: [], cursor: null });
+    return response({ id: otherId });
+  });
+  const shop = storefrontCompanies();
+  const contact = { email: "buyer@example.test", language: "bs" };
+  const grants = [{ scope: { type: "company_location", company_location_id: otherId }, role_ids: [id] }];
+  const companyUpdate = { expected_updated_at: now, name: "Buyer 2", contact: null, billing_address: address };
+  const locationCreate = { id: otherId, company_id: selectedStoreId, name: "Depot", shipping_address: address, billing_address: null, status: { type: "active" }, blocks: [] };
+  const locationUpdate = { expected_updated_at: now + 1, name: "Depot 2", shipping_address: null, billing_address: address, status: { type: "archived" } };
+  const membershipCreate = { id, company_id: selectedStoreId, contact, grants };
+  const membershipUpdate = { expected_updated_at: now + 3, grants, status: { type: "disabled" } };
+  await shop.update({ id: selectedStoreId, ...companyUpdate });
+  await shop.location.create(locationCreate);
+  await shop.location.update({ id: otherId, ...locationUpdate });
+  assert.deepEqual(await shop.location.delete({ id: otherId, expected_updated_at: now + 2 }), { deleted: true });
+  await shop.membership.find({ company_id: selectedStoreId, limit: 10 });
+  await shop.membership.create(membershipCreate);
+  await shop.membership.update({ id, ...membershipUpdate });
+  assert.deepEqual(await shop.membership.delete({ id, expected_updated_at: now + 4 }), { deleted: true });
+  await shop.membership.resendInvite({ id: "membership/one", expected_updated_at: now + 5 });
+  await shop.role.find({ company_id: selectedStoreId, key: "purchaser" });
+  assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
+    ["PUT", `/v1/storefront/companies/${selectedStoreId}`, {}, companyUpdate],
+    ["POST", "/v1/storefront/company-locations", {}, locationCreate],
+    ["PUT", `/v1/storefront/company-locations/${otherId}`, {}, locationUpdate],
+    ["DELETE", `/v1/storefront/company-locations/${otherId}`, { expected_updated_at: String(now + 2) }, null],
+    ["GET", "/v1/storefront/company-memberships", { company_id: selectedStoreId, limit: "10" }, null],
+    ["POST", "/v1/storefront/company-memberships", {}, membershipCreate],
+    ["PUT", `/v1/storefront/company-memberships/${id}`, {}, membershipUpdate],
+    ["DELETE", `/v1/storefront/company-memberships/${id}`, { expected_updated_at: String(now + 4) }, null],
+    ["POST", "/v1/storefront/company-memberships/membership%2Fone/resend-invite", {}, { expected_updated_at: now + 5 }],
+    ["GET", "/v1/storefront/company-roles", { company_id: selectedStoreId, key: "purchaser" }, null],
+  ]);
+  for (const removed of ["blocks", "status"]) assert.equal(removed in calls[0].body, false, removed);
+  assert.equal("blocks" in calls[2].body, false);
+  assert.deepEqual(calls[1].body.blocks, []);
+  for (const call of calls) {
+    assert.equal(call.headers.get("authorization"), `Bearer ${visitorToken}`);
+    assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
+    assert.equal(call.body?.store_id, undefined);
+  }
+  for (const index of [0, 2, 6]) assert.equal("id" in calls[index].body, false);
+  assert.deepEqual(Object.keys(shop).sort(), ["getAccess", "location", "membership", "role", "update"]);
+  assert.deepEqual(Object.keys(shop.location).sort(), ["create", "delete", "find", "get", "update"]);
+  assert.deepEqual(Object.keys(shop.membership).sort(), ["create", "delete", "find", "resendInvite", "update"]);
+  assert.deepEqual(Object.keys(shop.role), ["find"]);
+});
+
+test("a storefront company location or membership is created only under the app's canonical id, before any request", async (context) => {
+  const calls = [];
+  context.mock.method(globalThis, "fetch", async (url, init = {}) => {
+    calls.push({ url, init });
+    return response({ id: otherId });
+  });
+  const shop = storefrontCompanies();
+  for (const invented of [undefined, "depot-1", otherId.toUpperCase()]) {
+    await assert.rejects(async () => shop.location.create({ id: invented, company_id: selectedStoreId, name: "Depot", shipping_address: null, billing_address: null, status: { type: "active" }, blocks: [] }), {
+      name: "TypeError",
+      message: "The company location id must be a canonical UUID v4 picked by the app",
+    });
+    await assert.rejects(async () => shop.membership.create({ id: invented, company_id: selectedStoreId, contact: { email: "buyer@example.test", language: "bs" }, grants: [] }), {
+      name: "TypeError",
+      message: "The company membership id must be a canonical UUID v4 picked by the app",
+    });
+  }
+  assert.equal(calls.length, 0);
+});
+
+function storeCompanies() {
+  return initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: visitorStorage() }).companies;
+}
+
+test("the store's companies has the client's getAccess, update, location, membership and role, and each call reaches its /v1/storefront route", async (context) => {
+  const calls = [];
+  context.mock.method(globalThis, "fetch", async (url, init = {}) => {
+    const target = new URL(url);
+    const call = { method: init.method ?? "GET", path: target.pathname, query: Object.fromEntries(target.searchParams), headers: new Headers(init.headers), body: init.body ? JSON.parse(init.body) : null };
+    calls.push(call);
+    if (call.method === "DELETE") return response({ deleted: true });
+    if (call.method === "GET") return response({ items: [], cursor: null });
+    return response({ id: otherId });
+  });
+  const shop = storeCompanies();
+  assert.deepEqual(Object.keys(shop).sort(), ["getAccess", "location", "membership", "role", "update"]);
+  assert.deepEqual(Object.keys(shop.location).sort(), ["create", "delete", "find", "get", "update"]);
+  assert.deepEqual(Object.keys(shop.membership).sort(), ["create", "delete", "find", "resendInvite", "update"]);
+  assert.deepEqual(Object.keys(shop.role), ["find"]);
+  const companyUpdate = { expected_updated_at: now, name: "Buyer 2", contact: null, billing_address: address };
+  const locationCreate = { id: otherId, company_id: selectedStoreId, name: "Depot", shipping_address: address, billing_address: null, status: { type: "active" }, blocks: [] };
+  const locationUpdate = { expected_updated_at: now + 1, name: "Depot 2", shipping_address: null, billing_address: address, status: { type: "archived" } };
+  const membershipCreate = { id, company_id: selectedStoreId, contact: { email: "buyer@example.test", language: "bs" }, grants: [] };
+  const membershipUpdate = { expected_updated_at: now + 3, grants: [], status: { type: "disabled" } };
+  await shop.getAccess({ id: selectedStoreId });
+  await shop.update({ id: selectedStoreId, ...companyUpdate });
+  await shop.location.find({ company_id: selectedStoreId });
+  await shop.location.get({ id: otherId });
+  await shop.location.create(locationCreate);
+  await shop.location.update({ id: otherId, ...locationUpdate });
+  assert.deepEqual(await shop.location.delete({ id: otherId, expected_updated_at: now + 2 }), { deleted: true });
+  await shop.membership.find({ company_id: selectedStoreId });
+  await shop.membership.create(membershipCreate);
+  await shop.membership.update({ id, ...membershipUpdate });
+  assert.deepEqual(await shop.membership.delete({ id, expected_updated_at: now + 4 }), { deleted: true });
+  await shop.membership.resendInvite({ id, expected_updated_at: now + 5 });
+  await shop.role.find({ company_id: selectedStoreId });
+  assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
+    ["GET", `/v1/storefront/companies/${selectedStoreId}/access`, {}, null],
+    ["PUT", `/v1/storefront/companies/${selectedStoreId}`, {}, companyUpdate],
+    ["GET", "/v1/storefront/company-locations", { company_id: selectedStoreId }, null],
+    ["GET", `/v1/storefront/company-locations/${otherId}`, {}, null],
+    ["POST", "/v1/storefront/company-locations", {}, locationCreate],
+    ["PUT", `/v1/storefront/company-locations/${otherId}`, {}, locationUpdate],
+    ["DELETE", `/v1/storefront/company-locations/${otherId}`, { expected_updated_at: String(now + 2) }, null],
+    ["GET", "/v1/storefront/company-memberships", { company_id: selectedStoreId }, null],
+    ["POST", "/v1/storefront/company-memberships", {}, membershipCreate],
+    ["PUT", `/v1/storefront/company-memberships/${id}`, {}, membershipUpdate],
+    ["DELETE", `/v1/storefront/company-memberships/${id}`, { expected_updated_at: String(now + 4) }, null],
+    ["POST", `/v1/storefront/company-memberships/${id}/resend-invite`, {}, { expected_updated_at: now + 5 }],
+    ["GET", "/v1/storefront/company-roles", { company_id: selectedStoreId }, null],
+  ]);
+  for (const call of calls) {
+    assert.equal(call.headers.get("authorization"), `Bearer ${visitorToken}`);
+    assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
+  }
 });

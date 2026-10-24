@@ -3,7 +3,7 @@ import { File } from "node:buffer";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { initialize } from "../dist/storefront.js";
-import { apiUrl, ids, publishableKey, recordFetch, visitorStorage } from "./helpers/arky-fixtures.mjs";
+import { apiUrl, errorResponse, ids, publishableKey, recordFetch, visitorStorage } from "./helpers/arky-fixtures.mjs";
 
 const STORE_ID = "a8c41e2f-6d95-4b07-83f1-0e5d7a9c2b36";
 const FORM_ID = ids.form;
@@ -240,16 +240,46 @@ test("a staff submission read carries the email contact the Server derived from 
   assert.deepEqual(calls.map(({ method, path }) => [method, path]), [["GET", `/v1/stores/${STORE_ID}/forms/${FORM_ID}/submissions/${SUBMISSION_ID}`]]);
 });
 
-test("file answers are checked against the per-file, per-request and file-count limits before any upload", async (context) => {
+test("an empty file answer is refused before any upload, and the Server's configured limits decide every larger or longer file list", async (context) => {
   const calls = recordFetch(context, () => ({ id: SUBMISSION_ID }));
   const api = admin().forms;
   const answer = (files) => ({ store_id: STORE_ID, form_id: FORM_ID, id: SUBMISSION_ID, customer_id: ids.customer, language: "en", answers: [{ type: "file", question_id: "q", key: "files", files }] });
-  await assert.rejects(async () => api.createSubmission(answer([new File([], "empty.pdf")])), /between 1 byte and 10 MiB/);
-  await assert.rejects(async () => api.createSubmission(answer([new File([new Uint8Array(10 * 1024 * 1024 + 1)], "big.pdf")])), /between 1 byte and 10 MiB/);
-  await assert.rejects(async () => api.createSubmission(answer(Array.from({ length: 21 }, (_, index) => new File(["x"], `f${index}.pdf`)))), /at most 20 files/);
-  const nine = new Uint8Array(9 * 1024 * 1024);
-  await assert.rejects(async () => api.createSubmission(answer(Array.from({ length: 6 }, (_, index) => new File([nine], `f${index}.pdf`)))), /50 MiB together/);
+  await assert.rejects(async () => api.createSubmission(answer([new File([], "empty.pdf")])), (error) => error.code === "file_size" && /is empty/.test(error.message));
+  await assert.rejects(async () => api.createSubmission(answer([new File(["x"], "kept.pdf"), new File([], "empty.pdf")])), /The file 'empty.pdf' is empty/);
   assert.equal(calls.length, 0);
+  const big = new File([new Uint8Array(10 * 1024 * 1024 + 1)], "big.pdf");
+  const many = Array.from({ length: 21 }, (_, index) => new File(["x"], `f${index}.pdf`));
+  const nine = new Uint8Array(9 * 1024 * 1024);
+  const heavy = Array.from({ length: 6 }, (_, index) => new File([nine], `h${index}.pdf`));
+  for (const files of [[big], many, heavy]) await api.createSubmission(answer(files));
+  assert.equal(calls.length, 3);
+  const parts = (call) => [...call.body.keys()].filter((key) => key.startsWith("file-"));
+  assert.deepEqual(parts(calls[0]), ["file-0"]);
+  assert.equal(calls[0].body.get("file-0").size, 10 * 1024 * 1024 + 1);
+  assert.equal(parts(calls[1]).length, 21);
+  assert.equal(parts(calls[2]).length, 6);
+  assert.equal(parts(calls[2]).reduce((total, key) => total + calls[2].body.get(key).size, 0), 6 * 9 * 1024 * 1024);
+  for (const call of calls) {
+    assert.equal(call.method, "POST");
+    assert.equal(call.path, `/v1/stores/${STORE_ID}/forms/${FORM_ID}/submissions`);
+    assert.deepEqual(submissionOf(call).answers[0].parts, parts(call));
+  }
+});
+
+test("a file list over the Server's configured limits comes back as the Server's own refusal", async (context) => {
+  const refusals = [
+    errorResponse(413, "FORM_SUBMISSION.FILE_TOO_LARGE", "The file is over the form file limit"),
+    errorResponse(409, "FORM_SUBMISSION.TOO_MANY_FILES", "The submission carries more files than the limit"),
+    errorResponse(413, "GENERAL.PAYLOAD_TOO_LARGE", "The request is over the body limit"),
+  ];
+  const calls = recordFetch(context, () => refusals.shift());
+  const api = admin().forms;
+  const answer = (files) => ({ store_id: STORE_ID, form_id: FORM_ID, id: SUBMISSION_ID, customer_id: ids.customer, language: "en", answers: [{ type: "file", question_id: "q", key: "files", files }] });
+  const expected = [[413, "FORM_SUBMISSION.FILE_TOO_LARGE"], [409, "FORM_SUBMISSION.TOO_MANY_FILES"], [413, "GENERAL.PAYLOAD_TOO_LARGE"]];
+  for (const [statusCode, code] of expected) {
+    await assert.rejects(async () => api.createSubmission(answer([new File(["x"], "a.pdf")])), (error) => error.statusCode === statusCode && error.code === code);
+  }
+  assert.equal(calls.length, 3);
 });
 
 test("a staff submission leaves out whitespace-only text, empty choices and empty file lists, like the storefront", async (context) => {

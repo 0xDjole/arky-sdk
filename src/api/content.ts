@@ -3,6 +3,7 @@ import type { RequestOptions } from "../types/api";
 import type { DeletedResponse, PaginatedResponse } from "../types/common";
 import type {
   Collection,
+  CollectionCleanup,
   CreateCollectionParams,
   CreateEntryParams,
   DeleteCollectionParams,
@@ -11,6 +12,7 @@ import type {
   FindCollectionsParams,
   FindEntriesParams,
   GetCollectionByKeyParams,
+  GetCollectionCleanupParams,
   GetCollectionParams,
   GetEntryParams,
   UpdateCollectionParams,
@@ -52,6 +54,13 @@ export const createCollectionApi = (apiConfig: ApiConfig) => ({
       ...options,
       params: { expected_updated_at: params.expected_updated_at },
     });
+  },
+
+  getCleanup(params: GetCollectionCleanupParams, options?: RequestOptions): Promise<CollectionCleanup> {
+    return apiConfig.httpClient.get<CollectionCleanup>(
+      `${storeRecordPath(params.store_id, "collections", params.id)}/cleanup`,
+      options,
+    );
   },
 });
 

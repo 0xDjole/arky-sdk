@@ -28,6 +28,7 @@ export class CustomerGroupJoinError extends ArkyError {
 
 export type JoinFreeCustomerGroupParams = ({ id: string } | { key: string }) & {
   catalog_id: string;
+  language: string;
 };
 
 export type JoinFreeCustomerGroupResult =

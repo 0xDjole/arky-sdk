@@ -1,5 +1,5 @@
 import type { createAdmin } from 'arky-sdk/admin';
-import type { CreateMonriPaymentOptionParams, UpdatePaymentOptionParams, MonriEnvironment, PaymentOption, LocalizedMarkdown } from 'arky-sdk';
+import type { CreateMonriPaymentOptionParams, UpdatePaymentOptionParams, MonriEnvironment, PaymentOption, LocalizedMarkdown, ReplaceMonriMerchantKeyParams, EpochMilliseconds } from 'arky-sdk';
 type Admin = ReturnType<typeof createAdmin>;
 type True<T extends true> = T;
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
@@ -23,6 +23,11 @@ export type MonriConfigurationContracts = [
   True<RequiredField<UpdatePaymentOptionParams, 'saved_card_terms'>>,
   True<Same<UpdatePaymentOptionParams['saved_card_terms'], LocalizedMarkdown | null>>,
   True<Same<PaymentOption['status'], 'active' | 'disabled'>>,
+  True<Same<keyof Admin['store']['paymentOption']['monri'], 'create' | 'replaceMerchantKey'>>,
+  True<Same<Parameters<Admin['store']['paymentOption']['monri']['replaceMerchantKey']>[0], ReplaceMonriMerchantKeyParams>>,
+  True<Same<ReplaceMonriMerchantKeyParams, { store_id: string; id: string; expected_updated_at: EpochMilliseconds; merchant_key: string }>>,
+  True<Same<Awaited<ReturnType<Admin['store']['paymentOption']['monri']['replaceMerchantKey']>>, PaymentOption>>,
+  True<Missing<ReplaceMonriMerchantKeyParams, 'authenticity_token' | 'environment'>>,
 ];
 
 export const input: CreateMonriPaymentOptionParams = {

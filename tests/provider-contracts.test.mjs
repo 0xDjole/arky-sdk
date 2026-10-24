@@ -98,17 +98,43 @@ test("a refused money command is propagated once with its code and never retried
   }
 });
 
-test("provider events are listed by status, read by id and resolved with their version", async (context) => {
+test("provider events are listed per card payment option and status, read by id and resolved with their version", async (context) => {
   const calls = recordFetch(context, (call) => call.path.endsWith("incoming-webhooks") ? { items: [], cursor: null } : { id: eventId });
   const events = createAdmin({ apiUrl: apiUrl, secretKey: "contract-token" }).notification.incomingWebhook;
-  await events.find({ store_id: storeId, status: "review", limit: 20, cursor: "next" });
+  await events.find({ store_id: storeId, payment_option_id: ids.paymentOption, status: "review", limit: 20, cursor: "next" });
   await events.get({ store_id: storeId, id: eventId });
   await events.resolve({ store_id: storeId, id: eventId, expected_updated_at: 9, resolution: "ignore" });
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
-    ["GET", `/v1/stores/${storeId}/incoming-webhooks`, { status: "review", limit: "20", cursor: "next" }, null],
+    ["GET", `/v1/stores/${storeId}/incoming-webhooks`, { payment_option_id: ids.paymentOption, status: "review", limit: "20", cursor: "next" }, null],
     ["GET", `/v1/stores/${storeId}/incoming-webhooks/${eventId}`, {}, null],
     ["POST", `/v1/stores/${storeId}/incoming-webhooks/${eventId}/resolve`, {}, { expected_updated_at: 9, resolution: "ignore" }],
   ]);
+});
+
+test("a cash or manual option's inbox comes back as the Server's not-a-card-option refusal", async (context) => {
+  const calls = recordFetch(context, () => errorResponse(409, "INCOMING_WEBHOOK.NOT_CARD_OPTION", "Only card payment options receive provider events"));
+  const events = createAdmin({ apiUrl: apiUrl, secretKey: "contract-token" }).notification.incomingWebhook;
+  await assert.rejects(events.find({ store_id: storeId, payment_option_id: ids.otherPaymentOption, status: "review" }), (error) => error.statusCode === 409 && error.code === "INCOMING_WEBHOOK.NOT_CARD_OPTION");
+  assert.deepEqual(calls[0].query, { payment_option_id: ids.otherPaymentOption, status: "review" });
+});
+
+test("a refund made in Monri's back office is recorded under the app's refund id with its transaction", async (context) => {
+  const calls = recordFetch(context, () => ({ id: paymentId }));
+  const request = { store_id: storeId, payment_id: paymentId, id: refundId, money, reason: "customer_request", application, notify_customer: true, transaction_id: "monri-refund-42" };
+  const before = structuredClone(request);
+  assert.deepEqual(await payments().recordMadeRefund(request), { id: paymentId });
+  assert.deepEqual(request, before);
+  assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
+    ["POST", `/v1/stores/${storeId}/payments/${paymentId}/refunds/made`, {}, { id: refundId, money, reason: "customer_request", application, notify_customer: true, transaction_id: "monri-refund-42" }],
+  ]);
+  for (const id of [undefined, "refund-1", refundId.toUpperCase()]) {
+    await assert.rejects(async () => payments().recordMadeRefund({ ...request, id }), {
+      name: "TypeError",
+      message: "The refund id must be a canonical UUID v4 picked by the app",
+    });
+  }
+  await assert.rejects(async () => payments().recordMadeRefund({ ...request, store_id: "store/one" }), TypeError);
+  assert.equal(calls.length, 1);
 });
 
 test("a buyer reads their own order's payments through storefront routes", async (context) => {

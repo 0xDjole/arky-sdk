@@ -12,6 +12,7 @@ import type {
   GetIncomingWebhookParams,
   Payment,
   IncomingWebhook,
+  RecordMadeRefundParams,
   RecordPaymentCollectionParams,
   RecordRefundReceiptParams,
   ResolvePaymentChargeParams,
@@ -91,6 +92,18 @@ export const createPaymentApi = (apiConfig: ApiConfig) => {
       }, options);
     },
 
+    recordMadeRefund(params: RecordMadeRefundParams, options?: RequestOptions): Promise<Payment> {
+      requireId(params.id, "refund");
+      return apiConfig.httpClient.post<Payment>(`${paymentPath(params.store_id, params.payment_id)}/refunds/made`, {
+        id: params.id,
+        money: params.money,
+        reason: params.reason,
+        application: params.application,
+        notify_customer: params.notify_customer,
+        transaction_id: params.transaction_id,
+      }, options);
+    },
+
     recordRefundReceipt(params: RecordRefundReceiptParams, options?: RequestOptions): Promise<Payment> {
       return apiConfig.httpClient.post<Payment>(
         `${refundPath(params.store_id, params.payment_id, params.refund_id)}/receipts`,
@@ -148,7 +161,12 @@ export const createIncomingWebhookApi = (apiConfig: ApiConfig) => ({
   find(params: FindIncomingWebhooksParams, options?: RequestOptions): Promise<PaginatedResponse<IncomingWebhook>> {
     return apiConfig.httpClient.get<PaginatedResponse<IncomingWebhook>>(storePath(params.store_id, "incoming-webhooks"), {
       ...options,
-      params: { status: params.status, limit: params.limit, cursor: params.cursor },
+      params: {
+        payment_option_id: params.payment_option_id,
+        status: params.status,
+        limit: params.limit,
+        cursor: params.cursor,
+      },
     });
   },
 
