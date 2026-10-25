@@ -539,10 +539,11 @@ The app picks the code request's `session_id` once per send-code press and sends
 - **Support.** `support.conversation.assign({ expected_account_id, account_id })` and `selectReplyEmail({ expected_reply, reply })` name the value they read.
 - **Sent history.** `notification.outgoingEmail.find` takes `order_id` only with `type: "receipt_resend"`: it finds that Order's receipt resends.
 - **Collection cleanup.** `content.collection.getCleanup({ store_id, id })` shows a deleting collection's cleanup: `running`, or the entry or collection where it stopped with what blocks it.
+- **Promotion limits.** Promotions and their codes use `limit: { type: "unlimited" }` or `limit: { type: "limited", max_uses: number }`. Whether a promotion or code has a cap is fixed when it is created; a later edit may change a limited cap's number. Reads return `uses`, with uncapped uses appearing after the count queue applies them. Taking or returning a use leaves the promotion and code's `updated_at` unchanged. `PromotionWebhookPayload` and `PromotionCodeWebhookPayload` carry settings, including `limit`, without `uses`.
 
 What a delete answers is what Arky answers:
-- the record marked `deleting`, for records that clean up after themselves: markets, store locations, catalogs, products, booking services, offerings and resources, categories, collections, media and companies. Variants, inventory items, promotions and promotion codes answer it too, or nothing when the record is already gone;
-- nothing, for catalog item prices, catalog items and accesses, customer groups and their offerings, and experiments;
+- the record marked `deleting`, for records that clean up after themselves: markets, store locations, catalogs, products, booking services, offerings and resources, categories, collections, media and companies. Variants, promotions and promotion codes answer it too, or nothing when the record is already gone;
+- nothing, for inventory items, catalog item prices, catalog items and accesses, customer groups and their offerings, and experiments. Inventory items have only `active` and `archived` statuses; their delete removes the item and its empty levels together and answers 204;
 - `true` or `false`, for email templates, layouts, providers and addresses;
 - the note, for notes;
 - `{ deleted }`, for every other delete.

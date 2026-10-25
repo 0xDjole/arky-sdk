@@ -46,8 +46,8 @@ export const createInventoryItemApi = (apiConfig: ApiConfig) => ({
     });
   },
 
-  delete(params: DeleteInventoryItemParams, options?: RequestOptions): Promise<InventoryItem | undefined> {
-    return apiConfig.httpClient.delete<InventoryItem | undefined>(storeRecordPath(params.store_id, collection, params.id), {
+  delete(params: DeleteInventoryItemParams, options?: RequestOptions): Promise<void> {
+    return apiConfig.httpClient.delete<void>(storeRecordPath(params.store_id, collection, params.id), {
       ...options,
       params: { expected_updated_at: params.expected_updated_at },
     });

@@ -14,8 +14,8 @@ function eshop() {
 
 test("promotion discovery keeps scoped filters, the opaque continuation and exact reads by key or code", async (context) => {
   const cursor = "opaque:/+=page";
-  const policy = { id, store_id: store, key: "winter-sale", status: { type: "active" } };
-  const code = { id: codeId, store_id: store, promotion_id: id, code: "WINTER_10", status: { type: "active" } };
+  const policy = { id, store_id: store, key: "winter-sale", limit: { type: "unlimited" }, uses: 7, status: { type: "active" } };
+  const code = { id: codeId, store_id: store, promotion_id: id, code: "WINTER_10", limit: { type: "limited", max_uses: 100 }, uses: 3, status: { type: "active" } };
   const replies = [
     { items: [], cursor }, { items: [policy], cursor: null }, policy,
     { items: [], cursor }, { items: [code], cursor: null }, code,
@@ -66,15 +66,15 @@ test("a promotion is created under the app-picked id and may target whole catego
     effects: [effect],
     stacking: { type: "continue" },
     priority: 0,
-    max_uses: null,
+    limit: { type: "limited", max_uses: 100 },
     max_uses_per_customer: null,
     schedule: { type: "scheduled", starts_at: 1_800_000_000_000, ends_at: null },
     status: { type: "active" },
   };
   const { activation: _activation, ...editable } = create;
   await eshop().promotion.create({ store_id: store, ...create });
-  await eshop().promotion.update({ store_id: store, ...editable, expected_updated_at: 2, stacking: { type: "stop_after" }, schedule: { type: "always" } });
-  const { id: _id, ...updateBody } = { ...editable, expected_updated_at: 2, stacking: { type: "stop_after" }, schedule: { type: "always" } };
+  await eshop().promotion.update({ store_id: store, ...editable, expected_updated_at: 2, limit: { type: "limited", max_uses: 200 }, stacking: { type: "stop_after" }, schedule: { type: "always" } });
+  const { id: _id, ...updateBody } = { ...editable, expected_updated_at: 2, limit: { type: "limited", max_uses: 200 }, stacking: { type: "stop_after" }, schedule: { type: "always" } };
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
     ["POST", `/v1/stores/${store}/promotions`, create],
     ["PUT", `/v1/stores/${store}/promotions/${id}`, updateBody],
@@ -101,7 +101,7 @@ test("an item quantity condition sends its target and both bounds, with an open 
     effects: [{ type: "item_percentage", id: "effect", target: { type: "products", product_ids: [codeId] }, basis_points: 500 }],
     stacking: { type: "stop_after" },
     priority: 0,
-    max_uses: null,
+    limit: { type: "unlimited" },
     max_uses_per_customer: null,
     schedule: { type: "always" },
     status: { type: "active" },
@@ -114,13 +114,13 @@ test("an item quantity condition sends its target and both bounds, with an open 
 
 test("a promotion code is created under the app-picked id and edited by version", async (context) => {
   const calls = recordFetch(context, () => ({ id: codeId }));
-  await eshop().promotionCode.create({ store_id: store, id: codeId, promotion_id: id, code: "WINTER_10", max_uses: 100, status: { type: "active" } });
-  await eshop().promotionCode.update({ store_id: store, id: codeId, expected_updated_at: 3, code: "WINTER_10", max_uses: null, status: { type: "archived" } });
+  await eshop().promotionCode.create({ store_id: store, id: codeId, promotion_id: id, code: "WINTER_10", limit: { type: "limited", max_uses: 100 }, status: { type: "active" } });
+  await eshop().promotionCode.update({ store_id: store, id: codeId, expected_updated_at: 3, code: "WINTER_10", limit: { type: "limited", max_uses: 200 }, status: { type: "archived" } });
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
-    ["POST", `/v1/stores/${store}/promotion-codes`, { id: codeId, promotion_id: id, code: "WINTER_10", max_uses: 100, status: { type: "active" } }],
-    ["PUT", `/v1/stores/${store}/promotion-codes/${codeId}`, { expected_updated_at: 3, code: "WINTER_10", max_uses: null, status: { type: "archived" } }],
+    ["POST", `/v1/stores/${store}/promotion-codes`, { id: codeId, promotion_id: id, code: "WINTER_10", limit: { type: "limited", max_uses: 100 }, status: { type: "active" } }],
+    ["PUT", `/v1/stores/${store}/promotion-codes/${codeId}`, { expected_updated_at: 3, code: "WINTER_10", limit: { type: "limited", max_uses: 200 }, status: { type: "archived" } }],
   ]);
-  await assert.rejects(async () => eshop().promotionCode.create({ store_id: store, id: "WINTER_10", promotion_id: id, code: "WINTER_10", max_uses: null, status: { type: "active" } }), TypeError);
+  await assert.rejects(async () => eshop().promotionCode.create({ store_id: store, id: "WINTER_10", promotion_id: id, code: "WINTER_10", limit: { type: "unlimited" }, status: { type: "active" } }), TypeError);
   assert.equal(calls.length, 2);
 });
 
@@ -132,7 +132,7 @@ test("fixed promotion transports currency alternatives, explicit item scope and 
     conditions: [{ type: "minimum_subtotal", amounts: [{ amount: 100, currency: "eur" }, { amount: 200, currency: "bam" }] }],
     effects: [{ type: "item_fixed", id: codeId, target: { type: "product_variants", variant_ids: [codeId] },
       amounts: [{ amount: 10, currency: "eur" }, { amount: 20, currency: "bam" }], scope: { type: "once_per_order" } }],
-    stacking: { type: "continue" }, priority: 1, max_uses: null, max_uses_per_customer: null,
+    stacking: { type: "continue" }, priority: 1, limit: { type: "unlimited" }, max_uses_per_customer: null,
     schedule: { type: "always" }, status: { type: "active" },
   };
   await eshop().promotion.create(params);

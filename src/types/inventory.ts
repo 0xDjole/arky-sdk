@@ -25,10 +25,7 @@ export interface InventoryCustoms {
 
 export type InventoryItemStatus =
   | { type: "active" }
-  | { type: "archived" }
-  | { type: "deleting" };
-
-export type InventoryItemEditableStatus = Exclude<InventoryItemStatus, { type: "deleting" }>;
+  | { type: "archived" };
 
 export interface InventoryItem {
   id: string;
@@ -143,7 +140,7 @@ export interface CreateInventoryItemParams {
   tracking: InventoryTracking;
   physical: InventoryPhysical;
   customs: InventoryCustoms;
-  status: InventoryItemEditableStatus;
+  status: InventoryItemStatus;
 }
 
 export interface UpdateInventoryItemParams {
@@ -155,7 +152,7 @@ export interface UpdateInventoryItemParams {
   tracking: InventoryTracking;
   physical: InventoryPhysical;
   customs: InventoryCustoms;
-  status: InventoryItemEditableStatus;
+  status: InventoryItemStatus;
 }
 
 export interface GetInventoryItemParams {

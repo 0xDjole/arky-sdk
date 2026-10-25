@@ -166,13 +166,11 @@ test("inventory item search sends its text and filters, and a key read is one ex
   assert.equal(calls[2].url.search, "");
 });
 
-test("an inventory item delete answers the record while it is being removed and nothing once it is already gone", async (context) => {
+test("an inventory item delete answers nothing after removal and when it is already gone", async (context) => {
   const itemId = "6b2d9f41-3a85-4c07-9e1d-5f8a2c0b7e36";
-  let status = 202;
-  const calls = recordFetch(context, () => status === 204 ? new Response(null, { status: 204 }) : new Response(JSON.stringify({ id: itemId, status: { type: "deleting" } }), { status: 202, headers: { "content-type": "application/json" } }));
+  const calls = recordFetch(context, () => new Response(null, { status: 204 }));
   const api = eshop().inventoryItem;
-  assert.deepEqual(await api.delete({ store_id: STORE_ID, id: itemId, expected_updated_at: 7 }), { id: itemId, status: { type: "deleting" } });
-  status = 204;
+  assert.equal(await api.delete({ store_id: STORE_ID, id: itemId, expected_updated_at: 7 }), undefined);
   assert.equal(await api.delete({ store_id: STORE_ID, id: itemId, expected_updated_at: 7 }), undefined);
   assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
     ["DELETE", `/v1/stores/${STORE_ID}/inventory-items/${itemId}`, { expected_updated_at: "7" }],

@@ -48,6 +48,8 @@ export type PromotionFixedScope = { type: "per_unit" } | { type: "once_per_order
 
 export type PromotionActivation = { type: "codes" } | { type: "automatic" };
 
+export type PromotionLimit = { type: "unlimited" } | { type: "limited"; max_uses: number };
+
 export type PromotionStacking = { type: "continue" } | { type: "stop_after" };
 
 export type PromotionStatus =
@@ -68,7 +70,7 @@ export interface Promotion {
   effects: PromotionEffect[];
   stacking: PromotionStacking;
   priority: number;
-  max_uses: number | null;
+  limit: PromotionLimit;
   uses: number;
   max_uses_per_customer: number | null;
   schedule: Schedule;
@@ -76,6 +78,8 @@ export interface Promotion {
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
+
+export type PromotionWebhookPayload = Omit<Promotion, "uses">;
 
 export interface StorefrontPromotion {
   id: string;
@@ -99,12 +103,14 @@ export interface PromotionCode {
   store_id: string;
   promotion_id: string;
   code: string;
-  max_uses: number | null;
+  limit: PromotionLimit;
   uses: number;
   status: PromotionCodeStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
+
+export type PromotionCodeWebhookPayload = Omit<PromotionCode, "uses">;
 
 export interface CreatePromotionParams {
   store_id: string;
@@ -116,7 +122,7 @@ export interface CreatePromotionParams {
   effects: PromotionEffect[];
   stacking: PromotionStacking;
   priority: number;
-  max_uses: number | null;
+  limit: PromotionLimit;
   max_uses_per_customer: number | null;
   schedule: Schedule;
   status: PromotionEditableStatus;
@@ -132,7 +138,7 @@ export interface UpdatePromotionParams {
   effects: PromotionEffect[];
   stacking: PromotionStacking;
   priority: number;
-  max_uses: number | null;
+  limit: PromotionLimit;
   max_uses_per_customer: number | null;
   schedule: Schedule;
   status: PromotionEditableStatus;
@@ -167,7 +173,7 @@ export interface CreatePromotionCodeParams {
   id: string;
   promotion_id: string;
   code: string;
-  max_uses: number | null;
+  limit: PromotionLimit;
   status: PromotionCodeEditableStatus;
 }
 
@@ -176,7 +182,7 @@ export interface UpdatePromotionCodeParams {
   id: string;
   expected_updated_at: EpochMilliseconds;
   code: string;
-  max_uses: number | null;
+  limit: PromotionLimit;
   status: PromotionCodeEditableStatus;
 }
 

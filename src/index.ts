@@ -183,7 +183,7 @@ export type { PaymentSimulation, SimulatePaymentOptions, SimulatePaymentParams }
 export { CheckoutFlowError, initialize } from "./storefrontStore";
 export type * from "./storefrontStore";
 
-export const SDK_VERSION = "0.26.94";
+export const SDK_VERSION = "0.26.95";
 
 export interface AdminSession {
   id: string;

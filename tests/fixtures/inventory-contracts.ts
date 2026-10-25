@@ -1,10 +1,10 @@
 import type { createAdmin } from "arky-sdk/admin";
 import type {
   FindInventoryItemsParams, GetInventoryItemByKeyParams, FindInventoryMovementsParams,
-  InventoryItem, InventoryTracking, InventoryLevel, InventoryStockLevel, InventoryMovement,
+  InventoryItem, InventoryItemStatus, InventoryTracking, InventoryLevel, InventoryStockLevel, InventoryMovement,
   InventoryMovementReason, InventoryQuantity, ChangeSetAsideParams, MoveInventoryParams,
   ReceiveStockMoveParams, IncomingStock, RecordInventoryMovementParams, ManualInventoryMovementReason,
-  CreateInventoryItemParams, CreateInventoryLevelParams,
+  CreateInventoryItemParams, UpdateInventoryItemParams, CreateInventoryLevelParams,
 } from "arky-sdk";
 import type {
   InventoryLevel as PublicLevel, InventoryMovement as PublicMovement,
@@ -31,6 +31,11 @@ export type InventoryContracts = [
   True<Same<NonNullable<FindInventoryMovementsParams["sort_field"]>, "created_at">>,
   True<RequiredField<GetInventoryItemByKeyParams, "key">>,
   True<Same<InventoryTracking["type"], "tracked" | "individual" | "untracked">>,
+  True<Same<InventoryItemStatus, { type: "active" } | { type: "archived" }>>,
+  True<Same<InventoryItem["status"], InventoryItemStatus>>,
+  True<Same<CreateInventoryItemParams["status"], InventoryItemStatus>>,
+  True<Same<UpdateInventoryItemParams["status"], InventoryItemStatus>>,
+  True<Same<NonNullable<FindInventoryItemsParams["status"]>, "active" | "archived">>,
   True<{ type: "individual" } extends InventoryItem["tracking"] ? true : false>,
   True<"individual" extends FindInventoryItemsParams["tracking"] ? true : false>,
   True<Same<Parameters<Api["inventoryLevel"]["setAside"]>[0], ChangeSetAsideParams>>,
@@ -65,7 +70,7 @@ export type InventoryContracts = [
   True<RequiredField<FindInventoryMovementsParams, "store_id">>,
   True<RequiredField<CreateInventoryItemParams, "id">>,
   True<RequiredField<CreateInventoryLevelParams, "id">>,
-  True<Same<Awaited<ReturnType<Api["inventoryItem"]["delete"]>>, InventoryItem | undefined>>,
+  True<Same<Awaited<ReturnType<Api["inventoryItem"]["delete"]>>, void>>,
   True<"inventoryReservation" extends keyof Api ? false : true>,
 ];
 

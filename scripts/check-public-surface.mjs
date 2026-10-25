@@ -93,6 +93,7 @@ const removedIdentifiers = [
   "CompanyLocationReach",
   "AllowedPaymentOptions",
   "FulfillmentTiming",
+  "InventoryItemEditableStatus",
   "FulfillmentRecipient",
   "RevenueByCurrencyData",
   "SkipNextCustomerGroupMemberPurchaseParams",
