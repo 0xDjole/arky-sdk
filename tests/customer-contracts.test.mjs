@@ -65,12 +65,12 @@ test("Admin Customer commands send profile blocks, address changes and explicit 
 test("code requests retain caller ID, language and bot proof without claiming an address", async (context) => {
   const calls = recordFetch(context, (call) => call.path.endsWith("/identify") ? sessionResult() : { customer: customerRecord(), session: { id: ids.session, customer_id: customerId }, email_verification: { issued_at: 1, expires_at: 2 } });
   const storefront = client();
-  await storefront.customer.requestCode({ id: ids.form, email: "reader@example.test", language: "en", bot_check_token: "fixture-proof" });
+  await storefront.customer.requestCode({ id: ids.form, contact: { email: "reader@example.test", language: "en" }, bot_check_token: "fixture-proof" });
   assert.deepEqual(calls[0].body, identity);
-  assert.deepEqual(calls[1].body, { id: ids.form, email: "reader@example.test", language: "en", bot_check_token: "fixture-proof" });
+  assert.deepEqual(calls[1].body, { id: ids.form, contact: { email: "reader@example.test", language: "en" }, bot_check_token: "fixture-proof" });
   assert.equal(calls[1].headers.get("x-arky-locale"), "bs");
   assert.equal(storefront.session.customer.type.type, "anonymous");
-  await assert.rejects(storefront.customer.requestCode({ id: "bad", email: "reader@example.test", language: "en" }), TypeError);
+  await assert.rejects(storefront.customer.requestCode({ id: "bad", contact: { email: "reader@example.test", language: "en" } }), TypeError);
 });
 
 test("retrying a lost code response keeps the same exact request and active Visitor identity", async (context) => {
@@ -85,15 +85,15 @@ test("retrying a lost code response keeps the same exact request and active Visi
   const storefront = client(storage);
   await storefront.customer.identify(identity);
   const retained = [...storage.values];
-  const request = { id: ids.form, email: "reader@example.test", language: "en" };
+  const request = { id: ids.form, contact: { email: "reader@example.test", language: "en" } };
 
   await assert.rejects(storefront.customer.requestCode(request), /Code response was lost/);
   assert.deepEqual([...storage.values], retained);
   assert.deepEqual(await storefront.customer.requestCode(request), result);
   const codeCalls = calls.filter((call) => call.path === "/v1/storefront/customer/request-code");
   assert.deepEqual(codeCalls.map((call) => [call.method, call.body, call.headers.get("authorization"), call.headers.get("x-arky-locale")]), [
-    ["POST", { id: ids.form, email: "reader@example.test", language: "en" }, `Bearer ${visitorToken}`, "bs"],
-    ["POST", { id: ids.form, email: "reader@example.test", language: "en" }, `Bearer ${visitorToken}`, "bs"],
+    ["POST", { id: ids.form, contact: { email: "reader@example.test", language: "en" } }, `Bearer ${visitorToken}`, "bs"],
+    ["POST", { id: ids.form, contact: { email: "reader@example.test", language: "en" } }, `Bearer ${visitorToken}`, "bs"],
   ]);
   assert.equal(storefront.session.id, ids.session);
   assert.equal(storefront.session.customer.type.type, "anonymous");
@@ -105,7 +105,7 @@ test("a code answer for another session is refused without changing stored ident
   const storefront = client(storage);
   await storefront.customer.identify(identity);
   const retained = [...storage.values];
-  await assert.rejects(storefront.customer.requestCode({ id: ids.form, email: "reader@example.test", language: "en" }), /does not match/);
+  await assert.rejects(storefront.customer.requestCode({ id: ids.form, contact: { email: "reader@example.test", language: "en" } }), /does not match/);
   assert.deepEqual([...storage.values], retained);
 });
 
@@ -121,7 +121,7 @@ test("unconfigured email-change notices surface the server refusal and retain th
 
 test("successful email change keeps current credentials and persists the returned identity", async (context) => {
   const customer = customerRecord(customerId, {
-    type: { type: "verified", email: "changed@example.test", addresses: [], default_shipping_address_id: null, default_billing_address_id: null },
+    type: { type: "verified", contact: { email: "changed@example.test", language: "en" }, addresses: [], default_shipping_address_id: null, default_billing_address_id: null },
   });
   const storage = signedInStorage();
   const storefront = client(storage);
@@ -147,7 +147,7 @@ test("email-change response cannot replace a different current customer session"
   const before = structuredClone(storefront.session);
   const retained = storage.initial;
   recordFetch(context, () => ({
-    customer: customerRecord(customerId, { type: { type: "verified", email: "changed@example.test", addresses: [], default_shipping_address_id: null, default_billing_address_id: null } }),
+    customer: customerRecord(customerId, { type: { type: "verified", contact: { email: "changed@example.test", language: "en" }, addresses: [], default_shipping_address_id: null, default_billing_address_id: null } }),
     session: { id: ids.otherSession, customer_id: customerId, store_id: storeId },
   }));
   await assert.rejects(storefront.customer.changeEmail({ code: "123456" }), /does not match the active customer session/);
@@ -192,6 +192,23 @@ for (const method of ["getMe", "updateMe"]) {
     assert.equal(storage.values.size, 0);
   });
 }
+
+test("a signed-in customer changes the language of their emails with the profile version they read", async (context) => {
+  const storage = signedInStorage();
+  const storefront = client(storage);
+  const before = structuredClone(storefront.session);
+  const verified = { ...before.customer.type, contact: { email: "customer@example.test", language: "bs" } };
+  const response = { customer: customerRecord(customerId, { type: verified }), session: { id: before.id, customer_id: customerId, store_id: storeId } };
+  const calls = recordFetch(context, () => response);
+  assert.deepEqual(await storefront.customer.updateMe({ expected_updated_at: 2, language: "bs" }), response);
+  assert.deepEqual(calls.map((call) => [call.method, call.path, call.body]), [
+    ["PATCH", "/v1/storefront/customer/me", { expected_updated_at: 2, language: "bs" }],
+  ]);
+  assert.equal(calls[0].headers.get("authorization"), `Bearer ${accessToken}`);
+  assert.deepEqual(storefront.session.customer.type.contact, { email: "customer@example.test", language: "bs" });
+  await storefront.customer.updateMe({ expected_updated_at: 3, profile });
+  assert.equal("language" in calls[1].body, false);
+});
 
 test("a signed-in customer unsubscribes and resubscribes on the storefront with no body and keeps the session", async (context) => {
   const storage = signedInStorage();

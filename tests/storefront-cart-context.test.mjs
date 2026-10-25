@@ -23,8 +23,7 @@ const productLine = {
   variant_id: ids.variant,
   quantity: 1,
   form_submission_id: null,
-  price_override: null,
-  purchase: { type: "catalog" },
+  purchase: { type: "catalog", catalog_item_price_id: ids.price },
 };
 const otherVisitorToken = `customer_visitor_${"w".repeat(64)}`;
 
@@ -78,20 +77,27 @@ test("the store saves delivery groups exactly as given, with the loaded cart's i
   ]);
 });
 
-test("promotion codes come from the reviewed quote, drop with a language change, and are only sent when the buyer sets them", async (context) => {
+test("promotion codes come from the reviewed quote with each code's state, drop with a language change, and are only sent when the buyer sets them", async (context) => {
   const promotions = [
-    { promotion_id: "promotion", promotion_key: "spring", code: { promotion_code_id: "code", code: "SAVE10" } },
+    { promotion_id: "promotion", promotion_key: "spring", activation: { type: "code", promotion_code_id: "code", code: "SAVE10" } },
+    { promotion_id: "automatic-promotion", promotion_key: "over-100", activation: { type: "automatic" } },
   ];
-  const calls = recordFetch(context, (call) => call.path.endsWith("/quote") ? quoteRecord({ promotions }) : cartRecord({ line_items: [productLine], updated_at: 1_700_000_000_002 }));
+  const promotion_codes = [
+    { promotion_code_id: "code", code: "SAVE10", promotion_id: "promotion", state: "applied" },
+    { promotion_code_id: "stopped-code", code: "WELCOME5", promotion_id: "stopped-promotion", state: "stopped" },
+    { promotion_code_id: "idle-code", code: "SHIPFREE", promotion_id: "idle-promotion", state: "not_applied" },
+  ];
+  const calls = recordFetch(context, (call) => call.path.endsWith("/quote") ? quoteRecord({ promotions, promotion_codes }) : cartRecord({ line_items: [productLine], updated_at: 1_700_000_000_002 }));
   const { store, cart } = storeWithCart();
   assert.deepEqual(cart.promotion_codes.get(), []);
   await cart.quote();
-  assert.deepEqual(cart.promotion_codes.get(), ["SAVE10"]);
+  assert.deepEqual(cart.promotion_codes.get(), promotion_codes);
+  assert.deepEqual(cart.promotion_codes.get().map(({ code, state }) => [code, state]), [["SAVE10", "applied"], ["WELCOME5", "stopped"], ["SHIPFREE", "not_applied"]]);
   store.setContext({ locale: "de" });
   assert.equal(cart.quote_result.get(), null);
   assert.deepEqual(cart.promotion_codes.get(), []);
   await cart.quote();
-  assert.deepEqual(cart.promotion_codes.get(), ["SAVE10"]);
+  assert.deepEqual(cart.promotion_codes.get(), promotion_codes);
   await cart.setBillingAddress({ billing_address: null });
   assert.equal(cart.quote_result.get(), null);
   await cart.setPromotionCodes({ promotion_codes: [] });
@@ -201,7 +207,7 @@ test("a buyer or market change leaves an unresolved checkout request byte for by
   await assert.rejects(store.client.eshop.cart.recoverCheckout({ scope }), /response lost/);
   const pending = await scoped.pendingCheckout();
   assert.deepEqual(pending, request);
-  const key = `arky:cart-checkout:v4:${encodeURIComponent(`storefront:${apiUrl}:${publishableKey}`)}:${encodeURIComponent(`customer|${ids.catalog}`)}`;
+  const key = `arky:cart-checkout:v5:${encodeURIComponent(`storefront:${apiUrl}:${publishableKey}`)}:${encodeURIComponent(`customer|${ids.catalog}`)}`;
   const retained = durable.getItem(key);
   assert.ok(retained);
   store.setContext({ market: "market-b" });

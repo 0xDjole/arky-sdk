@@ -78,7 +78,7 @@ export interface FindMarketsParams {
   key?: string;
   currency?: Currency;
   status?: MarketStatus["type"];
-  sort_field?: "key" | "created_at" | "updated_at";
+  sort_field?: "created_at" | "updated_at";
   sort_direction?: SortDirection;
   limit?: number;
   cursor?: string | null;
@@ -96,7 +96,6 @@ export interface UpdateMarketParams {
   store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
-  tax_mode?: TaxMode;
   payment_option_ids?: string[];
 }
 
@@ -110,7 +109,7 @@ export interface FindSalesChannelsParams {
   store_id: string;
   key?: string;
   status?: SalesChannelStatus["type"];
-  sort_field?: "key" | "created_at" | "updated_at";
+  sort_field?: "created_at" | "updated_at";
   sort_direction?: SortDirection;
   limit?: number;
   cursor?: string | null;
@@ -172,9 +171,9 @@ export interface DeleteZoneParams {
 
 export interface FindStoreLocationsParams {
   store_id: string;
-  query?: string;
+  key?: string;
   status?: StoreLocationStatus["type"];
-  sort_field?: "key" | "created_at" | "updated_at";
+  sort_field?: "created_at" | "updated_at";
   sort_direction?: SortDirection;
   limit?: number;
   cursor?: string | null;
@@ -184,7 +183,7 @@ export interface CreateStoreLocationParams {
   store_id: string;
   id: string;
   key: string;
-  address?: PostalAddressInput;
+  address: PostalAddressInput;
   timezone: string;
   blocks?: Block[];
   status?: StoreLocationEditableStatus;

@@ -29,7 +29,6 @@ export type * from "./company";
 export type * from "./customerGroup";
 export type * from "./product";
 export type * from "./broadcast";
-export { BROADCAST_FIELDS, BROADCAST_BLOCK_FIELD_PREFIXES } from "./broadcast";
 export type * from "./support";
 export type * from "./cart";
 export {

@@ -18,7 +18,7 @@ export type StoreDiscoveryContracts = [
   Assert<Equal<keyof FindSalesChannelsParams, PageKeys | "status">>,
   Assert<Equal<NonNullable<FindZonesParams["sort_field"]>, "created_at" | "updated_at">>,
   Assert<Equal<NonNullable<FindTaxCategoriesParams["sort_field"]>, "created_at" | "updated_at">>,
-  Assert<Equal<NonNullable<FindSalesChannelsParams["sort_field"]>, "key" | "created_at" | "updated_at">>,
+  Assert<Equal<NonNullable<FindSalesChannelsParams["sort_field"]>, "created_at" | "updated_at">>,
   Assert<Equal<NonNullable<FindSalesChannelsParams["status"]>, SalesChannelStatus["type"]>>,
   Assert<Equal<Parameters<Admin["store"]["zone"]["getByKey"]>[0], StoreRecordByKeyParams>>,
   Assert<Equal<Parameters<Admin["store"]["taxCategory"]["getByKey"]>[0], StoreRecordByKeyParams>>,

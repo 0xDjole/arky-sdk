@@ -1,6 +1,6 @@
 import type { EpochMilliseconds } from "./time";
 import type { SortDirection } from "./common";
-import type { EmailContent, EmailTemplatePreview } from "./notification";
+import type { Email, EmailContent, EmailLayoutContent, EmailTemplatePreview } from "./notification";
 
 export type BroadcastMembers =
   | { type: "customer_group"; customer_group_id: string }
@@ -17,44 +17,31 @@ export interface BroadcastAudience {
   conditions: BroadcastCondition[];
 }
 
+export interface BroadcastContent {
+  default_language: string;
+  translations: Record<string, EmailContent>;
+  layout: Record<string, EmailLayoutContent>;
+  logo_media_id: string | null;
+}
+
 export type BroadcastStatus =
   | { type: "draft" }
-  | { type: "scheduled"; send_at: EpochMilliseconds }
-  | { type: "sending"; started_at: EpochMilliseconds }
-  | { type: "sent"; started_at: EpochMilliseconds; recipient_count: number };
+  | { type: "scheduled"; send_at: EpochMilliseconds; content: BroadcastContent }
+  | { type: "sending"; started_at: EpochMilliseconds; content: BroadcastContent }
+  | { type: "sent"; started_at: EpochMilliseconds; recipient_count: number; content: BroadcastContent };
 
 export interface Broadcast {
   id: string;
   store_id: string;
   key: string;
   audience: BroadcastAudience;
-  sending_address_id: string;
-  content: Record<string, EmailContent>;
+  email: Email;
   status: BroadcastStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
 export type BroadcastPreview = EmailTemplatePreview;
-
-export const BROADCAST_FIELDS = [
-  "customer.email",
-  "store.name",
-  "customer_group_member.customer_group.key",
-  "customer_group_member.customer_group_offering.key",
-  "unsubscribe_url",
-] as const;
-
-export type BroadcastField = (typeof BROADCAST_FIELDS)[number];
-
-export const BROADCAST_BLOCK_FIELD_PREFIXES = [
-  "customer.profile.",
-  "customer.blocks.",
-  "customer_group_member.customer_group.blocks.",
-  "customer_group_member.customer_group_offering.blocks.",
-] as const;
-
-export type BroadcastBlockField = `${(typeof BROADCAST_BLOCK_FIELD_PREFIXES)[number]}${string}`;
 
 export interface FindBroadcastsParams {
   store_id: string;
@@ -76,8 +63,7 @@ export interface CreateBroadcastParams {
   id: string;
   key: string;
   audience: BroadcastAudience;
-  sending_address_id: string;
-  content: Record<string, EmailContent>;
+  email: Email;
 }
 
 export interface UpdateBroadcastParams {
@@ -86,8 +72,7 @@ export interface UpdateBroadcastParams {
   expected_updated_at: EpochMilliseconds;
   key?: string;
   audience?: BroadcastAudience;
-  sending_address_id?: string;
-  content?: Record<string, EmailContent>;
+  email?: Email;
 }
 
 export interface DeleteBroadcastParams {
@@ -119,7 +104,6 @@ export interface PreviewBroadcastParams {
   store_id: string;
   id: string;
   language: string;
-  content?: EmailContent;
 }
 
 export interface SendBroadcastTestParams {
@@ -127,4 +111,14 @@ export interface SendBroadcastTestParams {
   id: string;
   outgoing_email_id: string;
   language: string;
+}
+
+export type BroadcastUnsubscribeResult = "unsubscribed";
+
+export interface BroadcastUnsubscribeResponse {
+  result: BroadcastUnsubscribeResult;
+}
+
+export interface UnsubscribeBroadcastParams {
+  token: string;
 }

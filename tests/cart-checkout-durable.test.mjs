@@ -14,7 +14,7 @@ import {
   visitorStorage,
 } from "./helpers/arky-fixtures.mjs";
 
-const storageKey = `arky:cart-checkout:v4:${encodeURIComponent(`storefront:${apiUrl}:${publishableKey}`)}`;
+const storageKey = `arky:cart-checkout:v5:${encodeURIComponent(`storefront:${apiUrl}:${publishableKey}`)}`;
 const request = checkoutRequest();
 const originals = new Map(["fetch", "localStorage", "navigator", "window"].map((name) => [name, Object.getOwnPropertyDescriptor(globalThis, name)]));
 
@@ -145,12 +145,15 @@ test("checkout input the app did not decide explicitly fails before persisting o
     { cart_id: undefined }, { cart_id: "cart-1" },
     { expected_updated_at: undefined }, { expected_updated_at: 1.5 }, { expected_updated_at: "1" },
     { presentation_digest: "" }, { presentation_digest: " digest" }, { presentation_digest: "d".repeat(257) },
-    { contact_email: undefined }, { contact_email: "" }, { contact_email: " buyer@example.test" },
+    { contact_email: undefined }, { contact_email: "" }, { contact_email: "buyer@example.test" },
+    { contact_email: { email: " buyer@example.test", language: "en" } }, { contact_email: { email: "buyer@example.test" } },
+    { contact_email: { email: "buyer@example.test", language: "" } }, { contact_email: { email: "buyer@example.test", language: "en", name: "Ana" } },
     { payment: undefined }, { payment: { type: "card" } }, { payment: { type: "free", amount: 0 } },
     { payment: { type: "on_account", payment_option_id: "terms" } },
     { payment: { ...request.payment, payment_option_id: "card" } },
     { payment: { ...request.payment, return_url: "" } },
     { payment: { ...request.payment, save_payment_method: undefined } },
+    { contact_first_name: 5 }, { contact_last_name: { text: "Horvat" } }, { contact_first_name: ["Ana"] },
   ];
   for (const change of invalid) {
     const { storage } = browser();
@@ -159,6 +162,19 @@ test("checkout input the app did not decide explicitly fails before persisting o
     await assert.rejects(storefront().eshop.cart.retainCheckout({ ...request, ...change }));
     assert.equal(calls.length, 0, JSON.stringify(change));
     assert.equal(storage.getItem(storageKey), null);
+  }
+});
+
+test("contact names are kept and posted exactly as the app gave them, text or null, and left out when it gave none", async () => {
+  for (const names of [{ contact_first_name: "Ana", contact_last_name: "Horvat" }, { contact_first_name: null, contact_last_name: "Horvat" }, { contact_first_name: "Ana" }, {}]) {
+    const { storage } = browser();
+    const calls = capture(success);
+    const input = { ...request, ...names };
+    await storefront().eshop.cart.retainCheckout(input);
+    assert.deepEqual(retained(storage), input);
+    assert.deepEqual(await storefront().eshop.cart.recoverCheckout(), placedAcceptance());
+    assert.deepEqual(calls[0].body, input);
+    for (const key of ["contact_first_name", "contact_last_name"]) assert.equal(key in calls[0].body, key in names, key);
   }
 });
 
@@ -180,9 +196,11 @@ test("every changed checkout field stays blocked after ambiguity without another
   const calls = capture(success);
   for (const change of [
     { order_token: "arky_ot_" + "C".repeat(42) + "A" }, { order_id: ids.otherOrder }, { cart_id: ids.otherCart }, { expected_updated_at: 2 },
-    { presentation_digest: "e".repeat(64) }, { contact_email: null }, { contact_email: "other@example.test" },
+    { presentation_digest: "e".repeat(64) }, { contact_email: null }, { contact_email: { email: "other@example.test", language: "en" } },
+    { contact_email: { email: "buyer@example.test", language: "bs" } },
     { payment: { type: "free" } }, { payment: { ...request.payment, payment_option_id: ids.otherPaymentOption } },
     { payment: { ...request.payment, return_url: null } },
+    { contact_first_name: "Ana" }, { contact_last_name: "Horvat" },
   ]) {
     await assert.rejects(storefront().eshop.cart.retainCheckout({ ...request, ...change }), /still keeps a different unresolved request/);
   }

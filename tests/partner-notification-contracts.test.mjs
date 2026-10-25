@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { createStorefront } from "../dist/storefront.js";
-import { apiUrl, ids, publishableKey, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
+import { apiUrl, errorResponse, ids, publishableKey, quoteRecord, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
 
 const storeId = "3b21b61d-7162-414c-a73a-888ccbc57c3e";
 const notificationId = "d65211c1-743f-45fb-ab24-07221b1e3a7c";
@@ -12,20 +12,37 @@ function admin() {
   return createAdmin({ apiUrl: "https://api.example.test", secretKey: "contract" });
 }
 
-test("a staff offer is made from the reviewed quote, sent in the buyer's language and withdrawn by version", async (context) => {
+test("a staff offer is made from the reviewed quote for the buyer's contact, sent with its expiry and note and withdrawn by version", async (context) => {
   const calls = recordFetch(context, () => ({ id: ids.cart }));
   const offer = admin().eshop.cart.offer;
-  await offer.create({ store_id: storeId, id: ids.cart, expected_updated_at: 123, language: "bs", presentation_digest: "a".repeat(64), supersedes_cart_id: ids.otherCart });
-  await offer.send({ store_id: storeId, id: ids.cart, expected_updated_at: 124, language: "bs" });
+  const contact = { email: "buyer@example.test", language: "bs" };
+  await offer.create({ store_id: storeId, id: ids.cart, contact, expected_updated_at: 123, language: "bs", presentation_digest: "a".repeat(64), supersedes_cart_id: ids.otherCart });
+  await offer.send({ store_id: storeId, id: ids.cart, expected_updated_at: 124, expires_at: 1_900_000_000_000, note: "Prices hold for a week" });
   await offer.withdraw({ store_id: storeId, id: ids.cart, expected_updated_at: 125 });
   const base = `/v1/stores/${storeId}/carts/${ids.cart}`;
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
-    ["POST", `${base}/offer`, { expected_updated_at: 123, language: "bs", presentation_digest: "a".repeat(64), supersedes_cart_id: ids.otherCart }],
-    ["POST", `${base}/offer/send`, { expected_updated_at: 124, language: "bs" }],
+    ["POST", `${base}/offer`, { contact, expected_updated_at: 123, language: "bs", presentation_digest: "a".repeat(64), supersedes_cart_id: ids.otherCart }],
+    ["POST", `${base}/offer/send`, { expected_updated_at: 124, expires_at: 1_900_000_000_000, note: "Prices hold for a week" }],
     ["POST", `${base}/offer/withdraw`, { expected_updated_at: 125 }],
   ]);
   for (const removed of ["reviewFirstOrderTerms", "sealFirstOrderTerms", "withdrawFirstOrderTerms"]) assert.equal(removed in admin().eshop.cart, false, removed);
   assert.equal("repeat" in createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl }).eshop.cart, false);
+});
+
+test("staff see an offer's codes-only quote before making it, with the cart version and the offer language", async (context) => {
+  const quote = quoteRecord({ cart_id: ids.cart, language: "bs", promotion_codes: [{ promotion_code_id: "code", code: "PARTNER5", promotion_id: "promotion", state: "applied" }] });
+  const calls = recordFetch(context, (call) => call.path.endsWith("/offer/quote") ? quote : errorResponse(409, "COMMERCE.PRESENTATION_CHANGED", "The quote moved"));
+  const offer = admin().eshop.cart.offer;
+  assert.deepEqual(await offer.quote({ store_id: storeId, id: ids.cart, expected_updated_at: 123, language: "bs" }), quote);
+  await offer.quote({ store_id: storeId, id: "cart/one", expected_updated_at: 124, language: "en" });
+  await assert.rejects(offer.create({ store_id: storeId, id: ids.cart, contact: { email: "buyer@example.test", language: "bs" }, expected_updated_at: 123, language: "bs", presentation_digest: "b".repeat(64), supersedes_cart_id: null }), (error) => error.statusCode === 409 && error.code === "COMMERCE.PRESENTATION_CHANGED");
+  assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
+    ["POST", `/v1/stores/${storeId}/carts/${ids.cart}/offer/quote`, {}, { expected_updated_at: 123, language: "bs" }],
+    ["POST", `/v1/stores/${storeId}/carts/cart%2Fone/offer/quote`, {}, { expected_updated_at: 124, language: "en" }],
+    ["POST", `/v1/stores/${storeId}/carts/${ids.cart}/offer`, {}, { contact: { email: "buyer@example.test", language: "bs" }, expected_updated_at: 123, language: "bs", presentation_digest: "b".repeat(64), supersedes_cart_id: null }],
+  ]);
+  await assert.rejects(async () => offer.quote({ store_id: "store/one", id: ids.cart, expected_updated_at: 1, language: "bs" }), TypeError);
+  assert.equal(calls.length, 3);
 });
 
 test("staff email matching is explicit merge and never reserve", () => {
@@ -40,7 +57,7 @@ test("notification history and a template preview send only their own fields, an
   await api.outgoingEmail.find({ store_id: storeId, to: "buyer@example.test", type: "receipt_resend", order_id: ids.order, limit: 25, cursor: "opaque:+/=" }, { signal, headers: { "x-request-trace": "delivery-contract" } });
   await api.outgoingEmail.find({ store_id: storeId, type: "broadcast_email", broadcast_id: ids.form });
   await api.outgoingEmail.get({ store_id: storeId, id: notificationId });
-  const content = { subject: "Narudžba {{order.number}}", preheader: null, body: "<p>{{order.number}}</p>" };
+  const content = { subject: "Narudžba {{order.number}}", preheader: null, html: "<p>{{order.number}}</p>", text: "{{order.number}}" };
   await api.template.preview({ store_id: storeId, id: templateId, language: "bs", content });
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
     ["GET", `/v1/stores/${storeId}/outgoing-emails`, { to: "buyer@example.test", type: "receipt_resend", order_id: ids.order, limit: "25", cursor: "opaque:+/=" }, null],

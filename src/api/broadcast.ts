@@ -1,9 +1,11 @@
 import type { ApiConfig } from "../services/clientTypes";
+import type { HttpClient } from "../types/httpClient";
 import type { RequestOptions } from "../types/api";
 import type { DeletedResponse, PaginatedResponse } from "../types/common";
 import type {
   Broadcast,
   BroadcastPreview,
+  BroadcastUnsubscribeResponse,
   CreateBroadcastParams,
   DeleteBroadcastParams,
   FindBroadcastsParams,
@@ -13,6 +15,7 @@ import type {
   SendBroadcastParams,
   SendBroadcastTestParams,
   UnscheduleBroadcastParams,
+  UnsubscribeBroadcastParams,
   UpdateBroadcastParams,
 } from "../types/broadcast";
 import type { OutgoingEmail } from "../types/notification";
@@ -89,3 +92,17 @@ export const createBroadcastApi = (apiConfig: ApiConfig) => {
     },
   };
 };
+
+export const createStorefrontBroadcastApi = (httpClient: HttpClient) => ({
+  unsubscribe(params: UnsubscribeBroadcastParams, options?: RequestOptions): Promise<BroadcastUnsubscribeResponse> {
+    return httpClient.post<BroadcastUnsubscribeResponse>(
+      "/v1/broadcasts/unsubscribe",
+      new URLSearchParams({ "List-Unsubscribe": "One-Click" }),
+      {
+        ...options,
+        headers: { ...options?.headers, "Content-Type": "application/x-www-form-urlencoded" },
+        params: { token: params.token },
+      },
+    );
+  },
+});

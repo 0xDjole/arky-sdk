@@ -1,8 +1,10 @@
 import type { ApiConfig } from "../services/clientTypes";
+import type { HttpClient } from "../types/httpClient";
 import type { RequestOptions } from "../types/api";
 import type { DeletedResponse, PaginatedResponse } from "../types/common";
 import type {
   Company,
+  CompanyCustomerAccess,
   CompanyLocation,
   CompanyMembership,
   CompanyRole,
@@ -27,6 +29,21 @@ import type {
   SetCompanyLocationFulfillmentParams,
   SetCompanyPurchasingParams,
   SetCompanyTaxParams,
+  StorefrontCompany,
+  StorefrontCompanyLocation,
+  StorefrontCreateCompanyLocationParams,
+  StorefrontCreateCompanyMembershipParams,
+  StorefrontDeleteCompanyLocationParams,
+  StorefrontDeleteCompanyMembershipParams,
+  StorefrontFindCompanyLocationsParams,
+  StorefrontFindCompanyMembershipsParams,
+  StorefrontFindCompanyRolesParams,
+  StorefrontGetCompanyAccessParams,
+  StorefrontGetCompanyLocationParams,
+  StorefrontResendCompanyInviteParams,
+  StorefrontUpdateCompanyLocationParams,
+  StorefrontUpdateCompanyMembershipParams,
+  StorefrontUpdateCompanyParams,
   SubmitCompanyTaxRegistrationParams,
   UpdateCompanyLocationParams,
   UpdateCompanyMembershipParams,
@@ -34,7 +51,7 @@ import type {
   UpdateCompanyRoleParams,
 } from "../types/company";
 import { requireId } from "../utils/ids";
-import { storePath, storeRecordPath } from "./paths";
+import { segment, storePath, storeRecordPath } from "./paths";
 
 function taxRegistrationRoutes<T>(apiConfig: ApiConfig, collection: string) {
   return {
@@ -127,8 +144,8 @@ export const createCompanyLocationApi = (apiConfig: ApiConfig) => {
 
     ...taxRegistrationRoutes<CompanyLocation>(apiConfig, "company-locations"),
 
-    delete(params: DeleteCompanyLocationParams, options?: RequestOptions): Promise<CompanyLocation> {
-      return apiConfig.httpClient.delete<CompanyLocation>(locationPath(params.store_id, params.id), {
+    delete(params: DeleteCompanyLocationParams, options?: RequestOptions): Promise<DeletedResponse> {
+      return apiConfig.httpClient.delete<DeletedResponse>(locationPath(params.store_id, params.id), {
         ...options,
         params: { expected_updated_at: params.expected_updated_at },
       });
@@ -207,3 +224,103 @@ export const createCompanyMembershipApi = (apiConfig: ApiConfig) => ({
     );
   },
 });
+
+export function createStorefrontCompanyApi(httpClient: HttpClient, ensureVisitorSession: () => Promise<void>) {
+  const base = "/v1/storefront";
+  const locationPath = (id: string) => `${base}/company-locations/${segment(id)}`;
+  const membershipPath = (id: string) => `${base}/company-memberships/${segment(id)}`;
+
+  return {
+    async getAccess(params: StorefrontGetCompanyAccessParams, options?: RequestOptions): Promise<CompanyCustomerAccess> {
+      await ensureVisitorSession();
+      return httpClient.get<CompanyCustomerAccess>(`${base}/companies/${segment(params.id)}/access`, options);
+    },
+
+    async update(params: StorefrontUpdateCompanyParams, options?: RequestOptions): Promise<StorefrontCompany> {
+      await ensureVisitorSession();
+      const { id, ...body } = params;
+      return httpClient.put<StorefrontCompany>(`${base}/companies/${segment(id)}`, body, options);
+    },
+
+    location: {
+      async find(
+        params: StorefrontFindCompanyLocationsParams = {},
+        options?: RequestOptions,
+      ): Promise<PaginatedResponse<StorefrontCompanyLocation>> {
+        await ensureVisitorSession();
+        return httpClient.get<PaginatedResponse<StorefrontCompanyLocation>>(`${base}/company-locations`, { ...options, params });
+      },
+
+      async get(params: StorefrontGetCompanyLocationParams, options?: RequestOptions): Promise<StorefrontCompanyLocation> {
+        await ensureVisitorSession();
+        return httpClient.get<StorefrontCompanyLocation>(locationPath(params.id), options);
+      },
+
+      async create(params: StorefrontCreateCompanyLocationParams, options?: RequestOptions): Promise<StorefrontCompanyLocation> {
+        requireId(params.id, "company location");
+        await ensureVisitorSession();
+        return httpClient.post<StorefrontCompanyLocation>(`${base}/company-locations`, params, options);
+      },
+
+      async update(params: StorefrontUpdateCompanyLocationParams, options?: RequestOptions): Promise<StorefrontCompanyLocation> {
+        await ensureVisitorSession();
+        const { id, ...body } = params;
+        return httpClient.put<StorefrontCompanyLocation>(locationPath(id), body, options);
+      },
+
+      async delete(params: StorefrontDeleteCompanyLocationParams, options?: RequestOptions): Promise<DeletedResponse> {
+        await ensureVisitorSession();
+        return httpClient.delete<DeletedResponse>(locationPath(params.id), {
+          ...options,
+          params: { expected_updated_at: params.expected_updated_at },
+        });
+      },
+    },
+
+    membership: {
+      async find(
+        params: StorefrontFindCompanyMembershipsParams = {},
+        options?: RequestOptions,
+      ): Promise<PaginatedResponse<CompanyMembership>> {
+        await ensureVisitorSession();
+        return httpClient.get<PaginatedResponse<CompanyMembership>>(`${base}/company-memberships`, { ...options, params });
+      },
+
+      async create(params: StorefrontCreateCompanyMembershipParams, options?: RequestOptions): Promise<CompanyMembership> {
+        requireId(params.id, "company membership");
+        await ensureVisitorSession();
+        return httpClient.post<CompanyMembership>(`${base}/company-memberships`, params, options);
+      },
+
+      async update(params: StorefrontUpdateCompanyMembershipParams, options?: RequestOptions): Promise<CompanyMembership> {
+        await ensureVisitorSession();
+        const { id, ...body } = params;
+        return httpClient.put<CompanyMembership>(membershipPath(id), body, options);
+      },
+
+      async delete(params: StorefrontDeleteCompanyMembershipParams, options?: RequestOptions): Promise<DeletedResponse> {
+        await ensureVisitorSession();
+        return httpClient.delete<DeletedResponse>(membershipPath(params.id), {
+          ...options,
+          params: { expected_updated_at: params.expected_updated_at },
+        });
+      },
+
+      async resendInvite(params: StorefrontResendCompanyInviteParams, options?: RequestOptions): Promise<CompanyMembership> {
+        await ensureVisitorSession();
+        return httpClient.post<CompanyMembership>(
+          `${membershipPath(params.id)}/resend-invite`,
+          { expected_updated_at: params.expected_updated_at },
+          options,
+        );
+      },
+    },
+
+    role: {
+      async find(params: StorefrontFindCompanyRolesParams, options?: RequestOptions): Promise<PaginatedResponse<CompanyRole>> {
+        await ensureVisitorSession();
+        return httpClient.get<PaginatedResponse<CompanyRole>>(`${base}/company-roles`, { ...options, params });
+      },
+    },
+  };
+}

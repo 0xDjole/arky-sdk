@@ -1,5 +1,5 @@
 import { createAdmin } from '../../dist/index.js';
-import type { CustomerSearchSnapshot, FindCustomersParams } from '../../dist/index.js';
+import type { CustomerOrderContact, CustomerSearchSnapshot, EmailContact, FindCustomersParams } from '../../dist/index.js';
 
 type Assert<T extends true> = T;
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
@@ -19,4 +19,6 @@ export type CustomerDiscoveryContracts = [
   Assert<Equal<FindCustomersParams['type'], 'anonymous' | 'verified' | undefined>>,
   Assert<Missing<FindCustomersParams, 'has_verified_email'>>,
   Assert<Equal<keyof CustomerSearchSnapshot, 'customer' | 'has_cart' | 'has_customer_action' | 'has_order' | 'latest_order_contact'>>,
+  Assert<Equal<CustomerSearchSnapshot['latest_order_contact'], CustomerOrderContact | null>>,
+  Assert<Equal<CustomerOrderContact, { email: EmailContact | null; first_name: string | null; last_name: string | null; phone: string | null }>>,
 ];

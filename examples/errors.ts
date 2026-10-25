@@ -10,7 +10,7 @@ export function errorKey(error: unknown): string {
 }
 
 try {
-  await arky.customer.requestCode({ email: "ana@example.com", language: "en" });
+  await arky.customer.requestCode({ contact: { email: "ana@example.com", language: "en" } });
 } catch (error) {
   console.log(errorKey(error), isDefiniteRefusal(error) ? "change the request first" : "the same request can be sent again");
 }

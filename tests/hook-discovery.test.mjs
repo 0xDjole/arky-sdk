@@ -69,16 +69,40 @@ test("the webhook event list carries the ten customer group member events and no
     "customer_group_member.renewal_skipped",
     "customer_group_member.payment_method_changed",
   ];
-  assert.equal(WEBHOOK_UNIT_EVENT_TYPES.length, 106);
+  assert.equal(WEBHOOK_UNIT_EVENT_TYPES.length, 123);
   assert.equal(new Set(WEBHOOK_UNIT_EVENT_TYPES).size, WEBHOOK_UNIT_EVENT_TYPES.length);
   assert.deepEqual(WEBHOOK_UNIT_EVENT_TYPES.filter((event) => event.startsWith("customer_group_member.")), memberEvents);
   for (const kept of ["customer_group.created", "customer_group.updated"]) assert.ok(WEBHOOK_UNIT_EVENT_TYPES.includes(kept), kept);
   for (const retired of ["customer_group.member_added", "customer_group.member_removed"]) assert.equal(WEBHOOK_UNIT_EVENT_TYPES.includes(retired), false, retired);
-  for (const added of ["refund.created", "refund.failed", "fulfillment.dispatched", "order_booking_item.attended", "product_variant.created", "price.deleted", "inventory_level.updated", "promotion.created", "company_location.created", "customer_group.deleted"]) {
+  for (const added of ["refund.created", "refund.failed", "fulfillment.dispatched", "order_booking_item.attended", "product_variant.created", "catalog_item_price.deleted", "inventory_level.updated", "promotion.created", "company_location.created", "customer_group.deleted"]) {
     assert.ok(WEBHOOK_UNIT_EVENT_TYPES.includes(added), added);
   }
-  for (const retired of ["order.refunded", "fulfillment.sent", "order_booking_item.completed", "customer_group_member.next_purchase_skipped", "store.created", "account.updated"]) {
+  for (const retired of ["order.refunded", "fulfillment.sent", "order_booking_item.completed", "customer_group_member.next_purchase_skipped", "store.created", "account.updated", "price.created", "price.updated", "price.deleted"]) {
     assert.equal(WEBHOOK_UNIT_EVENT_TYPES.includes(retired), false, retired);
   }
   assert.deepEqual(WEBHOOK_UNIT_EVENT_TYPES.filter((event) => event.startsWith("subscription.")), []);
+});
+
+test("the webhook event list carries the conversation, catalog, listing, access and offering events in the Server's order", () => {
+  const added = [
+    "conversation.created", "conversation.updated", "conversation_message.created",
+    "catalog.created", "catalog.updated", "catalog.deleted",
+    "catalog_item.created", "catalog_item.updated", "catalog_item.deleted",
+    "catalog_access.created", "catalog_access.deleted",
+    "booking_offering.created", "booking_offering.updated", "booking_offering.deleted",
+    "customer_group_offering.created", "customer_group_offering.updated", "customer_group_offering.deleted",
+  ];
+  assert.equal(added.length, 17);
+  for (const event of added) assert.ok(WEBHOOK_UNIT_EVENT_TYPES.includes(event), event);
+  assert.deepEqual(WEBHOOK_UNIT_EVENT_TYPES.slice(0, 3), ["conversation.created", "conversation.updated", "conversation_message.created"]);
+  const after = (anchor, events) => {
+    const start = WEBHOOK_UNIT_EVENT_TYPES.indexOf(anchor) + 1;
+    assert.deepEqual(WEBHOOK_UNIT_EVENT_TYPES.slice(start, start + events.length), events, anchor);
+  };
+  after("product_variant.deleted", added.slice(3, 11));
+  after("booking_service.deleted", added.slice(11, 14));
+  after("customer_group.deleted", added.slice(14));
+  for (const filtered of ["form_submission.created", "form_submission.stage_changed", "form_submission.deleted", "collection.created", "entry.updated"]) {
+    assert.equal(WEBHOOK_UNIT_EVENT_TYPES.includes(filtered), false, filtered);
+  }
 });

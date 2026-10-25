@@ -2,12 +2,15 @@ import type {
   ActOnFulfillmentJobParams,
   ActOnFulfillmentParams,
   CreateFulfillmentParams,
-  FulfillmentAction,
-  FulfillmentJobAction,
+  FulfillmentCommand,
+  FulfillmentExecutionTiming,
+  FulfillmentJobCommand,
   FulfillmentJobLineSource,
   FulfillmentJobType,
+  FulfillmentLotReference,
   RentalIssueReplacement,
   RoutingAssign,
+  Tracking,
 } from "arky-sdk";
 import type { RentalIssueReplacement as PublicReplacement } from "arky-sdk/types";
 
@@ -18,6 +21,9 @@ type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
 type RentalIssue = Extract<FulfillmentJobLineSource, { type: "rental_issue" }>;
 type OrderProduct = Extract<FulfillmentJobLineSource, { type: "order_product" }>;
 type Replacement = Extract<FulfillmentJobType, { type: "rental_replacement" }>;
+type Ready = Extract<FulfillmentCommand, { type: "ready" }>;
+type Fulfill = Extract<FulfillmentCommand, { type: "fulfill" }>;
+type Cancel = Extract<FulfillmentCommand, { type: "cancel" }>;
 
 export type FulfillmentSourceContract = [
   Assert<Equal<FulfillmentJobLineSource["type"], "order_product" | "rental_issue">>,
@@ -27,16 +33,29 @@ export type FulfillmentSourceContract = [
   Assert<Equal<Replacement["replacement"], RentalIssueReplacement>>,
   Assert<Equal<keyof RentalIssueReplacement, "predecessor_inventory_unit_id" | "predecessor_fulfillment_job_line_id" | "predecessor_fulfillment_unit_index" | "overlap_authorized">>,
   Assert<Equal<RentalIssueReplacement, PublicReplacement>>,
-  Assert<Equal<FulfillmentAction["type"], "ready" | "fulfill" | "cancel">>,
-  Assert<Equal<keyof ActOnFulfillmentParams, "store_id" | "fulfillment_id" | "expected_updated_at" | "action" | "trackings" | "notify_customer" | "lot_references">>,
-  Assert<Missing<ActOnFulfillmentParams, "request_id" | "tracking">>,
-  Assert<RequiredField<ActOnFulfillmentParams, "trackings">>,
-  Assert<RequiredField<ActOnFulfillmentParams, "notify_customer">>,
+  Assert<Equal<FulfillmentCommand["type"], "ready" | "fulfill" | "cancel">>,
+  Assert<Equal<keyof ActOnFulfillmentParams, "store_id" | "fulfillment_id" | "expected_updated_at" | "command">>,
+  Assert<Equal<ActOnFulfillmentParams["command"], FulfillmentCommand>>,
+  Assert<RequiredField<ActOnFulfillmentParams, "command">>,
+  Assert<Missing<ActOnFulfillmentParams, "request_id" | "tracking" | "action" | "trackings" | "notify_customer" | "lot_references">>,
+  Assert<Equal<keyof Ready, "type" | "notify_customer">>,
+  Assert<RequiredField<Ready, "notify_customer">>,
+  Assert<Equal<Ready["notify_customer"], boolean>>,
+  Assert<Equal<keyof Fulfill, "type" | "timing" | "notify_customer" | "trackings" | "lot_references">>,
+  Assert<RequiredField<Fulfill, "notify_customer">>,
+  Assert<RequiredField<Fulfill, "timing">>,
+  Assert<Equal<Fulfill["timing"], FulfillmentExecutionTiming>>,
+  Assert<Equal<RequiredField<Fulfill, "trackings">, false>>,
+  Assert<Equal<RequiredField<Fulfill, "lot_references">, false>>,
+  Assert<Equal<NonNullable<Fulfill["trackings"]>, Tracking[]>>,
+  Assert<Equal<NonNullable<Fulfill["lot_references"]>, FulfillmentLotReference[]>>,
+  Assert<Equal<keyof Cancel, "type">>,
   Assert<RequiredField<CreateFulfillmentParams, "id">>,
   Assert<Missing<CreateFulfillmentParams, "request_id" | "fulfillment_id">>,
-  Assert<Equal<FulfillmentJobAction["type"], "move" | "split" | "hand_back" | "hold" | "release_hold">>,
-  Assert<Equal<Extract<FulfillmentJobAction, { type: "split" }>["fulfillment_job_id"], string>>,
-  Assert<Missing<ActOnFulfillmentJobParams, "request_id">>,
+  Assert<Equal<FulfillmentJobCommand["type"], "move" | "split" | "hand_back" | "hold" | "release_hold">>,
+  Assert<Equal<Extract<FulfillmentJobCommand, { type: "split" }>["fulfillment_job_id"], string>>,
+  Assert<Equal<ActOnFulfillmentJobParams["command"], FulfillmentJobCommand>>,
+  Assert<Missing<ActOnFulfillmentJobParams, "request_id" | "action">>,
   Assert<Equal<RoutingAssign["type"], "manual" | "automatic">>,
 ];
 

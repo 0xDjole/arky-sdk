@@ -2,7 +2,7 @@ import type { EpochMilliseconds } from "./time";
 import type {
   AccountActor,
   Currency,
-  Money,
+  EmailContact,
   PostalAddress,
   SortDirection,
   TaxMode,
@@ -57,7 +57,7 @@ export interface PurchaseAccessGrantRef {
 }
 
 export type CartProductPurchase =
-  | { type: "catalog" }
+  | { type: "catalog"; catalog_item_price_id: string }
   | { type: "existing_purchase_access"; grant: PurchaseAccessGrantRef }
   | {
       type: "same_cart_purchase_access";
@@ -70,26 +70,11 @@ export type CartProductPurchase =
       entitlement_id: string;
     };
 
-export interface ManualPrice {
-  money: Money;
-  reason: string;
-  authorized_by: AccountActor;
-  allow_promotions: boolean;
-}
-
-export interface ManualPriceInput {
-  allow_promotions: boolean;
-  currency: Currency;
-  amount: number;
-  reason: string;
-}
-
 export interface CartProductLineItem {
   id: string;
   variant_id: string;
   quantity: number;
   form_submission_id: string | null;
-  price_override: ManualPrice | null;
   purchase: CartProductPurchase;
 }
 
@@ -99,7 +84,7 @@ export interface CartBookingLineItem {
   requested_interval: TimeRange;
   capacity_units: number;
   form_submission_id: string | null;
-  price_override: ManualPrice | null;
+  catalog_item_price_id: string;
 }
 
 export type CartDeliveryDestination =
@@ -125,7 +110,7 @@ export interface CartCustomerGroupLineItem {
   choices: CustomerGroupProductChoice[];
   start: CustomerGroupStart;
   deliveries: CartCustomerGroupDelivery[];
-  price_override: ManualPrice | null;
+  catalog_item_price_id: string;
 }
 
 export type CartLineItem =
@@ -163,8 +148,6 @@ export type CartOfferStatus =
       type: "sent";
       by: AccountActor;
       at: EpochMilliseconds;
-      language: string;
-      email: string;
       expires_at: EpochMilliseconds | null;
       note: string | null;
     };
@@ -174,6 +157,7 @@ export type CartOfferLine =
   | { type: "customer_group"; line_item_id: string; group: CustomerGroupSnapshot; rebate_per_unit: number };
 
 export interface CartOffer {
+  contact: EmailContact;
   reviewed_by: AccountActor;
   reviewed_at: EpochMilliseconds;
   lines: CartOfferLine[];
@@ -220,7 +204,6 @@ export interface CartProductLineItemInput {
   variant_id: string;
   quantity: number;
   form_submission_id?: string | null;
-  price_override?: ManualPriceInput | null;
   purchase: CartProductPurchase;
 }
 
@@ -230,7 +213,7 @@ export interface CartBookingLineItemInput {
   requested_interval: TimeRange;
   capacity_units: number;
   form_submission_id?: string | null;
-  price_override?: ManualPriceInput | null;
+  catalog_item_price_id: string;
 }
 
 export interface CartCustomerGroupLineItemInput {
@@ -240,24 +223,13 @@ export interface CartCustomerGroupLineItemInput {
   choices: CustomerGroupProductChoice[];
   start: CustomerGroupStart;
   deliveries?: CartCustomerGroupDelivery[];
-  price_override?: ManualPriceInput | null;
+  catalog_item_price_id: string;
 }
 
 export type CartLineItemInput =
   | ({ type: "product" } & CartProductLineItemInput)
   | ({ type: "booking" } & CartBookingLineItemInput)
   | ({ type: "customer_group" } & CartCustomerGroupLineItemInput);
-
-export type StorefrontCartProductLineItemInput = Omit<CartProductLineItemInput, "price_override">;
-
-export type StorefrontCartBookingLineItemInput = Omit<CartBookingLineItemInput, "price_override">;
-
-export type StorefrontCartCustomerGroupLineItemInput = Omit<CartCustomerGroupLineItemInput, "price_override">;
-
-export type StorefrontCartLineItemInput =
-  | ({ type: "product" } & StorefrontCartProductLineItemInput)
-  | ({ type: "booking" } & StorefrontCartBookingLineItemInput)
-  | ({ type: "customer_group" } & StorefrontCartCustomerGroupLineItemInput);
 
 export interface CartCustomerGroupDeliveries {
   cart_line_item_id: string;
@@ -318,7 +290,7 @@ export interface QuotePurchaseAccess {
   limits: QuotePurchaseLimit[];
 }
 
-export type QuoteTaxWait = "no_delivery" | "no_billing_address";
+export type QuoteTaxWait = "no_delivery" | "no_billing_address" | "fixed_above_price";
 
 export interface QuoteUntaxedRun {
   span: UnitSpan;
@@ -403,6 +375,7 @@ export interface QuoteCustomerGroupLine {
   entitlements: QuoteEntitlementLine[];
   tax_groups: OrderTaxGroup[];
   deliveries: CustomerGroupDeliveryTerms[];
+  saves_card: boolean;
 }
 
 export type QuoteLine =
@@ -455,6 +428,8 @@ export type QuoteBlocker =
   | { type: "billing_address_required" }
   | { type: "shipping_required"; delivery_group_id: string }
   | { type: "booking_unavailable"; line_item_id: string; code: string }
+  | { type: "tax_unavailable"; line_item_id: string; code: string }
+  | { type: "delivery_unavailable"; delivery_group_id: string; code: string }
   | { type: "customer_group_delivery_required"; line_item_id: string; entitlement_id: string }
   | { type: "customer_group_shipping_required"; line_item_id: string; delivery_id: string }
   | { type: "customer_group_delivery_fee_varies"; line_item_id: string; delivery_id: string }
@@ -484,6 +459,15 @@ export interface QuoteTotals {
   total: number;
 }
 
+export type QuotePromotionCodeState = "applied" | "stopped" | "not_applied";
+
+export interface QuotePromotionCode {
+  promotion_code_id: string;
+  code: string;
+  promotion_id: string;
+  state: QuotePromotionCodeState;
+}
+
 export interface CartQuote {
   cart_id: string | null;
   store_id: string;
@@ -498,6 +482,7 @@ export interface CartQuote {
   lines: QuoteLine[];
   deliveries: QuoteDelivery[];
   promotions: OrderPromotion[];
+  promotion_codes: QuotePromotionCode[];
   billing_address: PostalAddress | null;
   totals: QuoteTotals;
   payment_option_ids: string[];
@@ -526,7 +511,9 @@ export interface CheckoutCartInput {
   expected_updated_at: EpochMilliseconds;
   presentation_digest: string;
   language: string;
-  contact_email: string | null;
+  contact_email: EmailContact | null;
+  contact_first_name?: string | null;
+  contact_last_name?: string | null;
   payment: CheckoutPaymentChoice;
 }
 
@@ -536,7 +523,9 @@ export interface StorefrontCheckoutCartInput {
   cart_id: string;
   expected_updated_at: EpochMilliseconds;
   presentation_digest: string;
-  contact_email: string | null;
+  contact_email: EmailContact | null;
+  contact_first_name?: string | null;
+  contact_last_name?: string | null;
   payment: CheckoutPaymentChoice;
 }
 
@@ -547,7 +536,9 @@ export interface CheckoutCartOnAccountInput {
   expected_updated_at: EpochMilliseconds;
   presentation_digest: string;
   language: string;
-  contact_email: string | null;
+  contact_email: EmailContact | null;
+  contact_first_name?: string | null;
+  contact_last_name?: string | null;
   payment_option_id: string;
   terms: PaymentTerms;
   reason: string;
@@ -709,18 +700,24 @@ export interface QuotePurchaseParams {
 export interface CreateCartOfferParams {
   store_id: string;
   id: string;
+  contact: EmailContact;
   expected_updated_at: EpochMilliseconds;
   language: string;
   presentation_digest: string;
   supersedes_cart_id: string | null;
 }
 
-export interface SendCartOfferParams {
+export interface QuoteCartOfferParams {
   store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   language: string;
-  email: string;
+}
+
+export interface SendCartOfferParams {
+  store_id: string;
+  id: string;
+  expected_updated_at: EpochMilliseconds;
   expires_at: EpochMilliseconds | null;
   note: string | null;
 }
@@ -766,7 +763,7 @@ export interface StorefrontUpdateCartParams extends StorefrontCartTarget {
   buyer?: CartBuyer;
   catalog_id?: string;
   blocks?: Block[];
-  line_items?: StorefrontCartLineItemInput[];
+  line_items?: CartLineItemInput[];
   delivery_groups?: CartDeliveryGroup[];
   billing_address?: PostalAddress | null;
   promotion_codes?: string[];
@@ -774,17 +771,17 @@ export interface StorefrontUpdateCartParams extends StorefrontCartTarget {
 
 export interface StorefrontAddCartProductParams extends StorefrontCartTarget {
   expected_updated_at: EpochMilliseconds;
-  product: StorefrontCartProductLineItemInput;
+  product: CartProductLineItemInput;
 }
 
 export interface StorefrontAddCartBookingParams extends StorefrontCartTarget {
   expected_updated_at: EpochMilliseconds;
-  booking: StorefrontCartBookingLineItemInput;
+  booking: CartBookingLineItemInput;
 }
 
 export interface StorefrontAddCartCustomerGroupParams extends StorefrontCartTarget {
   expected_updated_at: EpochMilliseconds;
-  customer_group: StorefrontCartCustomerGroupLineItemInput;
+  customer_group: CartCustomerGroupLineItemInput;
 }
 
 export interface StorefrontRemoveCartItemParams extends StorefrontCartTarget {

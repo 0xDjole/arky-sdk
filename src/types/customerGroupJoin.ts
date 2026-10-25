@@ -1,4 +1,5 @@
 import { ArkyError } from "./apiError";
+import type { EmailContact } from "./common";
 
 export type CustomerGroupJoinErrorCode =
   | "sign_in_required"
@@ -27,6 +28,7 @@ export class CustomerGroupJoinError extends ArkyError {
 
 export type JoinFreeCustomerGroupParams = ({ id: string } | { key: string }) & {
   catalog_id: string;
+  language: string;
 };
 
 export type JoinFreeCustomerGroupResult =
@@ -34,8 +36,7 @@ export type JoinFreeCustomerGroupResult =
   | { type: "already_member"; customer_group_member_id: string };
 
 export interface RequestNewsletterCodeParams {
-  email: string;
-  language: string;
+  contact: EmailContact;
   bot_check_token?: string;
 }
 

@@ -117,7 +117,7 @@ test("a refused order change is propagated once, without a retry or a replacemen
 test("contact, blocks, delivery address and sold booking changes carry the exact current Order version", async (context) => {
   const calls = recordFetch(context, () => retained);
   const api = client().eshop.order;
-  const contact = { first_name: "New", last_name: "Contact", email: "updated@example.test", phone: null };
+  const contact = { first_name: "New", last_name: "Contact", email: { email: "updated@example.test", language: "bs" }, phone: null };
   const blocks = [{ key: "note", type: "text", value: "Accepted gift note" }];
   const delivery = ids.otherLine;
   const booking = ids.line;

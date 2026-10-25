@@ -42,6 +42,29 @@ test("Monri creation sends the app-picked id and explicit credentials once to th
   assert.equal(calls.length, 5);
 });
 
+test("a new Monri merchant key replaces the saved one with the option's version, keeping the authenticity token", async (context) => {
+  let failure = null;
+  const result = { id: ids.paymentOption, store_id: STORE_ID, key: "cards", blocks: [], status: "active", type: { type: "monri", environment: "live", saved_card_terms: savedCardTerms }, created_at: 1, updated_at: 3 };
+  const calls = recordFetch(context, () => failure ? errorResponse(409, failure, "Refused") : result);
+  const api = paymentOptions();
+  const request = { store_id: STORE_ID, id: ids.paymentOption, expected_updated_at: 2, merchant_key: "next-merchant-key" };
+  assert.deepEqual(await api.monri.replaceMerchantKey(request), result);
+  await api.monri.replaceMerchantKey({ ...request, store_id: OTHER_STORE_ID, id: "option/one" });
+  assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
+    ["POST", `/v1/stores/${STORE_ID}/payment-options/monri/${ids.paymentOption}/replace-merchant-key`, { expected_updated_at: 2, merchant_key: "next-merchant-key" }],
+    ["POST", `/v1/stores/${OTHER_STORE_ID}/payment-options/monri/option%2Fone/replace-merchant-key`, { expected_updated_at: 2, merchant_key: "next-merchant-key" }],
+  ]);
+  for (const removed of ["authenticity_token", "environment", "store_id", "id"]) assert.equal(removed in calls[0].body, false, removed);
+  await assert.rejects(async () => api.monri.replaceMerchantKey({ ...request, store_id: "default" }), TypeError);
+  assert.equal(calls.length, 2);
+  for (const code of ["PAYMENT_OPTION.MERCHANT_KEY_UNCHANGED", "PAYMENT_OPTION.NOT_MONRI"]) {
+    failure = code;
+    await assert.rejects(api.monri.replaceMerchantKey(request), (error) => error.statusCode === 409 && error.code === code);
+  }
+  assert.equal(calls.length, 4);
+  assert.deepEqual(Object.keys(api.monri).sort(), ["create", "replaceMerchantKey"]);
+});
+
 test("payment option availability sends the version, blocks and status without resending credentials", async (context) => {
   const result = { id: ids.paymentOption, store_id: STORE_ID, status: "disabled", type: { type: "monri", environment: "test", saved_card_terms: savedCardTerms } };
   const calls = recordFetch(context, () => result);

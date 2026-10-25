@@ -29,7 +29,7 @@ test("individual stock discovery keeps the exact tag case, combined filters and 
 test("a unit is received under an app-picked id with the level it was counted on, then allocated and unassigned by version", async (context) => {
   const calls = recordFetch(context, () => ({ id: unitId, status: { type: "available", store_location_id: "location" } }));
   const api = units();
-  const receipt = { store_id: STORE_ID, id: unitId, inventory_item_id: "item", store_location_id: "location", asset_tag: "Camera/A42", manufacturer_serial: null, expected_level_id: "level", expected_level_updated_at: 1_700_000_000_000 };
+  const receipt = { store_id: STORE_ID, id: unitId, inventory_item_id: "item", store_location_id: "location", asset_tag: "Camera/A42", manufacturer_serial: null, expected_level_id: "level" };
   await api.receive(receipt);
   await api.get({ store_id: STORE_ID, id: unitId });
   await api.allocate({ store_id: STORE_ID, id: unitId, fulfillment_job_id: "work", fulfillment_job_line_id: "line", fulfillment_unit_index: 3, expected_updated_at: 1_700_000_000_001 });
@@ -41,6 +41,7 @@ test("a unit is received under an app-picked id with the level it was counted on
     [`/v1/stores/${STORE_ID}/inventory-units/${unitId}/allocate`, "POST", { fulfillment_job_id: "work", fulfillment_job_line_id: "line", fulfillment_unit_index: 3, expected_updated_at: 1_700_000_000_001 }],
     [`/v1/stores/${STORE_ID}/inventory-units/${unitId}/unassign`, "POST", { expected_updated_at: 1_700_000_000_002 }],
   ]);
+  assert.deepEqual(calls[0].body, { id: unitId, inventory_item_id: "item", store_location_id: "location", asset_tag: "Camera/A42", manufacturer_serial: null, expected_level_id: "level" });
   await assert.rejects(async () => api.receive({ ...receipt, id: "Camera/A42" }), {
     name: "TypeError",
     message: "The inventory unit id must be a canonical UUID v4 picked by the app",

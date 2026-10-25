@@ -1,17 +1,20 @@
 import { createAdmin, epochMilliseconds, initialize } from "arky-sdk";
 import type {
+  AlertRecipient,
+  EmailContact,
   EpochMilliseconds,
-  AssignFormSubmissionParams,
   ChangeFormSubmissionStageParams,
   CreateFormParams,
   CreateFormSubmissionParams,
   DeletedResponse,
   DeleteFormSubmissionParams,
+  Email,
   FindFormSubmissionsParams,
   FindFormsParams,
   Form,
   FormAnswer,
   FormAnswerInput,
+  FormEmails,
   FormOptionSnapshot,
   FormQuestion,
   FormStage,
@@ -27,7 +30,6 @@ import type {
   Note,
   NoteTarget,
   PaginatedResponse,
-  SetFormSubmissionCompanyParams,
   StorefrontFormSubmission,
   SubmitFormParams,
   SubmitFormRequest,
@@ -63,8 +65,6 @@ const submissionFilter: FindFormSubmissionsParams = {
   form_id,
   customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58",
   stage_id: "new",
-  assignee_account_id: "ca60db1c-68d1-42d5-8b55-8a1e04f2cb2f",
-  company_id: "f581728f-8a86-4598-b27b-ef5ea7636277",
   select: [{ question_id: "q-topic", option_keys: ["sales"] }],
   sort_field: "created_at",
   cursor: null,
@@ -90,8 +90,9 @@ const stageChange: ChangeFormSubmissionStageParams = {
   to_stage_id: "won",
   note: { id: "9d1f3b5c-7e8a-4c2e-b4d6-8f0a2c4e6b7d", body: "Out of the delivery area" },
 };
-const unassign: AssignFormSubmissionParams = { store_id, form_id, id, assignee_account_id: null };
-const unlink: SetFormSubmissionCompanyParams = { store_id, form_id, id, company_id: null };
+const alert: Email = { email_template_id: id, sending_address_id: form_id, from_name: "Shop", reply_to: { type: "external", email: "sales@example.test" } };
+const emails: FormEmails = { received: null, stage_changed: { won: alert }, new_submission_alert: alert, alert_recipients: [{ type: "email", email: "sales@example.test", language: "en" }] };
+const withEmails: CreateFormParams = { ...create, emails };
 const remove: DeleteFormSubmissionParams = { store_id, form_id, id, expected_updated_at: epochMilliseconds(3) };
 
 const page: Promise<PaginatedResponse<Form>> = api.find(filter);
@@ -102,8 +103,6 @@ const edited: Promise<Form> = api.update(edit);
 const submissions: Promise<PaginatedResponse<FormSubmission>> = api.findSubmissions(submissionFilter);
 const staffCreated: Promise<FormSubmission> = api.createSubmission(staffEntry);
 const staged: Promise<FormSubmission> = api.changeSubmissionStage(stageChange);
-const assigned: Promise<FormSubmission> = api.assignSubmission(unassign);
-const unlinked: Promise<FormSubmission> = api.setSubmissionCompany(unlink);
 const deleted: Promise<DeletedResponse> = api.deleteSubmission(remove);
 const noted: Promise<Note> = api.notes.create({ store_id, form_id, form_submission_id: id, id: "2c7e9a41-5b3d-4f86-a1e0-7d4c2b9f6e38", body: "Called back" });
 const notes: Promise<PaginatedResponse<Note>> = api.notes.find({ store_id, form_id, form_submission_id: id, limit: 20 });
@@ -131,6 +130,16 @@ const submissionNoteTarget: NoteTarget = { type: "form_submission", form_submiss
 export type FormContracts = [
   Assert<Missing<FormsApi, "findByIds" | "getSubmissions" | "getPresentation" | "permanentlyDelete" | "updateSubmission" | "processSubmission">>,
   Assert<Missing<FormsApi, "createSubmissionNote" | "findSubmissionNotes" | "updateSubmissionNote" | "deleteSubmissionNote">>,
+  Assert<Missing<FormsApi, "assignSubmission" | "setSubmissionCompany">>,
+  Assert<Equal<keyof FormEmails, "received" | "stage_changed" | "new_submission_alert" | "alert_recipients">>,
+  Assert<Equal<FormEmails["new_submission_alert"], Email | null>>,
+  Assert<Equal<FormEmails["stage_changed"], Record<string, Email>>>,
+  Assert<Equal<FormEmails["alert_recipients"], AlertRecipient[]>>,
+  Assert<Equal<Form["emails"], FormEmails>>,
+  Assert<Equal<FormSubmission["email_contact"], EmailContact | null>>,
+  Assert<Missing<FormSubmission, "company_id" | "assignee_account_id">>,
+  Assert<Missing<FindFormSubmissionsParams, "company_id" | "assignee_account_id">>,
+  Assert<Missing<StorefrontFormSubmission, "email_contact">>,
   Assert<Equal<Parameters<FormsApi["find"]>[0], FindFormsParams>>,
   Assert<Equal<Awaited<ReturnType<FormsApi["find"]>>, PaginatedResponse<Form>>>,
   Assert<Equal<Awaited<ReturnType<FormsApi["findSubmissions"]>>, PaginatedResponse<FormSubmission>>>,
@@ -185,5 +194,5 @@ export type FormContracts = [
   Assert<Equal<Extract<NoteTarget, { type: "form_submission" }>, { type: "form_submission"; form_submission_id: string }>>,
 ];
 
-void [page, read, readById, created, edited, submissions, staffCreated, staged, assigned, unlinked, deleted, noted, notes, noteEdit,
+void [page, read, readById, created, edited, submissions, staffCreated, staged, deleted, noted, notes, noteEdit, withEmails,
   answered, rawAnswered, loaded, loadedById, source, sessionId, stageId, changeNote, formKey, noteTarget, submissionNoteTarget];

@@ -122,7 +122,7 @@ export const createStoreApi = (apiConfig: ApiConfig) => ({
     invite(params: InviteStoreMemberParams, options?: RequestOptions): Promise<boolean> {
       return apiConfig.httpClient.post<boolean>(
         storePath(params.store_id, "invitation"),
-        { id: requireId(params.id, "membership"), email: params.email, role_ids: params.role_ids },
+        { id: requireId(params.id, "membership"), contact: params.contact, role_ids: params.role_ids },
         options,
       );
     },
@@ -170,8 +170,7 @@ export const createStoreApi = (apiConfig: ApiConfig) => ({
         storePath(params.store_id, `members/${segment(requireId(params.id, "membership"))}`),
         {
           ...options,
-          params: undefined,
-          body: { expected_updated_at: params.expected_updated_at },
+          params: { expected_updated_at: params.expected_updated_at },
         },
       );
     },

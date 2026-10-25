@@ -1,6 +1,6 @@
 import type { EpochMilliseconds } from "./time";
 import type { Block } from "./block";
-import type { AccountActor, CommerceParty, Money, PostalAddress, SortDirection, UnitSpan } from "./common";
+import type { AccountActor, CommerceParty, EmailContact, Money, PostalAddress, SortDirection, UnitSpan } from "./common";
 import type { InventoryRequirement } from "./product";
 import type { OrderDeliveryTiming } from "./order";
 import type { PurchaseRequirementScope } from "./customerGroup";
@@ -119,7 +119,7 @@ export type FulfillmentJobBuyer =
     };
 
 export interface FulfillmentJobContact {
-  email: string | null;
+  email: EmailContact | null;
   first_name: string | null;
   last_name: string | null;
   phone: string | null;
@@ -184,10 +184,15 @@ export interface FulfillmentLine {
   lot_reference: string | null;
 }
 
+export type FulfillmentSource =
+  | { type: "order_delivery"; order_id: string; buyer: CommerceParty }
+  | { type: "rental_replacement" };
+
 export interface Fulfillment {
   id: string;
   store_id: string;
   fulfillment_job_id: string;
+  source: FulfillmentSource;
   created_by: AccountActor;
   lines: FulfillmentLine[];
   type: FulfillmentType;
@@ -206,6 +211,7 @@ export interface FulfillmentJobItem {
   product_key: string;
   product_blocks: Block[];
   variant_sku: string | null;
+  variant_blocks: Block[];
   image: FulfillmentJobItemImage | null;
   quantity: number;
   source: FulfillmentJobLineSource;
@@ -216,7 +222,7 @@ export interface FulfillmentJobMoveLine {
   unit_spans: FulfillmentUnitSpan[];
 }
 
-export type FulfillmentJobAction =
+export type FulfillmentJobCommand =
   | { type: "move"; to_store_location_id: string }
   | {
       type: "split";
@@ -246,7 +252,7 @@ export interface GetFulfillmentJobParams {
 
 export interface ActOnFulfillmentJobParams extends GetFulfillmentJobParams {
   expected_updated_at: EpochMilliseconds;
-  action: FulfillmentJobAction;
+  command: FulfillmentJobCommand;
 }
 
 export interface RecordPickupCashParams {
@@ -308,17 +314,20 @@ export interface FulfillmentLotReference {
   lot_reference: string;
 }
 
-export type FulfillmentAction =
-  | { type: "ready" }
-  | { type: "fulfill"; timing: FulfillmentExecutionTiming }
+export type FulfillmentCommand =
+  | { type: "ready"; notify_customer: boolean }
+  | {
+      type: "fulfill";
+      timing: FulfillmentExecutionTiming;
+      notify_customer: boolean;
+      trackings?: Tracking[];
+      lot_references?: FulfillmentLotReference[];
+    }
   | { type: "cancel" };
 
 export interface ActOnFulfillmentParams extends GetFulfillmentParams {
   expected_updated_at: EpochMilliseconds;
-  action: FulfillmentAction;
-  notify_customer: boolean;
-  trackings: Tracking[];
-  lot_references: FulfillmentLotReference[];
+  command: FulfillmentCommand;
 }
 
 export interface UpdateFulfillmentTrackingParams extends GetFulfillmentParams {

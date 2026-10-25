@@ -7,7 +7,7 @@ const STORE_ID = "4c7a2e95-1d38-4b60-8f9e-0a5d3c7b2e14";
 const OTHER_STORE_ID = "a7c3e1f5-6b28-4d90-9e4a-2f8d0b6c1e73";
 const savedCardTerms = { en: "Save this card for the Store's agreed renewals.", bs: "Sačuvaj karticu za prihvaćene obnove." };
 
-function stripeOption(webhook = { type: "not_created" }) {
+function stripeOption(webhook = { type: "not_configured" }) {
   return {
     id: ids.paymentOption,
     store_id: STORE_ID,
@@ -27,21 +27,52 @@ function stripe() {
 test("Stripe is connected with the merchant's own keys under an app-picked id, and every later step names the option and its version", async (context) => {
   const calls = recordFetch(context, () => stripeOption());
   const api = stripe();
-  assert.deepEqual(Object.keys(api).sort(), ["connect", "createWebhook", "refresh", "replaceKeys", "rotateWebhookSecret"]);
+  assert.deepEqual(Object.keys(api).sort(), ["checkSetup", "connect", "refresh", "replaceKeys", "saveWebhookSecret"]);
+  for (const removed of ["createWebhook", "rotateWebhookSecret"]) assert.equal(removed in api, false, removed);
   const id = ids.paymentOption;
   await api.connect({ store_id: STORE_ID, id, key: "stripe", blocks: [], status: "active", restricted_key: "rk_test_merchant", publishable_key: "pk_test_merchant", saved_card_terms: savedCardTerms });
-  await api.createWebhook({ store_id: STORE_ID, id, expected_updated_at: 2 });
-  await api.rotateWebhookSecret({ store_id: STORE_ID, id, expected_updated_at: 3, signing_secret: "whsec_next", previous_secret_expires_at: 1_700_000_000_000 });
+  await api.saveWebhookSecret({ store_id: STORE_ID, id, expected_updated_at: 2, signing_secret: "whsec_first", previous_secret_expires_at: null });
+  await api.saveWebhookSecret({ store_id: STORE_ID, id, expected_updated_at: 3, signing_secret: "whsec_next", previous_secret_expires_at: 1_700_000_000_000 });
   await api.replaceKeys({ store_id: STORE_ID, id, expected_updated_at: 4, restricted_key: "rk_test_next", publishable_key: "pk_test_next" });
   await api.refresh({ store_id: STORE_ID, id, expected_updated_at: 5 });
   const base = `/v1/stores/${STORE_ID}/payment-options/stripe`;
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
     ["POST", base, { id, key: "stripe", blocks: [], status: "active", restricted_key: "rk_test_merchant", publishable_key: "pk_test_merchant", saved_card_terms: savedCardTerms }],
-    ["POST", `${base}/${id}/create-webhook`, { expected_updated_at: 2 }],
-    ["POST", `${base}/${id}/rotate-webhook-secret`, { expected_updated_at: 3, signing_secret: "whsec_next", previous_secret_expires_at: 1_700_000_000_000 }],
+    ["POST", `${base}/${id}/webhook-secret`, { expected_updated_at: 2, signing_secret: "whsec_first", previous_secret_expires_at: null }],
+    ["POST", `${base}/${id}/webhook-secret`, { expected_updated_at: 3, signing_secret: "whsec_next", previous_secret_expires_at: 1_700_000_000_000 }],
     ["POST", `${base}/${id}/replace-keys`, { expected_updated_at: 4, restricted_key: "rk_test_next", publishable_key: "pk_test_next" }],
     ["POST", `${base}/${id}/refresh`, { expected_updated_at: 5 }],
   ]);
+});
+
+test("checking a Stripe option's setup is a live read of the webhook the merchant makes and every problem found", async (context) => {
+  const setup = {
+    webhook_address: "https://api.example.test/v1/webhooks/stripe/option",
+    api_version: "2025-09-30.clover",
+    events: ["checkout.session.completed", "payment_intent.succeeded", "charge.refunded"],
+    webhook_id: "we_merchant",
+    problems: [
+      { type: "charges_disabled" },
+      { type: "webhook_secret_missing" },
+      { type: "webhook_unreadable" },
+      { type: "webhook_missing" },
+      { type: "webhook_duplicated", webhook_ids: ["we_merchant", "we_other"] },
+      { type: "webhook_disabled" },
+      { type: "webhook_events_missing", events: ["charge.refunded"] },
+      { type: "webhook_api_version", api_version: null },
+      { type: "webhook_replaced", saved_webhook_id: "we_previous" },
+    ],
+  };
+  const calls = recordFetch(context, () => setup);
+  assert.deepEqual(await stripe().checkSetup({ store_id: STORE_ID, id: ids.paymentOption }), setup);
+  await stripe().checkSetup({ store_id: STORE_ID, id: "option/one" });
+  const base = `/v1/stores/${STORE_ID}/payment-options/stripe`;
+  assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
+    ["GET", `${base}/${ids.paymentOption}/setup`, {}, null],
+    ["GET", `${base}/option%2Fone/setup`, {}, null],
+  ]);
+  await assert.rejects(async () => stripe().checkSetup({ store_id: "store/other", id: ids.paymentOption }), TypeError);
+  assert.equal(calls.length, 2);
 });
 
 test("Stripe steps keep the explicit store they were called with and refuse an invented id or store before any request", async (context) => {
@@ -85,7 +116,7 @@ test("editing Stripe wording sends its exact languages and version without chang
 
 test("a refused Stripe step propagates the Server's code once without a retry", async (context) => {
   const calls = recordFetch(context, () => errorResponse(409, "PAYMENT_OPTION.STALE", "The payment option changed"));
-  await assert.rejects(stripe().createWebhook({ store_id: STORE_ID, id: ids.paymentOption, expected_updated_at: 2 }), (error) => {
+  await assert.rejects(stripe().saveWebhookSecret({ store_id: STORE_ID, id: ids.paymentOption, expected_updated_at: 2, signing_secret: "whsec_first", previous_secret_expires_at: null }), (error) => {
     assert.equal(error.statusCode, 409);
     assert.equal(error.code, "PAYMENT_OPTION.STALE");
     return true;

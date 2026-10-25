@@ -83,7 +83,7 @@ test("the store loads its setup and confirms the selected market before it expos
 
 test("a fresh visitor's first cart load identifies once and reads no cart, and a create then selects the new cart", async (context) => {
   const storage = new SessionStorage();
-  const line = { type: "product", id: ids.line, variant_id: ids.variant, quantity: 2, form_submission_id: ids.submission, price_override: null, purchase: { type: "catalog" } };
+  const line = { type: "product", id: ids.line, variant_id: ids.variant, quantity: 2, form_submission_id: ids.submission, purchase: { type: "catalog", catalog_item_price_id: ids.price } };
   const cart = cartRecord({ line_items: [line] });
   const calls = recordFetch(context, (call) => {
     if (call.path === "/v1/storefront/customer/identify") return sessionResult();

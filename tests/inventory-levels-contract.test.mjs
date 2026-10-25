@@ -68,7 +68,7 @@ test("stock reads keep unavailable and negative available quantities with the it
   assert.deepEqual(calls[0].query, { inventory_item_id: "item", store_location_id: "location", limit: "5", cursor: "" });
 });
 
-test("stock commands carry the app-picked action id, the level version and the exact incoming stock", async (context) => {
+test("stock commands carry the app-picked action id and the exact incoming stock", async (context) => {
   const record = { id: levelId, on_hand: 10, reserved: 2, unavailable: 3, available: 5 };
   const calls = recordFetch(context, () => record);
   const api = eshop().inventoryLevel;
@@ -80,12 +80,13 @@ test("stock commands carry the app-picked action id, the level version and the e
     ["receiveMove", "incoming", { type: { type: "unit", asset_tag: "UNIT-42" } }],
   ];
   for (const [index, [method, path, payload]] of cases.entries()) {
-    const body = { action_id: actionId(index), expected_updated_at: 1_700_000_000_000, ...payload };
+    const body = { action_id: actionId(index), ...payload };
     const request = { store_id: OTHER_STORE_ID, id: levelId, ...body };
     const before = structuredClone(request);
     assert.deepEqual(await api[method](request), record);
     assert.deepEqual(request, before);
     assert.deepEqual(calls.at(-1), { ...calls.at(-1), href: `https://api.example.test/v1/stores/${OTHER_STORE_ID}/inventory-levels/${levelId}/${path}`, method: "POST", body });
+    assert.equal("expected_updated_at" in calls.at(-1).body, false);
     await assert.rejects(async () => api[method]({ ...request, action_id: `command-${index}` }), {
       name: "TypeError",
       message: "The action id must be a canonical UUID v4 picked by the app",
@@ -109,27 +110,42 @@ test("levels are created under an app-picked id and removed with their version",
   assert.equal(calls.length, 3);
 });
 
-test("a manual stock correction names the level and version it was decided on", async (context) => {
+test("a manual stock correction names the level and, for an adjustment, the count it corrects", async (context) => {
   const calls = recordFetch(context, () => ({ id: "movement" }));
   const body = {
     inventory_item_id: "stock-item",
     store_location_id: "warehouse",
     action_id: actionId(7),
     expected_level_id: levelId,
-    expected_level_updated_at: 1_700_000_000_000,
     delta: -2,
     from_set_aside: true,
     reason: { type: "damage", reference: "inspection-42" },
   };
+  const adjustment = {
+    inventory_item_id: "stock-item",
+    store_location_id: "warehouse",
+    action_id: actionId(8),
+    expected_level_id: levelId,
+    delta: -3,
+    from_set_aside: false,
+    reason: { type: "adjustment", note: "Counted", expected_count: 55 },
+  };
   const request = { store_id: OTHER_STORE_ID, ...body };
+  const adjustmentRequest = { store_id: OTHER_STORE_ID, ...adjustment };
   const before = structuredClone(request);
+  const adjustmentBefore = structuredClone(adjustmentRequest);
   await eshop().inventoryMovement.record(request);
+  await eshop().inventoryMovement.record(adjustmentRequest);
   assert.deepEqual(request, before);
+  assert.deepEqual(adjustmentRequest, adjustmentBefore);
   assert.deepEqual(calls.map(({ href, method, body: sent }) => ({ href, method, body: sent })), [
     { href: `https://api.example.test/v1/stores/${OTHER_STORE_ID}/inventory-movements`, method: "POST", body },
+    { href: `https://api.example.test/v1/stores/${OTHER_STORE_ID}/inventory-movements`, method: "POST", body: adjustment },
   ]);
+  assert.deepEqual(calls[1].body.reason, { type: "adjustment", note: "Counted", expected_count: 55 });
+  for (const call of calls) assert.equal("expected_level_updated_at" in call.body, false);
   await assert.rejects(async () => eshop().inventoryMovement.record({ ...request, action_id: "damage-report" }), TypeError);
-  assert.equal(calls.length, 1);
+  assert.equal(calls.length, 2);
 });
 
 test("inventory item search sends its text and filters, and a key read is one exact record", async (context) => {
@@ -150,13 +166,11 @@ test("inventory item search sends its text and filters, and a key read is one ex
   assert.equal(calls[2].url.search, "");
 });
 
-test("an inventory item delete answers the record while it is being removed and nothing once it is already gone", async (context) => {
+test("an inventory item delete answers nothing after removal and when it is already gone", async (context) => {
   const itemId = "6b2d9f41-3a85-4c07-9e1d-5f8a2c0b7e36";
-  let status = 202;
-  const calls = recordFetch(context, () => status === 204 ? new Response(null, { status: 204 }) : new Response(JSON.stringify({ id: itemId, status: { type: "deleting" } }), { status: 202, headers: { "content-type": "application/json" } }));
+  const calls = recordFetch(context, () => new Response(null, { status: 204 }));
   const api = eshop().inventoryItem;
-  assert.deepEqual(await api.delete({ store_id: STORE_ID, id: itemId, expected_updated_at: 7 }), { id: itemId, status: { type: "deleting" } });
-  status = 204;
+  assert.equal(await api.delete({ store_id: STORE_ID, id: itemId, expected_updated_at: 7 }), undefined);
   assert.equal(await api.delete({ store_id: STORE_ID, id: itemId, expected_updated_at: 7 }), undefined);
   assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
     ["DELETE", `/v1/stores/${STORE_ID}/inventory-items/${itemId}`, { expected_updated_at: "7" }],

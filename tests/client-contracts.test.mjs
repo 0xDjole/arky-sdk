@@ -9,6 +9,7 @@ import { apiUrl as baseUrl, ids, jsonResponse, publishableKey, recordFetch, visi
 const storeId = ids.store;
 const otherStoreId = ids.otherStore;
 const sessionId = "7f2a5c90-1d64-4e38-b9a7-0c3e8f6d2b15";
+const pendingSessionId = "3c8e1a64-7b29-4d05-9f3e-2a6c8b0d4e17";
 
 function admin() {
   return createAdmin({ apiUrl: baseUrl, secretKey: "arky_api_admin_contract" });
@@ -43,7 +44,7 @@ test("Admin reads need no Market or Store context and invent none", async (conte
 });
 
 test("email and webhook histories use distinct routes and preserve their public delivery states", async (context) => {
-  const email = { id: ids.payment, type: { type: "receipt_resend", sending_address_id: ids.paymentOption, order_id: ids.order }, to: "buyer@example.test", send_before: null, status: { type: "waiting" }, created_at: 1, updated_at: 1 };
+  const email = { id: ids.payment, type: { type: "receipt_resend", sending_address_id: ids.paymentOption, order_id: ids.order }, to: "buyer@example.test", email_provider_id: null, delivery_report: null, complained_at: null, preview: null, send_before: null, status: { type: "waiting" }, created_at: 1, updated_at: 1 };
   const webhook = { id: ids.credit, store_id: storeId, webhook_id: ids.form, event_id: ids.submission, event_type: "order.created", status: { type: "acknowledged", at: 2 }, created_at: 1, updated_at: 2 };
   const responses = [{ items: [email], cursor: null }, email, { items: [webhook], cursor: null }];
   const calls = recordFetch(context, () => responses.shift());
@@ -61,33 +62,33 @@ test("email and webhook histories use distinct routes and preserve their public 
 });
 
 test("admin code login activates the same pending Account Session and remembers the email it was asked for", async (context) => {
-  const responses = [{ session_id: "session-client-contract", verification_expires_at: 900 }, issued()];
+  const responses = [{ session_id: pendingSessionId, verification_expires_at: 900 }, issued()];
   const calls = recordFetch(context, () => responses.shift());
   const client = createAdmin({ apiUrl: baseUrl });
-  const pending = await client.account.auth.requestCode({ email: "operator@example.test" });
+  const pending = await client.account.auth.requestCode({ session_id: pendingSessionId, email: "operator@example.test" });
   const verified = await client.account.auth.verify({ session_id: pending.session_id, code: "123456" });
   assert.equal(verified.id, sessionId);
   assert.equal("scope" in verified, false);
   assert.deepEqual(client.session, { id: sessionId, email: "operator@example.test" });
   assert.equal(client.isAuthenticated, true);
   assert.deepEqual(calls.map((call) => [call.method, call.href, call.body]), [
-    ["POST", `${baseUrl}/v1/auth/code`, { email: "operator@example.test" }],
-    ["POST", `${baseUrl}/v1/auth/verify`, { session_id: "session-client-contract", code: "123456" }],
+    ["POST", `${baseUrl}/v1/auth/code`, { session_id: pendingSessionId, email: "operator@example.test" }],
+    ["POST", `${baseUrl}/v1/auth/verify`, { session_id: pendingSessionId, code: "123456" }],
   ]);
 });
 
 test("Store invitation login names its Store and wraps the platform-wide pending Account Session", async (context) => {
-  const responses = [{ session_id: "session-invitation-contract", verification_expires_at: 900 }, issued({ id: "0b8e4d27-5f13-4a69-9c2e-7d1a6f3b8e40" })];
+  const responses = [{ session_id: pendingSessionId, verification_expires_at: 900 }, issued({ id: "0b8e4d27-5f13-4a69-9c2e-7d1a6f3b8e40" })];
   const calls = recordFetch(context, () => responses.shift());
   const client = createAdmin({ apiUrl: baseUrl });
-  const pending = await client.account.auth.requestCode({ email: "invitee@example.test", store_id: otherStoreId });
+  const pending = await client.account.auth.requestCode({ session_id: pendingSessionId, email: "invitee@example.test", store_id: otherStoreId, language: "bs" });
   const verified = await client.account.auth.verify({ session_id: pending.session_id, code: "123456", store_id: otherStoreId });
   assert.equal(verified.id, "0b8e4d27-5f13-4a69-9c2e-7d1a6f3b8e40");
-  await assert.rejects(async () => client.account.auth.requestCode({ email: "invitee@example.test", store_id: "store-invitation-contract" }), TypeError);
+  await assert.rejects(async () => client.account.auth.requestCode({ session_id: pendingSessionId, email: "invitee@example.test", store_id: "store-invitation-contract", language: "bs" }), TypeError);
   await assert.rejects(async () => client.account.auth.verify({ session_id: "pending", code: "123456", store_id: "" }), TypeError);
   assert.deepEqual(calls.map((call) => [call.method, call.href, call.body]), [
-    ["POST", `${baseUrl}/v1/stores/${otherStoreId}/auth/code`, { email: "invitee@example.test" }],
-    ["POST", `${baseUrl}/v1/stores/${otherStoreId}/auth/verify`, { session_id: "session-invitation-contract", code: "123456" }],
+    ["POST", `${baseUrl}/v1/stores/${otherStoreId}/auth/code`, { session_id: pendingSessionId, email: "invitee@example.test", language: "bs" }],
+    ["POST", `${baseUrl}/v1/stores/${otherStoreId}/auth/verify`, { session_id: pendingSessionId, code: "123456" }],
   ]);
 });
 
@@ -118,7 +119,7 @@ test("request errors keep the server response and read its snake_case status and
   let errorContext;
   recordFetch(context, () => jsonResponse(response, 422));
   await assert.rejects(
-    admin().account.auth.requestCode({ email: "invalid" }, { onError: (failure) => { errorContext = failure; } }),
+    admin().account.auth.requestCode({ session_id: pendingSessionId, email: "invalid" }, { onError: (failure) => { errorContext = failure; } }),
     (error) => {
       assert.equal(error.name, "ApiError");
       assert.equal(error.message, response.message);
@@ -138,6 +139,28 @@ test("request errors keep the server response and read its snake_case status and
     { field: "email", error: "" },
     { field: "name", error: "CUSTOMER.NAME_TOO_LONG" },
   ]);
+});
+
+test("the Server's configured limits decide a query's field count and length, and a structured value over 32 KiB is refused before sending", async (context) => {
+  const calls = recordFetch(context, () => ({ items: [], cursor: null }));
+  const client = admin();
+  const fields = Object.fromEntries(Array.from({ length: 129 }, (_, index) => [`field_${index}`, String(index)]));
+  await client.eshop.promotion.find({ store_id: storeId, ...fields });
+  assert.equal(calls.length, 1);
+  assert.equal([...calls[0].url.searchParams.keys()].length, 129);
+  assert.equal(calls[0].url.searchParams.get("field_128"), "128");
+  const long = "q".repeat(64 * 1024 + 1);
+  await client.content.collection.find({ store_id: storeId, query: long });
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].url.searchParams.get("query"), long);
+  assert.ok(calls[1].url.search.length > 64 * 1024);
+  const structured = Array.from({ length: 1000 }, (_, index) => `${String(index).padStart(4, "0")}${"x".repeat(36)}`);
+  assert.ok(new TextEncoder().encode(JSON.stringify(structured)).length > 32 * 1024);
+  await assert.rejects(async () => client.content.collection.find({ store_id: storeId, ids: structured }), {
+    name: "TypeError",
+    message: "Structured query field ids exceeds 32 KiB",
+  });
+  assert.equal(calls.length, 2);
 });
 
 test("a camelCase error body is not the Server's shape: its field errors are not read and the HTTP status stands", async (context) => {
@@ -166,6 +189,7 @@ test("Store create carries the app-picked id, its languages, first market and ch
     name: "Client Contract",
     timezone: "Europe/Sarajevo",
     languages: ["en", "bs"],
+    location_address: { country: "BA", city: "Sarajevo", postal_code: "71000", street1: "1 Contract Way" },
     market: { key: "bih", currency: "bam", tax_mode: "inclusive" },
     sales_channel: { key: "web" },
   };
@@ -215,7 +239,7 @@ test("Store locations and webhooks carry app-picked ids and versions; a webhook 
 test("a market holds its ordered payment options and changes them with one PUT and the version", async (context) => {
   const stripe = {
     id: ids.paymentOption, store_id: storeId, key: "card", blocks: [], status: "active", created_at: 1, updated_at: 2,
-    type: { type: "stripe", account_id: "acct_merchant", livemode: false, publishable_key: "pk_test_merchant", charges_enabled: true, account_checked_at: 2, webhook: { type: "not_created" } },
+    type: { type: "stripe", account_id: "acct_merchant", livemode: false, publishable_key: "pk_test_merchant", charges_enabled: true, account_checked_at: 2, webhook: { type: "not_configured" } },
   };
   const cash = { id: ids.otherPaymentOption, store_id: storeId, key: "cash", blocks: [], status: "active", created_at: 1, updated_at: 1, type: { type: "cash_on_delivery" } };
   const market = { id: ids.market, store_id: storeId, key: "bih", currency: "bam", tax_mode: "inclusive", payment_option_ids: [], status: { type: "active" }, created_at: 1, updated_at: 1 };
@@ -333,10 +357,10 @@ test("admin Product writes carry the app-picked id and version and InventoryLeve
 test("storefront variant read carries the exact product and buyer context", async (context) => {
   const calls = recordFetch(context, () => ({}));
   const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl: baseUrl, locale: "en" });
-  await storefront.eshop.productVariant.get({ product_id: "lean-product", id: "variant-one", company_location_id: "location-one", include_price: true });
-  await storefront.eshop.productVariant.get({ product_id: "lean-product", id: "variant-one", company_id: "company-one" });
-  assert.equal(calls[0].href, `${baseUrl}/v1/storefront/products/lean-product/variants/variant-one?company_location_id=location-one&include_price=true`);
-  assert.equal(calls[1].href, `${baseUrl}/v1/storefront/products/lean-product/variants/variant-one?company_id=company-one`);
+  await storefront.eshop.productVariant.get({ product_id: "lean-product", id: "variant-one", catalog_id: ids.catalog, company_location_id: "location-one", include_price: true });
+  await storefront.eshop.productVariant.get({ product_id: "lean-product", id: "variant-one", catalog_id: ids.catalog, company_id: "company-one" });
+  assert.equal(calls[0].href, `${baseUrl}/v1/storefront/products/lean-product/variants/variant-one?catalog_id=${ids.catalog}&company_location_id=location-one&include_price=true`);
+  assert.equal(calls[1].href, `${baseUrl}/v1/storefront/products/lean-product/variants/variant-one?catalog_id=${ids.catalog}&company_id=company-one`);
   assert.equal(calls[0].headers.get("x-arky-publishable-key"), publishableKey);
 });
 
@@ -362,7 +386,7 @@ test("storefront money helpers preserve exact zero, need an explicit locale and 
   const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl: baseUrl, market: "ita" });
   assert.equal("utils" in storefront, false);
   assert.equal("utils" in admin(), false);
-  const price = { tax_mode: "inclusive", unit_price: { amount: 0, currency: "eur" }, compare_at: null, min_quantity: 1, max_quantity: null, priced_at: 1 };
+  const price = { catalog_item_price_id: ids.price, tax_mode: "inclusive", unit_price: { amount: 0, currency: "eur" }, compare_at: null, priced_at: 1 };
   assert.equal(getPriceAmount(price), 0);
   assert.equal(formatPrice(price, "it"), formatMinor(0, "eur", "it"));
   assert.notEqual(formatPrice(price, "it"), "");
@@ -377,7 +401,7 @@ test("storefront money helpers preserve exact zero, need an explicit locale and 
 test("SDK_VERSION equals the package version", async () => {
   const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
   assert.equal(SDK_VERSION, packageJson.version);
-  assert.equal(SDK_VERSION, "0.26.92");
+  assert.equal(SDK_VERSION, "0.26.95");
 });
 
 test("recursive storefront declarations never degrade to any", async () => {

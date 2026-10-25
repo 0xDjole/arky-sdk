@@ -21,7 +21,7 @@ import type {
   GetSupportFlowParams,
   ReplyConversationParams,
   ResolveConversationParams,
-  SelectConversationSendingAddressParams,
+  SelectConversationReplyEmailParams,
   SendConversationMessageParams,
   StartConversationParams,
   StartEmailConversationParams,
@@ -239,11 +239,10 @@ export function createAdminSupportApi(apiConfig: ApiConfig) {
         );
       },
 
-      selectSendingAddress(params: SelectConversationSendingAddressParams, options?: RequestOptions): Promise<Conversation> {
-        const { store_id, conversation_id, ...body } = params;
+      selectReplyEmail(params: SelectConversationReplyEmailParams, options?: RequestOptions): Promise<Conversation> {
         return apiConfig.httpClient.post<Conversation>(
-          `${conversationPath(store_id, conversation_id)}/select-sending-address`,
-          body,
+          `${conversationPath(params.store_id, params.conversation_id)}/reply-email`,
+          { expected_reply: params.expected_reply, reply: params.reply },
           options,
         );
       },

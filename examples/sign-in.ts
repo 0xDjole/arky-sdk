@@ -8,13 +8,16 @@ arky.session.subscribe((session) => {
 const { bot_check } = await arky.getSetup();
 const bot_check_token = bot_check.type === "off" ? undefined : "token-from-the-provider-widget";
 
-await arky.customer.requestCode({ email: "ana@example.com", language: "en", bot_check_token });
+await arky.customer.requestCode({ contact: { email: "ana@example.com", language: "en" }, bot_check_token });
 
 try {
   await arky.customer.verify({ code: "123456" });
 } catch (error) {
-  if (error instanceof ArkyApiError && error.statusCode === 400) console.log("the code is wrong or expired", error.code);
-  else throw error;
+  if (error instanceof ArkyApiError && (error.code === "CUSTOMER_SIGN_IN.CODE_INVALID" || error.code === "CUSTOMER_SIGN_IN.ATTEMPTS_EXHAUSTED")) {
+    console.log("show the CMS text for", error.code);
+  } else {
+    throw error;
+  }
 }
 
 const me = await arky.customer.getMe();

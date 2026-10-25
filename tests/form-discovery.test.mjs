@@ -3,7 +3,7 @@ import { File } from "node:buffer";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { initialize } from "../dist/storefront.js";
-import { apiUrl, ids, publishableKey, recordFetch, visitorStorage } from "./helpers/arky-fixtures.mjs";
+import { apiUrl, errorResponse, ids, publishableKey, recordFetch, visitorStorage } from "./helpers/arky-fixtures.mjs";
 
 const STORE_ID = "a8c41e2f-6d95-4b07-83f1-0e5d7a9c2b36";
 const FORM_ID = ids.form;
@@ -79,7 +79,7 @@ test("submission discovery reads every form or one form and sends the select fil
   const calls = recordFetch(context, () => ({ items: [], cursor: null }));
   const api = admin().forms;
   const select = [{ question_id: "q-topic", option_keys: ["sales"] }];
-  const filters = { form_ids: [FORM_ID], customer_id: ids.customer, company_id: ids.company, stage_id: "new", assignee_account_id: ids.account, select, query: "answer", sort_field: "created_at", sort_direction: "asc", limit: 1, created_at_from: 0, cursor: "sub:+/=" };
+  const filters = { form_ids: [FORM_ID], customer_id: ids.customer, stage_id: "new", select, query: "answer", sort_field: "created_at", sort_direction: "asc", limit: 1, created_at_from: 0, cursor: "sub:+/=" };
   await api.findSubmissions({ store_id: STORE_ID, ...filters });
   await api.findSubmissions({ store_id: STORE_ID, form_id: FORM_ID, select });
   assert.equal(calls[0].path, `/v1/stores/${STORE_ID}/forms/submissions`);
@@ -88,6 +88,7 @@ test("submission discovery reads every form or one form and sends the select fil
   assert.equal(calls[0].query.customer_id, ids.customer);
   assert.equal(calls[0].query.cursor, "sub:+/=");
   assert.equal(calls[0].query.created_at_from, "0");
+  for (const removed of ["company_id", "assignee_account_id"]) assert.equal(removed in calls[0].query, false, removed);
   assert.equal(calls[1].path, `/v1/stores/${STORE_ID}/forms/${FORM_ID}/submissions`);
   assert.deepEqual(Object.keys(calls[1].query), ["select"]);
   assert.equal("form_id" in calls[1].query, false);
@@ -145,12 +146,12 @@ test("a refused submission whose answers don't fit the form propagates its field
   assert.equal(calls[0].method, "POST");
 });
 
-test("staff submission work uses exact stage, assignee, company, file, note and deletion routes", async (context) => {
+test("staff submission work uses exact stage, file, note and deletion routes and has no assignee or company link", async (context) => {
   const calls = recordFetch(context, (call) => call.method === "GET" && call.path.endsWith("/notes")
     ? { items: [], cursor: null }
     : call.method === "DELETE" && call.path.endsWith(SUBMISSION_ID) ? { deleted: true } : { id: SUBMISSION_ID });
   const api = admin().forms;
-  assert.equal("processSubmission" in api, false);
+  for (const removed of ["processSubmission", "assignSubmission", "setSubmissionCompany"]) assert.equal(removed in api, false, removed);
   const file = new File(["%PDF"], "brief.pdf", { type: "application/pdf" });
   await api.createSubmission({
     store_id: STORE_ID, form_id: FORM_ID, id: SUBMISSION_ID, customer_id: ids.customer, language: "en",
@@ -161,8 +162,6 @@ test("staff submission work uses exact stage, assignee, company, file, note and 
   });
   const noteId = "9d1f3b5c-7e8a-4c2e-b4d6-8f0a2c4e6b7d";
   await api.changeSubmissionStage({ store_id: STORE_ID, form_id: FORM_ID, id: SUBMISSION_ID, expected_stage_id: "new", expected_changed_at: 5, to_stage_id: "won", note: { id: noteId, body: "Signed" } });
-  await api.assignSubmission({ store_id: STORE_ID, form_id: FORM_ID, id: SUBMISSION_ID, assignee_account_id: null });
-  await api.setSubmissionCompany({ store_id: STORE_ID, form_id: FORM_ID, id: SUBMISSION_ID, company_id: ids.company });
   await api.getSubmissionFile({ store_id: STORE_ID, form_id: FORM_ID, id: SUBMISSION_ID, sha256: "c".repeat(64) });
   await api.notes.create({ store_id: STORE_ID, form_id: FORM_ID, form_submission_id: SUBMISSION_ID, id: noteId, body: "Called back" });
   await api.notes.find({ store_id: STORE_ID, form_id: FORM_ID, form_submission_id: SUBMISSION_ID, limit: 20 });
@@ -171,8 +170,6 @@ test("staff submission work uses exact stage, assignee, company, file, note and 
   assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
     ["POST", base, {}],
     ["POST", `${base}/${SUBMISSION_ID}/stage`, {}],
-    ["PUT", `${base}/${SUBMISSION_ID}/assignee`, {}],
-    ["PUT", `${base}/${SUBMISSION_ID}/company`, {}],
     ["GET", `${base}/${SUBMISSION_ID}/files/${"c".repeat(64)}`, {}],
     ["POST", `${base}/${SUBMISSION_ID}/notes`, {}],
     ["GET", `${base}/${SUBMISSION_ID}/notes`, { limit: "20" }],
@@ -191,25 +188,98 @@ test("staff submission work uses exact stage, assignee, company, file, note and 
   assert.equal(part.name, "brief.pdf");
   assert.equal(await part.text(), "%PDF");
   assert.deepEqual(calls[1].body, { expected_stage_id: "new", expected_changed_at: 5, to_stage_id: "won", note: { id: noteId, body: "Signed" } });
-  assert.deepEqual(calls[2].body, { assignee_account_id: null });
-  assert.deepEqual(calls[3].body, { company_id: ids.company });
-  assert.deepEqual(calls[5].body, { id: noteId, body: "Called back" });
+  assert.deepEqual(calls[3].body, { id: noteId, body: "Called back" });
   await assert.rejects(async () => api.changeSubmissionStage({ store_id: STORE_ID, form_id: FORM_ID, id: SUBMISSION_ID, expected_stage_id: "new", expected_changed_at: 5, to_stage_id: "won", note: { id: "note-1", body: "x" } }), TypeError);
   await assert.rejects(async () => api.createSubmission({ store_id: STORE_ID, form_id: FORM_ID, id: "submission-1", customer_id: ids.customer, language: "en", answers: [] }), TypeError);
   await assert.rejects(async () => api.notes.create({ store_id: STORE_ID, form_id: FORM_ID, form_submission_id: SUBMISSION_ID, id: "note-1", body: "x" }), TypeError);
-  assert.equal(calls.length, 8);
+  assert.equal(calls.length, 6);
 });
 
-test("file answers are checked against the per-file, per-request and file-count limits before any upload", async (context) => {
+test("form emails name the received, stage and new-submission alert selections and the alert recipients", async (context) => {
+  const roleId = "5b7e2c94-1d38-4f60-a9e5-3c8d0f2b6a17";
+  const selection = (email_template_id) => ({ email_template_id, sending_address_id: "4b6d8f0a-2e3a-4b7d-9f1c-3e5a7b9d1f2a", from_name: "Shop", reply_to: { type: "address", email_address_id: "8e0a2c4e-6b7d-4f9a-b1c3-5d7f9b1d3f5a" } });
+  const emails = {
+    received: selection("3a5c7e9b-1d2f-4a6c-8e0b-2d4f6a8c0e1f"),
+    stage_changed: { won: selection("9c1e3a5b-7d2f-4b6a-8c0e-2a4c6e8a0b1d") },
+    new_submission_alert: selection("1b3d5f7a-9c2e-4a6b-8d0f-2b4d6f8a0c1e"),
+    alert_recipients: [{ type: "store_role", store_role_id: roleId, language: "en" }, { type: "email", email: "sales@example.test", language: "bs" }],
+  };
+  const calls = recordFetch(context, () => ({ ...intake, emails }));
+  const api = admin().forms;
+  const create = { id: FORM_ID, key: "intake", questions: intake.questions, stages: intake.stages, emails };
+  assert.deepEqual((await api.create({ store_id: STORE_ID, ...create })).emails, emails);
+  const silent = { received: null, stage_changed: {}, new_submission_alert: null, alert_recipients: [] };
+  await api.update({ store_id: STORE_ID, id: FORM_ID, expected_updated_at: 1, emails: silent });
+  assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
+    ["POST", `/v1/stores/${STORE_ID}/forms`, create],
+    ["PUT", `/v1/stores/${STORE_ID}/forms/${FORM_ID}`, { expected_updated_at: 1, emails: silent }],
+  ]);
+  for (const removed of ["alert", "staff_new_submission", "staff_recipients"]) assert.equal(removed in calls[0].body.emails, false, removed);
+});
+
+test("a staff submission read carries the email contact the Server derived from its email answer", async (context) => {
+  const submission = {
+    id: SUBMISSION_ID,
+    form_id: FORM_ID,
+    store_id: STORE_ID,
+    customer_id: ids.customer,
+    source: { type: "account", actor: { account_id: ids.account, snapshot: { email: "staff@example.test", credential_type: { type: "session" } } } },
+    language: "bs",
+    email_contact: { email: "buyer@example.test", language: "bs" },
+    snapshot: { form_key: "intake", questions: [], options: [] },
+    answers: [{ type: "email", question_id: "q-email", key: "email", value: "buyer@example.test" }],
+    stage: { stage_id: "new", changed_at: 1 },
+    stage_history: [],
+    created_at: 1,
+    updated_at: 1,
+  };
+  const calls = recordFetch(context, () => submission);
+  const read = await admin().forms.getSubmission({ store_id: STORE_ID, form_id: FORM_ID, id: SUBMISSION_ID });
+  assert.deepEqual(read.email_contact, { email: "buyer@example.test", language: "bs" });
+  for (const removed of ["company_id", "assignee_account_id"]) assert.equal(removed in read, false, removed);
+  assert.deepEqual(calls.map(({ method, path }) => [method, path]), [["GET", `/v1/stores/${STORE_ID}/forms/${FORM_ID}/submissions/${SUBMISSION_ID}`]]);
+});
+
+test("an empty file answer is refused before any upload, and the Server's configured limits decide every larger or longer file list", async (context) => {
   const calls = recordFetch(context, () => ({ id: SUBMISSION_ID }));
   const api = admin().forms;
   const answer = (files) => ({ store_id: STORE_ID, form_id: FORM_ID, id: SUBMISSION_ID, customer_id: ids.customer, language: "en", answers: [{ type: "file", question_id: "q", key: "files", files }] });
-  await assert.rejects(async () => api.createSubmission(answer([new File([], "empty.pdf")])), /between 1 byte and 10 MiB/);
-  await assert.rejects(async () => api.createSubmission(answer([new File([new Uint8Array(10 * 1024 * 1024 + 1)], "big.pdf")])), /between 1 byte and 10 MiB/);
-  await assert.rejects(async () => api.createSubmission(answer(Array.from({ length: 21 }, (_, index) => new File(["x"], `f${index}.pdf`)))), /at most 20 files/);
-  const nine = new Uint8Array(9 * 1024 * 1024);
-  await assert.rejects(async () => api.createSubmission(answer(Array.from({ length: 6 }, (_, index) => new File([nine], `f${index}.pdf`)))), /50 MiB together/);
+  await assert.rejects(async () => api.createSubmission(answer([new File([], "empty.pdf")])), (error) => error.code === "file_size" && /is empty/.test(error.message));
+  await assert.rejects(async () => api.createSubmission(answer([new File(["x"], "kept.pdf"), new File([], "empty.pdf")])), /The file 'empty.pdf' is empty/);
   assert.equal(calls.length, 0);
+  const big = new File([new Uint8Array(10 * 1024 * 1024 + 1)], "big.pdf");
+  const many = Array.from({ length: 21 }, (_, index) => new File(["x"], `f${index}.pdf`));
+  const nine = new Uint8Array(9 * 1024 * 1024);
+  const heavy = Array.from({ length: 6 }, (_, index) => new File([nine], `h${index}.pdf`));
+  for (const files of [[big], many, heavy]) await api.createSubmission(answer(files));
+  assert.equal(calls.length, 3);
+  const parts = (call) => [...call.body.keys()].filter((key) => key.startsWith("file-"));
+  assert.deepEqual(parts(calls[0]), ["file-0"]);
+  assert.equal(calls[0].body.get("file-0").size, 10 * 1024 * 1024 + 1);
+  assert.equal(parts(calls[1]).length, 21);
+  assert.equal(parts(calls[2]).length, 6);
+  assert.equal(parts(calls[2]).reduce((total, key) => total + calls[2].body.get(key).size, 0), 6 * 9 * 1024 * 1024);
+  for (const call of calls) {
+    assert.equal(call.method, "POST");
+    assert.equal(call.path, `/v1/stores/${STORE_ID}/forms/${FORM_ID}/submissions`);
+    assert.deepEqual(submissionOf(call).answers[0].parts, parts(call));
+  }
+});
+
+test("a file list over the Server's configured limits comes back as the Server's own refusal", async (context) => {
+  const refusals = [
+    errorResponse(413, "FORM_SUBMISSION.FILE_TOO_LARGE", "The file is over the form file limit"),
+    errorResponse(409, "FORM_SUBMISSION.TOO_MANY_FILES", "The submission carries more files than the limit"),
+    errorResponse(413, "GENERAL.PAYLOAD_TOO_LARGE", "The request is over the body limit"),
+  ];
+  const calls = recordFetch(context, () => refusals.shift());
+  const api = admin().forms;
+  const answer = (files) => ({ store_id: STORE_ID, form_id: FORM_ID, id: SUBMISSION_ID, customer_id: ids.customer, language: "en", answers: [{ type: "file", question_id: "q", key: "files", files }] });
+  const expected = [[413, "FORM_SUBMISSION.FILE_TOO_LARGE"], [409, "FORM_SUBMISSION.TOO_MANY_FILES"], [413, "GENERAL.PAYLOAD_TOO_LARGE"]];
+  for (const [statusCode, code] of expected) {
+    await assert.rejects(async () => api.createSubmission(answer([new File(["x"], "a.pdf")])), (error) => error.statusCode === statusCode && error.code === code);
+  }
+  assert.equal(calls.length, 3);
 });
 
 test("a staff submission leaves out whitespace-only text, empty choices and empty file lists, like the storefront", async (context) => {

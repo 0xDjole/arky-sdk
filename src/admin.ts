@@ -5,8 +5,6 @@ export {
   CURRENCY_MINOR_UNITS,
   WEBHOOK_UNIT_EVENT_TYPES,
   TYPED_CUSTOMER_ACTION_KEYS,
-  BROADCAST_FIELDS,
-  BROADCAST_BLOCK_FIELD_PREFIXES,
   cartProductItems,
   cartBookingItems,
   cartCustomerGroupItems,

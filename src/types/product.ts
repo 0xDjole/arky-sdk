@@ -1,20 +1,8 @@
 import type { CalendarDate, EpochMilliseconds } from "./time";
 import type { Block, BlockQuery } from "./block";
-import type { CompanyPartyQuery, LocalizedText, Money, PaginatedResponse, SelectOption, SortDirection, TaxMode } from "./common";
+import type { CompanyPartyQuery, PaginatedResponse, SortDirection } from "./common";
 import type { CategoryEntry, CategoryQuery } from "./content";
-import type { CatalogReadOptions } from "./catalog";
-
-export interface ProductOption {
-  id: string;
-  key: string;
-  label: LocalizedText;
-  values: SelectOption[];
-}
-
-export interface ProductVariantOption {
-  option_id: string;
-  value_key: string;
-}
+import type { CatalogContext, CatalogReadOptions, StorefrontPrice } from "./catalog";
 
 export type ProductStatus =
   | { type: "active" }
@@ -30,7 +18,6 @@ export interface Product {
   key: string;
   slugs: Record<string, string>;
   blocks: Block[];
-  options: ProductOption[];
   categories: CategoryEntry[];
   status: ProductStatus;
   created_at: EpochMilliseconds;
@@ -68,8 +55,6 @@ export interface ProductVariant {
   product_id: string;
   sku: string | null;
   blocks: Block[];
-  options: ProductVariantOption[];
-  options_valid: boolean;
   fulfillment: ProductFulfillment;
   tax_category_id: string;
   status: ProductVariantStatus;
@@ -215,23 +200,13 @@ export interface DigitalAsset {
   updated_at: EpochMilliseconds;
 }
 
-export interface StorefrontPrice {
-  tax_mode: TaxMode;
-  unit_price: Money;
-  compare_at: number | null;
-  min_quantity: number;
-  max_quantity: number | null;
-  priced_at: EpochMilliseconds;
-}
-
 export interface StorefrontProduct {
   id: string;
   key: string;
   slugs: Record<string, string>;
   blocks: Block[];
-  options: ProductOption[];
   categories: CategoryEntry[];
-  price: StorefrontPrice | null;
+  catalog_item_id: string;
 }
 
 export interface StorefrontProductVariant {
@@ -239,16 +214,16 @@ export interface StorefrontProductVariant {
   product_id: string;
   sku: string | null;
   blocks: Block[];
-  options: ProductVariantOption[];
   fulfillment: ProductFulfillment;
   tax_category_id: string;
   status: ProductVariantStatus;
+  catalog_item_id: string;
   price: StorefrontPrice | null;
 }
 
-export type StorefrontBookingService = BookingService & { price: StorefrontPrice | null };
+export type StorefrontBookingService = BookingService & { catalog_item_id: string };
 
-export type StorefrontBookingOffering = BookingOffering & { price: StorefrontPrice | null };
+export type StorefrontBookingOffering = BookingOffering & { catalog_item_id: string; price: StorefrontPrice | null };
 
 export type StorefrontBookingResource = BookingResource;
 
@@ -304,12 +279,6 @@ export interface DigitalDownload {
   mime_type: string;
 }
 
-export interface CatalogPriceFilter {
-  min_amount?: number | null;
-  max_amount?: number | null;
-  quantity?: number;
-}
-
 export interface FindProductsParams {
   store_id: string;
   ids?: string[];
@@ -318,8 +287,7 @@ export interface FindProductsParams {
   filters?: BlockQuery[];
   variant_filters?: BlockQuery[];
   status?: ProductStatus["type"];
-  price_filter?: CatalogPriceFilter;
-  sort_field?: string;
+  sort_field?: "key" | "created_at" | "updated_at" | "status";
   sort_direction?: SortDirection;
   created_at_from?: EpochMilliseconds;
   created_at_to?: EpochMilliseconds;
@@ -343,7 +311,6 @@ export interface CreateProductParams {
   key: string;
   slugs: Record<string, string>;
   blocks: Block[];
-  options: ProductOption[];
   categories: CategoryEntry[];
 }
 
@@ -354,7 +321,6 @@ export interface UpdateProductParams {
   key?: string;
   slugs?: Record<string, string>;
   blocks?: Block[];
-  options?: ProductOption[];
   categories?: CategoryEntry[];
   status?: ProductEditableStatus;
 }
@@ -371,7 +337,6 @@ export interface CreateProductVariantParams {
   product_id: string;
   sku: string | null;
   blocks: Block[];
-  options: ProductVariantOption[];
   fulfillment: ProductFulfillment;
   tax_category_id: string;
 }
@@ -382,7 +347,6 @@ export interface UpdateProductVariantParams {
   expected_updated_at: EpochMilliseconds;
   sku: string | null;
   blocks: Block[];
-  options: ProductVariantOption[];
   fulfillment: ProductFulfillment;
   tax_category_id: string;
   status: ProductVariantEditableStatus;
@@ -413,14 +377,10 @@ export interface DeleteProductVariantParams {
 export interface FindBookingServicesParams {
   store_id: string;
   ids?: string[];
-  booking_resource_id?: string;
   query?: string;
   status?: BookingServiceStatus["type"];
   category_query?: CategoryQuery[];
-  match_all?: boolean;
-  from?: EpochMilliseconds;
-  to?: EpochMilliseconds;
-  sort_field?: string;
+  sort_field?: "key" | "status" | "created_at" | "updated_at";
   sort_direction?: SortDirection;
   created_at_from?: EpochMilliseconds;
   created_at_to?: EpochMilliseconds;
@@ -484,7 +444,6 @@ export interface DeleteBookingServiceParams {
 export interface FindBookingResourcesParams {
   store_id: string;
   ids?: string[];
-  booking_service_id?: string;
   query?: string;
   status?: BookingResourceStatus["type"];
   category_query?: CategoryQuery[];
@@ -545,7 +504,7 @@ export interface CreateBookingOfferingParams {
   booking_service_id: string;
   booking_resource_id: string;
   venue: BookingVenue;
-  status?: BookingOfferingEditableStatus;
+  status: BookingOfferingEditableStatus;
   hours: BookingOfferingHours;
 }
 
@@ -620,23 +579,10 @@ export interface ArchiveDigitalAssetParams {
   expected_updated_at: EpochMilliseconds;
 }
 
-export type GetStorefrontProductParams = CatalogReadOptions & ({ id: string } | { slug: string });
+export type GetStorefrontProductParams = CatalogContext & ({ id: string } | { slug: string });
 
-export type GetStorefrontProductByKeyParams = CatalogReadOptions & {
+export type GetStorefrontProductByKeyParams = CatalogContext & {
   key: string;
-};
-
-export type FindStorefrontProductsParams = CatalogReadOptions & {
-  ids?: string[];
-  query?: string;
-  category_query?: CategoryQuery[];
-  filters?: BlockQuery[];
-  variant_filters?: BlockQuery[];
-  price_filter?: CatalogPriceFilter;
-  sort_field?: string;
-  sort_direction?: SortDirection;
-  limit?: number;
-  cursor?: string | null;
 };
 
 export type GetStorefrontProductVariantParams = CatalogReadOptions & {
@@ -644,62 +590,29 @@ export type GetStorefrontProductVariantParams = CatalogReadOptions & {
   id: string;
 };
 
-export type FindStorefrontProductVariantsParams = CatalogReadOptions & {
-  product_id: string;
-  filters?: BlockQuery[];
-  limit?: number;
-  cursor?: string | null;
-};
+export type GetStorefrontBookingServiceParams = CatalogContext & ({ id: string } | { slug: string });
 
-export type GetStorefrontBookingServiceParams = CatalogReadOptions & ({ id: string } | { slug: string });
-
-export type GetStorefrontBookingServiceByKeyParams = CatalogReadOptions & {
+export type GetStorefrontBookingServiceByKeyParams = CatalogContext & {
   key: string;
 };
 
-export type FindStorefrontBookingServicesParams = CatalogReadOptions & {
-  ids?: string[];
-  booking_resource_id?: string;
-  query?: string;
-  category_query?: CategoryQuery[];
-  price_filter?: CatalogPriceFilter;
-  sort_field?: "key" | "created_at" | "price" | "catalog_order";
-  sort_direction?: SortDirection;
-  created_at_from?: EpochMilliseconds;
-  created_at_to?: EpochMilliseconds;
-  limit?: number;
-  cursor?: string | null;
+export type GetStorefrontBookingOfferingParams = CatalogReadOptions & {
+  id: string;
 };
 
-export type FindStorefrontBookingOfferingsParams = CatalogReadOptions & {
-  booking_service_id?: string;
-  booking_resource_id?: string;
-  limit?: number;
-  cursor?: string | null;
-};
-
-export type GetStorefrontAvailabilityParams = CompanyPartyQuery & {
+export type GetStorefrontAvailabilityParams = CatalogContext & {
   booking_service_id: string;
   from: EpochMilliseconds;
   to: EpochMilliseconds;
   booking_resource_id?: string;
-  catalog_id: string;
   limit?: number;
   cursor?: string | null;
 };
 
-export interface GetStorefrontBookingResourceParams {
+export type GetStorefrontBookingResourceParams = CatalogContext & {
   id: string;
-}
-
-export interface FindStorefrontBookingResourcesParams {
-  ids?: string[];
-  booking_service_id?: string;
-  query?: string;
-  category_query?: CategoryQuery[];
-  limit?: number;
-  cursor?: string | null;
-}
+  offering_id: string;
+};
 
 export type FindLibraryParams = CompanyPartyQuery & {
   limit?: number;

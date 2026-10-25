@@ -50,7 +50,14 @@ test("store-wide credit history needs no order, lists by last change, and credit
   });
   const admin = createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" });
   await admin.eshop.order.credit.find({ store_id: selectedStoreId, sort_field: "updated_at", sort_direction: "desc", limit: 10 });
-  const create = { id: creditId, reason: "Damaged in transit", targets: [] };
+  const create = {
+    id: creditId,
+    reason: "Damaged in transit",
+    targets: [
+      { target: { type: "delivery", delivery_group_id: "4d2b8f61-9c37-4a05-b1e8-6f3a0c7d5e92" }, amount: { type: "part", subtotal_reduction: 500 } },
+      { target: { type: "product", line_item_id: "8e1c5a93-2d47-4b06-9f3a-6e0b4d8c2a71", span: { first_unit: 0, quantity: 1 } }, amount: { type: "remaining" } },
+    ],
+  };
   await admin.eshop.order.credit.create({ store_id: selectedStoreId, order_id: orderId, ...create });
   await admin.eshop.order.credit.get({ store_id: selectedStoreId, order_id: orderId, credit_id: creditId });
   await admin.eshop.order.credit.void({ store_id: selectedStoreId, order_id: orderId, credit_id: creditId, expected_updated_at: 5 });
@@ -60,7 +67,11 @@ test("store-wide credit history needs no order, lists by last change, and credit
     ["GET", `/v1/stores/${selectedStoreId}/orders/${orderId}/credits/${creditId}`, "", null],
     ["POST", `/v1/stores/${selectedStoreId}/orders/${orderId}/credits/${creditId}/void`, "", { expected_updated_at: 5 }],
   ]);
+  assert.deepEqual(calls[1].body.targets[0], { target: { type: "delivery", delivery_group_id: "4d2b8f61-9c37-4a05-b1e8-6f3a0c7d5e92" }, amount: { type: "part", subtotal_reduction: 500 } });
+  assert.deepEqual(calls[1].body.targets[1].amount, { type: "remaining" });
+  await admin.eshop.order.credit.create({ store_id: selectedStoreId, order_id: orderId, id: creditId, reason: "Goodwill", targets: [] });
+  assert.deepEqual(calls[4].body, { id: creditId, reason: "Goodwill", targets: [] });
   await assert.rejects(async () => admin.eshop.order.credit.create({ store_id: selectedStoreId, order_id: orderId, ...create, id: "credit-1" }), TypeError);
-  assert.equal(calls.length, 4);
+  assert.equal(calls.length, 5);
   assert.equal("orderCredit" in admin.eshop, false);
 });

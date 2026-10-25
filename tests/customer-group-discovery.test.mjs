@@ -69,7 +69,6 @@ test("the storefront reads groups, offerings and the shopper's own members under
   }
   for (const facade of [client, store]) {
     assert.deepEqual(Object.keys(facade.eshop.customerGroup).sort(), [
-      "find",
       "get",
       "getByKey",
       "getProductChoices",

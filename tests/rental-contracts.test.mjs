@@ -36,10 +36,10 @@ test("rental discovery forwards its filters, keeps the empty continuation and re
   assert.equal(calls.length, 3);
 });
 
-test("rental actions send the loaded version and the typed action, and a replacement brings its app-picked job ids", async (context) => {
+test("rental commands send the loaded version and the typed command, and a replacement brings its app-picked job ids", async (context) => {
   const calls = recordFetch(context, () => ({ id: rentalId, status: { type: "active" } }));
   const api = eshop().rental;
-  const actions = [
+  const commands = [
     {
       type: "request_replacement",
       fulfillment_job_id: jobId,
@@ -54,25 +54,26 @@ test("rental actions send the loaded version and the typed action, and a replace
     { type: "resume" },
     { type: "cancel_issue", fulfillment_job_id: jobId, fulfillment_job_line_id: jobLineId },
   ];
-  for (const action of actions) {
-    const request = { store_id: STORE_ID, id: rentalId, expected_updated_at: 1_700_000_000_000, action };
+  for (const command of commands) {
+    const request = { store_id: STORE_ID, id: rentalId, expected_updated_at: 1_700_000_000_000, command };
     const before = structuredClone(request);
     await api.execute(request);
     assert.deepEqual(request, before);
-    assert.deepEqual(calls.at(-1).body, { expected_updated_at: 1_700_000_000_000, type: action });
+    assert.deepEqual(calls.at(-1).body, { expected_updated_at: 1_700_000_000_000, command });
+    assert.equal("type" in calls.at(-1).body, false);
   }
-  assert.equal(calls.length, actions.length);
-  assert.ok(calls.every((call) => call.method === "POST" && call.path === `/v1/stores/${STORE_ID}/rentals/${rentalId}/commands` && call.url.search === ""));
-  const invented = { ...actions[0], fulfillment_job_id: "work" };
-  await assert.rejects(async () => api.execute({ store_id: STORE_ID, id: rentalId, expected_updated_at: 1, action: invented }), {
+  assert.equal(calls.length, commands.length);
+  assert.ok(calls.every((call) => call.method === "POST" && call.path === `/v1/stores/${STORE_ID}/rentals/${rentalId}/execute` && call.url.search === ""));
+  const invented = { ...commands[0], fulfillment_job_id: "work" };
+  await assert.rejects(async () => api.execute({ store_id: STORE_ID, id: rentalId, expected_updated_at: 1, command: invented }), {
     name: "TypeError",
     message: "The fulfillment job id must be a canonical UUID v4 picked by the app",
   });
-  await assert.rejects(async () => api.execute({ store_id: STORE_ID, id: rentalId, expected_updated_at: 1, action: { ...actions[0], fulfillment_job_line_id: "line" } }), {
+  await assert.rejects(async () => api.execute({ store_id: STORE_ID, id: rentalId, expected_updated_at: 1, command: { ...commands[0], fulfillment_job_line_id: "line" } }), {
     name: "TypeError",
     message: "The fulfillment job line id must be a canonical UUID v4 picked by the app",
   });
-  assert.equal(calls.length, actions.length);
+  assert.equal(calls.length, commands.length);
 });
 
 test("rental physical work uses fulfillment and job routes with exact unit selections", async (context) => {

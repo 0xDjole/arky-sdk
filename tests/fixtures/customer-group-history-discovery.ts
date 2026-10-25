@@ -1,5 +1,6 @@
 import { createAdmin } from "arky-sdk/admin";
 import type {
+  Block,
   CustomerGroupMemberDeliveryOptions,
   StorefrontGetCustomerGroupMemberDeliveryOptionsParams,
   CustomerGroupMember,
@@ -114,14 +115,16 @@ export type CustomerGroupHistoryContracts = [
     Equal<
       keyof CustomerGroupProductAlternative,
       | "variant_id"
-      | "product_name"
-      | "variant_name"
       | "sku"
-      | "options"
+      | "product_blocks"
+      | "variant_blocks"
       | "available"
     >
   >,
-  Assert<Equal<CustomerGroupProductAlternative["product_name"], string | null>>,
+  Assert<Equal<CustomerGroupProductAlternative["variant_blocks"], Block[]>>,
+  Assert<Equal<CustomerGroupProductAlternative["product_blocks"], Block[]>>,
+  Assert<Missing<CustomerGroupProductChoices, "language">>,
+  Assert<Missing<CustomerGroupMemberProductChoices, "language">>,
   Assert<
     Equal<
       CustomerGroupProductChoices["alternatives"],
@@ -141,13 +144,12 @@ export type CustomerGroupHistoryContracts = [
       | "expected_updated_at"
       | "entitlement_id"
       | "revision_id"
-      | "language"
     >
   >,
   Assert<
     Missing<
       GetStorefrontCustomerGroupProductChoicesParams,
-      "include_price" | "product_id"
+      "include_price" | "product_id" | "language"
     >
   >,
   Assert<

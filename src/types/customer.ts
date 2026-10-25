@@ -1,5 +1,5 @@
 import type { EpochMilliseconds } from "./time";
-import type { AccountActor, PostalAddress, PostalAddressInput, SortDirection } from "./common";
+import type { AccountActor, EmailContact, PostalAddress, PostalAddressInput, SortDirection } from "./common";
 import type { Block } from "./block";
 
 export interface CustomerAddress extends PostalAddress { id: string }
@@ -7,7 +7,13 @@ export type CustomerAddressInput = PostalAddressInput & { id: string };
 
 export type CustomerType =
   | { type: "anonymous" }
-  | { type: "verified"; email: string; addresses: CustomerAddress[]; default_shipping_address_id: string | null; default_billing_address_id: string | null };
+  | {
+      type: "verified";
+      contact: EmailContact;
+      addresses: CustomerAddress[];
+      default_shipping_address_id: string | null;
+      default_billing_address_id: string | null;
+    };
 
 export interface StorefrontCustomer {
   id: string;
@@ -25,12 +31,18 @@ export interface CustomerSearchSnapshot {
   has_cart: boolean;
   has_customer_action: boolean;
   has_order: boolean;
-  latest_order_contact: { email: string | null; first_name: string | null; last_name: string | null; phone: string | null } | null;
+  latest_order_contact: CustomerOrderContact | null;
+}
+
+export interface CustomerOrderContact {
+  email: EmailContact | null;
+  first_name: string | null;
+  last_name: string | null;
+  phone: string | null;
 }
 
 export interface CustomerEmailVerification {
-  email: string;
-  language: string;
+  contact: EmailContact;
   failed_attempts: number;
   outgoing_email_id: string;
   issued_at: EpochMilliseconds;
@@ -267,6 +279,7 @@ export interface UpdateCustomerMeParams {
   addresses?: CustomerAddressInput[];
   default_shipping_address_id?: string | null;
   default_billing_address_id?: string | null;
+  language?: string;
 }
 
 export interface ChangeCustomerEmailParams {

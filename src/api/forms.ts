@@ -3,7 +3,6 @@ import type { HttpClient } from "../types/httpClient";
 import type { RequestOptions } from "../types/api";
 import type { DeletedResponse, PaginatedResponse } from "../types/common";
 import type {
-  AssignFormSubmissionParams,
   ChangeFormSubmissionStageParams,
   CreateFormParams,
   CreateFormSubmissionParams,
@@ -21,7 +20,6 @@ import type {
   GetFormSubmissionParams,
   GetStorefrontFormByKeyParams,
   GetStorefrontFormParams,
-  SetFormSubmissionCompanyParams,
   StorefrontFormSubmission,
   SubmitFormRequest,
   UpdateFormParams,
@@ -29,10 +27,6 @@ import type {
 import { FormAnswerError } from "../types/forms";
 import { requireId } from "../utils/ids";
 import { segment, storePath, storeRecordPath } from "./paths";
-
-const MAX_FORM_FILE_BYTES = 10 * 1024 * 1024;
-const MAX_FORM_SUBMISSION_FILES = 20;
-const MAX_FORM_SUBMISSION_FILE_BYTES = 50 * 1024 * 1024;
 
 function isGiven(answer: FormAnswerInput): boolean {
   if ((answer.type === "text" || answer.type === "email")) return answer.value.trim() !== "";
@@ -42,19 +36,9 @@ function isGiven(answer: FormAnswerInput): boolean {
 }
 
 function requireFormFiles(files: File[]): void {
-  if (files.length > MAX_FORM_SUBMISSION_FILES) {
-    throw new FormAnswerError("too_many_files", null, `A form submission carries at most ${MAX_FORM_SUBMISSION_FILES} files`);
-  }
-  let total = 0;
   for (const file of files) {
-    if (file.size < 1 || file.size > MAX_FORM_FILE_BYTES) {
-      throw new FormAnswerError("file_size", null, `The file '${file.name}' must be between 1 byte and 10 MiB`);
-    }
+    if (file.size < 1) throw new FormAnswerError("file_size", null, `The file '${file.name}' is empty`);
     if (!file.name) throw new FormAnswerError("file_name", null, "Every form file needs a file name");
-    total += file.size;
-  }
-  if (total > MAX_FORM_SUBMISSION_FILE_BYTES) {
-    throw new FormAnswerError("files_too_large", null, "A form submission's files are at most 50 MiB together");
   }
 }
 
@@ -141,22 +125,6 @@ export const createFormsApi = (apiConfig: ApiConfig) => {
       if (params.note) requireId(params.note.id, "note");
       const { store_id, form_id, id, ...body } = params;
       return apiConfig.httpClient.post<FormSubmission>(`${submissionPath(store_id, form_id, id)}/stage`, body, options);
-    },
-
-    assignSubmission(params: AssignFormSubmissionParams, options?: RequestOptions): Promise<FormSubmission> {
-      return apiConfig.httpClient.put<FormSubmission>(
-        `${submissionPath(params.store_id, params.form_id, params.id)}/assignee`,
-        { assignee_account_id: params.assignee_account_id },
-        options,
-      );
-    },
-
-    setSubmissionCompany(params: SetFormSubmissionCompanyParams, options?: RequestOptions): Promise<FormSubmission> {
-      return apiConfig.httpClient.put<FormSubmission>(
-        `${submissionPath(params.store_id, params.form_id, params.id)}/company`,
-        { company_id: params.company_id },
-        options,
-      );
     },
 
     getSubmissionFile(params: GetFormSubmissionFileParams, options?: RequestOptions): Promise<FormSubmissionFileLink> {

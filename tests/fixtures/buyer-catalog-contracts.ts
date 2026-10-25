@@ -1,7 +1,7 @@
 import type {
   Catalog,
   CatalogAccessLevel,
-  CatalogReadOptions,
+  CatalogContext,
   GetStorefrontBookingServiceByKeyParams,
   GetStorefrontProductByKeyParams,
   StorefrontBookingService,
@@ -55,7 +55,8 @@ export type BuyerCatalogContracts = [
   AssertTrue<Same<Awaited<ReturnType<StorefrontEshop["product"]["getByKey"]>>, StorefrontProduct>>,
   AssertTrue<Same<Parameters<StorefrontEshop["bookingService"]["getByKey"]>[0], GetStorefrontBookingServiceByKeyParams>>,
   AssertTrue<Same<Awaited<ReturnType<StorefrontEshop["bookingService"]["getByKey"]>>, StorefrontBookingService>>,
-  AssertTrue<Same<keyof GetStorefrontProductByKeyParams, "key" | keyof CatalogReadOptions>>,
+  AssertTrue<Same<keyof GetStorefrontProductByKeyParams, "key" | keyof CatalogContext>>,
+  AssertTrue<Same<keyof GetStorefrontBookingServiceByKeyParams, "key" | keyof CatalogContext>>,
   AssertTrue<RequiredField<GetStorefrontProductByKeyParams, "key">>,
   AssertTrue<Same<FacadeEshop["product"]["getByKey"], StorefrontEshop["product"]["getByKey"]>>,
   AssertTrue<Same<FacadeEshop["bookingService"]["getByKey"], StorefrontEshop["bookingService"]["getByKey"]>>,

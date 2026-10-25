@@ -1,6 +1,6 @@
 import type {
+  CatalogContext,
   CatalogReadOptions,
-  FindStorefrontProductVariantsParams,
   GetStorefrontProductParams,
   GetStorefrontProductVariantParams,
   StorefrontPrice,
@@ -8,12 +8,13 @@ import type {
   StorefrontProductVariant,
   Product,
   ProductVariant,
-  ProductOption,
-  ProductVariantOption,
   CreateProductParams,
   CreateProductVariantParams,
+  UpdateProductParams,
+  UpdateProductVariantParams,
+  FindProductsParams,
 } from "arky-sdk";
-import type { FindStorefrontProductVariantsParams as PublicFind, GetStorefrontProductVariantParams as PublicGet } from "arky-sdk/types";
+import type { GetStorefrontProductVariantParams as PublicGet } from "arky-sdk/types";
 import type { createStorefront } from "arky-sdk/storefront";
 
 type Assert<T extends true> = T;
@@ -22,24 +23,30 @@ type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
 type Client = ReturnType<typeof createStorefront>;
 
 export type StorefrontVariantContracts = [
-  Assert<Equal<FindStorefrontProductVariantsParams, PublicFind>>,
-  Assert<Equal<Product["options"], ProductOption[]>>,
-  Assert<Equal<CreateProductParams["options"], ProductOption[]>>,
-  Assert<Equal<CreateProductVariantParams["options"], ProductVariantOption[]>>,
-  Assert<Equal<ProductVariant["options_valid"], boolean>>,
-  Assert<Equal<StorefrontProductVariant["options"], ProductVariantOption[]>>,
+  Assert<Missing<Product, "options">>,
+  Assert<Missing<CreateProductParams, "options">>,
+  Assert<Missing<UpdateProductParams, "options">>,
+  Assert<Missing<CreateProductVariantParams, "options">>,
+  Assert<Missing<UpdateProductVariantParams, "options">>,
+  Assert<Missing<ProductVariant, "options" | "options_valid">>,
+  Assert<Missing<StorefrontProductVariant, "options">>,
+  Assert<Missing<StorefrontProduct, "options" | "price">>,
+  Assert<Missing<FindProductsParams, "price_filter">>,
+  Assert<Equal<FindProductsParams["sort_field"], "key" | "created_at" | "updated_at" | "status" | undefined>>,
   Assert<Missing<ProductVariant, "attributes">>,
   Assert<Equal<CatalogReadOptions["catalog_id"], string>>,
   Assert<Equal<GetStorefrontProductVariantParams, PublicGet>>,
-  Assert<Equal<StorefrontProduct["price"], StorefrontPrice | null>>,
+  Assert<Equal<StorefrontProduct["catalog_item_id"], string>>,
+  Assert<Equal<StorefrontProductVariant["catalog_item_id"], string>>,
   Assert<Equal<StorefrontProductVariant["price"], StorefrontPrice | null>>,
   Assert<Missing<StorefrontProduct, "purchase_allowed" | "variants">>,
-  Assert<Missing<FindStorefrontProductVariantsParams, "store_id">>,
-  Assert<Equal<Parameters<Client["eshop"]["productVariant"]["find"]>[0], FindStorefrontProductVariantsParams>>,
+  Assert<Missing<Client["eshop"]["productVariant"], "find">>,
+  Assert<Missing<Client["eshop"]["product"], "find">>,
   Assert<Equal<Awaited<ReturnType<Client["eshop"]["productVariant"]["get"]>>, StorefrontProductVariant>>,
   Assert<Equal<Parameters<Client["eshop"]["product"]["get"]>[0], GetStorefrontProductParams>>,
-  Assert<Equal<Exclude<keyof Extract<GetStorefrontProductParams, { id: string }>, keyof CatalogReadOptions>, "id">>,
-  Assert<Equal<Exclude<keyof Extract<GetStorefrontProductParams, { slug: string }>, keyof CatalogReadOptions>, "slug">>,
+  Assert<Equal<Exclude<keyof Extract<GetStorefrontProductParams, { id: string }>, keyof CatalogContext>, "id">>,
+  Assert<Equal<Exclude<keyof Extract<GetStorefrontProductParams, { slug: string }>, keyof CatalogContext>, "slug">>,
+  Assert<Missing<Extract<GetStorefrontProductParams, { id: string }>, "include_price">>,
   Assert<Missing<Client["eshop"]["product"], "getInventory">>,
   Assert<Missing<Client["eshop"], "digital" | "digitalProduct">>,
 ];

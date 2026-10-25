@@ -24,8 +24,7 @@ const productLine = {
   variant_id: ids.variant,
   quantity: 1,
   form_submission_id: null,
-  price_override: null,
-  purchase: { type: "catalog" },
+  purchase: { type: "catalog", catalog_item_price_id: ids.price },
 };
 
 const scope = { buyer: { type: "customer" }, catalog_id: ids.catalog };
@@ -60,8 +59,11 @@ test("initialize is the root API and exposes the module facade without store swi
     assert.equal(typeof cart.load, "function");
     assert.equal(typeof cart.addCustomerGroup, "function");
     assert.equal(typeof facade.eshop.order.resumePayment, "function");
-    assert.equal(typeof facade.eshop.customerGroup.find, "function");
     assert.equal(typeof facade.eshop.customerGroup.get, "function");
+    assert.equal(typeof facade.eshop.catalogItem.find, "function");
+    assert.equal(typeof facade.eshop.catalogItem.getByParent, "function");
+    assert.equal(typeof facade.eshop.catalogItem.findPrices, "function");
+    assert.equal(typeof facade.eshop.bookingOffering.get, "function");
     assert.equal(typeof facade.eshop.customerGroupOffering.get, "function");
     assert.equal(typeof facade.eshop.customerGroupMember.find, "function");
     assert.equal(typeof facade.eshop.minimumProgress.get, "function");
@@ -80,6 +82,9 @@ test("initialize is the root API and exposes the module facade without store swi
       assert.equal(removed in facade, false, removed);
     }
     for (const removed of ["subscription", "subscriptionPlan", "subscriptionOffering", "carts", "state"]) assert.equal(removed in facade.eshop, false, removed);
+    for (const owner of ["product", "productVariant", "bookingService", "bookingOffering", "bookingResource", "customerGroup"]) {
+      assert.equal("find" in facade.eshop[owner], false, `${owner}.find`);
+    }
     for (const removed of ["addSubscriptionPlan", "subscription_plan_items", "payment", "paymentAction", "clearLocal"]) assert.equal(removed in cart, false, removed);
     assert.equal(facade.eshop.cart(scope), cart);
     assert.equal(facade.eshop.checkoutFlow(scope).cart, cart);
@@ -100,13 +105,10 @@ test("storefront reference batches use their typed endpoints with the ids JSON-e
   const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl });
   assert.deepEqual(await storefront.media.find({ ids: ["media-1", "media-2"] }), { items: [], cursor: null });
   await storefront.content.entry.find({ ids: ["entry-1"] });
-  await storefront.eshop.product.find({ ids: [ids.product], catalog_id: ids.catalog });
   assert.deepEqual(calls.map((call) => [call.method, call.path, JSON.parse(call.query.ids)]), [
     ["GET", "/v1/storefront/media", ["media-1", "media-2"]],
     ["GET", "/v1/storefront/entries", ["entry-1"]],
-    ["GET", "/v1/storefront/products", [ids.product]],
   ]);
-  assert.equal(calls[2].query.catalog_id, ids.catalog);
 });
 
 test("market and locale stay independent, a market change clears the cart view, and the storefront key alone gives the channel", () => {
@@ -131,7 +133,10 @@ test("checkout from the store sends the reviewed cart through keyless routes wit
   await assert.rejects(cart.checkout({ order_id: "order-1", order_token: "arky_ot_" + "A".repeat(43), contact_email: null, payment: cardPayment() }), /needs the app's order id/);
   await assert.rejects(cart.checkout({ order_id: ids.order, contact_email: null, payment: cardPayment() }), /both its order_id and order_token/);
   assert.equal(calls.length, 0);
-  const answer = await cart.checkout({ order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), contact_email: "buyer@example.test", payment: cardPayment() });
+  const contact = { email: "buyer@example.test", language: "it" };
+  await assert.rejects(cart.checkout({ order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), contact_email: "buyer@example.test", payment: cardPayment() }), /contact email and language/);
+  assert.equal(calls.length, 0);
+  const answer = await cart.checkout({ order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), contact_email: contact, payment: cardPayment() });
   assert.deepEqual(answer, placedAcceptance());
   assert.deepEqual(calls.map((call) => [call.method, call.path]), [
     ["POST", "/v1/storefront/carts/accept"],
@@ -143,7 +148,7 @@ test("checkout from the store sends the reviewed cart through keyless routes wit
     cart_id: ids.cart,
     expected_updated_at: cartRecord().updated_at,
     presentation_digest: quoteRecord().presentation_digest,
-    contact_email: "buyer@example.test",
+    contact_email: contact,
     payment: cardPayment(),
   });
   assert.equal(calls[1].body, null);
@@ -166,6 +171,22 @@ test("checkout from the store sends the reviewed cart through keyless routes wit
     currency: "eur",
     created_at: 0,
   });
+});
+
+test("checkout from the store sends the contact names only when the page gives them", async (context) => {
+  const calls = recordFetch(context, (call) => call.path === "/v1/storefront/carts/accept" ? placedAcceptance({ order_id: call.body.order_id }) : placedOrder({ id: call.path.split("/").at(-1) }));
+  const contact = { email: "buyer@example.test", language: "it" };
+  const named = checkoutCart();
+  await named.checkout({ order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), contact_email: contact, contact_first_name: "Ana", contact_last_name: null, payment: cardPayment() });
+  const unnamed = checkoutCart();
+  await unnamed.checkout({ order_id: ids.otherOrder, order_token: "arky_ot_" + "C".repeat(42) + "A", contact_email: contact, payment: cardPayment() });
+  const accepts = calls.filter((call) => call.path === "/v1/storefront/carts/accept");
+  assert.equal(accepts.length, 2);
+  assert.equal(accepts[0].body.contact_first_name, "Ana");
+  assert.equal(accepts[0].body.contact_last_name, null);
+  assert.equal("contact_first_name" in accepts[1].body, false);
+  assert.equal("contact_last_name" in accepts[1].body, false);
+  assert.deepEqual(accepts[1].body.contact_email, contact);
 });
 
 test("a free checkout needs no payment option and still clears the stale cart state", async (context) => {

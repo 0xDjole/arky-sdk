@@ -19,7 +19,7 @@ import {
 const label = "Cart checkout";
 
 function slotKey(scope: string, slot: string | null): string {
-  const shared = `arky:cart-checkout:v4:${encodeURIComponent(scope)}`;
+  const shared = `arky:cart-checkout:v5:${encodeURIComponent(scope)}`;
   return slot === null ? shared : `${shared}:${encodeURIComponent(slot)}`;
 }
 
@@ -39,6 +39,16 @@ function record(value: unknown): value is Record<string, unknown> {
 
 function text(value: unknown, maximum: number): value is string {
   return typeof value === "string" && value.length > 0 && value.length <= maximum && value === value.trim();
+}
+
+function contactEmail(value: unknown): CartCheckoutRequest["contact_email"] | undefined {
+  if (value === null) return null;
+  if (!record(value) || Object.keys(value).length !== 2 || !text(value.email, 320) || !text(value.language, 35)) return undefined;
+  return { email: value.email, language: value.language };
+}
+
+function contactName(value: unknown): value is string | null | undefined {
+  return value === undefined || value === null || typeof value === "string";
 }
 
 function cardTerms(value: unknown): value is string {
@@ -72,6 +82,9 @@ function checkoutPayment(value: unknown): CartCheckoutRequest["payment"] | null 
 
 export function cartCheckoutRequest(input: unknown): CartCheckoutRequest {
   const payment = record(input) ? checkoutPayment(input.payment) : null;
+  const contact = record(input) ? contactEmail(input.contact_email) : undefined;
+  const firstName = record(input) ? input.contact_first_name : undefined;
+  const lastName = record(input) ? input.contact_last_name : undefined;
   if (
     !record(input) ||
     !isCanonicalId(input.order_id) ||
@@ -80,11 +93,13 @@ export function cartCheckoutRequest(input: unknown): CartCheckoutRequest {
     typeof input.expected_updated_at !== "number" ||
     !Number.isSafeInteger(input.expected_updated_at) ||
     !text(input.presentation_digest, 256) ||
-    (input.contact_email !== null && !text(input.contact_email, 320)) ||
+    contact === undefined ||
+    !contactName(firstName) ||
+    !contactName(lastName) ||
     !payment
   ) {
     throw new TypeError(
-      "Cart checkout needs the app's order id, the cart id, the cart's updated_at, the reviewed presentation, the contact email or null, and how the order is paid",
+      "Cart checkout needs the app's order id, the cart id, the cart's updated_at, the reviewed presentation, the contact email and language or null, any contact names as text or null, and how the order is paid",
     );
   }
   return {
@@ -93,7 +108,9 @@ export function cartCheckoutRequest(input: unknown): CartCheckoutRequest {
     cart_id: input.cart_id as string,
     expected_updated_at: input.expected_updated_at as CartCheckoutRequest["expected_updated_at"],
     presentation_digest: input.presentation_digest as string,
-    contact_email: input.contact_email as string | null,
+    contact_email: contact,
+    ...(firstName !== undefined ? { contact_first_name: firstName } : {}),
+    ...(lastName !== undefined ? { contact_last_name: lastName } : {}),
     payment,
   };
 }

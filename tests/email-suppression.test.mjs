@@ -112,3 +112,22 @@ test("the SDK does not add paging to an exact email search", async (context) => 
   await client().find({ store_id: storeId, query: "person@example.com" });
   assert.deepEqual(Object.fromEntries(calls[0].searchParams), { query: "person@example.com" });
 });
+
+test("an unblock that can't reach every email connection keeps the Server's refusal and is sent once", async (context) => {
+  for (const code of ["EMAIL_SUPPRESSION.CONNECTION_REQUIRED", "EMAIL_SUPPRESSION.CONNECTION_LIMIT"]) {
+    const calls = [];
+    context.mock.method(globalThis, "fetch", async (url, init = {}) => {
+      calls.push({ url: new URL(url), method: init.method, body: JSON.parse(init.body) });
+      return new Response(JSON.stringify({ message: "Refused", error: code, status_code: 409, validation_errors: [] }), { status: 409, headers: { "content-type": "application/json" } });
+    });
+    await assert.rejects(client().unblock({ store_id: storeId, id, expected_updated_at: 1_800_000_000_123, note: "Bounce fixed" }), (error) => {
+      assert.equal(error.code, code);
+      assert.equal(error.statusCode, 409);
+      return true;
+    });
+    assert.deepEqual(calls.map((call) => [call.method, call.url.pathname, call.body]), [
+      ["POST", `/v1/stores/${storeId}/email-suppressions/${id}/unblock`, { note: "Bounce fixed", expected_updated_at: 1_800_000_000_123 }],
+    ]);
+    context.mock.restoreAll();
+  }
+});

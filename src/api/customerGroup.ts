@@ -41,7 +41,6 @@ import type {
   FindCustomerGroupMembersParams,
   FindCustomerGroupOfferingsParams,
   FindCustomerGroupsParams,
-  FindStorefrontCustomerGroupsParams,
   GetCustomerGroupByKeyParams,
   GetCustomerGroupMemberParams,
   GetCustomerGroupMemberPurchaseRequirementParams,
@@ -532,16 +531,6 @@ export function createStorefrontCustomerGroupApi(
 
   return {
     customerGroup: {
-      find(
-        params: FindStorefrontCustomerGroupsParams,
-        options?: RequestOptions,
-      ): Promise<PaginatedResponse<StorefrontCustomerGroup>> {
-        return httpClient.get<PaginatedResponse<StorefrontCustomerGroup>>(
-          `${base}/customer-groups`,
-          { ...options, params },
-        );
-      },
-
       get(
         params: GetStorefrontCustomerGroupParams,
         options?: RequestOptions,
@@ -577,11 +566,10 @@ export function createStorefrontCustomerGroupApi(
         const identifier = "id" in params ? params.id : params.key;
         if (!identifier) throw new TypeError("Product choices name their customer group by id or by key");
         const query = {
+          catalog_id: params.catalog_id,
           company_id: params.company_id,
           company_location_id: params.company_location_id,
-          catalog_id: params.catalog_id,
           quantity: params.quantity,
-          language: params.language,
         };
         return httpClient.get<CustomerGroupProductChoices>(
           `${base}/customer-groups/${segment(identifier)}/product-choices/${segment(params.entitlement_id)}`,
@@ -595,9 +583,10 @@ export function createStorefrontCustomerGroupApi(
         params: GetStorefrontCustomerGroupOfferingParams,
         options?: RequestOptions,
       ): Promise<StorefrontCustomerGroupOffering> {
+        const { id, ...query } = params;
         return httpClient.get<StorefrontCustomerGroupOffering>(
-          `${base}/customer-group-offerings/${segment(params.id)}`,
-          options,
+          `${base}/customer-group-offerings/${segment(id)}`,
+          { ...options, params: query },
         );
       },
 
@@ -605,9 +594,10 @@ export function createStorefrontCustomerGroupApi(
         params: GetStorefrontCustomerGroupOfferingByKeyParams,
         options?: RequestOptions,
       ): Promise<StorefrontCustomerGroupOffering> {
+        const { key, ...query } = params;
         return httpClient.get<StorefrontCustomerGroupOffering>(
-          `${base}/customer-group-offerings/${segment(params.key)}`,
-          options,
+          `${base}/customer-group-offerings/${segment(key)}`,
+          { ...options, params: query },
         );
       },
     },

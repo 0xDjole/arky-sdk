@@ -3,6 +3,7 @@ import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { createStorefront } from "../dist/storefront.js";
 import { hasStorePermission, storeLocationReadReach, storePermissionReach } from "../dist/utils.js";
+import { recordFetch } from "./helpers/arky-fixtures.mjs";
 
 const baseUrl = "https://api.store-roles.test";
 const storeId = "8ccad9a6-502e-440b-8373-b0fbaf36154c";
@@ -106,10 +107,11 @@ test("members are invited by caller-picked identity and re-roled by membership i
     return new Response(JSON.stringify(String(url).endsWith("/roles") ? { id: "member", role_ids: [roleId] } : true), { status: 200, headers: { "content-type": "application/json" } });
   });
   const admin = createAdmin({ apiUrl: baseUrl, secretKey: "arky_account_access_contract" });
-  await admin.store.member.invite({ store_id: storeId, id: accountId, email: "packer@example.test", role_ids: [roleId] });
+  const contact = { email: "packer@example.test", language: "bs" };
+  await admin.store.member.invite({ store_id: storeId, id: accountId, contact, role_ids: [roleId] });
   await admin.store.member.updateRoles({ store_id: storeId, id: accountId, expected_updated_at: 5, role_ids: [roleId] });
   assert.deepEqual(calls.map(({ url, method, body }) => [method, url.pathname, body]), [
-    ["POST", `/v1/stores/${storeId}/invitation`, { id: accountId, email: "packer@example.test", role_ids: [roleId] }],
+    ["POST", `/v1/stores/${storeId}/invitation`, { id: accountId, contact, role_ids: [roleId] }],
     ["PUT", `/v1/stores/${storeId}/members/${accountId}/roles`, { expected_updated_at: 5, role_ids: [roleId] }],
   ]);
   await assert.rejects(async () => admin.store.member.updateRoles({ store_id: storeId, id: "slug", expected_updated_at: 5, role_ids: [] }), { name: "TypeError", message: /membership id must be a canonical UUID/ });
@@ -143,6 +145,24 @@ test("the owner transfers the Store and members are paused and resumed by status
   assert.equal("buildHook" in admin.store, false);
 });
 
+test("a role and a secret key give orders, payments and customers read-only or read-write access exactly as sent", async (context) => {
+  const permissions = [
+    { type: "orders", access: "read_only" },
+    { type: "payments", access: "read_write" },
+    { type: "customers", access: "read_only" },
+    { type: "catalog" },
+  ];
+  const keyId = "6a1c3e85-7b29-4d04-9f6e-2c8a0d4b6e13";
+  const calls = recordFetch(context, (call) => call.path.endsWith("/api-keys") ? { type: "created", key: { id: keyId }, value: "secret-value" } : { id: roleId, permissions });
+  const admin = createAdmin({ apiUrl: baseUrl, secretKey: "arky_account_access_contract" });
+  await admin.store.role.create({ store_id: storeId, id: roleId, key: "bookkeeping", permissions });
+  await admin.store.apiKey.create({ store_id: storeId, id: keyId, name: "Reports", type: { type: "secret", permissions, expires_at: null } });
+  assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
+    ["POST", `/v1/stores/${storeId}/roles`, { id: roleId, key: "bookkeeping", permissions }],
+    ["POST", `/v1/stores/${storeId}/api-keys`, { id: keyId, name: "Reports", type: { type: "secret", permissions, expires_at: null } }],
+  ]);
+});
+
 test("store access helpers mirror the Server's permission and location reach rules", () => {
   const picker = { permissions: [
     { type: "fulfillment", locations: { type: "only", store_location_ids: [locationB] } },
@@ -152,16 +172,19 @@ test("store access helpers mirror the Server's permission and location reach rul
   assert.equal(hasStorePermission(picker, "fulfillment", locationA), false);
   assert.equal(hasStorePermission(picker, "fulfillment"), false);
   assert.equal(hasStorePermission(picker, "orders"), false);
-  const paymentsOnly = { permissions: [{ type: "payments" }] };
+  const paymentsOnly = { permissions: [{ type: "payments", access: "read_write" }] };
   assert.equal(hasStorePermission(paymentsOnly, "payments"), true);
   assert.equal(hasStorePermission(paymentsOnly, "orders"), false);
   assert.deepEqual(storeLocationReadReach(paymentsOnly), { type: "everywhere" });
   assert.equal(hasStorePermission(paymentsOnly, "inventory", locationA), false);
   assert.equal(hasStorePermission(paymentsOnly, "fulfillment", locationA), false);
   assert.deepEqual(storeLocationReadReach(picker), { type: "only", store_location_ids: [locationA, locationB].sort() });
-  const mixed = { permissions: [...picker.permissions, { type: "orders" }] };
+  const mixed = { permissions: [...picker.permissions, { type: "orders", access: "read_only" }] };
   assert.deepEqual(storeLocationReadReach(mixed), { type: "everywhere" });
   assert.equal(hasStorePermission(mixed, "orders"), true);
+  const readOnly = { permissions: [{ type: "orders", access: "read_only" }, { type: "payments", access: "read_only" }, { type: "customers", access: "read_only" }] };
+  for (const type of ["orders", "payments", "customers"]) assert.equal(hasStorePermission(readOnly, type), true, type);
+  assert.equal(hasStorePermission(readOnly, "catalog"), false);
   const admin = { permissions: [{ type: "admin" }] };
   assert.equal(hasStorePermission(admin, "fulfillment", locationA), true);
   assert.equal(hasStorePermission(admin, "analytics"), true);
@@ -181,7 +204,7 @@ test("own workspace discovery retains each Store name and access without public 
   const calls = [];
   const memberships = ["First Store", "Second Store"].map((store_name, index) => ({
     id: `membership-${index}`, store_id: index === 0 ? storeId : accountId, store_name,
-    role_ids: [roleId], access: { permissions: [{ type: "orders" }] }, status: { type: "active", account_id: accountId },
+    role_ids: [roleId], access: { permissions: [{ type: "orders", access: index === 0 ? "read_write" : "read_only" }] }, status: { type: "active", account_id: accountId },
     created_at: 1, updated_at: 1,
   }));
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
@@ -191,11 +214,13 @@ test("own workspace discovery retains each Store name and access without public 
   const admin = createAdmin({ apiUrl: baseUrl, secretKey: "arky_account_access_contract" });
   const page = await admin.store.member.findOwn({ limit: 20 });
   assert.deepEqual(page.items.map(({ store_name }) => store_name), ["First Store", "Second Store"]);
+  assert.deepEqual(page.items.map(({ access }) => access.permissions[0]), [{ type: "orders", access: "read_write" }, { type: "orders", access: "read_only" }]);
   assert.deepEqual(calls, [{ path: "/v1/stores/memberships", method: "GET" }]);
 });
 
 test("a nonexpiring email invite is explicitly resent and accepted with its current version", async (context) => {
-  const invited = { id: "member", store_id: storeId, store_name: "Contract Store", role_ids: [roleId], access: { permissions: [] }, status: { type: "invited", email: "packer@example.test" }, created_at: 1, updated_at: 2 };
+  const contact = { email: "packer@example.test", language: "en" };
+  const invited = { id: "member", store_id: storeId, store_name: "Contract Store", role_ids: [roleId], access: { permissions: [] }, status: { type: "invited", contact }, created_at: 1, updated_at: 2 };
   const accepted = { id: "member", store_id: storeId, role_ids: [roleId], status: { type: "active", account_id: accountId }, created_at: 1, updated_at: 3 };
   const calls = [];
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
@@ -206,14 +231,14 @@ test("a nonexpiring email invite is explicitly resent and accepted with its curr
     return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
   });
   const admin = createAdmin({ apiUrl: baseUrl, secretKey: "arky_account_access_contract" });
-  const invite = { store_id: storeId, id: accountId, email: "packer@example.test", role_ids: [roleId] };
+  const invite = { store_id: storeId, id: accountId, contact, role_ids: [roleId] };
   assert.equal(await admin.store.member.invite(invite), true);
   assert.equal(await admin.store.member.resendInvite({ store_id: storeId, id: accountId, expected_updated_at: 2 }), true);
   const own = await admin.store.member.getOwn({ store_id: storeId });
-  assert.deepEqual(own.status, { type: "invited", email: invite.email });
+  assert.deepEqual(own.status, { type: "invited", contact });
   assert.deepEqual(await admin.store.member.acceptInvite({ store_id: storeId, expected_updated_at: own.updated_at }), accepted);
   assert.deepEqual(calls.map(({ url, method, body }) => [method, url.pathname, body]), [
-    ["POST", `/v1/stores/${storeId}/invitation`, { id: accountId, email: "packer@example.test", role_ids: [roleId] }],
+    ["POST", `/v1/stores/${storeId}/invitation`, { id: accountId, contact, role_ids: [roleId] }],
     ["POST", `/v1/stores/${storeId}/members/${accountId}/invitation`, { expected_updated_at: 2 }],
     ["GET", `/v1/stores/${storeId}/membership`, null],
     ["POST", `/v1/stores/${storeId}/membership/accept`, { expected_updated_at: 2 }],
@@ -244,7 +269,7 @@ test("a store's email sending is paused with a reason and allowed again, each wi
   assert.equal(calls.length, 2);
 });
 
-test("membership removal sends the exact read version in JSON and preserves request options", async (context) => {
+test("membership removal sends the exact read version in the query with no body and preserves request options", async (context) => {
   const calls = [];
   const successes = [];
   const controller = new AbortController();
@@ -271,8 +296,8 @@ test("membership removal sends the exact read version in JSON and preserves requ
   assert.equal(await admin.store.member.remove({ store_id: storeId, id: roleId, expected_updated_at: 7 }, options), true);
   assert.equal(await admin.store.member.remove({ store_id: storeId, id: roleId, expected_updated_at: 8 }, options), false);
   assert.deepEqual(calls.map(({ url, method, body }) => [method, url.pathname + url.search, body]), [
-    ["DELETE", `/v1/stores/${storeId}/members/${roleId}`, { expected_updated_at: 7 }],
-    ["DELETE", `/v1/stores/${storeId}/members/${roleId}`, { expected_updated_at: 8 }],
+    ["DELETE", `/v1/stores/${storeId}/members/${roleId}?expected_updated_at=7`, null],
+    ["DELETE", `/v1/stores/${storeId}/members/${roleId}?expected_updated_at=8`, null],
   ]);
   for (const call of calls) {
     assert.equal(call.headers.get("Content-Type"), "application/json");
@@ -281,8 +306,8 @@ test("membership removal sends the exact read version in JSON and preserves requ
     assert.equal(call.signal, controller.signal);
   }
   assert.deepEqual(successes.map(({ data, method, url, status, request_id }) => [data, method, url, status, request_id]), [
-    [true, "DELETE", `${baseUrl}/v1/stores/${storeId}/members/${roleId}`, 200, "membership-removal-1"],
-    [false, "DELETE", `${baseUrl}/v1/stores/${storeId}/members/${roleId}`, 200, "membership-removal-2"],
+    [true, "DELETE", `${baseUrl}/v1/stores/${storeId}/members/${roleId}?expected_updated_at=7`, 200, "membership-removal-1"],
+    [false, "DELETE", `${baseUrl}/v1/stores/${storeId}/members/${roleId}?expected_updated_at=8`, 200, "membership-removal-2"],
   ]);
   assert.deepEqual(options.params, { expected_updated_at: 99 });
 });
@@ -319,15 +344,15 @@ test("membership removal preserves native authority and version refusals", async
       assert.equal(error.statusCode, response.status);
       assert.equal(error.message, response.message);
       assert.equal(error.method, "DELETE");
-      assert.equal(error.url, `${baseUrl}/v1/stores/${storeId}/members/${roleId}`);
+      assert.equal(error.url, `${baseUrl}/v1/stores/${storeId}/members/${roleId}?expected_updated_at=7`);
       return true;
     });
   }
   assert.deepEqual(calls.map(({ url, method, body }) => [method, url.pathname + url.search, body]), responses.map(() => [
-    "DELETE", `/v1/stores/${storeId}/members/${roleId}`, { expected_updated_at: 7 },
+    "DELETE", `/v1/stores/${storeId}/members/${roleId}?expected_updated_at=7`, null,
   ]));
   assert.deepEqual(failures.map(({ method, url, status, response }) => [method, url, status, response.error]), [
-    ["DELETE", `${baseUrl}/v1/stores/${storeId}/members/${roleId}`, 403, "GENERAL.FORBIDDEN"],
-    ["DELETE", `${baseUrl}/v1/stores/${storeId}/members/${roleId}`, 409, "GENERAL.CONFLICT"],
+    ["DELETE", `${baseUrl}/v1/stores/${storeId}/members/${roleId}?expected_updated_at=7`, 403, "GENERAL.FORBIDDEN"],
+    ["DELETE", `${baseUrl}/v1/stores/${storeId}/members/${roleId}?expected_updated_at=7`, 409, "GENERAL.CONFLICT"],
   ]);
 });

@@ -6,21 +6,20 @@ import type {
   CartDeliveryDestination,
   CartDeliveryGroup,
   CartLineItem,
+  CartLineItemInput,
   CartProductLineItem,
   CartQuote,
   CheckoutAcceptance,
   CustomerGroupDeliveryOffers,
   QuoteLine,
-  StorefrontCartLineItemInput,
+  QuotePromotionCode,
   StorefrontCheckoutCartInput,
-  StorefrontCurrentCartParams,
 } from "../types/cart";
 import { cartBookingItems, cartCustomerGroupItems, cartProductItems } from "../types/cart";
 import { CartError } from "../types/cartSelection";
 import { ArkyApiError, ArkyNetworkError, errorInfo } from "../types/apiError";
 import type { CompanyPartyQuery } from "../types/common";
 import type { StorefrontCheckoutCartRequest, StorefrontClient } from "../index";
-import { cartBuyerKey } from "../services/cartSelection";
 import { isDefiniteRefusal } from "../utils/durableRequest";
 import { fingerprint } from "../utils/fingerprint";
 import { epochMillisecondsNow } from "../utils/time";
@@ -86,7 +85,7 @@ function quoteBody(id: string, params: ArkyCartQuoteParams): { id: string; conta
   return params.contact_email !== undefined ? { id, contact_email: params.contact_email } : { id };
 }
 
-function cartLineInput(line: CartLineItem): StorefrontCartLineItemInput {
+function cartLineInput(line: CartLineItem): CartLineItemInput {
   switch (line.type) {
     case "product":
       return {
@@ -105,6 +104,7 @@ function cartLineInput(line: CartLineItem): StorefrontCartLineItemInput {
         requested_interval: { from: line.requested_interval.from, to: line.requested_interval.to },
         capacity_units: line.capacity_units,
         form_submission_id: line.form_submission_id,
+        catalog_item_price_id: line.catalog_item_price_id,
       };
     case "customer_group":
       return {
@@ -115,12 +115,9 @@ function cartLineInput(line: CartLineItem): StorefrontCartLineItemInput {
         choices: line.choices.map(({ entitlement_id, variant_id }) => ({ entitlement_id, variant_id })),
         start: line.start,
         deliveries: line.deliveries,
+        catalog_item_price_id: line.catalog_item_price_id,
       };
   }
-}
-
-export function sameCartScope(left: StorefrontCurrentCartParams, right: StorefrontCurrentCartParams): boolean {
-  return cartBuyerKey(left.buyer) === cartBuyerKey(right.buyer) && left.catalog_id === right.catalog_id;
 }
 
 function cartMayHaveChanged(error: unknown): boolean {
@@ -195,9 +192,7 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
     [product_item_count, booking_items, customer_group_items],
     (products, bookings, groups) => products + bookings.length + groups.length,
   );
-  const promotion_codes = computed(quote, (value) =>
-    (value?.promotions ?? []).flatMap((promotion) => (promotion.code ? [promotion.code.code] : [])),
-  );
+  const promotion_codes = computed(quote, (value): QuotePromotionCode[] => value?.promotion_codes ?? []);
 
   let cartRevision = 0;
   let pendingCartId: string | null = null;
@@ -493,6 +488,8 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
       expected_updated_at: current.updated_at,
       presentation_digest: reviewed.presentation_digest,
       contact_email: params.contact_email,
+      ...(params.contact_first_name !== undefined ? { contact_first_name: params.contact_first_name } : {}),
+      ...(params.contact_last_name !== undefined ? { contact_last_name: params.contact_last_name } : {}),
       payment: params.payment,
       scope,
     };
