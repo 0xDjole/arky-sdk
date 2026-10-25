@@ -88,6 +88,69 @@ test('retained Sessions keep their exact credentials through refresh and a malfo
   assert.equal(admin.session, null);
 });
 
+test('rejected Account refresh clears retained credentials and notifies consumers while temporary failures remain retryable', async (t) => {
+  const storage = new MemoryStorage();
+  const browser = Object.assign(new EventTarget(), { localStorage: storage });
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: browser });
+  t.after(() => descriptor ? Object.defineProperty(globalThis, 'window', descriptor) : delete globalThis.window);
+  const storageKey = 'arky_admin_session:https://api.example.test';
+  const retained = JSON.stringify({
+    id: SESSION_ID, access_token: 'expired-access', refresh_token: 'rejected-refresh',
+    access_expires_at: Date.now() - 60_000, email: 'operator@example.test',
+  });
+  const calls = [];
+  let status;
+  t.mock.method(globalThis, 'fetch', async (url, init) => {
+    calls.push({ path: new URL(url).pathname, body: JSON.parse(init.body) });
+    if (status === 'network') throw new TypeError('Network unavailable');
+    return Response.json({
+      message: 'Refresh refused', status_code: status,
+      error: status === 403 ? 'GENERAL.UNAUTHORIZED' : 'GENERAL.UNAUTHENTICATED',
+    }, { status });
+  });
+  for (status of [401, 403, 429, 503, 'network']) {
+    storage.setItem(storageKey, retained);
+    const admin = createAdmin({ apiUrl: 'https://api.example.test' });
+    const events = [];
+    const unsubscribe = admin.onAuthStateChanged(session => events.push(session));
+    await assert.rejects(admin.store.find({ limit: 10 }));
+    await Promise.resolve();
+    const rejected = status === 401 || status === 403;
+    assert.equal(storage.getItem(storageKey), rejected ? null : retained, String(status));
+    assert.equal(admin.isAuthenticated, !rejected, String(status));
+    assert.equal(events.some(session => session === null), rejected, String(status));
+    unsubscribe();
+  }
+  assert.deepEqual(calls, Array(5).fill({ path: '/v1/auth/refresh', body: { refresh_token: 'rejected-refresh' } }));
+});
+
+test('a rejected refresh cannot clear a different Account login completed while it was pending', async (t) => {
+  let refuseRefresh;
+  const requested = new Promise(resolve => { refuseRefresh = resolve; });
+  let refreshStarted;
+  const started = new Promise(resolve => { refreshStarted = resolve; });
+  const now = Date.now();
+  let verifies = 0;
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    if (new URL(url).pathname === '/v1/auth/refresh') {
+      refreshStarted();
+      return requested;
+    }
+    verifies += 1;
+    return Response.json(issued(now, verifies, verifies === 1 ? SESSION_ID : OTHER_SESSION_ID));
+  });
+  const admin = createAdmin({ apiUrl: 'https://api.refresh-race.test' });
+  await admin.account.auth.verify({ session_id: SESSION_ID, code: '123456' });
+  const refresh = assert.rejects(admin.account.auth.refresh({ refresh_token: 'refresh-1' }));
+  await started;
+  await admin.account.auth.verify({ session_id: OTHER_SESSION_ID, code: '654321' });
+  refuseRefresh(Response.json({ message: 'Unauthorized', error: 'GENERAL.UNAUTHORIZED', status_code: 403 }, { status: 403 }));
+  await refresh;
+  assert.equal(admin.session.id, OTHER_SESSION_ID);
+  assert.equal(admin.isAuthenticated, true);
+});
+
 test('API-token rejection preserves the native snake_case failure without refresh or mutation replay', async (t) => {
   const requests = [];
   const original = globalThis.fetch;

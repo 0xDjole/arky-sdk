@@ -131,7 +131,7 @@ export function createAdminSessionState(baseUrl: string, refreshPath?: string | 
       body: JSON.stringify({ refresh_token: expected.refresh_token }),
     });
     if (!response.ok) {
-      if (response.status === 401 && sameCredentials(read(), expected)) write(null);
+      if ((response.status === 401 || response.status === 403) && sameCredentials(read(), expected)) write(null);
       throw Object.assign(new ArkyError('refresh_failed', 'Account session refresh failed'), { statusCode: response.status });
     }
     const result = response.data;
