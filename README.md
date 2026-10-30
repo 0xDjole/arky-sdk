@@ -191,7 +191,7 @@ if (placed && placed.payment_action.type !== "none") {
 ```
 
 - **Steps.** `state.step` is one of:
-  - `cart`: no lines, or a line that can't be bought as it is (a taken booking slot, a purchase limit, a price that can't hold its fixed per-unit fee: `tax_unavailable`), named in `quote.blockers`;
+  - `cart`: no lines, or a line that can't be bought as it is (a taken booking slot, a purchase limit, a price that can't hold its fixed per-unit fee: `tax_unavailable`, or a customer group that would put the buyer under a second purchase minimum: `customer_group_minimum_conflict`), named in `quote.blockers`. A membership in another group of the same offering, which the purchase replaces, doesn't count as a second minimum. While one of the buyer's memberships has a package change waiting to take effect, a line for another group of the offering that membership is in or moves into is blocked with `customer_group_change_scheduled`, and placing it is refused with `CUSTOMER_GROUP_MEMBER.CHANGE_SCHEDULED`;
   - `details`: the contact email, an address, the billing address or a purchase order number is missing, or a delivery no longer fits its lines (`delivery_unavailable`: set it again with `shipTo`);
   - `shipping`: a delivery needs its shipping choice;
   - `payment`: ready to place;
@@ -272,6 +272,19 @@ console.log(opened.order.number, latest ? paymentOutcome(latest) : null, payment
 - **`paymentOutcome(payment)`** says what a payment means to the shopper: `paid`, `pay_later` (cash on delivery or a manual payment not yet collected), `awaiting`, `unconfirmed` (the provider's answer is unclear and the team settles it, so tell the shopper you will email them) or `failed`. `latestPayment(payments)` picks the newest.
 - **`paymentAmounts(payments)`** adds up an order's payments as Arky does: `paid`, `refunded`, `refund_pending`, `disputed` and `net_paid`. It leaves out what is still owed, because that also subtracts the order's credits, which a storefront doesn't read.
 
+To order again, `reorder({ id, order_id, buyer, catalog_id })` builds a new cart from the products the order bought directly, in the catalog you name (normally the buyer's current one) and at that catalog's prices, with the same access as creating a cart there. The `buyer` is the order's own (`CART.REORDER_BUYER`). A product that catalog doesn't sell, or that can't be bought now, is left out and listed in `left_out`; when nothing is left, Arky refuses with `CART.REORDER_NOTHING_LEFT`. The new cart becomes this browser's cart for that buyer and catalog, so the cart store's `load()` reads it:
+
+```typescript
+const reordered = await arky.client.eshop.cart.reorder({
+  id: crypto.randomUUID(),
+  order_id: orderId,
+  buyer: { type: "customer" },
+  catalog_id,
+});
+const cart = await arky.eshop.cart({ buyer: { type: "customer" }, catalog_id }).load();
+console.log(cart?.id === reordered.cart.cart.id, reordered.left_out.map((line) => line.variant_id));
+```
+
 ## 6. Customer sign-in
 
 ```typescript
@@ -292,7 +305,7 @@ await arky.customer.logout();
 - **Visitors and customers.** Customers are anonymous visitors until they verify their inbox. `requestCode({ contact: { email, language } })` takes the code email's id from `createId`; a lost answer is retried under the same id, so the customer gets one email. A verified customer's `type.contact` keeps the email and the language their emails use.
 - **`verify`** signs the customer in under a new session id from `createSessionId`. When the visitor signs in as a customer who already exists, Arky merges the visitor's cart into that customer's cart, and the cart store follows it.
 - **Sign-in refusals** carry their own codes: `CUSTOMER_SIGN_IN.CODE_RECENT` (a new code within the configured interval, sixty seconds in production), `CUSTOMER_SIGN_IN.CODE_INVALID` (a wrong or expired code, or none waiting) and `CUSTOMER_SIGN_IN.ATTEMPTS_EXHAUSTED` (too many wrong codes for the address).
-- **Session lifetime.** A signed-in session's access token lasts an hour; the SDK refreshes it on the first 401 and keeps every cart and checkout view. A session that can't be refreshed is cleared and reported to `onAuthStateChanged` and the `session` atom. Changing the shopper, signing out or switching markets clears checkout contact, delivery, payment selection and the displayed order. A late response from the previous context cannot restore them; kept checkout requests remain available for explicit recovery.
+- **Session lifetime.** A signed-in session's access token lasts an hour; the SDK refreshes it on the first 401 and keeps every cart and checkout view. Only Arky's own refusal of that refresh (401 `GENERAL.UNAUTHENTICATED` or 403 `GENERAL.UNAUTHORIZED` in Arky's error body) clears the session and reports it to `onAuthStateChanged` and the `session` atom. Any other failed refresh, such as a 401 or 403 from a proxy, a 429, a 5xx or a lost answer, fails that request with the refresh's error and keeps the session for the next try. A visitor whose token Arky itself refuses (401 `GENERAL.UNAUTHENTICATED` in Arky's error body, for example after the visitor session expired) is replaced: the SDK identifies a new visitor and sends the request once more. Any other 401, such as a proxy's, fails that request and keeps the visitor. Changing the shopper, signing out or switching markets clears checkout contact, delivery, payment selection and the displayed order. A late response from the previous context cannot restore them; kept checkout requests remain available for explicit recovery.
 - **Email changes.** On a signed-in session, `requestCode` starts an email change: the code goes to the new address and `changeEmail({ code })` proves it. `updateMe` changes the profile blocks, the addresses and the `language` the customer's emails are written in (one of the store's languages, otherwise `CUSTOMER.LANGUAGE_NOT_SUPPORTED`), never a verified email. `unsubscribe()` and `resubscribe()` record the customer's email choice.
 
 ## 7. Forms and the bot check
@@ -457,9 +470,9 @@ console.log(listings.length, quote.ready, quote.blockers);
 ```
 
 Its cart calls name the cart and its version:
-- **Selection:** `cart.create`, `getCurrent({ buyer, catalog_id })` (the cart this browser selected, or `null`), `forget({ buyer, catalog_id })` and `reorder({ id, order_id, buyer })`.
+- **Selection:** `cart.create`, `getCurrent({ buyer, catalog_id })` (the cart this browser selected, or `null`), `forget({ buyer, catalog_id })` and `reorder({ id, order_id, buyer, catalog_id })` (see [Order page](#5-order-page)).
 - **Reads and changes:** `get`, `update`, `addProduct`, `addBooking`, `addCustomerGroup`, `removeItem`, `clear` and `selectShippingMethod`.
-- **Quote and checkout:** `quote({ id, contact_email? })`, `checkout`, `retainCheckout`, `pendingCheckout` and `recoverCheckout`. A quote takes the guest's email as a string; a checkout's `contact_email` is `{ email, language }` or `null`, and it may name `contact_first_name` and `contact_last_name`, each optional, which the SDK never fills in.
+- **Quote and checkout:** `quote({ id, contact_email? })`, `checkout`, `retainCheckout`, `pendingCheckout` and `recoverCheckout`. A quote takes the guest's email as a string; a checkout's `contact_email` is `{ email, language }` or `null`, and it may name `contact_first_name` and `contact_last_name`, each optional, which the SDK never fills in. A customer group line's rental entitlements name the lent machine's `product`, a `ProductReference` (`{ id, key, blocks }` with the product's current blocks), also when no catalog lists that product.
 - **After checkout:** `getOrder({ id })` (the order the cart became, or `null`) and `findOffers` (a company's offered carts).
 
 A checkout refused because the quote changed throws a `CartPresentationChangedError` with the new quote. Send the guest's `contact_email` with the quote once you know it: a promotion code limited to one use per customer counts a guest by that email, and without it the quote is refused with 409 `CART.PROMOTION_EMAIL_REQUIRED`.
@@ -469,7 +482,7 @@ A checkout refused because the quote changed throws a `CartPresentationChangedEr
 - **`eshop.order`:** `find`, `get`, `fromLink`, `retainedToken`, `findPayments`, `getPayment`, `findFulfillments`, `resumePayment` (a new payment action for an unpaid order), `downloadAsset`, `cancelBookingItem` and `rescheduleBookingItem`. A customer cancels booking lines only; the store's team cancels product lines. Order lists filter booking lines by `booking_statuses`.
 - **`eshop.promotion.get({ id })`:** the text shoppers see for a promotion, `{ id, key, blocks }`.
 - **`eshop.library`:** `find`, `getProduct`, `findAssets` and `download`, for the digital files the buyer owns. Pass `company_id` or `company_location_id` for a company's.
-- **Customer groups:** groups a store sells are listed with `catalogItem.find` and read like products: `eshop.customerGroup` (`get`, `getByKey`, `getProductChoices`, `joinFree`) and `eshop.customerGroupOffering` (`get`, `getByKey`), each with the `catalog_id` it is listed in. A group or offering read answers its `catalog_item_id`; `catalogItem.findPrices` pages its prices.
+- **Customer groups:** groups a store sells are listed with `catalogItem.find` and read like products: `eshop.customerGroup` (`get`, `getByKey`, `getProductChoices`, `joinFree`) and `eshop.customerGroupOffering` (`get`, `getByKey`), each with the `catalog_id` it is listed in. A group or offering read answers its `catalog_item_id`; `catalogItem.findPrices` pages its prices. A group read also answers `rental_products`: for each rental entitlement, its `entitlement_id` and the lent machine's `product`, a `ProductReference` with the product's current blocks, also when no catalog lists that product, or `null` once the product no longer exists.
   - `joinFree({ key, catalog_id, language })` (or `{ id, catalog_id, language }`) joins a signed-in customer to a free permanent group. The Order contact is the customer's verified email in the `language` you pass, normally the page language. It reads the group's price in that catalog, creates its own cart, checks the quote is free and places the zero-price order, with every id from the factories. It answers `{ type: "joined", order_id }` or `{ type: "already_member", customer_group_member_id }`.
   - A cart buys a group with `addCustomerGroup({ customer_group_id, quantity, choices, start, catalog_item_price_id })`, where `start` is `{ type: "on_acceptance" }`, `{ type: "scheduled", starts_at }` or `{ type: "switch", customer_group_member_id }`.
   - `getProductChoices` answers a group's product alternatives with their `sku`, `product_blocks` and `variant_blocks`.
@@ -479,8 +492,9 @@ A checkout refused because the quote changed throws a `CartPresentationChangedEr
 - **`broadcast.unsubscribe({ token })`:** a store's own unsubscribe page, which its Broadcast template links to with `{{unsubscribe_token}}`, posts the token from its `?token=` when the reader confirms and answers `{ result: "unsubscribed" }`. It needs no session. The email's one-click unsubscribe header keeps naming Arky's address.
 - **`eshop.customerGroupMember`:**
   - reads: `find`, `get`, `getCurrent`, `findOrders`, `getRevision`, `getPurchaseAccess`, `getCalendar`, `getProductChoices` and `getDeliveryOptions`;
+  - `getRevision({ customer_group_member_id, revision_id })` answers the revision, its accepted `terms` and `customer_group`: the current `{ id, key, blocks }` of the group that revision is for, whatever the group's status, dates or sale, so a past order can name the package it bought (see the example below);
   - the member's actions: `cancel`, `pause`, `resume`, `skipNext`, `selectPaymentMethod`, `reviewSwitch`, `switch`, `reviewTerms`, `changeTerms` and `withdrawRevision`.
-- **Other eshop reads:** `eshop.minimumProgress.get`, `eshop.paymentMethod` (saved cards), `eshop.rental` (`find`, `get({ id })`) and `eshop.return` (`create`, `get({ id })`, `find`, `getOrderOptions`, `findRentalOptions`).
+- **Other eshop reads:** `eshop.minimumProgress.get`, `eshop.paymentMethod` (saved cards), `eshop.rental` (`find`, `get({ id })`, each rental with the rented machine's `product`: a `ProductReference` with its current blocks, whatever the catalog lists or sells, or `null` once the product no longer exists) and `eshop.return` (`create`, `get({ id })`, which also answers each line's product as a `ProductReference`, `find`, `getOrderOptions`, `findRentalOptions`).
 - **`companies`,** the signed-in customer's companies: `getAccess({ id })`, `membership.find` (the customer's own), `location.find` and `location.get({ id })`. Members whose grants allow it also manage the company: `update` (`manage_company`); `location.create`, `update` and `delete` (`manage_addresses`); and `membership.find({ company_id })`, `create`, `update`, `delete`, `resendInvite` and `role.find({ company_id })` (`manage_members`). Creates take the app's `id`, and a location create sends `blocks: []`. Members never see company or location `blocks`, and their updates keep the stored ones. A location delete answers `{ deleted }`.
 - **`store`:** `country.find`, `country.get({ code })`, `location.find`, `location.get({ id })`, `market.find`, `market.get({ id })`, `market.getByKey({ key })` and `load()` (on the store only).
 - **`category`:** `get`, `getByKey` and `findChildren({ id })`.
@@ -489,6 +503,23 @@ A checkout refused because the quote changed throws a `CartPresentationChangedEr
   - `actions.track({ key, data? })`;
   - `experiments.use({ key })`: call it only where that version is shown;
   - `pageViews.send({ path, referrer })`: one `navigator.sendBeacon`, with no session or customer id.
+
+An order's customer group line names its member and revision. Read that revision to show the package the order bought, even after the group stopped selling:
+
+```typescript
+import { findBlock, getBlockTextValue, orderCustomerGroupItems } from "arky-sdk/storefront";
+
+const { items: orders } = await arky.eshop.order.find({ limit: 20 });
+for (const order of orders) {
+  for (const line of orderCustomerGroupItems(order)) {
+    const { customer_group } = await arky.eshop.customerGroupMember.getRevision({
+      customer_group_member_id: line.customer_group_member_id,
+      revision_id: line.revision_id,
+    });
+    console.log(order.number, customer_group.key, getBlockTextValue(findBlock(customer_group, "name"), "en"));
+  }
+}
+```
 
 ## Admin client
 
@@ -516,6 +547,7 @@ The app picks the code request's `session_id` once per send-code press and sends
 
 - **Store sign-in.** Pass `store_id` and the code email's `language` to `requestCode`, and `store_id` to `verify`, to sign in through a store's own site. Other stores, platform administration, creating a store and deleting the Account refuse that session (deleting the Account with `ACCOUNT.ARKY_SIGN_IN_REQUIRED`), and its session list shows only that store's sessions.
 - **Sign-in refusals** carry their own codes: `ACCOUNT_SIGN_IN.CODE_RECENT`, `ACCOUNT_SIGN_IN.CODE_INVALID`, `ACCOUNT_SIGN_IN.ATTEMPTS_EXHAUSTED`, and `STORE_SIGN_IN.UNAVAILABLE` while a store's email sending is paused or its plan has lapsed. The same `session_id` with another email, through the other sign-in or after its code was used answers 409 `GENERAL.CONFLICT`.
+- **Session refresh.** Only Arky's own refusal of a refresh (401 `GENERAL.UNAUTHENTICATED` or 403 `GENERAL.UNAUTHORIZED` in Arky's error body) clears the kept session and reports `null` to `onAuthStateChanged`. Any other failed refresh, such as a 401 or 403 from a proxy in front of Arky, a 429, a 5xx or a lost answer, fails that request and keeps the session for the next try.
 - **Restored tokens.** A process restoring an Account access token can pass a `forcedHeaders` callback with its Bearer `Authorization` header and `onUnauthorized: () => false`.
 - **API keys.** Store API keys are made with `admin.store.apiKey`: a publishable key belongs to one sales channel, and a secret key carries explicit store permissions. Orders, Payments and Customers carry `access: "read_write" | "read_only"` in roles and secret keys alike: read-only reads what the full permission reads and is refused every write.
 
@@ -539,7 +571,36 @@ The app picks the code request's `session_id` once per send-code press and sends
 - **Support.** `support.conversation.assign({ expected_account_id, account_id })` and `selectReplyEmail({ expected_reply, reply })` name the value they read.
 - **Sent history.** `notification.outgoingEmail.find` takes `order_id` only with `type: "receipt_resend"`: it finds that Order's receipt resends.
 - **Collection cleanup.** `content.collection.getCleanup({ store_id, id })` shows a deleting collection's cleanup: `running`, or the entry or collection where it stopped with what blocks it.
-- **Promotion limits.** Promotions and their codes use `limit: { type: "unlimited" }` or `limit: { type: "limited", max_uses: number }`. Whether a promotion or code has a cap is fixed when it is created; a later edit may change a limited cap's number. Reads return `uses`, with uncapped uses appearing after the count queue applies them. Taking or returning a use leaves the promotion and code's `updated_at` unchanged. `PromotionWebhookPayload` and `PromotionCodeWebhookPayload` carry settings, including `limit`, without `uses`.
+- **Promotion limits.** Promotions and their codes use `limit: { type: "unlimited" }` or `limit: { type: "limited", max_uses: number }`. Whether a promotion or code has a cap is fixed when it is created; a later edit may change a limited cap's number. A promotion's `customer_limit` caps its uses per buyer email in the same shape, and an edit may change it either way: a signed-in customer counts by their verified email, a guest by the checkout's contact email. Reads return `uses`, with uncapped uses appearing after the count queue applies them. Taking or returning a use leaves the promotion and code's `updated_at` unchanged. `PromotionWebhookPayload` and `PromotionCodeWebhookPayload` carry settings, including `limit` and the promotion's `customer_limit`, without `uses`.
+
+A promotion taken through a code, capped at 1,000 uses in all and one per buyer email:
+
+```typescript
+const store_id = "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63";
+const promotion = await admin.eshop.promotion.create({
+  store_id,
+  id: crypto.randomUUID(),
+  key: "welcome-ten",
+  blocks: [],
+  activation: { type: "codes" },
+  conditions: [],
+  effects: [{ type: "order_percentage", id: crypto.randomUUID(), basis_points: 1000 }],
+  stacking: { type: "continue" },
+  priority: 0,
+  limit: { type: "limited", max_uses: 1000 },
+  customer_limit: { type: "limited", max_uses: 1 },
+  schedule: { type: "always" },
+  status: { type: "active" },
+});
+await admin.eshop.promotionCode.create({
+  store_id,
+  id: crypto.randomUUID(),
+  promotion_id: promotion.id,
+  code: "WELCOME10",
+  limit: { type: "unlimited" },
+  status: { type: "active" },
+});
+```
 
 What a delete answers is what Arky answers:
 - the record marked `deleting`, for records that clean up after themselves: markets, store locations, catalogs, products, booking services, offerings and resources, categories, collections, media and companies. Variants, promotions and promotion codes answer it too, or nothing when the record is already gone;

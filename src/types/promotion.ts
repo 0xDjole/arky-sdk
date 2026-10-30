@@ -72,7 +72,7 @@ export interface Promotion {
   priority: number;
   limit: PromotionLimit;
   uses: number;
-  max_uses_per_customer: number | null;
+  customer_limit: PromotionLimit;
   schedule: Schedule;
   status: PromotionStatus;
   created_at: EpochMilliseconds;
@@ -123,7 +123,7 @@ export interface CreatePromotionParams {
   stacking: PromotionStacking;
   priority: number;
   limit: PromotionLimit;
-  max_uses_per_customer: number | null;
+  customer_limit: PromotionLimit;
   schedule: Schedule;
   status: PromotionEditableStatus;
 }
@@ -139,7 +139,7 @@ export interface UpdatePromotionParams {
   stacking: PromotionStacking;
   priority: number;
   limit: PromotionLimit;
-  max_uses_per_customer: number | null;
+  customer_limit: PromotionLimit;
   schedule: Schedule;
   status: PromotionEditableStatus;
 }

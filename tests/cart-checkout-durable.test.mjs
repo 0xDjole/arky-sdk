@@ -111,7 +111,7 @@ test("an unresolved checkout blocks every cart change and a new cart until it is
   const product = { id: ids.otherLine, variant_id: ids.variant, quantity: 1, purchase: { type: "catalog" } };
   for (const mutate of [
     () => cart.create({ id: ids.otherCart, buyer: { type: "customer" }, catalog_id: ids.catalog }),
-    () => cart.reorder({ id: ids.otherCart, order_id: ids.otherOrder, buyer: { type: "customer" } }),
+    () => cart.reorder({ id: ids.otherCart, order_id: ids.otherOrder, buyer: { type: "customer" }, catalog_id: ids.catalog }),
     () => cart.update({ id: ids.cart, expected_updated_at: 1, promotion_codes: ["NEW"] }),
     () => cart.addProduct({ id: ids.cart, expected_updated_at: 1, product }),
     () => cart.addBooking({ id: ids.cart, expected_updated_at: 1, booking: { id: ids.otherLine, booking_offering_id: ids.product, requested_interval: { from: 1, to: 2 }, capacity_units: 1 } }),
@@ -458,7 +458,7 @@ test("server-side checkout uses the caller's exact request without browser stora
   assert.equal(await storefront().eshop.cart.recoverCheckout(), null);
 });
 
-test("each branch keeps its own checkout: a pending one blocks only its own cart and new carts in its scope", async () => {
+test("each branch keeps its own checkout: a pending one blocks only its own cart and new or reordered carts in its scope", async () => {
   const { storage } = browser();
   const branchA = { buyer: { type: "company_location", company_location_id: ids.companyLocation, purchase_order_number: null }, catalog_id: ids.catalog };
   const branchB = { buyer: { type: "company_location", company_location_id: ids.otherCompanyLocation, purchase_order_number: null }, catalog_id: ids.catalog };
@@ -479,6 +479,7 @@ test("each branch keeps its own checkout: a pending one blocks only its own cart
   await client.eshop.cart.update({ id: ids.otherCart, expected_updated_at: 1, promotion_codes: [] });
   await assert.rejects(client.eshop.cart.update({ id: ids.cart, expected_updated_at: 1, promotion_codes: [] }), (error) => error instanceof DurableRequestError && error.code === "pending");
   await assert.rejects(client.eshop.cart.create({ id: ids.thirdCart, ...branchA }), (error) => error instanceof DurableRequestError && error.code === "pending");
+  await assert.rejects(client.eshop.cart.reorder({ id: ids.thirdCart, order_id: ids.otherOrder, ...branchA }), (error) => error instanceof DurableRequestError && error.code === "pending");
   await assert.rejects(client.eshop.cart.retainCheckout({ ...requestA, order_id: ids.otherOrder, scope: branchB }), (error) => error instanceof DurableRequestError && error.code === "pending");
   await client.eshop.cart.retainCheckout({ ...requestB, scope: branchB });
   assert.deepEqual(await client.eshop.cart.pendingCheckout({ scope: branchA }), requestA);

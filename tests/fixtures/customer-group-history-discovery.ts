@@ -16,6 +16,7 @@ import type {
   CustomerGroupMemberRevision,
   CustomerGroupMemberRevisionDetail,
   CustomerGroupMemberRevisionDetailSelf,
+  CustomerGroupMemberGroupSelf,
   CustomerGroupMemberRevisionSelf,
   CustomerGroupMemberSelf,
   FindCustomerGroupMembersParams,
@@ -210,6 +211,22 @@ export type CustomerGroupHistoryContracts = [
       CustomerGroupMemberRevisionSelf
     >
   >,
+  Assert<
+    Equal<
+      keyof CustomerGroupMemberRevisionDetailSelf,
+      "revision" | "terms" | "customer_group"
+    >
+  >,
+  Assert<
+    Equal<
+      CustomerGroupMemberRevisionDetailSelf["customer_group"],
+      CustomerGroupMemberGroupSelf
+    >
+  >,
+  Assert<
+    Equal<CustomerGroupMemberGroupSelf, { id: string; key: string; blocks: Block[] }>
+  >,
+  Assert<Missing<CustomerGroupMemberRevisionDetail, "customer_group">>,
   Assert<
     Missing<
       ReturnType<typeof createAdmin>["eshop"],

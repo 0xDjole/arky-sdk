@@ -14,6 +14,7 @@ import type {
   RentalReturnUnitOption,
   Return,
   ReturnDestinationOptions,
+  ReturnDetail,
   ReturnInspectionUnit,
 } from "../types/return";
 import { requireId } from "../utils/ids";
@@ -34,8 +35,8 @@ export const createReturnApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.get<PaginatedResponse<Return>>(storePath(store_id, "returns"), { ...options, params: query });
     },
 
-    get(params: GetReturnParams, options?: RequestOptions): Promise<Return> {
-      return apiConfig.httpClient.get<Return>(returnPath(params.store_id, params.return_id), options);
+    get(params: GetReturnParams, options?: RequestOptions): Promise<ReturnDetail> {
+      return apiConfig.httpClient.get<ReturnDetail>(returnPath(params.store_id, params.return_id), options);
     },
 
     create(params: CreateReturnParams, options?: RequestOptions): Promise<Return> {

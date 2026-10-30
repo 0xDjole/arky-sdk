@@ -58,7 +58,7 @@ export type PartnerNotificationContracts = [
   Assert<Equal<Awaited<ReturnType<Shop["eshop"]["minimumProgress"]["get"]>>, MinimumProgress>>,
   Assert<Equal<StorefrontGetMinimumProgressParams, { customer_id: string; company_id?: never; company_location_id?: never } | { customer_id?: never; company_id: string; company_location_id?: never } | { customer_id?: never; company_id?: never; company_location_id: string }>>,
   Assert<Equal<MinimumProgress["party"], CommerceParty>>,
-  Assert<Equal<"per_location" extends MinimumProgressUnavailableReason ? true : false, true>>,
+  Assert<Equal<MinimumProgressUnavailableReason, "no_requirement" | "incomplete_source_evidence" | "incomplete_return_evidence" | "arithmetic_overflow" | "history_limit" | "per_location">>,
   Assert<Missing<Admin["companies"], "minimumProgress">>,
   Assert<Missing<Shop["companies"], "minimumProgress">>,
   Assert<Equal<Cart["offer"], CartOffer | null>>,
@@ -75,5 +75,5 @@ export type PartnerNotificationContracts = [
   Assert<Missing<Admin["eshop"]["cart"], "reviewFirstOrderTerms" | "sealFirstOrderTerms" | "withdrawFirstOrderTerms">>,
   Assert<Missing<Cart, "first_order_terms" | "repeat_order_source">>,
   Assert<Missing<Shop["eshop"]["cart"], "repeat">>,
-  Assert<Equal<keyof StorefrontReorderParams, "id" | "order_id" | "buyer">>,
+  Assert<Equal<keyof StorefrontReorderParams, "id" | "order_id" | "buyer" | "catalog_id">>,
 ];

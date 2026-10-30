@@ -1,9 +1,9 @@
-import { ArkyError } from "./types/apiError";
+import { ArkyApiError, ArkyError } from "./types/apiError";
 import { requireId } from "./utils/ids";
 import { isDefiniteRefusal } from "./utils/durableRequest";
 import { isOrderToken } from "./utils/orderToken";
 import { createAdminSessionState } from "./services/adminSession";
-import { createHttpClient } from "./services/createHttpClient";
+import { createHttpClient, refusedByArky } from "./services/createHttpClient";
 import { durableCreateKey, runDurableCreate } from "./services/durableCreate";
 import type { AuthStorage, HttpClientConfig, RequestContextOverride } from "./types/httpClient";
 import type { RequestOptions } from "./types/api";
@@ -183,7 +183,7 @@ export type { PaymentSimulation, SimulatePaymentOptions, SimulatePaymentParams }
 export { CheckoutFlowError, initialize } from "./storefrontStore";
 export type * from "./storefrontStore";
 
-export const SDK_VERSION = "0.26.96";
+export const SDK_VERSION = "0.26.97";
 
 export interface AdminSession {
   id: string;
@@ -657,7 +657,7 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
     },
   };
 
-  let recoverUnauthorized: (authorizationToken: string | null, path: string) => Promise<boolean> = async () => false;
+  let recoverUnauthorized: (authorizationToken: string | null, path: string, response: { status: number; data: unknown }) => Promise<boolean> = async () => false;
   let visitorRecoveryPromise: Promise<void> | null = null;
 
   function requestLocale(value: string | undefined): string {
@@ -688,7 +688,7 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
     authStorage,
     storefrontMode: true,
     forcedHeaders: storefrontHeaders,
-    onUnauthorized: ({ authorizationToken, path }) => recoverUnauthorized(authorizationToken, path),
+    onUnauthorized: ({ authorizationToken, path, response }) => recoverUnauthorized(authorizationToken, path, response),
   });
   const publishableKeyHttpClient = createHttpClient({
     baseUrl: apiUrl,
@@ -969,7 +969,7 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
     if (context.market !== undefined) setMarket(context.market);
   }
 
-  recoverUnauthorized = async (failedAuthorizationToken: string | null, path: string) => {
+  recoverUnauthorized = async (failedAuthorizationToken: string | null, path: string, response: { status: number; data: unknown }) => {
     if (!failedAuthorizationToken) return false;
     const currentToken = authorizationToken();
     if (currentToken !== failedAuthorizationToken) {
@@ -977,10 +977,6 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
       if (!visitorRecoveryPromise) return false;
       await visitorRecoveryPromise;
       return Boolean(authorizationToken());
-    }
-    if (/\/customer\/refresh$/.test(path)) {
-      updateSession(() => null);
-      return false;
     }
     if (memorySession?.session.type === "email_authenticated") {
       try {
@@ -994,12 +990,14 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
         }
         await automaticRefreshPromise;
         return true;
-      } catch {
+      } catch (error) {
         automaticRefreshId = null;
-        updateSession(() => null);
+        if (!(error instanceof ArkyApiError) || !refusedByArky({ status: error.statusCode, data: error.response })) throw error;
+        if (authorizationToken() === failedAuthorizationToken) updateSession(() => null);
         return false;
       }
     }
+    if (!refusedByArky(response)) return false;
     updateSession(() => null);
     if (/\/customer\/identify$/.test(path)) return true;
     const recovery = ensureVisitorSession();

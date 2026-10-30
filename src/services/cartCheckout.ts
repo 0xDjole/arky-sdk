@@ -25,8 +25,7 @@ function slotKey(scope: string, slot: string | null): string {
 
 export type CartMutationTarget =
   | { type: "cart"; cart_id: string }
-  | { type: "new_cart"; slot: string }
-  | { type: "reorder" };
+  | { type: "new_cart"; slot: string };
 
 interface KeptCheckout {
   key: string;

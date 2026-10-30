@@ -19,16 +19,18 @@ import type {
   ReturnCommand,
   ReturnDestination,
   ReturnDestinationOptions,
+  ReturnDetail,
   ReturnDisposition,
   ReturnInspectionUnit,
   ReturnItem,
+  ReturnLineProduct,
   ReturnStatus,
   ReturnType as ArkyReturnType,
   ReturnTypeRequest,
   StorefrontCreateReturnParams,
   StorefrontFindReturnsParams,
 } from "arky-sdk";
-import type { Return as PublicReturn, PaginatedResponse } from "arky-sdk/types";
+import type { Block, ProductReference, Return as PublicReturn, PaginatedResponse } from "arky-sdk/types";
 
 type Assert<T extends true> = T;
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
@@ -90,4 +92,12 @@ export type ReturnContract = [
   Assert<Equal<RentalReturnLine["reason"], RentalReturnReason>>,
   Assert<Equal<RentalReturnLineRequest["reason"], RentalReturnReason>>,
   Assert<Missing<Return, "tracking">>,
+  Assert<Equal<Awaited<ReturnType<Api["get"]>>, ReturnDetail>>,
+  Assert<Equal<Awaited<ReturnType<StorefrontReturnApi["get"]>>, ReturnDetail>>,
+  Assert<Equal<keyof ReturnDetail, keyof Return | "products">>,
+  Assert<Equal<ReturnDetail["products"], ReturnLineProduct[]>>,
+  Assert<Equal<ReturnLineProduct, { line_id: string; product: ProductReference | null }>>,
+  Assert<Equal<keyof ProductReference, "id" | "key" | "blocks">>,
+  Assert<Equal<ProductReference["blocks"], Block[]>>,
+  Assert<Missing<Return, "products">>,
 ];

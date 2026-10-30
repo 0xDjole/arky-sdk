@@ -31,6 +31,7 @@ import type {
   OrderTaxGroup,
   ProductMoneyRun,
 } from "./order";
+import type { ProductReference } from "./product";
 
 export type CartBuyer =
   | { type: "customer" }
@@ -360,6 +361,7 @@ export type QuoteEntitlementLine =
       type: "rental";
       entitlement_id: string;
       product_id: string;
+      product: ProductReference;
       variant_id: string;
       quantity: number;
       snapshot: OrderProductSnapshot;
@@ -433,6 +435,8 @@ export type QuoteBlocker =
   | { type: "customer_group_delivery_required"; line_item_id: string; entitlement_id: string }
   | { type: "customer_group_shipping_required"; line_item_id: string; delivery_id: string }
   | { type: "customer_group_delivery_fee_varies"; line_item_id: string; delivery_id: string }
+  | { type: "customer_group_minimum_conflict"; line_item_id: string }
+  | { type: "customer_group_change_scheduled"; line_item_id: string }
   | { type: "purchase_order_number_required" }
   | { type: "purchase_limit_exceeded"; line_item_id: string; limit_id: string }
   | {
@@ -829,6 +833,7 @@ export interface StorefrontReorderParams {
   id: string;
   order_id: string;
   buyer: CartBuyer;
+  catalog_id: string;
 }
 
 export type FindStorefrontCartOffersParams = (

@@ -5,6 +5,7 @@ import { epochMillisecondsNow } from '../utils/time';
 import type { EpochMilliseconds } from '../types/time';
 import { isCanonicalId } from '../utils/ids';
 import { ArkyError, ArkyNetworkError } from '../types/apiError';
+import { refusedByArky } from './createHttpClient';
 
 export type AdminLogoutResult =
   | { type: 'revoked'; session_id: string }
@@ -29,6 +30,14 @@ function validSession(value: unknown): value is AdminSessionInternal {
     && typeof value.refresh_token === 'string' && value.refresh_token.length > 0
     && isEpochMilliseconds(value.access_expires_at)
     && (value.email === undefined || typeof value.email === 'string');
+}
+
+function errorBody(body: string): unknown {
+  try {
+    return JSON.parse(body);
+  } catch {
+    return null;
+  }
 }
 
 function sameCredentials(left: AdminSessionInternal | null, right: AdminSessionInternal): boolean {
@@ -117,7 +126,7 @@ export function createAdminSessionState(baseUrl: string, refreshPath?: string | 
       const response = await fetch(`${apiUrl}${path}`, { ...init, signal: controller.signal });
       const body = await response.text();
       if (body.length > 16_384) throw new ArkyNetworkError('unreadable_answer', 'Account session response exceeds its bound', { url: `${apiUrl}${path}`, statusCode: response.status });
-      return { ok: response.ok, status: response.status, data: response.ok ? JSON.parse(body) : null };
+      return { ok: response.ok, status: response.status, data: response.ok ? JSON.parse(body) : errorBody(body) };
     } finally {
       clearTimeout(timer);
     }
@@ -131,7 +140,7 @@ export function createAdminSessionState(baseUrl: string, refreshPath?: string | 
       body: JSON.stringify({ refresh_token: expected.refresh_token }),
     });
     if (!response.ok) {
-      if ((response.status === 401 || response.status === 403) && sameCredentials(read(), expected)) write(null);
+      if (refusedByArky(response) && sameCredentials(read(), expected)) write(null);
       throw Object.assign(new ArkyError('refresh_failed', 'Account session refresh failed'), { statusCode: response.status });
     }
     const result = response.data;

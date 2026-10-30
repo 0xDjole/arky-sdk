@@ -142,6 +142,7 @@ import type {
   OrderReturnOptions,
   RentalReturnUnitOption,
   Return,
+  ReturnDetail,
   StorefrontCreateReturnParams,
   StorefrontFindReturnsParams,
   StorefrontGetOrderReturnOptionsParams,
@@ -316,7 +317,7 @@ export const createStorefrontApi = (
     reorder: (params, options) =>
       httpClient.post<ReorderedCart>(
         `${base}/carts/reorder`,
-        { id: params.id, order_id: params.order_id, buyer: params.buyer },
+        { id: params.id, order_id: params.order_id, buyer: params.buyer, catalog_id: params.catalog_id },
         cartTokenOptions(options, null),
       ),
   });
@@ -848,6 +849,7 @@ export const createStorefrontApi = (
 
         async reorder(params: StorefrontReorderParams, options?: RequestOptions): Promise<ReorderedCart> {
           requireId(params.id, "cart");
+          requireId(params.catalog_id, "catalog");
           await lifecycle.ensureVisitorSession();
           return cartSelection.reorder(params, options);
         },
@@ -1168,9 +1170,9 @@ export const createStorefrontApi = (
           return httpClient.post<Return>(`${base}/returns`, params, params.type.type === "order" ? orderTokenOptions(options) : options);
         },
 
-        async get(params: StorefrontGetReturnParams, options?: RequestOptions): Promise<Return> {
+        async get(params: StorefrontGetReturnParams, options?: RequestOptions): Promise<ReturnDetail> {
           await lifecycle.ensureVisitorSession();
-          return httpClient.get<Return>(`${base}/returns/${segment(params.id)}`, orderTokenOptions(options));
+          return httpClient.get<ReturnDetail>(`${base}/returns/${segment(params.id)}`, orderTokenOptions(options));
         },
 
         async find(params: StorefrontFindReturnsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<Return>> {

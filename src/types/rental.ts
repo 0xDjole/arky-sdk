@@ -1,6 +1,7 @@
 import type { EpochMilliseconds } from "./time";
 import type { AccountActor, PostalAddress, SortDirection } from "./common";
 import type { RentalIssueReplacement } from "./fulfillment";
+import type { ProductReference } from "./product";
 import type { ReturnStatus } from "./return";
 
 export type RentalActor =
@@ -139,6 +140,7 @@ export interface CustomerRental {
   id: string;
   customer_group_member_id: string;
   product_key: string;
+  product: ProductReference | null;
   variant_sku: string | null;
   quantity: number;
   status: CustomerRentalStatus;

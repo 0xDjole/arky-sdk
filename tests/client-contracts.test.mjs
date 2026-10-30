@@ -111,34 +111,47 @@ test("admin refresh rotates only the current Account Session", async (context) =
 
 test("request errors keep the server response and read its snake_case status and field errors", async (context) => {
   const response = {
-    message: "Email is invalid",
-    error: "GENERAL.VALIDATION_ERROR",
-    status_code: 422,
-    validation_errors: [{ field: "email", error: "" }, { field: "name", error: "CUSTOMER.NAME_TOO_LONG" }, { field: 5 }],
+    message: "Validation failed",
+    error: "GENERAL.VALIDATION_FAILED",
+    status_code: 400,
+    validation_errors: [{ field: "email", error: "Email is invalid" }, { field: "name", error: "Name is too long", hint: "extra" }, { field: 5 }],
   };
+  const fieldErrors = [
+    { field: "email", error: "Email is invalid" },
+    { field: "name", error: "Name is too long" },
+  ];
   let errorContext;
-  recordFetch(context, () => jsonResponse(response, 422));
+  recordFetch(context, () => jsonResponse(response, 400));
   await assert.rejects(
     admin().account.auth.requestCode({ session_id: pendingSessionId, email: "invalid" }, { onError: (failure) => { errorContext = failure; } }),
     (error) => {
       assert.equal(error.name, "ApiError");
       assert.equal(error.message, response.message);
-      assert.equal(error.code, "GENERAL.VALIDATION_ERROR");
-      assert.equal(error.statusCode, 422);
-      assert.deepEqual(error.validationErrors, [
-        { field: "email", error: "GENERAL.VALIDATION_ERROR" },
-        { field: "name", error: "CUSTOMER.NAME_TOO_LONG" },
-      ]);
+      assert.equal(error.code, "GENERAL.VALIDATION_FAILED");
+      assert.equal(error.statusCode, 400);
+      assert.deepEqual(error.validationErrors, fieldErrors);
       assert.deepEqual(error.response, response);
       return true;
     },
   );
-  assert.equal(errorContext.status, 422);
-  assert.equal(errorContext.response.statusCode, 422);
-  assert.deepEqual(errorContext.response.validationErrors, [
-    { field: "email", error: "" },
-    { field: "name", error: "CUSTOMER.NAME_TOO_LONG" },
-  ]);
+  assert.equal(errorContext.status, 400);
+  assert.equal(errorContext.response.statusCode, 400);
+  assert.deepEqual(errorContext.response.validationErrors, fieldErrors);
+});
+
+test("a field error keeps the Server's own text and the SDK invents no code for an empty one", async (context) => {
+  const response = {
+    message: "Validation failed",
+    error: "GENERAL.VALIDATION_FAILED",
+    status_code: 400,
+    validation_errors: [{ field: "email", error: "" }],
+  };
+  recordFetch(context, () => jsonResponse(response, 400));
+  await assert.rejects(admin().account.auth.requestCode({ session_id: pendingSessionId, email: "invalid" }), (error) => {
+    assert.deepEqual(error.validationErrors, [{ field: "email", error: "" }]);
+    assert.equal(JSON.stringify(error.validationErrors).includes("GENERAL."), false);
+    return true;
+  });
 });
 
 test("the Server's configured limits decide a query's field count and length, and a structured value over 32 KiB is refused before sending", async (context) => {
@@ -401,7 +414,7 @@ test("storefront money helpers preserve exact zero, need an explicit locale and 
 test("SDK_VERSION equals the package version", async () => {
   const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
   assert.equal(SDK_VERSION, packageJson.version);
-  assert.equal(SDK_VERSION, "0.26.96");
+  assert.equal(SDK_VERSION, "0.26.97");
 });
 
 test("recursive storefront declarations never degrade to any", async () => {

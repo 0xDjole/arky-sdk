@@ -1,6 +1,7 @@
 import type { EpochMilliseconds } from "./time";
 import type { AccountActor, SortDirection, UnitSpan } from "./common";
 import type { Tracking } from "./fulfillment";
+import type { ProductReference } from "./product";
 
 export type ReturnReason =
   | "customer_request"
@@ -82,6 +83,15 @@ export interface Return {
   status: ReturnStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
+}
+
+export interface ReturnLineProduct {
+  line_id: string;
+  product: ProductReference | null;
+}
+
+export interface ReturnDetail extends Return {
+  products: ReturnLineProduct[];
 }
 
 export interface ReturnItemRequest {

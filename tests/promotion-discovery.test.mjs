@@ -67,20 +67,23 @@ test("a promotion is created under the app-picked id and may target whole catego
     stacking: { type: "continue" },
     priority: 0,
     limit: { type: "limited", max_uses: 100 },
-    max_uses_per_customer: null,
+    customer_limit: { type: "limited", max_uses: 1 },
     schedule: { type: "scheduled", starts_at: 1_800_000_000_000, ends_at: null },
     status: { type: "active" },
   };
   const { activation: _activation, ...editable } = create;
   await eshop().promotion.create({ store_id: store, ...create });
-  await eshop().promotion.update({ store_id: store, ...editable, expected_updated_at: 2, limit: { type: "limited", max_uses: 200 }, stacking: { type: "stop_after" }, schedule: { type: "always" } });
-  const { id: _id, ...updateBody } = { ...editable, expected_updated_at: 2, limit: { type: "limited", max_uses: 200 }, stacking: { type: "stop_after" }, schedule: { type: "always" } };
+  await eshop().promotion.update({ store_id: store, ...editable, expected_updated_at: 2, limit: { type: "limited", max_uses: 200 }, customer_limit: { type: "unlimited" }, stacking: { type: "stop_after" }, schedule: { type: "always" } });
+  const { id: _id, ...updateBody } = { ...editable, expected_updated_at: 2, limit: { type: "limited", max_uses: 200 }, customer_limit: { type: "unlimited" }, stacking: { type: "stop_after" }, schedule: { type: "always" } };
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
     ["POST", `/v1/stores/${store}/promotions`, create],
     ["PUT", `/v1/stores/${store}/promotions/${id}`, updateBody],
   ]);
   assert.deepEqual(calls[0].body.activation, { type: "codes" });
   assert.equal("activation" in calls[1].body, false);
+  assert.deepEqual(calls[0].body.customer_limit, { type: "limited", max_uses: 1 });
+  assert.deepEqual(calls[1].body.customer_limit, { type: "unlimited" });
+  assert.ok(calls.every((call) => !("max_uses_per_customer" in call.body)));
   await assert.rejects(async () => eshop().promotion.create({ store_id: store, ...create, id: "warm-drinks" }), {
     name: "TypeError",
     message: "The promotion id must be a canonical UUID v4 picked by the app",
@@ -102,7 +105,7 @@ test("an item quantity condition sends its target and both bounds, with an open 
     stacking: { type: "stop_after" },
     priority: 0,
     limit: { type: "unlimited" },
-    max_uses_per_customer: null,
+    customer_limit: { type: "unlimited" },
     schedule: { type: "always" },
     status: { type: "active" },
   };
@@ -132,7 +135,7 @@ test("fixed promotion transports currency alternatives, explicit item scope and 
     conditions: [{ type: "minimum_subtotal", amounts: [{ amount: 100, currency: "eur" }, { amount: 200, currency: "bam" }] }],
     effects: [{ type: "item_fixed", id: codeId, target: { type: "product_variants", variant_ids: [codeId] },
       amounts: [{ amount: 10, currency: "eur" }, { amount: 20, currency: "bam" }], scope: { type: "once_per_order" } }],
-    stacking: { type: "continue" }, priority: 1, limit: { type: "unlimited" }, max_uses_per_customer: null,
+    stacking: { type: "continue" }, priority: 1, limit: { type: "unlimited" }, customer_limit: { type: "unlimited" },
     schedule: { type: "always" }, status: { type: "active" },
   };
   await eshop().promotion.create(params);

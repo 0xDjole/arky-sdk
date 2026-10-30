@@ -65,6 +65,7 @@ export interface HttpClientConfig {
     hadAuthorization: boolean;
     authorizationToken: string | null;
     path: string;
+    response: { status: number; data: unknown };
   }) => boolean | Promise<boolean>;
   refreshCredentials?: (expected: TokenSet | null) => Promise<void>;
 }

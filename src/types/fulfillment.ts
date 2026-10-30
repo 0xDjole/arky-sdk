@@ -386,8 +386,6 @@ export type MinimumProgressUnavailableReason =
   | "no_requirement"
   | "incomplete_source_evidence"
   | "incomplete_return_evidence"
-  | "mixed_timezone_period"
-  | "mixed_agreements"
   | "arithmetic_overflow"
   | "history_limit"
   | "per_location";

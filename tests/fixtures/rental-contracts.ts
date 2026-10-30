@@ -15,6 +15,7 @@ import type {
   InventoryUnitStatus,
   PaginatedResponse,
   PostalAddress,
+  ProductReference,
   Rental,
   RentalActor,
   RentalCommand,
@@ -24,7 +25,7 @@ import type {
   RentalStatus,
   RentalTerms,
 } from "arky-sdk";
-import type { Rental as PublicRental, RentalDetail as PublicDetail } from "arky-sdk/types";
+import type { Block, CustomerRental as PublicCustomerRental, Rental as PublicRental, RentalDetail as PublicDetail } from "arky-sdk/types";
 
 type Assert<T extends true> = T;
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
@@ -42,6 +43,13 @@ export type RentalContract = [
   Assert<Equal<keyof Rental, "id" | "store_id" | "customer_group_member_id" | "revision_id" | "entitlement_id" | "status" | "created_at" | "updated_at">>,
   Assert<Equal<keyof FindRentalsParams, "store_id" | "customer_group_member_id" | "status" | "sort_field" | "sort_direction" | "limit" | "cursor">>,
   Assert<Equal<CustomerRental["customer_group_member_id"], string>>,
+  Assert<Equal<CustomerRental, PublicCustomerRental>>,
+  Assert<Equal<CustomerRental["product"], ProductReference | null>>,
+  Assert<Equal<CustomerRental["product_key"], string>>,
+  Assert<Equal<keyof ProductReference, "id" | "key" | "blocks">>,
+  Assert<Equal<ProductReference["blocks"], Block[]>>,
+  Assert<Missing<Rental, "product">>,
+  Assert<Missing<RentalTerms, "product">>,
   Assert<Missing<Rental, "product_id" | "quantity" | "inventory_item_id">>,
   Assert<Equal<RentalStatus["type"], "active" | "ending" | "closed">>,
   Assert<Equal<keyof Ending, "type" | "requested_at" | "actor" | "reason" | "return_due_at">>,

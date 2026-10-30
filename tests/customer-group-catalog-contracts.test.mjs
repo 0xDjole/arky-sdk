@@ -45,6 +45,52 @@ test("storefront group and offering reads name their catalog, answer their listi
   for (const removed of ["subscription_plans", "subscription_offerings"]) assert.equal(removed in client, false, removed);
 });
 
+test("a storefront package names each machine it lends by the product the Server read for it, or null once that product is gone", async (context) => {
+  const rentalId = "5d2a7c94-1e63-4b08-9f2d-8a6c3e1b7f50";
+  const goneRentalId = "2c8e6a13-7b49-4d05-a1f6-3e9d5c2b8a74";
+  const machine = {
+    id: ids.product,
+    key: "milkpal",
+    blocks: [{ id: ids.line, key: "name", type: "text", value: "MilkPal · Marco" }],
+  };
+  const rental = (id) => ({
+    id,
+    type: { type: "rental", variant_id: ids.variant, quantity: 1, tax_category_id: STORE_ID },
+  });
+  const package_ = {
+    id: groupId,
+    key: "milkpal-package",
+    blocks: [],
+    term: { type: "permanent" },
+    purchase_requirement: null,
+    entitlements: [rental(rentalId), rental(goneRentalId)],
+    rental_products: [
+      { entitlement_id: rentalId, product: machine },
+      { entitlement_id: goneRentalId, product: null },
+    ],
+    catalog_item_id: ids.catalogItem,
+  };
+  const calls = recordFetch(context, () => package_);
+  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, market: "us", locale: "en" });
+  for (const read of [
+    await client.eshop.customerGroup.get({ id: groupId, catalog_id: ids.catalog, company_location_id: ids.companyLocation }),
+    await client.eshop.customerGroup.getByKey({ key: "milkpal-package", catalog_id: ids.catalog, company_location_id: ids.companyLocation }),
+  ]) {
+    assert.deepEqual(read.rental_products, package_.rental_products);
+    assert.deepEqual(read.rental_products[0].product, machine);
+    assert.equal(read.rental_products[1].product, null);
+    assert.deepEqual(
+      read.rental_products.map((item) => item.entitlement_id),
+      read.entitlements.filter((item) => item.type.type === "rental").map((item) => item.id),
+    );
+    assert.equal("product" in read.entitlements[0].type, false);
+  }
+  assert.deepEqual(calls.map((call) => [call.method, call.path]), [
+    ["GET", `/v1/storefront/customer-groups/${groupId}`],
+    ["GET", "/v1/storefront/customer-groups/milkpal-package"],
+  ]);
+});
+
 test("a customer group owns its term and its entitlements, and is created under the app-picked id", async (context) => {
   const entitlements = [{ id: entitlementId, type: { type: "rental", variant_id: ids.variant, quantity: 1, tax_category_id: "tax" }, allocation_weight: 0 }];
   const term = {
