@@ -72,7 +72,13 @@ interface CheckoutLocal {
   error: ArkyCheckoutState["error"];
 }
 
-const lineBlockers: QuoteBlocker["type"][] = ["booking_unavailable", "tax_unavailable", "purchase_limit_exceeded"];
+const lineBlockers: QuoteBlocker["type"][] = [
+  "booking_unavailable",
+  "tax_unavailable",
+  "purchase_limit_exceeded",
+  "customer_group_minimum_conflict",
+  "customer_group_change_scheduled",
+];
 
 const detailBlockers: QuoteBlocker["type"][] = [
   "units_without_delivery",

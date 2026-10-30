@@ -125,6 +125,44 @@ test('rejected Account refresh clears retained credentials and notifies consumer
   assert.deepEqual(calls, Array(5).fill({ path: '/v1/auth/refresh', body: { refresh_token: 'rejected-refresh' } }));
 });
 
+test('a 401 or 403 that Arky did not send keeps the retained Account session for a later refresh', async (t) => {
+  const storage = new MemoryStorage();
+  const browser = Object.assign(new EventTarget(), { localStorage: storage });
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: browser });
+  t.after(() => descriptor ? Object.defineProperty(globalThis, 'window', descriptor) : delete globalThis.window);
+  const storageKey = 'arky_admin_session:https://api.example.test';
+  const retained = JSON.stringify({
+    id: SESSION_ID, access_token: 'expired-access', refresh_token: 'kept-refresh',
+    access_expires_at: Date.now() - 60_000, email: 'operator@example.test',
+  });
+  const answers = [
+    () => new Response('Forbidden', { status: 403, headers: { 'content-type': 'text/plain' } }),
+    () => new Response('<html><title>Attention Required!</title></html>', { status: 403, headers: { 'content-type': 'text/html' } }),
+    () => Response.json({ title: 'Error 1020: Access denied', status: 403 }, { status: 403 }),
+    () => new Response(null, { status: 401 }),
+  ];
+  const calls = [];
+  let answer;
+  t.mock.method(globalThis, 'fetch', async (url, init) => {
+    calls.push({ path: new URL(url).pathname, body: JSON.parse(init.body) });
+    return answer();
+  });
+  for (answer of answers) {
+    storage.setItem(storageKey, retained);
+    const admin = createAdmin({ apiUrl: 'https://api.example.test' });
+    const events = [];
+    const unsubscribe = admin.onAuthStateChanged(session => events.push(session));
+    await assert.rejects(admin.store.find({ limit: 10 }), { name: 'ArkyError', code: 'refresh_failed' });
+    await Promise.resolve();
+    assert.equal(storage.getItem(storageKey), retained);
+    assert.equal(admin.isAuthenticated, true);
+    assert.equal(events.some(session => session === null), false);
+    unsubscribe();
+  }
+  assert.deepEqual(calls, Array(answers.length).fill({ path: '/v1/auth/refresh', body: { refresh_token: 'kept-refresh' } }));
+});
+
 test('a rejected refresh cannot clear a different Account login completed while it was pending', async (t) => {
   let refuseRefresh;
   const requested = new Promise(resolve => { refuseRefresh = resolve; });
@@ -210,10 +248,11 @@ test('a restored Account bearer reaches protected requests and follows caller-ow
   let credentials = issued(now, 1);
   const calls = [];
   const rejected = [];
+  const expired = { error: 'INVALID_TOKEN', message: 'Account session expired', status_code: 401, validation_errors: [] };
   globalThis.fetch = async (url, init) => {
     const headers = new Headers(init.headers);
     calls.push({ path: new URL(url).pathname, authorization: headers.get('authorization') });
-    if (headers.get('authorization') === 'Bearer access-1') return Response.json({ error: 'INVALID_TOKEN', message: 'Account session expired', status_code: 401, validation_errors: [] }, { status: 401 });
+    if (headers.get('authorization') === 'Bearer access-1') return Response.json(expired, { status: 401 });
     return Response.json({ id: 'account', email: 'staff@example.test' });
   };
   const admin = createAdmin({
@@ -222,7 +261,12 @@ test('a restored Account bearer reaches protected requests and follows caller-ow
     onUnauthorized: (context) => { rejected.push(context); return false; },
   });
   await assert.rejects(admin.account.getMe(), { statusCode: 401 });
-  assert.deepEqual(rejected, [{ hadAuthorization: true, authorizationToken: 'access-1', path: '/v1/accounts/me' }]);
+  assert.deepEqual(rejected, [{
+    hadAuthorization: true,
+    authorizationToken: 'access-1',
+    path: '/v1/accounts/me',
+    response: { status: 401, data: expired },
+  }]);
   credentials = issued(now, 2);
   await admin.account.getMe({ headers: { authorization: 'Bearer caller-override' } });
   assert.deepEqual(calls, [

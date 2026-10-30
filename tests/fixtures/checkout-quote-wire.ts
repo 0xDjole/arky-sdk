@@ -27,6 +27,7 @@ import type {
   UnavailableShippingRate,
   OrderDeliveryTiming,
   CartProductPurchase,
+  ProductReference,
 } from "arky-sdk";
 import type { QuoteProductLine as PublicQuoteProductLine, CartQuote as PublicCartQuote } from "arky-sdk/types";
 
@@ -65,7 +66,9 @@ export type CheckoutQuoteWireContracts = [
   Assert<Equal<CustomerGroupSnapshot["entitlements"], CustomerGroupEntitlement[]>>,
   Assert<Missing<CustomerGroupSnapshot, "plan_name" | "key" | "offering_key" | "subscription_plan_id">>,
   Assert<Equal<keyof QuotePurchaseAccess, "grant" | "customer_group_member_id" | "cart_customer_group_line_item_id" | "entitlement_id" | "catalog_id" | "starts_at" | "ends_at" | "limits">>,
-  Assert<Equal<Extract<QuoteBlocker["type"], `customer_group_${string}`>, "customer_group_delivery_required" | "customer_group_shipping_required" | "customer_group_delivery_fee_varies" | "customer_group_shipping_rate_unavailable">>,
+  Assert<Equal<Extract<QuoteBlocker["type"], `customer_group_${string}`>, "customer_group_delivery_required" | "customer_group_shipping_required" | "customer_group_delivery_fee_varies" | "customer_group_minimum_conflict" | "customer_group_change_scheduled" | "customer_group_shipping_rate_unavailable">>,
+  Assert<Equal<Extract<QuoteBlocker, { type: "customer_group_minimum_conflict" }>, { type: "customer_group_minimum_conflict"; line_item_id: string }>>,
+  Assert<Equal<Extract<QuoteBlocker, { type: "customer_group_change_scheduled" }>, { type: "customer_group_change_scheduled"; line_item_id: string }>>,
   Assert<Equal<Extract<QuoteBlocker, { type: "shipping_rate_unavailable" }>, { type: "shipping_rate_unavailable"; delivery_group_id: string; shipping_method_id: string; rate_id: string; code: string }>>,
   Assert<Equal<Extract<QuoteBlocker, { type: "customer_group_shipping_rate_unavailable" }>, { type: "customer_group_shipping_rate_unavailable"; line_item_id: string; delivery_id: string; shipping_method_id: string; rate_id: string; code: string }>>,
   Assert<Equal<Extract<QuoteBlocker, { type: "booking_unavailable" }>, { type: "booking_unavailable"; line_item_id: string; code: string }>>,
@@ -83,6 +86,9 @@ export type CheckoutQuoteWireContracts = [
   Assert<Equal<Extract<CartProductPurchase, { type: "catalog" }>, { type: "catalog"; catalog_item_price_id: string }>>,
   Assert<Equal<Extract<QuoteBlocker["type"], `plan_${string}`>, never>>,
   Assert<Equal<QuoteEntitlementLine["type"], "product" | "rental" | "purchase_access">>,
+  Assert<Equal<Extract<QuoteEntitlementLine, { type: "rental" }>["product"], ProductReference>>,
+  Assert<Equal<Extract<QuoteEntitlementLine, { type: "rental" }>["product_id"], string>>,
+  Assert<Missing<Extract<QuoteEntitlementLine, { type: "product" }>, "product">>,
   Assert<Equal<keyof QuoteTotals, "subtotal" | "delivery" | "discount" | "tax" | "total">>,
   Assert<Equal<CartQuote["totals"], QuoteTotals>>,
   Assert<Equal<CartQuote["deliveries"], QuoteDelivery[]>>,

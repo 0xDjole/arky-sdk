@@ -24,6 +24,12 @@ export interface Product {
   updated_at: EpochMilliseconds;
 }
 
+export interface ProductReference {
+  id: string;
+  key: string;
+  blocks: Block[];
+}
+
 export interface InventoryRequirement {
   inventory_item_id: string;
   quantity: number;

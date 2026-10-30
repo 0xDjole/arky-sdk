@@ -14,6 +14,7 @@ import type {
 import type { OrderDeliveryDestination } from "./order";
 import type { CustomerGroupDeliveryRateOffer } from "./cart";
 import type { CatalogContext } from "./catalog";
+import type { ProductReference } from "./product";
 
 export type BillingInterval = "day" | "week" | "month" | "year";
 
@@ -223,6 +224,11 @@ export interface StorefrontCustomerGroupEntitlement {
   type: CustomerGroupEntitlementType;
 }
 
+export interface StorefrontCustomerGroupRentalProduct {
+  entitlement_id: string;
+  product: ProductReference | null;
+}
+
 export interface StorefrontCustomerGroup {
   id: string;
   key: string;
@@ -230,6 +236,7 @@ export interface StorefrontCustomerGroup {
   term: CustomerGroupTerm;
   purchase_requirement: PurchaseRequirement | null;
   entitlements: StorefrontCustomerGroupEntitlement[];
+  rental_products: StorefrontCustomerGroupRentalProduct[];
   catalog_item_id: string;
 }
 
@@ -506,9 +513,16 @@ export interface CustomerGroupMemberRevisionSelf {
   created_at: EpochMilliseconds;
 }
 
+export interface CustomerGroupMemberGroupSelf {
+  id: string;
+  key: string;
+  blocks: Block[];
+}
+
 export interface CustomerGroupMemberRevisionDetailSelf {
   revision: CustomerGroupMemberRevisionSelf;
   terms: CustomerGroupMemberSelfAcceptedTerms;
+  customer_group: CustomerGroupMemberGroupSelf;
 }
 
 export interface CustomerGroupMemberChange {

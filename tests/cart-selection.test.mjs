@@ -334,7 +334,10 @@ test("cart ids are the app's: creation and reorder refuse a missing or non-canon
   const storefront = client(visitorStorage());
   for (const id of [undefined, "", "cart-1", ids.cart.toUpperCase()]) {
     await assert.rejects(async () => storefront.eshop.cart.create({ id, buyer: customerBuyer, catalog_id: ids.catalog }), TypeError);
-    await assert.rejects(async () => storefront.eshop.cart.reorder({ id, order_id: ids.order, buyer: customerBuyer }), TypeError);
+    await assert.rejects(async () => storefront.eshop.cart.reorder({ id, order_id: ids.order, buyer: customerBuyer, catalog_id: ids.catalog }), TypeError);
+  }
+  for (const catalog_id of [undefined, "", "public-eu", ids.catalog.toUpperCase()]) {
+    await assert.rejects(async () => storefront.eshop.cart.reorder({ id: ids.otherCart, order_id: ids.order, buyer: customerBuyer, catalog_id }), /catalog id/);
   }
   assert.equal(calls.length, 0);
 });
@@ -444,7 +447,7 @@ test("a merged guest cart is never followed into a cart the signed-in customer d
   assert.deepEqual(storage.keys(tokenPrefix), []);
 });
 
-test("a reordered cart becomes the selection for its catalog and survives a reload", async (context) => {
+test("a reordered cart is built in the catalog the reorder names, becomes its selection and survives a reload", async (context) => {
   const storage = visitorStorage();
   const reordered = cartRecord({ id: ids.otherCart, catalog_id: ids.otherCatalog, origin: { type: "reorder", customer_session_id: ids.session, order_id: ids.order } });
   const leftOut = [{ order_line_item_id: ids.line, variant_id: ids.variant, quantity: 1 }];
@@ -452,9 +455,9 @@ test("a reordered cart becomes the selection for its catalog and survives a relo
     if (call.path === "/v1/storefront/carts/reorder") return { cart: created(reordered, "reorder-token"), left_out: leftOut };
     return reordered;
   });
-  const answer = await client(storage).eshop.cart.reorder({ id: ids.otherCart, order_id: ids.order, buyer: customerBuyer });
+  const answer = await client(storage).eshop.cart.reorder({ id: ids.otherCart, order_id: ids.order, buyer: customerBuyer, catalog_id: ids.otherCatalog });
   assert.deepEqual(answer, { cart: created(reordered, "reorder-token"), left_out: leftOut });
-  assert.deepEqual(calls[0].body, { id: ids.otherCart, order_id: ids.order, buyer: customerBuyer });
+  assert.deepEqual(calls[0].body, { id: ids.otherCart, order_id: ids.order, buyer: customerBuyer, catalog_id: ids.otherCatalog });
   const [key] = storage.keys(selectionPrefix);
   assert.ok(key.endsWith(`:customer:${ids.otherCatalog}`));
   const reloaded = await client(storage).eshop.cart.getCurrent({ buyer: customerBuyer, catalog_id: ids.otherCatalog });
@@ -463,15 +466,17 @@ test("a reordered cart becomes the selection for its catalog and survives a relo
   assert.equal(await client(storage).eshop.cart.getCurrent({ buyer: customerBuyer, catalog_id: ids.catalog }), null);
 });
 
-test("a reorder that answers another cart or another customer's cart is never selected", async (context) => {
+test("a reorder that answers another cart, another customer's cart or a cart in another catalog is never selected", async (context) => {
   for (const [cart, message] of [
     [cartRecord({ id: ids.thirdCart }), /reorder returned a different cart/],
     [cartRecord({ id: ids.otherCart, customer_id: ids.otherCustomer }), /does not belong/],
+    [cartRecord({ id: ids.otherCart, catalog_id: ids.otherCatalog }), /different catalog/],
   ]) {
     const storage = visitorStorage();
     recordFetch(context, () => ({ cart: created(cart), left_out: [] }));
-    await assert.rejects(client(storage).eshop.cart.reorder({ id: ids.otherCart, order_id: ids.order, buyer: customerBuyer }), message);
+    await assert.rejects(client(storage).eshop.cart.reorder({ id: ids.otherCart, order_id: ids.order, buyer: customerBuyer, catalog_id: ids.catalog }), message);
     assert.deepEqual(storage.keys(selectionPrefix), []);
+    assert.deepEqual(storage.keys(tokenPrefix), []);
   }
 });
 
@@ -479,7 +484,7 @@ test("selection needs request-local storage: a server-side client cannot create,
   const calls = recordFetch(context, () => { throw new Error("no request expected"); });
   const serverSide = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, market: "bih" });
   await assert.rejects(serverSide.eshop.cart.create({ id: ids.cart, buyer: customerBuyer, catalog_id: ids.catalog }), /request-local sessionStorage/);
-  await assert.rejects(serverSide.eshop.cart.reorder({ id: ids.cart, order_id: ids.order, buyer: customerBuyer }), /request-local sessionStorage/);
+  await assert.rejects(serverSide.eshop.cart.reorder({ id: ids.cart, order_id: ids.order, buyer: customerBuyer, catalog_id: ids.catalog }), /request-local sessionStorage/);
   await assert.rejects(serverSide.eshop.cart.getCurrent({ catalog_id: ids.catalog }), /request-local sessionStorage/);
   assert.equal(calls.length, 0);
 });

@@ -94,6 +94,30 @@ test("staff returns are created under the app-picked id, and every action goes t
   assert.equal(calls.length, 2 + commands.length);
 });
 
+test("a return read answers each line's product with the return, for staff and for the buyer", async (context) => {
+  const named = {
+    id: returnId,
+    store_id: STORE_ID,
+    type: orderReturn,
+    status: { type: "open", store_location_id: "warehouse" },
+    products: [
+      { line_id: lineId, product: { id: "product", key: "espresso-beans", blocks: [{ id: "name", type: "localized_text", key: "name", value: { en: "Espresso beans" } }] } },
+      { line_id: "removed", product: null },
+    ],
+  };
+  const calls = recordFetch(context, () => named);
+  const staffRead = await returns().get({ store_id: STORE_ID, return_id: returnId });
+  assert.deepEqual(staffRead, named);
+  assert.equal(staffRead.products[0].product.blocks[0].value.en, "Espresso beans");
+  assert.equal(staffRead.products[1].product, null);
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: visitorStorage() });
+  assert.deepEqual(await store.eshop.return.get({ id: returnId }), named);
+  assert.deepEqual(calls.map((call) => [call.method, call.path]), [
+    ["GET", `/v1/stores/${STORE_ID}/returns/${returnId}`],
+    ["GET", `/v1/storefront/returns/${returnId}`],
+  ]);
+});
+
 test("approving or declining a return needs an explicit customer email choice and sends it as given", async (context) => {
   const calls = recordFetch(context, () => ({ id: returnId }));
   const api = returns();

@@ -306,15 +306,16 @@ export function createCartSelection(
     requireId(params.id, "cart");
     const storage = requireStorage();
     const customerId = requireCustomerId();
-    return withCartMutation(checkoutScope, { type: "reorder" }, async () => {
+    const selected = { buyer: params.buyer, catalog_id: params.catalog_id };
+    const key = selectionKey(customerId, selected);
+    return withCartMutation(checkoutScope, { type: "new_cart", slot: cartScopeKey(selected) }, async () => {
       const reordered = await transport.reorder(params, options);
       const created = reordered?.cart;
       if (!created || !created.cart || created.cart.id !== params.id) {
         throw new CartError("answer_mismatch", "The reorder returned a different cart");
       }
-      const selected = { buyer: params.buyer, catalog_id: created.cart.catalog_id };
       assertCart(created.cart, customerId, selected);
-      keep(storage, selectionKey(customerId, selected), customerId, selected, created);
+      keep(storage, key, customerId, selected, created);
       return reordered;
     });
   }

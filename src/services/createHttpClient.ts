@@ -36,7 +36,7 @@ function isValidationError(
 function toServerError(value: unknown, statusCode: number): ServerError {
   const payload = isRecord(value) ? value : {};
   const validationErrors = Array.isArray(payload.validation_errors)
-    ? payload.validation_errors.filter(isValidationError)
+    ? payload.validation_errors.filter(isValidationError).map(({ field, error }) => ({ field, error }))
     : [];
 
   return {
@@ -49,13 +49,12 @@ function toServerError(value: unknown, statusCode: number): ServerError {
   };
 }
 
-function normalizeValidationErrors(
-  validationErrors: ServerError["validationErrors"],
-): ServerError["validationErrors"] {
-  return validationErrors.map((validationError) => ({
-    field: validationError.field,
-    error: validationError.error || "GENERAL.VALIDATION_ERROR",
-  }));
+export function refusedByArky(response: { status: number; data: unknown }): boolean {
+  if (!isRecord(response.data) || response.data.status_code !== response.status) return false;
+  return (
+    (response.status === 401 && response.data.error === "GENERAL.UNAUTHENTICATED") ||
+    (response.status === 403 && response.data.error === "GENERAL.UNAUTHORIZED")
+  );
 }
 
 export function createHttpClient(cfg: HttpClientConfig): HttpClient {
@@ -169,23 +168,6 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
       throw err;
     }
 
-    if (res.status === 401 && !retried) {
-      if (cfg.onUnauthorized) {
-        const authorization = Object.entries(headers).find(([name]) => name.toLowerCase() === "authorization")?.[1];
-        const recovered = await cfg.onUnauthorized({
-          hadAuthorization: Boolean(authorization),
-          authorizationToken: authorization?.replace(/^Bearer\s+/i, "") || null,
-          path,
-        });
-        if (recovered) {
-          return request<T>(method, path, body, options, true);
-        }
-      } else if (cfg.refreshCredentials && tokens) {
-        await refreshedTokens(tokens);
-        return request<T>(method, path, body, options, true);
-      }
-    }
-
     try {
       const contentLength = res.headers.get("content-length");
       const contentType = res.headers.get("content-type");
@@ -218,6 +200,24 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
       throw err;
     }
 
+    if (res.status === 401 && !retried) {
+      if (cfg.onUnauthorized) {
+        const authorization = Object.entries(headers).find(([name]) => name.toLowerCase() === "authorization")?.[1];
+        const recovered = await cfg.onUnauthorized({
+          hadAuthorization: Boolean(authorization),
+          authorizationToken: authorization?.replace(/^Bearer\s+/i, "") || null,
+          path,
+          response: { status: res.status, data },
+        });
+        if (recovered) {
+          return request<T>(method, path, body, options, true);
+        }
+      } else if (cfg.refreshCredentials && tokens) {
+        await refreshedTokens(tokens);
+        return request<T>(method, path, body, options, true);
+      }
+    }
+
     if (!res.ok) {
       const serverErr = toServerError(data, res.status);
       const requestId =
@@ -227,7 +227,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
         code: serverErr.error,
         response: data,
         statusCode: serverErr.statusCode,
-        validationErrors: normalizeValidationErrors(serverErr.validationErrors),
+        validationErrors: serverErr.validationErrors,
         method,
         url: fullUrl,
         requestId: requestId || undefined,

@@ -88,14 +88,16 @@ function payment(status) {
   };
 }
 
-function server(context, accept, paymentStatus = "paid", readPayment = () => payment(paymentStatus), cart = cartRecord({ line_items: [line] })) {
+function refreshed() {
+  return sessionResult(ids.customer, emailSession(ids.customer, ids.otherSession, { access_token: refreshedAccess }));
+}
+
+function server(context, accept, paymentStatus = "paid", readPayment = () => payment(paymentStatus), cart = cartRecord({ line_items: [line] }), refresh = refreshed) {
   let current = cart;
   const calls = recordFetch(context, (call) => {
     if (call.path === "/v1/storefront") return { name: "Shop", timezone: "Europe/Zagreb", languages: ["en"], payment_options: [], bot_check: { type: "off" } };
     if (call.path === "/v1/storefront/markets/by-key/hrv") return { id: ids.market, key: "hrv", currency: "eur", payment_option_ids: [ids.paymentOption] };
-    if (call.path === "/v1/storefront/customer/refresh") {
-      return sessionResult(ids.customer, emailSession(ids.customer, ids.otherSession, { access_token: refreshedAccess }));
-    }
+    if (call.path === "/v1/storefront/customer/refresh") return refresh();
     if (call.path === "/v1/storefront/customer/identify") {
       return sessionResult(call.body.customer_id, visitorSession(call.body.customer_id, call.body.session_id, `customer_visitor_${"w".repeat(64)}`));
     }
@@ -257,6 +259,46 @@ test("a signed-in shopper's token refresh while placing keeps the checkout and r
   assert.equal(calls.filter((call) => call.path === "/v1/storefront/customer/refresh").length, 1);
 });
 
+test("a signed-in shopper's token refresh that fails for a moment while placing keeps the session and the kept checkout, and recover places it", async (context) => {
+  browser(context);
+  let refreshes = 0;
+  const calls = server(
+    context,
+    (call) =>
+      call.headers.get("authorization") === `Bearer ${refreshedAccess}`
+        ? placedAcceptance({ payment_id: ids.payment })
+        : errorResponse(401, "GENERAL.UNAUTHENTICATED", "The access token expired"),
+    "paid",
+    undefined,
+    undefined,
+    () => {
+      refreshes += 1;
+      return refreshes === 1 ? errorResponse(503, "GENERAL.SERVICE_UNAVAILABLE", "Service temporarily unavailable") : refreshed();
+    },
+  );
+  const { arky, checkout } = await readyCheckout(signedInStorage());
+  await assert.rejects(checkout.place(), (error) => error instanceof CheckoutFlowError && error.code === "interrupted");
+  let state = checkout.state.get();
+  assert.equal(arky.client.isAuthenticated, true);
+  assert.equal(arky.client.session.id, ids.session);
+  assert.equal(state.step, "paying");
+  assert.equal(state.pending.order_id, ids.order);
+  assert.equal(state.error.code, "interrupted");
+  state = await checkout.recover();
+  assert.equal(state.step, "placed");
+  assert.equal(state.pending, null);
+  assert.equal(state.placed.order_id, ids.order);
+  assert.equal(arky.client.session.id, ids.otherSession);
+  const accepts = calls.filter((call) => call.path === "/v1/storefront/carts/accept");
+  assert.deepEqual(accepts.map((call) => call.headers.get("authorization")), [
+    `Bearer ${emailSession().access_token}`,
+    `Bearer ${emailSession().access_token}`,
+    `Bearer ${refreshedAccess}`,
+  ]);
+  assert.deepEqual(accepts[0].body, accepts[2].body);
+  assert.equal(refreshes, 2);
+});
+
 for (const change of ["shopper", "market"]) {
   test(`changing the ${change} clears the previous checkout contact and placed order`, async (context) => {
     browser(context);
@@ -349,7 +391,7 @@ test("a guest's quotes carry the contact email, so a promotion code capped per b
   assert.deepEqual(quotes.map((call) => call.body.contact_email ?? null), [null, "ana@example.test", "ana@example.test", "ana@example.test", "ana@example.test"]);
 });
 
-test("a taken booking slot or a purchase limit shows on the cart step, not the shipping step", () => {
+test("a taken booking slot, a purchase limit or a group that adds a second minimum shows on the cart step, not the shipping step", () => {
   const arky = initialize(publishableKey, { ...idFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: visitorStorage() });
   const checkout = arky.eshop.checkoutFlow({ buyer: customer, catalog_id: ids.catalog });
   checkout.cart.cart.set(cartRecord({ line_items: [line] }));
@@ -357,12 +399,45 @@ test("a taken booking slot or a purchase limit shows on the cart step, not the s
   for (const blocker of [
     { type: "booking_unavailable", line_item_id: ids.line, code: "BOOKING.SLOT_TAKEN" },
     { type: "purchase_limit_exceeded", line_item_id: ids.line, limit_id: ids.product },
+    { type: "customer_group_minimum_conflict", line_item_id: ids.line },
   ]) {
     checkout.cart.quote_result.set(quoteRecord({ ready: false, blockers: [blocker] }));
     assert.equal(checkout.state.get().step, "cart", blocker.type);
   }
   checkout.cart.quote_result.set(quoteRecord({ ready: false, blockers: [{ type: "shipping_required", delivery_group_id: ids.otherCart }] }));
   assert.equal(checkout.state.get().step, "shipping");
+});
+
+test("a group held by a package change waiting to take effect shows on the cart step, not the shipping step", () => {
+  const arky = initialize(publishableKey, { ...idFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: visitorStorage() });
+  const checkout = arky.eshop.checkoutFlow({ buyer: customer, catalog_id: ids.catalog });
+  checkout.cart.cart.set(cartRecord({ line_items: [line] }));
+  checkout.setContact({ contact_email: ana });
+  const scheduled = { type: "customer_group_change_scheduled", line_item_id: ids.line };
+  const shippingRequired = { type: "shipping_required", delivery_group_id: ids.otherCart };
+  checkout.cart.quote_result.set(quoteRecord({ ready: false, blockers: [shippingRequired, scheduled] }));
+  assert.equal(checkout.state.get().step, "cart");
+  checkout.cart.quote_result.set(quoteRecord({ ready: false, blockers: [shippingRequired] }));
+  assert.equal(checkout.state.get().step, "shipping");
+});
+
+test("placing a group that a waiting package change holds is refused with its own code and keeps no checkout", async (context) => {
+  browser(context);
+  const code = "CUSTOMER_GROUP_MEMBER.CHANGE_SCHEDULED";
+  const calls = server(context, () => errorResponse(409, code, "A package change that hasn't taken effect yet holds this offering; act after it takes effect or ends, or withdraw the change or cancel its order first"));
+  const { checkout } = await readyCheckout();
+  await assert.rejects(checkout.place(), (error) => {
+    assert.ok(error instanceof CheckoutFlowError);
+    assert.equal(error.code, "refused");
+    assert.equal(error.cause.statusCode, 409);
+    assert.equal(error.cause.code, code);
+    return true;
+  });
+  const state = checkout.state.get();
+  assert.equal(state.error.code, "refused");
+  assert.equal(state.pending, null);
+  assert.equal(state.placed, null);
+  assert.equal(calls.filter((call) => call.path === "/v1/storefront/carts/accept").length, 1);
 });
 
 test("a line whose price can't hold its fixed fee shows on the cart step, and a delivery that no longer fits its lines on the details step", () => {

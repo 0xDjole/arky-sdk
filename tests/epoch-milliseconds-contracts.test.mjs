@@ -202,8 +202,8 @@ test("invalid refreshed expiry fails closed before the protected request", async
   reply = () => jsonResponse({ ...refreshedSession(knownInstant), id: "5f0c3e82-9a14-4d76-b2e8-6c1a7d9f4b30" });
   await assert.rejects(admin.store.get({ id: storeId }), /invalid credentials/);
   assert.equal(storage.getItem(adminKey), retained);
-  reply = () => jsonResponse({ message: "Session revoked", status_code: 401 }, 401);
-  await assert.rejects(admin.store.get({ id: storeId }), (error) => error.statusCode === 401);
+  reply = () => jsonResponse({ message: "Unauthorized", error: "GENERAL.UNAUTHORIZED", status_code: 403, validation_errors: [] }, 403);
+  await assert.rejects(admin.store.get({ id: storeId }), (error) => error.statusCode === 403);
   assert.deepEqual(calls, Array(3).fill(`${apiUrl}/v1/auth/refresh`));
   assert.equal(storage.getItem(adminKey), null);
   assert.equal(admin.isAuthenticated, false);
