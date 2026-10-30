@@ -191,7 +191,7 @@ if (placed && placed.payment_action.type !== "none") {
 ```
 
 - **Steps.** `state.step` is one of:
-  - `cart`: no lines, or a line that can't be bought as it is (a taken booking slot, a purchase limit, a price that can't hold its fixed per-unit fee: `tax_unavailable`, or a customer group that would put the buyer under a second purchase minimum: `customer_group_minimum_conflict`), named in `quote.blockers`. A membership in another group of the same offering, which the purchase replaces, doesn't count as a second minimum. While one of the buyer's memberships has a package change waiting to take effect, a line for another group of the offering that membership is in or moves into is blocked with `customer_group_change_scheduled`, and placing it is refused with `CUSTOMER_GROUP_MEMBER.CHANGE_SCHEDULED`;
+  - `cart`: no lines, or a line that can't be bought as it is (a taken booking slot, a purchase limit, a price that can't hold its fixed per-unit fee: `tax_unavailable`, or a customer group that would put the buyer under a second purchase minimum: `customer_group_minimum_conflict`), named in `quote.blockers`. A package change keeps its membership, so its new minimum never counts as a second one. While one of the buyer's memberships has a package change waiting, a line for a group of the offering that change moves into is blocked with `customer_group_change_scheduled`, and placing it is refused with `CUSTOMER_GROUP_MEMBER.CHANGE_SCHEDULED`;
   - `details`: the contact email, an address, the billing address or a purchase order number is missing, or a delivery no longer fits its lines (`delivery_unavailable`: set it again with `shipTo`);
   - `shipping`: a delivery needs its shipping choice;
   - `payment`: ready to place;
@@ -484,7 +484,7 @@ A checkout refused because the quote changed throws a `CartPresentationChangedEr
 - **`eshop.library`:** `find`, `getProduct`, `findAssets` and `download`, for the digital files the buyer owns. Pass `company_id` or `company_location_id` for a company's.
 - **Customer groups:** groups a store sells are listed with `catalogItem.find` and read like products: `eshop.customerGroup` (`get`, `getByKey`, `getProductChoices`, `joinFree`) and `eshop.customerGroupOffering` (`get`, `getByKey`), each with the `catalog_id` it is listed in. A group or offering read answers its `catalog_item_id`; `catalogItem.findPrices` pages its prices. A group read also answers `rental_products`: for each rental entitlement, its `entitlement_id` and the lent machine's `product`, a `ProductReference` with the product's current blocks, also when no catalog lists that product, or `null` once the product no longer exists.
   - `joinFree({ key, catalog_id, language })` (or `{ id, catalog_id, language }`) joins a signed-in customer to a free permanent group. The Order contact is the customer's verified email in the `language` you pass, normally the page language. It reads the group's price in that catalog, creates its own cart, checks the quote is free and places the zero-price order, with every id from the factories. It answers `{ type: "joined", order_id }` or `{ type: "already_member", customer_group_member_id }`.
-  - A cart buys a group with `addCustomerGroup({ customer_group_id, quantity, choices, start, catalog_item_price_id })`, where `start` is `{ type: "on_acceptance" }`, `{ type: "scheduled", starts_at }` or `{ type: "switch", customer_group_member_id }`.
+  - A cart buys a group with `addCustomerGroup({ customer_group_id, quantity, choices, start, catalog_item_price_id })`, where `start` is `{ type: "on_acceptance" }`, `{ type: "scheduled", starts_at }` or `{ type: "switch", customer_group_member_id }`. Buying another group of an offering whose group the buyer already holds is refused with `CART.OFFERING_MEMBER`, whatever either group's term: a `switch` line naming that membership changes it instead (see [Changing a package](#changing-a-package)).
   - `getProductChoices` answers a group's product alternatives with their `sku`, `product_blocks` and `variant_blocks`.
 - **`newsletter`:**
   - `requestCode({ contact: { email, language } })` answers `{ type: "verified" }` when that address is already signed in. Otherwise it signs out another address and sends a code, answering `{ type: "code_sent" }`.
@@ -517,6 +517,45 @@ for (const order of orders) {
       revision_id: line.revision_id,
     });
     console.log(order.number, customer_group.key, getBlockTextValue(findBlock(customer_group, "name"), "en"));
+  }
+}
+```
+
+### Changing a package
+
+A `{ type: "switch", customer_group_member_id }` line moves a membership the buyer holds to another group of the same offering, priced under the offering's listing. It keeps the membership's quantity and names the choices the new group needs. What it does depends on the membership's term:
+
+- **Recurring:** an upgrade to a higher-priced group of the same cadence that gives something at once (a service, a digital variant or purchase access) takes effect when the order is accepted, and the order charges the price difference for the rest of the paid period. Every other move of a recurring membership waits for its next renewal through the member's `switch` action.
+- **Permanent:** a package change. The order charges the new group's listing price times the membership's quantity, and it moves the same membership when its group line is confirmed: at placement for a free, on-account, cash-on-delivery or manual checkout, and when the payment is confirmed for a card checkout. The quote line's `rental_change` says what happens to the lent machines, so the page never works it out itself:
+  - `entitlements`: for each rental entitlement of the new group, the rental that continues on it (`rental_id`, or `null` when a new rental opens), the units it keeps (`kept_quantity`) and the units the order ships (`shipped_quantity`). A cart delivery names only the shipped units;
+  - `ending`: each rental of the membership that ends, with the units that come back (`returned_quantity`).
+  
+  Until the change applies, the membership keeps its group, terms, minimum and rentals, and it is managed through the order: its other actions are refused with `CUSTOMER_GROUP_MEMBER.CHANGE_SCHEDULED`, and a second `switch` line with `CUSTOMER_GROUP_MEMBER.CHANGE_WAITING`. When the order line is cancelled before it is paid, the change ends unapplied and the membership keeps its package. Only the buyer changes a package this way: a store team's `switch` of a permanent membership is refused with `CART.AMENDMENT_REQUIRED`, and the team amends it from the next month with an `amend` start.
+- A switch never changes the term kind: between a permanent and a recurring group it is refused with `CART.SWITCH_NOT_UPGRADE`, so the buyer ends the membership, then buys the other group.
+
+Every other group line answers `rental_change: null`. A store team that assigns a group directly is refused with `CUSTOMER_GROUP_MEMBER.OFFERING_MEMBER` while the subject holds another group of that offering. `CART.SWITCH_PERMANENT` and `CART.COMMITTED` are no longer answered: a permanent membership changes through its `switch` line, and a membership in another group of the offering is refused with `CART.OFFERING_MEMBER`.
+
+```typescript
+const { items: memberships } = await arky.eshop.customerGroupMember.find({ status: "active", limit: 20 });
+const membership = memberships.find((member) => member.type.type === "permanent");
+const largerPackage = "4f1c2b8e-7a35-4d96-b0e2-9c6d3a1f5e87";
+if (membership) {
+  const cart = arky.eshop.cart({ buyer: { type: "customer" }, catalog_id });
+  await cart.ensure();
+  await cart.addCustomerGroup({
+    customer_group_id: largerPackage,
+    quantity: 1,
+    choices: [],
+    start: { type: "switch", customer_group_member_id: membership.id },
+    catalog_item_price_id,
+  });
+  const quote = await cart.quote();
+  for (const line of quote.lines) {
+    if (line.type !== "customer_group" || !line.rental_change) continue;
+    for (const entitlement of line.rental_change.entitlements) {
+      console.log(entitlement.rental_id ? "stays" : "new", entitlement.kept_quantity, entitlement.shipped_quantity);
+    }
+    for (const ending of line.rental_change.ending) console.log("goes back", ending.rental_id, ending.returned_quantity);
   }
 }
 ```

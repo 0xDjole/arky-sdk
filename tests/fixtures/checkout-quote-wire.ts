@@ -28,6 +28,9 @@ import type {
   OrderDeliveryTiming,
   CartProductPurchase,
   ProductReference,
+  QuoteRentalChange,
+  QuoteRentalChangeEntitlement,
+  QuoteRentalChangeEnding,
 } from "arky-sdk";
 import type { QuoteProductLine as PublicQuoteProductLine, CartQuote as PublicCartQuote } from "arky-sdk/types";
 
@@ -56,9 +59,16 @@ export type CheckoutQuoteWireContracts = [
   Assert<Equal<Extract<OrderLinePrice, { type: "catalog" }>, { type: "catalog"; catalog_item_price_id: string; catalog_id: string }>>,
   Assert<Missing<OrderProductSnapshot, "options">>,
   Assert<Equal<Extract<OrderLinePrice, { type: "purchase_access" }>["customer_group_member_id"], string | null>>,
-  Assert<Equal<keyof QuoteCustomerGroupLine, "line_item_id" | "group" | "start" | "occurrence" | "entitlements" | "tax_groups" | "deliveries" | "saves_card">>,
+  Assert<Equal<keyof QuoteCustomerGroupLine, "line_item_id" | "group" | "start" | "occurrence" | "entitlements" | "tax_groups" | "deliveries" | "saves_card" | "rental_change">>,
   Assert<RequiredField<QuoteCustomerGroupLine, "saves_card">>,
   Assert<Equal<QuoteCustomerGroupLine["saves_card"], boolean>>,
+  Assert<RequiredField<QuoteCustomerGroupLine, "rental_change">>,
+  Assert<Equal<QuoteCustomerGroupLine["rental_change"], QuoteRentalChange | null>>,
+  Assert<Equal<keyof QuoteRentalChange, "entitlements" | "ending">>,
+  Assert<Equal<QuoteRentalChange["entitlements"], QuoteRentalChangeEntitlement[]>>,
+  Assert<Equal<QuoteRentalChange["ending"], QuoteRentalChangeEnding[]>>,
+  Assert<Equal<QuoteRentalChangeEntitlement, { entitlement_id: string; rental_id: string | null; kept_quantity: number; shipped_quantity: number }>>,
+  Assert<Equal<QuoteRentalChangeEnding, { rental_id: string; returned_quantity: number }>>,
   Assert<Equal<QuoteCustomerGroupLine["group"], CustomerGroupSnapshot>>,
   Assert<Equal<QuoteCustomerGroupLine["start"], CustomerGroupStart>>,
   Assert<Equal<QuoteCustomerGroupLine["occurrence"], CustomerGroupOccurrence>>,
@@ -127,3 +137,18 @@ export function bookingUnitPrice(money: QuoteMoney): number {
 }
 
 export const awaitingTaxUnitPrice: number = bookingUnitPrice(awaitingTaxBooking.money);
+
+export const packageChange: QuoteRentalChange = {
+  entitlements: [
+    { entitlement_id: "grinder", rental_id: "grinder-rental", kept_quantity: 1, shipped_quantity: 0 },
+    { entitlement_id: "mill", rental_id: null, kept_quantity: 0, shipped_quantity: 1 },
+  ],
+  ending: [{ rental_id: "brewer-rental", returned_quantity: 1 }],
+};
+
+export function shippedUnits(line: Pick<QuoteCustomerGroupLine, "rental_change">): number {
+  return line.rental_change?.entitlements.reduce((sum, item) => sum + item.shipped_quantity, 0) ?? 0;
+}
+
+export const changeShips: number = shippedUnits({ rental_change: packageChange });
+export const joinShips: number = shippedUnits({ rental_change: null });

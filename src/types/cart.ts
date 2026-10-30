@@ -369,6 +369,23 @@ export type QuoteEntitlementLine =
     }
   | { type: "purchase_access"; entitlement_id: string; money: QuoteMoney };
 
+export interface QuoteRentalChangeEntitlement {
+  entitlement_id: string;
+  rental_id: string | null;
+  kept_quantity: number;
+  shipped_quantity: number;
+}
+
+export interface QuoteRentalChangeEnding {
+  rental_id: string;
+  returned_quantity: number;
+}
+
+export interface QuoteRentalChange {
+  entitlements: QuoteRentalChangeEntitlement[];
+  ending: QuoteRentalChangeEnding[];
+}
+
 export interface QuoteCustomerGroupLine {
   line_item_id: string;
   group: CustomerGroupSnapshot;
@@ -378,6 +395,7 @@ export interface QuoteCustomerGroupLine {
   tax_groups: OrderTaxGroup[];
   deliveries: CustomerGroupDeliveryTerms[];
   saves_card: boolean;
+  rental_change: QuoteRentalChange | null;
 }
 
 export type QuoteLine =

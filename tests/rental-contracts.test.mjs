@@ -133,3 +133,49 @@ test("a buyer's rentals and a quote's rental line answer the rented machine's cu
     ["POST", `/v1/storefront/carts/${ids.cart}/quote`],
   ]);
 });
+
+test("a package change's quote line states which rental continues with the units it keeps and ships and which rentals end with the units that come back, and every other group line states none", async (context) => {
+  const grinder = "1c7e5a93-2b48-4d06-9f3e-8a5c1d7b2e40";
+  const mill = "6f2d8b14-9c37-4e51-a0b6-3d9e7c2a5f18";
+  const keptRental = "4e9a2c57-7d13-4b68-8e0f-2a6c9b3d1f75";
+  const endingRental = "9b3f6d21-5e84-4a07-b2c9-7f1e4a8d6c30";
+  const rentalChange = {
+    entitlements: [
+      { entitlement_id: grinder, rental_id: keptRental, kept_quantity: 1, shipped_quantity: 1 },
+      { entitlement_id: mill, rental_id: null, kept_quantity: 0, shipped_quantity: 1 },
+    ],
+    ending: [{ rental_id: endingRental, returned_quantity: 2 }],
+  };
+  const groupLine = (lineId, start, change) => ({
+    type: "customer_group",
+    line_item_id: lineId,
+    start,
+    entitlements: [],
+    tax_groups: [],
+    deliveries: [],
+    saves_card: false,
+    rental_change: change,
+  });
+  const quote = {
+    cart_id: ids.cart,
+    lines: [
+      groupLine(ids.line, { type: "switch", customer_group_member_id: ids.customerGroupMember }, rentalChange),
+      groupLine(ids.otherLine, { type: "on_acceptance" }, null),
+    ],
+  };
+  const sent = structuredClone(quote);
+  const calls = recordFetch(context, () => quote);
+  const store = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: visitorStorage() });
+  const quoted = await store.eshop.cart.quote({ id: ids.cart });
+  assert.deepEqual(quoted, sent);
+  const [change, join] = quoted.lines;
+  assert.deepEqual(change.rental_change, rentalChange);
+  assert.deepEqual(change.rental_change.entitlements.map((item) => [item.entitlement_id, item.rental_id, item.kept_quantity, item.shipped_quantity]), [
+    [grinder, keptRental, 1, 1],
+    [mill, null, 0, 1],
+  ]);
+  assert.deepEqual(change.rental_change.ending, [{ rental_id: endingRental, returned_quantity: 2 }]);
+  assert.equal(join.rental_change, null);
+  assert.equal("rental_change" in join, true);
+  assert.deepEqual(calls.map(({ method, path }) => [method, path]), [["POST", `/v1/storefront/carts/${ids.cart}/quote`]]);
+});
