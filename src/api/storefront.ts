@@ -4,15 +4,14 @@ import type { RequestOptions } from "../types/api";
 import type { PaginatedResponse } from "../types/common";
 import type {
   Cart,
-  CartAccessProductPreview,
   CartQuote,
   CheckoutAcceptance,
   CreatedCart,
-  CustomerGroupDeliveryOffers,
   FindStorefrontCartOffersParams,
+  PackageDeliveryOffers,
   ReorderedCart,
   StorefrontAddCartBookingParams,
-  StorefrontAddCartCustomerGroupParams,
+  StorefrontAddCartPackageParams,
   StorefrontAddCartProductParams,
   StorefrontCheckoutCartParams,
   StorefrontClearCartParams,
@@ -21,7 +20,6 @@ import type {
   StorefrontGetCartParams,
   StorefrontGetCartOrderParams,
   StorefrontKeptCheckoutParams,
-  StorefrontPreviewCartAccessProductParams,
   StorefrontQuoteCartFutureDeliveriesParams,
   StorefrontQuoteCartParams,
   StorefrontRemoveCartItemParams,
@@ -32,7 +30,7 @@ import type {
 } from "../types/cart";
 import type { CartCheckoutRequest, CartCheckoutTransport } from "../types/cartCheckout";
 import type { LoadContentEntriesParams, LoadContentParams, LoadedContent, LoadedContentFor } from "../types/contentView";
-import type { JoinFreeCustomerGroupParams, JoinFreeCustomerGroupResult } from "../types/customerGroupJoin";
+import type { JoinFreePackageParams, JoinFreePackageResult } from "../types/packageJoin";
 import type {
   FormAnswerInput,
   KeptFormSubmission,
@@ -45,17 +43,17 @@ import type {
 } from "../types/forms";
 import type { CartSelectionContext } from "../types/cartSelection";
 import type {
-  CatalogChoice,
-  CatalogContext,
-  CatalogListing,
-  CatalogListingDetails,
-  CatalogReadOptions,
-  FindStorefrontCatalogItemPricesParams,
-  FindStorefrontCatalogItemsParams,
-  FindStorefrontCatalogsParams,
-  GetStorefrontCatalogItemByParentParams,
-  StorefrontCatalog,
-} from "../types/catalog";
+  FindStorefrontPackageItemPricesParams,
+  FindStorefrontPackageItemsParams,
+  FindStorefrontPackagesParams,
+  GetStorefrontPackageItemByParentParams,
+  PackageContext,
+  PackageReadOptions,
+  StorefrontPackageChoice,
+  StorefrontPackageItem,
+  StorefrontPackageItemDetails,
+  StorefrontPackageItemPrice,
+} from "../types/package";
 import type { EmailContact } from "../types/common";
 import type {
   Category,
@@ -172,12 +170,12 @@ import {
 import { loadContent, loadContentEntries, type ContentReads } from "../services/contentLoad";
 import { runDurableCreate } from "../services/durableCreate";
 import { pendingFormSubmission, recoverFormSubmission, retainFormSubmission } from "../services/keptFormSubmission";
-import { joinFreeCustomerGroup, type FreeJoinDeps } from "../services/freeJoin";
+import { joinFreePackage, type FreeJoinDeps } from "../services/freeJoin";
 import {
   cartOffersQuery,
   cartTokenOptions,
   storefrontCartBooking,
-  storefrontCartCustomerGroup,
+  storefrontCartPackage,
   storefrontCartProduct,
   storefrontCartUpdateBody,
 } from "../utils/cartInputs";
@@ -185,8 +183,8 @@ import { ArkyError } from "../types/apiError";
 import { buildFormAnswers } from "../utils/formAnswers";
 import { requireId } from "../utils/ids";
 import { createStorefrontCompanyApi } from "./company";
-import { createStorefrontCustomerGroupApi } from "./customerGroup";
 import { createStorefrontFormsApi } from "./forms";
+import { createStorefrontPackageApi } from "./packageMember";
 import { createStorefrontPaymentMethodApi } from "./paymentMethod";
 import { segment } from "./paths";
 
@@ -284,16 +282,16 @@ function submissionDraft(params: SubmitFormParams | RetainFormSubmissionParams):
   };
 }
 
-function catalogContextQuery(params: CatalogContext) {
+function packageContextQuery(params: PackageContext) {
   return {
-    catalog_id: params.catalog_id,
+    package_id: params.package_id,
     company_id: params.company_id,
     company_location_id: params.company_location_id,
   };
 }
 
-function catalogQuery(params: CatalogReadOptions) {
-  return { ...catalogContextQuery(params), include_price: params.include_price };
+function packageQuery(params: PackageReadOptions) {
+  return { ...packageContextQuery(params), include_price: params.include_price };
 }
 
 export const createStorefrontApi = (
@@ -311,13 +309,13 @@ export const createStorefrontApi = (
     create: (params, options) =>
       httpClient.post<CreatedCart>(
         `${base}/carts`,
-        { id: params.id, buyer: params.buyer, catalog_id: params.catalog_id },
+        { id: params.id, buyer: params.buyer, package_id: params.package_id, market_id: params.market_id },
         cartTokenOptions(options, null),
       ),
     reorder: (params, options) =>
       httpClient.post<ReorderedCart>(
         `${base}/carts/reorder`,
-        { id: params.id, order_id: params.order_id, buyer: params.buyer, catalog_id: params.catalog_id },
+        { id: params.id, order_id: params.order_id, buyer: params.buyer, package_id: params.package_id, market_id: params.market_id },
         cartTokenOptions(options, null),
       ),
   });
@@ -328,8 +326,8 @@ export const createStorefrontApi = (
     );
   const keptSlot = (scope: StorefrontCurrentCartParams | undefined) => {
     if (scope === undefined) return null;
-    requireId(scope.catalog_id, "catalog");
-    return cartScopeKey(scope);
+    requireId(scope.package_id, "package");
+    return cartScopeKey(scope, cartSelectionContext.market());
   };
   const checkoutTransport: CartCheckoutTransport<CartCheckoutRequest> = {
     async post(request, options) {
@@ -347,7 +345,7 @@ export const createStorefrontApi = (
   };
   const paymentMethods = createStorefrontPaymentMethodApi(httpClient);
   const forms = createStorefrontFormsApi(httpClient);
-  const customerGroups = createStorefrontCustomerGroupApi(httpClient, lifecycle.ensureVisitorSession);
+  const packages = createStorefrontPackageApi(httpClient, lifecycle.ensureVisitorSession);
   const orderPath = (id: string) => `${base}/orders/${segment(id)}`;
 
   const contentReads: ContentReads = {
@@ -367,25 +365,25 @@ export const createStorefrontApi = (
     findMedia: (params, options) => httpClient.get<Media[]>(`${base}/media`, { ...options, params: { ids: params.ids } }),
   };
 
-  const catalogItems = {
-    find(params: FindStorefrontCatalogItemsParams, options?: RequestOptions): Promise<PaginatedResponse<CatalogListing>> {
-      return httpClient.get<PaginatedResponse<CatalogListing>>(`${base}/catalog-items`, {
+  const packageItems = {
+    find(params: FindStorefrontPackageItemsParams, options?: RequestOptions): Promise<PaginatedResponse<StorefrontPackageItem>> {
+      return httpClient.get<PaginatedResponse<StorefrontPackageItem>>(`${base}/package-items`, {
         ...options,
-        params: { ...catalogQuery(params), selection: params.selection, limit: params.limit, cursor: params.cursor },
+        params: { ...packageQuery(params), selection: params.selection, limit: params.limit, cursor: params.cursor },
       });
     },
 
-    getByParent(params: GetStorefrontCatalogItemByParentParams, options?: RequestOptions): Promise<CatalogListingDetails> {
-      return httpClient.get<CatalogListingDetails>(`${base}/catalog-items/by-parent`, {
+    getByParent(params: GetStorefrontPackageItemByParentParams, options?: RequestOptions): Promise<StorefrontPackageItemDetails> {
+      return httpClient.get<StorefrontPackageItemDetails>(`${base}/package-items/by-parent`, {
         ...options,
-        params: { ...catalogContextQuery(params), item: params.item },
+        params: { ...packageContextQuery(params), item: params.item },
       });
     },
 
-    findPrices(params: FindStorefrontCatalogItemPricesParams, options?: RequestOptions): Promise<PaginatedResponse<CatalogChoice>> {
-      return httpClient.get<PaginatedResponse<CatalogChoice>>(`${base}/catalog-items/${segment(params.catalog_item_id)}/prices`, {
+    findPrices(params: FindStorefrontPackageItemPricesParams, options?: RequestOptions): Promise<PaginatedResponse<StorefrontPackageItemPrice>> {
+      return httpClient.get<PaginatedResponse<StorefrontPackageItemPrice>>(`${base}/package-items/${segment(params.package_item_id)}/prices`, {
         ...options,
-        params: { ...catalogQuery(params), limit: params.limit, cursor: params.cursor },
+        params: { ...packageQuery(params), limit: params.limit, cursor: params.cursor },
       });
     },
   };
@@ -396,25 +394,26 @@ export const createStorefrontApi = (
     newId: flows.newId,
     newOrderToken: flows.newOrderToken,
     retainToken: (orderId, token) => retainOrderToken(checkoutScope, orderId, token),
-    getGroup: (params, options) =>
-      "id" in params ? customerGroups.customerGroup.get(params, options) : customerGroups.customerGroup.getByKey(params, options),
-    findChoices: (params, options) => catalogItems.findPrices(params, options),
+    marketId: cartSelectionContext.marketId,
+    getPackage: (params, options) =>
+      "id" in params ? packages.package.get(params, options) : packages.package.getByKey(params, options),
+    findPrices: (params, options) => packageItems.findPrices(params, options),
     async createCart(params, options) {
       requireId(params.id, "cart");
-      const slot = cartScopeKey({ buyer: params.buyer, catalog_id: params.catalog_id });
+      const slot = cartScopeKey({ buyer: params.buyer, package_id: params.package_id }, cartSelectionContext.market());
       return withCartMutation(checkoutScope, { type: "new_cart", slot }, () =>
         httpClient.post<CreatedCart>(
           `${base}/carts`,
-          { id: params.id, buyer: params.buyer, catalog_id: params.catalog_id },
+          { id: params.id, buyer: params.buyer, package_id: params.package_id, market_id: params.market_id },
           cartTokenOptions(options, null),
         ),
       );
     },
-    addGroupLine: (params, options) =>
+    addPackageLine: (params, options) =>
       cartMutation<Cart>(
         params,
-        "customer-group-items",
-        () => ({ expected_updated_at: params.expected_updated_at, customer_group: storefrontCartCustomerGroup(params.customer_group) }),
+        "package-items",
+        () => ({ expected_updated_at: params.expected_updated_at, package: storefrontCartPackage(params.package) }),
         options,
       ),
     quote: (params, options) => httpClient.post<CartQuote>(`${cartPath(params.id)}/quote`, {}, cartTokenOptions(options, cartToken(params))),
@@ -725,13 +724,17 @@ export const createStorefrontApi = (
     },
 
     eshop: {
-      catalog: {
-        async find(params: FindStorefrontCatalogsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<StorefrontCatalog>> {
-          return page(await httpClient.get<StorefrontCatalog[]>(`${base}/catalogs`, { ...options, params }));
+      package: {
+        async find(params: FindStorefrontPackagesParams = {}, options?: RequestOptions): Promise<PaginatedResponse<StorefrontPackageChoice>> {
+          return page(await httpClient.get<StorefrontPackageChoice[]>(`${base}/packages`, { ...options, params }));
+        },
+        ...packages.package,
+        joinFree(params: JoinFreePackageParams, options?: RequestOptions): Promise<JoinFreePackageResult> {
+          return joinFreePackage(freeJoin, params, options);
         },
       },
 
-      catalogItem: catalogItems,
+      packageItem: packageItems,
 
       product: {
         get(params: GetStorefrontProductParams, options?: RequestOptions): Promise<StorefrontProduct> {
@@ -739,13 +742,13 @@ export const createStorefrontApi = (
           if (!identifier) throw new TypeError("A product read needs its id or its slug; a key is read with getByKey");
           return httpClient.get<StorefrontProduct>(`${base}/products/${segment(identifier)}`, {
             ...options,
-            params: catalogContextQuery(params),
+            params: packageContextQuery(params),
           });
         },
         getByKey(params: GetStorefrontProductByKeyParams, options?: RequestOptions): Promise<StorefrontProduct> {
           return httpClient.get<StorefrontProduct>(`${base}/products/by-key/${segment(params.key)}`, {
             ...options,
-            params: catalogContextQuery(params),
+            params: packageContextQuery(params),
           });
         },
       },
@@ -754,7 +757,7 @@ export const createStorefrontApi = (
         get(params: GetStorefrontProductVariantParams, options?: RequestOptions): Promise<StorefrontProductVariant> {
           return httpClient.get<StorefrontProductVariant>(
             `${base}/products/${segment(params.product_id)}/variants/${segment(params.id)}`,
-            { ...options, params: catalogQuery(params) },
+            { ...options, params: packageQuery(params) },
           );
         },
       },
@@ -765,20 +768,20 @@ export const createStorefrontApi = (
           if (!identifier) throw new TypeError("A booking service read needs its id or its slug; a key is read with getByKey");
           return httpClient.get<StorefrontBookingService>(`${base}/booking-services/${segment(identifier)}`, {
             ...options,
-            params: catalogContextQuery(params),
+            params: packageContextQuery(params),
           });
         },
         getByKey(params: GetStorefrontBookingServiceByKeyParams, options?: RequestOptions): Promise<StorefrontBookingService> {
           return httpClient.get<StorefrontBookingService>(`${base}/booking-services/by-key/${segment(params.key)}`, {
             ...options,
-            params: catalogContextQuery(params),
+            params: packageContextQuery(params),
           });
         },
         getAvailability(params: GetStorefrontAvailabilityParams, options?: RequestOptions): Promise<AvailabilityResponse> {
           return httpClient.get<AvailabilityResponse>(`${base}/booking-services/availability`, {
             ...options,
             params: {
-              ...catalogContextQuery(params),
+              ...packageContextQuery(params),
               booking_service_id: params.booking_service_id,
               booking_resource_id: params.booking_resource_id,
               from: params.from,
@@ -800,7 +803,7 @@ export const createStorefrontApi = (
         get(params: GetStorefrontBookingOfferingParams, options?: RequestOptions): Promise<StorefrontBookingOffering> {
           return httpClient.get<StorefrontBookingOffering>(`${base}/booking-offerings/${segment(params.id)}`, {
             ...options,
-            params: catalogQuery(params),
+            params: packageQuery(params),
           });
         },
       },
@@ -809,7 +812,7 @@ export const createStorefrontApi = (
         get(params: GetStorefrontBookingResourceParams, options?: RequestOptions): Promise<StorefrontBookingResource> {
           return httpClient.get<StorefrontBookingResource>(`${base}/booking-resources/${segment(params.id)}`, {
             ...options,
-            params: { ...catalogContextQuery(params), offering_id: params.offering_id },
+            params: { ...packageContextQuery(params), offering_id: params.offering_id },
           });
         },
       },
@@ -849,7 +852,7 @@ export const createStorefrontApi = (
 
         async reorder(params: StorefrontReorderParams, options?: RequestOptions): Promise<ReorderedCart> {
           requireId(params.id, "cart");
-          requireId(params.catalog_id, "catalog");
+          requireId(params.package_id, "package");
           await lifecycle.ensureVisitorSession();
           return cartSelection.reorder(params, options);
         },
@@ -881,14 +884,14 @@ export const createStorefrontApi = (
           );
         },
 
-        async addCustomerGroup(params: StorefrontAddCartCustomerGroupParams, options?: RequestOptions): Promise<Cart> {
+        async addPackage(params: StorefrontAddCartPackageParams, options?: RequestOptions): Promise<Cart> {
           await lifecycle.ensureVisitorSession();
           return cartMutation<Cart>(
             params,
-            "customer-group-items",
+            "package-items",
             () => ({
               expected_updated_at: params.expected_updated_at,
-              customer_group: storefrontCartCustomerGroup(params.customer_group),
+              package: storefrontCartPackage(params.package),
             }),
             options,
           );
@@ -924,7 +927,7 @@ export const createStorefrontApi = (
           return withCartMutation(checkoutScope, { type: "cart", cart_id: params.id }, () =>
             httpClient.put<Cart>(
               `${cartPath(params.id)}/future-deliveries`,
-              { expected_updated_at: params.expected_updated_at, customer_groups: params.customer_groups },
+              { expected_updated_at: params.expected_updated_at, packages: params.packages },
               cartTokenOptions(options, cartToken(params)),
             ),
           );
@@ -933,28 +936,11 @@ export const createStorefrontApi = (
         async quoteFutureDeliveries(
           params: StorefrontQuoteCartFutureDeliveriesParams,
           options?: RequestOptions,
-        ): Promise<CustomerGroupDeliveryOffers[]> {
+        ): Promise<PackageDeliveryOffers[]> {
           await lifecycle.ensureVisitorSession();
-          return httpClient.post<CustomerGroupDeliveryOffers[]>(
+          return httpClient.post<PackageDeliveryOffers[]>(
             `${cartPath(params.id)}/future-delivery-quote`,
-            { customer_groups: params.customer_groups },
-            cartTokenOptions(options, cartToken(params)),
-          );
-        },
-
-        async previewAccessProduct(
-          params: StorefrontPreviewCartAccessProductParams,
-          options?: RequestOptions,
-        ): Promise<CartAccessProductPreview> {
-          await lifecycle.ensureVisitorSession();
-          return httpClient.post<CartAccessProductPreview>(
-            `${cartPath(params.id)}/access-product-preview`,
-            {
-              line_item_id: params.line_item_id,
-              variant_id: params.variant_id,
-              quantity: params.quantity,
-              purchase: params.purchase,
-            },
+            { packages: params.packages },
             cartTokenOptions(options, cartToken(params)),
           );
         },
@@ -1135,14 +1121,8 @@ export const createStorefrontApi = (
         },
       },
 
-      customerGroup: {
-        ...customerGroups.customerGroup,
-        joinFree(params: JoinFreeCustomerGroupParams, options?: RequestOptions): Promise<JoinFreeCustomerGroupResult> {
-          return joinFreeCustomerGroup(freeJoin, params, options);
-        },
-      },
-      customerGroupOffering: customerGroups.customerGroupOffering,
-      customerGroupMember: customerGroups.customerGroupMember,
+      packageOffering: packages.packageOffering,
+      packageMember: packages.packageMember,
 
       minimumProgress: {
         async get(params: StorefrontGetMinimumProgressParams, options?: RequestOptions): Promise<MinimumProgress> {

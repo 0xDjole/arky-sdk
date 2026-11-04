@@ -18,8 +18,8 @@ const storefrontMemberCalls = [
   "getCurrent",
   "getDeliveryOptions",
   "getProductChoices",
-  "getPurchaseAccess",
   "getRevision",
+  "getSwitchDeliveryOptions",
   "pause",
   "resume",
   "reviewSwitch",
@@ -30,7 +30,7 @@ const storefrontMemberCalls = [
   "withdrawRevision",
 ];
 
-test("the storefront reads groups, offerings and the shopper's own members under eshop, with no join, assign or email consent calls", () => {
+test("the storefront reads packages, offerings and the shopper's own members under eshop, with no assign or email consent calls", () => {
   const client = createStorefront(publishableKey, {
     visitorIdentity: {
       customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58",
@@ -58,9 +58,8 @@ test("the storefront reads groups, offerings and the shopper's own members under
     sessionStorage: new SessionStorage(),
   });
   for (const removed of [
-    "customer_groups",
-    "customer_group_members",
-    "customer_group_email_consents",
+    "packages",
+    "package_members",
     "subscription_plans",
     "subscription_offerings",
   ]) {
@@ -68,18 +67,19 @@ test("the storefront reads groups, offerings and the shopper's own members under
     assert.equal(removed in store, false, removed);
   }
   for (const facade of [client, store]) {
-    assert.deepEqual(Object.keys(facade.eshop.customerGroup).sort(), [
+    assert.deepEqual(Object.keys(facade.eshop.package).sort(), [
+      "find",
       "get",
       "getByKey",
       "getProductChoices",
       "joinFree",
     ]);
-    assert.deepEqual(Object.keys(facade.eshop.customerGroupOffering).sort(), [
+    assert.deepEqual(Object.keys(facade.eshop.packageOffering).sort(), [
       "get",
       "getByKey",
     ]);
     assert.deepEqual(
-      Object.keys(facade.eshop.customerGroupMember).sort(),
+      Object.keys(facade.eshop.packageMember).sort(),
       storefrontMemberCalls,
     );
     for (const removed of [
@@ -87,38 +87,37 @@ test("the storefront reads groups, offerings and the shopper's own members under
       "join",
       "revoke",
       "scheduleEnd",
-      "transferPurchaseRequirement",
-      "changePurchaseRequirement",
+      "transferMinimum",
+      "changeMinimum",
       "correctTaxClassification",
     ]) {
-      assert.equal(removed in facade.eshop.customerGroupMember, false, removed);
+      assert.equal(removed in facade.eshop.packageMember, false, removed);
     }
     assert.equal("subscription" in facade.eshop, false);
   }
 });
 
-test("group and member transport keeps combined predicates, empty continuations and app-picked ids", async (context) => {
+test("package and member transport keeps combined predicates, empty continuations and app-picked ids", async (context) => {
   const store = "56c82765-4f5a-47e9-bd6d-dba7c6354919";
-  const groupId = "cf8a15f4-1489-40a1-a850-a98b7e311699";
+  const memberPackageId = "cf8a15f4-1489-40a1-a850-a98b7e311699";
   const offeringId = "a3d5f7b9-2c4e-4a6b-8d0f-1e3a5c7e9b2d";
   const memberId = "e245588f-0542-4bb3-97c8-23de326627d1";
   const customerId = "70b5f662-f3d8-48c9-8c16-c60dd4ff1703";
   const cursor = "opaque:/+==next";
-  const groupFields = {
+  const packageFields = {
     key: "members",
     blocks: [],
-    term: { type: "permanent" },
-    entitlements: [],
-    purchase_requirement: null,
-    tax_policies: [],
+    renewal: { type: "never" },
+    stay: { type: "any_time" },
+    minimum: { type: "none" },
+    schedule: { type: "always" },
     status: { type: "active" },
-    starts_at: null,
-    ends_at: null,
+    items: [],
   };
-  const group = {
-    id: groupId,
+  const memberPackage = {
+    id: memberPackageId,
     store_id: store,
-    ...groupFields,
+    ...packageFields,
     created_at: 1,
     updated_at: 1,
   };
@@ -126,24 +125,23 @@ test("group and member transport keeps combined predicates, empty continuations 
   const member = {
     id: memberId,
     store_id: store,
-    customer_group_id: groupId,
+    package_id: memberPackageId,
     subject,
-    type: { type: "permanent" },
+    renewal: { type: "never", access_end: { type: "never" } },
     status: { type: "active" },
-    access_end_at: null,
     created_at: 1,
     updated_at: 1,
   };
   const replies = [
     { items: [], cursor },
-    { items: [group], cursor: null },
-    group,
-    group,
+    { items: [memberPackage], cursor: null },
+    memberPackage,
+    memberPackage,
     { items: [], cursor },
     { items: [member], cursor: null },
     member,
     member,
-    null,
+    { ...memberPackage, status: { type: "deleting" } },
   ];
   const calls = [];
   context.mock.method(globalThis, "fetch", async (input, init = {}) => {
@@ -154,7 +152,6 @@ test("group and member transport keeps combined predicates, empty continuations 
       body: init.body ? JSON.parse(init.body) : null,
     });
     const reply = replies.shift();
-    if (reply === null) return new Response(null, { status: 204 });
     return new Response(JSON.stringify(reply), {
       status: 200,
       headers: { "content-type": "application/json" },
@@ -166,78 +163,78 @@ test("group and member transport keeps combined predicates, empty continuations 
   });
   const filter = {
     store_id: store,
-    customer_group_offering_id: offeringId,
+    package_offering_id: offeringId,
     status: { type: "active" },
     query: "members",
     limit: 20,
   };
-  const page = await admin.eshop.customerGroup.find(filter);
+  const page = await admin.eshop.package.find(filter);
   assert.deepEqual(page, { items: [], cursor });
   assert.equal(calls.length, 1);
   assert.deepEqual(Object.fromEntries(calls[0].url.searchParams), {
-    customer_group_offering_id: offeringId,
+    package_offering_id: offeringId,
     status: JSON.stringify({ type: "active" }),
     query: "members",
     limit: "20",
   });
   assert.deepEqual(
-    await admin.eshop.customerGroup.find({ ...filter, cursor: page.cursor }),
-    { items: [group], cursor: null },
+    await admin.eshop.package.find({ ...filter, cursor: page.cursor }),
+    { items: [memberPackage], cursor: null },
   );
   assert.deepEqual(
-    await admin.eshop.customerGroup.getByKey({
+    await admin.eshop.package.getByKey({
       store_id: store,
-      key: group.key,
+      key: memberPackage.key,
     }),
-    group,
+    memberPackage,
   );
   assert.deepEqual(
-    await admin.eshop.customerGroup.create({
+    await admin.eshop.package.create({
       store_id: store,
-      id: groupId,
-      ...groupFields,
+      id: memberPackageId,
+      ...packageFields,
     }),
-    group,
+    memberPackage,
   );
   const members = {
     store_id: store,
-    customer_group_id: groupId,
+    package_id: memberPackageId,
     customer_id: customerId,
     status: "active",
     limit: 20,
   };
-  assert.deepEqual(await admin.eshop.customerGroupMember.find(members), {
+  assert.deepEqual(await admin.eshop.packageMember.find(members), {
     items: [],
     cursor,
   });
   assert.deepEqual(
-    await admin.eshop.customerGroupMember.find({ ...members, cursor }),
+    await admin.eshop.packageMember.find({ ...members, cursor }),
     { items: [member], cursor: null },
   );
   assert.deepEqual(
-    await admin.eshop.customerGroupMember.get({
+    await admin.eshop.packageMember.get({
       store_id: store,
       id: memberId,
     }),
     member,
   );
   assert.deepEqual(
-    await admin.eshop.customerGroupMember.assign({
+    await admin.eshop.packageMember.assign({
       store_id: store,
       id: memberId,
-      customer_group_id: groupId,
+      package_id: memberPackageId,
       subject,
-      access_end_at: null,
+      access_end: { type: "never" },
     }),
     member,
   );
-  assert.equal(
-    await admin.eshop.customerGroup.delete({
+  assert.deepEqual(
+    await admin.eshop.package.delete({
       store_id: store,
-      id: groupId,
+      id: memberPackageId,
       expected_updated_at: 1,
     }),
-    undefined,
+    { ...memberPackage, status: { type: "deleting" } },
   );
   assert.ok(
     calls.every(
@@ -247,7 +244,7 @@ test("group and member transport keeps combined predicates, empty continuations 
     ),
   );
   assert.deepEqual(Object.fromEntries(calls[1].url.searchParams), {
-    customer_group_offering_id: offeringId,
+    package_offering_id: offeringId,
     status: JSON.stringify({ type: "active" }),
     query: "members",
     limit: "20",
@@ -255,11 +252,11 @@ test("group and member transport keeps combined predicates, empty continuations 
   });
   assert.equal(
     calls[2].url.pathname,
-    `/v1/stores/${store}/customer-groups/by-key/members`,
+    `/v1/stores/${store}/packages/by-key/members`,
   );
-  assert.deepEqual(calls[3].body, { id: groupId, ...groupFields });
+  assert.deepEqual(calls[3].body, { id: memberPackageId, ...packageFields });
   assert.deepEqual(Object.fromEntries(calls[5].url.searchParams), {
-    customer_group_id: groupId,
+    package_id: memberPackageId,
     customer_id: customerId,
     status: "active",
     limit: "20",
@@ -267,49 +264,49 @@ test("group and member transport keeps combined predicates, empty continuations 
   });
   assert.equal(
     calls[6].url.pathname,
-    `/v1/stores/${store}/customer-group-members/${memberId}`,
+    `/v1/stores/${store}/package-members/${memberId}`,
   );
   assert.equal(calls[7].method, "POST");
   assert.equal(
     calls[7].url.pathname,
-    `/v1/stores/${store}/customer-group-members`,
+    `/v1/stores/${store}/package-members`,
   );
   assert.deepEqual(calls[7].body, {
     id: memberId,
-    customer_group_id: groupId,
+    package_id: memberPackageId,
     subject,
-    access_end_at: null,
+    access_end: { type: "never" },
   });
   assert.equal(calls[8].method, "DELETE");
   assert.equal(
     calls[8].url.pathname,
-    `/v1/stores/${store}/customer-groups/${groupId}`,
+    `/v1/stores/${store}/packages/${memberPackageId}`,
   );
   assert.equal(calls[8].url.search, "?expected_updated_at=1");
   assert.equal(calls.length, 9);
   await assert.rejects(
     async () =>
-      admin.eshop.customerGroupMember.assign({
+      admin.eshop.packageMember.assign({
         store_id: store,
         id: "member",
-        customer_group_id: groupId,
+        package_id: memberPackageId,
         subject,
-        access_end_at: null,
+        access_end: { type: "never" },
       }),
     TypeError,
   );
   await assert.rejects(
     async () =>
-      admin.eshop.customerGroup.create({
+      admin.eshop.package.create({
         store_id: store,
         id: undefined,
-        ...groupFields,
+        ...packageFields,
       }),
     TypeError,
   );
   await assert.rejects(
     async () =>
-      admin.eshop.customerGroupMember.find({ ...members, store_id: undefined }),
+      admin.eshop.packageMember.find({ ...members, store_id: undefined }),
     TypeError,
   );
   assert.equal(calls.length, 9);
@@ -323,6 +320,6 @@ test("group and member transport keeps combined predicates, empty continuations 
     "update",
     "delete",
   ])
-    assert.equal(removed in admin.eshop.customerGroupMember, false, removed);
-  assert.equal("usage" in admin.eshop.customerGroup, false);
+    assert.equal(removed in admin.eshop.packageMember, false, removed);
+  assert.equal("usage" in admin.eshop.package, false);
 });

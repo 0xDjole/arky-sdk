@@ -28,7 +28,7 @@ test("Admin reads the typed Customer Action timeline with only the customer filt
       store_id: ids.store,
       customer_id: ids.customer,
       origin: { type: "system" },
-      type: { type: "customer_group_member_switched", from_customer_group_id: ids.product, to_customer_group_id: ids.variant },
+      type: { type: "package_member_switched", from_package_id: ids.product, to_package_id: ids.variant },
       occurred_at: 3,
     },
   ];
@@ -39,14 +39,14 @@ test("Admin reads the typed Customer Action timeline with only the customer filt
   const found = await admin.actions.find({ store_id: ids.store, customer_id: ids.customer, limit: 20 });
   await admin.customers.find({ store_id: ids.store, has_customer_action: true });
   assert.deepEqual(found, { items: actions, cursor: null });
-  assert.deepEqual(found.items.map((action) => action.type.type), ["custom", "order_placed", "customer_group_member_switched"]);
+  assert.deepEqual(found.items.map((action) => action.type.type), ["custom", "order_placed", "package_member_switched"]);
   assert.deepEqual(calls.map((call) => [call.method, call.href]), [
     ["GET", `${apiUrl}/v1/stores/${ids.store}/actions?customer_id=${ids.customer}&limit=20`],
     ["GET", `${apiUrl}/v1/stores/${ids.store}/customers?has_customer_action=true`],
   ]);
 });
 
-test("the server records commerce, support and customer group actions itself, so the storefront suggests only custom keys", () => {
+test("the server records commerce, support and package actions itself, so the storefront suggests only custom keys", () => {
   assert.deepEqual([...COMMON_CUSTOMER_ACTION_KEYS], [
     "product.view",
     "booking_service.view",
@@ -70,11 +70,11 @@ test("the server records commerce, support and customer group actions itself, so
     "support_conversation_started",
     "support_conversation_escalated",
     "support_conversation_resolved",
-    "customer_group_member_activated",
-    "customer_group_member_cancelled",
-    "customer_group_member_switched",
+    "package_member_activated",
+    "package_member_cancelled",
+    "package_member_switched",
   ]);
-  for (const removed of ["customer_group_member_added", "customer_group_member_removed"]) {
+  for (const removed of ["package_member_added", "package_member_removed"]) {
     assert.equal(TYPED_CUSTOMER_ACTION_KEYS.includes(removed), false, removed);
   }
   for (const key of TYPED_CUSTOMER_ACTION_KEYS) assert.equal(COMMON_CUSTOMER_ACTION_KEYS.includes(key), false, key);

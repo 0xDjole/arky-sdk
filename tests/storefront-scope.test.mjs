@@ -101,14 +101,14 @@ test("requests use the production URL by default and force the publishable key a
   const calls = recordFetch(context, () => ({ items: [], cursor: null }));
   const root = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, locale: "en" });
   root.setContext({ market: "bih" });
-  await root.eshop.catalogItem.find(
-    { catalog_id: ids.catalog, limit: 1, store_id: "caller-store", market: "caller-market" },
+  await root.eshop.packageItem.find(
+    { package_id: ids.package, limit: 1, store_id: "caller-store", market: "caller-market" },
     { headers: { Authorization: "Bearer arky_api_caller", "x-arky-publishable-key": otherPublishableKey, "x-arky-locale": "caller-locale", "x-arky-market": "caller-market" } },
   );
-  await root.eshop.catalogItem.find({ catalog_id: ids.catalog, limit: 1 }, { locale: "it", market: "ita" });
+  await root.eshop.packageItem.find({ package_id: ids.package, limit: 1 }, { locale: "it", market: "ita" });
   assert.equal(root.getLocale(), "en");
   assert.equal(root.getMarket(), "bih");
-  assert.equal(calls[0].href, `https://api.arky.io/v1/storefront/catalog-items?catalog_id=${ids.catalog}&limit=1`);
+  assert.equal(calls[0].href, `https://api.arky.io/v1/storefront/package-items?package_id=${ids.package}&limit=1`);
   assert.equal(calls[0].headers.get("x-arky-publishable-key"), publishableKey);
   assert.equal(calls[0].headers.get("x-arky-locale"), "en");
   assert.equal(calls[0].headers.get("x-arky-market"), "bih");
@@ -143,12 +143,12 @@ test("the setup is read lazily, once, and without creating a visitor", async (co
   assert.equal(client.hasSession, false);
 });
 
-test("catalog text search keeps its selection, the price range and the continuation together", async (context) => {
+test("package text search keeps its selection, the price range and the continuation together", async (context) => {
   const calls = recordFetch(context, () => ({ items: [], cursor: "next-search-page" }));
   const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, market: "bih", locale: "bs" });
   const selection = { types: ["product"], text: "KOŠULJA-0001", choice: { price: { min_amount: 0, max_amount: 5000 } }, sort: "relevance" };
-  const params = { catalog_id: ids.catalog, selection, limit: 20, cursor: "current-search-page" };
-  assert.deepEqual(await client.eshop.catalogItem.find(params), { items: [], cursor: "next-search-page" });
+  const params = { package_id: ids.package, selection, limit: 20, cursor: "current-search-page" };
+  assert.deepEqual(await client.eshop.packageItem.find(params), { items: [], cursor: "next-search-page" });
   assert.deepEqual(JSON.parse(calls[0].query.selection), selection);
   assert.equal(calls[0].query.cursor, params.cursor);
   assert.equal(calls[0].query.limit, "20");
@@ -165,7 +165,7 @@ test("anonymous reads don't identify, and concurrent first stateful calls share 
     releaseIdentify = resolve;
   });
   const calls = recordFetch(context, async (call) => {
-    if (call.path === "/v1/storefront/catalog-items") return { items: [], cursor: null };
+    if (call.path === "/v1/storefront/package-items") return { items: [], cursor: null };
     if (call.path === "/v1/storefront/customer/identify") {
       identifyStarted();
       await identifyGate;
@@ -175,10 +175,10 @@ test("anonymous reads don't identify, and concurrent first stateful calls share 
   });
   const storage = new SessionStorage();
   const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, locale: "en", market: "bih", sessionStorage: storage });
-  await client.eshop.catalogItem.find({ catalog_id: ids.catalog });
+  await client.eshop.packageItem.find({ package_id: ids.package });
   assert.equal(calls.filter((call) => call.path.endsWith("/customer/identify")).length, 0);
-  const first = client.eshop.cart.getCurrent({ buyer: customerBuyer, catalog_id: ids.catalog });
-  const second = client.eshop.cart.getCurrent({ buyer: customerBuyer, catalog_id: ids.catalog });
+  const first = client.eshop.cart.getCurrent({ buyer: customerBuyer, package_id: ids.package });
+  const second = client.eshop.cart.getCurrent({ buyer: customerBuyer, package_id: ids.package });
   await started;
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(calls.filter((call) => call.path.endsWith("/customer/identify")).length, 1);
@@ -216,7 +216,7 @@ test("an expired visitor re-identifies once and retries, while a refused publish
   context.mock.restoreAll();
   const refused = recordFetch(context, () => errorResponse(401, "GENERAL.UNAUTHENTICATED", "Unauthenticated"));
   const invalid = createStorefront(otherPublishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl });
-  await assert.rejects(invalid.eshop.catalogItem.find({ catalog_id: ids.catalog }), (error) => error.statusCode === 401);
+  await assert.rejects(invalid.eshop.packageItem.find({ package_id: ids.package }), (error) => error.statusCode === 401);
   assert.equal(refused.filter((call) => call.path.endsWith("/customer/identify")).length, 0);
   assert.equal(refused.length, 1);
 });
@@ -285,7 +285,7 @@ test("server-side rendering allows anonymous reads but needs request-local stora
   const calls = recordFetch(context, () => ({ items: [], cursor: null }));
   const serverClient = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl });
   await serverClient.content.entry.find({ collection_id: "pages" });
-  await assert.rejects(serverClient.eshop.cart.getCurrent({ buyer: customerBuyer, catalog_id: ids.catalog }), /request-local sessionStorage adapter/);
+  await assert.rejects(serverClient.eshop.cart.getCurrent({ buyer: customerBuyer, package_id: ids.package }), /request-local sessionStorage adapter/);
   await assert.rejects(serverClient.customer.identify({ customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }), /request-local sessionStorage adapter/);
   assert.equal(calls.length, 1);
 });

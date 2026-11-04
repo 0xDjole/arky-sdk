@@ -8,7 +8,7 @@ const STORE_ID = "9d3e7b50-1a26-4f8c-b74e-0c5a2d9f6e13";
 
 const shared = {
   company_location_id: ids.companyLocation,
-  customer_group_member_id: ids.customerGroupMember,
+  package_member_id: ids.packageMember,
   query: "ORD-2026",
   statuses: ["confirmed", "partially_cancelled"],
   sources: ["renewal"],

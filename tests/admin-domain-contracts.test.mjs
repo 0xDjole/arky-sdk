@@ -212,6 +212,7 @@ test('API-token rejection preserves the native snake_case failure without refres
   const admin = createAdmin({ apiUrl: 'https://api.example.test', secretKey: token });
   const payload = {
     id: STORE_ID,
+    mode: 'live',
     name: 'Account-authorized Store',
     timezone: 'Europe/Sarajevo',
     languages: ['bs', 'en'],

@@ -16,7 +16,7 @@ test("the setup carries no market, and the selected market is one exact read by 
     if (call.path === "/v1/storefront") return setup();
     if (call.path === "/v1/storefront/markets/by-key/trade") return market("trade", "usd");
     throw new Error(`Unexpected request: ${call.path}`);
-  });
+  }, { answerMarkets: false });
   const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, market: "trade" });
   const loaded = await store.store.load();
   assert.deepEqual(loaded, setup());
@@ -67,7 +67,7 @@ test("a late market read can't replace a newer market selection or its currency 
     }
     if (call.path.endsWith("/new")) return market("new", "usd");
     throw new Error(`Unexpected request: ${call.path}`);
-  });
+  }, { answerMarkets: false });
   const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, market: "old" });
   const rejected = assert.rejects(store.store.load(), /market changed while the store setup was loading/);
   await requested;
@@ -92,7 +92,7 @@ test("a failed or mismatched market read never falls back to another market", as
         : market("wrong");
     }
     throw new Error(`Unexpected request: ${call.path}`);
-  });
+  }, { answerMarkets: false });
   const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, market: "trade" });
   await assert.rejects(store.store.load(), (error) => error.statusCode === 503);
   assert.equal(store.market.get(), null);
@@ -104,7 +104,7 @@ test("a failed or mismatched market read never falls back to another market", as
 });
 
 test("a market read by key encodes the key and creates no session", async (context) => {
-  const calls = recordFetch(context, () => market("retail"));
+  const calls = recordFetch(context, () => market("retail"), { answerMarkets: false });
   const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl });
   await client.store.market.getByKey({ key: "a/b" });
   assert.equal(calls.length, 1);

@@ -1,6 +1,7 @@
 import type { EpochMilliseconds } from "./time";
 import type { EmailContact, SortDirection } from "./common";
 import type { Account, AccountSortField } from "./account";
+import type { StoreMode } from "./store";
 
 export type LocationReach =
   | { type: "everywhere" }
@@ -10,7 +11,7 @@ export type StorePermissionAccess = "read_write" | "read_only";
 
 export type StorePermission =
   | { type: "admin" }
-  | { type: "catalog" }
+  | { type: "packages" }
   | { type: "orders"; access: StorePermissionAccess }
   | { type: "payments"; access: StorePermissionAccess }
   | { type: "customers"; access: StorePermissionAccess }
@@ -55,6 +56,7 @@ export interface StoreMembership {
 
 export interface StoreMembershipWithStoreName extends StoreMembership {
   store_name: string;
+  store_mode: StoreMode;
   access: StoreAccess;
 }
 

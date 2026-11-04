@@ -108,18 +108,18 @@ test("an unresolved checkout blocks every cart change and a new cart until it is
   await loseResponse();
   const calls = capture(success);
   const cart = storefront().eshop.cart;
-  const product = { id: ids.otherLine, variant_id: ids.variant, quantity: 1, purchase: { type: "catalog" } };
+  const product = { id: ids.otherLine, variant_id: ids.variant, quantity: 1, price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price } };
   for (const mutate of [
-    () => cart.create({ id: ids.otherCart, buyer: { type: "customer" }, catalog_id: ids.catalog }),
-    () => cart.reorder({ id: ids.otherCart, order_id: ids.otherOrder, buyer: { type: "customer" }, catalog_id: ids.catalog }),
+    () => cart.create({ id: ids.otherCart, buyer: { type: "customer" }, package_id: ids.package }),
+    () => cart.reorder({ id: ids.otherCart, order_id: ids.otherOrder, buyer: { type: "customer" }, package_id: ids.package }),
     () => cart.update({ id: ids.cart, expected_updated_at: 1, promotion_codes: ["NEW"] }),
     () => cart.addProduct({ id: ids.cart, expected_updated_at: 1, product }),
     () => cart.addBooking({ id: ids.cart, expected_updated_at: 1, booking: { id: ids.otherLine, booking_offering_id: ids.product, requested_interval: { from: 1, to: 2 }, capacity_units: 1 } }),
-    () => cart.addCustomerGroup({ id: ids.cart, expected_updated_at: 1, customer_group: { id: ids.otherLine, customer_group_id: ids.product, quantity: 1, choices: [], start: { type: "on_acceptance" } } }),
+    () => cart.addPackage({ id: ids.cart, expected_updated_at: 1, package: { id: ids.otherLine, package_id: ids.product, quantity: 1, choices: [], start: { type: "on_acceptance" } } }),
     () => cart.removeItem({ id: ids.cart, expected_updated_at: 1, line_item_id: ids.line }),
     () => cart.clear({ id: ids.cart, expected_updated_at: 1 }),
     () => cart.selectShippingMethod({ id: ids.cart, expected_updated_at: 1, shipping_method_id: ids.product }),
-    () => cart.setFutureDeliveries({ id: ids.cart, expected_updated_at: 1, customer_groups: [] }),
+    () => cart.setFutureDeliveries({ id: ids.cart, expected_updated_at: 1, packages: [] }),
   ]) await assert.rejects(mutate(), /Recover the unfinished cart checkout/);
   assert.equal(calls.length, 0);
   assert.deepEqual(await cart.pendingCheckout(), request);
@@ -316,7 +316,7 @@ test("a placed answer whose order read fails or does not confirm this cart stays
     () => { throw new TypeError("read lost"); },
     () => Response.json(placedOrder({ id: ids.otherOrder })),
     () => Response.json(placedOrder({ source: { type: "cart", cart_id: ids.otherCart, placed_by: { type: "customer", customer_id: ids.customer, customer_session_id: ids.session } } })),
-    () => Response.json(placedOrder({ source: { type: "renewal", order_customer_group_line_item_id: ids.line, recovery: null } })),
+    () => Response.json(placedOrder({ source: { type: "renewal", order_package_line_item_id: ids.line, recovery: null } })),
     () => Response.json(placedOrder({ source: null })),
   ]) {
     const { storage } = browser();
@@ -341,13 +341,13 @@ test("malformed checkout answers never clear the kept request", async () => {
     { ...placedAcceptance(), payment_action: "none" },
     { ...placedAcceptance(), payment_id: "payment-1" },
     { type: "already_member" },
-    { type: "already_member", customer_group_member_id: "member-1" },
-    { type: "already_member", customer_group_member_id: ids.customerGroupMember.toUpperCase() },
+    { type: "already_member", package_member_id: "member-1" },
+    { type: "already_member", package_member_id: ids.packageMember.toUpperCase() },
   ];
   for (const body of invalid) {
     const { storage } = browser();
     const calls = capture(() => Response.json(body));
-    await assert.rejects(retainAndRecover(), /did not return the order|did not name the customer group member/);
+    await assert.rejects(retainAndRecover(), /did not return the order|did not name the package member/);
     assert.deepEqual(retained(storage), request);
     assert.equal(calls.length, 1);
   }
@@ -355,7 +355,7 @@ test("malformed checkout answers never clear the kept request", async () => {
 
 test("an already_member answer finishes the kept checkout without reading an order", async () => {
   const { storage } = browser();
-  const answer = { type: "already_member", customer_group_member_id: ids.customerGroupMember };
+  const answer = { type: "already_member", package_member_id: ids.packageMember };
   let notified = 0;
   const calls = capture(() => Response.json(answer));
   assert.deepEqual(await retainAndRecover(request, { onSuccess: () => { notified += 1; } }), answer);
@@ -372,7 +372,7 @@ test("a placed card checkout exposes its payment action only after the order con
   const { storage } = browser();
   const answer = placedAcceptance({
     payment_id: ids.payment,
-    payment_action: { type: "stripe_embedded_checkout", publishable_key: "pk_test_exact", client_secret: "cs_test_exact_secret_value", expires_at: 1_900_000_000_000 },
+    payment_action: { type: "stripe_embedded_checkout", publishable_key: "pk_test_exact", client_secret: "cs_test_exact_secret_value", expires_at: 1_900_000_000_000, runs_on: { type: "provider" } },
   });
   let notified = 0;
   let storageAtSuccess = "not notified";
@@ -393,7 +393,7 @@ test("a placed Monri checkout keeps one order and exposes its card form action w
   const { storage } = browser();
   const answer = placedAcceptance({
     payment_id: ids.payment,
-    payment_action: { type: "monri_components", environment: "test", authenticity_token: "test-token", client_secret: "test-session-secret", save_card: false },
+    payment_action: { type: "monri_components", environment: "test", authenticity_token: "test-token", client_secret: "test-session-secret", save_card: false, runs_on: { type: "provider" } },
   });
   const calls = capture((call) => {
     const kept = storage.getItem(storageKey);
@@ -419,7 +419,7 @@ test("failed terminal storage clear does not notify success and retains recovery
 
 test("saved-method consent survives lost responses and exact recovery", async () => {
   const { storage } = browser();
-  const consentRequest = { ...request, payment: { ...request.payment, save_payment_method: true, payment_method_terms: "Save this card for later group charges." } };
+  const consentRequest = { ...request, payment: { ...request.payment, save_payment_method: true, payment_method_terms: "Save this card for later package charges." } };
   await loseResponse(consentRequest);
   assert.deepEqual(await storefront().eshop.cart.pendingCheckout(), consentRequest);
   const calls = capture(success);
@@ -427,7 +427,7 @@ test("saved-method consent survives lost responses and exact recovery", async ()
   assert.equal(calls.length, 0);
   assert.deepEqual(await storefront().eshop.cart.recoverCheckout(), placedAcceptance());
   assert.equal(calls[0].body.payment.save_payment_method, true);
-  assert.equal(calls[0].body.payment.payment_method_terms, "Save this card for later group charges.");
+  assert.equal(calls[0].body.payment.payment_method_terms, "Save this card for later package charges.");
   assert.equal(storage.getItem(storageKey), null);
 });
 
@@ -460,8 +460,8 @@ test("server-side checkout uses the caller's exact request without browser stora
 
 test("each branch keeps its own checkout: a pending one blocks only its own cart and new or reordered carts in its scope", async () => {
   const { storage } = browser();
-  const branchA = { buyer: { type: "company_location", company_location_id: ids.companyLocation, purchase_order_number: null }, catalog_id: ids.catalog };
-  const branchB = { buyer: { type: "company_location", company_location_id: ids.otherCompanyLocation, purchase_order_number: null }, catalog_id: ids.catalog };
+  const branchA = { buyer: { type: "company_location", company_location_id: ids.companyLocation, purchase_order_number: null }, package_id: ids.package };
+  const branchB = { buyer: { type: "company_location", company_location_id: ids.otherCompanyLocation, purchase_order_number: null }, package_id: ids.package };
   const requestA = checkoutRequest({ cart_id: ids.cart, order_id: ids.order, order_token: `arky_ot_${"A".repeat(42)}A` });
   const requestB = checkoutRequest({ cart_id: ids.otherCart, order_id: ids.otherOrder, order_token: `arky_ot_${"B".repeat(42)}A` });
   const lost = capture(() => { throw new TypeError("response lost"); });

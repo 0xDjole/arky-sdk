@@ -11,10 +11,14 @@ import type {
   ProviderOperationClaim,
   SortDirection,
 } from "./common";
-import type { CustomerGroupMemberPaymentMethod } from "./customerGroup";
+import type { PackageMemberCard } from "./packageMember";
 import type { EmailFailure } from "./notification";
 
 export type MonriEnvironment = "test" | "live";
+
+export type PaymentRunsOn =
+  | { type: "provider" }
+  | { type: "simulator"; api_url: string };
 
 export interface StripeSigningSecretOverlap {
   expires_at: EpochMilliseconds;
@@ -70,9 +74,13 @@ export type PaymentOptionType =
   | { type: "cash_on_delivery" }
   | { type: "manual" }
   | ({ type: "stripe" } & StripeConnection)
-  | ({ type: "monri" } & MonriConnection);
+  | ({ type: "monri" } & MonriConnection)
+  | ({ type: "arky_stripe" } & StripeConnection)
+  | ({ type: "arky_monri" } & MonriConnection);
 
 export type PaymentOptionTypeName = PaymentOptionType["type"];
+
+export type StorefrontPaymentOptionType = "cash_on_delivery" | "manual" | "stripe" | "monri";
 
 export type PaymentOptionStatus = "active" | "disabled";
 
@@ -91,7 +99,7 @@ export interface StorefrontPaymentOption {
   id: string;
   key: string;
   blocks: Block[];
-  type: PaymentOptionTypeName;
+  type: StorefrontPaymentOptionType;
   saved_card_terms: LocalizedMarkdown | null;
 }
 
@@ -185,6 +193,7 @@ export interface PaymentMethodSetupStart {
   method: PaymentMethod;
   client_secret: string | null;
   publishable_key: string | null;
+  runs_on: PaymentRunsOn;
 }
 
 export type ProviderCallStatus =
@@ -384,7 +393,7 @@ export type StripeCardPaymentStatus =
   | { type: "failed"; error: ProviderEffectError };
 
 export interface StripeCardPayment {
-  payment_method: CustomerGroupMemberPaymentMethod;
+  payment_method: PackageMemberCard;
   purpose: CardPaymentPurpose;
   status: StripeCardPaymentStatus;
   refunds: StripeRefund[];
@@ -416,7 +425,7 @@ export type MonriCardPaymentStatus =
   | { type: "confirmed_not_made"; by: AccountActor };
 
 export interface MonriCardPayment {
-  payment_method: CustomerGroupMemberPaymentMethod;
+  payment_method: PackageMemberCard;
   purpose: CardPaymentPurpose;
   status: MonriCardPaymentStatus;
   refunds: MonriRefund[];
@@ -492,6 +501,7 @@ export interface MonriComponentsAction {
   authenticity_token: string;
   client_secret: string;
   save_card: boolean;
+  runs_on: PaymentRunsOn;
 }
 
 export interface StripeEmbeddedCheckoutPaymentAction {
@@ -499,6 +509,7 @@ export interface StripeEmbeddedCheckoutPaymentAction {
   publishable_key: string;
   client_secret: string;
   expires_at: EpochMilliseconds;
+  runs_on: PaymentRunsOn;
 }
 
 export type CheckoutPaymentAction =
@@ -521,7 +532,6 @@ export interface ResendEvent {
   email_id: string;
   occurred_at: EpochMilliseconds;
   outgoing_email_id: string | null;
-  store_id: string | null;
   message_id: string | null;
   recipients: string[];
   failure: EmailFailure | null;
@@ -661,6 +671,24 @@ export interface ConnectStripePaymentOptionParams {
   status: PaymentOptionStatus;
   restricted_key: string;
   publishable_key: string;
+  saved_card_terms: LocalizedMarkdown;
+}
+
+export interface ConnectArkyStripePaymentOptionParams {
+  store_id: string;
+  id: string;
+  key: string;
+  blocks: Block[];
+  status: PaymentOptionStatus;
+  saved_card_terms: LocalizedMarkdown;
+}
+
+export interface ConnectArkyMonriPaymentOptionParams {
+  store_id: string;
+  id: string;
+  key: string;
+  blocks: Block[];
+  status: PaymentOptionStatus;
   saved_card_terms: LocalizedMarkdown;
 }
 

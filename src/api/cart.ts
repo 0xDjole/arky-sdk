@@ -4,10 +4,9 @@ import type { RequestOptions } from "../types/api";
 import type { PaginatedResponse } from "../types/common";
 import type {
   AddCartBookingParams,
-  AddCartCustomerGroupParams,
+  AddCartPackageParams,
   AddCartProductParams,
   Cart,
-  CartAccessProductPreview,
   CartQuote,
   CheckoutAcceptance,
   CheckoutCartOnAccountParams,
@@ -16,11 +15,10 @@ import type {
   CreateCartOfferParams,
   CreateCartParams,
   CreatedCart,
-  CustomerGroupDeliveryOffers,
+  PackageDeliveryOffers,
   FindCartsParams,
   GetCartParams,
   GetCartOrderParams,
-  PreviewCartAccessProductParams,
   QuoteCartFutureDeliveriesParams,
   QuoteCartOfferParams,
   QuoteCartParams,
@@ -84,10 +82,10 @@ export const createCartApi = (apiConfig: ApiConfig) => {
       return action<Cart>(store_id, id, "booking-items", body, options);
     },
 
-    addCustomerGroup(params: AddCartCustomerGroupParams, options?: RequestOptions): Promise<Cart> {
-      requireId(params.customer_group.id, "cart line");
+    addPackage(params: AddCartPackageParams, options?: RequestOptions): Promise<Cart> {
+      requireId(params.package.id, "cart line");
       const { store_id, id, ...body } = params;
-      return action<Cart>(store_id, id, "customer-group-items", body, options);
+      return action<Cart>(store_id, id, "package-items", body, options);
     },
 
     removeItem(params: RemoveCartItemParams, options?: RequestOptions): Promise<Cart> {
@@ -112,14 +110,9 @@ export const createCartApi = (apiConfig: ApiConfig) => {
     quoteFutureDeliveries(
       params: QuoteCartFutureDeliveriesParams,
       options?: RequestOptions,
-    ): Promise<CustomerGroupDeliveryOffers[]> {
+    ): Promise<PackageDeliveryOffers[]> {
       const { store_id, id, ...body } = params;
-      return action<CustomerGroupDeliveryOffers[]>(store_id, id, "future-delivery-quote", body, options);
-    },
-
-    previewAccessProduct(params: PreviewCartAccessProductParams, options?: RequestOptions): Promise<CartAccessProductPreview> {
-      const { store_id, id, ...body } = params;
-      return action<CartAccessProductPreview>(store_id, id, "access-product-preview", body, options);
+      return action<PackageDeliveryOffers[]>(store_id, id, "future-delivery-quote", body, options);
     },
 
     quote(params: QuoteCartParams, options?: RequestOptions): Promise<CartQuote> {

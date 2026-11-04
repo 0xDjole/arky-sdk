@@ -66,7 +66,7 @@ export {
 } from "./fulfillmentSelection";
 export { hasStorePermission, storeLocationReadReach, storePermissionReach } from "./storeAccess";
 export { FulfillmentSelectionError } from "../types/fulfillmentSelection";
-export { copyCartProductPurchase } from "./cartInputs";
+export { copyPackagePriceRef } from "./cartInputs";
 export { isCanonicalId, requireId } from "./ids";
 
 export { createOrderToken, isOrderToken, retainOrderToken, replaceOrderToken, readOrderToken } from "./orderToken";

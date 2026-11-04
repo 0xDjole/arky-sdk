@@ -1,5 +1,5 @@
 import type { createStorefront, initialize } from "arky-sdk/storefront";
-import { ArkyApiError, CartPresentationChangedError, CheckoutFlowError, CustomerGroupJoinError } from "arky-sdk/storefront";
+import { ArkyApiError, CartPresentationChangedError, CheckoutFlowError, PackageJoinError } from "arky-sdk/storefront";
 import { ArkyApiError as AdminApiError } from "arky-sdk/admin";
 import type {
   ArkyCartStore,
@@ -9,7 +9,7 @@ import type {
   ArkyPlacedCheckout,
   ArkySetContactParams,
   BroadcastUnsubscribeResponse,
-  JoinFreeCustomerGroupParams,
+  JoinFreePackageParams,
   JoinNewsletterParams,
   PaymentMethodSetupStart,
   UnsubscribeBroadcastParams,
@@ -17,7 +17,7 @@ import type {
   ContentBlocks,
   EmailContact,
   Entry,
-  JoinFreeCustomerGroupResult,
+  JoinFreePackageResult,
   LoadedContent,
   Media,
   OrderFromLink,
@@ -38,7 +38,7 @@ type Answer<F extends (...args: never[]) => unknown> = Awaited<ReturnType<F>>;
 const apiError = new ArkyApiError({ message: "Refused", code: "GENERAL.CONFLICT", statusCode: 409 });
 const sameClass: AdminApiError = apiError;
 const flowError = new CheckoutFlowError("refused", "Refused", apiError);
-const joinError = new CustomerGroupJoinError("not_free", "Not free");
+const joinError = new PackageJoinError("not_free", "Not free");
 
 export type StorefrontFlowContracts = [
   Assert<Equal<typeof sameClass.code, string>>,
@@ -63,10 +63,10 @@ export type StorefrontFlowContracts = [
   Assert<Equal<ArkyPlacedCheckout["payment_method_id"], string | null>>,
   Assert<Equal<ArkyPlacedCheckout["payment_method_setup"], PaymentMethodSetupStart | null>>,
   Assert<RequiredField<ArkyPlacedCheckout, "payment_method_setup">>,
-  Assert<RequiredField<JoinFreeCustomerGroupParams, "language">>,
-  Assert<Equal<JoinFreeCustomerGroupParams["language"], string>>,
+  Assert<RequiredField<JoinFreePackageParams, "language">>,
+  Assert<Equal<JoinFreePackageParams["language"], string>>,
   Assert<RequiredField<JoinNewsletterParams, "language">>,
-  Assert<Equal<Parameters<Storefront["eshop"]["customerGroup"]["joinFree"]>[0], JoinFreeCustomerGroupParams>>,
+  Assert<Equal<Parameters<Storefront["eshop"]["package"]["joinFree"]>[0], JoinFreePackageParams>>,
   Assert<Equal<Parameters<Storefront["newsletter"]["join"]>[0], JoinNewsletterParams>>,
   Assert<Equal<keyof Storefront["broadcast"], "unsubscribe">>,
   Assert<Equal<Parameters<Storefront["broadcast"]["unsubscribe"]>[0], UnsubscribeBroadcastParams>>,
@@ -80,10 +80,10 @@ export type StorefrontFlowContracts = [
   Assert<Missing<Store["forms"], "submitByKey">>,
   Assert<Equal<Answer<Storefront["eshop"]["order"]["fromLink"]>, OrderFromLink>>,
   Assert<Equal<ReturnType<Storefront["eshop"]["order"]["retainedToken"]>, string | null>>,
-  Assert<Equal<Answer<Storefront["eshop"]["customerGroup"]["joinFree"]>, JoinFreeCustomerGroupResult>>,
+  Assert<Equal<Answer<Storefront["eshop"]["package"]["joinFree"]>, JoinFreePackageResult>>,
   Assert<Equal<Answer<Storefront["newsletter"]["requestCode"]>, RequestNewsletterCodeResult>>,
   Assert<Missing<Storefront["newsletter"], "sendCode">>,
-  Assert<Equal<Answer<Storefront["newsletter"]["join"]>, JoinFreeCustomerGroupResult>>,
+  Assert<Equal<Answer<Storefront["newsletter"]["join"]>, JoinFreePackageResult>>,
   Assert<Equal<Store["newsletter"], Storefront["newsletter"]>>,
   Assert<Equal<Answer<Store["content"]["load"]>, LoadedContent<Collection> | LoadedContent<Entry>>>,
   Assert<Equal<ReturnType<LoadedContent<Entry>["media"]>, Media | null>>,

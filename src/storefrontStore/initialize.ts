@@ -128,31 +128,52 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig) {
     };
   }
 
-  const cartContext: CartStoreContext = { client, locale, requireLocale, beginCartOperation, newId, newOrderToken };
+  function marketContext(marketKey: string): Pick<CartStoreContext, "assertMarket" | "beginCartOperation"> {
+    function assertMarket(): void {
+      if (market_key.get() !== marketKey) {
+        throw new CartError("context_changed", "This cart store belongs to another market; take the current market's from eshop.cart");
+      }
+    }
+    return {
+      assertMarket,
+      async beginCartOperation() {
+        assertMarket();
+        return beginCartOperation();
+      },
+    };
+  }
 
   function cart(scope: ArkyCartScope): CartStore {
-    requireId(scope.catalog_id, "catalog");
-    const key = cartScopeKey(scope);
+    requireId(scope.package_id, "package");
+    const marketKey = market_key.get();
+    const key = cartScopeKey(scope, marketKey);
     const existing = cartStores.get(key);
     if (existing) return existing;
-    const { store, invalidate } = createCartStore(cartContext, { buyer: scope.buyer, catalog_id: scope.catalog_id });
+    const { store, invalidate } = createCartStore(
+      { client, locale, requireLocale, newId, newOrderToken, ...marketContext(marketKey) },
+      { buyer: scope.buyer, package_id: scope.package_id },
+    );
     cartStores.set(key, store);
     contextInvalidators.add(invalidate);
     return store;
   }
 
   function checkoutFlow(scope: ArkyCartScope): CheckoutFlow {
-    const key = cartScopeKey(scope);
+    const marketKey = market_key.get();
+    const key = cartScopeKey(scope, marketKey);
     const existing = checkoutFlows.get(key);
     if (existing) return existing;
-    const { flow, invalidate } = createCheckoutFlow({ client, loadSetup, beginCartOperation, newId, newOrderToken }, cart(scope));
+    const { flow, invalidate } = createCheckoutFlow(
+      { client, loadSetup, beginCartOperation: marketContext(marketKey).beginCartOperation, newId, newOrderToken },
+      cart(scope),
+    );
     checkoutFlows.set(key, flow);
     contextInvalidators.add(invalidate);
     return flow;
   }
 
   function bookingCalendar(scope: ArkyCartScope): BookingCalendar {
-    const key = cartScopeKey(scope);
+    const key = cartScopeKey(scope, market_key.get());
     const existing = bookingCalendars.get(key);
     if (existing) return existing;
     const calendar = createBookingCalendar({ client, locale, requireLocale }, cart(scope));

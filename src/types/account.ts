@@ -7,6 +7,7 @@ export interface Account {
   id: string;
   email: string;
   status: AccountStatus;
+  test_stores: number;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }

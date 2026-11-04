@@ -24,15 +24,19 @@ const address = {
 const detailBlocks = [{ id: "a8c0e2f4-6b7d-4f9a-8c1e-3a5c7e9b1d2f", key: "registration_number", type: "text", value: "4200000000000" }];
 const standardCheckout = { payment: { type: "standard_checkout", billing_address: null }, allowed_payment_option_ids: [], purchase_order_number_required: false };
 const monthly = {
-  type: "recurring",
-  cadence: { interval: "month", interval_count: 1 },
-  renewal_reminder_days: null,
-  commitment: { occurrences: 12, end_action: { type: "renew" } },
-  on_exhaustion: { type: "pause" },
-  unpaid_order: { type: "retain_debt" },
-  retry_offsets_seconds: [86_400],
-  recovery_window_seconds: 604_800,
+  type: "every",
+  agreed: {
+    cadence: { interval: "month", interval_count: 1 },
+    on_exhaustion: { type: "pause" },
+    unpaid_order: { type: "retain_debt" },
+  },
+  timing: {
+    retry_offsets_seconds: [86_400],
+    recovery_window_seconds: 604_800,
+    reminder: { type: "none" },
+  },
 };
+const yearly = { type: "at_least", length: { interval: "year", interval_count: 1 }, then: { type: "renew" } };
 const definitions = [
   {
     path: ["companies"],
@@ -54,8 +58,8 @@ const definitions = [
   {
     path: ["companies", "role"],
     route: "company-roles",
-    create: { key: "purchaser", permissions: ["place_orders", "access_digital_products", "join_customer_groups", "view_own_customer_groups"] },
-    update: { permissions: ["admin", "view_company_customer_groups", "manage_company_customer_groups"] },
+    create: { key: "purchaser", permissions: ["place_orders", "access_digital_products", "join_packages", "view_own_packages"] },
+    update: { permissions: ["admin", "view_company_packages", "manage_company_packages"] },
     query: { key: "purchaser" },
     deletion: "deleted",
   },
@@ -73,19 +77,19 @@ const definitions = [
     deletion: "deleted",
   },
   {
-    path: ["eshop", "customerGroup"],
-    route: "customer-groups",
-    create: { key: "wholesale", blocks: [], term: { type: "permanent" }, entitlements: [], purchase_requirement: null, tax_policies: [], status: { type: "active" }, starts_at: null, ends_at: null },
-    update: { blocks: detailBlocks, term: monthly, entitlements: [], purchase_requirement: null, tax_policies: [], status: { type: "closed" }, starts_at: now, ends_at: null },
-    query: { customer_group_offering_id: otherId, status: { type: "active" }, query: "wholesale", sort_field: "key", sort_direction: "asc", created_at_from: 1, created_at_to: now },
-    deletion: "empty",
+    path: ["eshop", "package"],
+    route: "packages",
+    create: { key: "wholesale", blocks: [], renewal: { type: "never" }, stay: { type: "any_time" }, minimum: { type: "none" }, schedule: { type: "always" }, status: { type: "active" }, items: [] },
+    update: { blocks: detailBlocks, renewal: monthly, stay: yearly, minimum: { type: "none" }, schedule: { type: "scheduled", starts_at: now, ends_at: null }, status: { type: "closed" }, items: [] },
+    query: { package_offering_id: otherId, status: { type: "active" }, query: "wholesale", sort_field: "key", sort_direction: "asc", created_at_from: 1, created_at_to: now },
+    deletion: "deleted",
   },
   {
-    path: ["eshop", "customerGroupOffering"],
-    route: "customer-group-offerings",
-    create: { key: "members-club", blocks: [], customer_group_ids: [otherId], status: { type: "draft" } },
-    update: { blocks: detailBlocks, customer_group_ids: [otherId, selectedStoreId], status: { type: "active" } },
-    query: { key: "members-club", status: "active", sort_field: "updated_at", sort_direction: "desc" },
+    path: ["eshop", "packageOffering"],
+    route: "package-offerings",
+    create: { key: "members-club", blocks: [], package_ids: [otherId] },
+    update: { blocks: detailBlocks, package_ids: [otherId, selectedStoreId] },
+    query: { key: "members-club", sort_field: "updated_at", sort_direction: "desc" },
     deletion: "empty",
   },
   {
@@ -222,27 +226,27 @@ for (const definition of definitions) {
   });
 }
 
-test("a company or one of its locations is assigned to a customer group under the app's member id", async (context) => {
+test("a company or one of its locations is assigned to a package under the app's member id", async (context) => {
   const calls = [];
-  const member = (subject) => ({ id, store_id: storeId, customer_group_id: otherId, subject, type: { type: "permanent" }, status: { type: "active" }, access_end_at: null, created_at: now, updated_at: now });
+  const member = (subject) => ({ id, store_id: storeId, package_id: otherId, subject, renewal: { type: "never", access_end: { type: "never" } }, status: { type: "active" }, created_at: now, updated_at: now });
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     const call = { method: init.method, path: new URL(url).pathname, query: new URL(url).search, body: init.body ? JSON.parse(init.body) : null };
     calls.push(call);
     return response(call.method === "GET" ? { items: [], cursor: null } : member(call.body.subject));
   });
-  const api = createClient().eshop.customerGroupMember;
+  const api = createClient().eshop.packageMember;
   const company = { type: "company", company_id: selectedStoreId };
   const location = { type: "company_location", company_location_id: selectedStoreId };
-  assert.deepEqual((await api.assign({ store_id: storeId, id, customer_group_id: otherId, subject: company, access_end_at: null })).subject, company);
-  await api.assign({ store_id: storeId, id, customer_group_id: otherId, subject: location, access_end_at: now });
-  await api.find({ store_id: storeId, company_id: selectedStoreId, customer_group_id: otherId, limit: 10 });
+  assert.deepEqual((await api.assign({ store_id: storeId, id, package_id: otherId, subject: company, access_end: { type: "never" } })).subject, company);
+  await api.assign({ store_id: storeId, id, package_id: otherId, subject: location, access_end: { type: "at", at: now } });
+  await api.find({ store_id: storeId, company_id: selectedStoreId, package_id: otherId, limit: 10 });
   assert.deepEqual(calls, [
-    { method: "POST", path: `/v1/stores/${storeId}/customer-group-members`, query: "", body: { id, customer_group_id: otherId, subject: company, access_end_at: null } },
-    { method: "POST", path: `/v1/stores/${storeId}/customer-group-members`, query: "", body: { id, customer_group_id: otherId, subject: location, access_end_at: now } },
-    { method: "GET", path: `/v1/stores/${storeId}/customer-group-members`, query: `?company_id=${selectedStoreId}&customer_group_id=${otherId}&limit=10`, body: null },
+    { method: "POST", path: `/v1/stores/${storeId}/package-members`, query: "", body: { id, package_id: otherId, subject: company, access_end: { type: "never" } } },
+    { method: "POST", path: `/v1/stores/${storeId}/package-members`, query: "", body: { id, package_id: otherId, subject: location, access_end: { type: "at", at: now } } },
+    { method: "GET", path: `/v1/stores/${storeId}/package-members`, query: `?company_id=${selectedStoreId}&package_id=${otherId}&limit=10`, body: null },
   ]);
   for (const removed of ["add", "remove", "join", "execute", "findCommands", "update", "delete"]) assert.equal(removed in api, false, removed);
-  await assert.rejects(async () => api.assign({ store_id: storeId, id: "member-1", customer_group_id: otherId, subject: company, access_end_at: null }), TypeError);
+  await assert.rejects(async () => api.assign({ store_id: storeId, id: "member-1", package_id: otherId, subject: company, access_end: { type: "never" } }), TypeError);
   assert.equal(calls.length, 3);
 });
 
@@ -300,7 +304,7 @@ test("B2B management keeps server denials and conflicts without replacing the mu
       let calls = 0;
       context.mock.method(globalThis, "fetch", async () => {
         calls += 1;
-        return response({ message: "Record 'company:x' is still referenced by catalog_access y (audience)", error: "GENERAL.CONFLICT", status_code: status }, status);
+        return response({ message: "Record 'company:x' is still referenced by package_access y (audience)", error: "GENERAL.CONFLICT", status_code: status }, status);
       });
       const api = getApi(createClient(), definition.path);
       await assert.rejects(
@@ -316,8 +320,8 @@ test("a buyer reads their company access as scoped grants, their memberships and
   const access = {
     company: { id: selectedStoreId, store_id: storeId, name: "Buyer", contact: { email: "accounts@example.test", language: "en" }, tax: { type: "standard", registrations: [] }, purchasing: standardCheckout, status: { type: "active" }, created_at: now, updated_at: now },
     grants: [
-      { scope: { type: "company" }, permissions: ["place_orders", "join_customer_groups"] },
-      { scope: { type: "company_location", company_location_id: otherId }, permissions: ["view_company_orders", "manage_company_customer_groups"] },
+      { scope: { type: "company" }, permissions: ["place_orders", "join_packages"] },
+      { scope: { type: "company_location", company_location_id: otherId }, permissions: ["view_company_orders", "manage_company_packages"] },
     ],
   };
   const calls = [];

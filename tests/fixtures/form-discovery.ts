@@ -22,6 +22,7 @@ import type {
   FormSubmission,
   FormSubmissionSnapshot,
   FormSubmissionSource,
+  FormSubmissionStageChange,
   FormValuesInput,
   GetFormByKeyParams,
   GetFormParams,
@@ -122,10 +123,11 @@ declare const savedNote: Note;
 const source: FormSubmissionSource = submission.source;
 const sessionId: string | null = submission.source.type === "storefront" ? submission.source.customer_session_id : null;
 const stageId: string = submission.stage.stage_id;
-const changeNote: string | null = submission.stage_history[0].note_id;
+const changedAt: EpochMilliseconds = submission.stage_history[0].changed_at;
 const formKey: string = submission.snapshot.form_key;
 const noteTarget: NoteTarget = savedNote.target;
 const submissionNoteTarget: NoteTarget = { type: "form_submission", form_submission_id: id };
+const stageChangeNoteTarget: NoteTarget = { type: "form_submission_stage_change", form_submission_id: id, changed_at: changedAt };
 
 export type FormContracts = [
   Assert<Missing<FormsApi, "findByIds" | "getSubmissions" | "getPresentation" | "permanentlyDelete" | "updateSubmission" | "processSubmission">>,
@@ -192,7 +194,11 @@ export type FormContracts = [
   Assert<Missing<FormSubmission, "customer_session_id" | "accepted_request" | "fields">>,
   Assert<Equal<FormSubmissionSource["type"], "storefront" | "account">>,
   Assert<Equal<Extract<NoteTarget, { type: "form_submission" }>, { type: "form_submission"; form_submission_id: string }>>,
+  Assert<Equal<Extract<NoteTarget, { type: "form_submission_stage_change" }>, { type: "form_submission_stage_change"; form_submission_id: string; changed_at: EpochMilliseconds }>>,
+  Assert<Equal<NoteTarget["type"], "form_submission" | "form_submission_stage_change" | "customer" | "company" | "order" | "conversation">>,
+  Assert<Equal<keyof FormSubmissionStageChange, "from_stage_id" | "to_stage_id" | "actor" | "changed_at">>,
+  Assert<Missing<FormSubmissionStageChange, "note_id">>,
 ];
 
 void [page, read, readById, created, edited, submissions, staffCreated, staged, deleted, noted, notes, noteEdit, withEmails,
-  answered, rawAnswered, loaded, loadedById, source, sessionId, stageId, changeNote, formKey, noteTarget, submissionNoteTarget];
+  answered, rawAnswered, loaded, loadedById, source, sessionId, stageId, changedAt, formKey, noteTarget, submissionNoteTarget, stageChangeNoteTarget];

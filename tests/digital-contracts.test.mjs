@@ -9,16 +9,16 @@ import { apiUrl as baseUrl, ids, jsonResponse, publishableKey, recordFetch, visi
 const storeId = ids.store;
 const assetId = "0198f8f7-2f25-4a14-86bb-64efc56e1a11";
 
-test("digital goods are products: storefront discovery searches the named catalog and reads a product by slug in the same context", async (context) => {
-  const calls = recordFetch(context, (call) => call.path === "/v1/storefront/catalog-items" ? { items: [], cursor: "opaque-next" } : { id: ids.product, catalog_item_id: ids.catalogItem });
+test("digital goods are products: storefront discovery searches the named package and reads a product by slug in the same context", async (context) => {
+  const calls = recordFetch(context, (call) => call.path === "/v1/storefront/package-items" ? { items: [], cursor: "opaque-next" } : { id: ids.product, package_item_id: ids.packageItem });
   const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl: baseUrl, market: "us", locale: "en" });
-  const buyer = { catalog_id: ids.catalog, company_location_id: "8f9a5793-561f-4655-8f6b-42f5d6ded327" };
+  const buyer = { package_id: ids.package, company_location_id: "8f9a5793-561f-4655-8f6b-42f5d6ded327" };
   const selection = { types: ["product"], text: "Košulja linen", choice: { price: { min_amount: 0, max_amount: 500 } }, sort: "starting_price", direction: "desc" };
-  assert.deepEqual(await storefront.eshop.catalogItem.find({ ...buyer, include_price: true, selection, limit: 20, cursor: "opaque-current" }), { items: [], cursor: "opaque-next" });
+  assert.deepEqual(await storefront.eshop.packageItem.find({ ...buyer, include_price: true, selection, limit: 20, cursor: "opaque-current" }), { items: [], cursor: "opaque-next" });
   await storefront.eshop.product.get({ slug: "guide", ...buyer });
   const query = calls[0].url.searchParams;
-  assert.equal(calls[0].path, "/v1/storefront/catalog-items");
-  assert.equal(query.get("catalog_id"), ids.catalog);
+  assert.equal(calls[0].path, "/v1/storefront/package-items");
+  assert.equal(query.get("package_id"), ids.package);
   assert.deepEqual(JSON.parse(query.get("selection")), selection);
   assert.equal(query.get("include_price"), "true");
   assert.equal(query.get("limit"), "20");

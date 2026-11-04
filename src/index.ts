@@ -15,12 +15,12 @@ import type {
   StorefrontFlowContext,
 } from "./services/clientTypes";
 import {
-  CustomerGroupJoinError,
-  type JoinFreeCustomerGroupResult,
+  PackageJoinError,
+  type JoinFreePackageResult,
   type JoinNewsletterParams,
   type RequestNewsletterCodeParams,
   type RequestNewsletterCodeResult,
-} from "./types/customerGroupJoin";
+} from "./types/packageJoin";
 import type {
   ChangeCustomerEmailParams,
   StorefrontCustomer,
@@ -31,7 +31,8 @@ import type {
   CustomerSessionStatus,
   UpdateCustomerMeParams,
 } from "./types/customer";
-import type { StorefrontSetup } from "./types/storefront";
+import { CartError } from "./types/cartSelection";
+import type { StorefrontMarket, StorefrontSetup } from "./types/storefront";
 import type { EmailContact } from "./types/common";
 import { createAccountApi } from "./api/account";
 import { createActionsApi } from "./api/actions";
@@ -40,7 +41,6 @@ import { createAuthApi } from "./api/auth";
 import { createBookingOfferingApi, createBookingResourceApi, createBookingServiceApi } from "./api/booking";
 import { createBroadcastApi, createStorefrontBroadcastApi } from "./api/broadcast";
 import { createCartApi } from "./api/cart";
-import { createCatalogAccessApi, createCatalogApi, createCatalogItemApi, createCatalogItemPriceApi } from "./api/catalog";
 import { createCategoryApi } from "./api/category";
 import {
   createCompanyApi,
@@ -49,11 +49,6 @@ import {
   createCompanyRoleApi,
 } from "./api/company";
 import { createCollectionApi, createEntryApi } from "./api/content";
-import {
-  createCustomerGroupApi,
-  createCustomerGroupMemberApi,
-  createCustomerGroupOfferingApi,
-} from "./api/customerGroup";
 import { createCustomersApi } from "./api/customers";
 import { createDigitalAssetApi } from "./api/digitalAsset";
 import { createEmailSuppressionApi } from "./api/emailSuppression";
@@ -89,6 +84,8 @@ import {
   createStoreResendEventApi,
 } from "./api/notification";
 import { createOrderApi } from "./api/order";
+import { createPackageAccessApi, createPackageApi, createPackageItemApi, createPackageItemPriceApi } from "./api/package";
+import { createPackageMemberApi, createPackageOfferingApi } from "./api/packageMember";
 import { createPaymentApi, createIncomingWebhookApi } from "./api/payment";
 import { createPaymentMethodApi } from "./api/paymentMethod";
 import { createPaymentOptionApi } from "./api/paymentOption";
@@ -100,6 +97,7 @@ import { createReturnApi } from "./api/return";
 import { createSalesChannelApi } from "./api/salesChannel";
 import { createShippingMethodApi } from "./api/shippingMethod";
 import { createShippingProfileApi } from "./api/shippingProfile";
+import { createStoreSimulatorApi } from "./api/simulator";
 import { createStoreApi } from "./api/store";
 import { createApiKeyApi } from "./api/apiKey";
 import { createStoreRoleApi } from "./api/storeRole";
@@ -183,7 +181,7 @@ export type { PaymentSimulation, SimulatePaymentOptions, SimulatePaymentParams }
 export { CheckoutFlowError, initialize } from "./storefrontStore";
 export type * from "./storefrontStore";
 
-export const SDK_VERSION = "0.26.98";
+export const SDK_VERSION = "0.26.104";
 
 export interface AdminSession {
   id: string;
@@ -283,6 +281,7 @@ export function createAdmin(config: CreateAdminConfig) {
       apiKey: createApiKeyApi(apiConfig),
       emails: createStoreEmailsApi(apiConfig),
       paymentOption: createPaymentOptionApi(apiConfig),
+      simulator: createStoreSimulatorApi(apiConfig),
       zone: createZoneApi(apiConfig),
       taxCategory: createTaxCategoryApi(apiConfig),
       shippingProfile: createShippingProfileApi(apiConfig),
@@ -332,15 +331,14 @@ export function createAdmin(config: CreateAdminConfig) {
       bookingService: createBookingServiceApi(apiConfig),
       bookingResource: createBookingResourceApi(apiConfig),
       bookingOffering: createBookingOfferingApi(apiConfig),
-      catalog: createCatalogApi(apiConfig),
-      catalogItem: createCatalogItemApi(apiConfig),
-      catalogItemPrice: createCatalogItemPriceApi(apiConfig),
-      catalogAccess: createCatalogAccessApi(apiConfig),
+      package: createPackageApi(apiConfig),
+      packageItem: createPackageItemApi(apiConfig),
+      packageItemPrice: createPackageItemPriceApi(apiConfig),
+      packageAccess: createPackageAccessApi(apiConfig),
+      packageOffering: createPackageOfferingApi(apiConfig),
+      packageMember: createPackageMemberApi(apiConfig),
       promotion: createPromotionApi(apiConfig),
       promotionCode: createPromotionCodeApi(apiConfig),
-      customerGroup: createCustomerGroupApi(apiConfig),
-      customerGroupOffering: createCustomerGroupOfferingApi(apiConfig),
-      customerGroupMember: createCustomerGroupMemberApi(apiConfig),
       paymentMethod: createPaymentMethodApi(apiConfig),
       payment: createPaymentApi(apiConfig),
       cart: createCartApi(apiConfig),
@@ -727,6 +725,27 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
     await identify();
   }
 
+  const marketIds = new Map<string, Promise<string>>();
+
+  function marketId(): Promise<string> {
+    const key = market;
+    if (!key) return Promise.reject(new CartError("not_ready", "Set the storefront market with setContext({ market }) first"));
+    const known = marketIds.get(key);
+    if (known) return known;
+    const read = httpClient
+      .get<StorefrontMarket>(`/v1/storefront/markets/by-key/${encodeURIComponent(key)}`)
+      .then((value) => {
+        if (value.key !== key) throw new CartError("answer_mismatch", "The market read didn't confirm the selected key");
+        return value.id;
+      })
+      .catch((error: unknown) => {
+        marketIds.delete(key);
+        throw error;
+      });
+    marketIds.set(key, read);
+    return read;
+  }
+
   function newId(label: string): string {
     return requireId(options.createId(), label);
   }
@@ -772,6 +791,7 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
       storage: sessionStorage,
       customerId: () => memorySession?.customer.id ?? null,
       market: () => market || null,
+      marketId,
     },
     flows,
   );
@@ -935,22 +955,22 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
     return { type: "code_sent" };
   }
 
-  async function joinNewsletter(params: JoinNewsletterParams, requestOptions?: RequestOptions): Promise<JoinFreeCustomerGroupResult> {
+  async function joinNewsletter(params: JoinNewsletterParams, requestOptions?: RequestOptions): Promise<JoinFreePackageResult> {
     if (params.code !== undefined) {
       const result = await verify({ code: params.code });
       const email = result.customer.type.type === "verified" ? result.customer.type.contact.email : null;
       if (result.session.type !== "email_authenticated" || email === null || !sameEmail(email, params.email)) {
-        throw new CustomerGroupJoinError("email_mismatch", "The code confirmed another email address; start again");
+        throw new PackageJoinError("email_mismatch", "The code confirmed another email address; start again");
       }
     }
     const signedIn = verifiedContact();
     if (signedIn === null || !sameEmail(signedIn.email, params.email)) {
-      throw new CustomerGroupJoinError("sign_in_required", "Confirm the email address with its code first");
+      throw new PackageJoinError("sign_in_required", "Confirm the email address with its code first");
     }
-    return storefrontApi.eshop.customerGroup.joinFree(
+    return storefrontApi.eshop.package.joinFree(
       "id" in params
-        ? { id: params.id, catalog_id: params.catalog_id, language: params.language }
-        : { key: params.key, catalog_id: params.catalog_id, language: params.language },
+        ? { id: params.id, package_id: params.package_id, language: params.language }
+        : { key: params.key, package_id: params.package_id, language: params.language },
       requestOptions,
     );
   }

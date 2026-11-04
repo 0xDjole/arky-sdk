@@ -9,6 +9,7 @@ export type RentalActor =
   | { type: "system" };
 
 export type RentalStatus =
+  | { type: "waiting" }
   | { type: "active" }
   | {
       type: "ending";
@@ -17,14 +18,15 @@ export type RentalStatus =
       reason: string;
       return_due_at: EpochMilliseconds | null;
     }
-  | { type: "closed"; closed_at: EpochMilliseconds };
+  | { type: "closed"; closed_at: EpochMilliseconds }
+  | { type: "withdrawn"; withdrawn_at: EpochMilliseconds };
 
 export interface Rental {
   id: string;
   store_id: string;
-  customer_group_member_id: string;
+  package_member_id: string;
   revision_id: string;
-  entitlement_id: string;
+  package_item_id: string;
   status: RentalStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
@@ -69,7 +71,7 @@ export interface GetRentalParams {
 
 export interface FindRentalsParams {
   store_id: string;
-  customer_group_member_id?: string;
+  package_member_id?: string;
   status?: RentalStatus["type"];
   sort_field?: "created_at" | "updated_at";
   sort_direction?: SortDirection;
@@ -83,9 +85,11 @@ export interface ActOnRentalParams extends GetRentalParams {
 }
 
 export type CustomerRentalStatus =
+  | { type: "waiting" }
   | { type: "active" }
   | { type: "ending"; requested_at: EpochMilliseconds; return_due_at: EpochMilliseconds | null }
-  | { type: "closed"; closed_at: EpochMilliseconds };
+  | { type: "closed"; closed_at: EpochMilliseconds }
+  | { type: "withdrawn"; withdrawn_at: EpochMilliseconds };
 
 export type CustomerRentalUnitDelivery =
   | {
@@ -138,7 +142,7 @@ export interface CustomerRentalUnit {
 
 export interface CustomerRental {
   id: string;
-  customer_group_member_id: string;
+  package_member_id: string;
   product_key: string;
   product: ProductReference | null;
   variant_sku: string | null;
@@ -150,7 +154,7 @@ export interface CustomerRental {
 }
 
 export interface FindCustomerRentalsParams {
-  customer_group_member_id: string;
+  package_member_id: string;
   limit?: number;
   cursor?: string | null;
 }

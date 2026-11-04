@@ -43,16 +43,16 @@ function bookingService() {
     status: { type: "active" },
     created_at: 1,
     updated_at: 1,
-    catalog_item_id: ids.catalogItem,
+    package_item_id: ids.packageItem,
   };
 }
 
 function offeringChoice() {
   return {
-    catalog_item_price_id: ids.price,
+    price_id: ids.price,
     sellable: { type: "booking_offering", booking_offering_id: offeringId },
     content: { sku: null, blocks: [], basis: { type: "booking_option" } },
-    price: { catalog_item_price_id: ids.price, tax_mode: "inclusive", unit_price: { amount: 5000, currency: "eur" }, compare_at: null, priced_at: 1 },
+    price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price, tax_mode: "inclusive", unit_price: { amount: 5000, currency: "eur" }, compare_at: null, priced_at: 1 },
   };
 }
 
@@ -60,7 +60,7 @@ function calendarServer(context) {
   let cart = null;
   return recordFetch(context, (call) => {
     if (call.path === `/v1/storefront/booking-services/${serviceId}`) return bookingService();
-    if (call.path === `/v1/storefront/catalog-items/${ids.catalogItem}/prices`) return { items: [offeringChoice()], cursor: null };
+    if (call.path === `/v1/storefront/package-items/${ids.packageItem}/prices`) return { items: [offeringChoice()], cursor: null };
     if (call.path === `/v1/storefront/booking-resources/${resourceId}`) return { id: resourceId, key: "apartment-one", blocks: [] };
     if (call.path === "/v1/storefront/booking-services/availability") {
       return {
@@ -77,7 +77,7 @@ function calendarServer(context) {
       };
     }
     if (call.path === "/v1/storefront/carts") {
-      cart = cartRecord({ id: call.body.id, catalog_id: call.body.catalog_id });
+      cart = cartRecord({ id: call.body.id, package_id: call.body.package_id });
       return { type: "created", cart, recovery_token: "token" };
     }
     if (call.path.endsWith("/booking-items")) {
@@ -89,7 +89,7 @@ function calendarServer(context) {
 }
 
 function calendarStore(createId = idSequence(factoryId(1), factoryId(2))) {
-  return initialize(publishableKey, { ...idFactories, createId, apiUrl, locale: "en", sessionStorage: visitorStorage() });
+  return initialize(publishableKey, { ...idFactories, createId, apiUrl, locale: "en", market: "bih", sessionStorage: visitorStorage() });
 }
 
 async function pickStay(calendar) {
@@ -103,7 +103,7 @@ async function pickStay(calendar) {
 
 test("a stay over several nights is a multi-day slot shown as a date range across its calendar days", async (context) => {
   calendarServer(context);
-  const calendar = calendarStore().eshop.bookingCalendar({ buyer: customer, catalog_id: ids.catalog });
+  const calendar = calendarStore().eshop.bookingCalendar({ buyer: customer, package_id: ids.package });
   const slot = await pickStay(calendar);
   assert.equal(slot.is_multi_day, true);
   assert.equal(slot.booking_offering_id, offeringId);
@@ -116,31 +116,31 @@ test("a stay over several nights is a multi-day slot shown as a date range acros
   assert.equal(calendar.month_label.get(), now.toLocaleString("en", { month: "long", year: "numeric" }));
 });
 
-test("addToCart creates the cart of the calendar's buyer and catalog and takes the line id from the factory", async (context) => {
+test("addToCart creates the cart of the calendar's buyer and package and takes the line id from the factory", async (context) => {
   const calls = calendarServer(context);
   const store = calendarStore();
-  const scope = { buyer: customer, catalog_id: ids.otherCatalog };
+  const scope = { buyer: customer, package_id: ids.otherPackage };
   const calendar = store.eshop.bookingCalendar(scope);
   const slot = await pickStay(calendar);
   const cart = await calendar.addToCart({ slot });
   assert.equal(cart.id, factoryId(1));
-  assert.equal(cart.catalog_id, ids.otherCatalog);
+  assert.equal(cart.package_id, ids.otherPackage);
   assert.equal(store.eshop.cart(scope).cart.get().id, factoryId(1));
   assert.equal(store.eshop.cart(scope).booking_items.get().length, 1);
   assert.equal(store.eshop.checkoutFlow(scope).cart.booking_items.get().length, 1);
   const create = calls.find((call) => call.path === "/v1/storefront/carts");
-  assert.deepEqual(create.body, { id: factoryId(1), buyer: customer, catalog_id: ids.otherCatalog });
+  assert.deepEqual(create.body, { id: factoryId(1), buyer: customer, package_id: ids.otherPackage, market_id: ids.market });
   const add = calls.find((call) => call.path.endsWith("/booking-items"));
   assert.equal(add.body.booking.id, factoryId(2));
   assert.deepEqual(add.body.booking.requested_interval, { from: slot.from, to: slot.to });
-  assert.equal(add.body.booking.catalog_item_price_id, ids.price);
+  assert.deepEqual(add.body.booking.price, { package_id: ids.otherPackage, package_item_id: ids.packageItem, price_id: ids.price });
   assert.equal(calendar.state.get().selected_slot, null);
   assert.deepEqual(calendar.state.get().slots, []);
 });
 
 test("a slot of another booking service is refused before anything is sent", async (context) => {
   const calls = calendarServer(context);
-  const calendar = calendarStore().eshop.bookingCalendar({ buyer: customer, catalog_id: ids.catalog });
+  const calendar = calendarStore().eshop.bookingCalendar({ buyer: customer, package_id: ids.package });
   const slot = await pickStay(calendar);
   const other = { ...slot, booking_service_id: ids.product };
   assert.throws(() => calendar.selectSlot({ slot: other }), TypeError);

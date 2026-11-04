@@ -18,6 +18,7 @@ export interface CartSelectionContext {
   } | null;
   customerId(): string | null;
   market(): string | null;
+  marketId(): Promise<string>;
 }
 
 export interface SelectedCart {
@@ -27,8 +28,8 @@ export interface SelectedCart {
 
 export interface CartSelectionTransport {
   get(params: StorefrontGetCartParams, options?: RequestOptions): Promise<Cart>;
-  create(params: StorefrontCreateCartParams, options?: RequestOptions): Promise<CreatedCart>;
-  reorder(params: StorefrontReorderParams, options?: RequestOptions): Promise<ReorderedCart>;
+  create(params: StorefrontCreateCartParams & { market_id: string }, options?: RequestOptions): Promise<CreatedCart>;
+  reorder(params: StorefrontReorderParams & { market_id: string }, options?: RequestOptions): Promise<ReorderedCart>;
 }
 
 export type CartErrorCode =

@@ -75,9 +75,10 @@ interface CheckoutLocal {
 const lineBlockers: QuoteBlocker["type"][] = [
   "booking_unavailable",
   "tax_unavailable",
-  "purchase_limit_exceeded",
-  "customer_group_minimum_conflict",
-  "customer_group_change_scheduled",
+  "package_minimum_conflict",
+  "package_change_scheduled",
+  "package_change_refused",
+  "payment_unavailable",
 ];
 
 const detailBlockers: QuoteBlocker["type"][] = [
@@ -85,7 +86,7 @@ const detailBlockers: QuoteBlocker["type"][] = [
   "delivery_unavailable",
   "billing_address_required",
   "purchase_order_number_required",
-  "customer_group_delivery_required",
+  "package_delivery_required",
 ];
 
 const placedOutcomes = ["paid", "pay_later", "unconfirmed"];

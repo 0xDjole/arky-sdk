@@ -10,7 +10,7 @@ type StripeMount = Extract<EmbeddedCheckoutMount, { type: "stripe_embedded_check
 
 export type MonriCheckoutContracts = [
   Assert<Equal<Extract<CheckoutPaymentAction, { type: "monri_components" }>, MonriComponentsAction>>,
-  Assert<Equal<keyof MonriComponentsAction, "type" | "environment" | "authenticity_token" | "client_secret" | "save_card">>,
+  Assert<Equal<keyof MonriComponentsAction, "type" | "environment" | "authenticity_token" | "client_secret" | "save_card" | "runs_on">>,
   Assert<Missing<MonriComponentsAction, "payment_id" | "expires_at" | "merchant_key">>,
   Assert<Equal<MonriComponentsAction["save_card"], boolean>>,
   Assert<Equal<Parameters<MonriMount["confirm"]>[0], MonriBuyerDetails>>,
@@ -28,7 +28,7 @@ export type MonriCheckoutContracts = [
 export function inspectMount(mount: EmbeddedCheckoutMount): void {
   if (mount.type === "monri_components") {
     void mount.confirm({ full_name: "Test Buyer", address: "Test Street 1", city: "Sarajevo", zip: "71000", phone: "+38761123456", country: "BA", email: "buyer@example.test" });
-  } else {
+  } else if (mount.type === "stripe_embedded_checkout") {
     void mount.checkout;
   }
   mount.destroy();

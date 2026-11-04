@@ -9,9 +9,9 @@ export const arky = initialize("arky_pk_...", {
   createOrderToken,
 });
 
-const { items: catalogs } = await arky.eshop.catalog.find();
-const publicCatalog = catalogs.find((candidate) => candidate.key === "public-eu");
-if (!publicCatalog) throw new Error("The public catalog is missing");
+const { items: packages } = await arky.eshop.package.find();
+const publicPackage = packages.find((candidate) => candidate.key === "public");
+if (!publicPackage) throw new Error("The public package is missing");
 
-export const catalog = publicCatalog;
+export const shopPackage = publicPackage;
 export const buyer = { type: "customer" } as const;

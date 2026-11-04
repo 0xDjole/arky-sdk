@@ -88,7 +88,14 @@ test("status counts read what a store still has open, with every segment the Ser
           { segment: "paused", value: 2 },
         ],
       },
-      { type: "open_rentals_by_status", segments: [{ segment: "active", value: 1 }, { segment: "ending", value: 1 }] },
+      {
+        type: "open_rentals_by_status",
+        segments: [
+          { segment: "waiting", value: 2 },
+          { segment: "active", value: 1 },
+          { segment: "ending", value: 1 },
+        ],
+      },
       {
         type: "open_payments_by_type",
         segments: [

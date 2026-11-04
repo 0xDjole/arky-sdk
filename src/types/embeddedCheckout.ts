@@ -30,6 +30,11 @@ export type EmbeddedCheckoutMount =
       confirm(details: MonriBuyerDetails): Promise<void>;
       unmount(): void;
       destroy(): void;
+    }
+  | {
+      type: "simulator";
+      unmount(): void;
+      destroy(): void;
     };
 
 export interface MountPaymentMethodSetupParams {

@@ -1,7 +1,7 @@
 import { computed, map, type ReadableAtom } from "nanostores";
 import type { EpochMilliseconds } from "../types/time";
 import type { Cart } from "../types/cart";
-import type { CatalogChoice, CatalogContext } from "../types/catalog";
+import type { PackageContext, PackagePriceRef, StorefrontPackageItemPrice } from "../types/package";
 import type {
   AvailabilityResponse,
   BookingResourceAvailability,
@@ -69,11 +69,11 @@ function mergeResources(current: StorefrontBookingResource[], added: StorefrontB
   return [...new Map([...current, ...added].map((resource) => [resource.id, resource])).values()];
 }
 
-function mergeChoices(current: CatalogChoice[], added: CatalogChoice[]): CatalogChoice[] {
-  return [...new Map([...current, ...added].map((choice) => [choice.catalog_item_price_id, choice])).values()];
+function mergeChoices(current: StorefrontPackageItemPrice[], added: StorefrontPackageItemPrice[]): StorefrontPackageItemPrice[] {
+  return [...new Map([...current, ...added].map((choice) => [choice.price_id, choice])).values()];
 }
 
-function choiceFor(current: ArkyBookingCalendarState, bookingOfferingId: string): CatalogChoice | null {
+function choiceFor(current: ArkyBookingCalendarState, bookingOfferingId: string): StorefrontPackageItemPrice | null {
   return (
     current.booking_choices.find(
       (choice) => choice.sellable.type === "booking_offering" && choice.sellable.booking_offering_id === bookingOfferingId,
@@ -91,7 +91,7 @@ function resourceAvailability(
 export function createBookingCalendar(context: BookingCalendarContext, cart: CartStore) {
   const { client, locale } = context;
   const scope = cart.scope;
-  const catalog: CatalogContext = { ...buyerParty(scope.buyer), catalog_id: scope.catalog_id };
+  const shopPackage: PackageContext = { ...buyerParty(scope.buyer), package_id: scope.package_id };
   const state = map<ArkyBookingCalendarState>(emptyState());
   const month_label = computed([state, locale], (current, language) =>
     language ? current.month.toLocaleString(language, { month: "long", year: "numeric" }) : "",
@@ -158,13 +158,18 @@ export function createBookingCalendar(context: BookingCalendarContext, cart: Car
       const choice = choiceFor(current, slot.bookingOfferingId);
       if (!choice) return [];
       const multiDay = slotSpansDays(slot.from, slot.to, current.timezone);
+      const priceRef: PackagePriceRef = {
+        package_id: scope.package_id,
+        package_item_id: service.package_item_id,
+        price_id: choice.price_id,
+      };
       return [
         {
           id: `${slot.bookingOfferingId}-${slot.from}-${index}`,
           booking_service_id: service.id,
           booking_resource_id: slot.bookingResourceId,
           booking_offering_id: slot.bookingOfferingId,
-          catalog_item_price_id: choice.catalog_item_price_id,
+          price_ref: priceRef,
           price: choice.price,
           from: slot.from,
           to: slot.to,
@@ -221,7 +226,7 @@ export function createBookingCalendar(context: BookingCalendarContext, cart: Car
         to = epochMilliseconds(Date.UTC(current.month.getFullYear(), current.month.getMonth() + 1, 1));
       }
       const availability = await readAvailability({
-        ...catalog,
+        ...shopPackage,
         booking_service_id: current.booking_service.id,
         from,
         to,
@@ -263,7 +268,7 @@ export function createBookingCalendar(context: BookingCalendarContext, cart: Car
       if (!known.has(resource.booking_resource_id)) missing.set(resource.booking_resource_id, resource.booking_offering_id);
     }
     const read = await Promise.all(
-      [...missing].map(([id, offeringId]) => client.eshop.bookingResource.get({ ...catalog, id, offering_id: offeringId })),
+      [...missing].map(([id, offeringId]) => client.eshop.bookingResource.get({ ...shopPackage, id, offering_id: offeringId })),
     );
     for (const resource of read) {
       if (!missing.has(resource.id)) throw new ArkyError("answer_mismatch", "A booking resource read answered another resource");
@@ -271,10 +276,10 @@ export function createBookingCalendar(context: BookingCalendarContext, cart: Car
     return read;
   }
 
-  async function readChoices(catalogItemId: string, cursor: string | null) {
-    const page = await client.eshop.catalogItem.findPrices({
-      ...catalog,
-      catalog_item_id: catalogItemId,
+  async function readChoices(packageItemId: string, cursor: string | null) {
+    const page = await client.eshop.packageItem.findPrices({
+      ...shopPackage,
+      package_item_id: packageItemId,
       include_price: true,
       limit: choicesPerRead,
       ...(cursor === null ? {} : { cursor }),
@@ -292,8 +297,8 @@ export function createBookingCalendar(context: BookingCalendarContext, cart: Car
     if (!resource || resource.booking_offering_id !== slot.booking_offering_id) {
       throw new TypeError(`Booking resource ${slot.booking_resource_id} has no matching offering`);
     }
-    if (choiceFor(current, slot.booking_offering_id)?.catalog_item_price_id !== slot.catalog_item_price_id) {
-      throw new TypeError(`Booking offering ${slot.booking_offering_id} has no matching price in this catalog`);
+    if (choiceFor(current, slot.booking_offering_id)?.price_id !== slot.price_ref.price_id) {
+      throw new TypeError(`Booking offering ${slot.booking_offering_id} has no matching price in this package`);
     }
   }
 
@@ -317,9 +322,9 @@ export function createBookingCalendar(context: BookingCalendarContext, cart: Car
         loading_choices: false,
       });
       try {
-        const service = await client.eshop.bookingService.get({ ...catalog, id: params.booking_service_id });
+        const service = await client.eshop.bookingService.get({ ...shopPackage, id: params.booking_service_id });
         if (service.id !== params.booking_service_id) throw new ArkyError("answer_mismatch", "The booking service read answered another service");
-        const page = await readChoices(service.catalog_item_id, null);
+        const page = await readChoices(service.package_item_id, null);
         if (selection !== selectionRevision) return state.get();
         patch({
           booking_service: service,
@@ -343,7 +348,7 @@ export function createBookingCalendar(context: BookingCalendarContext, cart: Car
       const selection = selectionRevision;
       patch({ loading_choices: true });
       try {
-        const page = await readChoices(service.catalog_item_id, current.booking_choices_cursor);
+        const page = await readChoices(service.package_item_id, current.booking_choices_cursor);
         const latest = state.get();
         if (selection !== selectionRevision || latest.booking_service?.id !== service.id) return latest;
         patch({
@@ -435,7 +440,7 @@ export function createBookingCalendar(context: BookingCalendarContext, cart: Car
         requested_interval: { from: slot.from, to: slot.to },
         capacity_units: params.capacity_units ?? 1,
         form_submission_id: params.form_submission_id ?? null,
-        catalog_item_price_id: slot.catalog_item_price_id,
+        price: slot.price_ref,
       });
       patch(clearSelection());
       refresh();

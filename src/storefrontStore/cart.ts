@@ -10,12 +10,12 @@ import type {
   CartProductLineItem,
   CartQuote,
   CheckoutAcceptance,
-  CustomerGroupDeliveryOffers,
+  PackageDeliveryOffers,
   QuoteLine,
   QuotePromotionCode,
   StorefrontCheckoutCartInput,
 } from "../types/cart";
-import { cartBookingItems, cartCustomerGroupItems, cartProductItems } from "../types/cart";
+import { cartBookingItems, cartPackageItems, cartProductItems } from "../types/cart";
 import { CartError } from "../types/cartSelection";
 import { ArkyApiError, ArkyNetworkError, errorInfo } from "../types/apiError";
 import type { CompanyPartyQuery } from "../types/common";
@@ -25,7 +25,7 @@ import { fingerprint } from "../utils/fingerprint";
 import { epochMillisecondsNow } from "../utils/time";
 import type {
   ArkyAddBookingParams,
-  ArkyAddCustomerGroupParams,
+  ArkyAddPackageParams,
   ArkyAddProductParams,
   ArkyCartCheckoutParams,
   ArkyCartCreateParams,
@@ -56,6 +56,7 @@ export interface CartStoreContext {
   locale: ReadableAtom<string>;
   requireLocale(): string;
   beginCartOperation(): Promise<CartScope>;
+  assertMarket(): void;
   newId(label: string): string;
   newOrderToken(): string;
 }
@@ -94,7 +95,7 @@ function cartLineInput(line: CartLineItem): CartLineItemInput {
         variant_id: line.variant_id,
         quantity: line.quantity,
         form_submission_id: line.form_submission_id,
-        purchase: line.purchase,
+        price: line.price,
       };
     case "booking":
       return {
@@ -104,18 +105,18 @@ function cartLineInput(line: CartLineItem): CartLineItemInput {
         requested_interval: { from: line.requested_interval.from, to: line.requested_interval.to },
         capacity_units: line.capacity_units,
         form_submission_id: line.form_submission_id,
-        catalog_item_price_id: line.catalog_item_price_id,
+        price: line.price,
       };
-    case "customer_group":
+    case "package":
       return {
-        type: "customer_group",
+        type: "package",
         id: line.id,
-        customer_group_id: line.customer_group_id,
+        package_id: line.package_id,
         quantity: line.quantity,
-        choices: line.choices.map(({ entitlement_id, variant_id }) => ({ entitlement_id, variant_id })),
+        choices: line.choices.map(({ package_item_id, variant_id }) => ({ package_item_id, variant_id })),
         start: line.start,
         deliveries: line.deliveries,
-        catalog_item_price_id: line.catalog_item_price_id,
+        price: line.price,
       };
   }
 }
@@ -147,7 +148,7 @@ export function deliveryGroupsFor(
 ): CartDeliveryGroup[] {
   const holdsProducts = (group: CartDeliveryGroup) => group.items.some((item) => item.line_item.type === "product");
   if (cart.delivery_groups.some((group) => holdsProducts(group) && group.items.some((item) => item.line_item.type !== "product"))) {
-    throw new CartError("not_ready", "A delivery mixes product lines with group deliveries; set it with setDeliveryGroups");
+    throw new CartError("not_ready", "A delivery mixes product lines with package deliveries; set it with setDeliveryGroups");
   }
   const lines = new Map<string, CartProductLineItem[]>();
   for (const line of cart.line_items) {
@@ -186,11 +187,11 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
   const cart_status = map<ArkyCartStatus>({ ...idleStatus });
   const product_items = computed(cart, (value) => cartProductItems(value));
   const booking_items = computed(cart, (value) => cartBookingItems(value));
-  const customer_group_items = computed(cart, (value) => cartCustomerGroupItems(value));
+  const package_items = computed(cart, (value) => cartPackageItems(value));
   const product_item_count = computed(product_items, (items) => items.reduce((total, item) => total + item.quantity, 0));
   const item_count = computed(
-    [product_item_count, booking_items, customer_group_items],
-    (products, bookings, groups) => products + bookings.length + groups.length,
+    [product_item_count, booking_items, package_items],
+    (products, bookings, packages) => products + bookings.length + packages.length,
   );
   const promotion_codes = computed(quote, (value): QuotePromotionCode[] => value?.promotion_codes ?? []);
 
@@ -276,7 +277,7 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
     const id = params.id ?? (pendingCartId ??= context.newId("cart"));
     const revision = ++cartRevision;
     try {
-      const created = await client.eshop.cart.create({ id, buyer: scope.buyer ?? { type: "customer" }, catalog_id: scope.catalog_id });
+      const created = await client.eshop.cart.create({ id, buyer: scope.buyer ?? { type: "customer" }, package_id: scope.package_id });
       if (pendingCartId === id) pendingCartId = null;
       return applyCart(started, created.cart, revision);
     } catch (error) {
@@ -308,11 +309,11 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
     );
   }
 
-  function addCustomerGroup(params: ArkyAddCustomerGroupParams): Promise<Cart> {
+  function addPackage(params: ArkyAddPackageParams): Promise<Cart> {
     return runCartWrite((current) =>
-      client.eshop.cart.addCustomerGroup({
+      client.eshop.cart.addPackage({
         ...version(current),
-        customer_group: { ...params, id: params.id ?? context.newId("cart line") },
+        package: { ...params, id: params.id ?? context.newId("cart line") },
       }),
     );
   }
@@ -367,7 +368,7 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
         variants
           .slice(start, start + variantReadsAtOnce)
           .map(([variantId, productId]) =>
-            client.eshop.productVariant.get({ ...buyerParty(current.buyer), product_id: productId, id: variantId, catalog_id: current.catalog_id }),
+            client.eshop.productVariant.get({ ...buyerParty(current.buyer), product_id: productId, id: variantId, package_id: current.package_id }),
           ),
       );
       for (const variant of read) {
@@ -425,19 +426,19 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
 
   function setFutureDeliveries(params: ArkySetFutureDeliveriesParams): Promise<Cart> {
     return runCartWrite((current) =>
-      client.eshop.cart.setFutureDeliveries({ ...version(current), customer_groups: params.customer_groups }),
+      client.eshop.cart.setFutureDeliveries({ ...version(current), packages: params.packages }),
     );
   }
 
   async function quoteFutureDeliveries(
     params: ArkyQuoteFutureDeliveriesParams,
     options?: RequestOptions,
-  ): Promise<CustomerGroupDeliveryOffers[]> {
+  ): Promise<PackageDeliveryOffers[]> {
     const started = await context.beginCartOperation();
     const current = requireCart();
     context.requireLocale();
     const result = await client.eshop.cart.quoteFutureDeliveries(
-      { id: current.id, customer_groups: params.customer_groups },
+      { id: current.id, packages: params.packages },
       storeContextOnly(options),
     );
     started.assertCurrent();
@@ -554,7 +555,8 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
     });
   }
 
-  function pendingCheckout(): Promise<StorefrontCheckoutCartInput | null> {
+  async function pendingCheckout(): Promise<StorefrontCheckoutCartInput | null> {
+    context.assertMarket();
     return client.eshop.cart.pendingCheckout({ scope });
   }
 
@@ -572,7 +574,7 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
     cart,
     product_items,
     booking_items,
-    customer_group_items,
+    package_items,
     quote_result: quote,
     promotion_codes,
     last_order,
@@ -585,7 +587,7 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
     reset,
     addProduct,
     addBooking,
-    addCustomerGroup,
+    addPackage,
     removeItem,
     setProductQuantity,
     setDeliveryGroups,

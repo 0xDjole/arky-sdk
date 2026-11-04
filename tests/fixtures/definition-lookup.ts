@@ -3,16 +3,16 @@ import type {
   BookingOffering,
   BookingResource,
   BookingService,
-  Catalog,
+  PackageDetail,
   GetBookingOfferingParams,
   GetBookingResourceByKeyParams,
   GetBookingServiceByKeyParams,
-  GetCatalogByKeyParams,
+  GetPackageByKeyParams,
   GetProductByKeyParams,
   GetBookingOfferingByServiceAndResourceParams,
   Product,
 } from "arky-sdk";
-import type { GetCatalogByKeyParams as PublicCatalogKey } from "arky-sdk/types";
+import type { GetPackageByKeyParams as PublicPackageKey } from "arky-sdk/types";
 
 type Admin = ReturnType<typeof createAdmin>;
 type Assert<T extends true> = T;
@@ -21,9 +21,9 @@ type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
 type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
 
 export type ExactDefinitions = [
-  Assert<Equal<PublicCatalogKey, GetCatalogByKeyParams>>,
-  Assert<Equal<Parameters<Admin["eshop"]["catalog"]["getByKey"]>[0], GetCatalogByKeyParams>>,
-  Assert<Equal<Awaited<ReturnType<Admin["eshop"]["catalog"]["getByKey"]>>, Catalog>>,
+  Assert<Equal<PublicPackageKey, GetPackageByKeyParams>>,
+  Assert<Equal<Parameters<Admin["eshop"]["package"]["getByKey"]>[0], GetPackageByKeyParams>>,
+  Assert<Equal<Awaited<ReturnType<Admin["eshop"]["package"]["getByKey"]>>, PackageDetail>>,
   Assert<Missing<Admin["eshop"], "fulfillmentRoutingPolicy">>,
   Assert<Equal<Parameters<Admin["eshop"]["product"]["getByKey"]>[0], GetProductByKeyParams>>,
   Assert<Equal<keyof GetProductByKeyParams, "store_id" | "key">>,

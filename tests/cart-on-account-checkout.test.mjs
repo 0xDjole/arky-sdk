@@ -71,7 +71,7 @@ test("Admin checkouts carry the contact names staff typed, and leave them out wh
 });
 
 test("an already_member answer is passed through unchanged for the Admin to show as finished", async (context) => {
-  const answer = { type: "already_member", customer_group_member_id: ids.customerGroupMember };
+  const answer = { type: "already_member", package_member_id: ids.packageMember };
   recordFetch(context, () => answer);
   assert.deepEqual(await admin().eshop.cart.checkoutOnAccount({ ...target, ...onAccount }), answer);
   assert.deepEqual(await admin().eshop.cart.checkout({ ...target, ...checkoutRequest(), language: "en" }), answer);

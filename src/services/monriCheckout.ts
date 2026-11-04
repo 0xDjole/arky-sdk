@@ -1,20 +1,28 @@
 import type { EmbeddedCheckoutMount, MountCheckoutActionParams } from "../types/embeddedCheckout";
-import type { MonriComponentsAction, MonriEnvironment } from "../types/payment";
+import type { MonriComponentsAction, MonriEnvironment, PaymentRunsOn } from "../types/payment";
 import type { MonriBrowserBuyerDetails, MonriBrowserFactory, MonriBuyerDetails } from "../types/monriCheckout";
 import { MonriCheckoutError } from "../types/monriCheckout";
+import { simulatePayment } from "../paymentSimulator";
+import { createSimulatorPanel } from "./simulatorPanel";
 
 let loaded: { environment: MonriEnvironment; factory: Promise<MonriBrowserFactory> } | undefined;
 const origins = { test: "https://ipgtest.monri.com", live: "https://ipg.monri.com" } as const;
 const visible = (value: unknown, maximum: number): value is string =>
   typeof value === "string" && value.length > 0 && value.length <= maximum && /^[\x21-\x7e]+$/.test(value);
 
+function isPaymentRunsOn(value: unknown): value is PaymentRunsOn {
+  if (!record(value)) return false;
+  if (value.type === "provider") return Object.keys(value).length === 1;
+  return value.type === "simulator" && Object.keys(value).length === 2 && typeof value.api_url === "string" && value.api_url.length > 0;
+}
+
 export function isMonriComponentsAction(value: unknown): value is MonriComponentsAction {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const action = value as Record<string, unknown>;
-  return Object.keys(action).length === 5 && action.type === "monri_components" &&
+  return Object.keys(action).length === 6 && action.type === "monri_components" &&
     (action.environment === "test" || action.environment === "live") &&
     visible(action.authenticity_token, 512) && visible(action.client_secret, 128) &&
-    typeof action.save_card === "boolean";
+    typeof action.save_card === "boolean" && isPaymentRunsOn(action.runs_on);
 }
 
 function loadMonri(environment: MonriEnvironment): Promise<MonriBrowserFactory> {
@@ -92,6 +100,56 @@ function record(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+function monriContainer(element: string | HTMLElement): HTMLElement {
+  const target = typeof element === "string" ? document.querySelector<HTMLElement>(element) : element;
+  if (!target || !target.isConnected) throw new MonriCheckoutError("unavailable", "The payment form container is unavailable.");
+  return target;
+}
+
+function mountSimulatedMonri(
+  action: MonriComponentsAction,
+  element: string | HTMLElement,
+  callbacks: Pick<MountCheckoutActionParams, "onComplete">,
+): Extract<EmbeddedCheckoutMount, { type: "monri_components" }> {
+  if (typeof document === "undefined") throw new MonriCheckoutError("unavailable", "The test payment form needs a browser page.");
+  let disposed = false;
+  let submitted = false;
+  let chosen: "complete" | "decline" = "complete";
+  const panel = createSimulatorPanel(
+    monriContainer(element),
+    {
+      title: "Test payment",
+      description: "This payment runs on Arky's provider simulator. No real money moves. Pick the outcome, then submit the payment.",
+      choices: [
+        { outcome: "complete", label: "Approve" },
+        { outcome: "decline", label: "Decline" },
+      ],
+    },
+    (outcome) => {
+      chosen = outcome;
+      panel.markChosen(outcome);
+    },
+  );
+  panel.markChosen(chosen);
+  const destroy = () => { disposed = true; panel.remove(); };
+  return {
+    type: "monri_components", unmount: destroy, destroy,
+    async confirm(details) {
+      if (disposed) throw new MonriCheckoutError("unavailable", "The payment form is closed.");
+      if (submitted) throw new MonriCheckoutError("already_submitted", "Payment was already submitted. Check the same payment before continuing.");
+      buyerDetails(details);
+      submitted = true;
+      panel.setDisabled(true);
+      try {
+        await simulatePayment({ simulation: { type: "monri", action, outcome: chosen } });
+      } catch {
+        throw new MonriCheckoutError("unknown_result", "The payment result could not be confirmed. Check the same ARKY payment; do not start another checkout.");
+      }
+      if (!disposed) await callbacks.onComplete?.();
+    },
+  };
+}
+
 let monriHostSequence = 0;
 
 export async function mountMonriCheckoutAction(
@@ -103,10 +161,10 @@ export async function mountMonriCheckoutAction(
   if (!isMonriComponentsAction(action) || typeof paymentId !== "string" || !paymentId.length) {
     throw new MonriCheckoutError("invalid_action", "The Monri payment action is invalid.");
   }
+  if (action.runs_on.type === "simulator") return mountSimulatedMonri(action, element, callbacks);
   const accepted = { ...action, environment: action.environment as MonriEnvironment, payment_id: paymentId };
   const factory = await loadMonri(accepted.environment);
-  const target = typeof element === "string" ? document.querySelector<HTMLElement>(element) : element;
-  if (!target || !target.isConnected) throw new MonriCheckoutError("unavailable", "The payment form container is unavailable.");
+  const target = monriContainer(element);
   const host = document.createElement("div");
   monriHostSequence += 1;
   host.id = `arky-monri-${monriHostSequence}`;

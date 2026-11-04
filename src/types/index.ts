@@ -6,6 +6,7 @@ export type { RequestSuccessContext, RequestErrorContext } from "./httpClient";
 export type * from "./block";
 export type * from "./content";
 export type * from "./store";
+export type * from "./simulator";
 export type * from "./account";
 export type * from "./storeRole";
 export type * from "./market";
@@ -23,10 +24,10 @@ export type * from "./inventory";
 export type * from "./return";
 export type * from "./rental";
 export type * from "./customer";
-export type * from "./catalog";
+export type * from "./package";
 export type * from "./promotion";
 export type * from "./company";
-export type * from "./customerGroup";
+export type * from "./packageMember";
 export type * from "./product";
 export type * from "./broadcast";
 export type * from "./support";
@@ -34,16 +35,15 @@ export type * from "./cart";
 export {
   cartProductItems,
   cartBookingItems,
-  cartCustomerGroupItems,
+  cartPackageItems,
 } from "./cart";
 export type * from "./order";
 export {
   orderLineItemsOfType,
   orderProductItems,
   orderBookingItems,
-  orderCustomerGroupItems,
+  orderPackageItems,
   orderRentalUseItems,
-  orderPurchaseAccessItems,
 } from "./order";
 export type * from "./orderCredit";
 export type * from "./payment";
@@ -59,8 +59,8 @@ export type * from "./embeddedCheckout";
 export type { ArkyApiErrorDetails, ArkyErrorInfo, ArkyNetworkErrorCode, ArkyNetworkErrorDetails } from "./apiError";
 export { ArkyError, ArkyApiError, ArkyNetworkError, isArkyApiError } from "./apiError";
 export type * from "./contentView";
-export type * from "./customerGroupJoin";
-export { CustomerGroupJoinError } from "./customerGroupJoin";
+export type * from "./packageJoin";
+export { PackageJoinError } from "./packageJoin";
 export type * from "./cartCheckout";
 export { CartPresentationChangedError } from "./cartCheckout";
 export type { CartErrorCode } from "./cartSelection";

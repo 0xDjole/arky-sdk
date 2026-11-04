@@ -21,8 +21,8 @@ export const ids = {
   otherLine: "19f4bc18-4259-46b8-b5ef-3579d1dac971",
   product: "0b3e9c17-5a2d-4f86-9e01-7c4b6d2a8f35",
   variant: "7a1e5c39-4b82-4d60-9f17-3c8e2a6d0b54",
-  catalog: "e4c8a2f6-1b73-4d95-a0e7-5f2c9b6d3a18",
-  otherCatalog: "9b2e4d71-6a35-4c08-8f1e-3d7a5c9b2e46",
+  package: "e4c8a2f6-1b73-4d95-a0e7-5f2c9b6d3a18",
+  otherPackage: "9b2e4d71-6a35-4c08-8f1e-3d7a5c9b2e46",
   market: "9c1d5e83-4a27-4f60-b8e2-6d3a0f7c1b94",
   channel: "e5a8c2d7-3b91-4f06-9d4e-1c7b6a0f3e28",
   paymentOption: "5b8c1e47-3d29-4a6f-9c15-7e0d2f4a8b31",
@@ -31,14 +31,14 @@ export const ids = {
   company: "f581728f-8a86-4598-b27b-ef5ea7636277",
   companyLocation: "8c68fc2e-57b6-44fc-8f9c-6cbd1c76dbcf",
   otherCompanyLocation: "ac2cc7a2-c57c-43da-999b-4b7c21bda9ee",
-  customerGroupMember: "d397ff50-690b-4da7-9fb9-17740e535d69",
+  packageMember: "d397ff50-690b-4da7-9fb9-17740e535d69",
   credit: "bef10d85-72e3-4853-9c12-8e419dc2d8dc",
   form: "0f6a3c84-2d19-4e75-b8a1-5c9e7d3b2f60",
   submission: "4b9e2d71-8a36-4c05-9f1e-6d3a7b0c5e92",
   account: "ca60db1c-68d1-42d5-8b55-8a1e04f2cb2f",
   price: "2c9e4a7b-5d31-4f86-a0b2-7e3c9d1f5a64",
   otherPrice: "7f3b1d95-0c2e-4a68-b4d1-9e6a2c8f0b37",
-  catalogItem: "5a8d2f61-3b7e-4c09-9f14-6d2b8e0a4c73",
+  packageItem: "5a8d2f61-3b7e-4c09-9f14-6d2b8e0a4c73",
 };
 
 export const factoryOrderToken = `arky_ot_${"F".repeat(42)}A`;
@@ -80,11 +80,18 @@ function decodeBody(body, headers) {
   return JSON.parse(String(body));
 }
 
-export function recordFetch(context, respond) {
+export function marketRecord(key = "hrv", overrides = {}) {
+  return { id: ids.market, key, currency: "eur", tax_mode: "inclusive", payment_option_ids: [ids.paymentOption], ...overrides };
+}
+
+export function recordFetch(context, respond, { answerMarkets = true } = {}) {
   const calls = [];
   context.mock.method(globalThis, "fetch", async (input, init = {}) => {
     const url = new URL(String(input));
     const headers = new Headers(init.headers);
+    if (answerMarkets && url.pathname.startsWith("/v1/storefront/markets/by-key/")) {
+      return jsonResponse(marketRecord(decodeURIComponent(url.pathname.split("/").at(-1))));
+    }
     const call = {
       url,
       href: url.href,
@@ -191,7 +198,8 @@ export function cartRecord(overrides = {}) {
     customer_id: ids.customer,
     buyer: { type: "customer" },
     sales_channel_id: ids.channel,
-    catalog_id: ids.catalog,
+    package_id: ids.package,
+    market_id: ids.market,
     status: { type: "active" },
     origin: { type: "storefront", customer_session_id: ids.session },
     blocks: [],
@@ -214,7 +222,7 @@ export function quoteRecord(overrides = {}) {
     buyer: { type: "customer" },
     market_id: ids.market,
     sales_channel_id: ids.channel,
-    catalog_id: ids.catalog,
+    package_id: ids.package,
     currency: "eur",
     tax_mode: "inclusive",
     language: "en",

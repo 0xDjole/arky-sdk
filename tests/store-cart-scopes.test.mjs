@@ -28,7 +28,7 @@ const addressA = { name: "Ana", company: null, street1: "Main 1", street2: null,
 const addressB = { ...addressA, street1: "Side 2" };
 
 function productLine(id, variantId, quantity = 1) {
-  return { type: "product", id, variant_id: variantId, quantity, form_submission_id: null, purchase: { type: "catalog", catalog_item_price_id: ids.price } };
+  return { type: "product", id, variant_id: variantId, quantity, form_submission_id: null, price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price } };
 }
 
 function quoteLine(lineId, productId, variantId) {
@@ -44,7 +44,7 @@ function variant(id, productId, profile) {
     fulfillment: { type: "physical", shipping_profile_id: profile, inventory_requirements: [], backorder: { type: "disallow" } },
     tax_category_id: ids.paymentOption,
     status: { type: "active" },
-    catalog_item_id: ids.catalogItem,
+    package_item_id: ids.packageItem,
     price: null,
   };
 }
@@ -53,20 +53,20 @@ function store(createId = idFactories.createId) {
   return initialize(publishableKey, { ...idFactories, createId, apiUrl, locale: "en", market: "hrv", sessionStorage: visitorStorage() });
 }
 
-test("eshop.cart gives one cart store per buyer and catalog, each with its own state", async (context) => {
+test("eshop.cart gives one cart store per buyer and package, each with its own state", async (context) => {
   const calls = recordFetch(context, (call) => {
     if (call.path === "/v1/storefront/carts") {
-      return { type: "created", cart: cartRecord({ id: call.body.id, catalog_id: call.body.catalog_id, buyer: call.body.buyer }), recovery_token: `token-${call.body.id}` };
+      return { type: "created", cart: cartRecord({ id: call.body.id, package_id: call.body.package_id, buyer: call.body.buyer }), recovery_token: `token-${call.body.id}` };
     }
     throw new Error(`Unexpected request ${call.path}`);
   });
   const arky = store(idSequence(factoryId(1), factoryId(2)));
-  const retail = arky.eshop.cart({ buyer: customer, catalog_id: ids.catalog });
-  const company = arky.eshop.cart({ buyer: { type: "company", company_id: ids.company, purchase_order_number: null }, catalog_id: ids.catalog });
-  assert.equal(arky.eshop.cart({ catalog_id: ids.catalog }), retail);
+  const retail = arky.eshop.cart({ buyer: customer, package_id: ids.package });
+  const company = arky.eshop.cart({ buyer: { type: "company", company_id: ids.company, purchase_order_number: null }, package_id: ids.package });
+  assert.equal(arky.eshop.cart({ package_id: ids.package }), retail);
   assert.notEqual(company, retail);
-  assert.notEqual(arky.eshop.cart({ buyer: customer, catalog_id: ids.otherCatalog }), retail);
-  assert.deepEqual(retail.scope, { buyer: customer, catalog_id: ids.catalog });
+  assert.notEqual(arky.eshop.cart({ buyer: customer, package_id: ids.otherPackage }), retail);
+  assert.deepEqual(retail.scope, { buyer: customer, package_id: ids.package });
 
   assert.equal((await retail.ensure()).id, factoryId(1));
   assert.equal((await company.ensure()).id, factoryId(2));
@@ -93,7 +93,7 @@ test("ensure keeps its cart id across a lost answer and loads an existing cart f
     throw new Error(`Unexpected request ${call.path}`);
   });
   const arky = store(idSequence(factoryId(1)));
-  const cart = arky.eshop.cart({ buyer: customer, catalog_id: ids.catalog });
+  const cart = arky.eshop.cart({ buyer: customer, package_id: ids.package });
   await assert.rejects(cart.ensure(), /Lost response/);
   assert.equal((await cart.ensure()).id, factoryId(1));
   cart.reset();
@@ -113,9 +113,9 @@ test("addProduct takes its line id from the factory when none is given", async (
     return cartRecord({ updated_at: 1_700_000_000_002, line_items: [productLine(call.body.product.id, ids.variant)] });
   });
   const arky = store(idSequence(factoryId(5)));
-  const cart = arky.eshop.cart({ buyer: customer, catalog_id: ids.catalog });
+  const cart = arky.eshop.cart({ buyer: customer, package_id: ids.package });
   await cart.create({ id: ids.cart });
-  await cart.addProduct({ variant_id: ids.variant, quantity: 1, purchase: { type: "catalog", catalog_item_price_id: ids.price } });
+  await cart.addProduct({ variant_id: ids.variant, quantity: 1, price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price } });
   assert.equal(calls[1].body.product.id, factoryId(5));
   assert.equal(cart.item_count.get(), 1);
 });
@@ -142,10 +142,10 @@ test("a cart write whose answer is lost drops the cart view, so ensure reads the
     throw new Error(`Unexpected request ${call.method} ${call.path}`);
   });
   const arky = store(idSequence(factoryId(1)));
-  const scoped = arky.eshop.cart({ buyer: customer, catalog_id: ids.catalog });
+  const scoped = arky.eshop.cart({ buyer: customer, package_id: ids.package });
   await scoped.create({ id: ids.cart });
 
-  await assert.rejects(scoped.addProduct({ variant_id: ids.variant, quantity: 1, purchase: { type: "catalog", catalog_item_price_id: ids.price } }), /Lost response/);
+  await assert.rejects(scoped.addProduct({ variant_id: ids.variant, quantity: 1, price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price } }), /Lost response/);
   assert.equal(scoped.cart.get(), null);
   assert.equal(scoped.quote_result.get(), null);
   assert.equal(scoped.status.get().error.code, "network");
@@ -180,7 +180,7 @@ test("a write refused for a changed cart drops the view too, while a refused inp
     throw new Error(`Unexpected request ${call.method} ${call.path}`);
   });
   const arky = store(idSequence());
-  const scoped = arky.eshop.cart({ buyer: customer, catalog_id: ids.catalog });
+  const scoped = arky.eshop.cart({ buyer: customer, package_id: ids.package });
   await scoped.create({ id: ids.cart });
 
   await assert.rejects(scoped.setPromotionCodes({ promotion_codes: ["NOPE"] }), /Unknown promotion code/);
@@ -219,7 +219,7 @@ test("shipTo groups shipped lines by shipping profile and keeps a group's choice
     }
     if (call.path.includes("/variants/")) {
       variantReads.push(call.path);
-      assert.equal(call.query.catalog_id, ids.catalog);
+      assert.equal(call.query.package_id, ids.package);
       return call.path.endsWith(ids.variant) ? variant(ids.variant, ids.product, profileA) : variant(otherVariant, otherProduct, profileB);
     }
     if (call.method === "PUT" && call.path === `/v1/storefront/carts/${ids.cart}`) {
@@ -230,7 +230,7 @@ test("shipTo groups shipped lines by shipping profile and keeps a group's choice
     throw new Error(`Unexpected request ${call.method} ${call.path}`);
   });
   const arky = store(idSequence(factoryId(1), factoryId(2)));
-  const cart = arky.eshop.cart({ buyer: customer, catalog_id: ids.catalog });
+  const cart = arky.eshop.cart({ buyer: customer, package_id: ids.package });
   await cart.create({ id: ids.cart });
 
   await cart.shipTo({ destination: { type: "delivery", address: addressA } });
@@ -263,11 +263,12 @@ test("shipTo groups shipped lines by shipping profile and keeps a group's choice
   assert.equal(updates.length, 2);
 });
 
-test("the market changes while a scoped cart has items, each market keeps its own cart, and a sign-out clears every scope", async (context) => {
+test("the market changes while a scoped cart has items, each market keeps its own cart store, and a sign-out clears every scope", async (context) => {
   const carts = new Map();
   const calls = recordFetch(context, (call) => {
     if (call.path === "/v1/storefront/carts") {
-      const created = cartRecord({ id: call.body.id, catalog_id: call.body.catalog_id, line_items: [productLine(ids.line, ids.variant)] });
+      assert.equal(call.body.market_id, ids.market);
+      const created = cartRecord({ id: call.body.id, package_id: call.body.package_id, market_id: call.body.market_id, line_items: [productLine(ids.line, ids.variant)] });
       carts.set(created.id, created);
       return { type: "created", cart: created, recovery_token: `token-${created.id}` };
     }
@@ -276,15 +277,22 @@ test("the market changes while a scoped cart has items, each market keeps its ow
     throw new Error(`Unexpected request ${call.method} ${call.path}`);
   });
   const arky = store(idSequence(factoryId(1), factoryId(2)));
-  const croatia = arky.eshop.cart({ buyer: customer, catalog_id: ids.catalog });
-  const bosnia = arky.eshop.cart({ buyer: customer, catalog_id: ids.otherCatalog });
+  const scope = { buyer: customer, package_id: ids.package };
+  const croatia = arky.eshop.cart(scope);
   assert.equal((await croatia.ensure()).id, factoryId(1));
   assert.equal(croatia.item_count.get(), 1);
   arky.setContext({ market: "bih" });
   assert.equal(arky.getMarket(), "bih");
   assert.equal(croatia.cart.get(), null);
+  const bosnia = arky.eshop.cart(scope);
+  assert.notEqual(bosnia, croatia);
+  assert.equal(arky.eshop.checkoutFlow(scope).cart, bosnia);
+  assert.equal(arky.eshop.bookingCalendar(scope).scope, bosnia.scope);
+  await assert.rejects(croatia.ensure(), (error) => error.code === "context_changed");
+  await assert.rejects(croatia.pendingCheckout(), (error) => error.code === "context_changed");
   assert.equal((await bosnia.ensure()).id, factoryId(2));
   arky.setContext({ market: "hrv" });
+  assert.equal(arky.eshop.cart(scope), croatia);
   assert.equal((await croatia.ensure()).id, factoryId(1));
   assert.equal(croatia.item_count.get(), 1);
   await arky.customer.logout();
@@ -307,15 +315,15 @@ test("the cart store of a scope is the one its checkout flow and booking calenda
     throw new Error(`Unexpected request ${call.method} ${call.path}`);
   });
   const arky = store(idSequence(factoryId(1), factoryId(2)));
-  const scope = { buyer: customer, catalog_id: ids.catalog };
+  const scope = { buyer: customer, package_id: ids.package };
   const cart = arky.eshop.cart(scope);
   const checkout = arky.eshop.checkoutFlow(scope);
   const calendar = arky.eshop.bookingCalendar(scope);
   assert.equal(checkout.cart, cart);
   assert.equal(calendar.scope, cart.scope);
-  assert.equal(arky.eshop.cart({ buyer: customer, catalog_id: ids.catalog }), cart);
+  assert.equal(arky.eshop.cart({ buyer: customer, package_id: ids.package }), cart);
   await cart.ensure();
-  await cart.addProduct({ variant_id: ids.variant, quantity: 1, purchase: { type: "catalog", catalog_item_price_id: ids.price } });
+  await cart.addProduct({ variant_id: ids.variant, quantity: 1, price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price } });
   assert.equal(checkout.state.get().cart.line_items.length, 1);
   assert.equal(checkout.cart.item_count.get(), 1);
   assert.equal("carts" in arky.eshop, false);
@@ -337,9 +345,9 @@ test("a signed-in shopper's token refresh during a cart write keeps the cart vie
     throw new Error(`Unexpected request ${call.method} ${call.path}`);
   });
   const arky = initialize(publishableKey, { ...idFactories, createId: idSequence(factoryId(1)), apiUrl, locale: "en", market: "hrv", sessionStorage: signedInStorage() });
-  const scoped = arky.eshop.cart({ buyer: customer, catalog_id: ids.catalog });
+  const scoped = arky.eshop.cart({ buyer: customer, package_id: ids.package });
   await scoped.create({ id: ids.cart });
-  const written = await scoped.addProduct({ variant_id: ids.variant, quantity: 1, purchase: { type: "catalog", catalog_item_price_id: ids.price } });
+  const written = await scoped.addProduct({ variant_id: ids.variant, quantity: 1, price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price } });
   assert.deepEqual(written.line_items.map((line) => line.id), [factoryId(1)]);
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(arky.client.session.id, ids.otherSession);

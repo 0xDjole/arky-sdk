@@ -15,9 +15,9 @@ export type CustomerActionType =
   | { type: "support_conversation_started"; conversation_id: string }
   | { type: "support_conversation_escalated"; conversation_id: string }
   | { type: "support_conversation_resolved"; conversation_id: string }
-  | { type: "customer_group_member_activated"; customer_group_id: string }
-  | { type: "customer_group_member_cancelled"; customer_group_id: string }
-  | { type: "customer_group_member_switched"; from_customer_group_id: string; to_customer_group_id: string };
+  | { type: "package_member_activated"; package_id: string }
+  | { type: "package_member_cancelled"; package_id: string }
+  | { type: "package_member_switched"; from_package_id: string; to_package_id: string };
 
 export const TYPED_CUSTOMER_ACTION_KEYS = [
   "cart_item_added",
@@ -27,9 +27,9 @@ export const TYPED_CUSTOMER_ACTION_KEYS = [
   "support_conversation_started",
   "support_conversation_escalated",
   "support_conversation_resolved",
-  "customer_group_member_activated",
-  "customer_group_member_cancelled",
-  "customer_group_member_switched",
+  "package_member_activated",
+  "package_member_cancelled",
+  "package_member_switched",
 ] as const;
 
 export type TypedCustomerActionKey = (typeof TYPED_CUSTOMER_ACTION_KEYS)[number];

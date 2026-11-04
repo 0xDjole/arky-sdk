@@ -3,6 +3,8 @@ import type { RequestOptions } from "../types/api";
 import type { PaginatedResponse } from "../types/common";
 import type {
   CheckStripeSetupParams,
+  ConnectArkyMonriPaymentOptionParams,
+  ConnectArkyStripePaymentOptionParams,
   ConnectStripePaymentOptionParams,
   CreateMonriPaymentOptionParams,
   CreatePaymentOptionParams,
@@ -137,6 +139,32 @@ export const createPaymentOptionApi = (apiConfig: ApiConfig) => {
       refresh(params: RefreshStripePaymentOptionParams, options?: RequestOptions): Promise<PaymentOption> {
         return stripeAction(params.store_id, params.id, "refresh", {
           expected_updated_at: params.expected_updated_at,
+        }, options);
+      },
+    },
+
+    arkyStripe: {
+      connect(params: ConnectArkyStripePaymentOptionParams, options?: RequestOptions): Promise<PaymentOption> {
+        requireId(params.id, "payment option");
+        return apiConfig.httpClient.post<PaymentOption>(storePath(params.store_id, `${collection}/arky-stripe`), {
+          id: params.id,
+          key: params.key,
+          blocks: params.blocks,
+          status: params.status,
+          saved_card_terms: params.saved_card_terms,
+        }, options);
+      },
+    },
+
+    arkyMonri: {
+      connect(params: ConnectArkyMonriPaymentOptionParams, options?: RequestOptions): Promise<PaymentOption> {
+        requireId(params.id, "payment option");
+        return apiConfig.httpClient.post<PaymentOption>(storePath(params.store_id, `${collection}/arky-monri`), {
+          id: params.id,
+          key: params.key,
+          blocks: params.blocks,
+          status: params.status,
+          saved_card_terms: params.saved_card_terms,
         }, options);
       },
     },

@@ -3,6 +3,11 @@ import type { AccountActor } from "./common";
 
 export type NoteTarget =
   | { type: "form_submission"; form_submission_id: string }
+  | {
+      type: "form_submission_stage_change";
+      form_submission_id: string;
+      changed_at: EpochMilliseconds;
+    }
   | { type: "customer"; customer_id: string }
   | { type: "company"; company_id: string }
   | { type: "order"; order_id: string }

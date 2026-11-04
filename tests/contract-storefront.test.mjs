@@ -24,10 +24,10 @@ const productLine = {
   variant_id: ids.variant,
   quantity: 1,
   form_submission_id: null,
-  purchase: { type: "catalog", catalog_item_price_id: ids.price },
+  price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price },
 };
 
-const scope = { buyer: { type: "customer" }, catalog_id: ids.catalog };
+const scope = { buyer: { type: "customer" }, package_id: ids.package };
 
 function checkoutCart() {
   const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, market: "ita", locale: "it", sessionStorage: visitorStorage() });
@@ -57,15 +57,15 @@ test("initialize is the root API and exposes the module facade without store swi
     assert.equal(typeof facade.category.getByKey, "function");
     assert.equal(typeof facade.eshop.cart, "function");
     assert.equal(typeof cart.load, "function");
-    assert.equal(typeof cart.addCustomerGroup, "function");
+    assert.equal(typeof cart.addPackage, "function");
     assert.equal(typeof facade.eshop.order.resumePayment, "function");
-    assert.equal(typeof facade.eshop.customerGroup.get, "function");
-    assert.equal(typeof facade.eshop.catalogItem.find, "function");
-    assert.equal(typeof facade.eshop.catalogItem.getByParent, "function");
-    assert.equal(typeof facade.eshop.catalogItem.findPrices, "function");
+    assert.equal(typeof facade.eshop.package.get, "function");
+    assert.equal(typeof facade.eshop.packageItem.find, "function");
+    assert.equal(typeof facade.eshop.packageItem.getByParent, "function");
+    assert.equal(typeof facade.eshop.packageItem.findPrices, "function");
     assert.equal(typeof facade.eshop.bookingOffering.get, "function");
-    assert.equal(typeof facade.eshop.customerGroupOffering.get, "function");
-    assert.equal(typeof facade.eshop.customerGroupMember.find, "function");
+    assert.equal(typeof facade.eshop.packageOffering.get, "function");
+    assert.equal(typeof facade.eshop.packageMember.find, "function");
     assert.equal(typeof facade.eshop.minimumProgress.get, "function");
     assert.equal(typeof facade.customer.changeEmail, "function");
     assert.equal(typeof facade.setContext, "function");
@@ -75,14 +75,14 @@ test("initialize is the root API and exposes the module facade without store swi
     assert.equal(typeof facade.newsletter.join, "function");
     assert.equal(typeof facade.newsletter.requestCode, "function");
     for (const removed of [
-      "getStoreId", "forStore", "marketForLocale", "audiences", "customer_groups", "customer_group_members", "customer_group_email_consents", "cms", "crm",
+      "getStoreId", "forStore", "marketForLocale", "audiences", "packages", "package_members", "cms", "crm",
       "subscription_plans", "subscription_offerings", "setSalesChannel", "getSalesChannel", "sales_channel_key", "withContext",
       "setMarket", "setLocale", "utils", "ensureSession",
     ]) {
       assert.equal(removed in facade, false, removed);
     }
     for (const removed of ["subscription", "subscriptionPlan", "subscriptionOffering", "carts", "state"]) assert.equal(removed in facade.eshop, false, removed);
-    for (const owner of ["product", "productVariant", "bookingService", "bookingOffering", "bookingResource", "customerGroup"]) {
+    for (const owner of ["product", "productVariant", "bookingService", "bookingOffering", "bookingResource"]) {
       assert.equal("find" in facade.eshop[owner], false, `${owner}.find`);
     }
     for (const removed of ["addSubscriptionPlan", "subscription_plan_items", "payment", "paymentAction", "clearLocal"]) assert.equal(removed in cart, false, removed);
@@ -247,7 +247,7 @@ test("a refused checkout is propagated once and leaves the cart in place", async
 });
 
 test("a card checkout hands back the embedded Stripe action without navigating", async (context) => {
-  const action = { type: "stripe_embedded_checkout", publishable_key: "pk_test_order", client_secret: "cs_order_secret_exact", expires_at: 1_800_000_000_000 };
+  const action = { type: "stripe_embedded_checkout", publishable_key: "pk_test_order", client_secret: "cs_order_secret_exact", expires_at: 1_800_000_000_000, runs_on: { type: "provider" } };
   recordFetch(context, (call) => call.path === "/v1/storefront/carts/accept" ? placedAcceptance({ payment_id: ids.payment, payment_action: action }) : placedOrder());
   const cart = checkoutCart();
   const answer = await cart.checkout({ order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), contact_email: null, payment: cardPayment() });

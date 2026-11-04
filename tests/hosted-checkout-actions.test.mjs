@@ -15,7 +15,7 @@ test("the browser checkout surface exposes one mount helper for payments, one fo
 
 test("mounting a no-op payment action performs no provider or DOM work, and Monri card entry needs the payment it pays", async () => {
   assert.equal(await storefront.mountCheckoutAction({ action: { type: "none" }, element: "#checkout" }), null);
-  const monri = { type: "monri_components", environment: "test", authenticity_token: "token", client_secret: "secret", save_card: false };
+  const monri = { type: "monri_components", environment: "test", authenticity_token: "token", client_secret: "secret", save_card: false, runs_on: { type: "provider" } };
   await assert.rejects(storefront.mountCheckoutAction({ action: monri, element: "#checkout" }), /needs the payment_id of the payment it pays/);
   await assert.rejects(storefront.mountCheckoutAction({ action: monri, element: "#checkout", payment_id: null }), TypeError);
 });
@@ -51,7 +51,7 @@ test("browser entrypoints load provider scripts only when a checkout is explicit
       const result = await sdk.mountCheckoutAction({
         action: {
           type: "stripe_embedded_checkout", publishable_key: "pk_test_explicit_mount",
-          client_secret: "cs_explicit_secret", expires_at: 10,
+          client_secret: "cs_explicit_secret", expires_at: 10, runs_on: { type: "provider" },
         },
         element: target,
       });
@@ -62,7 +62,7 @@ test("browser entrypoints load provider scripts only when a checkout is explicit
       const billing = await sdk.mountCheckoutAction({
         action: {
           type: "stripe_embedded_checkout", publishable_key: "pk_test_explicit_mount",
-          client_secret: "cs_explicit_secret", expires_at: 10,
+          client_secret: "cs_explicit_secret", expires_at: 10, runs_on: { type: "provider" },
         },
         element: target,
       });

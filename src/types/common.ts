@@ -49,6 +49,10 @@ export type Schedule =
   | { type: "always" }
   | { type: "scheduled"; starts_at: EpochMilliseconds; ends_at: EpochMilliseconds | null };
 
+export type When =
+  | { type: "never" }
+  | { type: "at"; at: EpochMilliseconds };
+
 export interface TimeRange {
   from: EpochMilliseconds;
   to: EpochMilliseconds;

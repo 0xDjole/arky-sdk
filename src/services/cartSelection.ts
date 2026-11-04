@@ -10,6 +10,7 @@ import type {
 } from "../types/cart";
 import type { CartSelectionContext, CartSelectionTransport, SelectedCart } from "../types/cartSelection";
 import { CartError } from "../types/cartSelection";
+import { refusePerCallMarket } from "../utils/cartInputs";
 import { isCanonicalId, requireId } from "../utils/ids";
 import { withCartMutation } from "./cartCheckout";
 
@@ -29,8 +30,8 @@ export function cartBuyerKey(buyer: CartBuyer | undefined): string {
   return `${buyer.type}:${buyer.company_id}`;
 }
 
-export function cartScopeKey(scope: StorefrontCurrentCartParams): string {
-  return `${cartBuyerKey(scope.buyer)}|${scope.catalog_id}`;
+export function cartScopeKey(scope: StorefrontCurrentCartParams, market: string | null): string {
+  return `${cartBuyerKey(scope.buyer)}|${scope.package_id}|${market ?? ""}`;
 }
 
 function sameBuyer(cart: Cart, buyer: CartBuyer | undefined): boolean {
@@ -103,14 +104,14 @@ export function createCartSelection(
   }
 
   function selectionKey(customerId: string, params: StorefrontCurrentCartParams): string {
-    requireId(params?.catalog_id, "catalog");
+    requireId(params?.package_id, "package");
     return [
       "arky:selected-cart:v3",
       context.namespace,
       encodeURIComponent(customerId),
       encodeURIComponent(context.market() ?? ""),
       encodeURIComponent(cartBuyerKey(params.buyer)),
-      encodeURIComponent(params.catalog_id),
+      encodeURIComponent(params.package_id),
     ].join(":");
   }
 
@@ -136,16 +137,23 @@ export function createCartSelection(
     if (!cart || typeof cart.id !== "string" || cart.customer_id !== customerId || !sameBuyer(cart, params.buyer)) {
       throw new CartError("other_cart", "The cart does not belong to this customer and buyer");
     }
-    if (cart.catalog_id !== params.catalog_id) {
-      throw new CartError("other_cart", "The selected cart uses a different catalog");
+    if (cart.package_id !== params.package_id) {
+      throw new CartError("other_cart", "The selected cart uses a different package");
     }
   }
 
-  function usable(cart: Cart, customerId: string, params: StorefrontCurrentCartParams): boolean {
+  function assertMarket(cart: Cart, marketId: string): void {
+    if (cart.market_id !== marketId) {
+      throw new CartError("other_cart", "The cart is in a different market");
+    }
+  }
+
+  function usable(cart: Cart, customerId: string, params: StorefrontCurrentCartParams, marketId: string): boolean {
     return (
       cart.customer_id === customerId &&
       sameBuyer(cart, params.buyer) &&
-      cart.catalog_id === params.catalog_id &&
+      cart.package_id === params.package_id &&
+      cart.market_id === marketId &&
       !closedStatuses.includes(cart.status.type)
     );
   }
@@ -220,7 +228,7 @@ export function createCartSelection(
     const start = await read(guest.id, options);
     const followed: FollowedCart = start ? await follow(start, options) : { cart: null, chain: [guest.id] };
     const cart = followed.cart;
-    if (cart && usable(cart, customerId, params)) {
+    if (cart && start && usable(cart, customerId, params, start.market_id)) {
       const cartId = cart.id;
       if (select(storage, key, cartId)) {
         release(
@@ -251,7 +259,7 @@ export function createCartSelection(
     assertCart(start, customerId, params);
     const followed = await follow(start, options);
     const cart = followed.cart;
-    if (cart && usable(cart, customerId, params)) {
+    if (cart && usable(cart, customerId, params, start.market_id)) {
       const cartId = cart.id;
       if (cartId !== selection.id && select(storage, key, cartId)) {
         release(
@@ -287,16 +295,19 @@ export function createCartSelection(
 
   async function create(params: StorefrontCreateCartParams, options?: RequestOptions): Promise<CreatedCart> {
     requireId(params.id, "cart");
+    refusePerCallMarket(options);
     const storage = requireStorage();
     const customerId = requireCustomerId();
-    const selected = { buyer: params.buyer, catalog_id: params.catalog_id };
+    const selected = { buyer: params.buyer, package_id: params.package_id };
     const key = selectionKey(customerId, selected);
-    return withCartMutation(checkoutScope, { type: "new_cart", slot: cartScopeKey(selected) }, async () => {
-      const created = await transport.create(params, options);
+    return withCartMutation(checkoutScope, { type: "new_cart", slot: cartScopeKey(selected, context.market()) }, async () => {
+      const marketId = await context.marketId();
+      const created = await transport.create({ ...params, market_id: marketId }, options);
       if (!created || !created.cart || created.cart.id !== params.id) {
         throw new CartError("answer_mismatch", "Cart creation returned a different cart");
       }
       assertCart(created.cart, customerId, selected);
+      assertMarket(created.cart, marketId);
       keep(storage, key, customerId, selected, created);
       return created;
     });
@@ -304,17 +315,20 @@ export function createCartSelection(
 
   async function reorder(params: StorefrontReorderParams, options?: RequestOptions): Promise<ReorderedCart> {
     requireId(params.id, "cart");
+    refusePerCallMarket(options);
     const storage = requireStorage();
     const customerId = requireCustomerId();
-    const selected = { buyer: params.buyer, catalog_id: params.catalog_id };
+    const selected = { buyer: params.buyer, package_id: params.package_id };
     const key = selectionKey(customerId, selected);
-    return withCartMutation(checkoutScope, { type: "new_cart", slot: cartScopeKey(selected) }, async () => {
-      const reordered = await transport.reorder(params, options);
+    return withCartMutation(checkoutScope, { type: "new_cart", slot: cartScopeKey(selected, context.market()) }, async () => {
+      const marketId = await context.marketId();
+      const reordered = await transport.reorder({ ...params, market_id: marketId }, options);
       const created = reordered?.cart;
       if (!created || !created.cart || created.cart.id !== params.id) {
         throw new CartError("answer_mismatch", "The reorder returned a different cart");
       }
       assertCart(created.cart, customerId, selected);
+      assertMarket(created.cart, marketId);
       keep(storage, key, customerId, selected, created);
       return reordered;
     });

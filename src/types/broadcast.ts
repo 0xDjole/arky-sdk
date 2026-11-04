@@ -3,8 +3,8 @@ import type { SortDirection } from "./common";
 import type { Email, EmailContent, EmailLayoutContent, EmailTemplatePreview } from "./notification";
 
 export type BroadcastMembers =
-  | { type: "customer_group"; customer_group_id: string }
-  | { type: "customer_group_offering"; customer_group_offering_id: string };
+  | { type: "package"; package_id: string }
+  | { type: "package_offering"; package_offering_id: string };
 
 export type BroadcastCondition =
   | { type: "ordered_product"; product_id: string }

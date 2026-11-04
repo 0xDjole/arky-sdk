@@ -19,7 +19,7 @@ test("rental discovery forwards its filters, keeps the empty continuation and re
   const detail = { rental: { id: rentalId, status: { type: "active" } }, terms: { product_id: ids.product, variant_id: ids.variant, quantity: 1, inventory_item_id: "unit-item", product_key: "classic", variant_sku: null } };
   const calls = recordFetch(context, (_call, count) => count <= 2 ? { items: [], cursor: count === 1 ? "next:/+=" : null } : detail);
   const api = eshop().rental;
-  const query = { store_id: STORE_ID, customer_group_member_id: ids.customerGroupMember, status: "ending", limit: 20, sort_field: "updated_at", sort_direction: "desc" };
+  const query = { store_id: STORE_ID, package_member_id: ids.packageMember, status: "ending", limit: 20, sort_field: "updated_at", sort_direction: "desc" };
   assert.deepEqual(await api.find(query), { items: [], cursor: "next:/+=" });
   assert.deepEqual(await api.find({ ...query, cursor: "next:/+=" }), { items: [], cursor: null });
   assert.deepEqual(await api.get({ store_id: OTHER_STORE_ID, id: "rental/id" }), detail);
@@ -28,7 +28,7 @@ test("rental discovery forwards its filters, keeps the empty continuation and re
     ["GET", `/v1/stores/${STORE_ID}/rentals`],
     ["GET", `/v1/stores/${OTHER_STORE_ID}/rentals/rental%2Fid`],
   ]);
-  assert.deepEqual(calls[0].query, { customer_group_member_id: ids.customerGroupMember, status: "ending", limit: "20", sort_field: "updated_at", sort_direction: "desc" });
+  assert.deepEqual(calls[0].query, { package_member_id: ids.packageMember, status: "ending", limit: "20", sort_field: "updated_at", sort_direction: "desc" });
   assert.equal(calls[1].query.cursor, "next:/+=");
   assert.equal(calls[2].url.search, "");
   assert.deepEqual(Object.keys(api).sort(), ["execute", "find", "get"]);
@@ -99,13 +99,43 @@ test("rental physical work uses fulfillment and job routes with exact unit selec
   assert.equal(calls.length, 5);
 });
 
-test("a buyer reads their own rentals of one customer group member through storefront routes", async (context) => {
+test("a rental that waits for its terms or never started reads as stored, and staff list rentals by those statuses", async (context) => {
+  const waiting = { id: rentalId, store_id: STORE_ID, package_member_id: ids.packageMember, revision_id: jobId, package_item_id: jobLineId, status: { type: "waiting" }, created_at: 1_700_000_000_000, updated_at: 1_700_000_000_000 };
+  const withdrawn = { ...waiting, id: fulfillmentId, status: { type: "withdrawn", withdrawn_at: 1_700_000_100_000 }, updated_at: 1_700_000_100_000 };
+  const terms = { product_id: ids.product, variant_id: ids.variant, quantity: 1, inventory_item_id: "unit-item", product_key: "milkpal", variant_sku: null };
+  const machine = { id: rentalId, package_member_id: ids.packageMember, product_key: "milkpal", product: null, variant_sku: null, quantity: 1, units: [], created_at: 1_700_000_000_000 };
+  const buyerWaiting = { ...machine, status: { type: "waiting" }, updated_at: 1_700_000_000_000 };
+  const buyerWithdrawn = { ...machine, id: fulfillmentId, status: { type: "withdrawn", withdrawn_at: 1_700_000_100_000 }, updated_at: 1_700_000_100_000 };
+  const calls = recordFetch(context, (call) => {
+    if (call.path === `/v1/stores/${STORE_ID}/rentals`) return { items: call.query.status === "waiting" ? [waiting] : [withdrawn], cursor: null };
+    if (call.path === `/v1/stores/${STORE_ID}/rentals/${rentalId}`) return { rental: waiting, terms };
+    if (call.path === "/v1/storefront/rentals") return { items: [buyerWaiting, buyerWithdrawn], cursor: null };
+    return buyerWithdrawn;
+  });
+  const api = eshop().rental;
+  assert.deepEqual(await api.find({ store_id: STORE_ID, status: "waiting" }), { items: [waiting], cursor: null });
+  assert.deepEqual(await api.find({ store_id: STORE_ID, status: "withdrawn" }), { items: [withdrawn], cursor: null });
+  assert.deepEqual(await api.get({ store_id: STORE_ID, id: rentalId }), { rental: waiting, terms });
+  const store = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: visitorStorage() });
+  const listed = await store.eshop.rental.find({ package_member_id: ids.packageMember, limit: 10 });
+  assert.deepEqual(listed.items.map((item) => item.status), [{ type: "waiting" }, { type: "withdrawn", withdrawn_at: 1_700_000_100_000 }]);
+  assert.deepEqual(await store.eshop.rental.get({ id: fulfillmentId }), buyerWithdrawn);
+  assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
+    ["GET", `/v1/stores/${STORE_ID}/rentals`, { status: "waiting" }],
+    ["GET", `/v1/stores/${STORE_ID}/rentals`, { status: "withdrawn" }],
+    ["GET", `/v1/stores/${STORE_ID}/rentals/${rentalId}`, {}],
+    ["GET", "/v1/storefront/rentals", { package_member_id: ids.packageMember, limit: "10" }],
+    ["GET", `/v1/storefront/rentals/${fulfillmentId}`, {}],
+  ]);
+});
+
+test("a buyer reads their own rentals of one package member through storefront routes", async (context) => {
   const calls = recordFetch(context, (call) => call.path === "/v1/storefront/rentals" ? { items: [], cursor: null } : { id: rentalId });
   const rentals = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: visitorStorage() }).eshop.rental;
-  await rentals.find({ customer_group_member_id: ids.customerGroupMember, limit: 10 });
+  await rentals.find({ package_member_id: ids.packageMember, limit: 10 });
   await rentals.get({ id: rentalId });
   assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
-    ["GET", "/v1/storefront/rentals", { customer_group_member_id: ids.customerGroupMember, limit: "10" }],
+    ["GET", "/v1/storefront/rentals", { package_member_id: ids.packageMember, limit: "10" }],
     ["GET", `/v1/storefront/rentals/${rentalId}`, {}],
   ]);
   for (const call of calls) assert.equal(call.headers.get("authorization"), `Bearer ${visitorToken}`);
@@ -113,20 +143,20 @@ test("a buyer reads their own rentals of one customer group member through store
 
 test("a buyer's rentals and a quote's rental line answer the rented machine's current product, null once it is gone", async (context) => {
   const machine = { id: ids.product, key: "milkpal", blocks: [{ id: "name", type: "localized_text", key: "name", value: { hr: "MilkPal · Marco" } }] };
-  const rental = { id: rentalId, customer_group_member_id: ids.customerGroupMember, product_key: "milkpal", product: machine, variant_sku: "GS-EQP-MILKPAL", quantity: 1, status: { type: "active" }, units: [], created_at: 1_700_000_000_000, updated_at: 1_700_000_000_000 };
+  const rental = { id: rentalId, package_member_id: ids.packageMember, product_key: "milkpal", product: machine, variant_sku: "GS-EQP-MILKPAL", quantity: 1, status: { type: "active" }, units: [], created_at: 1_700_000_000_000, updated_at: 1_700_000_000_000 };
   const gone = { ...rental, id: fulfillmentId, product_key: "retired", product: null };
-  const rentalLine = { type: "rental", entitlement_id: jobLineId, product_id: ids.product, product: machine, variant_id: ids.variant, quantity: 1, snapshot: { product_key: "milkpal", variant_sku: "GS-EQP-MILKPAL", variant_blocks: [], price: { type: "customer_group_allocation" }, fulfillment: { type: "none" } }, money: { type: "awaiting_tax", unit_price: 0, discounts: [], waiting_for: "no_delivery" } };
-  const quote = { cart_id: ids.cart, lines: [{ type: "customer_group", line_item_id: ids.line, entitlements: [rentalLine] }] };
+  const rentalLine = { type: "rent_product", package_item_id: jobLineId, product_id: ids.product, product: machine, variant_id: ids.variant, quantity: 1, snapshot: { product_key: "milkpal", variant_sku: "GS-EQP-MILKPAL", variant_blocks: [], price: { type: "package_allocation" }, fulfillment: { type: "none" } }, money: { type: "awaiting_tax", unit_price: 0, discounts: [], waiting_for: "no_delivery" } };
+  const quote = { cart_id: ids.cart, lines: [{ type: "package", line_item_id: ids.line, items: [rentalLine] }] };
   const calls = recordFetch(context, (call) => call.path === "/v1/storefront/rentals" ? { items: [rental, gone], cursor: null } : call.path.endsWith("/quote") ? quote : rental);
   const store = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: visitorStorage() });
-  const listed = await store.eshop.rental.find({ customer_group_member_id: ids.customerGroupMember, limit: 10 });
+  const listed = await store.eshop.rental.find({ package_member_id: ids.packageMember, limit: 10 });
   assert.deepEqual(listed.items.map((item) => item.product), [machine, null]);
   const read = await store.eshop.rental.get({ id: rentalId });
   assert.deepEqual(read, rental);
   assert.equal(read.product.blocks[0].value.hr, "MilkPal · Marco");
   const quoted = await store.eshop.cart.quote({ id: ids.cart });
-  assert.deepEqual(quoted.lines[0].entitlements[0], rentalLine);
-  assert.deepEqual(quoted.lines[0].entitlements[0].product, machine);
+  assert.deepEqual(quoted.lines[0].items[0], rentalLine);
+  assert.deepEqual(quoted.lines[0].items[0].product, machine);
   assert.deepEqual(calls.map(({ method, path }) => [method, path]), [
     ["GET", "/v1/storefront/rentals"],
     ["GET", `/v1/storefront/rentals/${rentalId}`],
@@ -134,24 +164,23 @@ test("a buyer's rentals and a quote's rental line answer the rented machine's cu
   ]);
 });
 
-test("a package change's quote line states which rental continues with the units it keeps and ships and which rentals end with the units that come back, and every other group line states none", async (context) => {
+test("a package change's quote line states which rental continues with the units it keeps and ships and which rentals end with the units that come back, and every other package line states none", async (context) => {
   const grinder = "1c7e5a93-2b48-4d06-9f3e-8a5c1d7b2e40";
   const mill = "6f2d8b14-9c37-4e51-a0b6-3d9e7c2a5f18";
   const keptRental = "4e9a2c57-7d13-4b68-8e0f-2a6c9b3d1f75";
   const endingRental = "9b3f6d21-5e84-4a07-b2c9-7f1e4a8d6c30";
   const rentalChange = {
-    entitlements: [
-      { entitlement_id: grinder, rental_id: keptRental, kept_quantity: 1, shipped_quantity: 1 },
-      { entitlement_id: mill, rental_id: null, kept_quantity: 0, shipped_quantity: 1 },
+    items: [
+      { package_item_id: grinder, rental_id: keptRental, kept_quantity: 1, shipped_quantity: 1 },
+      { package_item_id: mill, rental_id: null, kept_quantity: 0, shipped_quantity: 1 },
     ],
     ending: [{ rental_id: endingRental, returned_quantity: 2 }],
   };
-  const groupLine = (lineId, start, change) => ({
-    type: "customer_group",
+  const packageLine = (lineId, start, change) => ({
+    type: "package",
     line_item_id: lineId,
     start,
-    entitlements: [],
-    tax_groups: [],
+    items: [],
     deliveries: [],
     saves_card: false,
     rental_change: change,
@@ -159,8 +188,8 @@ test("a package change's quote line states which rental continues with the units
   const quote = {
     cart_id: ids.cart,
     lines: [
-      groupLine(ids.line, { type: "switch", customer_group_member_id: ids.customerGroupMember }, rentalChange),
-      groupLine(ids.otherLine, { type: "on_acceptance" }, null),
+      packageLine(ids.line, { type: "switch", package_member_id: ids.packageMember }, rentalChange),
+      packageLine(ids.otherLine, { type: "on_acceptance" }, null),
     ],
   };
   const sent = structuredClone(quote);
@@ -170,7 +199,7 @@ test("a package change's quote line states which rental continues with the units
   assert.deepEqual(quoted, sent);
   const [change, join] = quoted.lines;
   assert.deepEqual(change.rental_change, rentalChange);
-  assert.deepEqual(change.rental_change.entitlements.map((item) => [item.entitlement_id, item.rental_id, item.kept_quantity, item.shipped_quantity]), [
+  assert.deepEqual(change.rental_change.items.map((item) => [item.package_item_id, item.rental_id, item.kept_quantity, item.shipped_quantity]), [
     [grinder, keptRental, 1, 1],
     [mill, null, 0, 1],
   ]);

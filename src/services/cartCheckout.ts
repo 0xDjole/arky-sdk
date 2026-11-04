@@ -191,8 +191,8 @@ async function submit(
     throw cartCheckoutPresentationChanged(error);
   }
   if (record(result) && result.type === "already_member") {
-    if (!isCanonicalId(result.customer_group_member_id)) {
-      throw new DurableRequestError("answer_mismatch", "Cart checkout did not name the customer group member the buyer already holds");
+    if (!isCanonicalId(result.package_member_id)) {
+      throw new DurableRequestError("answer_mismatch", "Cart checkout did not name the package member the buyer already holds");
     }
     return { result, success };
   }

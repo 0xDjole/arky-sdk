@@ -6,9 +6,9 @@ export type PromotionTarget =
   | { type: "products"; product_ids: string[] }
   | { type: "product_variants"; variant_ids: string[] }
   | { type: "booking_services"; booking_service_ids: string[] }
-  | { type: "customer_group_offerings"; customer_group_offering_ids: string[] }
-  | { type: "customer_groups"; customer_group_ids: string[] }
-  | { type: "catalogs"; catalog_ids: string[] }
+  | { type: "package_offerings"; package_offering_ids: string[] }
+  | { type: "packages"; package_ids: string[] }
+  | { type: "listed_in_packages"; package_ids: string[] }
   | { type: "categories"; category_ids: string[] }
   | { type: "all_eligible_items" };
 
@@ -35,8 +35,8 @@ export type PromotionEffect =
 export type PromotionCondition =
   | { type: "signed_in" }
   | { type: "customer"; ids: string[] }
-  | { type: "customer_group"; ids: string[] }
-  | { type: "customer_group_offering"; ids: string[] }
+  | { type: "package"; ids: string[] }
+  | { type: "package_offering"; ids: string[] }
   | { type: "company"; ids: string[] }
   | { type: "company_location"; ids: string[] }
   | { type: "market"; ids: string[] }

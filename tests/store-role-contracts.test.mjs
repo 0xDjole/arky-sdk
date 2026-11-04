@@ -39,7 +39,7 @@ test("platform discovery keeps sorting and opaque continuation without hidden pa
 test("membership permissions use an exact Store read while own discovery preserves opaque pages", async (context) => {
   const calls = [];
   const cursor = "memberships:/+==";
-  const membership = { id: "member", store_id: storeId, store_name: "Contract Store", role_ids: [roleId],
+  const membership = { id: "member", store_id: storeId, store_name: "Contract Store", store_mode: "live", role_ids: [roleId],
     access: { permissions: [{ type: "fulfillment", locations: { type: "only", store_location_ids: [locationA] } }] }, status: { type: "active", account_id: accountId },
     created_at: 1, updated_at: 1 };
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
@@ -150,7 +150,7 @@ test("a role and a secret key give orders, payments and customers read-only or r
     { type: "orders", access: "read_only" },
     { type: "payments", access: "read_write" },
     { type: "customers", access: "read_only" },
-    { type: "catalog" },
+    { type: "packages" },
   ];
   const keyId = "6a1c3e85-7b29-4d04-9f6e-2c8a0d4b6e13";
   const calls = recordFetch(context, (call) => call.path.endsWith("/api-keys") ? { type: "created", key: { id: keyId }, value: "secret-value" } : { id: roleId, permissions });
@@ -184,13 +184,13 @@ test("store access helpers mirror the Server's permission and location reach rul
   assert.equal(hasStorePermission(mixed, "orders"), true);
   const readOnly = { permissions: [{ type: "orders", access: "read_only" }, { type: "payments", access: "read_only" }, { type: "customers", access: "read_only" }] };
   for (const type of ["orders", "payments", "customers"]) assert.equal(hasStorePermission(readOnly, type), true, type);
-  assert.equal(hasStorePermission(readOnly, "catalog"), false);
+  assert.equal(hasStorePermission(readOnly, "packages"), false);
   const admin = { permissions: [{ type: "admin" }] };
   assert.equal(hasStorePermission(admin, "fulfillment", locationA), true);
   assert.equal(hasStorePermission(admin, "analytics"), true);
   assert.deepEqual(storePermissionReach(admin, "inventory"), { type: "everywhere" });
   assert.deepEqual(storeLocationReadReach(admin), { type: "everywhere" });
-  assert.equal(storePermissionReach(picker, "catalog"), null);
+  assert.equal(storePermissionReach(picker, "packages"), null);
   assert.equal(hasStorePermission(null, "admin"), false);
   assert.deepEqual(storeLocationReadReach(null), { type: "only", store_location_ids: [] });
   const twoRoles = { permissions: [
@@ -220,7 +220,7 @@ test("own workspace discovery retains each Store name and access without public 
 
 test("a nonexpiring email invite is explicitly resent and accepted with its current version", async (context) => {
   const contact = { email: "packer@example.test", language: "en" };
-  const invited = { id: "member", store_id: storeId, store_name: "Contract Store", role_ids: [roleId], access: { permissions: [] }, status: { type: "invited", contact }, created_at: 1, updated_at: 2 };
+  const invited = { id: "member", store_id: storeId, store_name: "Contract Store", store_mode: "live", role_ids: [roleId], access: { permissions: [] }, status: { type: "invited", contact }, created_at: 1, updated_at: 2 };
   const accepted = { id: "member", store_id: storeId, role_ids: [roleId], status: { type: "active", account_id: accountId }, created_at: 1, updated_at: 3 };
   const calls = [];
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {

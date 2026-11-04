@@ -37,7 +37,7 @@ const offer = {
   free_shipping_applied: false,
   delivery_estimate: null,
 };
-const line = { type: "product", id: ids.line, variant_id: ids.variant, quantity: 1, form_submission_id: null, purchase: { type: "catalog", catalog_item_price_id: ids.price } };
+const line = { type: "product", id: ids.line, variant_id: ids.variant, quantity: 1, form_submission_id: null, price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price } };
 const ana = { email: "ana@example.test", language: "en" };
 const refreshedAccess = `customer_access_${"n".repeat(64)}`;
 const quoteLine = { type: "product", line_item_id: ids.line, product_id: ids.product, variant_id: ids.variant, quantity: 1, snapshot: { fulfillment: { type: "physical" } } };
@@ -58,7 +58,7 @@ function quoteFor(cart) {
     destination: group.destination,
     shipping_profile_id: profile,
     items: [],
-    rental_entitlements: [],
+    rental_items: [],
     timing: { type: "asap" },
     offers: [offer],
     unavailable: [],
@@ -127,7 +127,7 @@ function server(context, accept, paymentStatus = "paid", readPayment = () => pay
         fulfillment: { type: "physical", shipping_profile_id: profile, inventory_requirements: [], backorder: { type: "disallow" } },
         tax_category_id: ids.paymentOption,
         status: { type: "active" },
-        catalog_item_id: ids.catalogItem,
+        package_item_id: ids.packageItem,
         price: null,
       };
     }
@@ -149,8 +149,8 @@ async function readyCheckout(sessionStorage = visitorStorage(), openedContact = 
     market: "hrv",
     sessionStorage,
   });
-  const checkout = arky.eshop.checkoutFlow({ buyer: customer, catalog_id: ids.catalog });
-  assert.equal(arky.eshop.checkoutFlow({ catalog_id: ids.catalog }), checkout);
+  const checkout = arky.eshop.checkoutFlow({ buyer: customer, package_id: ids.package });
+  assert.equal(arky.eshop.checkoutFlow({ package_id: ids.package }), checkout);
   await checkout.cart.create({ id: ids.cart });
   checkout.cart.reset();
   let state = await checkout.open();
@@ -338,7 +338,7 @@ test("opening the first checkout identifies its visitor once before loading the 
   browser(context);
   const calls = server(context, () => placedAcceptance({ payment_id: ids.payment }));
   const arky = initialize(publishableKey, { ...idFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: new SessionStorage() });
-  const checkout = arky.eshop.checkoutFlow({ buyer: customer, catalog_id: ids.catalog });
+  const checkout = arky.eshop.checkoutFlow({ buyer: customer, package_id: ids.package });
   const state = await checkout.open();
   assert.equal(state.step, "cart");
   assert.equal(state.cart, null);
@@ -391,15 +391,15 @@ test("a guest's quotes carry the contact email, so a promotion code capped per b
   assert.deepEqual(quotes.map((call) => call.body.contact_email ?? null), [null, "ana@example.test", "ana@example.test", "ana@example.test", "ana@example.test"]);
 });
 
-test("a taken booking slot, a purchase limit or a group that adds a second minimum shows on the cart step, not the shipping step", () => {
+test("a taken booking slot, a price that can't hold its fixed fee or a package that adds a second minimum shows on the cart step, not the shipping step", () => {
   const arky = initialize(publishableKey, { ...idFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: visitorStorage() });
-  const checkout = arky.eshop.checkoutFlow({ buyer: customer, catalog_id: ids.catalog });
+  const checkout = arky.eshop.checkoutFlow({ buyer: customer, package_id: ids.package });
   checkout.cart.cart.set(cartRecord({ line_items: [line] }));
   checkout.setContact({ contact_email: ana });
   for (const blocker of [
     { type: "booking_unavailable", line_item_id: ids.line, code: "BOOKING.SLOT_TAKEN" },
-    { type: "purchase_limit_exceeded", line_item_id: ids.line, limit_id: ids.product },
-    { type: "customer_group_minimum_conflict", line_item_id: ids.line },
+    { type: "tax_unavailable", line_item_id: ids.line, code: "TAX.FIXED_ABOVE_PRICE" },
+    { type: "package_minimum_conflict", line_item_id: ids.line },
   ]) {
     checkout.cart.quote_result.set(quoteRecord({ ready: false, blockers: [blocker] }));
     assert.equal(checkout.state.get().step, "cart", blocker.type);
@@ -408,12 +408,12 @@ test("a taken booking slot, a purchase limit or a group that adds a second minim
   assert.equal(checkout.state.get().step, "shipping");
 });
 
-test("a group held by a package change waiting to take effect shows on the cart step, not the shipping step", () => {
+test("a package held by a package change waiting to take effect shows on the cart step, not the shipping step", () => {
   const arky = initialize(publishableKey, { ...idFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: visitorStorage() });
-  const checkout = arky.eshop.checkoutFlow({ buyer: customer, catalog_id: ids.catalog });
+  const checkout = arky.eshop.checkoutFlow({ buyer: customer, package_id: ids.package });
   checkout.cart.cart.set(cartRecord({ line_items: [line] }));
   checkout.setContact({ contact_email: ana });
-  const scheduled = { type: "customer_group_change_scheduled", line_item_id: ids.line };
+  const scheduled = { type: "package_change_scheduled", line_item_id: ids.line };
   const shippingRequired = { type: "shipping_required", delivery_group_id: ids.otherCart };
   checkout.cart.quote_result.set(quoteRecord({ ready: false, blockers: [shippingRequired, scheduled] }));
   assert.equal(checkout.state.get().step, "cart");
@@ -421,9 +421,30 @@ test("a group held by a package change waiting to take effect shows on the cart 
   assert.equal(checkout.state.get().step, "shipping");
 });
 
-test("placing a group that a waiting package change holds is refused with its own code and keeps no checkout", async (context) => {
+test("a switch line whose change Arky refuses, or a cart none of its payment options can pay, shows on the cart step, not the details or shipping step", () => {
+  const arky = initialize(publishableKey, { ...idFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: visitorStorage() });
+  const checkout = arky.eshop.checkoutFlow({ buyer: customer, package_id: ids.package });
+  checkout.cart.cart.set(cartRecord({ line_items: [line] }));
+  checkout.setContact({ contact_email: ana });
+  const refused = { type: "package_change_refused", line_item_id: ids.line, code: "PACKAGE_MEMBER.HIGHER_PRICE" };
+  const unpayable = { type: "payment_unavailable", code: "CART.CARD_REQUIRED" };
+  const deliveryRequired = { type: "package_delivery_required", line_item_id: ids.line, package_item_id: ids.packageItem };
+  const shippingRequired = { type: "shipping_required", delivery_group_id: ids.otherCart };
+  for (const blocker of [refused, unpayable]) {
+    checkout.cart.quote_result.set(quoteRecord({ ready: false, blockers: [blocker] }));
+    assert.equal(checkout.state.get().step, "cart", blocker.type);
+    checkout.cart.quote_result.set(quoteRecord({ ready: false, blockers: [shippingRequired, deliveryRequired, blocker] }));
+    assert.equal(checkout.state.get().step, "cart", blocker.type);
+  }
+  checkout.cart.quote_result.set(quoteRecord({ ready: false, blockers: [shippingRequired, deliveryRequired] }));
+  assert.equal(checkout.state.get().step, "details");
+  checkout.cart.quote_result.set(quoteRecord({ ready: false, blockers: [shippingRequired] }));
+  assert.equal(checkout.state.get().step, "shipping");
+});
+
+test("placing a package that a waiting package change holds is refused with its own code and keeps no checkout", async (context) => {
   browser(context);
-  const code = "CUSTOMER_GROUP_MEMBER.CHANGE_SCHEDULED";
+  const code = "PACKAGE_MEMBER.CHANGE_SCHEDULED";
   const calls = server(context, () => errorResponse(409, code, "A package change that hasn't taken effect yet holds this offering; act after it takes effect or ends, or withdraw the change or cancel its order first"));
   const { checkout } = await readyCheckout();
   await assert.rejects(checkout.place(), (error) => {
@@ -442,7 +463,7 @@ test("placing a group that a waiting package change holds is refused with its ow
 
 test("a line whose price can't hold its fixed fee shows on the cart step, and a delivery that no longer fits its lines on the details step", () => {
   const arky = initialize(publishableKey, { ...idFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: visitorStorage() });
-  const checkout = arky.eshop.checkoutFlow({ buyer: customer, catalog_id: ids.catalog });
+  const checkout = arky.eshop.checkoutFlow({ buyer: customer, package_id: ids.package });
   checkout.cart.cart.set(cartRecord({ line_items: [line] }));
   checkout.setContact({ contact_email: ana });
   const taxUnavailable = { type: "tax_unavailable", line_item_id: ids.line, code: "TAX.FIXED_ABOVE_PRICE" };
@@ -486,9 +507,9 @@ test("the flow keeps its checkout in its own cart scope, so the client's shared 
   await assert.rejects(checkout.place(), (error) => error instanceof CheckoutFlowError && error.code === "interrupted");
   const shared = `arky:cart-checkout:v5:${encodeURIComponent(`storefront:${apiUrl}:${publishableKey}`)}`;
   assert.equal(storage.getItem(shared), null);
-  assert.ok(storage.getItem(`${shared}:${encodeURIComponent(`customer|${ids.catalog}`)}`));
+  assert.ok(storage.getItem(`${shared}:${encodeURIComponent(`customer|${ids.package}|hrv`)}`));
   assert.equal(await arky.client.eshop.cart.pendingCheckout(), null);
-  assert.equal((await arky.client.eshop.cart.pendingCheckout({ scope: { buyer: customer, catalog_id: ids.catalog } })).order_id, ids.order);
+  assert.equal((await arky.client.eshop.cart.pendingCheckout({ scope: { buyer: customer, package_id: ids.package } })).order_id, ids.order);
   assert.equal((await checkout.recover()).step, "placed");
 });
 
@@ -508,7 +529,7 @@ function contactCheckout(sessionStorage, locale) {
     market: "hrv",
     sessionStorage,
   });
-  return arky.eshop.checkoutFlow({ buyer: customer, catalog_id: ids.catalog });
+  return arky.eshop.checkoutFlow({ buyer: customer, package_id: ids.package });
 }
 
 test("opening the checkout names no contact: a billing email and a signed-in contact stay out until the page sets one", async (context) => {
@@ -624,6 +645,7 @@ test("a zero total placed with a card to save sends the payment option, and plac
     },
     client_secret: "seti_secret_exact",
     publishable_key: "pk_test_setup",
+    runs_on: { type: "provider" },
   };
   const calls = server(context, () => placedAcceptance({ payment_method_id: methodId, payment_method_setup: setup }));
   const { checkout } = await readyCheckout();
@@ -658,7 +680,7 @@ test("an order opened from its link is placed with no card setup to mount", asyn
     throw new Error(`Unexpected request ${call.method} ${call.path}`);
   });
   const arky = initialize(publishableKey, { ...idFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: visitorStorage() });
-  const checkout = arky.eshop.checkoutFlow({ buyer: customer, catalog_id: ids.catalog });
+  const checkout = arky.eshop.checkoutFlow({ buyer: customer, package_id: ids.package });
   const { state, url } = await checkout.openOrder({ order_id: ids.order, url: `https://shop.example.test/order/${ids.order}#order_token=${token}` });
   assert.equal(url, `https://shop.example.test/order/${ids.order}`);
   assert.equal(state.step, "placed");

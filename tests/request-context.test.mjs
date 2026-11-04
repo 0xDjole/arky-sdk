@@ -21,8 +21,8 @@ function storefront() {
 test("a per-call locale and market change one request's headers on the same session", async (context) => {
   const calls = recordFetch(context, (call) => (call.path === "/v1/storefront/customer/me" ? { customer: {}, session: {} } : { items: [], cursor: null }));
   const client = storefront();
-  await client.eshop.catalogItem.find({ catalog_id: ids.catalog, limit: 1 }, { locale: "it" });
-  await client.eshop.catalogItem.find({ catalog_id: ids.catalog, limit: 1 }, { locale: "it", market: "ita" });
+  await client.eshop.packageItem.find({ package_id: ids.package, limit: 1 }, { locale: "it" });
+  await client.eshop.packageItem.find({ package_id: ids.package, limit: 1 }, { locale: "it", market: "ita" });
   await client.content.entry.find({ collection_id: ids.form, limit: 1 });
   assert.deepEqual(
     calls.map((call) => [call.headers.get("x-arky-locale"), call.headers.get("x-arky-market")]),
@@ -40,11 +40,11 @@ test("a per-call locale and market change one request's headers on the same sess
 test("per-call context is checked, refused on cart calls and refused by Admin", async (context) => {
   const calls = recordFetch(context, () => cartRecord());
   const client = storefront();
-  await assert.rejects(client.eshop.catalogItem.find({ catalog_id: ids.catalog }, { locale: "  " }), /per-call locale/);
-  await assert.rejects(client.eshop.catalogItem.find({ catalog_id: ids.catalog }, { market: "Not A Key" }), /market/);
+  await assert.rejects(client.eshop.packageItem.find({ package_id: ids.package }, { locale: "  " }), /per-call locale/);
+  await assert.rejects(client.eshop.packageItem.find({ package_id: ids.package }, { market: "Not A Key" }), /market/);
   await assert.rejects(client.eshop.cart.get({ id: ids.cart }, { market: "ita" }), /storefront's market/);
   await assert.rejects(
-    client.eshop.cart.create({ id: ids.cart, buyer: { type: "customer" }, catalog_id: ids.catalog }, { market: "ita" }),
+    client.eshop.cart.create({ id: ids.cart, buyer: { type: "customer" }, package_id: ids.package }, { market: "ita" }),
     /storefront's market/,
   );
   const cart = await client.eshop.cart.get({ id: ids.cart }, { locale: "it" });
@@ -65,7 +65,7 @@ test("the store has no withContext: content in another language is a per-call lo
   await store.content.entry.find({ collection_id: ids.form, limit: 1 }, { locale: "en" });
   assert.equal(calls[0].headers.get("x-arky-locale"), "en");
   assert.equal(store.getLocale(), "it");
-  const cart = store.eshop.cart({ buyer: { type: "customer" }, catalog_id: ids.catalog });
+  const cart = store.eshop.cart({ buyer: { type: "customer" }, package_id: ids.package });
   cart.cart.set(cartRecord());
   await assert.rejects(cart.quote({}, { locale: "en" }), /store's locale and market/);
   await assert.rejects(cart.quote({ locale: "en" }), /request options come second/);

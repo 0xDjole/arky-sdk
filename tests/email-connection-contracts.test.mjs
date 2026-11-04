@@ -31,7 +31,7 @@ test("a store keeps several named email connections, each read, rekeyed and remo
   ]);
   await assert.rejects(async () => api.connect({ store_id: store, id: "resend", name: "Main Resend", api_key: "re_first_key", webhook_secret: "whsec_first_secret" }), TypeError);
   assert.equal(calls.length, 5);
-  assert.deepEqual(Object.keys(api).sort(), ["checkSetup", "connect", "delete", "find", "findDomains", "get", "replaceKey"]);
+  assert.deepEqual(Object.keys(api).sort(), ["checkSetup", "connect", "connectArkyResend", "delete", "find", "findDomains", "get", "replaceKey"]);
 });
 
 test("checking a connection's setup is a live read of the webhook Resend must call and every problem found", async (context) => {

@@ -71,7 +71,7 @@ test("notification history and a template preview send only their own fields, an
 });
 
 test("minimum progress is read for exactly one customer, company or company location by staff and by the buyer", async (context) => {
-  const locationProgress = { party: { type: "company_location", company_location_id: ids.companyLocation }, state: { type: "unavailable", reason: "no_requirement" } };
+  const locationProgress = { party: { type: "company_location", company_location_id: ids.companyLocation }, state: { type: "unavailable", reason: "no_minimum" } };
   const companyProgress = { party: { type: "company", company_id: ids.company }, state: { type: "unavailable", reason: "per_location" } };
   const calls = recordFetch(context, (call) => "company_id" in call.query ? companyProgress : locationProgress);
   assert.deepEqual(await admin().eshop.minimumProgress.get({ store_id: storeId, company_location_id: ids.companyLocation }), locationProgress);

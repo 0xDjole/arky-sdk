@@ -140,7 +140,6 @@ export interface FormSubmissionStageChange {
   to_stage_id: string;
   actor: AccountActor;
   changed_at: EpochMilliseconds;
-  note_id: string | null;
 }
 
 export interface FormSubmission {

@@ -36,5 +36,5 @@ export type BookingDefinitionContracts = [
   Assert<Missing<CreateBookingOfferingParams, "segments" | "tax_category_id" | "date_overrides">>,
   Assert<Missing<UpdateBookingOfferingParams, "booking_service_id" | "booking_resource_id">>,
   Assert<Equal<Extract<BookingVenue, { type: "not_fixed" }>, { type: "not_fixed"; store_location_id: string }>>,
-  Assert<Required<GetStorefrontAvailabilityParams, "catalog_id">>,
+  Assert<Required<GetStorefrontAvailabilityParams, "package_id">>,
 ];

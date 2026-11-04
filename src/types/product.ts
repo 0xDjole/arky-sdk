@@ -2,7 +2,7 @@ import type { CalendarDate, EpochMilliseconds } from "./time";
 import type { Block, BlockQuery } from "./block";
 import type { CompanyPartyQuery, PaginatedResponse, SortDirection } from "./common";
 import type { CategoryEntry, CategoryQuery } from "./content";
-import type { CatalogContext, CatalogReadOptions, StorefrontPrice } from "./catalog";
+import type { PackageContext, PackageReadOptions, StorefrontPrice } from "./package";
 
 export type ProductStatus =
   | { type: "active" }
@@ -55,6 +55,9 @@ export type ProductVariantStatus =
 
 export type ProductVariantEditableStatus = Exclude<ProductVariantStatus, { type: "deleting" }>;
 
+export type ProductVariantMeasure =
+  { type: "not_counted" } | { type: "counts"; amount: number };
+
 export interface ProductVariant {
   id: string;
   store_id: string;
@@ -63,6 +66,7 @@ export interface ProductVariant {
   blocks: Block[];
   fulfillment: ProductFulfillment;
   tax_category_id: string;
+  measure: ProductVariantMeasure;
   status: ProductVariantStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
@@ -212,7 +216,7 @@ export interface StorefrontProduct {
   slugs: Record<string, string>;
   blocks: Block[];
   categories: CategoryEntry[];
-  catalog_item_id: string;
+  package_item_id: string;
 }
 
 export interface StorefrontProductVariant {
@@ -222,14 +226,15 @@ export interface StorefrontProductVariant {
   blocks: Block[];
   fulfillment: ProductFulfillment;
   tax_category_id: string;
+  measure: ProductVariantMeasure;
   status: ProductVariantStatus;
-  catalog_item_id: string;
+  package_item_id: string;
   price: StorefrontPrice | null;
 }
 
-export type StorefrontBookingService = BookingService & { catalog_item_id: string };
+export type StorefrontBookingService = BookingService & { package_item_id: string };
 
-export type StorefrontBookingOffering = BookingOffering & { catalog_item_id: string; price: StorefrontPrice | null };
+export type StorefrontBookingOffering = BookingOffering & { package_item_id: string; price: StorefrontPrice | null };
 
 export type StorefrontBookingResource = BookingResource;
 
@@ -345,6 +350,7 @@ export interface CreateProductVariantParams {
   blocks: Block[];
   fulfillment: ProductFulfillment;
   tax_category_id: string;
+  measure: ProductVariantMeasure;
 }
 
 export interface UpdateProductVariantParams {
@@ -355,6 +361,7 @@ export interface UpdateProductVariantParams {
   blocks: Block[];
   fulfillment: ProductFulfillment;
   tax_category_id: string;
+  measure: ProductVariantMeasure;
   status: ProductVariantEditableStatus;
 }
 
@@ -585,28 +592,28 @@ export interface ArchiveDigitalAssetParams {
   expected_updated_at: EpochMilliseconds;
 }
 
-export type GetStorefrontProductParams = CatalogContext & ({ id: string } | { slug: string });
+export type GetStorefrontProductParams = PackageContext & ({ id: string } | { slug: string });
 
-export type GetStorefrontProductByKeyParams = CatalogContext & {
+export type GetStorefrontProductByKeyParams = PackageContext & {
   key: string;
 };
 
-export type GetStorefrontProductVariantParams = CatalogReadOptions & {
+export type GetStorefrontProductVariantParams = PackageReadOptions & {
   product_id: string;
   id: string;
 };
 
-export type GetStorefrontBookingServiceParams = CatalogContext & ({ id: string } | { slug: string });
+export type GetStorefrontBookingServiceParams = PackageContext & ({ id: string } | { slug: string });
 
-export type GetStorefrontBookingServiceByKeyParams = CatalogContext & {
+export type GetStorefrontBookingServiceByKeyParams = PackageContext & {
   key: string;
 };
 
-export type GetStorefrontBookingOfferingParams = CatalogReadOptions & {
+export type GetStorefrontBookingOfferingParams = PackageReadOptions & {
   id: string;
 };
 
-export type GetStorefrontAvailabilityParams = CatalogContext & {
+export type GetStorefrontAvailabilityParams = PackageContext & {
   booking_service_id: string;
   from: EpochMilliseconds;
   to: EpochMilliseconds;
@@ -615,7 +622,7 @@ export type GetStorefrontAvailabilityParams = CatalogContext & {
   cursor?: string | null;
 };
 
-export type GetStorefrontBookingResourceParams = CatalogContext & {
+export type GetStorefrontBookingResourceParams = PackageContext & {
   id: string;
   offering_id: string;
 };

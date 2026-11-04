@@ -1,19 +1,19 @@
 import { findBlock, formatPrice, getBlockTextValue } from "arky-sdk/storefront";
-import { arky, buyer, catalog } from "./setup.js";
+import { arky, buyer, shopPackage } from "./setup.js";
 
-const { items: listings } = await arky.eshop.catalogItem.find({
-  catalog_id: catalog.id,
+const { items } = await arky.eshop.packageItem.find({
+  package_id: shopPackage.id,
   selection: { types: ["booking_service"] },
   limit: 20,
 });
-console.log(listings.map((listing) => getBlockTextValue(findBlock(listing.content, "name"), "en")));
+console.log(items.map((item) => getBlockTextValue(findBlock(item.content, "name"), "en")));
 
-const calendar = arky.eshop.bookingCalendar({ buyer, catalog_id: catalog.id });
+const calendar = arky.eshop.bookingCalendar({ buyer, package_id: shopPackage.id });
 calendar.state.subscribe((state) => console.log(state.loading, state.days.length, state.slots.length));
 
-const [listing] = listings;
-if (listing?.item.type === "booking_service") {
-  await calendar.select({ booking_service_id: listing.item.booking_service_id });
+const [service] = items;
+if (service?.item.type === "booking_service") {
+  await calendar.select({ booking_service_id: service.item.booking_service_id });
   const day = calendar.state.get().days.find((cell) => cell.available);
   if (!day) await calendar.nextMonth();
   calendar.selectFirstAvailableDate();
@@ -25,5 +25,5 @@ if (listing?.item.type === "booking_service") {
   }
 }
 
-const checkout = arky.eshop.checkoutFlow({ buyer, catalog_id: catalog.id });
-console.log(checkout.cart === arky.eshop.cart({ buyer, catalog_id: catalog.id }), checkout.cart.booking_items.get().length);
+const checkout = arky.eshop.checkoutFlow({ buyer, package_id: shopPackage.id });
+console.log(checkout.cart === arky.eshop.cart({ buyer, package_id: shopPackage.id }), checkout.cart.booking_items.get().length);

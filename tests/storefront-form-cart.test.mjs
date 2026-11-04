@@ -18,7 +18,7 @@ import {
 } from "./helpers/arky-fixtures.mjs";
 
 const customerBuyer = { type: "customer" };
-const scope = { buyer: customerBuyer, catalog_id: ids.catalog };
+const scope = { buyer: customerBuyer, package_id: ids.package };
 
 const contactForm = {
   id: ids.form,
@@ -57,7 +57,7 @@ test("the store loads its setup and confirms the selected market before it expos
     if (call.path === "/v1/storefront") return setupRecord;
     if (call.path === "/v1/storefront/markets/by-key/ita") return { ...market, key: marketKey };
     throw new Error(`Unexpected setup request: ${call.method} ${call.path}`);
-  });
+  }, { answerMarkets: false });
   const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, market: "ita", locale: "it", sessionStorage: visitorStorage() });
   assert.deepEqual(await store.store.load(), setupRecord);
   assert.deepEqual(store.market.get(), market);
@@ -83,7 +83,7 @@ test("the store loads its setup and confirms the selected market before it expos
 
 test("a fresh visitor's first cart load identifies once and reads no cart, and a create then selects the new cart", async (context) => {
   const storage = new SessionStorage();
-  const line = { type: "product", id: ids.line, variant_id: ids.variant, quantity: 2, form_submission_id: ids.submission, purchase: { type: "catalog", catalog_item_price_id: ids.price } };
+  const line = { type: "product", id: ids.line, variant_id: ids.variant, quantity: 2, form_submission_id: ids.submission, price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price } };
   const cart = cartRecord({ line_items: [line] });
   const calls = recordFetch(context, (call) => {
     if (call.path === "/v1/storefront/customer/identify") return sessionResult();
@@ -109,7 +109,7 @@ test("a fresh visitor's first cart load identifies once and reads no cart, and a
   assert.deepEqual(reloadedCart.cart.get(), cart);
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
     ["POST", "/v1/storefront/customer/identify", { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }],
-    ["POST", "/v1/storefront/carts", { id: ids.cart, buyer: customerBuyer, catalog_id: ids.catalog }],
+    ["POST", "/v1/storefront/carts", { id: ids.cart, buyer: customerBuyer, package_id: ids.package, market_id: ids.market }],
     ["GET", `/v1/storefront/carts/${ids.cart}`, null],
   ]);
   assert.equal(calls[0].headers.get("authorization"), null);
@@ -138,7 +138,7 @@ test("a cart operation that starts with a session still refuses when the store c
     }
     throw new Error(`Unexpected cart request: ${call.method} ${call.path}`);
   });
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: visitorStorage() });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, market: "ita", sessionStorage: visitorStorage() });
   const cart = store.eshop.cart(scope);
   await cart.create({ id: ids.cart });
   const loading = cart.load();

@@ -70,14 +70,14 @@ import type {
 import type * as Public from "arky-sdk/types";
 export type { BlockContracts } from "./block-contracts.js";
 import type { MembershipContracts } from "./membership-contracts.js";
-import type { CatalogContracts } from "./catalog-contracts.js";
+import type { PackageContracts } from "./package-contracts.js";
 import type { PriceContracts } from "./price-contracts.js";
 import type { CompanyContracts } from "./company-contracts.js";
 import type { OrderContracts } from "./order-contracts.js";
 import type { CartContracts } from "./cart-contracts.js";
 import type { InventoryContracts } from "./inventory-contracts.js";
 export type { ShippingProfileContracts } from "./shipping-profile-contracts.js";
-export type { MembershipContracts, CatalogContracts, PriceContracts, CompanyContracts, OrderContracts, CartContracts, InventoryContracts };
+export type { MembershipContracts, PackageContracts, PriceContracts, CompanyContracts, OrderContracts, CartContracts, InventoryContracts };
 
 type Assert<T extends true> = T;
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
@@ -118,8 +118,6 @@ export type AdminSurfaceContracts = [
   Assert<Missing<Admin["eshop"], "dispute">>,
   Assert<Missing<Admin["eshop"], "digital">>,
   Assert<Missing<Admin["eshop"], "orderCredit">>,
-  Assert<Missing<Admin["eshop"], "subscriptionPlanEntitlement">>,
-  Assert<Missing<Admin["eshop"], "customerGroupEmailConsent">>,
   Assert<Missing<Admin["store"], "commerce">>,
   Assert<Equal<keyof Admin["notification"], "outgoingEmail" | "outgoingWebhook" | "incomingWebhook" | "template" | "layout" | "emailProvider" | "emailAddress" | "resendEvent">>,
   Assert<Equal<keyof Admin["notification"]["emailAddress"], "find" | "get" | "create" | "delete" | "getReadiness">>,
@@ -184,16 +182,15 @@ export type AdminSurfaceContracts = [
   Assert<Equal<IncomingWebhookStatus["type"], "waiting" | "processing" | "applied" | "ignored" | "review">>,
   Assert<Equal<IncomingWebhookStatusName, "waiting" | "unmatched" | "processing" | "applied" | "ignored" | "review">>,
   Assert<Equal<IncomingWebhookTarget["type"], "conversation_message" | "outgoing_email" | "email_suppression" | "payment" | "payment_method" | "store_subscription">>,
-  Assert<Equal<keyof ResendEvent, "event_type" | "email_id" | "occurred_at" | "outgoing_email_id" | "store_id" | "message_id" | "recipients" | "failure">>,
+  Assert<Equal<keyof ResendEvent, "event_type" | "email_id" | "occurred_at" | "outgoing_email_id" | "message_id" | "recipients" | "failure">>,
   Assert<Equal<ResendEvent["failure"], EmailFailure | null>>,
   Assert<Equal<Extract<FulfillmentJobBuyer, { type: "company_location" }>["company_location_id"], string>>,
   Assert<Missing<Extract<FulfillmentJobBuyer, { type: "company_location" }>, "source_company_location_id" | "source_customer_id">>,
 ];
 
 export type StorefrontSurfaceContracts = [
-  Assert<Missing<Storefront, "customer_groups">>,
-  Assert<Missing<Storefront, "customer_group_members">>,
-  Assert<Missing<Storefront, "customer_group_email_consents">>,
+  Assert<Missing<Storefront, "packages">>,
+  Assert<Missing<Storefront, "package_members">>,
   Assert<Missing<Storefront["customer"], "captureEmail">>,
   Assert<Missing<Storefront["eshop"], "digital">>,
   Assert<Missing<Storefront["eshop"]["order"], "paymentAction" | "fulfillments">>,
@@ -230,4 +227,10 @@ export type StorefrontSurfaceContracts = [
   Assert<Missing<Storefront, "setSalesChannel" | "getSalesChannel" | "subscription_plans" | "subscription_offerings">>,
   Assert<Missing<Store, "setSalesChannel" | "getSalesChannel" | "sales_channel_key">>,
   Assert<Equal<keyof Public.StorefrontSetup, "name" | "timezone" | "languages" | "payment_options" | "bot_check">>,
+  Assert<Equal<Parameters<Storefront["eshop"]["packageMember"]["getSwitchDeliveryOptions"]>[0], Public.StorefrontGetPackageMemberSwitchDeliveryOptionsParams>>,
+  Assert<Equal<Answer<Storefront["eshop"]["packageMember"]["getSwitchDeliveryOptions"]>, Public.PackageMemberDeliveryOptions>>,
+  Assert<Equal<keyof Public.StorefrontGetPackageMemberSwitchDeliveryOptionsParams, "id" | "delivery_id" | "expected_updated_at" | "revision_id" | "language" | "to_package_id" | "choices" | "price" | "deliveries">>,
+  Assert<Equal<Public.StorefrontGetPackageMemberSwitchDeliveryOptionsParams["deliveries"], Public.PackageDeliveryTerms[]>>,
+  Assert<Equal<Public.StorefrontGetPackageMemberSwitchDeliveryOptionsParams["price"], Public.PackagePriceRef>>,
+  Assert<Equal<Store["eshop"]["packageMember"]["getSwitchDeliveryOptions"], Storefront["eshop"]["packageMember"]["getSwitchDeliveryOptions"]>>,
 ];

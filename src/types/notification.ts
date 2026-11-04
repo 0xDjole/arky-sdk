@@ -267,11 +267,15 @@ export interface EmailLayout {
   updated_at: EpochMilliseconds;
 }
 
+export type EmailProviderType =
+  | { type: "resend"; webhook_id: string }
+  | { type: "arky_resend"; webhook_id: string };
+
 export interface EmailProvider {
   id: string;
   store_id: string;
   name: string;
-  type: { type: "resend"; webhook_id: string };
+  type: EmailProviderType;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
@@ -477,6 +481,13 @@ export interface ConnectEmailProviderParams {
   name: string;
   api_key: string;
   webhook_secret: string;
+}
+
+export interface ConnectArkyResendEmailProviderParams {
+  store_id: string;
+  id: string;
+  name: string;
+  domains: string[];
 }
 
 export interface ReplaceEmailProviderKeyParams {
