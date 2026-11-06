@@ -122,7 +122,7 @@ export type RentalReturnState =
   | { type: "awaiting_receipt" }
   | { type: "awaiting_inspection"; received_at: EpochMilliseconds }
   | { type: "inspected"; inspected_at: EpochMilliseconds; disposition: RentalReturnDisposition }
-  | { type: "missing"; recorded_at: EpochMilliseconds }
+  | { type: "missing" }
   | { type: "cancelled" }
   | { type: "declined" };
 

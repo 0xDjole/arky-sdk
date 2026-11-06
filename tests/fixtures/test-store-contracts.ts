@@ -38,6 +38,7 @@ import type {
   SimulatorMonriOperation,
   SimulatorPlannedOperation,
   SimulatorPlannedOutcome,
+  SimulatorPlannedResult,
   SimulatorProvider,
   SimulatorResendOperation,
   SimulatorStripeOperation,
@@ -45,6 +46,7 @@ import type {
   StoreMembershipWithStoreName,
   StoreMode,
   StoreSubscriptionPaymentAction,
+  StorefrontPaymentMethodSetupStart,
   StorefrontPaymentOption,
   StorefrontPaymentOptionType,
   StripeConnection,
@@ -77,7 +79,7 @@ export type TestStoreContracts = [
   Assert<Equal<PlanAction["runs_on"], PaymentRunsOn>>,
   Assert<Equal<MonriComponentsAction["runs_on"], PaymentRunsOn>>,
   Assert<Equal<PaymentMethodSetupStart["runs_on"], PaymentRunsOn>>,
-  Assert<Equal<Parameters<typeof isSimulatedPayment>[0], CheckoutPaymentAction | StoreSubscriptionPaymentAction | PaymentMethodSetupStart>>,
+  Assert<Equal<Parameters<typeof isSimulatedPayment>[0], CheckoutPaymentAction | StoreSubscriptionPaymentAction | StorefrontPaymentMethodSetupStart>>,
   Assert<Equal<ReturnType<typeof isSimulatedPayment>, boolean>>,
   Assert<Equal<typeof isSimulatedPayment, typeof storefrontIsSimulatedPayment>>,
   Assert<Equal<typeof simulatePayment, typeof storefrontSimulatePayment>>,
@@ -87,7 +89,7 @@ export type TestStoreContracts = [
   Assert<Equal<Extract<PaymentSimulation, { type: "stripe_checkout" }>["outcome"], "complete" | "decline" | "expire">>,
   Assert<Equal<Extract<PaymentSimulation, { type: "monri" }>["action"], MonriComponentsAction>>,
   Assert<Equal<Extract<PaymentSimulation, { type: "monri" }>["outcome"], "complete" | "decline">>,
-  Assert<Equal<Extract<PaymentSimulation, { type: "card_setup" }>["setup"], PaymentMethodSetupStart>>,
+  Assert<Equal<Extract<PaymentSimulation, { type: "card_setup" }>["setup"], StorefrontPaymentMethodSetupStart>>,
   Assert<Equal<Extract<PaymentSimulation, { type: "card_setup" }>["outcome"], "complete" | "cancel" | "decline">>,
   Assert<Missing<Extract<PaymentSimulation, { type: "monri" }>, "payment_id" | "attempt_id">>,
   Assert<Equal<keyof SimulatePaymentParams, "simulation">>,
@@ -140,6 +142,11 @@ export type TestStoreContracts = [
   Assert<Equal<Extract<CreateSimulatorPlannedOutcomeParams, { provider: "resend" }>["operation"], SimulatorResendOperation>>,
   Assert<Equal<Extract<SimulatorPlannedOperation, { provider: "resend" }>["operation"] & "create_checkout_session", never>>,
   Assert<Equal<SimulatorProvider, "stripe" | "monri" | "resend">>,
+  Assert<Equal<SimulatorPlannedResult["type"], "refused" | "rate_limited" | "unavailable" | "lost_response" | "delayed" | "declined" | "missing_link" | "expired_link" | "daily_quota_exceeded" | "monthly_quota_exceeded">>,
+  Assert<Equal<Extract<SimulatorPlannedResult, { type: "daily_quota_exceeded" }>, { type: "daily_quota_exceeded" }>>,
+  Assert<Equal<Extract<SimulatorPlannedResult, { type: "monthly_quota_exceeded" }>, { type: "monthly_quota_exceeded" }>>,
+  Assert<Equal<SimulatorPlannedOutcome["outcome"], SimulatorPlannedResult>>,
+  Assert<Equal<CreateSimulatorPlannedOutcomeParams["outcome"], SimulatorPlannedResult>>,
   Assert<Equal<Awaited<ReturnType<Simulator["plannedOutcomes"]["create"]>>, SimulatorPlannedOutcome>>,
   Assert<Equal<Parameters<Simulator["plannedOutcomes"]["find"]>[0], FindSimulatorPlannedOutcomesParams>>,
   Assert<Equal<Awaited<ReturnType<Simulator["plannedOutcomes"]["find"]>>, PaginatedResponse<SimulatorPlannedOutcome>>>,
@@ -182,6 +189,24 @@ export const refused: CreateSimulatorPlannedOutcomeParams = {
   operation: "send_email",
   matching: { type: "to", address: "buyer@example.test" },
   outcome: { type: "refused", message: "No" },
+};
+
+export const dailyQuota: CreateSimulatorPlannedOutcomeParams = {
+  store_id: "store",
+  id: "plan",
+  provider: "resend",
+  operation: "send_email",
+  matching: { type: "any" },
+  outcome: { type: "daily_quota_exceeded" },
+};
+
+export const monthlyQuota: CreateSimulatorPlannedOutcomeParams = {
+  store_id: "store",
+  id: "plan",
+  provider: "resend",
+  operation: "send_email",
+  matching: { type: "to", address: "buyer@example.test" },
+  outcome: { type: "monthly_quota_exceeded" },
 };
 
 export async function mounts(element: string, action: CheckoutPaymentAction, setup: PaymentMethodSetupStart): Promise<void> {

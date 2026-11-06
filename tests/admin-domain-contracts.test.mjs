@@ -68,7 +68,7 @@ test('retained Sessions keep their exact credentials through refresh and a malfo
   await admin.account.auth.verify({ session_id: 'pending', code: '123456', store_id: STORE_ID });
   assert.deepEqual(admin.session, { id: SESSION_ID, email: undefined });
   assert.deepEqual(JSON.parse(storage.getItem(storageKey)), {
-    id: SESSION_ID, access_token: 'access-1', refresh_token: 'refresh-1', access_expires_at: now + 60000,
+    id: SESSION_ID, access_token: 'access-1', refresh_token: 'refresh-1',
   });
   const rotated = await admin.account.auth.refresh({ refresh_token: 'refresh-1' });
   assert.equal(rotated.access_token, 'access-2');
@@ -96,13 +96,16 @@ test('rejected Account refresh clears retained credentials and notifies consumer
   t.after(() => descriptor ? Object.defineProperty(globalThis, 'window', descriptor) : delete globalThis.window);
   const storageKey = 'arky_admin_session:https://api.example.test';
   const retained = JSON.stringify({
-    id: SESSION_ID, access_token: 'expired-access', refresh_token: 'rejected-refresh',
-    access_expires_at: Date.now() - 60_000, email: 'operator@example.test',
+    id: SESSION_ID, access_token: 'expired-access', refresh_token: 'rejected-refresh', email: 'operator@example.test',
   });
   const calls = [];
   let status;
   t.mock.method(globalThis, 'fetch', async (url, init) => {
-    calls.push({ path: new URL(url).pathname, body: JSON.parse(init.body) });
+    const path = new URL(url).pathname;
+    calls.push({ path, body: init.body ? JSON.parse(init.body) : null });
+    if (path !== '/v1/auth/refresh') {
+      return Response.json({ message: 'Expired', status_code: 401, error: 'GENERAL.UNAUTHENTICATED' }, { status: 401 });
+    }
     if (status === 'network') throw new TypeError('Network unavailable');
     return Response.json({
       message: 'Refresh refused', status_code: status,
@@ -122,7 +125,8 @@ test('rejected Account refresh clears retained credentials and notifies consumer
     assert.equal(events.some(session => session === null), rejected, String(status));
     unsubscribe();
   }
-  assert.deepEqual(calls, Array(5).fill({ path: '/v1/auth/refresh', body: { refresh_token: 'rejected-refresh' } }));
+  assert.deepEqual(calls.map(call => call.path === '/v1/auth/refresh'), Array(5).fill([false, true]).flat());
+  assert.deepEqual(calls.filter(call => call.path === '/v1/auth/refresh'), Array(5).fill({ path: '/v1/auth/refresh', body: { refresh_token: 'rejected-refresh' } }));
 });
 
 test('a 401 or 403 that Arky did not send keeps the retained Account session for a later refresh', async (t) => {
@@ -133,8 +137,7 @@ test('a 401 or 403 that Arky did not send keeps the retained Account session for
   t.after(() => descriptor ? Object.defineProperty(globalThis, 'window', descriptor) : delete globalThis.window);
   const storageKey = 'arky_admin_session:https://api.example.test';
   const retained = JSON.stringify({
-    id: SESSION_ID, access_token: 'expired-access', refresh_token: 'kept-refresh',
-    access_expires_at: Date.now() - 60_000, email: 'operator@example.test',
+    id: SESSION_ID, access_token: 'expired-access', refresh_token: 'kept-refresh', email: 'operator@example.test',
   });
   const answers = [
     () => new Response('Forbidden', { status: 403, headers: { 'content-type': 'text/plain' } }),
@@ -145,7 +148,11 @@ test('a 401 or 403 that Arky did not send keeps the retained Account session for
   const calls = [];
   let answer;
   t.mock.method(globalThis, 'fetch', async (url, init) => {
-    calls.push({ path: new URL(url).pathname, body: JSON.parse(init.body) });
+    const path = new URL(url).pathname;
+    calls.push({ path, body: init.body ? JSON.parse(init.body) : null });
+    if (path !== '/v1/auth/refresh') {
+      return Response.json({ message: 'Expired', status_code: 401, error: 'GENERAL.UNAUTHENTICATED' }, { status: 401 });
+    }
     return answer();
   });
   for (answer of answers) {
@@ -160,7 +167,8 @@ test('a 401 or 403 that Arky did not send keeps the retained Account session for
     assert.equal(events.some(session => session === null), false);
     unsubscribe();
   }
-  assert.deepEqual(calls, Array(answers.length).fill({ path: '/v1/auth/refresh', body: { refresh_token: 'kept-refresh' } }));
+  assert.deepEqual(calls.map(call => call.path === '/v1/auth/refresh'), Array(answers.length).fill([false, true]).flat());
+  assert.deepEqual(calls.filter(call => call.path === '/v1/auth/refresh'), Array(answers.length).fill({ path: '/v1/auth/refresh', body: { refresh_token: 'kept-refresh' } }));
 });
 
 test('a rejected refresh cannot clear a different Account login completed while it was pending', async (t) => {
@@ -274,4 +282,46 @@ test('a restored Account bearer reaches protected requests and follows caller-ow
     { path: '/v1/accounts/me', authorization: 'Bearer access-1' },
     { path: '/v1/accounts/me', authorization: 'Bearer access-2' },
   ]);
+});
+
+function storedAdminBrowser(t, value) {
+  const storage = new MemoryStorage();
+  const browser = Object.assign(new EventTarget(), { localStorage: storage });
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: browser });
+  t.after(() => descriptor ? Object.defineProperty(globalThis, 'window', descriptor) : delete globalThis.window);
+  storage.setItem('arky_admin_session:https://api.example.test', JSON.stringify(value));
+  const calls = [];
+  t.mock.method(globalThis, 'fetch', async (url, init) => {
+    calls.push({ path: new URL(url).pathname, method: init.method, authorization: new Headers(init.headers).get('authorization') });
+    return Response.json({ items: [], cursor: null });
+  });
+  return calls;
+}
+
+test('a device clock far ahead sends each Admin call once, without refreshing first', async (t) => {
+  const realNow = Date.now();
+  t.mock.method(Date, 'now', () => realNow + 31_536_000_000);
+  const calls = storedAdminBrowser(t, { id: SESSION_ID, access_token: 'held-access', refresh_token: 'held-refresh', email: 'operator@example.test' });
+  const admin = createAdmin({ apiUrl: 'https://api.example.test' });
+  assert.equal(admin.isAuthenticated, true);
+  await admin.store.find({ limit: 10 });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].method, 'GET');
+  assert.equal(calls[0].authorization, 'Bearer held-access');
+  assert.equal(calls.some(call => call.path === '/v1/auth/refresh'), false);
+});
+
+test('a stored Admin session with any other field is no session', async (t) => {
+  const calls = storedAdminBrowser(t, {
+    id: SESSION_ID, access_token: 'held-access', refresh_token: 'held-refresh', email: 'operator@example.test',
+    access_expires_at: Date.now() + 60_000,
+  });
+  const admin = createAdmin({ apiUrl: 'https://api.example.test' });
+  assert.equal(admin.isAuthenticated, false);
+  assert.equal(admin.session, null);
+  await admin.store.find({ limit: 10 });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].authorization, null);
+  assert.equal(calls.some(call => call.path === '/v1/auth/refresh'), false);
 });

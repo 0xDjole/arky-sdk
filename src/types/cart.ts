@@ -12,7 +12,11 @@ import type {
 import type { Block } from "./block";
 import type { ShippingDeliveryEstimate } from "./shipping";
 import type { PaymentTerms } from "./company";
-import type { CheckoutPaymentAction, PaymentMethodSetupStart } from "./payment";
+import type {
+  CheckoutPaymentAction,
+  PaymentMethodSetupStart,
+  StorefrontPaymentMethodSetupStart,
+} from "./payment";
 import type { PackagePriceRef } from "./package";
 import type {
   PackageDeliveryTerms,
@@ -100,8 +104,6 @@ export type CartLineItem =
   | ({ type: "booking" } & CartBookingLineItem)
   | ({ type: "package" } & CartPackageLineItem);
 
-export type CartLineItemType = CartLineItem["type"];
-
 export type CartPhysicalLineRef =
   | { type: "product"; line_item_id: string }
   | { type: "package_item"; line_item_id: string; package_item_id: string };
@@ -179,6 +181,82 @@ export interface ReorderLeftOutLine {
 
 export interface ReorderedCart {
   cart: CreatedCart;
+  left_out: ReorderLeftOutLine[];
+}
+
+export type StorefrontCartOrigin =
+  | { type: "storefront" }
+  | { type: "reorder"; order_id: string }
+  | { type: "account" };
+
+export type StorefrontPackageStart =
+  | { type: "on_acceptance" }
+  | { type: "scheduled"; starts_at: EpochMilliseconds }
+  | { type: "switch"; package_member_id: string }
+  | {
+      type: "amend";
+      package_member_id: string;
+      expected_updated_at: EpochMilliseconds;
+    };
+
+export interface StorefrontCartPackageLineItem {
+  id: string;
+  package_id: string;
+  quantity: number;
+  choices: PackageProductChoice[];
+  start: StorefrontPackageStart;
+  deliveries: CartPackageDelivery[];
+  price: PackagePriceRef;
+}
+
+export type StorefrontCartLineItem =
+  | ({ type: "product" } & CartProductLineItem)
+  | ({ type: "booking" } & CartBookingLineItem)
+  | ({ type: "package" } & StorefrontCartPackageLineItem);
+
+export type StorefrontCartOfferStatus =
+  | { type: "reviewed" }
+  | {
+      type: "sent";
+      at: EpochMilliseconds;
+      expires_at: EpochMilliseconds | null;
+      note: string | null;
+    };
+
+export interface StorefrontCartOffer {
+  contact: EmailContact;
+  reviewed_at: EpochMilliseconds;
+  lines: CartOfferLine[];
+  supersedes_cart_id: string | null;
+  status: StorefrontCartOfferStatus;
+}
+
+export interface StorefrontCart {
+  id: string;
+  blocks: Block[];
+  store_id: string;
+  customer_id: string;
+  buyer: CartBuyer;
+  sales_channel_id: string;
+  package_id: string;
+  market_id: string;
+  status: CartStatus;
+  origin: StorefrontCartOrigin;
+  line_items: StorefrontCartLineItem[];
+  delivery_groups: CartDeliveryGroup[];
+  billing_address: PostalAddress | null;
+  promotion_code_ids: string[];
+  offer: StorefrontCartOffer | null;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+}
+
+export type StorefrontCreatedCart =
+  | { type: "created"; cart: StorefrontCart; recovery_token: string }
+  | { type: "existing"; cart: StorefrontCart };
+
+export interface StorefrontReorderedCart {
+  cart: StorefrontCreatedCart;
   left_out: ReorderLeftOutLine[];
 }
 
@@ -528,6 +606,18 @@ export type CheckoutAcceptance =
     }
   | { type: "already_member"; package_member_id: string };
 
+export type StorefrontCheckoutAcceptance =
+  | {
+      type: "placed";
+      order_id: string;
+      number: string;
+      payment_id: string | null;
+      payment_action: CheckoutPaymentAction;
+      payment_method_id: string | null;
+      payment_method_setup: StorefrontPaymentMethodSetupStart | null;
+    }
+  | { type: "already_member"; package_member_id: string };
+
 export type CartStatusFilter = CartStatus["type"];
 
 export type CartOriginFilter = CartOrigin["type"];
@@ -799,20 +889,30 @@ export type FindStorefrontCartOffersParams = (
   cursor?: string | null;
 };
 
-export function cartProductItems(cart: Pick<Cart, "line_items"> | null): CartProductLineItem[] {
+export function cartProductItems(
+  cart: { line_items: readonly (CartLineItem | StorefrontCartLineItem)[] } | null,
+): CartProductLineItem[] {
   return (cart?.line_items ?? [])
-    .filter((item): item is CartLineItem & { type: "product" } => item.type === "product")
+    .filter(
+      (item): item is CartLineItem & { type: "product" } => item.type === "product",
+    )
     .map(({ type: _type, ...item }) => item);
 }
 
-export function cartBookingItems(cart: Pick<Cart, "line_items"> | null): CartBookingLineItem[] {
+export function cartBookingItems(
+  cart: { line_items: readonly (CartLineItem | StorefrontCartLineItem)[] } | null,
+): CartBookingLineItem[] {
   return (cart?.line_items ?? [])
-    .filter((item): item is CartLineItem & { type: "booking" } => item.type === "booking")
+    .filter(
+      (item): item is CartLineItem & { type: "booking" } => item.type === "booking",
+    )
     .map(({ type: _type, ...item }) => item);
 }
 
-export function cartPackageItems(cart: Pick<Cart, "line_items"> | null): CartPackageLineItem[] {
+export function cartPackageItems<L extends CartLineItem | StorefrontCartLineItem>(
+  cart: { line_items: readonly L[] } | null,
+): Omit<Extract<L, { type: "package" }>, "type">[] {
   return (cart?.line_items ?? [])
-    .filter((item): item is CartLineItem & { type: "package" } => item.type === "package")
+    .filter((item): item is Extract<L, { type: "package" }> => item.type === "package")
     .map(({ type: _type, ...item }) => item);
 }

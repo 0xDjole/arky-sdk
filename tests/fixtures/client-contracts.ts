@@ -22,6 +22,7 @@ import type {
   RefundReason,
   Money,
   Broadcast,
+  ChargeResolution,
   CheckoutAcceptance,
   CreateBroadcastParams,
   ChangeCustomerEmailParams,
@@ -57,6 +58,7 @@ import type {
   ResolvePaymentRefundParams,
   SendBroadcastTestParams,
   SendEmailTemplateTestParams,
+  StorefrontCheckoutAcceptance,
   StorefrontFormSubmission,
   StorefrontOptions,
   StorefrontSetup,
@@ -107,7 +109,7 @@ export const pausedSending: Promise<StoreRecord> = admin.store.pauseEmailSending
 export const allowedSending: Promise<StoreRecord> = admin.store.allowEmailSending({ store_id, expected_updated_at: createdAt });
 
 export type AdminSurfaceContracts = [
-  Assert<Equal<keyof Admin, "account" | "platform" | "store" | "notification" | "broadcast" | "support" | "media" | "category" | "content" | "forms" | "companies" | "customers" | "actions" | "experiments" | "counts" | "eshop" | "session" | "isAuthenticated" | "onAuthStateChanged" | "logout">>,
+  Assert<Equal<keyof Admin, "account" | "platform" | "store" | "notification" | "broadcast" | "support" | "media" | "category" | "content" | "forms" | "companies" | "customers" | "actions" | "experiments" | "counts" | "eshop" | "session" | "isAuthenticated" | "sessionStorageUnavailable" | "onAuthStateChanged" | "logout">>,
   Assert<Missing<Admin, "automation">>,
   Assert<Missing<Admin, "campaign">>,
   Assert<Missing<Admin, "leadResearch">>,
@@ -167,7 +169,7 @@ export type AdminSurfaceContracts = [
   Assert<RequiredField<SendEmailTemplateTestParams, "outgoing_email_id">>,
   Assert<RequiredField<SendBroadcastTestParams, "language">>,
   Assert<Equal<ResolvePaymentRefundParams["outcome"], MonriConfirmation>>,
-  Assert<Equal<ResolvePaymentChargeParams["outcome"], MonriConfirmation>>,
+  Assert<Equal<ResolvePaymentChargeParams["outcome"], ChargeResolution>>,
   Assert<Equal<MonriConfirmation["type"], "made" | "not_made">>,
   Assert<Equal<PaymentType["type"], "stripe_checkout" | "stripe_card" | "monri_checkout" | "monri_card" | "cash_on_delivery" | "manual">>,
   Assert<Equal<CustomerType["type"], "anonymous" | "verified">>,
@@ -211,7 +213,7 @@ export type StorefrontSurfaceContracts = [
   Assert<Equal<keyof StorefrontFormSubmission, "id" | "form_id" | "language" | "answers" | "stage_id" | "created_at" | "updated_at">>,
   Assert<Equal<keyof NonNullable<Parameters<Storefront["store"]["location"]["find"]>[0]>, "key" | "sort_field" | "sort_direction" | "limit" | "cursor">>,
   Assert<Equal<Parameters<ReturnType<Store["eshop"]["cart"]>["checkout"]>[0], ArkyCartCheckoutParams>>,
-  Assert<Equal<Answer<ReturnType<Store["eshop"]["cart"]>["checkout"]>, CheckoutAcceptance>>,
+  Assert<Equal<Answer<ReturnType<Store["eshop"]["cart"]>["checkout"]>, StorefrontCheckoutAcceptance>>,
   Assert<Equal<keyof StorefrontContext, "locale" | "market">>,
   Assert<Missing<StorefrontOptions, "salesChannel">>,
   Assert<RequiredField<StorefrontOptions, "createVisitorIdentity">>,

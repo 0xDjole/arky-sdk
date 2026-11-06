@@ -51,7 +51,7 @@ import type {
   UpdateCompanyRoleParams,
 } from "../types/company";
 import { requireId } from "../utils/ids";
-import { segment, storePath, storeRecordPath } from "./paths";
+import { segment, storefrontBase, storePath, storeRecordPath } from "./paths";
 
 function taxRegistrationRoutes<T>(apiConfig: ApiConfig, collection: string) {
   return {
@@ -226,20 +226,19 @@ export const createCompanyMembershipApi = (apiConfig: ApiConfig) => ({
 });
 
 export function createStorefrontCompanyApi(httpClient: HttpClient, ensureVisitorSession: () => Promise<void>) {
-  const base = "/v1/storefront";
-  const locationPath = (id: string) => `${base}/company-locations/${segment(id)}`;
-  const membershipPath = (id: string) => `${base}/company-memberships/${segment(id)}`;
+  const locationPath = (id: string) => `${storefrontBase}/company-locations/${segment(id)}`;
+  const membershipPath = (id: string) => `${storefrontBase}/company-memberships/${segment(id)}`;
 
   return {
     async getAccess(params: StorefrontGetCompanyAccessParams, options?: RequestOptions): Promise<CompanyCustomerAccess> {
       await ensureVisitorSession();
-      return httpClient.get<CompanyCustomerAccess>(`${base}/companies/${segment(params.id)}/access`, options);
+      return httpClient.get<CompanyCustomerAccess>(`${storefrontBase}/companies/${segment(params.id)}/access`, options);
     },
 
     async update(params: StorefrontUpdateCompanyParams, options?: RequestOptions): Promise<StorefrontCompany> {
       await ensureVisitorSession();
       const { id, ...body } = params;
-      return httpClient.put<StorefrontCompany>(`${base}/companies/${segment(id)}`, body, options);
+      return httpClient.put<StorefrontCompany>(`${storefrontBase}/companies/${segment(id)}`, body, options);
     },
 
     location: {
@@ -248,7 +247,7 @@ export function createStorefrontCompanyApi(httpClient: HttpClient, ensureVisitor
         options?: RequestOptions,
       ): Promise<PaginatedResponse<StorefrontCompanyLocation>> {
         await ensureVisitorSession();
-        return httpClient.get<PaginatedResponse<StorefrontCompanyLocation>>(`${base}/company-locations`, { ...options, params });
+        return httpClient.get<PaginatedResponse<StorefrontCompanyLocation>>(`${storefrontBase}/company-locations`, { ...options, params });
       },
 
       async get(params: StorefrontGetCompanyLocationParams, options?: RequestOptions): Promise<StorefrontCompanyLocation> {
@@ -259,7 +258,7 @@ export function createStorefrontCompanyApi(httpClient: HttpClient, ensureVisitor
       async create(params: StorefrontCreateCompanyLocationParams, options?: RequestOptions): Promise<StorefrontCompanyLocation> {
         requireId(params.id, "company location");
         await ensureVisitorSession();
-        return httpClient.post<StorefrontCompanyLocation>(`${base}/company-locations`, params, options);
+        return httpClient.post<StorefrontCompanyLocation>(`${storefrontBase}/company-locations`, params, options);
       },
 
       async update(params: StorefrontUpdateCompanyLocationParams, options?: RequestOptions): Promise<StorefrontCompanyLocation> {
@@ -283,13 +282,13 @@ export function createStorefrontCompanyApi(httpClient: HttpClient, ensureVisitor
         options?: RequestOptions,
       ): Promise<PaginatedResponse<CompanyMembership>> {
         await ensureVisitorSession();
-        return httpClient.get<PaginatedResponse<CompanyMembership>>(`${base}/company-memberships`, { ...options, params });
+        return httpClient.get<PaginatedResponse<CompanyMembership>>(`${storefrontBase}/company-memberships`, { ...options, params });
       },
 
       async create(params: StorefrontCreateCompanyMembershipParams, options?: RequestOptions): Promise<CompanyMembership> {
         requireId(params.id, "company membership");
         await ensureVisitorSession();
-        return httpClient.post<CompanyMembership>(`${base}/company-memberships`, params, options);
+        return httpClient.post<CompanyMembership>(`${storefrontBase}/company-memberships`, params, options);
       },
 
       async update(params: StorefrontUpdateCompanyMembershipParams, options?: RequestOptions): Promise<CompanyMembership> {
@@ -319,7 +318,7 @@ export function createStorefrontCompanyApi(httpClient: HttpClient, ensureVisitor
     role: {
       async find(params: StorefrontFindCompanyRolesParams, options?: RequestOptions): Promise<PaginatedResponse<CompanyRole>> {
         await ensureVisitorSession();
-        return httpClient.get<PaginatedResponse<CompanyRole>>(`${base}/company-roles`, { ...options, params });
+        return httpClient.get<PaginatedResponse<CompanyRole>>(`${storefrontBase}/company-roles`, { ...options, params });
       },
     },
   };

@@ -27,14 +27,13 @@ export const createAuthApi = (
       if (previous?.id !== expectedSessionId) {
         throw new ArkyError('session_changed', 'The Account session changed during sign-in');
       }
+      const keptEmail = email ?? previous?.email;
       const next: AdminSessionInternal = {
         id: result.id,
         access_token: result.access_token,
         refresh_token: result.refresh_token,
-        access_expires_at: result.access_expires_at,
-        email: email ?? previous?.email,
       };
-      return next;
+      return keptEmail === undefined ? next : { ...next, email: keptEmail };
     });
   }
 

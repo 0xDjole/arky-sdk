@@ -26,5 +26,5 @@ export type BlockContracts = [
 const translations: LocalizedText = { en: "Shirt", "sr-Latn-BA": "Košulja" };
 export const nameBlock: LocalizedTextBlock = { id: "name", key: "name", type: "localized_text", value: translations };
 export const nameQuery: BlockQuery = { type: "localized_text", key: "name", locale: "sr-Latn-BA", values: ["Košulja"] };
-export const selectedName: string | null = selectLocalizedText(translations, "sr-Latn-BA", "en");
+export const selectedName: string | null = selectLocalizedText(translations, "sr-Latn-BA");
 export const groupBlock: ObjectBlock = { id: "group", key: "group", type: "object", value: [nameBlock] };

@@ -51,7 +51,7 @@ export type FormStatus = { type: "active" } | { type: "draft" } | { type: "close
 export interface FormEmails {
   received: Email | null;
   stage_changed: Record<string, Email>;
-  new_submission_alert: Email | null;
+  submission_alert: Email | null;
   alert_recipients: AlertRecipient[];
 }
 
@@ -66,6 +66,14 @@ export interface Form {
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
   questions_updated_at: EpochMilliseconds;
+}
+
+export interface StorefrontForm {
+  id: string;
+  key: string;
+  questions: FormQuestion[];
+  questions_updated_at: EpochMilliseconds;
+  status: FormStatus;
 }
 
 export type FormSubmissionSource =

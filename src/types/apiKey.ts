@@ -29,7 +29,8 @@ export interface ApiKey {
 }
 
 export type ApiKeyCreated =
-  | { type: "created"; key: ApiKey; value?: string }
+  | { type: "created"; key: ApiKey }
+  | { type: "secret_created"; key: ApiKey; value: string }
   | { type: "existing"; key: ApiKey };
 
 export interface FindApiKeysParams {

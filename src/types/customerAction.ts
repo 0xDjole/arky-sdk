@@ -32,7 +32,6 @@ export const TYPED_CUSTOMER_ACTION_KEYS = [
   "package_member_switched",
 ] as const;
 
-export type TypedCustomerActionKey = (typeof TYPED_CUSTOMER_ACTION_KEYS)[number];
 
 export interface CustomerAction {
   id: string;
@@ -51,6 +50,7 @@ export interface FindCustomerActionsParams {
 }
 
 export interface TrackCustomerActionParams {
+  id?: string;
   key: string;
   data?: Record<string, unknown>;
 }

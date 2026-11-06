@@ -2,11 +2,12 @@ import type { LocalizedText } from "../types/common";
 import type { CreateMediaParams } from "../types/content";
 import { DurableRequestError } from "./durableRequest";
 import { isCanonicalId } from "./ids";
+import { isRecord } from "./record";
 
 const databaseName = "arky-durable-requests-v1";
 const objectStoreName = "media-create";
 const databaseVersion = 1;
-const mediaCreateLabel = "Media create";
+export const mediaCreateLabel = "Media create";
 
 interface DurableMediaCreate {
   storageKey: string;
@@ -162,10 +163,6 @@ async function deleteRaw(storageKey: string): Promise<void> {
   } finally {
     database.close();
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function exactKeys(value: Record<string, unknown>, expected: string[]): boolean {

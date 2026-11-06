@@ -39,6 +39,7 @@ export const ids = {
   price: "2c9e4a7b-5d31-4f86-a0b2-7e3c9d1f5a64",
   otherPrice: "7f3b1d95-0c2e-4a68-b4d1-9e6a2c8f0b37",
   packageItem: "5a8d2f61-3b7e-4c09-9f14-6d2b8e0a4c73",
+  picked: "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36",
 };
 
 export const factoryOrderToken = `arky_ot_${"F".repeat(42)}A`;
@@ -61,6 +62,13 @@ export const idFactories = {
   createVisitorIdentity: () => ({ customer_id: ids.customer, session_id: ids.session }),
   createSessionId: () => ids.otherSession,
   createId: () => factoryId(++factoryIdCount),
+  createOrderToken: () => factoryOrderToken,
+};
+
+export const fixedIdFactories = {
+  createVisitorIdentity: () => ({ customer_id: ids.otherCustomer, session_id: ids.otherSession }),
+  createSessionId: () => ids.otherSession,
+  createId: () => ids.picked,
   createOrderToken: () => factoryOrderToken,
 };
 

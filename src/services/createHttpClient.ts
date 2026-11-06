@@ -1,6 +1,6 @@
-import { epochMilliseconds, epochMillisecondsNow } from "../utils/time";
 import { buildQueryString, type QueryParams } from "../utils/queryParams";
 import { ArkyApiError, ArkyNetworkError } from "../types/apiError";
+import { isRecord } from "../utils/record";
 
 import type { TokenSet, HttpClient, HttpClientConfig, ServerError, TransportOptions } from "../types/httpClient";
 export type { TokenSet, AuthStorage, RequestSuccessContext, RequestErrorContext, RequestOptions, HttpClient, HttpClientConfig } from "../types/httpClient";
@@ -9,12 +9,8 @@ function sessionEnded(message: string): ArkyApiError {
   return new ArkyApiError({ message, code: "GENERAL.UNAUTHENTICATED", statusCode: 401 });
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
 function omitStorefrontRouting(value: unknown): unknown {
-  if (!isRecord(value) || Array.isArray(value)) return value;
+  if (!isRecord(value)) return value;
   const prototype = Object.getPrototypeOf(value);
   if (prototype !== Object.prototype && prototype !== null) return value;
   const result = { ...value };
@@ -108,13 +104,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
       ...forcedHeaders,
     };
 
-    let tokens = authStorage.getTokens();
-    if (
-      tokens?.access_expires_at !== undefined &&
-      epochMillisecondsNow() >= epochMilliseconds(tokens.access_expires_at)
-    ) {
-      tokens = await refreshedTokens(tokens);
-    }
+    const tokens = authStorage.getTokens();
 
     if (tokens?.access_token) {
       headers["Authorization"] = `Bearer ${tokens.access_token}`;
@@ -168,15 +158,32 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
       throw err;
     }
 
+    const contentLength = res.headers.get("content-length");
+    const contentType = res.headers.get("content-type");
+    const readable = contentLength !== "0" && Boolean(contentType?.includes("application/json"));
+    if (res.ok && res.status !== 204 && !readable) {
+      const err = new ArkyNetworkError("unreadable_answer", "Arky answered without a readable JSON body", {
+        method,
+        url: fullUrl,
+        statusCode: res.status,
+      });
+      if (options?.onError && method !== "GET") {
+        Promise.resolve(
+          options.onError({
+            error: err,
+            method,
+            url: fullUrl,
+            status: res.status,
+          }),
+        ).catch(() => {});
+      }
+      throw err;
+    }
+
     try {
-      const contentLength = res.headers.get("content-length");
-      const contentType = res.headers.get("content-type");
       if (res.status === 204) {
         data = undefined;
-      } else if (
-        contentLength === "0" ||
-        !contentType?.includes("application/json")
-      ) {
+      } else if (!readable) {
         data = {};
       } else {
         data = await res.json();

@@ -7,6 +7,10 @@ export function epochMilliseconds(value: number): EpochMilliseconds {
   return value as EpochMilliseconds;
 }
 
+export function isEpochMilliseconds(value: unknown): value is EpochMilliseconds {
+  return typeof value === "number" && Number.isSafeInteger(value);
+}
+
 export function epochMillisecondsFromDate(value: Date): EpochMilliseconds {
   return epochMilliseconds(value.getTime());
 }

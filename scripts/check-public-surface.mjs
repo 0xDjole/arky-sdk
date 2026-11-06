@@ -144,6 +144,7 @@ const removedIdentifiers = [
   "rotateWebhookSecret",
   "not_created",
   "endpoint_url",
+  "webhook_api_version",
   "StorefrontCancelOrderProductItemParams",
   "FulfillmentOrder",
   "FulfillmentAction",
@@ -224,6 +225,44 @@ const removedIdentifiers = [
   "PackageMemberSelfTermsSource",
   "source_revision_id",
   "amend_terms",
+  "ExperimentEligibility",
+  "ExperimentAssignment",
+  "StoreUsage",
+  "BookingCapacityClaim",
+  "BookingResourceCapacityDay",
+  "CheckoutPayment",
+  "CalendarDateRange",
+  "CartLineItemType",
+  "TypedCustomerActionKey",
+  "FindOrderNotesParams",
+  "CreateOrderNoteParams",
+  "UpdateOrderNoteParams",
+  "DeleteOrderNoteParams",
+  "FindCustomerNotesParams",
+  "CreateCustomerNoteParams",
+  "UpdateCustomerNoteParams",
+  "DeleteCustomerNoteParams",
+  "FindCompanyNotesParams",
+  "CreateCompanyNoteParams",
+  "UpdateCompanyNoteParams",
+  "DeleteCompanyNoteParams",
+  "FindFormSubmissionNotesParams",
+  "CreateFormSubmissionNoteParams",
+  "UpdateFormSubmissionNoteParams",
+  "DeleteFormSubmissionNoteParams",
+  "FindConversationNotesParams",
+  "CreateConversationNoteParams",
+  "UpdateConversationNoteParams",
+  "DeleteConversationNoteParams",
+  "StorefrontCountryState",
+  "StorefrontCountry",
+  "StorefrontGetCountryParams",
+  "CustomerSessionInternal",
+  "ArkyStoreContext",
+  "ImportCustomerFieldError",
+  "rows_valid",
+  "rows_invalid",
+  "customers_updated",
 ];
 
 const removedIdentifierPattern = new RegExp(`\\b(?:${removedIdentifiers.join("|")})\\b`, "g");
@@ -393,7 +432,7 @@ requirePattern("types/note.ts", /type: "form_submission_stage_change";\s*form_su
 forbidPattern("types/payment.ts", /export interface ResendEvent \{[^}]*\bstore_id\b/, "a store's Resend post keeps its store once, on the post");
 
 for (const route of ["categories", "products", "booking-services"]) {
-  requirePattern("api/storefront.ts", new RegExp(`\\$\\{base\\}/${route}/by-key/`), `storefront ${route} are read by key through their by-key route`);
+  requirePattern("api/storefront.ts", new RegExp(`\\$\\{storefrontBase\\}/${route}/by-key/`), `storefront ${route} are read by key through their by-key route`);
 }
 forbidPattern("api/storefront.ts", /"key" in params \? params\.key : params\.slug/, "the plain storefront category read takes an id or a slug, never a key");
 

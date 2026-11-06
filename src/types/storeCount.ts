@@ -24,11 +24,11 @@ export interface StoreStatusCountSegments {
 export type StoreStatusCountType = keyof StoreStatusCountSegments;
 
 export type StoreCountDayType =
-  | "new_products_day"
-  | "new_booking_services_day"
-  | "new_form_submissions_day"
-  | "new_customers_day"
-  | "new_orders_day"
+  | "products_created_day"
+  | "booking_services_created_day"
+  | "form_submissions_created_day"
+  | "customers_created_day"
+  | "orders_placed_day"
   | "page_views_day"
   | "booked_slots_day";
 

@@ -36,15 +36,15 @@ test("a store keeps several named email connections, each read, rekeyed and remo
 
 test("checking a connection's setup is a live read of the webhook Resend must call and every problem found", async (context) => {
   const setup = {
-    webhook_address: "https://api.example.test/v1/webhooks/resend/connection",
-    events: ["email.sent", "email.delivered", "email.bounced", "email.complained", "email.received"],
+    webhook_address: "https://api.example.test/v1/webhooks/resend",
+    events: ["email.sent", "email.delivered", "email.delivery_delayed", "email.bounced", "email.failed", "email.complained", "email.suppressed", "email.received"],
     webhook_id: "wh_resend_1",
     problems: [
       { type: "webhook_missing" },
       { type: "webhook_duplicated", webhook_ids: ["wh_resend_1", "wh_resend_2"] },
       { type: "webhook_secret_mismatch" },
       { type: "webhook_disabled" },
-      { type: "webhook_events_missing", events: ["email.received"] },
+      { type: "webhook_events_missing", events: ["email.suppressed"] },
     ],
   };
   const calls = recordFetch(context, () => setup);

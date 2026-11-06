@@ -4,6 +4,7 @@ import type { MonriBrowserBuyerDetails, MonriBrowserFactory, MonriBuyerDetails }
 import { MonriCheckoutError } from "../types/monriCheckout";
 import { simulatePayment } from "../paymentSimulator";
 import { createSimulatorPanel } from "./simulatorPanel";
+import { isRecord } from "../utils/record";
 
 let loaded: { environment: MonriEnvironment; factory: Promise<MonriBrowserFactory> } | undefined;
 const origins = { test: "https://ipgtest.monri.com", live: "https://ipg.monri.com" } as const;
@@ -11,7 +12,7 @@ const visible = (value: unknown, maximum: number): value is string =>
   typeof value === "string" && value.length > 0 && value.length <= maximum && /^[\x21-\x7e]+$/.test(value);
 
 function isPaymentRunsOn(value: unknown): value is PaymentRunsOn {
-  if (!record(value)) return false;
+  if (!isRecord(value)) return false;
   if (value.type === "provider") return Object.keys(value).length === 1;
   return value.type === "simulator" && Object.keys(value).length === 2 && typeof value.api_url === "string" && value.api_url.length > 0;
 }
@@ -94,10 +95,6 @@ function buyerDetails(value: MonriBuyerDetails): MonriBrowserBuyerDetails {
     country: value.country,
     email: value.email,
   };
-}
-
-function record(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function monriContainer(element: string | HTMLElement): HTMLElement {
@@ -198,7 +195,7 @@ export async function mountMonriCheckoutAction(
         } catch {
           throw new MonriCheckoutError("unknown_result", "The payment result could not be confirmed. Check the same ARKY payment; do not start another checkout.");
         }
-        if (!record(observed) || observed.error != null || !record(observed.result) ||
+        if (!isRecord(observed) || observed.error != null || !isRecord(observed.result) ||
           observed.result.order_number !== accepted.payment_id || !["approved", "declined"].includes(String(observed.result.status))) {
           throw new MonriCheckoutError("unknown_result", "The payment result needs checking on the same ARKY payment.");
         }

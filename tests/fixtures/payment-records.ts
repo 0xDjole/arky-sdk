@@ -254,6 +254,7 @@ export type PaymentRecordContracts = [
       | "paid"
       | "cancelled"
       | "failed"
+      | "confirmed_not_made"
     >
   >,
   Assert<

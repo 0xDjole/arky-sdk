@@ -11,24 +11,20 @@ export function findBlock(entry: BlockContainer | null | undefined, key: string)
 export function selectLocalizedText(
   value: Readonly<LocalizedText | LocalizedMarkdown> | null | undefined,
   locale: string,
-  defaultLocale?: string | null,
 ): string | null {
   if (!value) return null;
-  for (const selected of [locale, defaultLocale]) {
-    if (selected && Object.prototype.hasOwnProperty.call(value, selected)) return value[selected];
-  }
-  return null;
+  return Object.prototype.hasOwnProperty.call(value, locale) ? value[locale] : null;
 }
 
-export function blockContent(block: Block, locale: string, defaultLocale?: string | null): unknown {
+export function blockContent(block: Block, locale: string): unknown {
   switch (block.type) {
     case "localized_text":
     case "localized_markdown":
-      return selectLocalizedText(block.value, locale, defaultLocale);
+      return selectLocalizedText(block.value, locale);
     case "array":
-      return block.value.map((item) => blockContent(item, locale, defaultLocale));
+      return block.value.map((item) => blockContent(item, locale));
     case "object":
-      return Object.fromEntries(block.value.map((field) => [field.key, blockContent(field, locale, defaultLocale)]));
+      return Object.fromEntries(block.value.map((field) => [field.key, blockContent(field, locale)]));
     default:
       return block.value;
   }
@@ -42,13 +38,12 @@ export function getBlockContentValue(
   entry: BlockContainer | null | undefined,
   key: string,
   locale: string,
-  defaultLocale?: string | null,
 ): unknown {
   const block = findBlock(entry, key);
-  return block ? blockContent(block, locale, defaultLocale) : null;
+  return block ? blockContent(block, locale) : null;
 }
 
-export function getBlockTextValue(block: Block | null | undefined, locale: string, defaultLocale?: string | null): string {
+export function getBlockTextValue(block: Block | null | undefined, locale: string): string {
   if (!block || block.value === null) return "";
   switch (block.type) {
     case "text":
@@ -56,7 +51,7 @@ export function getBlockTextValue(block: Block | null | undefined, locale: strin
       return block.value;
     case "localized_text":
     case "localized_markdown":
-      return selectLocalizedText(block.value, locale, defaultLocale) ?? "";
+      return selectLocalizedText(block.value, locale) ?? "";
     case "number":
     case "boolean":
     case "date":
@@ -76,13 +71,13 @@ export function getBlockLabel(block: Pick<Block, "key"> | null | undefined): str
   return block?.key.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()) ?? "";
 }
 
-export function formatBlockValue(block: Block | null | undefined, locale: string, defaultLocale?: string | null): string {
+export function formatBlockValue(block: Block | null | undefined, locale: string): string {
   if (!block || block.value === null) return "";
   if (block.type === "date_time") return new Date(block.value).toLocaleString(locale);
   if (block.type === "date") return new Date(`${block.value}T00:00:00Z`).toLocaleDateString(locale, { timeZone: "UTC" });
   if (block.type === "geo_location") return `${block.value.lat}, ${block.value.lon}`;
   if (block.type === "array" || block.type === "object") return "";
-  return getBlockTextValue(block, locale, defaultLocale);
+  return getBlockTextValue(block, locale);
 }
 
 export interface BlockReferences {

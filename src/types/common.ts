@@ -1,4 +1,4 @@
-import type { CalendarDate, EpochMilliseconds } from "./time";
+import type { EpochMilliseconds } from "./time";
 
 export interface PaginatedResponse<T> {
   items: T[];
@@ -56,11 +56,6 @@ export type When =
 export interface TimeRange {
   from: EpochMilliseconds;
   to: EpochMilliseconds;
-}
-
-export interface CalendarDateRange {
-  from: CalendarDate;
-  to: CalendarDate;
 }
 
 export interface UnitSpan {

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { createStorefront, initialize } from "../dist/storefront.js";
-import { idFactories } from "./helpers/arky-fixtures.mjs";
+import { fixedIdFactories, idFactories } from "./helpers/arky-fixtures.mjs";
 
 const storeId = "3b21b61d-7162-414c-a73a-888ccbc57c3e";
 const otherStoreId = "7f3a7a66-3403-4112-b5e5-d004a62d00b0";
@@ -219,11 +219,11 @@ test("buyer package reads use their exact routes and return the server answer", 
   assert.deepEqual(await admin.eshop.package.findPurchasable({ ...customer, company_location_id: locationId }), { items: [shopPackage], cursor: null });
   assert.deepEqual(await admin.eshop.package.findPurchasable({ ...customer, company_id: companyId }), { items: [shopPackage], cursor: null });
   const publishableKey = `arky_pk_${"b".repeat(42)}A`;
-  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl: "https://api.example.test", market: "us" });
+  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: "https://api.example.test", market: "us" });
   assert.deepEqual(await storefront.eshop.package.find(), { items: storefrontPackages, cursor: null });
   assert.deepEqual(await storefront.eshop.package.find({ company_location_id: locationId }), { items: storefrontPackages, cursor: null });
   assert.deepEqual(await storefront.eshop.package.find({ company_id: companyId }), { items: storefrontPackages, cursor: null });
-  const facade = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl: "https://api.example.test", market: "us" });
+  const facade = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: "https://api.example.test", market: "us" });
   assert.deepEqual(await facade.eshop.package.find(), { items: storefrontPackages, cursor: null });
   assert.deepEqual(
     calls.map(({ url, method, body }) => [method, url.pathname, Object.fromEntries(url.searchParams), body]),

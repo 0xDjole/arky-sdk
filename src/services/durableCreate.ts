@@ -15,7 +15,7 @@ export interface DurableCreate<T> {
   key: string;
   label: string;
   input: unknown;
-  newId: () => string;
+  appId: () => string;
   send: (id: string) => Promise<T>;
   confirms: (result: T, id: string) => boolean;
 }
@@ -55,7 +55,7 @@ export function runDurableCreate<T>(create: DurableCreate<T>): Promise<T> {
       else clearDurableRequest(saved, create.label);
     }
     if (!kept) {
-      const id = requireId(create.newId(), create.label);
+      const id = requireId(create.appId(), create.label);
       kept = { durable: getOrCreateDurableRequest(create.key, { id, input }, create.label), id };
     }
     const { durable, id } = kept;

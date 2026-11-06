@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { createAdmin, orderBookingItems } from "../dist/admin.js";
 import { createStorefront, initialize } from "../dist/storefront.js";
-import { apiUrl, cartRecord, ids, jsonResponse, marketRecord, publishableKey, visitorStorage } from "./helpers/arky-fixtures.mjs";
+import { apiUrl, cartRecord, fixedIdFactories, ids, jsonResponse, marketRecord, publishableKey, visitorStorage } from "./helpers/arky-fixtures.mjs";
 
 const storeId = ids.store;
 const otherStoreId = ids.otherStore;
@@ -131,11 +131,11 @@ function order() {
 }
 
 function storefront(options = {}) {
-  return createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: visitorStorage(), ...options });
+  return createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage(), ...options });
 }
 
 function store(options = {}) {
-  return initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, locale: "en", sessionStorage: visitorStorage(), ...options });
+  return initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", sessionStorage: visitorStorage(), ...options });
 }
 
 test("Admin resource discovery preserves bounded opaque continuation and ordered filters, and the storefront only reads one resource", async (context) => {
@@ -294,7 +294,7 @@ test("booking cancellation resends the caller's credit id after an uncertain res
     return jsonResponse(order());
   });
   const admin = createAdmin({ apiUrl: apiUrl, secretKey: "token" });
-  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, market: "bih", sessionStorage: visitorStorage() });
+  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "bih", sessionStorage: visitorStorage() });
   for (const [client, target] of [[admin, { store_id: storeId }], [storefront, {}]]) {
     const request = { ...target, order_id: "order/booking", line_item_id: "item/booking", credit_id: creditId, expected_updated_at: 9 };
     await assert.rejects(client.eshop.order.cancelBookingItem(request), (error) => error.statusCode === 503);
@@ -391,9 +391,11 @@ test("the booking calendar prices each slot from its item and adds one cart line
   const availableDay = calendar.state.get().days.find((day) => day.iso === availableLocalDate);
   assert.equal(availableDay?.available, true);
   calendar.selectDate({ date: availableDay.iso });
-  const { slots, timezone } = calendar.state.get();
+  const { slots } = calendar.state.get();
   assert.equal(slots.length, 1);
   const [slot] = slots;
+  const { timezone } = slot;
+  assert.equal(timezone, "Europe/Sarajevo");
   assert.equal(slot.from, 1_800_000_000_000);
   assert.equal(slot.booking_offering_id, offeringId);
   assert.equal(slot.booking_resource_id, resourceId);
@@ -417,12 +419,14 @@ test("the booking calendar prices each slot from its item and adds one cart line
   assert.equal(resourceReads.length, 1, "a known resource is read once");
   assert.deepEqual(Object.fromEntries(resourceReads[0].url.searchParams), { package_id: ids.package, offering_id: offeringId });
   const availabilityCalls = calls.filter((call) => call.url.pathname.endsWith("/booking-services/availability"));
+  const dayMilliseconds = 24 * 60 * 60 * 1_000;
   const firstBounds = availabilityCalls[0].url.searchParams;
-  assert.equal(Number(firstBounds.get("from")), Date.UTC(calendarDate.getFullYear(), calendarDate.getMonth(), 1));
-  assert.equal(Number(firstBounds.get("to")), Date.UTC(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1));
-  const chainedBounds = availabilityCalls.at(-1).url.searchParams;
-  assert.equal(Number(chainedBounds.get("from")), slot.to);
-  assert.equal(Number(chainedBounds.get("to")), slot.to + 31 * 24 * 60 * 60 * 1_000);
+  assert.equal(firstBounds.get("limit"), "1");
+  assert.equal(Number(firstBounds.get("from")), Date.UTC(calendarDate.getFullYear(), calendarDate.getMonth(), 1) - dayMilliseconds);
+  assert.equal(Number(firstBounds.get("to")), Date.UTC(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1) + dayMilliseconds);
+  const nextBounds = availabilityCalls.at(-1).url.searchParams;
+  assert.equal(Number(nextBounds.get("from")), Date.UTC(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1) - dayMilliseconds);
+  assert.equal(Number(nextBounds.get("to")), Date.UTC(calendarDate.getFullYear(), calendarDate.getMonth() + 2, 1) + dayMilliseconds);
 
   const additions = calls.filter((call) => call.url.pathname.endsWith("/booking-items"));
   assert.equal(additions.length, 1);
@@ -444,7 +448,7 @@ test("the booking calendar prices each slot from its item and adds one cart line
   assert.equal("loadMoreOfferings" in calendar, false);
 });
 
-test("the booking calendar keeps the company location context of its cart and explicitly follows price and availability pages", async (context) => {
+test("the booking calendar keeps the company location context of its cart, reads every availability page and follows price pages when asked", async (context) => {
   const choiceCalls = [];
   const resourceCalls = [];
   const availabilityCalls = [];
@@ -474,7 +478,7 @@ test("the booking calendar keeps the company location context of its cart and ex
     }
     if (request.pathname.endsWith("/booking-services/availability")) {
       availabilityCalls.push(request);
-      assert.equal(request.searchParams.get("limit"), "20");
+      assert.equal(request.searchParams.get("limit"), "1");
       assert.equal(request.searchParams.has("include_price"), false);
       return jsonResponse({
         from: Number(request.searchParams.get("from")), to: Number(request.searchParams.get("to")),
@@ -494,9 +498,13 @@ test("the booking calendar keeps the company location context of its cart and ex
   });
   await calendar.select({ booking_service_id: serviceId });
   assert.equal(choiceCalls.length, 1);
-  assert.equal(availabilityCalls.length, 1, "availability must not eagerly follow continuations");
-  assert.equal(resourceCalls.length, 1);
-  assert.equal(calendar.state.get().availability.cursor, "availability-next");
+  assert.equal(availabilityCalls.length, 2, "a month read follows every availability page");
+  assert.equal(availabilityCalls[1].searchParams.get("cursor"), "availability-next");
+  assert.equal(availabilityCalls[1].searchParams.get("from"), availabilityCalls[0].searchParams.get("from"));
+  assert.deepEqual(calendar.state.get().availability.booking_resources.map((row) => row.booking_resource_id), [resourceId, laterResourceId]);
+  assert.deepEqual(calendar.state.get().booking_resources.map((row) => row.id), [resourceId, laterResourceId]);
+  assert.equal(resourceCalls.length, 2);
+  assert.equal(calendar.state.get().availability.cursor, null);
   assert.equal(calendar.state.get().booking_choices_cursor, "price-next");
   const state = await calendar.loadMoreChoices();
   assert.equal(choiceCalls.length, 2);
@@ -507,22 +515,12 @@ test("the booking calendar keeps the company location context of its cart and ex
   await calendar.loadMoreChoices();
   assert.equal(choiceCalls.length, 2, "an exhausted list makes no further request");
   repeatAvailabilityCursor = true;
-  await assert.rejects(calendar.loadMoreAvailability(), (error) => error.name === "ArkyError" && error.code === "answer_mismatch" && /didn't advance/.test(error.message));
-  assert.equal(calendar.state.get().availability.cursor, "availability-next");
-  assert.equal(calendar.state.get().availability.booking_resources.length, 1);
+  await assert.rejects(calendar.nextMonth(), (error) => error.name === "ArkyError" && error.code === "answer_mismatch" && /didn't advance/.test(error.message));
+  assert.equal(availabilityCalls.length, 4);
+  assert.equal(calendar.state.get().availability, null);
   assert.equal(calendar.state.get().loading, false);
-  assert.equal(resourceCalls.length, 1);
-  repeatAvailabilityCursor = false;
-  await calendar.loadMoreAvailability();
-  assert.equal(availabilityCalls.length, 3);
-  assert.equal(availabilityCalls[1].searchParams.get("cursor"), "availability-next");
-  assert.equal(availabilityCalls[1].searchParams.get("from"), availabilityCalls[0].searchParams.get("from"));
-  assert.deepEqual(calendar.state.get().availability.booking_resources.map((row) => row.booking_resource_id), [resourceId, laterResourceId]);
-  assert.deepEqual(calendar.state.get().booking_resources.map((row) => row.id), [resourceId, laterResourceId]);
   assert.equal(resourceCalls.length, 2);
-  assert.equal(calendar.state.get().availability.cursor, null);
-  await calendar.loadMoreAvailability();
-  assert.equal(availabilityCalls.length, 3);
+  assert.equal("loadMoreAvailability" in calendar, false);
   await assert.rejects(calendar.selectResource({ booking_resource_id: ids.variant }), TypeError);
 });
 

@@ -315,10 +315,14 @@ export interface PackageMemberSelfAcceptedTerms {
   purchase_order_number: string | null;
 }
 
+export interface PackageMemberSelfPricedTerms extends PackageMemberSelfAcceptedTerms {
+  currency: Currency;
+}
+
 export interface PackageMemberCurrentSelf {
   package_member: PackageMemberSelf;
   revision: PackageMemberRevisionSelf | null;
-  terms: PackageMemberSelfAcceptedTerms | null;
+  terms: PackageMemberSelfPricedTerms | null;
   head_revision_id: string | null;
 }
 
@@ -359,7 +363,7 @@ export interface PackageMemberPackageSelf {
 
 export interface PackageMemberRevisionDetailSelf {
   revision: PackageMemberRevisionSelf;
-  terms: PackageMemberSelfAcceptedTerms;
+  terms: PackageMemberSelfPricedTerms;
   package: PackageMemberPackageSelf;
 }
 

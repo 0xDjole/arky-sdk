@@ -23,6 +23,7 @@ import type {
   RentalDetail,
   RentalIssueReplacement,
   RentalReplacementMethod,
+  RentalReturnState,
   RentalStatus,
   RentalTerms,
 } from "arky-sdk";
@@ -44,6 +45,7 @@ export type RentalContract = [
   Assert<Equal<Rental, PublicRental>>,
   Assert<Equal<RentalDetail, PublicDetail>>,
   Assert<Equal<keyof Rental, "id" | "store_id" | "package_member_id" | "revision_id" | "package_item_id" | "status" | "created_at" | "updated_at">>,
+  Assert<Equal<Extract<RentalReturnState, { type: "missing" }>, { type: "missing" }>>,
   Assert<Equal<keyof FindRentalsParams, "store_id" | "package_member_id" | "status" | "sort_field" | "sort_direction" | "limit" | "cursor">>,
   Assert<Equal<CustomerRental["package_member_id"], string>>,
   Assert<Equal<CustomerRental, PublicCustomerRental>>,

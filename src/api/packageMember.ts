@@ -2,7 +2,7 @@ import type { ApiConfig } from "../services/clientTypes";
 import type { HttpClient } from "../types/httpClient";
 import type { RequestOptions } from "../types/api";
 import type { PaginatedResponse } from "../types/common";
-import type { Order } from "../types/order";
+import type { Order, StorefrontOrder } from "../types/order";
 import type {
   GetStorefrontPackageByKeyParams,
   GetStorefrontPackageParams,
@@ -70,7 +70,7 @@ import type {
   WithdrawPackageMemberRevisionParams,
 } from "../types/packageMember";
 import { requireId } from "../utils/ids";
-import { segment, storePath, storeRecordPath } from "./paths";
+import { segment, storefrontBase, storePath, storeRecordPath } from "./paths";
 
 export const createPackageOfferingApi = (apiConfig: ApiConfig) => ({
   find(
@@ -404,9 +404,8 @@ export function createStorefrontPackageApi(
   httpClient: HttpClient,
   ensureVisitorSession: () => Promise<void>,
 ) {
-  const base = "/v1/storefront";
   const memberPath = (id: string) =>
-    `${base}/package-members/${segment(id)}`;
+    `${storefrontBase}/package-members/${segment(id)}`;
   const action = async <T>(
     params: StorefrontPackageMemberActionParams,
     verb: string,
@@ -425,7 +424,7 @@ export function createStorefrontPackageApi(
       ): Promise<StorefrontPackage> {
         const { id, ...query } = params;
         return httpClient.get<StorefrontPackage>(
-          `${base}/packages/${segment(id)}`,
+          `${storefrontBase}/packages/${segment(id)}`,
           {
             ...options,
             params: query,
@@ -439,7 +438,7 @@ export function createStorefrontPackageApi(
       ): Promise<StorefrontPackage> {
         const { key, ...query } = params;
         return httpClient.get<StorefrontPackage>(
-          `${base}/packages/${segment(key)}`,
+          `${storefrontBase}/packages/${segment(key)}`,
           {
             ...options,
             params: query,
@@ -460,7 +459,7 @@ export function createStorefrontPackageApi(
           quantity: params.quantity,
         };
         return httpClient.get<PackageProductChoices>(
-          `${base}/packages/${segment(identifier)}/product-choices/${segment(params.package_item_id)}`,
+          `${storefrontBase}/packages/${segment(identifier)}/product-choices/${segment(params.package_item_id)}`,
           { ...options, params: query },
         );
       },
@@ -473,7 +472,7 @@ export function createStorefrontPackageApi(
       ): Promise<StorefrontPackageOffering> {
         const { id, ...query } = params;
         return httpClient.get<StorefrontPackageOffering>(
-          `${base}/package-offerings/${segment(id)}`,
+          `${storefrontBase}/package-offerings/${segment(id)}`,
           { ...options, params: query },
         );
       },
@@ -484,7 +483,7 @@ export function createStorefrontPackageApi(
       ): Promise<StorefrontPackageOffering> {
         const { key, ...query } = params;
         return httpClient.get<StorefrontPackageOffering>(
-          `${base}/package-offerings/${segment(key)}`,
+          `${storefrontBase}/package-offerings/${segment(key)}`,
           { ...options, params: query },
         );
       },
@@ -497,7 +496,7 @@ export function createStorefrontPackageApi(
       ): Promise<PaginatedResponse<PackageMemberSelf>> {
         await ensureVisitorSession();
         return httpClient.get<PaginatedResponse<PackageMemberSelf>>(
-          `${base}/package-members`,
+          `${storefrontBase}/package-members`,
           {
             ...options,
             params,
@@ -553,10 +552,10 @@ export function createStorefrontPackageApi(
       async findOrders(
         params: StorefrontFindPackageMemberOrdersParams,
         options?: RequestOptions,
-      ): Promise<PaginatedResponse<Order>> {
+      ): Promise<PaginatedResponse<StorefrontOrder>> {
         await ensureVisitorSession();
         const { id, ...query } = params;
-        return httpClient.get<PaginatedResponse<Order>>(
+        return httpClient.get<PaginatedResponse<StorefrontOrder>>(
           `${memberPath(id)}/orders`,
           { ...options, params: query },
         );

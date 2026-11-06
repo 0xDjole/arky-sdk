@@ -9,6 +9,7 @@ import type {
   OrderStatus,
   PaginatedResponse,
   StorefrontFindOrdersParams,
+  StorefrontOrder,
 } from "arky-sdk";
 
 type Assert<T extends true> = T;
@@ -34,7 +35,7 @@ const buyerFilters: StorefrontFindOrdersParams = { query: "ORD-2026", sort_field
 export type OrderDiscoveryContracts = [
   Assert<Equal<Parameters<AdminOrders["find"]>[0], FindOrdersParams>>,
   Assert<Equal<Awaited<ReturnType<AdminOrders["find"]>>, PaginatedResponse<Order>>>,
-  Assert<Equal<Awaited<ReturnType<StorefrontOrders["find"]>>, PaginatedResponse<Order>>>,
+  Assert<Equal<Awaited<ReturnType<StorefrontOrders["find"]>>, PaginatedResponse<StorefrontOrder>>>,
   Assert<Equal<NonNullable<FindOrdersParams["sort_field"]>, "number" | "created_at" | "updated_at" | "status" | "price">>,
   Assert<Equal<NonNullable<FindOrdersParams["statuses"]>[number], OrderStatus>>,
   Assert<Equal<OrderStatus, "pending" | "confirmed" | "partially_cancelled" | "cancelled">>,

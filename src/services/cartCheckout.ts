@@ -1,9 +1,10 @@
 import { isOrderToken, retainOrderToken } from "../utils/orderToken";
 import type { RequestOptions, RequestSuccessContext } from "../types/httpClient";
-import type { CartQuote, CheckoutAcceptance } from "../types/cart";
+import type { CartQuote, StorefrontCheckoutAcceptance } from "../types/cart";
 import type { CartCheckoutRequest, CartCheckoutSubmission, CartCheckoutTransport } from "../types/cartCheckout";
 import { CartPresentationChangedError } from "../types/cartCheckout";
 import { isCanonicalId } from "../utils/ids";
+import { isRecord } from "../utils/record";
 import {
   clearDurableRequest,
   DurableRequestError,
@@ -32,17 +33,13 @@ interface KeptCheckout {
   request: CartCheckoutRequest;
 }
 
-function record(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
 function text(value: unknown, maximum: number): value is string {
   return typeof value === "string" && value.length > 0 && value.length <= maximum && value === value.trim();
 }
 
 function contactEmail(value: unknown): CartCheckoutRequest["contact_email"] | undefined {
   if (value === null) return null;
-  if (!record(value) || Object.keys(value).length !== 2 || !text(value.email, 320) || !text(value.language, 35)) return undefined;
+  if (!isRecord(value) || Object.keys(value).length !== 2 || !text(value.email, 320) || !text(value.language, 35)) return undefined;
   return { email: value.email, language: value.language };
 }
 
@@ -55,7 +52,7 @@ function cardTerms(value: unknown): value is string {
 }
 
 function checkoutPayment(value: unknown): CartCheckoutRequest["payment"] | null {
-  if (!record(value)) return null;
+  if (!isRecord(value)) return null;
   if (value.type === "free" && Object.keys(value).length === 1) return { type: "free" };
   if (value.type === "on_account" && Object.keys(value).length === 2 && isCanonicalId(value.payment_option_id)) {
     return { type: "on_account", payment_option_id: value.payment_option_id };
@@ -80,12 +77,12 @@ function checkoutPayment(value: unknown): CartCheckoutRequest["payment"] | null 
 }
 
 export function cartCheckoutRequest(input: unknown): CartCheckoutRequest {
-  const payment = record(input) ? checkoutPayment(input.payment) : null;
-  const contact = record(input) ? contactEmail(input.contact_email) : undefined;
-  const firstName = record(input) ? input.contact_first_name : undefined;
-  const lastName = record(input) ? input.contact_last_name : undefined;
+  const payment = isRecord(input) ? checkoutPayment(input.payment) : null;
+  const contact = isRecord(input) ? contactEmail(input.contact_email) : undefined;
+  const firstName = isRecord(input) ? input.contact_first_name : undefined;
+  const lastName = isRecord(input) ? input.contact_last_name : undefined;
   if (
-    !record(input) ||
+    !isRecord(input) ||
     !isCanonicalId(input.order_id) ||
     !isOrderToken(input.order_token) ||
     !isCanonicalId(input.cart_id) ||
@@ -132,7 +129,7 @@ function keptCheckouts(scope: string): KeptCheckout[] {
 
 function isCartQuote(value: unknown): value is CartQuote {
   return (
-    record(value) &&
+    isRecord(value) &&
     typeof value.presentation_digest === "string" &&
     value.presentation_digest.length > 0 &&
     Array.isArray(value.lines) &&
@@ -142,10 +139,10 @@ function isCartQuote(value: unknown): value is CartQuote {
 
 export function cartCheckoutPresentationChanged(error: unknown): unknown {
   if (
-    !record(error) ||
+    !isRecord(error) ||
     error.statusCode !== 409 ||
     error.code !== "COMMERCE.PRESENTATION_CHANGED" ||
-    !record(error.response) ||
+    !isRecord(error.response) ||
     !isCartQuote(error.response.quote)
   ) {
     return error;
@@ -161,7 +158,7 @@ export function cartCheckoutPresentationChanged(error: unknown): unknown {
 export function finishCartCheckoutSubmission(
   submission: CartCheckoutSubmission,
   options?: RequestOptions,
-): CheckoutAcceptance {
+): StorefrontCheckoutAcceptance {
   if (options?.onSuccess && submission.success) {
     const context = submission.success;
     Promise.resolve()
@@ -177,7 +174,7 @@ async function submit(
   options?: RequestOptions,
   onDefiniteRefusal?: () => void,
 ): Promise<CartCheckoutSubmission> {
-  let result: CheckoutAcceptance;
+  let result: StorefrontCheckoutAcceptance;
   let success: RequestSuccessContext | undefined;
   try {
     result = await transport.post(request, {
@@ -190,24 +187,24 @@ async function submit(
     if (isDefiniteRefusal(error)) onDefiniteRefusal?.();
     throw cartCheckoutPresentationChanged(error);
   }
-  if (record(result) && result.type === "already_member") {
+  if (isRecord(result) && result.type === "already_member") {
     if (!isCanonicalId(result.package_member_id)) {
       throw new DurableRequestError("answer_mismatch", "Cart checkout did not name the package member the buyer already holds");
     }
     return { result, success };
   }
   if (
-    !record(result) ||
+    !isRecord(result) ||
     result.type !== "placed" ||
     result.order_id !== request.order_id ||
     typeof result.number !== "string" ||
-    !record(result.payment_action) ||
+    !isRecord(result.payment_action) ||
     (result.payment_id !== null && !isCanonicalId(result.payment_id))
   ) {
     throw new DurableRequestError("answer_mismatch", "Cart checkout did not return the order it was asked to place");
   }
   const order = await transport.getOrder(result.order_id, { signal: options?.signal, order_token: request.order_token });
-  if (!record(order) || order.id !== request.order_id || order.source.type !== "cart" || order.source.cart_id !== request.cart_id) {
+  if (!isRecord(order) || order.id !== request.order_id || order.source.type !== "cart" || order.source.cart_id !== request.cart_id) {
     throw new DurableRequestError("answer_mismatch", "Cart checkout did not confirm the order placed from this cart");
   }
   return { result, success };
@@ -241,7 +238,7 @@ export async function checkoutCart(
   input: CartCheckoutRequest,
   transport: CartCheckoutTransport<CartCheckoutRequest>,
   options?: RequestOptions,
-): Promise<CheckoutAcceptance> {
+): Promise<StorefrontCheckoutAcceptance> {
   const request = cartCheckoutRequest(input);
   return finishCartCheckoutSubmission(await submit(request, transport, options), options);
 }
@@ -266,8 +263,8 @@ export async function retainCartCheckout(
 }
 
 export interface CartCheckoutIds {
-  newId(label: string): string;
-  newOrderToken(): string;
+  appId(label: string): string;
+  appOrderToken(): string;
 }
 
 export type CartCheckoutDraft = Omit<CartCheckoutRequest, "order_id" | "order_token">;
@@ -277,20 +274,20 @@ function sameCheckout(pending: CartCheckoutRequest, draft: CartCheckoutDraft): b
   return JSON.stringify(asked) === JSON.stringify(pending);
 }
 
-export async function checkoutCartWithNewIds(
+export async function checkoutCartWithAppIds(
   scope: string,
   slot: string | null,
   draft: CartCheckoutDraft,
   ids: CartCheckoutIds,
   transport: CartCheckoutTransport<CartCheckoutRequest>,
   options?: RequestOptions,
-): Promise<CheckoutAcceptance> {
+): Promise<StorefrontCheckoutAcceptance> {
   const pending = await pendingCartCheckout(scope, slot);
   if (pending && !sameCheckout(pending, draft)) {
     throw new DurableRequestError("pending", "Recover the unfinished cart checkout before starting another one");
   }
   if (!pending) {
-    await retainCartCheckout(scope, slot, { ...draft, order_id: ids.newId("order"), order_token: ids.newOrderToken() });
+    await retainCartCheckout(scope, slot, { ...draft, order_id: ids.appId("order"), order_token: ids.appOrderToken() });
   }
   const result = await recoverCartCheckout(scope, slot, transport, options);
   if (!result) throw new DurableRequestError("settled_elsewhere", "The kept cart checkout was settled elsewhere; read the order");
@@ -311,7 +308,7 @@ export async function recoverCartCheckout(
   slot: string | null,
   transport: CartCheckoutTransport<CartCheckoutRequest>,
   options?: RequestOptions,
-): Promise<CheckoutAcceptance | null> {
+): Promise<StorefrontCheckoutAcceptance | null> {
   if (typeof globalThis.window === "undefined") return null;
   const key = slotKey(scope, slot);
   return withDurableRequestLock(key, label, async () => {

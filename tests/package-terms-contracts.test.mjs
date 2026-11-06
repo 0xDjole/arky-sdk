@@ -4,6 +4,7 @@ import { createAdmin } from "../dist/admin.js";
 import { createStorefront } from "../dist/storefront.js";
 import {
   apiUrl,
+  fixedIdFactories,
   ids,
   publishableKey,
   recordFetch,
@@ -104,11 +105,11 @@ test("buyer own-terms sends only editable accepted fields and preserves the exac
       customer_id: ids.customer,
       session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63",
     },
+    ...fixedIdFactories,
     createVisitorIdentity: () => ({
       customer_id: ids.customer,
       session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14",
     }),
-    createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`,
   }).eshop.packageMember;
   const input = {
     id: memberId,
@@ -160,11 +161,11 @@ test("buyer current terms reads the canonical member response with authenticatio
       customer_id: ids.customer,
       session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63",
     },
+    ...fixedIdFactories,
     createVisitorIdentity: () => ({
       customer_id: ids.customer,
       session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14",
     }),
-    createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`,
   }).eshop.packageMember;
   assert.deepEqual(await api.getCurrent({ id: memberId }), result);
   assert.equal(
@@ -206,11 +207,11 @@ test("sale and accepted Product choices keep exact package and current member re
       customer_id: ids.customer,
       session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63",
     },
+    ...fixedIdFactories,
     createVisitorIdentity: () => ({
       customer_id: ids.customer,
       session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14",
     }),
-    createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`,
   });
   const sale = {
     id: memberPackageId,
@@ -290,11 +291,11 @@ test("member delivery options preserve proposed terms and exact authenticated ve
       customer_id: ids.customer,
       session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63",
     },
+    ...fixedIdFactories,
     createVisitorIdentity: () => ({
       customer_id: ids.customer,
       session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14",
     }),
-    createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`,
   }).eshop.packageMember;
   const input = {
     id: memberId,
@@ -376,11 +377,11 @@ test("a switch's new delivery lists its rates through the switch delivery option
       customer_id: ids.customer,
       session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63",
     },
+    ...fixedIdFactories,
     createVisitorIdentity: () => ({
       customer_id: ids.customer,
       session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14",
     }),
-    createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`,
   }).eshop.packageMember;
   const input = {
     id: memberId,

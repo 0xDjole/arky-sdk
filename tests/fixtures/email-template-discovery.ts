@@ -32,8 +32,8 @@ export type EmailTemplateContracts = [
     | 'order_dispatched' | 'order_delivered' | 'order_ready_for_pickup' | 'order_cancelled' | 'order_refunded' | 'booking_confirmed'
     | 'booking_reminder' | 'booking_cancelled' | 'offer_sent' | 'offer_revised' | 'offer_reminder' | 'company_invite' | 'company_access_notice'
     | 'store_admin_invite' | 'return_requested' | 'return_approved' | 'return_declined' | 'renewal_upcoming' | 'renewal_payment_failed'
-    | 'membership_cancelled' | 'form_received' | 'form_stage_changed' | 'new_form_submission_alert' | 'new_order_alert' | 'new_return_alert'
-    | 'new_conversation_message_alert' | 'support_message' | 'broadcast'>>,
+    | 'membership_cancelled' | 'form_received' | 'form_stage_changed' | 'form_submission_alert' | 'order_alert' | 'return_alert'
+    | 'conversation_message_alert' | 'support_message' | 'broadcast'>>,
   Assert<Equal<EmailTemplate['content'], Record<string, EmailContent>>>,
   Assert<Equal<keyof EmailContent, 'subject' | 'preheader' | 'html' | 'text'>>,
   Assert<Equal<keyof EmailTemplateDefault, 'key' | 'name' | 'type' | 'content' | 'allowed_fields'>>,
@@ -49,14 +49,14 @@ export type EmailTemplateContracts = [
   Assert<Equal<EmailReplyTo, { type: 'address'; email_address_id: string } | { type: 'external'; email: string }>>,
   Assert<Equal<AlertRecipient, { type: 'store_role'; store_role_id: string; language: string } | { type: 'email'; email: string; language: string }>>,
   Assert<Equal<StoreEmailSettings['customer_sign_in'], Email | null>>,
-  Assert<Equal<StoreEmailSettings['new_order_alert'], Email | null>>,
-  Assert<Equal<StoreEmailSettings['new_order_alert_recipients'], AlertRecipient[]>>,
-  Assert<RequiredField<StoreEmailSettings, 'new_conversation_message_alert'>>,
-  Assert<Equal<StoreEmailSettings['new_conversation_message_alert'], Email | null>>,
-  Assert<RequiredField<StoreEmailSettings, 'new_conversation_message_alert_recipients'>>,
-  Assert<Equal<StoreEmailSettings['new_conversation_message_alert_recipients'], AlertRecipient[]>>,
+  Assert<Equal<StoreEmailSettings['order_alert'], Email | null>>,
+  Assert<Equal<StoreEmailSettings['order_alert_recipients'], AlertRecipient[]>>,
+  Assert<RequiredField<StoreEmailSettings, 'conversation_message_alert'>>,
+  Assert<Equal<StoreEmailSettings['conversation_message_alert'], Email | null>>,
+  Assert<RequiredField<StoreEmailSettings, 'conversation_message_alert_recipients'>>,
+  Assert<Equal<StoreEmailSettings['conversation_message_alert_recipients'], AlertRecipient[]>>,
   Assert<Equal<StoreEmailSettings['creation_templates'], EmailCreationTemplates>>,
-  Assert<Equal<keyof EmailCreationTemplates, 'form_received' | 'form_stage_changed' | 'new_form_submission_alert' | 'support_message' | 'broadcast'>>,
+  Assert<Equal<keyof EmailCreationTemplates, 'form_received' | 'form_stage_changed' | 'form_submission_alert' | 'support_message' | 'broadcast'>>,
   Assert<Missing<StoreEmailSettings, 'staff_new_order' | 'staff_new_return' | 'sign_in_code' | 'sending_address_id'>>,
   Assert<Equal<keyof EmailLayout, 'id' | 'store_id' | 'key' | 'name' | 'logo_media_id' | 'content' | 'created_at' | 'updated_at'>>,
   Assert<Equal<EmailLayout['content'], Record<string, EmailLayoutContent>>>,

@@ -48,7 +48,8 @@ export type EmailDeliveryReport =
   | { type: "delivered"; at: EpochMilliseconds }
   | { type: "delayed"; reason: string | null; at: EpochMilliseconds }
   | { type: "bounced"; failure: EmailFailure; at: EpochMilliseconds }
-  | { type: "failed"; reason: string; at: EpochMilliseconds };
+  | { type: "failed"; reason: string; at: EpochMilliseconds }
+  | { type: "suppressed"; reason: string; at: EpochMilliseconds };
 
 export interface EmailPreviewSummary {
   from_email: string;
@@ -158,10 +159,10 @@ export type EmailTemplateTypeName =
   | "membership_cancelled"
   | "form_received"
   | "form_stage_changed"
-  | "new_form_submission_alert"
-  | "new_order_alert"
-  | "new_return_alert"
-  | "new_conversation_message_alert"
+  | "form_submission_alert"
+  | "order_alert"
+  | "return_alert"
+  | "conversation_message_alert"
   | "support_message"
   | "broadcast";
 
@@ -170,7 +171,7 @@ export type EmailTemplateType = { type: EmailTemplateTypeName };
 export interface EmailCreationTemplates {
   form_received: string;
   form_stage_changed: string;
-  new_form_submission_alert: string;
+  form_submission_alert: string;
   support_message: string;
   broadcast: string;
 }
@@ -202,13 +203,13 @@ export interface StoreEmailSettings {
   renewal_upcoming: Email | null;
   renewal_payment_failed: Email | null;
   membership_cancelled: Email | null;
-  new_order_alert: Email | null;
-  new_return_alert: Email | null;
-  new_conversation_message_alert: Email | null;
+  order_alert: Email | null;
+  return_alert: Email | null;
+  conversation_message_alert: Email | null;
   offer_reminder_after_days: number;
-  new_order_alert_recipients: AlertRecipient[];
-  new_return_alert_recipients: AlertRecipient[];
-  new_conversation_message_alert_recipients: AlertRecipient[];
+  order_alert_recipients: AlertRecipient[];
+  return_alert_recipients: AlertRecipient[];
+  conversation_message_alert_recipients: AlertRecipient[];
   creation_templates: EmailCreationTemplates;
 }
 

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { createStorefront } from "../dist/storefront.js";
-import { apiUrl, errorResponse, ids, publishableKey, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
+import { apiUrl, errorResponse, fixedIdFactories, ids, publishableKey, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
 
 const store = "56c82765-4f5a-47e9-bd6d-dba7c6354919";
 const otherStore = "e5f1a9c3-7b24-4d68-a0e2-9c4b7d1f3e85";
@@ -161,7 +161,7 @@ test("a buyer acts on and reads their own member through storefront routes and g
     if (call.path.includes("/revisions/")) return revision;
     return self;
   });
-  const api = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: visitorStorage() }).eshop.packageMember;
+  const api = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() }).eshop.packageMember;
   const switchTo = { id: memberId, expected_updated_at: version, to_package_id: memberPackageId, choices, price: { package_id: packageId, package_item_id: ids.packageItem, price_id: ids.price }, deliveries: [], reason: "Upgrade" };
   assert.deepEqual(await api.pause({ id: memberId, expected_updated_at: 5, reason: "Travel", resumes: { type: "never" } }), self);
   await api.resume({ id: memberId, expected_updated_at: 6 });

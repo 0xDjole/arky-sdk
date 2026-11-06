@@ -26,13 +26,13 @@ function storedLogin(overrides = {}) {
   return {
     id: loginSessionId,
     access_token: "access-current", refresh_token: "refresh-current",
-    access_expires_at: Date.now() + 600_000, email: "operator@example.test", ...overrides,
+    email: "operator@example.test", ...overrides,
   };
 }
 
 function issuedCredentials(overrides = {}) {
   const { email: _email, ...login } = storedLogin(overrides);
-  return { ...login, refresh_expires_at: Date.now() + 3_600_000, authenticated_at: 1, created_at: 1, updated_at: 2 };
+  return { ...login, access_expires_at: Date.now() + 600_000, refresh_expires_at: Date.now() + 3_600_000, authenticated_at: 1, created_at: 1, updated_at: 2 };
 }
 
 function recordFetch(context, reply) {
@@ -91,7 +91,7 @@ test("Admin logout revokes the exact persisted server Session with its current a
   await admin.account.auth.verify({ session_id: "pending-login", code: "123456", store_id: loginStoreId });
   const persisted = JSON.parse(storage.getItem(logoutStorageKey));
   assert.equal(persisted.id, loginSessionId);
-  assert.deepEqual(Object.keys(persisted).sort(), ["access_expires_at", "access_token", "id", "refresh_token"]);
+  assert.deepEqual(Object.keys(persisted).sort(), ["access_token", "id", "refresh_token"]);
   assert.deepEqual(admin.session, { id: loginSessionId, email: undefined });
 
   assert.deepEqual(await admin.logout(), { type: "revoked", session_id: loginSessionId });
@@ -141,25 +141,35 @@ test("logout without a local login is local-only and a Secret key client revokes
   assert.equal(calls.length, 0);
 });
 
-test("logout refreshes an expired access credential once before its single revocation", async (context) => {
+test("a logout Arky refuses for its access credential rotates once and revokes again", async (context) => {
   const storage = installWindow(context);
   let refreshed = issuedCredentials({ access_token: "access-rotated", refresh_token: "refresh-rotated" });
-  const calls = recordFetch(context, (call) => call.method === "DELETE" ? [200, true] : [200, refreshed]);
+  let revocations = 0;
+  const expired = [401, { message: "Expired", status_code: 401, error: "GENERAL.UNAUTHENTICATED" }];
+  const calls = recordFetch(context, (call) => {
+    if (call.method !== "DELETE") return [200, refreshed];
+    revocations += 1;
+    return revocations % 2 === 1 ? expired : [200, true];
+  });
   const admin = createAdmin({ apiUrl: logoutBaseUrl });
-  storage.seed(logoutStorageKey, JSON.stringify(storedLogin({ access_expires_at: 1 })));
+  const revocation = (authorization) => ({ url: `${logoutBaseUrl}/v1/accounts/me/sessions/${loginSessionId}`, method: "DELETE", authorization, body: undefined });
+  storage.seed(logoutStorageKey, JSON.stringify(storedLogin()));
 
   assert.deepEqual(await admin.logout(), { type: "revoked", session_id: loginSessionId });
   assert.deepEqual(calls, [
+    revocation("Bearer access-current"),
     { url: `${logoutBaseUrl}/v1/auth/refresh`, method: "POST", authorization: null, body: { refresh_token: "refresh-current" } },
-    { url: `${logoutBaseUrl}/v1/accounts/me/sessions/${loginSessionId}`, method: "DELETE", authorization: "Bearer access-rotated", body: undefined },
+    revocation("Bearer access-rotated"),
   ]);
   assert.equal(storage.getItem(logoutStorageKey), null);
 
   refreshed = issuedCredentials({ id: laterSessionId, access_token: "access-foreign" });
-  storage.seed(logoutStorageKey, JSON.stringify(storedLogin({ access_expires_at: 1 })));
+  revocations = 0;
+  storage.seed(logoutStorageKey, JSON.stringify(storedLogin()));
   assert.deepEqual(await admin.logout(), { type: "unconfirmed", session_id: loginSessionId });
-  assert.equal(calls.length, 3);
-  assert.equal(calls[2].url, `${logoutBaseUrl}/v1/auth/refresh`);
+  assert.equal(calls.length, 5);
+  assert.deepEqual(calls[3], revocation("Bearer access-current"));
+  assert.equal(calls[4].url, `${logoutBaseUrl}/v1/auth/refresh`);
   assert.equal(storage.getItem(logoutStorageKey), null);
 });
 

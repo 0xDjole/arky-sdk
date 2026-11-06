@@ -5,7 +5,7 @@ import type {
   MountPaymentMethodSetupParams,
   PaymentMethodSetupMount,
 } from "./types/embeddedCheckout";
-import type { PaymentMethodSetupStart } from "./types/payment";
+import type { StorefrontPaymentMethodSetupStart } from "./types/payment";
 import { ArkyError } from "./types/apiError";
 import { mountMonriCheckoutAction } from "./services/monriCheckout";
 import { mountSimulatedCardSetup, mountSimulatedStripeCheckout } from "./services/simulatorPanel";
@@ -20,7 +20,7 @@ export type {
   StripeEmbeddedCheckoutAction,
 } from "./types/embeddedCheckout";
 
-function setupIntentId(start: PaymentMethodSetupStart): string {
+function setupIntentId(start: StorefrontPaymentMethodSetupStart): string {
   const status = start.method.type.type === "stripe" ? start.method.type.status : null;
   if (status && status.type === "requires_action") return status.setup_intent_id;
   const secret = start.client_secret;

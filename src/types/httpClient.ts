@@ -1,11 +1,9 @@
-import type { EpochMilliseconds } from "./time";
 import type { QueryParams } from "../utils/queryParams";
 
 export interface TokenSet {
   id?: string;
   access_token: string;
   refresh_token?: string;
-  access_expires_at?: EpochMilliseconds;
 }
 
 export interface AuthStorage {

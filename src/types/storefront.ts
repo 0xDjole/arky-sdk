@@ -42,17 +42,6 @@ export interface FindStorefrontMarketsParams {
   cursor?: string | null;
 }
 
-export interface StorefrontCountryState {
-  code: string;
-  name: string;
-}
-
-export interface StorefrontCountry {
-  code: string;
-  name: string;
-  states: StorefrontCountryState[];
-}
-
 export interface StorefrontGetLocationParams {
   id: string;
 }
@@ -65,6 +54,3 @@ export interface StorefrontGetMarketByKeyParams {
   key: string;
 }
 
-export interface StorefrontGetCountryParams {
-  code: string;
-}

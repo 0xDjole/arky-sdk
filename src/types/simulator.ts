@@ -72,7 +72,9 @@ export type SimulatorPlannedResult =
   | { type: "delayed"; delay_ms: number }
   | { type: "declined" }
   | { type: "missing_link" }
-  | { type: "expired_link" };
+  | { type: "expired_link" }
+  | { type: "daily_quota_exceeded" }
+  | { type: "monthly_quota_exceeded" };
 
 export type SimulatorPlannedOutcome = SimulatorPlannedOperation & {
   id: string;

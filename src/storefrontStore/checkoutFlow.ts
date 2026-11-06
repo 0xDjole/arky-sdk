@@ -1,9 +1,9 @@
 import { atom, computed } from "nanostores";
 import type {
-  Cart,
+  StorefrontCart,
   CartDeliveryDestination,
   CartQuote,
-  CheckoutAcceptance,
+  StorefrontCheckoutAcceptance,
   CheckoutPaymentChoice,
   QuoteBlocker,
 } from "../types/cart";
@@ -11,7 +11,7 @@ import { ArkyApiError, ArkyError, ArkyNetworkError } from "../types/apiError";
 import { CartPresentationChangedError } from "../types/cartCheckout";
 import { CartError } from "../types/cartSelection";
 import type { EmailContact } from "../types/common";
-import type { Payment } from "../types/payment";
+import type { StorefrontPayment } from "../types/payment";
 import type { StorefrontClient } from "../index";
 import { DurableRequestError, isDefiniteRefusal } from "../utils/durableRequest";
 import { latestPayment, paymentOutcome } from "../utils/paymentOutcome";
@@ -55,8 +55,8 @@ export interface CheckoutFlowContext {
   client: StorefrontClient;
   loadSetup(): Promise<unknown>;
   beginCartOperation(): Promise<CartScope>;
-  newId(label: string): string;
-  newOrderToken(): string;
+  appId(label: string): string;
+  appOrderToken(): string;
 }
 
 interface CheckoutLocal {
@@ -68,7 +68,7 @@ interface CheckoutLocal {
   payment_option_id: string | null;
   pending: ArkyCheckoutState["pending"];
   placed: ArkyPlacedCheckout | null;
-  payment: Payment | null;
+  payment: StorefrontPayment | null;
   error: ArkyCheckoutState["error"];
 }
 
@@ -104,7 +104,7 @@ const initialLocal: CheckoutLocal = {
   error: null,
 };
 
-function stepOf(cart: Cart | null, quote: CartQuote | null, local: CheckoutLocal): ArkyCheckoutStep {
+function stepOf(cart: StorefrontCart | null, quote: CartQuote | null, local: CheckoutLocal): ArkyCheckoutStep {
   if (local.placed) {
     if (local.placed.payment_id === null) return "placed";
     const outcome = local.payment ? paymentOutcome(local.payment) : null;
@@ -139,7 +139,7 @@ const cartFailures: Record<CartError["code"], ArkyCheckoutErrorCode> = {
   no_session: "not_ready",
 };
 
-function destinationOf(cart: Cart): CartDeliveryDestination | null {
+function destinationOf(cart: StorefrontCart): CartDeliveryDestination | null {
   return cart.delivery_groups[0]?.destination ?? null;
 }
 
@@ -249,7 +249,7 @@ export function createCheckoutFlow(context: CheckoutFlowContext, cart: CartStore
     return { order_token: client.eshop.order.retainedToken({ order_id: orderId }) };
   }
 
-  async function readPayment(operation: CartScope, placed: ArkyPlacedCheckout): Promise<Payment | null> {
+  async function readPayment(operation: CartScope, placed: ArkyPlacedCheckout): Promise<StorefrontPayment | null> {
     operation.assertCurrent();
     if (placed.payment_id === null) return null;
     const payment = await client.eshop.order.getPayment(
@@ -263,7 +263,7 @@ export function createCheckoutFlow(context: CheckoutFlowContext, cart: CartStore
     return payment;
   }
 
-  async function accepted(operation: CartScope, result: CheckoutAcceptance, orderId: string): Promise<ArkyCheckoutState> {
+  async function accepted(operation: CartScope, result: StorefrontCheckoutAcceptance, orderId: string): Promise<ArkyCheckoutState> {
     operation.assertCurrent();
     if (result.type !== "placed") {
       patch({ pending: null, placed: null, payment: null });
@@ -295,7 +295,7 @@ export function createCheckoutFlow(context: CheckoutFlowContext, cart: CartStore
     return pending;
   }
 
-  async function recoverKept(operation: CartScope): Promise<CheckoutAcceptance | null> {
+  async function recoverKept(operation: CartScope): Promise<StorefrontCheckoutAcceptance | null> {
     operation.assertCurrent();
     try {
       const result = await cart.recoverCheckout();
@@ -434,11 +434,11 @@ export function createCheckoutFlow(context: CheckoutFlowContext, cart: CartStore
         }
         const contactEmail = local.get().contact_email;
         if (contactEmail === null) throw new CheckoutFlowError("not_ready", "Add the contact email first");
-        const orderId = context.newId("order");
+        const orderId = context.appId("order");
         const payment = paymentChoice(reviewed, orderId, params);
         await cart.retainCheckout({
           order_id: orderId,
-          order_token: context.newOrderToken(),
+          order_token: context.appOrderToken(),
           contact_email: contactEmail,
           ...contactNames(),
           payment,

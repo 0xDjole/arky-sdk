@@ -5,7 +5,7 @@ import type {
   PaymentMethodSetupMount,
   StripeEmbeddedCheckoutAction,
 } from "../types/embeddedCheckout";
-import type { PaymentMethodSetupStart } from "../types/payment";
+import type { StorefrontPaymentMethodSetupStart } from "../types/payment";
 import { ArkyError } from "../types/apiError";
 
 export interface SimulatorPanelChoice<Outcome extends string> {
@@ -153,7 +153,7 @@ export function mountSimulatedStripeCheckout(
 }
 
 export function mountSimulatedCardSetup(
-  start: PaymentMethodSetupStart,
+  start: StorefrontPaymentMethodSetupStart,
   setupIntentId: string,
   element: string | HTMLElement,
 ): PaymentMethodSetupMount {

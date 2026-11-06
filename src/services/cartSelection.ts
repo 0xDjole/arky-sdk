@@ -1,9 +1,9 @@
 import type { RequestOptions } from "../types/httpClient";
 import type {
-  Cart,
+  StorefrontCart,
   CartBuyer,
-  CreatedCart,
-  ReorderedCart,
+  StorefrontCreatedCart,
+  StorefrontReorderedCart,
   StorefrontCreateCartParams,
   StorefrontCurrentCartParams,
   StorefrontReorderParams,
@@ -17,7 +17,7 @@ import { withCartMutation } from "./cartCheckout";
 type SelectionStorage = NonNullable<CartSelectionContext["storage"]>;
 
 interface FollowedCart {
-  cart: Cart | null;
+  cart: StorefrontCart | null;
   chain: string[];
 }
 
@@ -34,7 +34,7 @@ export function cartScopeKey(scope: StorefrontCurrentCartParams, market: string 
   return `${cartBuyerKey(scope.buyer)}|${scope.package_id}|${market ?? ""}`;
 }
 
-function sameBuyer(cart: Cart, buyer: CartBuyer | undefined): boolean {
+function sameBuyer(cart: StorefrontCart, buyer: CartBuyer | undefined): boolean {
   if (!buyer) return true;
   if (buyer.type === "company_location_selection" && cart.buyer.type === "company_location") return true;
   return cartBuyerKey(cart.buyer) === cartBuyerKey(buyer);
@@ -133,7 +133,7 @@ export function createCartSelection(
     }
   }
 
-  function assertCart(cart: Cart, customerId: string | null, params: StorefrontCurrentCartParams): void {
+  function assertCart(cart: StorefrontCart, customerId: string | null, params: StorefrontCurrentCartParams): void {
     if (!cart || typeof cart.id !== "string" || cart.customer_id !== customerId || !sameBuyer(cart, params.buyer)) {
       throw new CartError("other_cart", "The cart does not belong to this customer and buyer");
     }
@@ -142,13 +142,13 @@ export function createCartSelection(
     }
   }
 
-  function assertMarket(cart: Cart, marketId: string): void {
+  function assertMarket(cart: StorefrontCart, marketId: string): void {
     if (cart.market_id !== marketId) {
       throw new CartError("other_cart", "The cart is in a different market");
     }
   }
 
-  function usable(cart: Cart, customerId: string, params: StorefrontCurrentCartParams, marketId: string): boolean {
+  function usable(cart: StorefrontCart, customerId: string, params: StorefrontCurrentCartParams, marketId: string): boolean {
     return (
       cart.customer_id === customerId &&
       sameBuyer(cart, params.buyer) &&
@@ -184,8 +184,8 @@ export function createCartSelection(
     } catch {}
   }
 
-  async function read(id: string, options?: RequestOptions): Promise<Cart | null> {
-    let cart: Cart;
+  async function read(id: string, options?: RequestOptions): Promise<StorefrontCart | null> {
+    let cart: StorefrontCart;
     try {
       cart = await transport.get({ id, token: token(id) }, options);
     } catch (error) {
@@ -198,9 +198,9 @@ export function createCartSelection(
     return cart;
   }
 
-  async function follow(start: Cart, options?: RequestOptions): Promise<FollowedCart> {
+  async function follow(start: StorefrontCart, options?: RequestOptions): Promise<FollowedCart> {
     const chain = [start.id];
-    let cart: Cart | null = start;
+    let cart: StorefrontCart | null = start;
     for (let hop = 0; hop < maxMergedHops && cart; hop += 1) {
       const status = cart.status;
       if (status.type !== "merged") return { cart, chain };
@@ -219,7 +219,7 @@ export function createCartSelection(
     params: StorefrontCurrentCartParams,
     key: string,
     options?: RequestOptions,
-  ): Promise<Cart | null> {
+  ): Promise<StorefrontCart | null> {
     const signedInFrom = readSignIn(storage.getItem(signInKey(customerId)));
     if (!signedInFrom || signedInFrom === customerId) return null;
     const guestKey = selectionKey(signedInFrom, params);
@@ -243,7 +243,7 @@ export function createCartSelection(
     return null;
   }
 
-  async function current(params: StorefrontCurrentCartParams, options?: RequestOptions): Promise<Cart | null> {
+  async function current(params: StorefrontCurrentCartParams, options?: RequestOptions): Promise<StorefrontCart | null> {
     const storage = requireStorage();
     const customerId = requireCustomerId();
     const key = selectionKey(customerId, params);
@@ -279,7 +279,7 @@ export function createCartSelection(
     key: string,
     customerId: string,
     params: StorefrontCurrentCartParams,
-    created: CreatedCart,
+    created: StorefrontCreatedCart,
   ): void {
     try {
       if (created.type === "created") storage.setItem(tokenKey(created.cart.id), created.recovery_token);
@@ -293,7 +293,7 @@ export function createCartSelection(
     releaseSignIn(storage, customerId, params);
   }
 
-  async function create(params: StorefrontCreateCartParams, options?: RequestOptions): Promise<CreatedCart> {
+  async function create(params: StorefrontCreateCartParams, options?: RequestOptions): Promise<StorefrontCreatedCart> {
     requireId(params.id, "cart");
     refusePerCallMarket(options);
     const storage = requireStorage();
@@ -313,7 +313,7 @@ export function createCartSelection(
     });
   }
 
-  async function reorder(params: StorefrontReorderParams, options?: RequestOptions): Promise<ReorderedCart> {
+  async function reorder(params: StorefrontReorderParams, options?: RequestOptions): Promise<StorefrontReorderedCart> {
     requireId(params.id, "cart");
     refusePerCallMarket(options);
     const storage = requireStorage();

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/index.js";
 import { createStorefront } from "../dist/storefront.js";
-import { apiUrl, ids, publishableKey, recordFetch } from "./helpers/arky-fixtures.mjs";
+import { apiUrl, fixedIdFactories, ids, publishableKey, recordFetch } from "./helpers/arky-fixtures.mjs";
 
 const offeringId = "8d1c2f4e-5b6a-4c7d-8e9f-0a1b2c3d4e5f";
 const memberPackageId = "6b7f3f38-2a8b-4a1e-9f02-7a1d9a2f0f21";
@@ -19,7 +19,7 @@ test("storefront package and offering reads name their shop, answer the plan's i
   const calls = recordFetch(context, (call) => call.path.includes("/package-offerings/")
     ? { id: offeringId, key: "members-club", blocks: [], package_ids: [memberPackageId] }
     : { id: memberPackageId, package_item_id: ids.packageItem, package_offering_id: offeringId });
-  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, market: "us", locale: "en" });
+  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "us", locale: "en" });
   const memberPackage = await client.eshop.package.getByKey({ key: "monthly/plan", package_id: ids.package, company_id: ids.company });
   assert.equal(memberPackage.package_item_id, ids.packageItem);
   assert.equal(memberPackage.package_offering_id, offeringId);
@@ -73,7 +73,7 @@ test("a storefront package names each machine it lends by the product the Server
     package_offering_id: null,
   };
   const calls = recordFetch(context, () => package_);
-  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, market: "us", locale: "en" });
+  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "us", locale: "en" });
   for (const read of [
     await client.eshop.package.get({ id: memberPackageId, package_id: ids.package, company_location_id: ids.companyLocation }),
     await client.eshop.package.getByKey({ key: "milkpal-package", package_id: ids.package, company_location_id: ids.companyLocation }),

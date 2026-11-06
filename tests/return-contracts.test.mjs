@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { initialize } from "../dist/storefront.js";
-import { apiUrl, ids, publishableKey, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
+import { apiUrl, fixedIdFactories, ids, publishableKey, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
 
 const STORE_ID = "2f7b4d91-8c36-4a05-b1e9-6d3a0c8f5e27";
 const OTHER_STORE_ID = "a6c1e8f4-3b92-4d57-9e0a-5f2d7b1c8e46";
@@ -21,7 +21,7 @@ function returns() {
 test("a buyer's return is created under the app-picked id and read through storefront routes only", async (context) => {
   const retained = { id: returnId, status: { type: "requested", destination: { type: "undecided" } } };
   const calls = recordFetch(context, (call) => call.method === "GET" && call.path === "/v1/storefront/returns" ? { items: [], cursor: "next" } : retained);
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: visitorStorage() });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
   const request = { id: returnId, type: orderReturn, destination_store_location_id: null };
   const before = structuredClone(request);
   assert.deepEqual(await store.eshop.return.create(request), retained);
@@ -110,7 +110,7 @@ test("a return read answers each line's product with the return, for staff and f
   assert.deepEqual(staffRead, named);
   assert.equal(staffRead.products[0].product.blocks[0].value.en, "Espresso beans");
   assert.equal(staffRead.products[1].product, null);
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: visitorStorage() });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
   assert.deepEqual(await store.eshop.return.get({ id: returnId }), named);
   assert.deepEqual(calls.map((call) => [call.method, call.path]), [
     ["GET", `/v1/stores/${STORE_ID}/returns/${returnId}`],

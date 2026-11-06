@@ -13,6 +13,8 @@ import type {
   PackageMemberSelfRevisionOrigin,
   PackageMemberCurrent,
   PackageMemberCurrentSelf,
+  PackageMemberSelfPricedTerms,
+  Currency,
   PackageMemberProductChoices,
   PackageProductAlternative,
   PackageProductChoices,
@@ -70,6 +72,8 @@ const revision: Promise<PackageMemberRevisionDetail> =
 void [current, orders, revisions, revision];
 
 export type PackageMemberHistoryContracts = [
+  Assert<Equal<PackageMemberCurrentSelf["terms"], PackageMemberSelfPricedTerms | null>>,
+  Assert<Equal<PackageMemberSelfPricedTerms["currency"], Currency>>,
   Assert<
     Equal<
       PackageMemberCurrent["package_member"],

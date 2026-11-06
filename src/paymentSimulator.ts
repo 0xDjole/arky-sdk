@@ -1,12 +1,12 @@
 import type { StripeEmbeddedCheckoutAction } from "./types/embeddedCheckout";
-import type { CheckoutPaymentAction, MonriComponentsAction, PaymentMethodSetupStart, PaymentRunsOn } from "./types/payment";
+import type { CheckoutPaymentAction, MonriComponentsAction, StorefrontPaymentMethodSetupStart, PaymentRunsOn } from "./types/payment";
 import type { StoreSubscriptionPaymentAction } from "./types/store";
 import { ArkyError } from "./types/apiError";
 
 export type PaymentSimulation =
   | { type: "stripe_checkout"; action: StripeEmbeddedCheckoutAction; outcome: "complete" | "decline" | "expire" }
   | { type: "monri"; action: MonriComponentsAction; outcome: "complete" | "decline" }
-  | { type: "card_setup"; setup: PaymentMethodSetupStart; outcome: "complete" | "cancel" | "decline" };
+  | { type: "card_setup"; setup: StorefrontPaymentMethodSetupStart; outcome: "complete" | "cancel" | "decline" };
 
 export interface SimulatePaymentParams {
   simulation: PaymentSimulation;
@@ -23,7 +23,7 @@ interface SimulatorRequest {
 
 const notSimulated = "This payment isn't run by Arky's provider simulator";
 
-export function isSimulatedPayment(value: CheckoutPaymentAction | StoreSubscriptionPaymentAction | PaymentMethodSetupStart): boolean {
+export function isSimulatedPayment(value: CheckoutPaymentAction | StoreSubscriptionPaymentAction | StorefrontPaymentMethodSetupStart): boolean {
   return "runs_on" in value && value.runs_on.type === "simulator";
 }
 

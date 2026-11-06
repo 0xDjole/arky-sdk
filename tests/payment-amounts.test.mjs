@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { paymentAmounts } from "../dist/storefront.js";
+import { disputeWithdrawnAmount, paymentAmounts, refundAmounts } from "../dist/storefront.js";
 import { paymentAmounts as utilsPaymentAmounts } from "../dist/utils.js";
 import { ids } from "./helpers/arky-fixtures.mjs";
 
@@ -72,4 +72,45 @@ test("paymentAmounts adds up paid, refunded, pending refunds and disputes the wa
   assert.deepEqual(utilsPaymentAmounts([]), { paid: 0, refunded: 0, refund_pending: 0, disputed: 0, net_paid: 0 });
   assert.throws(() => paymentAmounts([stripe, { ...cash, order_id: ids.otherOrder }]), TypeError);
   assert.throws(() => paymentAmounts([stripe, { ...cash, money: { amount: 3000, currency: "bam" } }]), TypeError);
+});
+
+function disputedCheckout(money, dispute) {
+  return {
+    ...payment(ids.payment, money.amount, {
+      type: "stripe_checkout",
+      return_url: "https://shop.example.test",
+      expires_at: 1,
+      status: { type: "paid", payment_intent_id: "pi_9", charge_id: "ch_9", amount: money.amount },
+      refunds: [],
+      disputes: [dispute],
+    }),
+    money,
+  };
+}
+
+function dispute(money, balanceChanges) {
+  return { id: "d9", stripe_dispute_id: "dp_9", money, reason: "fraudulent", status: { type: "under_review" }, balance_changes: balanceChanges, created_at: 1 };
+}
+
+test("a reinstatement nets against its withdrawal", () => {
+  const partly = dispute(eur(100), [
+    { type: "withdrawn", balance_transaction_id: "txn_9", money: eur(100) },
+    { type: "reinstated", balance_transaction_id: "txn_10", money: eur(60) },
+  ]);
+  assert.equal(disputeWithdrawnAmount(partly), 40);
+  assert.equal(paymentAmounts([disputedCheckout(eur(5000), partly)]).disputed, 40);
+});
+
+test("a withdrawal in another currency counts as the dispute's amount", () => {
+  const usd = (amount) => ({ amount, currency: "usd" });
+  const converted = dispute(usd(10000), [{ type: "withdrawn", balance_transaction_id: "txn_11", money: eur(9215) }]);
+  assert.equal(disputeWithdrawnAmount(converted), 10000);
+  assert.equal(paymentAmounts([disputedCheckout(usd(10000), converted)]).disputed, 10000);
+});
+
+test("refundAmounts reads a payment's refunds the way paymentAmounts counts them", () => {
+  assert.deepEqual(
+    stripe.type.refunds.map((refund) => refundAmounts({ type: "stripe", refund })),
+    [{ refunded: 1000, pending: 0 }, { refunded: 0, pending: 500 }, { refunded: 0, pending: 0 }],
+  );
 });

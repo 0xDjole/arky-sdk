@@ -1,8 +1,11 @@
 import { ArkyApiError, ArkyError } from "./types/apiError";
 import { requireId } from "./utils/ids";
+import { isRecord } from "./utils/record";
+import { isEpochMilliseconds } from "./utils/time";
 import { isDefiniteRefusal } from "./utils/durableRequest";
 import { isOrderToken } from "./utils/orderToken";
 import { createAdminSessionState } from "./services/adminSession";
+import { exclusive } from "./services/sessionLock";
 import { createHttpClient, refusedByArky } from "./services/createHttpClient";
 import { durableCreateKey, runDurableCreate } from "./services/durableCreate";
 import type { AuthStorage, HttpClientConfig, RequestContextOverride } from "./types/httpClient";
@@ -103,7 +106,6 @@ import { createApiKeyApi } from "./api/apiKey";
 import { createStoreRoleApi } from "./api/storeRole";
 import {
   createStorefrontApi,
-  type CustomerSessionInternal,
   type CustomerSessionUpdater,
   type RefreshCustomerSessionParams,
   type IdentifyCustomerParams,
@@ -147,8 +149,8 @@ export { paginate, readAllPages } from "./utils/paginate";
 export type { PageRead, PaginateOptions } from "./utils/paginate";
 export { latestPayment, paymentOutcome } from "./utils/paymentOutcome";
 export type { PaymentOutcome } from "./utils/paymentOutcome";
-export { paymentAmounts } from "./utils/paymentAmounts";
-export type { PaymentAmounts } from "./utils/paymentAmounts";
+export { disputeWithdrawnAmount, paymentAmounts, refundAmounts } from "./utils/paymentAmounts";
+export type { PaymentAmounts, PaymentRefundView } from "./utils/paymentAmounts";
 export {
   blockContent,
   collectBlockReferences,
@@ -181,7 +183,7 @@ export type { PaymentSimulation, SimulatePaymentOptions, SimulatePaymentParams }
 export { CheckoutFlowError, initialize } from "./storefrontStore";
 export type * from "./storefrontStore";
 
-export const SDK_VERSION = "0.26.104";
+export const SDK_VERSION = "0.26.105";
 
 export interface AdminSession {
   id: string;
@@ -242,7 +244,6 @@ export function createAdmin(config: CreateAdminConfig) {
             id: session.id,
             access_token: session.access_token,
             refresh_token: session.refresh_token,
-            access_expires_at: session.access_expires_at,
           };
         },
       };
@@ -368,6 +369,10 @@ export function createAdmin(config: CreateAdminConfig) {
       return readAdminSession() !== null;
     },
 
+    get sessionStorageUnavailable(): boolean {
+      return sessionState.isStorageUnavailable();
+    },
+
     onAuthStateChanged(listener: AuthStateListener<AdminSession>): () => void {
       listeners.add(listener);
       if (!unsubscribeStorage) unsubscribeStorage = sessionState.subscribe(emit);
@@ -420,12 +425,17 @@ export interface StorefrontOptions extends StorefrontContext {
 
 export const DEFAULT_STOREFRONT_API_URL = "https://api.arky.io";
 
-function defaultStorefrontSessionStorage(): StorefrontSessionStorage | null {
-  if (typeof window === "undefined") return null;
+type DefaultSessionStorage =
+  | { type: "none" }
+  | { type: "refused" }
+  | { type: "available"; storage: StorefrontSessionStorage };
+
+function defaultStorefrontSessionStorage(): DefaultSessionStorage {
+  if (typeof window === "undefined") return { type: "none" };
   try {
-    return window.localStorage;
+    return { type: "available", storage: window.localStorage };
   } catch {
-    return null;
+    return { type: "refused" };
   }
 }
 
@@ -466,19 +476,7 @@ function storefrontSessionStorageKey(apiUrl: string, publishableKey: string): st
   return `arky_customer_session:v4:${encodeURIComponent(apiUrl.toLowerCase())}:${publishableKeyFingerprint(publishableKey)}`;
 }
 
-interface StoredCustomerSession {
-  version: 4;
-  customer: StorefrontCustomer;
-  session: CustomerSessionIssued;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function isEpochMilliseconds(value: unknown): boolean {
-  return typeof value === "number" && Number.isSafeInteger(value);
-}
+type StoredCustomerSession = CustomerSessionResult & { version: 4 };
 
 function isIssuedCustomerSession(value: unknown): value is CustomerSessionIssued {
   if (!isRecord(value)) return false;
@@ -526,7 +524,7 @@ function isStoredCustomer(value: unknown): value is StorefrontCustomer {
   );
 }
 
-function parseStoredCustomerSession(value: string | null): CustomerSessionInternal | null {
+function parseStoredCustomerSession(value: string | null): CustomerSessionResult | null {
   if (!value) return null;
   try {
     const parsed: unknown = JSON.parse(value);
@@ -587,32 +585,60 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
   let setupPromise: Promise<StorefrontSetup> | null = null;
   let setupValue: StorefrontSetup | null = null;
   const explicitSessionStorage = options.sessionStorage;
-  const sessionStorage = explicitSessionStorage || defaultStorefrontSessionStorage();
+  const defaultSessionStorage: DefaultSessionStorage = explicitSessionStorage
+    ? { type: "none" }
+    : defaultStorefrontSessionStorage();
+  const sessionStorage: StorefrontSessionStorage | null =
+    explicitSessionStorage ?? (defaultSessionStorage.type === "available" ? defaultSessionStorage.storage : null);
+  const sharedWithOtherTabs = !explicitSessionStorage && defaultSessionStorage.type === "available";
+  let storageUnavailable = defaultSessionStorage.type === "refused";
   const canCreateVisitorSession = typeof window !== "undefined" || Boolean(explicitSessionStorage);
   const storageKey = storefrontSessionStorageKey(apiUrl, publishableKey);
-  let memorySession: CustomerSessionInternal | null = null;
+  let memorySession: CustomerSessionResult | null = null;
+  let unsubscribeStorage: (() => void) | null = null;
 
-  if (sessionStorage) {
+  function readStoredText(): { type: "read"; value: string | null } | { type: "refused" } {
+    if (!sessionStorage || storageUnavailable) return { type: "refused" };
     try {
-      const stored = sessionStorage.getItem(storageKey);
-      memorySession = parseStoredCustomerSession(stored);
-      if (stored && !memorySession) sessionStorage.removeItem(storageKey);
-    } catch {}
+      return { type: "read", value: sessionStorage.getItem(storageKey) };
+    } catch {
+      storageUnavailable = true;
+      return { type: "refused" };
+    }
+  }
+
+  const startup = readStoredText();
+  if (startup.type === "read") {
+    memorySession = parseStoredCustomerSession(startup.value);
+    if (startup.value && !memorySession && sessionStorage) {
+      try {
+        sessionStorage.removeItem(storageKey);
+      } catch {
+        storageUnavailable = true;
+      }
+    }
+  }
+
+  function storedSession(): CustomerSessionResult | null {
+    const read = readStoredText();
+    if (read.type === "refused") return memorySession;
+    memorySession = parseStoredCustomerSession(read.value);
+    return memorySession;
   }
 
   visitorIdentityConsumed = Boolean(memorySession && options.visitorIdentity && memorySession.session.id === options.visitorIdentity.session_id);
 
-  function authorizationToken(session: CustomerSessionInternal | null = memorySession): string | null {
+  function authorizationToken(session: CustomerSessionResult | null = storedSession()): string | null {
     if (!session || session.session.status.type !== "active") return null;
     return session.session.type === "visitor" ? session.session.token : session.session.access_token;
   }
 
-  function writeCustomerSession(session: CustomerSessionInternal | null): void {
+  function writeCustomerSession(session: CustomerSessionResult | null): void {
     if (session && (!isIssuedCustomerSession(session.session) || !isStoredCustomer(session.customer))) {
       throw new RangeError("The customer session must be active and carry epoch-millisecond times");
     }
     memorySession = session;
-    if (!sessionStorage) return;
+    if (!sessionStorage || storageUnavailable) return;
     try {
       if (session) {
         const stored: StoredCustomerSession = { version: 4, customer: session.customer, session: session.session };
@@ -620,17 +646,19 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
       } else {
         sessionStorage.removeItem(storageKey);
       }
-    } catch {}
+    } catch {
+      storageUnavailable = true;
+    }
   }
 
-  function toPublic(value: CustomerSessionInternal | null): StorefrontCustomerSession | null {
+  function toPublic(value: CustomerSessionResult | null): StorefrontCustomerSession | null {
     return value
       ? { customer: value.customer, id: value.session.id, type: value.session.type, status: value.session.status }
       : null;
   }
 
   function emit(): void {
-    const current = toPublic(memorySession);
+    const current = toPublic(storedSession());
     for (const listener of listeners) {
       Promise.resolve()
         .then(() => listener(current))
@@ -639,16 +667,18 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
   }
 
   const updateSession: CustomerSessionUpdater = (updater) => {
-    const next = updater(memorySession);
-    if (next === memorySession) return;
+    const previous = storedSession();
+    const next = updater(previous);
+    if (next === previous) return;
     writeCustomerSession(next);
     emit();
   };
 
   const authStorage: AuthStorage = {
     getTokens() {
-      if (!memorySession || memorySession.session.status.type !== "active") return null;
-      const issued = memorySession.session;
+      const current = storedSession();
+      if (!current || current.session.status.type !== "active") return null;
+      const issued = current.session;
       return issued.type === "visitor"
         ? { access_token: issued.token }
         : { access_token: issued.access_token, refresh_token: issued.refresh_token };
@@ -722,7 +752,12 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
   async function ensureVisitorSession(): Promise<void> {
     if (authorizationToken()) return;
     requireVisitorSessionCapability();
-    await identify();
+    try {
+      await identify();
+    } catch (error) {
+      if (!(error instanceof ArkyApiError) || error.statusCode !== 409) throw error;
+      await identify();
+    }
   }
 
   const marketIds = new Map<string, Promise<string>>();
@@ -746,11 +781,11 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
     return read;
   }
 
-  function newId(label: string): string {
+  function appId(label: string): string {
     return requireId(options.createId(), label);
   }
 
-  function newOrderToken(): string {
+  function appOrderToken(): string {
     const token = options.createOrderToken();
     if (!isOrderToken(token)) {
       throw new TypeError("createOrderToken must answer an order token: 32 random bytes in canonical base64url after arky_ot_");
@@ -759,20 +794,20 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
   }
 
   function pendingKey(flow: string, target: string): string {
-    const customerId = memorySession?.customer.id;
+    const customerId = storedSession()?.customer.id;
     if (!customerId) throw new ArkyError("no_session", "A retry-safe create needs the customer session first");
     return durableCreateKey(storageKey, flow, customerId, target);
   }
 
   function verifiedContact(): EmailContact | null {
-    const current = memorySession;
+    const current = storedSession();
     if (!current || current.session.type !== "email_authenticated" || current.customer.type.type !== "verified") return null;
     return current.customer.type.contact;
   }
 
   const flows: StorefrontFlowContext = {
-    newId,
-    newOrderToken,
+    appId,
+    appOrderToken,
     pendingKey,
     locale(requestOptions) {
       const value = requestLocale(requestOptions?.locale);
@@ -789,7 +824,7 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
     {
       namespace: storageKey,
       storage: sessionStorage,
-      customerId: () => memorySession?.customer.id ?? null,
+      customerId: () => storedSession()?.customer.id ?? null,
       market: () => market || null,
       marketId,
     },
@@ -813,11 +848,22 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
     requireVisitorSessionCapability();
     const key = `${params.customer_id}:${params.session_id}`;
     if (identifyPromise && identifyKey === key) return identifyPromise;
-    const promise = identityTail.then(() => customerApi.identify(params)).then((result) => {
-      visitorIdentityConsumed = true;
-      if (pendingVisitorIdentity?.customer_id === params.customer_id && pendingVisitorIdentity.session_id === params.session_id) pendingVisitorIdentity = null;
-      return result;
-    });
+    const pending = () =>
+      pendingVisitorIdentity?.customer_id === params.customer_id && pendingVisitorIdentity.session_id === params.session_id;
+    const promise = identityTail.then(() => customerApi.identify(params)).then(
+      (result) => {
+        visitorIdentityConsumed = true;
+        if (pending()) pendingVisitorIdentity = null;
+        return result;
+      },
+      (error: unknown) => {
+        if (error instanceof ArkyApiError && error.statusCode === 409 && pending()) {
+          pendingVisitorIdentity = null;
+          visitorIdentityConsumed = true;
+        }
+        throw error;
+      },
+    );
     identityTail = promise.then(
       () => undefined,
       () => undefined,
@@ -850,7 +896,7 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
             key: pendingKey("sign-in-email", ""),
             label: "sign-in code request",
             input: { contact: { email: params.contact.email, language: params.contact.language } },
-            newId: () => newId("sign-in email"),
+            appId: () => appId("sign-in email"),
             send,
             confirms: () => true,
           });
@@ -876,7 +922,7 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
 
   async function changeEmail(params: ChangeCustomerEmailParams, options?: RequestOptions): Promise<CustomerMe> {
     await ensureVisitorSession();
-    const requested = memorySession;
+    const requested = storedSession();
     const result = await customerApi.changeEmail(params, options);
     applyAnsweredCustomer(requested, result);
     identifyPromise = null;
@@ -890,9 +936,9 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
     return result;
   }
 
-  function applyAnsweredCustomer(requested: CustomerSessionInternal | null, result: CustomerMe): void {
+  function applyAnsweredCustomer(requested: CustomerSessionResult | null, result: CustomerMe): void {
     const customer = result.customer;
-    const current = memorySession;
+    const current = storedSession();
     if (
       !requested ||
       !current ||
@@ -910,7 +956,7 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
 
   async function me(options?: RequestOptions): Promise<CustomerMe> {
     await ensureVisitorSession();
-    const requested = memorySession;
+    const requested = storedSession();
     const result = await customerApi.getMe(options);
     applyAnsweredCustomer(requested, result);
     return result;
@@ -918,7 +964,7 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
 
   async function updateMe(params: UpdateCustomerMeParams, options?: RequestOptions): Promise<CustomerMe> {
     await ensureVisitorSession();
-    const requested = memorySession;
+    const requested = storedSession();
     const result = await customerApi.updateMe(params, options);
     applyAnsweredCustomer(requested, result);
     return result;
@@ -950,7 +996,7 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
   async function requestNewsletterCode(params: RequestNewsletterCodeParams): Promise<RequestNewsletterCodeResult> {
     const signedIn = verifiedContact();
     if (signedIn !== null && sameEmail(signedIn.email, params.contact.email)) return { type: "verified" };
-    if (memorySession?.session.type === "email_authenticated") await logout();
+    if (storedSession()?.session.type === "email_authenticated") await logout();
     await requestCode({ contact: params.contact, bot_check_token: params.bot_check_token });
     return { type: "code_sent" };
   }
@@ -991,24 +1037,23 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
 
   recoverUnauthorized = async (failedAuthorizationToken: string | null, path: string, response: { status: number; data: unknown }) => {
     if (!failedAuthorizationToken) return false;
-    const currentToken = authorizationToken();
-    if (currentToken !== failedAuthorizationToken) {
-      if (currentToken) return true;
-      if (!visitorRecoveryPromise) return false;
-      await visitorRecoveryPromise;
-      return Boolean(authorizationToken());
-    }
-    if (memorySession?.session.type === "email_authenticated") {
+    const stored = storedSession();
+    const storedToken = authorizationToken(stored);
+    if (storedToken && storedToken !== failedAuthorizationToken) return true;
+    if (storedToken === failedAuthorizationToken && stored?.session.type === "email_authenticated") {
       try {
-        if (!automaticRefreshPromise) {
-          const refreshSessionId = automaticRefreshId ?? requireId(options.createSessionId(), "customer session");
-          automaticRefreshId = refreshSessionId;
-          automaticRefreshPromise = refresh({ session_id: refreshSessionId }).then((result) => {
-            automaticRefreshId = null;
-            return result;
-          }).finally(() => { automaticRefreshPromise = null; });
-        }
-        await automaticRefreshPromise;
+        await exclusive(`${storageKey}:refresh`, async () => {
+          if (authorizationToken() !== failedAuthorizationToken) return;
+          if (!automaticRefreshPromise) {
+            const refreshSessionId = automaticRefreshId ?? requireId(options.createSessionId(), "customer session");
+            automaticRefreshId = refreshSessionId;
+            automaticRefreshPromise = refresh({ session_id: refreshSessionId }).then((result) => {
+              automaticRefreshId = null;
+              return result;
+            }).finally(() => { automaticRefreshPromise = null; });
+          }
+          await automaticRefreshPromise;
+        });
         return true;
       } catch (error) {
         automaticRefreshId = null;
@@ -1017,8 +1062,12 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
         return false;
       }
     }
+    if (visitorRecoveryPromise) {
+      await visitorRecoveryPromise;
+      return Boolean(authorizationToken());
+    }
     if (!refusedByArky(response)) return false;
-    updateSession(() => null);
+    if (authorizationToken() === failedAuthorizationToken) updateSession(() => null);
     if (/\/customer\/identify$/.test(path)) return true;
     const recovery = ensureVisitorSession();
     const trackedRecovery = recovery.finally(() => {
@@ -1029,9 +1078,18 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
     return true;
   };
 
+  function watchOtherTabs(): void {
+    if (unsubscribeStorage || !sharedWithOtherTabs || typeof window === "undefined") return;
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === storageKey || event.key === null) emit();
+    };
+    window.addEventListener("storage", onStorage);
+    unsubscribeStorage = () => window.removeEventListener("storage", onStorage);
+  }
+
   return {
     get session(): StorefrontCustomerSession | null {
-      return toPublic(memorySession);
+      return toPublic(storedSession());
     },
 
     get hasSession(): boolean {
@@ -1039,12 +1097,18 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
     },
 
     get isAuthenticated(): boolean {
-      return memorySession?.session.status.type === "active" && memorySession.session.type === "email_authenticated";
+      const current = storedSession();
+      return current?.session.status.type === "active" && current.session.type === "email_authenticated";
+    },
+
+    get sessionStorageUnavailable(): boolean {
+      return storageUnavailable;
     },
 
     onAuthStateChanged(listener: AuthStateListener<StorefrontCustomerSession>): () => void {
       listeners.add(listener);
-      const current = toPublic(memorySession);
+      watchOtherTabs();
+      const current = toPublic(storedSession());
       if (current) {
         Promise.resolve()
           .then(() => listener(current))
@@ -1052,6 +1116,10 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
       }
       return () => {
         listeners.delete(listener);
+        if (listeners.size === 0) {
+          unsubscribeStorage?.();
+          unsubscribeStorage = null;
+        }
       };
     },
 

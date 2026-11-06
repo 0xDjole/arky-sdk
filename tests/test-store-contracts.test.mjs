@@ -43,7 +43,7 @@ test("store.create names the mode and answers the store with its mode, and reque
 });
 
 test("ArkyStripe and ArkyMonri connect with a keyless call that names only the option's key, blocks, status and card wording", async (context) => {
-  const arkyStripe = { id: optionId, store_id: storeId, key: "card", blocks: [], status: "active", type: { type: "arky_stripe", account_id: "acct_arky", livemode: false, publishable_key: "pk_test_arky_store", charges_enabled: true, account_checked_at: 2, webhook: { type: "awaiting_first_event", endpoint_id: "we_arky", api_version: "2025-09-30.clover", enabled_events: [], previous_signing_secret: null }, saved_card_terms: terms }, created_at: 1, updated_at: 2 };
+  const arkyStripe = { id: optionId, store_id: storeId, key: "card", blocks: [], status: "active", type: { type: "arky_stripe", account_id: "acct_arky", livemode: false, publishable_key: "pk_test_arky_store", charges_enabled: true, account_checked_at: 2, webhook: { type: "awaiting_first_event", endpoint_id: "we_arky", enabled_events: [], previous_signing_secret: null }, saved_card_terms: terms }, created_at: 1, updated_at: 2 };
   const arkyMonri = { ...arkyStripe, type: { type: "arky_monri", environment: "test", saved_card_terms: terms } };
   const calls = recordFetch(context, (call) => (call.path.endsWith("/arky-stripe") ? arkyStripe : arkyMonri));
   const api = admin().store.paymentOption;

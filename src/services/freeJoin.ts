@@ -10,10 +10,10 @@ import type {
 } from "../types/package";
 import type { EmailContact, PaginatedResponse } from "../types/common";
 import type {
-  Cart,
+  StorefrontCart,
   CartQuote,
-  CheckoutAcceptance,
-  CreatedCart,
+  StorefrontCheckoutAcceptance,
+  StorefrontCreatedCart,
   StorefrontAddCartPackageParams,
   StorefrontCreateCartParams,
 } from "../types/cart";
@@ -23,7 +23,7 @@ import {
   type JoinFreePackageParams,
   type JoinFreePackageResult,
 } from "../types/packageJoin";
-import type { Order } from "../types/order";
+import type { StorefrontOrder } from "../types/order";
 import {
   clearDurableRequest,
   DurableRequestError,
@@ -36,12 +36,13 @@ import {
 } from "../utils/durableRequest";
 import { isCanonicalId, requireId } from "../utils/ids";
 import { isOrderToken } from "../utils/orderToken";
+import { isRecord } from "../utils/record";
 
 export interface FreeJoinDeps {
   verifiedContact(): EmailContact | null;
   pendingKey(flow: string, target: string): string;
-  newId(label: string): string;
-  newOrderToken(): string;
+  appId(label: string): string;
+  appOrderToken(): string;
   retainToken(orderId: string, token: string): void;
   marketId(): Promise<string>;
   getPackage(
@@ -52,11 +53,11 @@ export interface FreeJoinDeps {
     params: FindStorefrontPackageItemPricesParams,
     options?: RequestOptions,
   ): Promise<PaginatedResponse<StorefrontPackageItemPrice>>;
-  createCart(params: StorefrontCreateCartParams & { market_id: string }, options?: RequestOptions): Promise<CreatedCart>;
-  addPackageLine(params: StorefrontAddCartPackageParams, options?: RequestOptions): Promise<Cart>;
+  createCart(params: StorefrontCreateCartParams & { market_id: string }, options?: RequestOptions): Promise<StorefrontCreatedCart>;
+  addPackageLine(params: StorefrontAddCartPackageParams, options?: RequestOptions): Promise<StorefrontCart>;
   quote(params: { id: string }, options?: RequestOptions): Promise<CartQuote>;
-  accept(request: CartCheckoutRequest, options?: RequestOptions): Promise<CheckoutAcceptance>;
-  getOrder(id: string, orderToken: string, options?: RequestOptions): Promise<Order>;
+  accept(request: CartCheckoutRequest, options?: RequestOptions): Promise<StorefrontCheckoutAcceptance>;
+  getOrder(id: string, orderToken: string, options?: RequestOptions): Promise<StorefrontOrder>;
 }
 
 interface FreeJoinRequest {
@@ -73,7 +74,7 @@ const label = "free package sign-up";
 
 function savedJoin(request: DurableRequest): FreeJoinRequest {
   const value = durableRequestPayload(request);
-  const fields = value !== null && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+  const fields = isRecord(value) ? value : null;
   if (
     !fields ||
     Object.keys(fields).length !== 7 ||
@@ -230,10 +231,10 @@ export async function joinFreePackage(
     } else if (saved) clearDurableRequest(saved, label);
     if (!kept) {
       const request: FreeJoinRequest = {
-        cart_id: deps.newId("cart"),
-        line_item_id: deps.newId("cart line"),
-        order_id: deps.newId("order"),
-        order_token: deps.newOrderToken(),
+        cart_id: deps.appId("cart"),
+        line_item_id: deps.appId("cart line"),
+        order_id: deps.appId("order"),
+        order_token: deps.appOrderToken(),
         shop_package_id: shopPackageId,
         market_id: marketId,
         joined_package_id: joined.id,

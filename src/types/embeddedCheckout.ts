@@ -1,5 +1,5 @@
 import type { StripeEmbeddedCheckout } from "@stripe/stripe-js";
-import type { CheckoutPaymentAction, PaymentMethodSetupStart } from "./payment";
+import type { CheckoutPaymentAction, StorefrontPaymentMethodSetupStart } from "./payment";
 import type { StoreSubscriptionPaymentAction } from "./store";
 import type { MonriBuyerDetails, MonriCheckoutError } from "./monriCheckout";
 
@@ -38,7 +38,7 @@ export type EmbeddedCheckoutMount =
     };
 
 export interface MountPaymentMethodSetupParams {
-  setup: PaymentMethodSetupStart;
+  setup: StorefrontPaymentMethodSetupStart;
   element: string | HTMLElement;
 }
 

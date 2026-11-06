@@ -11,7 +11,7 @@ import type {
   ProviderOperationClaim,
   SortDirection,
 } from "./common";
-import type { PackageMemberCard } from "./packageMember";
+import type { PackageMemberCard, PackageMemberSelfCard } from "./packageMember";
 import type { EmailFailure } from "./notification";
 
 export type MonriEnvironment = "test" | "live";
@@ -26,7 +26,6 @@ export interface StripeSigningSecretOverlap {
 
 export interface StripeWebhookEndpoint {
   endpoint_id: string;
-  api_version: string;
   enabled_events: string[];
   previous_signing_secret: StripeSigningSecretOverlap | null;
 }
@@ -44,12 +43,10 @@ export type StripeSetupProblem =
   | { type: "webhook_duplicated"; webhook_ids: string[] }
   | { type: "webhook_disabled" }
   | { type: "webhook_events_missing"; events: string[] }
-  | { type: "webhook_api_version"; api_version: string | null }
   | { type: "webhook_replaced"; saved_webhook_id: string };
 
 export interface StripeSetup {
   webhook_address: string;
-  api_version: string;
   events: string[];
   webhook_id: string | null;
   problems: StripeSetupProblem[];
@@ -191,6 +188,74 @@ export interface PaymentMethod {
 
 export interface PaymentMethodSetupStart {
   method: PaymentMethod;
+  client_secret: string | null;
+  publishable_key: string | null;
+  runs_on: PaymentRunsOn;
+}
+
+export interface StorefrontPaymentMethod {
+  id: string;
+  store_id: string;
+  owner: CommerceParty;
+  payment_option_id: string;
+  consent: StorefrontPaymentMethodConsent;
+  type: StorefrontPaymentMethodType;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+}
+
+export interface StorefrontPaymentMethodConsent {
+  accepted_at: EpochMilliseconds;
+  language: string;
+  terms: string;
+}
+
+export type StorefrontPaymentMethodType =
+  | ({ type: "stripe" } & StorefrontStripeCard)
+  | ({ type: "monri" } & StorefrontMonriCard);
+
+export type StorefrontCardRemoval = { type: "revoked" } | { type: "detached_at_stripe" };
+
+export interface StorefrontStripeCard {
+  setup: StripeCardSetup;
+  status: StorefrontStripeCardStatus;
+}
+
+export type StorefrontStripeCardStatus =
+  | { type: "requested" }
+  | { type: "creating_customer" }
+  | { type: "creating_setup"; customer_id: string }
+  | { type: "unknown"; customer_id: string | null }
+  | {
+      type: "requires_action";
+      customer_id: string;
+      setup_intent_id: string;
+      action_reference: string;
+    }
+  | {
+      type: "ready";
+      customer_id: string;
+      payment_method_id: string;
+      details: CardDetails;
+    }
+  | { type: "failed" }
+  | { type: "cancelled" }
+  | { type: "removed"; details: CardDetails; reason: StorefrontCardRemoval };
+
+export interface StorefrontMonriCard {
+  payment_id: string;
+  status: StorefrontMonriCardStatus;
+}
+
+export type StorefrontMonriCardStatus =
+  | { type: "requested" }
+  | { type: "ready"; token: MonriCardToken; details: CardDetails }
+  | { type: "failed" }
+  | { type: "cancelled" }
+  | { type: "removed"; details: CardDetails; reason: StorefrontCardRemoval };
+
+export interface StorefrontPaymentMethodSetupStart {
+  method: StorefrontPaymentMethod;
   client_secret: string | null;
   publishable_key: string | null;
   runs_on: PaymentRunsOn;
@@ -390,7 +455,8 @@ export type StripeCardPaymentStatus =
       amount: number;
     }
   | { type: "cancelled"; payment_intent_id: string }
-  | { type: "failed"; error: ProviderEffectError };
+  | { type: "failed"; error: ProviderEffectError }
+  | { type: "confirmed_not_made"; by: AccountActor };
 
 export interface StripeCardPayment {
   payment_method: PackageMemberCard;
@@ -483,6 +549,214 @@ export interface Payment {
   updated_at: EpochMilliseconds;
 }
 
+export interface StorefrontPayment {
+  id: string;
+  store_id: string;
+  order_id: string;
+  payment_option_id: string;
+  money: Money;
+  type: StorefrontPaymentType;
+  holds: StorefrontPaymentHold[];
+  status: PaymentStatusName;
+  status_revision: string;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+}
+
+export type StorefrontPaymentType =
+  | ({ type: "stripe_checkout" } & StorefrontStripeCheckoutPayment)
+  | ({ type: "stripe_card" } & StorefrontStripeCardPayment)
+  | ({ type: "monri_checkout" } & StorefrontMonriCheckoutPayment)
+  | ({ type: "monri_card" } & StorefrontMonriCardPayment)
+  | ({ type: "cash_on_delivery" } & StorefrontRecordedPayment)
+  | ({ type: "manual" } & StorefrontManualPayment);
+
+export interface StorefrontStripeCheckoutPayment {
+  return_url: string;
+  expires_at: EpochMilliseconds;
+  status: StorefrontStripeCheckoutStatus;
+  refunds: StorefrontStripeRefund[];
+  disputes: StripeDispute[];
+}
+
+export type StorefrontStripeCheckoutStatus =
+  | { type: "pending" }
+  | { type: "creating" }
+  | { type: "unknown" }
+  | { type: "open"; checkout_session_id: string }
+  | { type: "closing"; checkout_session_id: string }
+  | {
+      type: "paid";
+      payment_intent_id: string;
+      charge_id: string;
+      amount: number;
+    }
+  | { type: "expired" }
+  | { type: "failed" };
+
+export interface StorefrontStripeCardPayment {
+  payment_method: PackageMemberSelfCard;
+  purpose: CardPaymentPurpose;
+  status: StorefrontStripeCardPaymentStatus;
+  refunds: StorefrontStripeRefund[];
+  disputes: StripeDispute[];
+}
+
+export type StorefrontStripeCardPaymentStatus =
+  | { type: "pending" }
+  | { type: "charging" }
+  | { type: "unknown" }
+  | { type: "requires_action"; payment_intent_id: string }
+  | { type: "closing"; payment_intent_id: string }
+  | {
+      type: "paid";
+      payment_intent_id: string;
+      charge_id: string;
+      amount: number;
+    }
+  | { type: "cancelled"; payment_intent_id: string }
+  | { type: "failed" }
+  | { type: "confirmed_not_made" };
+
+export interface StorefrontMonriCheckoutPayment {
+  status: StorefrontMonriCheckoutStatus;
+  refunds: StorefrontMonriRefund[];
+}
+
+export type StorefrontMonriCheckoutStatus =
+  | { type: "pending" }
+  | { type: "creating" }
+  | { type: "unknown" }
+  | { type: "open" }
+  | { type: "paid"; transaction: StorefrontMonriTransaction }
+  | { type: "failed" }
+  | { type: "cancelled" };
+
+export interface StorefrontMonriTransaction {
+  transaction_id: string;
+  amount: number;
+  created_at: EpochMilliseconds;
+}
+
+export interface StorefrontMonriCardPayment {
+  payment_method: PackageMemberSelfCard;
+  purpose: CardPaymentPurpose;
+  status: StorefrontMonriCardPaymentStatus;
+  refunds: StorefrontMonriRefund[];
+}
+
+export type StorefrontMonriCardPaymentStatus =
+  | { type: "pending" }
+  | { type: "charging" }
+  | { type: "unknown" }
+  | { type: "paid"; transaction: StorefrontMonriTransaction }
+  | { type: "declined"; transaction: StorefrontMonriTransaction }
+  | { type: "failed" }
+  | { type: "confirmed_made"; transaction_id: string }
+  | { type: "confirmed_not_made" };
+
+export interface StorefrontRecordedPayment {
+  status: RecordedStatus;
+  collections: StorefrontRecordedCollection[];
+  refunds: StorefrontRecordedRefund[];
+}
+
+export interface StorefrontManualPayment {
+  requested: StorefrontManualRequest;
+  status: RecordedStatus;
+  collections: StorefrontRecordedCollection[];
+  refunds: StorefrontRecordedRefund[];
+}
+
+export type StorefrontManualRequest = { type: "at_checkout" } | { type: "later" };
+
+export interface StorefrontRecordedCollection {
+  id: string;
+  money: Money;
+  recorded_at: EpochMilliseconds;
+  status: StorefrontRecordedCollectionStatus;
+}
+
+export type StorefrontRecordedCollectionStatus =
+  | { type: "active" }
+  | { type: "voided"; at: EpochMilliseconds };
+
+export interface StorefrontStripeRefund {
+  id: string;
+  money: Money;
+  status: StorefrontStripeRefundStatus;
+  created_at: EpochMilliseconds;
+}
+
+export type StorefrontStripeRefundStatus =
+  | { type: "requested" }
+  | { type: "creating" }
+  | { type: "unknown"; stripe_refund_id: string | null }
+  | { type: "pending"; stripe_refund_id: string }
+  | {
+      type: "succeeded";
+      stripe_refund_id: string;
+      balance_transaction_id: string;
+    }
+  | {
+      type: "returned";
+      stripe_refund_id: string;
+      balance_transaction_id: string;
+      failure_balance_transaction_id: string;
+    }
+  | { type: "failed"; stripe_refund_id: string }
+  | { type: "cancelled"; stripe_refund_id: string }
+  | { type: "refused" }
+  | { type: "not_sent" };
+
+export interface StorefrontMonriRefund {
+  id: string;
+  money: Money;
+  status: StorefrontMonriRefundStatus;
+  created_at: EpochMilliseconds;
+}
+
+export type StorefrontMonriRefundStatus =
+  | { type: "requested" }
+  | { type: "sending" }
+  | { type: "unknown" }
+  | { type: "succeeded"; transaction: StorefrontMonriTransaction }
+  | { type: "declined"; transaction: StorefrontMonriTransaction }
+  | { type: "not_sent" }
+  | { type: "confirmed_made"; transaction_id: string }
+  | { type: "confirmed_not_made" };
+
+export interface StorefrontRecordedRefund {
+  id: string;
+  money: Money;
+  status: StorefrontRecordedRefundStatus;
+  created_at: EpochMilliseconds;
+}
+
+export type StorefrontRecordedRefundStatus =
+  | { type: "requested" }
+  | { type: "sent"; recorded_at: EpochMilliseconds }
+  | {
+      type: "returned";
+      sent: StorefrontRefundReceipt;
+      returned: StorefrontRefundReceipt;
+    }
+  | { type: "cancelled" };
+
+export interface StorefrontRefundReceipt {
+  recorded_at: EpochMilliseconds;
+}
+
+export interface StorefrontPaymentHold {
+  id: string;
+  opened_at: EpochMilliseconds;
+  status: StorefrontPaymentHoldStatus;
+}
+
+export type StorefrontPaymentHoldStatus =
+  | { type: "open" }
+  | { type: "resolved"; at: EpochMilliseconds };
+
 export type PaymentStatusName =
   | "pending"
   | "open"
@@ -516,11 +790,6 @@ export type CheckoutPaymentAction =
   | { type: "none" }
   | StripeEmbeddedCheckoutPaymentAction
   | MonriComponentsAction;
-
-export interface CheckoutPayment {
-  payment: Payment;
-  payment_action: CheckoutPaymentAction;
-}
 
 export interface StripeEvent {
   event_type: string;
@@ -584,7 +853,7 @@ export type IncomingWebhookTarget =
   | { type: "store_subscription"; store_subscription_id: string };
 
 export type IncomingWebhookWaitReason =
-  | { type: "new" }
+  | { type: "received" }
   | { type: "unmatched"; reason: string }
   | { type: "retry"; reason: string };
 
@@ -890,11 +1159,16 @@ export interface ResolvePaymentRefundParams {
   outcome: MonriConfirmation;
 }
 
+export type ChargeResolution =
+  | { type: "made"; transaction_id: string }
+  | { type: "payment_intent"; payment_intent_id: string }
+  | { type: "not_made" };
+
 export interface ResolvePaymentChargeParams {
   store_id: string;
   payment_id: string;
   expected_updated_at: EpochMilliseconds;
-  outcome: MonriConfirmation;
+  outcome: ChargeResolution;
 }
 
 export interface ResolvePaymentHoldParams {

@@ -4,6 +4,8 @@ export function segment(value: string): string {
   return encodeURIComponent(value);
 }
 
+export const storefrontBase = "/v1/storefront";
+
 export function storePath(storeId: string, path: string): string {
   return `/v1/stores/${requireStoreId(storeId)}/${path}`;
 }

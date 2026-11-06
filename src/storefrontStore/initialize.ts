@@ -3,12 +3,12 @@ import { CartError } from "../types/cartSelection";
 import type { StorefrontMarket, StorefrontSetup } from "../types/storefront";
 import { isOrderToken } from "../utils/orderToken";
 import { requireId } from "../utils/ids";
-import { createStorefront, type StorefrontCustomerSession } from "../index";
+import { createStorefront, type StorefrontContext, type StorefrontCustomerSession } from "../index";
 import { cartScopeKey } from "../services/cartSelection";
 import { createBookingCalendar, type BookingCalendar } from "./bookingCalendar";
 import { createCartStore, type CartScope, type CartStore, type CartStoreContext } from "./cart";
 import { createCheckoutFlow, type CheckoutFlow } from "./checkoutFlow";
-import type { ArkyCartScope, ArkyStoreConfig, ArkyStoreContext } from "./types";
+import type { ArkyCartScope, ArkyStoreConfig } from "./types";
 
 function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig) {
   const client = createStorefront(publishableKey, config);
@@ -53,11 +53,11 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig) {
     return value;
   }
 
-  function newId(label: string): string {
+  function appId(label: string): string {
     return requireId(config.createId(), label);
   }
 
-  function newOrderToken(): string {
+  function appOrderToken(): string {
     const token = config.createOrderToken();
     if (!isOrderToken(token)) {
       throw new TypeError("createOrderToken must answer an order token: 32 random bytes in canonical base64url after arky_ot_");
@@ -95,7 +95,7 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig) {
     return result;
   }
 
-  function setContext(context: ArkyStoreContext): void {
+  function setContext(context: StorefrontContext): void {
     if (context.market !== undefined && context.market !== market_key.get()) {
       client.setContext({ market: context.market });
       market_key.set(client.getMarket());
@@ -150,7 +150,7 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig) {
     const existing = cartStores.get(key);
     if (existing) return existing;
     const { store, invalidate } = createCartStore(
-      { client, locale, requireLocale, newId, newOrderToken, ...marketContext(marketKey) },
+      { client, locale, requireLocale, appId, appOrderToken, ...marketContext(marketKey) },
       { buyer: scope.buyer, package_id: scope.package_id },
     );
     cartStores.set(key, store);
@@ -164,7 +164,7 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig) {
     const existing = checkoutFlows.get(key);
     if (existing) return existing;
     const { flow, invalidate } = createCheckoutFlow(
-      { client, loadSetup, beginCartOperation: marketContext(marketKey).beginCartOperation, newId, newOrderToken },
+      { client, loadSetup, beginCartOperation: marketContext(marketKey).beginCartOperation, appId, appOrderToken },
       cart(scope),
     );
     checkoutFlows.set(key, flow);

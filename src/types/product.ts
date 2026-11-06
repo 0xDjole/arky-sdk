@@ -179,22 +179,6 @@ export interface BookingResource {
   hours: BookingHours;
 }
 
-export interface BookingCapacityClaim {
-  order_id: string;
-  order_booking_line_item_id: string;
-  units: number;
-  from: EpochMilliseconds;
-  to: EpochMilliseconds;
-}
-
-export interface BookingResourceCapacityDay {
-  id: string;
-  store_id: string;
-  booking_resource_id: string;
-  local_date: CalendarDate;
-  timezone: string;
-  claims: BookingCapacityClaim[];
-}
 
 export type DigitalAssetStatus = { type: "active" } | { type: "archived" };
 
@@ -558,7 +542,7 @@ export interface FindBookingOfferingsParams {
   cursor?: string | null;
 }
 
-export interface GetAvailabilityParams {
+export type GetAvailabilityParams = {
   store_id: string;
   booking_service_id: string;
   from: EpochMilliseconds;
@@ -566,7 +550,10 @@ export interface GetAvailabilityParams {
   booking_resource_id?: string;
   limit?: number;
   cursor?: string | null;
-}
+} & (
+  | { moving_order_id: string; moving_order_booking_line_item_id: string }
+  | { moving_order_id?: never; moving_order_booking_line_item_id?: never }
+);
 
 export interface UploadDigitalAssetParams {
   store_id: string;

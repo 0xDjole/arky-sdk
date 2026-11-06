@@ -13,14 +13,13 @@ import type {
 import {
   clearPendingMediaCreate,
   getOrCreatePendingMediaCreate,
+  mediaCreateLabel,
   mediaCreateStorageKey,
 } from "../utils/durableMediaCreate";
 import { DurableRequestError, isDefiniteRefusal, withDurableRequestLock } from "../utils/durableRequest";
 import { requireId } from "../utils/ids";
 import { requireStoreId } from "../utils/storeTarget";
 import { storePath, storeRecordPath } from "./paths";
-
-const mediaCreateLabel = "Media create";
 
 function browserHasDurableStorage(): boolean {
   return typeof globalThis.window !== "undefined";

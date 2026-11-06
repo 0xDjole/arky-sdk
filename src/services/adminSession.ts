@@ -1,11 +1,12 @@
 import type { AdminSessionInternal } from './clientTypes';
 import type { AuthToken } from '../types/api';
 import type { TokenSet } from '../types/httpClient';
-import { epochMillisecondsNow } from '../utils/time';
-import type { EpochMilliseconds } from '../types/time';
 import { isCanonicalId } from '../utils/ids';
+import { isRecord } from '../utils/record';
+import { isEpochMilliseconds } from '../utils/time';
 import { ArkyError, ArkyNetworkError } from '../types/apiError';
 import { refusedByArky } from './createHttpClient';
+import { exclusive } from './sessionLock';
 
 export type AdminLogoutResult =
   | { type: 'revoked'; session_id: string }
@@ -13,23 +14,38 @@ export type AdminLogoutResult =
   | { type: 'local_only' }
   | { type: 'secret_key' };
 
-const queues = new Map<string, Promise<unknown>>();
 const changedEvent = 'arky-admin-session-changed';
 
-function isEpochMilliseconds(value: unknown): value is EpochMilliseconds {
-  return typeof value === 'number' && Number.isSafeInteger(value);
-}
-
-function record(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
+const sessionFields = new Set(['id', 'access_token', 'refresh_token', 'email']);
 
 function validSession(value: unknown): value is AdminSessionInternal {
-  return record(value) && isCanonicalId(value.id)
+  return isRecord(value) && Object.keys(value).every((key) => sessionFields.has(key))
+    && isCanonicalId(value.id)
+    && typeof value.access_token === 'string' && value.access_token.length > 0
+    && typeof value.refresh_token === 'string' && value.refresh_token.length > 0
+    && (value.email === undefined || typeof value.email === 'string');
+}
+
+function validRefreshAnswer(value: unknown, sessionId: string): value is AuthToken {
+  return isRecord(value) && value.id === sessionId
     && typeof value.access_token === 'string' && value.access_token.length > 0
     && typeof value.refresh_token === 'string' && value.refresh_token.length > 0
     && isEpochMilliseconds(value.access_expires_at)
-    && (value.email === undefined || typeof value.email === 'string');
+    && isEpochMilliseconds(value.refresh_expires_at)
+    && isEpochMilliseconds(value.authenticated_at)
+    && isEpochMilliseconds(value.created_at)
+    && isEpochMilliseconds(value.updated_at);
+}
+
+function parsedSession(raw: string | null): AdminSessionInternal | null {
+  if (raw === null) return null;
+  let value: unknown;
+  try {
+    value = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  return validSession(value) ? value : null;
 }
 
 function errorBody(body: string): unknown {
@@ -58,15 +74,21 @@ export function createAdminSessionState(baseUrl: string, refreshPath?: string | 
   let memory: AdminSessionInternal | null = null;
   let storageUnavailable = false;
 
+  function storageRefused(): void {
+    storageUnavailable = true;
+    window.dispatchEvent(new CustomEvent(changedEvent, { detail: storageKey }));
+  }
+
   function read(): AdminSessionInternal | null {
     if (typeof window === 'undefined' || storageUnavailable) return memory;
+    let raw: string | null;
     try {
-      const raw = window.localStorage.getItem(storageKey);
-      const value: unknown = raw === null ? null : JSON.parse(raw);
-      memory = validSession(value) ? value : null;
+      raw = window.localStorage.getItem(storageKey);
     } catch {
-      storageUnavailable = true;
+      storageRefused();
+      return memory;
     }
+    memory = parsedSession(raw);
     return memory;
   }
 
@@ -74,13 +96,20 @@ export function createAdminSessionState(baseUrl: string, refreshPath?: string | 
     if (value !== null && !validSession(value)) throw new ArkyError('answer_mismatch', 'The Account session answer is invalid');
     memory = value;
     if (typeof window === 'undefined') return;
-    try {
-      if (value) window.localStorage.setItem(storageKey, JSON.stringify(value));
-      else window.localStorage.removeItem(storageKey);
-    } catch {
-      storageUnavailable = true;
+    if (!storageUnavailable) {
+      try {
+        if (value) window.localStorage.setItem(storageKey, JSON.stringify(value));
+        else window.localStorage.removeItem(storageKey);
+      } catch {
+        storageRefused();
+        return;
+      }
     }
     window.dispatchEvent(new CustomEvent(changedEvent, { detail: storageKey }));
+  }
+
+  function isStorageUnavailable(): boolean {
+    return storageUnavailable;
   }
 
   function subscribe(listener: () => void): () => void {
@@ -97,26 +126,6 @@ export function createAdminSessionState(baseUrl: string, refreshPath?: string | 
       window.removeEventListener('storage', onStorage);
       window.removeEventListener(changedEvent, onChanged);
     };
-  }
-
-  async function exclusive<T>(operation: () => Promise<T>): Promise<T> {
-    if (typeof navigator !== 'undefined' && navigator.locks) {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 35_000);
-      try {
-        return await navigator.locks.request(lockKey, { signal: controller.signal }, operation);
-      } finally {
-        clearTimeout(timer);
-      }
-    }
-    const previous = queues.get(lockKey) ?? Promise.resolve();
-    const current = previous.catch(() => {}).then(operation);
-    queues.set(lockKey, current);
-    try {
-      return await current;
-    } finally {
-      if (queues.get(lockKey) === current) queues.delete(lockKey);
-    }
   }
 
   async function send(path: string, init: RequestInit): Promise<{ ok: boolean; status: number; data: unknown }> {
@@ -144,35 +153,43 @@ export function createAdminSessionState(baseUrl: string, refreshPath?: string | 
       throw Object.assign(new ArkyError('refresh_failed', 'Account session refresh failed'), { statusCode: response.status });
     }
     const result = response.data;
-    if (!validSession(result) || result.id !== expected.id
-      || !record(result) || !isEpochMilliseconds(result.refresh_expires_at)
-      || !isEpochMilliseconds(result.authenticated_at) || !isEpochMilliseconds(result.created_at)
-      || !isEpochMilliseconds(result.updated_at)) {
+    if (!validRefreshAnswer(result, expected.id)) {
       throw new ArkyError('answer_mismatch', 'Account session refresh returned invalid credentials');
     }
-    return result as unknown as AuthToken;
+    return result;
+  }
+
+  function rotated(current: AdminSessionInternal, result: AuthToken): AdminSessionInternal {
+    return { ...current, access_token: result.access_token, refresh_token: result.refresh_token };
   }
 
   async function refresh(expected: TokenSet | null): Promise<void> {
-    await exclusive(async () => {
+    await exclusive(lockKey, async () => {
       const current = read();
       if (!expected || !current || current.id !== expected.id) throw changedLogin();
       if (current.access_token !== expected.access_token) return;
       const result = await rotate(current);
       if (!sameCredentials(read(), current)) throw changedLogin();
-      write({ ...current, ...result });
+      write(rotated(current, result));
     });
   }
 
   async function refreshExplicit(refreshToken: string): Promise<AuthToken> {
     const requested = read();
     if (!requested || requested.refresh_token !== refreshToken) throw changedLogin();
-    return exclusive(async () => {
+    return exclusive(lockKey, async () => {
       if (!sameCredentials(read(), requested)) throw changedLogin();
       const result = await rotate(requested);
       if (!sameCredentials(read(), requested)) throw changedLogin();
-      write({ ...requested, ...result });
+      write(rotated(requested, result));
       return result;
+    });
+  }
+
+  async function revoke(sessionId: string, accessToken: string) {
+    return send(`/v1/accounts/me/sessions/${sessionId}`, {
+      method: 'DELETE',
+      headers: { Accept: 'application/json', Authorization: `Bearer ${accessToken}` },
     });
   }
 
@@ -180,17 +197,15 @@ export function createAdminSessionState(baseUrl: string, refreshPath?: string | 
     const requested = read();
     if (!requested) return { type: 'local_only' };
     try {
-      return await exclusive(async () => {
+      return await exclusive(lockKey, async () => {
         const current = read();
-        let credential = current?.id === requested.id ? current : requested;
-        if (epochMillisecondsNow() >= credential.access_expires_at) {
-          credential = { ...credential, ...await rotate(credential) };
-        }
+        const credential = current?.id === requested.id ? current : requested;
         if (read()?.id === requested.id) write(null);
-        const response = await send(`/v1/accounts/me/sessions/${requested.id}`, {
-          method: 'DELETE',
-          headers: { Accept: 'application/json', Authorization: `Bearer ${credential.access_token}` },
-        });
+        let response = await revoke(requested.id, credential.access_token);
+        if (!response.ok && refusedByArky(response)) {
+          const renewed = rotated(credential, await rotate(credential));
+          response = await revoke(requested.id, renewed.access_token);
+        }
         if (!response.ok || response.data !== true) return { type: 'unconfirmed', session_id: requested.id };
         return { type: 'revoked', session_id: requested.id };
       });
@@ -201,5 +216,5 @@ export function createAdminSessionState(baseUrl: string, refreshPath?: string | 
     }
   }
 
-  return { read, write, subscribe, refresh, refreshExplicit, logout };
+  return { read, write, subscribe, refresh, refreshExplicit, logout, isStorageUnavailable };
 }

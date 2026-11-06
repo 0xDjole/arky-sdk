@@ -48,7 +48,6 @@ test('localized and structured blocks format through the explicit language witho
 	const localized = { id: 'title', key: 'title', type: 'localized_text', value: { bs: 'Naslov', en: 'Title' } };
 	assert.equal(formatBlockValue(localized, 'bs'), 'Naslov');
 	assert.equal(formatBlockValue(localized, 'de'), '');
-	assert.equal(formatBlockValue(localized, 'de', 'en'), 'Title');
 	assert.equal(formatBlockValue({ id: 'geo', key: 'geo', type: 'geo_location', value: { lat: 43.85, lon: 18.41 } }, 'en'), '43.85, 18.41');
 	assert.equal(formatBlockValue({ id: 'list', key: 'list', type: 'array', value: [] }, 'en'), '');
 	assert.equal(formatBlockValue({ id: 'group', key: 'group', type: 'object', value: [] }, 'en'), '');

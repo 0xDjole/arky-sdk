@@ -26,15 +26,15 @@ function selection(templateId) {
 }
 
 test("template discovery filters by purpose and the starters carry the fields they may print", async (context) => {
-  const starter = { key: "new_order_alert", name: "New Order Alert", type: { type: "new_order_alert" }, content: content.en, allowed_fields: ["order.number", "order.line_items.snapshot.variant_blocks.value.*"] };
+  const starter = { key: "order_alert", name: "New Order Alert", type: { type: "order_alert" }, content: content.en, allowed_fields: ["order.number", "order.line_items.snapshot.variant_blocks.value.*"] };
   const { client, calls } = setup(context, (call) => call.url.pathname.endsWith("/defaults")
     ? [starter]
     : { items: [], cursor: calls.length === 1 ? "next:+/=" : null });
-  const first = await client.notification.template.find({ store_id: store, type: "new_order_alert", limit: 1 });
-  await client.notification.template.find({ store_id: store, type: "new_order_alert", limit: 1, cursor: first.cursor });
+  const first = await client.notification.template.find({ store_id: store, type: "order_alert", limit: 1 });
+  await client.notification.template.find({ store_id: store, type: "order_alert", limit: 1, cursor: first.cursor });
   const defaults = await client.notification.template.findDefaults({ store_id: store });
   assert.deepEqual(defaults, { items: [starter], cursor: null });
-  assert.deepEqual(Object.fromEntries(calls[0].url.searchParams), { type: "new_order_alert", limit: "1" });
+  assert.deepEqual(Object.fromEntries(calls[0].url.searchParams), { type: "order_alert", limit: "1" });
   assert.equal(calls[1].url.searchParams.get("cursor"), first.cursor);
   assert.equal(calls[2].url.pathname, `/v1/stores/${store}/email-templates/defaults`);
 });
@@ -102,14 +102,14 @@ test("store emails name every selection, the alert recipients and the creation t
     renewal_upcoming: null,
     renewal_payment_failed: null,
     membership_cancelled: null,
-    new_order_alert: selection(template),
-    new_return_alert: null,
-    new_conversation_message_alert: selection(template),
+    order_alert: selection(template),
+    return_alert: null,
+    conversation_message_alert: selection(template),
     offer_reminder_after_days: 7,
-    new_order_alert_recipients: [{ type: "store_role", store_role_id: role, language: "en" }, { type: "email", email: "owner@example.test", language: "bs" }],
-    new_return_alert_recipients: [],
-    new_conversation_message_alert_recipients: [{ type: "store_role", store_role_id: role, language: "bs" }],
-    creation_templates: { form_received: template, form_stage_changed: template, new_form_submission_alert: template, support_message: template, broadcast: template },
+    order_alert_recipients: [{ type: "store_role", store_role_id: role, language: "en" }, { type: "email", email: "owner@example.test", language: "bs" }],
+    return_alert_recipients: [],
+    conversation_message_alert_recipients: [{ type: "store_role", store_role_id: role, language: "bs" }],
+    creation_templates: { form_received: template, form_stage_changed: template, form_submission_alert: template, support_message: template, broadcast: template },
   };
   const saved = { id: "2d4f6a8c-0e1f-4a3c-9e5b-7d9f1b3d5f7a", store_id: store, ...settings, created_at: 1, updated_at: 2 };
   const { client, calls } = setup(context, () => saved);
@@ -122,6 +122,6 @@ test("store emails name every selection, the alert recipients and the creation t
   for (const removed of ["staff_new_order", "staff_new_return", "staff_new_order_recipients", "staff_new_return_recipients", "sending_address_id", "sign_in_code"]) {
     assert.equal(removed in calls[1].body, false, removed);
   }
-  assert.deepEqual(calls[1].body.new_conversation_message_alert, selection(template));
-  assert.deepEqual(calls[1].body.new_conversation_message_alert_recipients, [{ type: "store_role", store_role_id: role, language: "bs" }]);
+  assert.deepEqual(calls[1].body.conversation_message_alert, selection(template));
+  assert.deepEqual(calls[1].body.conversation_message_alert_recipients, [{ type: "store_role", store_role_id: role, language: "bs" }]);
 });

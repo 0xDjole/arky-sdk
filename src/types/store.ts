@@ -85,15 +85,6 @@ export type FeatureType =
   | "support_flows"
   | "broadcasts";
 
-export interface StoreUsage {
-  id: string;
-  store_id: string;
-  feature: FeatureType;
-  count: number;
-  created_at: EpochMilliseconds;
-  updated_at: EpochMilliseconds;
-}
-
 export type StoreUsageAllowance =
   | { type: "limited"; limit: number }
   | { type: "unlimited" }

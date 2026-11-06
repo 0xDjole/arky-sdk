@@ -161,8 +161,8 @@ test("support start and send reuse their factory ids after a lost answer", async
     };
   });
   const client = storefront(idSequence(conversationId, messageId));
-  await assert.rejects(client.support.conversation.start({ language: "en" }), /Lost response/);
-  const started = await client.support.conversation.start({ language: "en" });
+  await assert.rejects(client.support.conversation.start({ language: "en", flow_key: "default" }), /Lost response/);
+  const started = await client.support.conversation.start({ language: "en", flow_key: "default" });
   assert.equal(started.conversation.id, conversationId);
   lose = true;
   const send = { conversation_id: conversationId, input: { type: "text", text: "Hi" } };

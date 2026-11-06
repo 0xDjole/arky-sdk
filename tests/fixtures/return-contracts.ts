@@ -29,6 +29,7 @@ import type {
   ReturnTypeRequest,
   StorefrontCreateReturnParams,
   StorefrontFindReturnsParams,
+  StorefrontReturnDetail,
 } from "arky-sdk";
 import type { Block, ProductReference, Return as PublicReturn, PaginatedResponse } from "arky-sdk/types";
 
@@ -93,7 +94,7 @@ export type ReturnContract = [
   Assert<Equal<RentalReturnLineRequest["reason"], RentalReturnReason>>,
   Assert<Missing<Return, "tracking">>,
   Assert<Equal<Awaited<ReturnType<Api["get"]>>, ReturnDetail>>,
-  Assert<Equal<Awaited<ReturnType<StorefrontReturnApi["get"]>>, ReturnDetail>>,
+  Assert<Equal<Awaited<ReturnType<StorefrontReturnApi["get"]>>, StorefrontReturnDetail>>,
   Assert<Equal<keyof ReturnDetail, keyof Return | "products">>,
   Assert<Equal<ReturnDetail["products"], ReturnLineProduct[]>>,
   Assert<Equal<ReturnLineProduct, { line_id: string; product: ProductReference | null }>>,

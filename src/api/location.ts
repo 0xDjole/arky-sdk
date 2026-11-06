@@ -15,7 +15,7 @@ import type {
 import { requireId } from "../utils/ids";
 import { segment, storePath, storeRecordPath } from "./paths";
 
-export const createCountryApi = (apiConfig: ApiConfig) => ({
+export const createCountryApi = (apiConfig: Pick<ApiConfig, "httpClient">) => ({
   find(options?: RequestOptions): Promise<PaginatedResponse<LocationCountry>> {
     return apiConfig.httpClient.get<PaginatedResponse<LocationCountry>>("/v1/platform/countries", options);
   },
