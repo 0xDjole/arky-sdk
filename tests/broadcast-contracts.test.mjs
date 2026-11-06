@@ -7,14 +7,14 @@ import { apiUrl, errorResponse, idFactories, publishableKey, recordFetch, Sessio
 const storeId = "4f2a9c61-7e3b-4d85-a0c9-1b6e8d3f5a27";
 const broadcastId = "6e2b9d41-3c58-4a07-9f1e-2d7c5b0a8e63";
 const testId = "1a5c8e27-4b39-4d60-a2f7-9e3d0c6b5a18";
-const groupId = "2d8f4b16-9c37-4e05-a1b8-6f3d0c2e7a94";
+const memberPackageId = "2d8f4b16-9c37-4e05-a1b8-6f3d0c2e7a94";
 const email = {
   email_template_id: "3a5c7e9b-1d2f-4a6c-8e0b-2d4f6a8c0e1f",
   sending_address_id: "4b6d8f0a-2e3a-4b7d-9f1c-3e5a7b9d1f2a",
   from_name: "Shop News",
   reply_to: { type: "external", email: "hello@example.test" },
 };
-const audience = { include: [{ type: "customer_group", customer_group_id: groupId }], exclude: [], conditions: [{ type: "ordered_within", days: 30 }] };
+const audience = { include: [{ type: "package", package_id: memberPackageId }], exclude: [], conditions: [{ type: "ordered_within", days: 30 }] };
 
 function broadcasts() {
   return createAdmin({ apiUrl: "https://broadcasts.test", secretKey: "arky_api_broadcasts" }).broadcast;

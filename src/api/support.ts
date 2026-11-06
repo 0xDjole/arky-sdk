@@ -37,6 +37,7 @@ import type {
 import { requireId } from "../utils/ids";
 import { segment, storePath, storeRecordPath } from "./paths";
 import { createConversationNoteApi } from "./note";
+import { isValidKey } from "../utils/keyValidation";
 
 export function createStorefrontSupportApi(
   httpClient: HttpClient,
@@ -49,14 +50,13 @@ export function createStorefrontSupportApi(
   return {
     conversation: {
       async start(params: StartConversationParams, options?: RequestOptions): Promise<StorefrontConversationReply> {
+        if (typeof params.flow_key !== "string" || !isValidKey(params.flow_key)) {
+          throw new TypeError("A chat starts on a support flow: pass its flow_key, an exact key");
+        }
         const send = (id: string) =>
           httpClient.post<StorefrontConversationReply>(
             base,
-            {
-              id,
-              language: params.language,
-              ...(params.flow_key !== undefined ? { flow_key: params.flow_key } : {}),
-            },
+            { id, language: params.language, flow_key: params.flow_key },
             options,
           );
         if (params.id !== undefined) {
@@ -66,10 +66,10 @@ export function createStorefrontSupportApi(
         }
         await ensureSession();
         return runDurableCreate({
-          key: flows.pendingKey("conversation", params.flow_key ?? ""),
+          key: flows.pendingKey("conversation", params.flow_key),
           label: "support conversation",
-          input: { language: params.language, flow_key: params.flow_key ?? null },
-          newId: () => flows.newId("conversation"),
+          input: { language: params.language, flow_key: params.flow_key },
+          appId: () => flows.appId("conversation"),
           send,
           confirms: (reply, id) => reply.conversation.id === id,
         });
@@ -124,7 +124,7 @@ export function createStorefrontSupportApi(
           key: flows.pendingKey("conversation-message", params.conversation_id),
           label: "support message",
           input: { conversation_id: params.conversation_id, input: params.input, prompt_message_id: params.prompt_message_id ?? null },
-          newId: () => flows.newId("conversation message"),
+          appId: () => flows.appId("conversation message"),
           send,
           confirms: (reply, id) =>
             reply.conversation.id === params.conversation_id && reply.messages.some((message) => message.id === id),

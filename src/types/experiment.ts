@@ -18,20 +18,6 @@ export interface Experiment {
   updated_at: EpochMilliseconds;
 }
 
-export type ExperimentEligibility =
-  | { type: "eligible" }
-  | { type: "excluded_by_merge"; excluded_at: EpochMilliseconds };
-
-export interface ExperimentAssignment {
-  id: string;
-  store_id: string;
-  experiment_id: string;
-  customer_id: string;
-  variant_key: string;
-  eligibility: ExperimentEligibility;
-  assigned_at: EpochMilliseconds;
-}
-
 export interface ExperimentVariantResult {
   variant_key: string;
   allocation_bps: number;

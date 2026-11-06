@@ -94,6 +94,63 @@ export interface ReturnDetail extends Return {
   products: ReturnLineProduct[];
 }
 
+export type StorefrontReturnDisposition = { type: "restocked" } | { type: "not_restocked" };
+
+export interface StorefrontReturnItemDecision {
+  quantity: number;
+  disposition: StorefrontReturnDisposition;
+  decided_at: EpochMilliseconds;
+}
+
+export interface StorefrontReturnItem {
+  inventory_item_id: string;
+  quantity: number;
+  received: number;
+  missing: number;
+  decisions: StorefrontReturnItemDecision[];
+}
+
+export interface StorefrontOrderReturnLine {
+  id: string;
+  order_product_line_item_id: string;
+  unit_spans: UnitSpan[];
+  reason: ReturnReason;
+  note: string | null;
+  items: StorefrontReturnItem[];
+}
+
+export interface StorefrontRentalReturnLine {
+  id: string;
+  inventory_unit_id: string;
+  reason: RentalReturnReason;
+  note: string | null;
+  items: StorefrontReturnItem[];
+}
+
+export type StorefrontReturnType =
+  | { type: "order"; order_id: string; lines: StorefrontOrderReturnLine[] }
+  | { type: "rental"; rental_id: string; lines: StorefrontRentalReturnLine[] };
+
+export type StorefrontReturnRequester =
+  | { type: "system" }
+  | { type: "customer"; customer_id: string }
+  | { type: "account" };
+
+export interface StorefrontReturn {
+  id: string;
+  store_id: string;
+  type: StorefrontReturnType;
+  requested_by: StorefrontReturnRequester;
+  trackings: Tracking[];
+  status: ReturnStatus;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+}
+
+export interface StorefrontReturnDetail extends StorefrontReturn {
+  products: ReturnLineProduct[];
+}
+
 export interface ReturnItemRequest {
   inventory_item_id: string;
   quantity: number;

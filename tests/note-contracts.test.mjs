@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { createStorefront } from "../dist/storefront.js";
+import { fixedIdFactories } from "./helpers/arky-fixtures.mjs";
 
 const baseUrl = "https://api.notes.test";
 const storeId = "6f2d8b14-3a95-4c07-b1e6-9d4a7c2e5f38";
@@ -81,7 +82,7 @@ test("submission and conversation notes are Note records, and a stage change car
 });
 
 test("notes are staff-only and absent from the storefront client", () => {
-  const storefront = createStorefront(`arky_pk_${"n".repeat(42)}A`, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl: baseUrl });
+  const storefront = createStorefront(`arky_pk_${"n".repeat(42)}A`, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl });
   assert.equal("notes" in storefront.eshop.order, false);
   assert.equal("notes" in storefront.companies, false);
 });

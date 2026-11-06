@@ -38,8 +38,14 @@ export { paginate, readAllPages } from "./paginate";
 export type { PageRead, PaginateOptions } from "./paginate";
 export { latestPayment, paymentOutcome } from "./paymentOutcome";
 export type { PaymentOutcome } from "./paymentOutcome";
-export { paymentAmounts } from "./paymentAmounts";
-export type { PaymentAmounts } from "./paymentAmounts";
+export { disputeWithdrawnAmount, paymentAmounts, refundAmounts } from "./paymentAmounts";
+export {
+  COUNTRIES_WITHOUT_POSTAL_CODES,
+  COUNTRIES_WITH_SHIPPING_STATES,
+  missingShippingFields,
+} from "./address";
+export type { ShippingAddressField } from "./address";
+export type { PaymentAmounts, PaymentRefundView } from "./paymentAmounts";
 
 export {
   blockContent,
@@ -66,7 +72,7 @@ export {
 } from "./fulfillmentSelection";
 export { hasStorePermission, storeLocationReadReach, storePermissionReach } from "./storeAccess";
 export { FulfillmentSelectionError } from "../types/fulfillmentSelection";
-export { copyCartProductPurchase } from "./cartInputs";
+export { copyPackagePriceRef } from "./cartInputs";
 export { isCanonicalId, requireId } from "./ids";
 
 export { createOrderToken, isOrderToken, retainOrderToken, replaceOrderToken, readOrderToken } from "./orderToken";

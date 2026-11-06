@@ -1,4 +1,4 @@
-import type { CalendarDate, EpochMilliseconds } from "./time";
+import type { EpochMilliseconds } from "./time";
 
 export interface PaginatedResponse<T> {
   items: T[];
@@ -49,14 +49,13 @@ export type Schedule =
   | { type: "always" }
   | { type: "scheduled"; starts_at: EpochMilliseconds; ends_at: EpochMilliseconds | null };
 
+export type When =
+  | { type: "never" }
+  | { type: "at"; at: EpochMilliseconds };
+
 export interface TimeRange {
   from: EpochMilliseconds;
   to: EpochMilliseconds;
-}
-
-export interface CalendarDateRange {
-  from: CalendarDate;
-  to: CalendarDate;
 }
 
 export interface UnitSpan {

@@ -1,5 +1,5 @@
 import { formatMinor, latestPayment, paymentAmounts, paymentOutcome } from "arky-sdk/storefront";
-import { arky, buyer, catalog } from "./setup.js";
+import { arky, buyer, shopPackage } from "./setup.js";
 
 const orderId = new URLSearchParams(location.search).get("order_id");
 
@@ -13,7 +13,7 @@ if (orderId) {
   const amounts = paymentAmounts(payments.items);
   console.log(opened.order.number, outcome, latest ? formatMinor(amounts.net_paid, latest.money.currency, "en") : null);
 
-  const checkout = arky.eshop.checkoutFlow({ buyer, catalog_id: catalog.id });
+  const checkout = arky.eshop.checkoutFlow({ buyer, package_id: shopPackage.id });
   const reopened = await checkout.openOrder({ order_id: opened.order.id, url: location.href });
   if (reopened.state.outcome === "awaiting") {
     const next = await checkout.resumePayment();

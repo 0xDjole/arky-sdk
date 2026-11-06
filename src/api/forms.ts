@@ -20,6 +20,7 @@ import type {
   GetFormSubmissionParams,
   GetStorefrontFormByKeyParams,
   GetStorefrontFormParams,
+  StorefrontForm,
   StorefrontFormSubmission,
   SubmitFormRequest,
   UpdateFormParams,
@@ -144,12 +145,12 @@ export const createFormsApi = (apiConfig: ApiConfig) => {
 };
 
 export const createStorefrontFormsApi = (httpClient: HttpClient) => ({
-  get(params: GetStorefrontFormParams, options?: RequestOptions): Promise<Form> {
-    return httpClient.get<Form>(`/v1/storefront/forms/${segment(params.id)}`, options);
+  get(params: GetStorefrontFormParams, options?: RequestOptions): Promise<StorefrontForm> {
+    return httpClient.get<StorefrontForm>(`/v1/storefront/forms/${segment(params.id)}`, options);
   },
 
-  getByKey(params: GetStorefrontFormByKeyParams, options?: RequestOptions): Promise<Form> {
-    return httpClient.get<Form>(`/v1/storefront/forms/${segment(params.key)}`, options);
+  getByKey(params: GetStorefrontFormByKeyParams, options?: RequestOptions): Promise<StorefrontForm> {
+    return httpClient.get<StorefrontForm>(`/v1/storefront/forms/${segment(params.key)}`, options);
   },
 
   submit(params: SubmitFormRequest, options?: RequestOptions): Promise<StorefrontFormSubmission> {

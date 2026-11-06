@@ -1,7 +1,7 @@
 import { CheckoutFlowError, mountCheckoutAction, MonriCheckoutError } from "arky-sdk/storefront";
-import { arky, buyer, catalog } from "./setup.js";
+import { arky, buyer, shopPackage } from "./setup.js";
 
-const checkout = arky.eshop.checkoutFlow({ buyer, catalog_id: catalog.id });
+const checkout = arky.eshop.checkoutFlow({ buyer, package_id: shopPackage.id });
 
 checkout.state.subscribe((state) => {
   console.log(state.step, state.quote?.blockers, state.error?.code);

@@ -1,9 +1,9 @@
 import { ArkyError } from "./apiError";
 import type { RequestOptions } from "./httpClient";
 import type {
-  Cart,
-  CreatedCart,
-  ReorderedCart,
+  StorefrontCart,
+  StorefrontCreatedCart,
+  StorefrontReorderedCart,
   StorefrontCreateCartParams,
   StorefrontGetCartParams,
   StorefrontReorderParams,
@@ -18,6 +18,7 @@ export interface CartSelectionContext {
   } | null;
   customerId(): string | null;
   market(): string | null;
+  marketId(): Promise<string>;
 }
 
 export interface SelectedCart {
@@ -26,9 +27,9 @@ export interface SelectedCart {
 }
 
 export interface CartSelectionTransport {
-  get(params: StorefrontGetCartParams, options?: RequestOptions): Promise<Cart>;
-  create(params: StorefrontCreateCartParams, options?: RequestOptions): Promise<CreatedCart>;
-  reorder(params: StorefrontReorderParams, options?: RequestOptions): Promise<ReorderedCart>;
+  get(params: StorefrontGetCartParams, options?: RequestOptions): Promise<StorefrontCart>;
+  create(params: StorefrontCreateCartParams & { market_id: string }, options?: RequestOptions): Promise<StorefrontCreatedCart>;
+  reorder(params: StorefrontReorderParams & { market_id: string }, options?: RequestOptions): Promise<StorefrontReorderedCart>;
 }
 
 export type CartErrorCode =

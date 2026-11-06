@@ -1,17 +1,17 @@
 import type { RequestOptions, RequestSuccessContext } from "./httpClient";
-import type { CartQuote, CheckoutAcceptance, StorefrontCheckoutCartInput } from "./cart";
-import type { Order } from "./order";
+import type { CartQuote, StorefrontCheckoutAcceptance, StorefrontCheckoutCartInput } from "./cart";
+import type { StorefrontOrder } from "./order";
 import { ArkyApiError, type ArkyApiErrorDetails } from "./apiError";
 
 export type CartCheckoutRequest = StorefrontCheckoutCartInput;
 
 export interface CartCheckoutTransport<Request> {
-  post(request: Request, options?: RequestOptions): Promise<CheckoutAcceptance>;
-  getOrder(id: string, options?: RequestOptions): Promise<Order>;
+  post(request: Request, options?: RequestOptions): Promise<StorefrontCheckoutAcceptance>;
+  getOrder(id: string, options?: RequestOptions): Promise<StorefrontOrder>;
 }
 
 export interface CartCheckoutSubmission {
-  result: CheckoutAcceptance;
+  result: StorefrontCheckoutAcceptance;
   success: RequestSuccessContext | undefined;
 }
 

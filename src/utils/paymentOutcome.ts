@@ -1,8 +1,8 @@
-import type { Payment } from "../types/payment";
+import type { StorefrontPayment } from "../types/payment";
 
 export type PaymentOutcome = "paid" | "pay_later" | "awaiting" | "unconfirmed" | "failed";
 
-function collected(payment: Payment): number {
+function collected(payment: StorefrontPayment): number {
   const type = payment.type;
   if (type.type !== "cash_on_delivery" && type.type !== "manual") return 0;
   return type.collections
@@ -10,7 +10,7 @@ function collected(payment: Payment): number {
     .reduce((total, collection) => total + collection.money.amount, 0);
 }
 
-export function paymentOutcome(payment: Payment): PaymentOutcome {
+export function paymentOutcome(payment: StorefrontPayment): PaymentOutcome {
   const recorded = payment.type.type === "cash_on_delivery" || payment.type.type === "manual";
   switch (payment.status) {
     case "paid":
@@ -32,8 +32,8 @@ export function paymentOutcome(payment: Payment): PaymentOutcome {
   }
 }
 
-export function latestPayment(payments: readonly Payment[]): Payment | null {
-  return payments.reduce<Payment | null>(
+export function latestPayment<P extends StorefrontPayment>(payments: readonly P[]): P | null {
+  return payments.reduce<P | null>(
     (latest, payment) => (latest === null || payment.created_at > latest.created_at ? payment : latest),
     null,
   );

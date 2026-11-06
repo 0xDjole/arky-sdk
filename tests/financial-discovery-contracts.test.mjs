@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/index.js";
 import { createStorefront } from "../dist/storefront.js";
-import { ids, recordFetch, visitorStorage } from "./helpers/arky-fixtures.mjs";
+import { fixedIdFactories, ids, recordFetch, visitorStorage } from "./helpers/arky-fixtures.mjs";
 
 const STORE_ID = "d2a64f1b-8c37-4e59-b0a1-6f3e9c7d2b84";
 
@@ -131,11 +131,7 @@ test("a buyer reads an order's payments on the storefront by the order and payme
       customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58",
       session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63",
     },
-    createVisitorIdentity: () => ({
-      customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47",
-      session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14",
-    }),
-    createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`,
+    ...fixedIdFactories,
     apiUrl: "https://financial.example.test",
     sessionStorage: visitorStorage(),
   });

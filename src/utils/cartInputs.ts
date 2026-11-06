@@ -1,48 +1,30 @@
 import type { RequestOptions, TransportOptions } from "../types/httpClient";
 import type {
   CartBookingLineItemInput,
-  CartCustomerGroupLineItemInput,
   CartLineItemInput,
+  CartPackageLineItemInput,
   CartProductLineItemInput,
-  CartProductPurchase,
   FindStorefrontCartOffersParams,
   StorefrontUpdateCartParams,
 } from "../types/cart";
+import type { PackagePriceRef } from "../types/package";
 import { requireId } from "./ids";
 
-export function copyCartProductPurchase(purchase: CartProductPurchase): CartProductPurchase {
-  switch (purchase.type) {
-    case "catalog":
-      return { type: "catalog", catalog_item_price_id: purchase.catalog_item_price_id };
-    case "existing_purchase_access":
-      return {
-        type: "existing_purchase_access",
-        grant: {
-          order_id: purchase.grant.order_id,
-          order_purchase_access_line_item_id: purchase.grant.order_purchase_access_line_item_id,
-        },
-      };
-    case "same_cart_purchase_access":
-      return {
-        type: "same_cart_purchase_access",
-        cart_customer_group_line_item_id: purchase.cart_customer_group_line_item_id,
-        entitlement_id: purchase.entitlement_id,
-      };
-    case "assigned_purchase_access":
-      return {
-        type: "assigned_purchase_access",
-        customer_group_member_id: purchase.customer_group_member_id,
-        entitlement_id: purchase.entitlement_id,
-      };
-    default:
-      throw new TypeError("A cart product needs an explicit supported purchase route");
+export function copyPackagePriceRef(price: PackagePriceRef): PackagePriceRef {
+  if (typeof price !== "object" || price === null) {
+    throw new TypeError("A cart line names its exact price: { package_id, package_item_id, price_id }");
+  }
+  return { package_id: price.package_id, package_item_id: price.package_item_id, price_id: price.price_id };
+}
+
+export function refusePerCallMarket(options?: RequestOptions): void {
+  if (options?.market !== undefined) {
+    throw new TypeError("A cart call uses the storefront's market; change it with setContext({ market })");
   }
 }
 
 export function cartTokenOptions(options?: RequestOptions, token?: string | null): RequestOptions {
-  if (options?.market !== undefined) {
-    throw new TypeError("A cart call uses the storefront's market; change it with setContext({ market })");
-  }
+  refusePerCallMarket(options);
   const { params: _params, ...caller } = (options ?? {}) as TransportOptions;
   const headers = Object.fromEntries(
     Object.entries(caller.headers ?? {}).filter(([name]) => name.toLowerCase() !== "x-arky-cart-token"),
@@ -77,7 +59,7 @@ export function storefrontCartProduct(item: CartProductLineItemInput): CartProdu
     id: item.id,
     variant_id: item.variant_id,
     quantity: item.quantity,
-    purchase: copyCartProductPurchase(item.purchase),
+    price: copyPackagePriceRef(item.price),
     ...(item.form_submission_id !== undefined ? { form_submission_id: item.form_submission_id } : {}),
   };
 }
@@ -89,20 +71,20 @@ export function storefrontCartBooking(item: CartBookingLineItemInput): CartBooki
     booking_offering_id: item.booking_offering_id,
     requested_interval: { from: item.requested_interval.from, to: item.requested_interval.to },
     capacity_units: item.capacity_units,
-    catalog_item_price_id: item.catalog_item_price_id,
+    price: copyPackagePriceRef(item.price),
     ...(item.form_submission_id !== undefined ? { form_submission_id: item.form_submission_id } : {}),
   };
 }
 
-export function storefrontCartCustomerGroup(item: CartCustomerGroupLineItemInput): CartCustomerGroupLineItemInput {
+export function storefrontCartPackage(item: CartPackageLineItemInput): CartPackageLineItemInput {
   requireId(item.id, "cart line");
   return {
     id: item.id,
-    customer_group_id: item.customer_group_id,
+    package_id: item.package_id,
     quantity: item.quantity,
-    choices: item.choices.map(({ entitlement_id, variant_id }) => ({ entitlement_id, variant_id })),
+    choices: item.choices.map(({ package_item_id, variant_id }) => ({ package_item_id, variant_id })),
     start: item.start,
-    catalog_item_price_id: item.catalog_item_price_id,
+    price: copyPackagePriceRef(item.price),
     ...(item.deliveries !== undefined ? { deliveries: item.deliveries } : {}),
   };
 }
@@ -114,10 +96,10 @@ export function storefrontCartLineItems(items: readonly CartLineItemInput[]): Ca
         return { type: "product", ...storefrontCartProduct(item) };
       case "booking":
         return { type: "booking", ...storefrontCartBooking(item) };
-      case "customer_group":
-        return { type: "customer_group", ...storefrontCartCustomerGroup(item) };
+      case "package":
+        return { type: "package", ...storefrontCartPackage(item) };
       default:
-        throw new TypeError("A cart line must be a product, a booking or a customer group");
+        throw new TypeError("A cart line must be a product, a booking or a package");
     }
   });
 }
@@ -128,7 +110,8 @@ export function storefrontCartUpdateBody(
   return {
     expected_updated_at: input.expected_updated_at,
     ...(input.buyer !== undefined ? { buyer: input.buyer } : {}),
-    ...(input.catalog_id !== undefined ? { catalog_id: input.catalog_id } : {}),
+    ...(input.package_id !== undefined ? { package_id: input.package_id } : {}),
+    ...(input.market_id !== undefined ? { market_id: input.market_id } : {}),
     ...(input.blocks !== undefined ? { blocks: input.blocks } : {}),
     ...(input.line_items !== undefined ? { line_items: storefrontCartLineItems(input.line_items) } : {}),
     ...(input.delivery_groups !== undefined ? { delivery_groups: input.delivery_groups } : {}),

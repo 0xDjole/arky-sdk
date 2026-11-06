@@ -17,6 +17,7 @@ const selection = {
     publishable_key: "pk_test_subscription",
     client_secret: "cs_store_subscription_secret_exact",
     expires_at: 1_800_000_000_000,
+    runs_on: { type: "provider" },
   },
 };
 

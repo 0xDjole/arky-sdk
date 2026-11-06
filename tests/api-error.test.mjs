@@ -70,6 +70,22 @@ test("network failures are ArkyNetworkErrors with a code, not ArkyApiErrors, and
   assert.equal(isDefiniteRefusal(error), false);
 });
 
+test("a 200 that isn't JSON fails as unreadable_answer", async (context) => {
+  recordFetch(context, () => new Response("<html>", { status: 200, headers: { "content-type": "text/html" } }));
+  const admin = createAdmin({ apiUrl: apiUrl, secretKey: "arky_sk_test" });
+  const read = await admin.account.getMe().catch((caught) => caught);
+  assert.ok(read instanceof ArkyNetworkError);
+  assert.equal(read.code, "unreadable_answer");
+  const reported = [];
+  const input = { store_id: "ab73eb42-89fd-4cbf-a1fd-fb84e6d78590", id: "912d27b1-2ed8-4a82-a2f1-318a45e31694", name: "Backend", type: { type: "secret", permissions: [], expires_at: null } };
+  const write = await admin.store.apiKey.create(input, { onError: (failure) => { reported.push(failure); } }).catch((caught) => caught);
+  assert.ok(write instanceof ArkyNetworkError);
+  assert.equal(write.code, "unreadable_answer");
+  assert.equal(reported.length, 1);
+  assert.equal(reported[0].error, write);
+  assert.equal(reported[0].method, "POST");
+});
+
 test("Admin refusals are the same ArkyApiError class", async (context) => {
   recordFetch(context, () => errorResponse(401, "GENERAL.UNAUTHENTICATED", "Expired"));
   const admin = createAdmin({ apiUrl: apiUrl, secretKey: "arky_sk_test" });

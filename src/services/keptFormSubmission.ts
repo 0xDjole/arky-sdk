@@ -18,17 +18,14 @@ import {
 } from "../utils/durableRequest";
 import { fingerprint } from "../utils/fingerprint";
 import { isCanonicalId, requireId } from "../utils/ids";
+import { isRecord } from "../utils/record";
 
 const label = "kept form submission";
 const answerTypes = ["text", "email", "number", "boolean", "date", "date_time", "geo_location", "select_one", "select_many"];
 
-function record(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
 function keptAnswer(value: unknown): value is KeptFormAnswer {
   return (
-    record(value) &&
+    isRecord(value) &&
     typeof value.type === "string" &&
     answerTypes.includes(value.type) &&
     typeof value.question_id === "string" &&
@@ -39,7 +36,7 @@ function keptAnswer(value: unknown): value is KeptFormAnswer {
 function keptSubmission(saved: DurableRequest): KeptFormSubmission {
   const value = durableRequestPayload(saved);
   if (
-    !record(value) ||
+    !isRecord(value) ||
     Object.keys(value).length !== 5 ||
     !isCanonicalId(value.id) ||
     typeof value.form_id !== "string" ||
@@ -73,7 +70,7 @@ function sameRequest(kept: KeptFormSubmission, params: KeptFormDraft): boolean {
 export async function retainFormSubmission(
   key: string,
   params: KeptFormDraft,
-  newId: () => string,
+  appId: () => string,
 ): Promise<KeptFormSubmission> {
   const answers = params.answers.filter(keptAnswer);
   if (answers.length !== params.answers.length) {
@@ -87,7 +84,7 @@ export async function retainFormSubmission(
       throw new DurableRequestError("pending", "Another submission of this form is still kept; send it again first");
     }
     const kept: KeptFormSubmission = {
-      id: requireId(params.id ?? newId(), "form submission"),
+      id: requireId(params.id ?? appId(), "form submission"),
       form_id: params.form_id,
       questions_updated_at: params.questions_updated_at,
       language: params.language,

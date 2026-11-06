@@ -1,7 +1,7 @@
 import { atom, computed, map, type ReadableAtom } from "nanostores";
 import type { RequestOptions } from "../types/api";
 import type {
-  Cart,
+  StorefrontCart,
   CartBuyer,
   CartDeliveryDestination,
   CartDeliveryGroup,
@@ -9,13 +9,16 @@ import type {
   CartLineItemInput,
   CartProductLineItem,
   CartQuote,
-  CheckoutAcceptance,
-  CustomerGroupDeliveryOffers,
+  StorefrontCheckoutAcceptance,
+  PackageDeliveryOffers,
   QuoteLine,
   QuotePromotionCode,
   StorefrontCheckoutCartInput,
+  StorefrontCartLineItem,
+  StorefrontPackageStart,
 } from "../types/cart";
-import { cartBookingItems, cartCustomerGroupItems, cartProductItems } from "../types/cart";
+import type { PackageStart } from "../types/packageMember";
+import { cartBookingItems, cartPackageItems, cartProductItems } from "../types/cart";
 import { CartError } from "../types/cartSelection";
 import { ArkyApiError, ArkyNetworkError, errorInfo } from "../types/apiError";
 import type { CompanyPartyQuery } from "../types/common";
@@ -25,7 +28,7 @@ import { fingerprint } from "../utils/fingerprint";
 import { epochMillisecondsNow } from "../utils/time";
 import type {
   ArkyAddBookingParams,
-  ArkyAddCustomerGroupParams,
+  ArkyAddPackageParams,
   ArkyAddProductParams,
   ArkyCartCheckoutParams,
   ArkyCartCreateParams,
@@ -56,8 +59,9 @@ export interface CartStoreContext {
   locale: ReadableAtom<string>;
   requireLocale(): string;
   beginCartOperation(): Promise<CartScope>;
-  newId(label: string): string;
-  newOrderToken(): string;
+  assertMarket(): void;
+  appId(label: string): string;
+  appOrderToken(): string;
 }
 
 const variantReadsAtOnce = 10;
@@ -85,7 +89,14 @@ function quoteBody(id: string, params: ArkyCartQuoteParams): { id: string; conta
   return params.contact_email !== undefined ? { id, contact_email: params.contact_email } : { id };
 }
 
-function cartLineInput(line: CartLineItem): CartLineItemInput {
+function packageStartInput(start: StorefrontPackageStart): PackageStart {
+  if (start.type === "amend") {
+    throw new CartError("not_ready", "The cart holds a store team's amendment, which only the store team changes");
+  }
+  return start;
+}
+
+function cartLineInput(line: StorefrontCartLineItem): CartLineItemInput {
   switch (line.type) {
     case "product":
       return {
@@ -94,7 +105,7 @@ function cartLineInput(line: CartLineItem): CartLineItemInput {
         variant_id: line.variant_id,
         quantity: line.quantity,
         form_submission_id: line.form_submission_id,
-        purchase: line.purchase,
+        price: line.price,
       };
     case "booking":
       return {
@@ -104,18 +115,18 @@ function cartLineInput(line: CartLineItem): CartLineItemInput {
         requested_interval: { from: line.requested_interval.from, to: line.requested_interval.to },
         capacity_units: line.capacity_units,
         form_submission_id: line.form_submission_id,
-        catalog_item_price_id: line.catalog_item_price_id,
+        price: line.price,
       };
-    case "customer_group":
+    case "package":
       return {
-        type: "customer_group",
+        type: "package",
         id: line.id,
-        customer_group_id: line.customer_group_id,
+        package_id: line.package_id,
         quantity: line.quantity,
-        choices: line.choices.map(({ entitlement_id, variant_id }) => ({ entitlement_id, variant_id })),
-        start: line.start,
+        choices: line.choices.map(({ package_item_id, variant_id }) => ({ package_item_id, variant_id })),
+        start: packageStartInput(line.start),
         deliveries: line.deliveries,
-        catalog_item_price_id: line.catalog_item_price_id,
+        price: line.price,
       };
   }
 }
@@ -140,14 +151,14 @@ export function buyerParty(buyer: CartBuyer | undefined): CompanyPartyQuery {
 }
 
 export function deliveryGroupsFor(
-  cart: Cart,
+  cart: StorefrontCart,
   profileByLine: ReadonlyMap<string, string>,
   destination: CartDeliveryDestination,
-  newId: () => string,
+  appId: () => string,
 ): CartDeliveryGroup[] {
   const holdsProducts = (group: CartDeliveryGroup) => group.items.some((item) => item.line_item.type === "product");
   if (cart.delivery_groups.some((group) => holdsProducts(group) && group.items.some((item) => item.line_item.type !== "product"))) {
-    throw new CartError("not_ready", "A delivery mixes product lines with group deliveries; set it with setDeliveryGroups");
+    throw new CartError("not_ready", "A delivery mixes product lines with package deliveries; set it with setDeliveryGroups");
   }
   const lines = new Map<string, CartProductLineItem[]>();
   for (const line of cart.line_items) {
@@ -168,7 +179,7 @@ export function deliveryGroupsFor(
     if (previous) used.add(previous.id);
     const sameDestination = previous !== undefined && fingerprint(previous.destination) === fingerprint(destination);
     groups.push({
-      id: previous?.id ?? newId(),
+      id: previous?.id ?? appId(),
       items: profileLines.map((line) => ({ line_item: { type: "product", line_item_id: line.id }, quantity: line.quantity })),
       destination,
       shipping: sameDestination ? previous.shipping : null,
@@ -180,17 +191,17 @@ export function deliveryGroupsFor(
 
 export function createCartStore(context: CartStoreContext, scope: ArkyCartScope) {
   const { client } = context;
-  const cart = atom<Cart | null>(null);
+  const cart = atom<StorefrontCart | null>(null);
   const quote = atom<CartQuote | null>(null);
   const last_order = atom<ArkyLastOrder | null>(null);
   const cart_status = map<ArkyCartStatus>({ ...idleStatus });
   const product_items = computed(cart, (value) => cartProductItems(value));
   const booking_items = computed(cart, (value) => cartBookingItems(value));
-  const customer_group_items = computed(cart, (value) => cartCustomerGroupItems(value));
+  const package_items = computed(cart, (value) => cartPackageItems(value));
   const product_item_count = computed(product_items, (items) => items.reduce((total, item) => total + item.quantity, 0));
   const item_count = computed(
-    [product_item_count, booking_items, customer_group_items],
-    (products, bookings, groups) => products + bookings.length + groups.length,
+    [product_item_count, booking_items, package_items],
+    (products, bookings, packages) => products + bookings.length + packages.length,
   );
   const promotion_codes = computed(quote, (value): QuotePromotionCode[] => value?.promotion_codes ?? []);
 
@@ -210,7 +221,7 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
     last_order.set(null);
   }
 
-  function applyCart(operation: CartScope, value: Cart, revision: number): Cart {
+  function applyCart(operation: CartScope, value: StorefrontCart, revision: number): StorefrontCart {
     operation.assertCurrent();
     if (value.customer_id !== operation.customerId) throw new CartError("other_cart", "The cart belongs to another customer");
     if (revision === cartRevision) {
@@ -220,13 +231,13 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
     return value;
   }
 
-  function requireCart(): Cart {
+  function requireCart(): StorefrontCart {
     const value = cart.get();
     if (!value) throw new CartError("no_cart", "Load or create the cart first");
     return value;
   }
 
-  async function runCartWrite(operation: (current: Cart) => Promise<Cart>): Promise<Cart> {
+  async function runCartWrite(operation: (current: StorefrontCart) => Promise<StorefrontCart>): Promise<StorefrontCart> {
     const started = await context.beginCartOperation();
     const revision = ++cartRevision;
     cart_status.setKey("syncing", true);
@@ -248,7 +259,7 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
     }
   }
 
-  async function load(): Promise<Cart | null> {
+  async function load(): Promise<StorefrontCart | null> {
     const started = await context.beginCartOperation();
     const revision = ++cartRevision;
     cart_status.setKey("loading", true);
@@ -271,12 +282,12 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
     }
   }
 
-  async function create(params: ArkyCartCreateParams = {}): Promise<Cart> {
+  async function create(params: ArkyCartCreateParams = {}): Promise<StorefrontCart> {
     const started = await context.beginCartOperation();
-    const id = params.id ?? (pendingCartId ??= context.newId("cart"));
+    const id = params.id ?? (pendingCartId ??= context.appId("cart"));
     const revision = ++cartRevision;
     try {
-      const created = await client.eshop.cart.create({ id, buyer: scope.buyer ?? { type: "customer" }, catalog_id: scope.catalog_id });
+      const created = await client.eshop.cart.create({ id, buyer: scope.buyer ?? { type: "customer" }, package_id: scope.package_id });
       if (pendingCartId === id) pendingCartId = null;
       return applyCart(started, created.cart, revision);
     } catch (error) {
@@ -285,43 +296,43 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
     }
   }
 
-  async function ensure(): Promise<Cart> {
+  async function ensure(): Promise<StorefrontCart> {
     const current = cart.get();
     if (current) return current;
     const loaded = await load();
     return loaded ?? create();
   }
 
-  function version(current: Cart) {
+  function version(current: StorefrontCart) {
     return { id: current.id, expected_updated_at: current.updated_at };
   }
 
-  function addProduct(params: ArkyAddProductParams): Promise<Cart> {
+  function addProduct(params: ArkyAddProductParams): Promise<StorefrontCart> {
     return runCartWrite((current) =>
-      client.eshop.cart.addProduct({ ...version(current), product: { ...params, id: params.id ?? context.newId("cart line") } }),
+      client.eshop.cart.addProduct({ ...version(current), product: { ...params, id: params.id ?? context.appId("cart line") } }),
     );
   }
 
-  function addBooking(params: ArkyAddBookingParams): Promise<Cart> {
+  function addBooking(params: ArkyAddBookingParams): Promise<StorefrontCart> {
     return runCartWrite((current) =>
-      client.eshop.cart.addBooking({ ...version(current), booking: { ...params, id: params.id ?? context.newId("cart line") } }),
+      client.eshop.cart.addBooking({ ...version(current), booking: { ...params, id: params.id ?? context.appId("cart line") } }),
     );
   }
 
-  function addCustomerGroup(params: ArkyAddCustomerGroupParams): Promise<Cart> {
+  function addPackage(params: ArkyAddPackageParams): Promise<StorefrontCart> {
     return runCartWrite((current) =>
-      client.eshop.cart.addCustomerGroup({
+      client.eshop.cart.addPackage({
         ...version(current),
-        customer_group: { ...params, id: params.id ?? context.newId("cart line") },
+        package: { ...params, id: params.id ?? context.appId("cart line") },
       }),
     );
   }
 
-  function removeItem(params: ArkyRemoveItemParams): Promise<Cart> {
+  function removeItem(params: ArkyRemoveItemParams): Promise<StorefrontCart> {
     return runCartWrite((current) => client.eshop.cart.removeItem({ ...version(current), line_item_id: params.line_item_id }));
   }
 
-  function setProductQuantity(params: ArkySetProductQuantityParams): Promise<Cart> {
+  function setProductQuantity(params: ArkySetProductQuantityParams): Promise<StorefrontCart> {
     const { line_item_id: lineItemId, quantity } = params;
     return runCartWrite((current) => {
       if (!Number.isInteger(quantity) || quantity < 1) throw new TypeError("A cart quantity is a whole number of at least 1");
@@ -352,11 +363,11 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
     });
   }
 
-  function setDeliveryGroups(params: ArkySetDeliveryGroupsParams): Promise<Cart> {
+  function setDeliveryGroups(params: ArkySetDeliveryGroupsParams): Promise<StorefrontCart> {
     return runCartWrite((current) => client.eshop.cart.update({ ...version(current), delivery_groups: params.delivery_groups }));
   }
 
-  async function shippingProfiles(current: Cart, lines: QuoteLine[]): Promise<Map<string, string>> {
+  async function shippingProfiles(current: StorefrontCart, lines: QuoteLine[]): Promise<Map<string, string>> {
     const physical = lines.filter(
       (line): line is Extract<QuoteLine, { type: "product" }> => line.type === "product" && line.snapshot.fulfillment.type === "physical",
     );
@@ -367,7 +378,7 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
         variants
           .slice(start, start + variantReadsAtOnce)
           .map(([variantId, productId]) =>
-            client.eshop.productVariant.get({ ...buyerParty(current.buyer), product_id: productId, id: variantId, catalog_id: current.catalog_id }),
+            client.eshop.productVariant.get({ ...buyerParty(current.buyer), product_id: productId, id: variantId, package_id: current.package_id }),
           ),
       );
       for (const variant of read) {
@@ -386,7 +397,7 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
     return profileByLine;
   }
 
-  async function shipTo(params: ArkyShipToParams, options?: RequestOptions): Promise<Cart> {
+  async function shipTo(params: ArkyShipToParams, options?: RequestOptions): Promise<StorefrontCart> {
     const { destination, ...quoteParams } = params;
     const started = await context.beginCartOperation();
     const current = requireCart();
@@ -396,7 +407,7 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
     if (quoted.cart_id !== current.id) throw new CartError("answer_mismatch", "The quote answered another cart");
     const profileByLine = await shippingProfiles(current, quoted.lines);
     started.assertCurrent();
-    const groups = deliveryGroupsFor(current, profileByLine, destination, () => context.newId("delivery group"));
+    const groups = deliveryGroupsFor(current, profileByLine, destination, () => context.appId("delivery group"));
     return runCartWrite((latest) => {
       if (latest.id !== current.id || latest.updated_at !== current.updated_at) {
         throw new CartError("context_changed", "The cart changed while its deliveries were prepared; ship it again");
@@ -405,46 +416,46 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
     });
   }
 
-  function setBillingAddress(params: ArkySetBillingAddressParams): Promise<Cart> {
+  function setBillingAddress(params: ArkySetBillingAddressParams): Promise<StorefrontCart> {
     return runCartWrite((current) => client.eshop.cart.update({ ...version(current), billing_address: params.billing_address }));
   }
 
-  function setBuyer(params: ArkySetBuyerParams): Promise<Cart> {
+  function setBuyer(params: ArkySetBuyerParams): Promise<StorefrontCart> {
     return runCartWrite((current) => client.eshop.cart.update({ ...version(current), buyer: params.buyer }));
   }
 
-  function setPromotionCodes(params: ArkySetPromotionCodesParams): Promise<Cart> {
+  function setPromotionCodes(params: ArkySetPromotionCodesParams): Promise<StorefrontCart> {
     return runCartWrite((current) => client.eshop.cart.update({ ...version(current), promotion_codes: params.promotion_codes }));
   }
 
-  function selectShippingMethod(params: ArkySelectShippingMethodParams): Promise<Cart> {
+  function selectShippingMethod(params: ArkySelectShippingMethodParams): Promise<StorefrontCart> {
     return runCartWrite((current) =>
       client.eshop.cart.selectShippingMethod({ ...version(current), shipping_method_id: params.shipping_method_id }),
     );
   }
 
-  function setFutureDeliveries(params: ArkySetFutureDeliveriesParams): Promise<Cart> {
+  function setFutureDeliveries(params: ArkySetFutureDeliveriesParams): Promise<StorefrontCart> {
     return runCartWrite((current) =>
-      client.eshop.cart.setFutureDeliveries({ ...version(current), customer_groups: params.customer_groups }),
+      client.eshop.cart.setFutureDeliveries({ ...version(current), packages: params.packages }),
     );
   }
 
   async function quoteFutureDeliveries(
     params: ArkyQuoteFutureDeliveriesParams,
     options?: RequestOptions,
-  ): Promise<CustomerGroupDeliveryOffers[]> {
+  ): Promise<PackageDeliveryOffers[]> {
     const started = await context.beginCartOperation();
     const current = requireCart();
     context.requireLocale();
     const result = await client.eshop.cart.quoteFutureDeliveries(
-      { id: current.id, customer_groups: params.customer_groups },
+      { id: current.id, packages: params.packages },
       storeContextOnly(options),
     );
     started.assertCurrent();
     return result;
   }
 
-  function clear(): Promise<Cart> {
+  function clear(): Promise<StorefrontCart> {
     return runCartWrite((current) => client.eshop.cart.clear(version(current)));
   }
 
@@ -495,7 +506,7 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
     };
   }
 
-  function finishCheckout(cartId: string, result: CheckoutAcceptance, clearAfter: boolean): CheckoutAcceptance {
+  function finishCheckout(cartId: string, result: StorefrontCheckoutAcceptance, clearAfter: boolean): StorefrontCheckoutAcceptance {
     const reviewed = quote.get();
     if (result.type === "placed") {
       last_order.set({
@@ -535,7 +546,7 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
     }
   }
 
-  function checkout(params: ArkyCartCheckoutParams): Promise<CheckoutAcceptance> {
+  function checkout(params: ArkyCartCheckoutParams): Promise<StorefrontCheckoutAcceptance> {
     return runCheckout(async () => {
       const request = checkoutRequest(params);
       const result = await client.eshop.cart.checkout(request);
@@ -548,17 +559,18 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
       const request = checkoutRequest(params);
       return client.eshop.cart.retainCheckout({
         ...request,
-        order_id: request.order_id ?? context.newId("order"),
-        order_token: request.order_token ?? context.newOrderToken(),
+        order_id: request.order_id ?? context.appId("order"),
+        order_token: request.order_token ?? context.appOrderToken(),
       });
     });
   }
 
-  function pendingCheckout(): Promise<StorefrontCheckoutCartInput | null> {
+  async function pendingCheckout(): Promise<StorefrontCheckoutCartInput | null> {
+    context.assertMarket();
     return client.eshop.cart.pendingCheckout({ scope });
   }
 
-  function recoverCheckout(): Promise<CheckoutAcceptance | null> {
+  function recoverCheckout(): Promise<StorefrontCheckoutAcceptance | null> {
     return runCheckout(async () => {
       const pending = await client.eshop.cart.pendingCheckout({ scope });
       if (!pending) return null;
@@ -572,7 +584,7 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
     cart,
     product_items,
     booking_items,
-    customer_group_items,
+    package_items,
     quote_result: quote,
     promotion_codes,
     last_order,
@@ -585,7 +597,7 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
     reset,
     addProduct,
     addBooking,
-    addCustomerGroup,
+    addPackage,
     removeItem,
     setProductQuantity,
     setDeliveryGroups,

@@ -7,6 +7,7 @@ import {
   cartRecord,
   checkoutRequest,
   customerRecord,
+  fixedIdFactories,
   ids,
   installGlobal,
   publishableKey,
@@ -23,7 +24,7 @@ const productLine = {
   variant_id: ids.variant,
   quantity: 1,
   form_submission_id: null,
-  purchase: { type: "catalog", catalog_item_price_id: ids.price },
+  price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price },
 };
 const otherVisitorToken = `customer_visitor_${"w".repeat(64)}`;
 
@@ -43,10 +44,10 @@ function gate() {
   return { release, enter, waiting, started };
 }
 
-const scope = { buyer: customerBuyer, catalog_id: ids.catalog };
+const scope = { buyer: customerBuyer, package_id: ids.package };
 
 function storeWithCart(options = {}) {
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, locale: "en", market: "market-a", sessionStorage: visitorStorage(), ...options });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", market: "market-a", sessionStorage: visitorStorage(), ...options });
   const cart = store.eshop.cart(scope);
   cart.cart.set(cartRecord({ line_items: [productLine] }));
   return { store, cart };
@@ -113,35 +114,37 @@ test("a market change clears the selected cart view, and a late read for the old
   const calls = recordFetch(context, async (call) => {
     if (call.method === "POST") {
       const id = call.body.id;
-      return { type: "created", cart: cartRecord({ id, catalog_id: ids.catalog }), recovery_token: `token-${id}` };
+      return { type: "created", cart: cartRecord({ id, package_id: ids.package }), recovery_token: `token-${id}` };
     }
     const id = call.path.split("/").at(-1);
     reads.get(id).enter();
     await reads.get(id).waiting;
     return cartRecord({ id });
   });
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, locale: "en", market: "market-a", sessionStorage: visitorStorage() });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", market: "market-a", sessionStorage: visitorStorage() });
   const cart = store.eshop.cart(scope);
   await cart.create({ id: ids.cart });
   store.setContext({ market: "market-b" });
-  await cart.create({ id: ids.otherCart });
+  const otherMarket = store.eshop.cart(scope);
+  assert.notEqual(otherMarket, cart);
+  await otherMarket.create({ id: ids.otherCart });
   store.setContext({ market: "market-a" });
   const first = cart.load();
   const rejected = assert.rejects(first, /changed during the cart operation/);
   await reads.get(ids.cart).started;
   store.setContext({ market: "market-b" });
   assert.equal(cart.cart.get(), null);
-  const second = cart.load();
+  const second = otherMarket.load();
   await reads.get(ids.otherCart).started;
   reads.get(ids.cart).release();
   await rejected;
   assert.equal(cart.cart.get(), null);
-  assert.equal(cart.status.get().loading, true);
-  assert.equal(cart.status.get().error, null);
+  assert.equal(otherMarket.status.get().loading, true);
+  assert.equal(otherMarket.status.get().error, null);
   reads.get(ids.otherCart).release();
   assert.equal((await second).id, ids.otherCart);
-  assert.equal(cart.cart.get().id, ids.otherCart);
-  assert.equal(cart.status.get().loading, false);
+  assert.equal(otherMarket.cart.get().id, ids.otherCart);
+  assert.equal(otherMarket.status.get().loading, false);
   assert.deepEqual(calls.map((call) => [call.method, call.path, call.headers.get("x-arky-market")]), [
     ["POST", "/v1/storefront/carts", "market-a"],
     ["POST", "/v1/storefront/carts", "market-b"],
@@ -200,14 +203,14 @@ test("a buyer or market change leaves an unresolved checkout request byte for by
     assert.equal(call.path, "/v1/storefront/carts/accept");
     throw new TypeError("response lost");
   });
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, locale: "en", market: "market-a", sessionStorage: visitorStorage() });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", market: "market-a", sessionStorage: visitorStorage() });
   const scoped = store.eshop.cart(scope);
   const request = checkoutRequest();
   await store.client.eshop.cart.retainCheckout({ ...request, scope });
   await assert.rejects(store.client.eshop.cart.recoverCheckout({ scope }), /response lost/);
   const pending = await scoped.pendingCheckout();
   assert.deepEqual(pending, request);
-  const key = `arky:cart-checkout:v5:${encodeURIComponent(`storefront:${apiUrl}:${publishableKey}`)}:${encodeURIComponent(`customer|${ids.catalog}`)}`;
+  const key = `arky:cart-checkout:v5:${encodeURIComponent(`storefront:${apiUrl}:${publishableKey}`)}:${encodeURIComponent(`customer|${ids.package}|market-a`)}`;
   const retained = durable.getItem(key);
   assert.ok(retained);
   store.setContext({ market: "market-b" });
@@ -215,6 +218,8 @@ test("a buyer or market change leaves an unresolved checkout request byte for by
   assert.equal(scoped.cart.get(), null);
   assert.equal(scoped.last_order.get(), null);
   assert.equal(durable.getItem(key), retained);
+  assert.equal(await store.eshop.cart(scope).pendingCheckout(), null);
+  store.setContext({ market: "market-a" });
   assert.deepEqual(await scoped.pendingCheckout(), pending);
   assert.equal(calls.filter((call) => call.path.endsWith("/carts/accept")).length, 1);
 });

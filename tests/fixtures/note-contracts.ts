@@ -29,7 +29,7 @@ type ConversationNotes = Admin["support"]["conversation"]["notes"];
 export type NoteContracts = [
   Assert<Equal<keyof Note, "id" | "store_id" | "target" | "body" | "actor" | "created_at" | "updated_at">>,
   Assert<Equal<Note["actor"], AccountActor>>,
-  Assert<Equal<NoteTargetType, "form_submission" | "customer" | "company" | "order" | "conversation">>,
+  Assert<Equal<NoteTargetType, "form_submission" | "form_submission_stage_change" | "customer" | "company" | "order" | "conversation">>,
   Assert<Equal<Extract<NoteTarget, { type: "conversation" }>, { type: "conversation"; conversation_id: string }>>,
   Assert<Equal<ConversationNoteTarget, { store_id: string; conversation_id: string }>>,
   Assert<Equal<Extract<NoteTarget, { type: "order" }>, { type: "order"; order_id: string }>>,

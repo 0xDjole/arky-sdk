@@ -1,6 +1,7 @@
 import type { EpochMilliseconds } from "./time";
 import type { AccountActor, EmailContact, PostalAddress, PostalAddressInput, SortDirection } from "./common";
 import type { Block } from "./block";
+import type { ApiErrorResponse } from "./apiError";
 
 export interface CustomerAddress extends PostalAddress { id: string }
 export type CustomerAddressInput = PostalAddressInput & { id: string };
@@ -191,37 +192,40 @@ export interface ImportCustomersParams {
   rows: ImportCustomerRow[];
 }
 
-export interface ImportCustomerFieldError {
-  field: string;
-  message: string;
-}
+export type ImportCustomerPreviewOutcome =
+  | { type: "create" }
+  | { type: "existing" }
+  | { type: "failed"; error: ApiErrorResponse };
 
 export interface ImportCustomerPreviewRow {
   row: number;
   customer_id: string;
-  valid: boolean;
-  errors: ImportCustomerFieldError[];
+  outcome: ImportCustomerPreviewOutcome;
 }
 
 export interface ImportCustomersPreviewResult {
   rows_total: number;
-  rows_valid: number;
-  rows_invalid: number;
+  rows_to_create: number;
+  rows_existing: number;
+  rows_failed: number;
   rows: ImportCustomerPreviewRow[];
 }
+
+export type ImportCustomerRowOutcome =
+  | { type: "created" }
+  | { type: "existing" }
+  | { type: "failed"; error: ApiErrorResponse };
 
 export interface ImportCustomerRowResult {
   row: number;
   customer_id: string;
-  created: boolean;
-  updated: boolean;
-  error: string | null;
+  outcome: ImportCustomerRowOutcome;
 }
 
 export interface ImportCustomersResult {
   rows_total: number;
   customers_created: number;
-  customers_updated: number;
+  rows_existing: number;
   rows_failed: number;
   rows: ImportCustomerRowResult[];
 }

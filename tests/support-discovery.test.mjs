@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { createStorefront } from "../dist/storefront.js";
-import { apiUrl, ids, publishableKey, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
+import { apiUrl, fixedIdFactories, ids, publishableKey, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
 
 const STORE_ID = "7d4b2e90-5c16-4a83-bf07-3e9a1c6d8f25";
 const conversationId = "7c2e9a41-5b3d-4f86-a1e0-3d4c2b9f6e18";
@@ -19,7 +19,7 @@ function support() {
 }
 
 function storefront() {
-  return createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, locale: "bs", sessionStorage: visitorStorage() });
+  return createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "bs", sessionStorage: visitorStorage() });
 }
 
 function storefrontConversation(state = "flow") {
@@ -215,16 +215,26 @@ test("an account reply is one write of the app-picked message id, its text and i
   assert.equal(calls.length, 2);
 });
 
+test("a chat start without a valid flow key is refused before anything is sent", async (context) => {
+  const calls = recordFetch(context, () => {
+    throw new Error("Nothing may be sent");
+  });
+  const client = storefront();
+  await assert.rejects(async () => client.support.conversation.start({ id: conversationId, language: "en" }), TypeError);
+  await assert.rejects(async () => client.support.conversation.start({ id: conversationId, language: "en", flow_key: "Not A Key" }), TypeError);
+  assert.equal(calls.length, 0);
+});
+
 test("storefront support starts with an app-picked id and uses its real customer session", async (context) => {
   const started = { conversation: storefrontConversation(), messages: [] };
   const calls = recordFetch(context, (call) => call.method === "POST" ? started : storefrontConversation());
   const client = storefront();
-  assert.deepEqual(await client.support.conversation.start({ id: conversationId, language: "bs" }), started);
+  assert.deepEqual(await client.support.conversation.start({ id: conversationId, language: "bs", flow_key: "default" }), started);
   await client.support.conversation.start({ id: conversationId, language: "en", flow_key: "returns" });
   const read = await client.support.conversation.get({ id: conversationId });
   assert.deepEqual(read, storefrontConversation());
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
-    ["POST", "/v1/storefront/conversations", { id: conversationId, language: "bs" }],
+    ["POST", "/v1/storefront/conversations", { id: conversationId, language: "bs", flow_key: "default" }],
     ["POST", "/v1/storefront/conversations", { id: conversationId, language: "en", flow_key: "returns" }],
     ["GET", `/v1/storefront/conversations/${conversationId}`, null],
   ]);
@@ -233,7 +243,7 @@ test("storefront support starts with an app-picked id and uses its real customer
   assert.equal(calls[2].query.support_token, undefined);
   assert.equal(calls[0].headers.get("x-arky-support-token"), null);
   assert.equal(calls[0].headers.get("x-arky-locale"), "bs");
-  await assert.rejects(client.support.conversation.start({ id: "chat-1", language: "bs" }), TypeError);
+  await assert.rejects(client.support.conversation.start({ id: "chat-1", language: "bs", flow_key: "default" }), TypeError);
   assert.equal(calls.length, 3);
   for (const removed of ["startConversation", "getConversation", "sendMessage", "getMessage"]) assert.equal(removed in client.support, false, removed);
 });

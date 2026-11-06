@@ -1,4 +1,3 @@
-import type { EpochMilliseconds } from "../types/time";
 import type { EmailContact } from "../types/common";
 import type { AuthStorage, HttpClient } from "./createHttpClient";
 
@@ -17,8 +16,8 @@ export interface StorefrontApiConfig {
 }
 
 export interface StorefrontFlowContext {
-  newId(label: string): string;
-  newOrderToken(): string;
+  appId(label: string): string;
+  appOrderToken(): string;
   pendingKey(flow: string, target: string): string;
   locale(options?: { locale?: string }): string;
   verifiedContact(): EmailContact | null;
@@ -28,7 +27,6 @@ export interface AdminSessionInternal {
   id: string;
   access_token: string;
   refresh_token: string;
-  access_expires_at: EpochMilliseconds;
   email?: string;
 }
 

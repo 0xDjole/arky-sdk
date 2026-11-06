@@ -90,16 +90,16 @@ export interface CompanyLocation extends StorefrontCompanyLocation { blocks: Blo
 export type CompanyPermission =
   | "admin"
   | "place_orders"
-  | "join_customer_groups"
+  | "join_packages"
   | "access_digital_products"
   | "view_own_orders"
   | "view_company_orders"
-  | "view_own_customer_groups"
-  | "view_company_customer_groups"
+  | "view_own_packages"
+  | "view_company_packages"
   | "manage_company"
   | "manage_addresses"
   | "manage_members"
-  | "manage_company_customer_groups"
+  | "manage_company_packages"
   | "manage_payment_methods";
 
 export interface CompanyRole {

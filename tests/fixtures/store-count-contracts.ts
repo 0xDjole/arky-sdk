@@ -20,7 +20,7 @@ type Segment<Type extends StoreStatusCountType> = Extract<StoreStatusCount, { ty
 
 export type StoreCountContracts = [
   Assert<Equal<StoreStatusCountSegments["open_recurring_members_by_status"], "awaiting_activation" | "active" | "blocked" | "paused">>,
-  Assert<Equal<StoreStatusCountSegments["open_rentals_by_status"], "active" | "ending">>,
+  Assert<Equal<StoreStatusCountSegments["open_rentals_by_status"], "waiting" | "active" | "ending">>,
   Assert<
     Equal<
       StoreStatusCountSegments["open_payments_by_type"],

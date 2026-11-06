@@ -14,6 +14,7 @@ import {
   visitorStorage,
   visitorToken,
 } from "./helpers/arky-fixtures.mjs";
+import { ExclusiveLockManager, MemoryStorage } from "./helpers/durable-request-fixtures.mjs";
 
 function stubBeacon(context, accept = true) {
   const sent = [];
@@ -138,8 +139,19 @@ test("the initialized store sends page views through the same call and keeps act
   assert.equal(store.actions.pageView, undefined);
   assert.equal(calls.length, 0);
 
-  await store.actions.track({ key: "search" });
+  const descriptors = ["localStorage", "navigator"].map((name) => [name, Object.getOwnPropertyDescriptor(globalThis, name)]);
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, writable: true, value: new MemoryStorage() });
+  Object.defineProperty(globalThis, "navigator", { configurable: true, writable: true, value: { locks: new ExclusiveLockManager() } });
+  try {
+    await store.actions.track({ key: "search" });
+  } finally {
+    for (const [name, descriptor] of descriptors) {
+      if (descriptor) Object.defineProperty(globalThis, name, descriptor);
+      else delete globalThis[name];
+    }
+  }
   assert.deepEqual(calls.map((call) => [call.method, call.path, call.body]), [
-    ["POST", "/v1/storefront/actions/track", { key: "search" }],
+    ["POST", "/v1/storefront/actions/track", { id: calls[0].body.id, key: "search" }],
   ]);
+  assert.match(calls[0].body.id, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
 });

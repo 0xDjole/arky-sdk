@@ -3,20 +3,22 @@ import test from "node:test";
 
 import { createStorefront } from "../dist/storefront.js";
 import {
-  SessionStorage,
   apiUrl,
   cartRecord,
   customerRecord,
   emailSession,
   errorResponse,
+  fixedIdFactories,
   idFactories,
   ids,
   otherPublishableKey,
   publishableKey,
   recordFetch,
+  SessionStorage,
   storedSession,
   visitorSession,
 } from "./helpers/arky-fixtures.mjs";
+import { MemoryStorage } from "./helpers/durable-request-fixtures.mjs";
 
 const visitorTokenA = `customer_visitor_${"a".repeat(64)}`;
 const visitorTokenB = `customer_visitor_${"b".repeat(64)}`;
@@ -35,17 +37,17 @@ function sessionValues(storage) {
 }
 
 test("a stored customer session needs version 3 and the exact active status tag", () => {
-  const good = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: new SessionStorage(storedVisitor()) });
+  const good = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: new SessionStorage(storedVisitor()) });
   assert.equal(good.hasSession, true);
   assert.deepEqual(good.session.status, { type: "active" });
   for (const status of ["active", null, {}, { type: "revoked" }, { type: "superseded" }, { type: "active", extra: true }]) {
     const record = JSON.stringify({ version: 4, customer: customerRecord(), session: { ...visitorSession(), status } });
-    const rejected = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: new SessionStorage(record) });
+    const rejected = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: new SessionStorage(record) });
     assert.equal(rejected.hasSession, false);
     assert.equal(rejected.session, null);
   }
   const older = JSON.stringify({ version: 2, customer: customerRecord(), session: visitorSession() });
-  assert.equal(createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: new SessionStorage(older) }).hasSession, false);
+  assert.equal(createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: new SessionStorage(older) }).hasSession, false);
   const verifiedType = { addresses: [], default_shipping_address_id: null, default_billing_address_id: null };
   const emailOnly = JSON.stringify({ version: 4, customer: customerRecord(ids.customer, { type: { type: "verified", email: "old@example.test", ...verifiedType } }), session: emailSession() });
   const withContact = JSON.stringify({ version: 4, customer: customerRecord(ids.customer, { type: { type: "verified", contact: { email: "new@example.test", language: "bs" }, ...verifiedType } }), session: emailSession() });
@@ -55,7 +57,7 @@ test("a stored customer session needs version 3 and the exact active status tag"
     if (kept) assert.deepEqual(read.session.customer.type.contact, { email: "new@example.test", language: "bs" });
   }
   const foreign = JSON.stringify({ version: 4, customer: customerRecord(ids.otherCustomer), session: visitorSession() });
-  assert.equal(createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: new SessionStorage(foreign) }).hasSession, false);
+  assert.equal(createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: new SessionStorage(foreign) }).hasSession, false);
 });
 
 test("an issued session with a malformed lifecycle is refused and never stored", async (context) => {
@@ -64,7 +66,7 @@ test("an issued session with a malformed lifecycle is refused and never stored",
       const base = type === "visitor" ? visitorSession() : emailSession();
       recordFetch(context, () => ({ customer: customerRecord(), session: { ...base, status } }));
       const storage = new SessionStorage();
-      const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: storage });
+      const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: storage });
       if (status && typeof status === "object" && Object.keys(status).length === 1 && status.type === "active") {
         const result = await client.customer.identify({ customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" });
         assert.deepEqual(result.session.status, { type: "active" });
@@ -99,16 +101,16 @@ test("publishable-key initialization is synchronous, network-free and refuses ev
 
 test("requests use the production URL by default and force the publishable key and context headers", async (context) => {
   const calls = recordFetch(context, () => ({ items: [], cursor: null }));
-  const root = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, locale: "en" });
+  const root = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, locale: "en" });
   root.setContext({ market: "bih" });
-  await root.eshop.catalogItem.find(
-    { catalog_id: ids.catalog, limit: 1, store_id: "caller-store", market: "caller-market" },
+  await root.eshop.packageItem.find(
+    { package_id: ids.package, limit: 1, store_id: "caller-store", market: "caller-market" },
     { headers: { Authorization: "Bearer arky_api_caller", "x-arky-publishable-key": otherPublishableKey, "x-arky-locale": "caller-locale", "x-arky-market": "caller-market" } },
   );
-  await root.eshop.catalogItem.find({ catalog_id: ids.catalog, limit: 1 }, { locale: "it", market: "ita" });
+  await root.eshop.packageItem.find({ package_id: ids.package, limit: 1 }, { locale: "it", market: "ita" });
   assert.equal(root.getLocale(), "en");
   assert.equal(root.getMarket(), "bih");
-  assert.equal(calls[0].href, `https://api.arky.io/v1/storefront/catalog-items?catalog_id=${ids.catalog}&limit=1`);
+  assert.equal(calls[0].href, `https://api.arky.io/v1/storefront/package-items?package_id=${ids.package}&limit=1`);
   assert.equal(calls[0].headers.get("x-arky-publishable-key"), publishableKey);
   assert.equal(calls[0].headers.get("x-arky-locale"), "en");
   assert.equal(calls[0].headers.get("x-arky-market"), "bih");
@@ -128,7 +130,7 @@ test("the setup is read lazily, once, and without creating a visitor", async (co
     await response;
     return setup;
   });
-  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl });
+  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl });
   assert.equal(calls.length, 0);
   const first = client.getSetup();
   const second = client.getSetup();
@@ -143,12 +145,12 @@ test("the setup is read lazily, once, and without creating a visitor", async (co
   assert.equal(client.hasSession, false);
 });
 
-test("catalog text search keeps its selection, the price range and the continuation together", async (context) => {
+test("package text search keeps its selection, the price range and the continuation together", async (context) => {
   const calls = recordFetch(context, () => ({ items: [], cursor: "next-search-page" }));
-  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, market: "bih", locale: "bs" });
+  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "bih", locale: "bs" });
   const selection = { types: ["product"], text: "KOŠULJA-0001", choice: { price: { min_amount: 0, max_amount: 5000 } }, sort: "relevance" };
-  const params = { catalog_id: ids.catalog, selection, limit: 20, cursor: "current-search-page" };
-  assert.deepEqual(await client.eshop.catalogItem.find(params), { items: [], cursor: "next-search-page" });
+  const params = { package_id: ids.package, selection, limit: 20, cursor: "current-search-page" };
+  assert.deepEqual(await client.eshop.packageItem.find(params), { items: [], cursor: "next-search-page" });
   assert.deepEqual(JSON.parse(calls[0].query.selection), selection);
   assert.equal(calls[0].query.cursor, params.cursor);
   assert.equal(calls[0].query.limit, "20");
@@ -165,7 +167,7 @@ test("anonymous reads don't identify, and concurrent first stateful calls share 
     releaseIdentify = resolve;
   });
   const calls = recordFetch(context, async (call) => {
-    if (call.path === "/v1/storefront/catalog-items") return { items: [], cursor: null };
+    if (call.path === "/v1/storefront/package-items") return { items: [], cursor: null };
     if (call.path === "/v1/storefront/customer/identify") {
       identifyStarted();
       await identifyGate;
@@ -174,11 +176,11 @@ test("anonymous reads don't identify, and concurrent first stateful calls share 
     throw new Error(`Unexpected visitor request: ${call.path}`);
   });
   const storage = new SessionStorage();
-  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, locale: "en", market: "bih", sessionStorage: storage });
-  await client.eshop.catalogItem.find({ catalog_id: ids.catalog });
+  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", market: "bih", sessionStorage: storage });
+  await client.eshop.packageItem.find({ package_id: ids.package });
   assert.equal(calls.filter((call) => call.path.endsWith("/customer/identify")).length, 0);
-  const first = client.eshop.cart.getCurrent({ buyer: customerBuyer, catalog_id: ids.catalog });
-  const second = client.eshop.cart.getCurrent({ buyer: customerBuyer, catalog_id: ids.catalog });
+  const first = client.eshop.cart.getCurrent({ buyer: customerBuyer, package_id: ids.package });
+  const second = client.eshop.cart.getCurrent({ buyer: customerBuyer, package_id: ids.package });
   await started;
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(calls.filter((call) => call.path.endsWith("/customer/identify")).length, 1);
@@ -206,7 +208,7 @@ test("an expired visitor re-identifies once and retries, while a refused publish
     }
     throw new Error(`Unexpected retry request: ${call.path}`);
   });
-  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: new SessionStorage(storedVisitor(expiredToken)) });
+  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: new SessionStorage(storedVisitor(expiredToken)) });
   assert.equal((await client.eshop.cart.get({ id: ids.cart })).id, ids.cart);
   assert.deepEqual(calls.map((call) => [call.path, call.headers.get("authorization")]), [
     [`/v1/storefront/carts/${ids.cart}`, `Bearer ${expiredToken}`],
@@ -215,8 +217,8 @@ test("an expired visitor re-identifies once and retries, while a refused publish
   ]);
   context.mock.restoreAll();
   const refused = recordFetch(context, () => errorResponse(401, "GENERAL.UNAUTHENTICATED", "Unauthenticated"));
-  const invalid = createStorefront(otherPublishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl });
-  await assert.rejects(invalid.eshop.catalogItem.find({ catalog_id: ids.catalog }), (error) => error.statusCode === 401);
+  const invalid = createStorefront(otherPublishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl });
+  await assert.rejects(invalid.eshop.packageItem.find({ package_id: ids.package }), (error) => error.statusCode === 401);
   assert.equal(refused.filter((call) => call.path.endsWith("/customer/identify")).length, 0);
   assert.equal(refused.length, 1);
 });
@@ -228,7 +230,7 @@ test("identify retries its own request once without the expired visitor token", 
     return call.headers.get("authorization") ? errorResponse(401, "GENERAL.UNAUTHENTICATED", "Unauthenticated") : issued(visitorTokenB, ids.otherCustomer, ids.otherSession);
   });
   const storage = new SessionStorage(storedVisitor(expiredToken));
-  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: storage });
+  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: storage });
   const result = await client.customer.identify({ customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" });
   assert.equal(result.customer.id, ids.otherCustomer);
   assert.equal("token" in result, false);
@@ -265,7 +267,7 @@ test("a late stale 401 retries with the newer visitor without replacing it", asy
     return cartRecord({ customer_id: ids.otherCustomer });
   });
   const storage = new SessionStorage(storedVisitor(visitorTokenA));
-  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: storage });
+  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: storage });
   const first = client.eshop.cart.get({ id: ids.cart });
   const second = client.eshop.cart.get({ id: ids.cart });
   assert.equal((await first).id, ids.cart);
@@ -283,9 +285,9 @@ test("a late stale 401 retries with the newer visitor without replacing it", asy
 
 test("server-side rendering allows anonymous reads but needs request-local storage for stateful calls", async (context) => {
   const calls = recordFetch(context, () => ({ items: [], cursor: null }));
-  const serverClient = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl });
+  const serverClient = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl });
   await serverClient.content.entry.find({ collection_id: "pages" });
-  await assert.rejects(serverClient.eshop.cart.getCurrent({ buyer: customerBuyer, catalog_id: ids.catalog }), /request-local sessionStorage adapter/);
+  await assert.rejects(serverClient.eshop.cart.getCurrent({ buyer: customerBuyer, package_id: ids.package }), /request-local sessionStorage adapter/);
   await assert.rejects(serverClient.customer.identify({ customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }), /request-local sessionStorage adapter/);
   assert.equal(calls.length, 1);
 });
@@ -293,9 +295,9 @@ test("server-side rendering allows anonymous reads but needs request-local stora
 test("visitor storage is kept apart by endpoint and publishable-key fingerprint", async (context) => {
   recordFetch(context, (call) => call.headers.get("x-arky-publishable-key") === publishableKey ? issued(visitorTokenA) : issued(visitorTokenB, ids.otherCustomer, ids.otherSession));
   const storage = new SessionStorage();
-  await createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: storage }).customer.identify({ customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" });
-  await createStorefront(otherPublishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: storage }).customer.identify({ customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" });
-  await createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl: "https://other.example.test", sessionStorage: storage }).customer.identify({ customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" });
+  await createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: storage }).customer.identify({ customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" });
+  await createStorefront(otherPublishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: storage }).customer.identify({ customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" });
+  await createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: "https://other.example.test", sessionStorage: storage }).customer.identify({ customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" });
   const keys = storage.keys("arky_customer_session:v4:");
   assert.equal(keys.length, 3);
   for (const key of keys) {
@@ -335,7 +337,7 @@ test("a sign-in code and refresh rotate the customer session atomically, and log
     }
   });
   const storage = new SessionStorage();
-  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: storage });
+  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: storage });
   await assert.rejects(client.customer.requestCode({ id: "code-1", contact: { email: "person@example.com", language: "en" } }), TypeError);
   const requested = await client.customer.requestCode({ id: signInId, contact: { email: "person@example.com", language: "en" } });
   assert.equal(requested.email_verification.issued_at, 2);
@@ -380,7 +382,7 @@ test("a refused refresh keeps the signed-in session and is never retried with Au
     },
   };
   const calls = recordFetch(context, () => errorResponse(401, "CUSTOMER_SESSION_REFRESH_REJECTED", "Refresh token rejected"));
-  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: storage });
+  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: storage });
   await assert.rejects(client.customer.refresh({ session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), /Refresh token rejected/);
   assert.deepEqual(client.session, { customer: JSON.parse(initialRecord).customer, id: session.id, type: "email_authenticated", status: { type: "active" } });
   assert.deepEqual(calls.map((call) => [call.href, call.headers.get("authorization"), call.headers.get("x-arky-publishable-key"), call.body]), [
@@ -392,7 +394,7 @@ test("a refused refresh keeps the signed-in session and is never retried with Au
 test("a stored record with an invalid visitor credential is dropped at startup", () => {
   const removed = [];
   const invalid = storedSession(ids.customer, visitorSession(ids.customer, ids.session, "invalid-visitor-token"));
-  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`,
+  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories,
     apiUrl,
     sessionStorage: {
       getItem: (key) => key.startsWith("arky_customer_session:v4:") ? invalid : null,
@@ -425,7 +427,7 @@ test("a profile answer that lands after a sign-in leaves the signed-in customer 
     answers.set(method, { waiting, release });
   }
   const storage = new SessionStorage(storedVisitor());
-  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: storage });
+  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: storage });
   const reading = client.customer.getMe();
   const editing = client.customer.updateMe({ expected_updated_at: 1_700_000_000_000, profile: [{ id: ids.line, key: "name", type: "text", value: "Edited" }] });
   await new Promise((resolve) => setImmediate(resolve));
@@ -451,11 +453,124 @@ test("a profile answer that lands after a sign-in leaves the signed-in customer 
 test("a profile answer for the session that asked updates the stored customer", async (context) => {
   recordFetch(context, (call) => ({ customer: customerRecord(ids.customer, { profile: [{ id: "name", key: "name", type: "text", value: call.method === "PATCH" ? "Ana" : "Visitor" }] }), session: { ...visitorSession(), store_id: ids.store }, email_unsubscribed: false }));
   const storage = new SessionStorage(storedVisitor());
-  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: storage });
+  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: storage });
   await client.customer.getMe();
   assert.equal(client.session.customer.profile[0].value, "Visitor");
   await client.customer.updateMe({ expected_updated_at: 1_700_000_000_000, profile: [{ id: "name", key: "name", type: "text", value: "Ana" }] });
   assert.equal(client.session.customer.profile[0].value, "Ana");
   assert.equal(sessionValues(storage)[0].customer.profile[0].value, "Ana");
   assert.equal(sessionValues(storage)[0].session.token, visitorTokenA);
+});
+
+const refreshedAccess = `customer_access_${"u".repeat(64)}`;
+const refreshedRefresh = `customer_refresh_${"w".repeat(64)}`;
+
+function signedInCustomer() {
+  return customerRecord(ids.customer, { type: { type: "verified", contact: { email: "person@example.com", language: "en" }, addresses: [], default_shipping_address_id: null, default_billing_address_id: null } });
+}
+
+function plainStorefront(options = {}) {
+  return createStorefront(publishableKey, { ...idFactories, apiUrl, ...options });
+}
+
+function installWindow(context, value) {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, "window");
+  Object.defineProperty(globalThis, "window", { configurable: true, writable: true, value });
+  context.after(() => (descriptor ? Object.defineProperty(globalThis, "window", descriptor) : delete globalThis.window));
+}
+
+test("a session another tab refreshed is used, and its old token's refusal never signs the browser out", async (context) => {
+  const customer = signedInCustomer();
+  const first = emailSession(ids.customer, ids.session);
+  const second = emailSession(ids.customer, "7e2c9b14-5a63-4d80-b1f7-3c8e0a6d2f95", { access_token: refreshedAccess, refresh_token: refreshedRefresh });
+  const firstRecord = JSON.stringify({ version: 4, customer, session: first });
+  const secondRecord = JSON.stringify({ version: 4, customer, session: second });
+  const storage = new SessionStorage(firstRecord);
+  let refreshes = 0;
+  let writeOnOldToken = false;
+  const calls = recordFetch(context, (call) => {
+    const authorization = call.headers.get("authorization");
+    if (call.path === "/v1/storefront/customer/refresh") {
+      refreshes += 1;
+      return refreshes === 1 && call.body.refresh_token === first.refresh_token
+        ? { customer, session: second }
+        : errorResponse(401, "GENERAL.UNAUTHENTICATED", "Refresh refused");
+    }
+    if (call.path === "/v1/storefront/customer/me") {
+      if (authorization === `Bearer ${first.access_token}`) {
+        if (writeOnOldToken) storage.setItem(storage.keys("arky_customer_session:v4:")[0], secondRecord);
+        return errorResponse(401, "GENERAL.UNAUTHENTICATED", "Expired");
+      }
+      return { customer, session: { ...second, store_id: ids.store }, email_unsubscribed: false };
+    }
+    throw new Error(`Unexpected request ${call.method} ${call.path}`);
+  });
+  const tabA = plainStorefront({ sessionStorage: storage });
+  const tabB = plainStorefront({ sessionStorage: storage });
+  await tabA.customer.getMe();
+  assert.equal(refreshes, 1);
+  const [key] = storage.keys("arky_customer_session:v4:");
+  assert.equal(JSON.parse(storage.getItem(key)).session.access_token, refreshedAccess);
+  calls.length = 0;
+  await tabB.customer.getMe();
+  assert.deepEqual(calls.map((call) => [call.path, call.headers.get("authorization")]), [["/v1/storefront/customer/me", `Bearer ${refreshedAccess}`]]);
+  storage.setItem(key, firstRecord);
+  writeOnOldToken = true;
+  calls.length = 0;
+  await tabB.customer.getMe();
+  assert.deepEqual(calls.map((call) => [call.path, call.headers.get("authorization")]), [
+    ["/v1/storefront/customer/me", `Bearer ${first.access_token}`],
+    ["/v1/storefront/customer/me", `Bearer ${refreshedAccess}`],
+  ]);
+  assert.equal(refreshes, 1);
+  assert.equal(JSON.parse(storage.getItem(key)).session.access_token, refreshedAccess);
+  assert.equal(tabB.isAuthenticated, true);
+});
+
+test("a storage event from another tab reports the stored session", async (context) => {
+  const localStorage = new MemoryStorage();
+  const browser = Object.assign(new EventTarget(), { localStorage });
+  installWindow(context, browser);
+  recordFetch(context, () => issued(visitorTokenA));
+  const tab = plainStorefront();
+  await tab.customer.identify({ customer_id: ids.customer, session_id: ids.session });
+  const key = localStorage.key(0);
+  assert.ok(key.startsWith("arky_customer_session:v4:"));
+  const seen = [];
+  const unsubscribe = tab.onAuthStateChanged((session) => seen.push(session));
+  await new Promise((resolve) => setImmediate(resolve));
+  const customer = signedInCustomer();
+  const other = emailSession(ids.customer, "7e2c9b14-5a63-4d80-b1f7-3c8e0a6d2f95", { access_token: refreshedAccess, refresh_token: refreshedRefresh });
+  localStorage.setItem(key, JSON.stringify({ version: 4, customer, session: other }));
+  browser.dispatchEvent(Object.assign(new Event("storage"), { key }));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(seen.at(-1), { customer, id: other.id, type: "email_authenticated", status: { type: "active" } });
+  unsubscribe();
+});
+
+test("a browser that refuses storage keeps the session in the tab and reports it", async (context) => {
+  const calls = recordFetch(context, (call) => call.path === "/v1/storefront/customer/identify"
+    ? issued(visitorTokenA)
+    : { customer: customerRecord(ids.customer), session: { id: ids.session, store_id: ids.store, customer_id: ids.customer }, email_unsubscribed: false });
+  const refuse = () => {
+    throw new DOMException("Storage is blocked", "SecurityError");
+  };
+  const blocked = plainStorefront({ sessionStorage: { getItem: refuse, setItem: refuse, removeItem: refuse } });
+  assert.equal(blocked.sessionStorageUnavailable, true);
+  await blocked.customer.identify({ customer_id: ids.customer, session_id: ids.session });
+  assert.equal(blocked.hasSession, true);
+  await blocked.customer.getMe();
+  assert.equal(calls.at(-1).headers.get("authorization"), `Bearer ${visitorTokenA}`);
+
+  const browser = new EventTarget();
+  Object.defineProperty(browser, "localStorage", { get: refuse });
+  installWindow(context, browser);
+  const refusedDefault = plainStorefront();
+  assert.equal(refusedDefault.sessionStorageUnavailable, true);
+  await refusedDefault.customer.identify({ customer_id: ids.customer, session_id: ids.session });
+  assert.equal(refusedDefault.hasSession, true);
+  await refusedDefault.customer.getMe();
+  assert.equal(calls.at(-1).headers.get("authorization"), `Bearer ${visitorTokenA}`);
+
+  assert.equal(plainStorefront({ sessionStorage: new MemoryStorage() }).sessionStorageUnavailable, false);
 });

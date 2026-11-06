@@ -47,8 +47,7 @@ test("Stripe is connected with the merchant's own keys under an app-picked id, a
 
 test("checking a Stripe option's setup is a live read of the webhook the merchant makes and every problem found", async (context) => {
   const setup = {
-    webhook_address: "https://api.example.test/v1/webhooks/stripe/option",
-    api_version: "2025-09-30.clover",
+    webhook_address: "https://api.example.test/v1/webhooks/stripe",
     events: ["checkout.session.completed", "payment_intent.succeeded", "charge.refunded"],
     webhook_id: "we_merchant",
     problems: [
@@ -59,7 +58,6 @@ test("checking a Stripe option's setup is a live read of the webhook the merchan
       { type: "webhook_duplicated", webhook_ids: ["we_merchant", "we_other"] },
       { type: "webhook_disabled" },
       { type: "webhook_events_missing", events: ["charge.refunded"] },
-      { type: "webhook_api_version", api_version: null },
       { type: "webhook_replaced", saved_webhook_id: "we_previous" },
     ],
   };

@@ -3,7 +3,7 @@ import type { Block } from "./block";
 import type { AccountActor, CommerceParty, EmailContact, Money, PostalAddress, SortDirection, UnitSpan } from "./common";
 import type { InventoryRequirement } from "./product";
 import type { OrderDeliveryTiming } from "./order";
-import type { PurchaseRequirementScope } from "./customerGroup";
+import type { PackageMinimumScope } from "./package";
 
 export type RoutingCondition =
   | { type: "markets"; market_ids: string[] }
@@ -383,7 +383,7 @@ export interface FindCustomerOrderFulfillmentsParams {
 }
 
 export type MinimumProgressUnavailableReason =
-  | "no_requirement"
+  | "no_minimum"
   | "incomplete_source_evidence"
   | "incomplete_return_evidence"
   | "arithmetic_overflow"
@@ -393,7 +393,7 @@ export type MinimumProgressUnavailableReason =
 export type MinimumProgressMonthState =
   | {
       type: "available";
-      scope: PurchaseRequirementScope;
+      scope: PackageMinimumScope;
       delivered_quantity: number;
       returned_quantity: number;
       current_quantity: number;
@@ -412,7 +412,7 @@ export interface MinimumProgressMonth {
   timezone: string;
   starts_at: EpochMilliseconds;
   ends_at: EpochMilliseconds;
-  customer_group_member_id: string | null;
+  package_member_id: string | null;
   progress: MinimumProgressMonthState;
 }
 

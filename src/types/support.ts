@@ -230,7 +230,7 @@ export type ChatInput =
 export interface StartConversationParams {
   id?: string;
   language: string;
-  flow_key?: string;
+  flow_key: string;
 }
 
 export interface StorefrontGetConversationParams {

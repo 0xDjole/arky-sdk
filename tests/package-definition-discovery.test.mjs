@@ -4,7 +4,7 @@ import { createAdmin } from '../dist/admin.js';
 
 const STORE_ID = '2d9b7c14-6e03-4f5a-a1b8-9c0e3f7d2a61';
 
-for (const [owner, path] of [['catalog', 'catalogs']]) {
+for (const [owner, path] of [['package', 'packages']]) {
   test(`${owner} discovery preserves combined filters and empty-page continuation; exact identity is separate`, async () => {
     const original = globalThis.fetch;
     const calls = [];

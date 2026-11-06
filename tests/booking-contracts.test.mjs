@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { createAdmin, orderBookingItems } from "../dist/admin.js";
 import { createStorefront, initialize } from "../dist/storefront.js";
-import { apiUrl, cartRecord, ids, jsonResponse, publishableKey, visitorStorage } from "./helpers/arky-fixtures.mjs";
+import { apiUrl, cartRecord, fixedIdFactories, ids, jsonResponse, marketRecord, publishableKey, visitorStorage } from "./helpers/arky-fixtures.mjs";
 
 const storeId = ids.store;
 const otherStoreId = ids.otherStore;
@@ -39,7 +39,7 @@ function bookingService(overrides = {}) {
 }
 
 function storefrontService(overrides = {}) {
-  return { ...bookingService(), catalog_item_id: ids.catalogItem, ...overrides };
+  return { ...bookingService(), package_item_id: ids.packageItem, ...overrides };
 }
 
 function bookingResource(overrides = {}) {
@@ -76,7 +76,9 @@ function bookingOffering(overrides = {}) {
 }
 
 const offeringPrice = {
-  catalog_item_price_id: ids.price,
+  package_id: ids.package,
+  package_item_id: ids.packageItem,
+  price_id: ids.price,
   tax_mode: "inclusive",
   unit_price: { amount: 5000, currency: "eur" },
   compare_at: null,
@@ -84,15 +86,15 @@ const offeringPrice = {
 };
 
 function storefrontOffering(overrides = {}) {
-  return { ...bookingOffering(), catalog_item_id: ids.catalogItem, price: offeringPrice, ...overrides };
+  return { ...bookingOffering(), package_item_id: ids.packageItem, price: offeringPrice, ...overrides };
 }
 
-function offeringChoice(bookingOfferingId = offeringId, catalogItemPriceId = ids.price) {
+function offeringChoice(bookingOfferingId = offeringId, packageItemPriceId = ids.price) {
   return {
-    catalog_item_price_id: catalogItemPriceId,
+    price_id: packageItemPriceId,
     sellable: { type: "booking_offering", booking_offering_id: bookingOfferingId },
     content: { sku: null, blocks: [], basis: { type: "booking_option" } },
-    price: { ...offeringPrice, catalog_item_price_id: catalogItemPriceId },
+    price: { ...offeringPrice, price_id: packageItemPriceId },
   };
 }
 
@@ -107,7 +109,7 @@ function bookingLine() {
     capacity_intervals: [{ from: 1_800_000_000_000, to: 1_800_003_600_000 }],
     capacity_units: 1,
     form_submission_id: ids.submission,
-    snapshot: { service_key: "consultation", resource_key: "room-one", timezone: "Europe/Sarajevo", price: { type: "catalog", catalog_item_price_id: ids.price, catalog_id: ids.catalog } },
+    snapshot: { service_key: "consultation", resource_key: "room-one", timezone: "Europe/Sarajevo", price: { type: "listed", package_id: ids.package, package_item_id: "package-item", price_id: ids.price } },
     status: { type: "confirmed", attendance: { type: "upcoming" } },
     reschedules: [],
     money: { unit_price: 5000, discounts: [], tax: { type: "own", tax_category_id: taxCategoryId, rule_id: ids.variant, treatment: { type: "rates", lines: [] } } },
@@ -129,11 +131,11 @@ function order() {
 }
 
 function storefront(options = {}) {
-  return createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, sessionStorage: visitorStorage(), ...options });
+  return createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage(), ...options });
 }
 
 function store(options = {}) {
-  return initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, locale: "en", sessionStorage: visitorStorage(), ...options });
+  return initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", sessionStorage: visitorStorage(), ...options });
 }
 
 test("Admin resource discovery preserves bounded opaque continuation and ordered filters, and the storefront only reads one resource", async (context) => {
@@ -218,7 +220,7 @@ test("Admin booking runtime creates service, resource and offering under app-pic
   assert.equal(calls.length, 7);
 });
 
-test("storefront booking runtime reads one offering and its resource in the catalog and sends the slot with its listing price", async (context) => {
+test("storefront booking runtime reads one offering and its resource in the package and sends the slot with its item's price", async (context) => {
   const calls = [];
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     const call = { url: new URL(url), method: init.method || "GET", body: init.body ? JSON.parse(String(init.body)) : null, headers: new Headers(init.headers) };
@@ -236,20 +238,20 @@ test("storefront booking runtime reads one offering and its resource in the cata
     return jsonResponse(order());
   });
   const client = storefront({ market: "bih" });
-  const offering = await client.eshop.bookingOffering.get({ id: offeringId, catalog_id: ids.catalog, company_location_id: ids.companyLocation, include_price: true });
-  assert.equal(offering.catalog_item_id, ids.catalogItem);
-  assert.equal(offering.price.catalog_item_price_id, ids.price);
-  const resource = await client.eshop.bookingResource.get({ id: resourceId, offering_id: offeringId, catalog_id: ids.catalog });
+  const offering = await client.eshop.bookingOffering.get({ id: offeringId, package_id: ids.package, company_location_id: ids.companyLocation, include_price: true });
+  assert.equal(offering.package_item_id, ids.packageItem);
+  assert.equal(offering.price.price_id, ids.price);
+  const resource = await client.eshop.bookingResource.get({ id: resourceId, offering_id: offeringId, package_id: ids.package });
   assert.equal(resource.id, resourceId);
   await client.eshop.bookingService.getAvailability({
-    booking_service_id: serviceId, booking_resource_id: resourceId, from: 1_800_000_000_000, to: 1_800_086_400_000, catalog_id: ids.catalog,
+    booking_service_id: serviceId, booking_resource_id: resourceId, from: 1_800_000_000_000, to: 1_800_086_400_000, package_id: ids.package,
   });
   const booking = {
     id: lineId,
     booking_offering_id: offeringId,
     requested_interval: { from: 1_800_000_000_000, to: 1_800_003_600_000 },
     capacity_units: 1,
-    catalog_item_price_id: ids.price,
+    price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price },
     form_submission_id: ids.submission,
   };
   await client.eshop.cart.addBooking({
@@ -265,10 +267,10 @@ test("storefront booking runtime reads one offering and its resource in the cata
   assert.equal("service" in client.eshop, false);
   assert.equal("provider" in client.eshop, false);
   assert.deepEqual(calls.slice(0, 3).map((call) => [call.method, call.url.pathname, Object.fromEntries(call.url.searchParams)]), [
-    ["GET", `/v1/storefront/booking-offerings/${offeringId}`, { catalog_id: ids.catalog, company_location_id: ids.companyLocation, include_price: "true" }],
-    ["GET", `/v1/storefront/booking-resources/${resourceId}`, { catalog_id: ids.catalog, offering_id: offeringId }],
+    ["GET", `/v1/storefront/booking-offerings/${offeringId}`, { package_id: ids.package, company_location_id: ids.companyLocation, include_price: "true" }],
+    ["GET", `/v1/storefront/booking-resources/${resourceId}`, { package_id: ids.package, offering_id: offeringId }],
     ["GET", "/v1/storefront/booking-services/availability", {
-      catalog_id: ids.catalog, booking_service_id: serviceId, booking_resource_id: resourceId, from: "1800000000000", to: "1800086400000",
+      package_id: ids.package, booking_service_id: serviceId, booking_resource_id: resourceId, from: "1800000000000", to: "1800086400000",
     }],
   ]);
   const addition = calls.find((call) => call.url.pathname.endsWith("/booking-items"));
@@ -292,7 +294,7 @@ test("booking cancellation resends the caller's credit id after an uncertain res
     return jsonResponse(order());
   });
   const admin = createAdmin({ apiUrl: apiUrl, secretKey: "token" });
-  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, market: "bih", sessionStorage: visitorStorage() });
+  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "bih", sessionStorage: visitorStorage() });
   for (const [client, target] of [[admin, { store_id: storeId }], [storefront, {}]]) {
     const request = { ...target, order_id: "order/booking", line_item_id: "item/booking", credit_id: creditId, expected_updated_at: 9 };
     await assert.rejects(client.eshop.order.cancelBookingItem(request), (error) => error.statusCode === 503);
@@ -312,7 +314,7 @@ test("booking cancellation resends the caller's credit id after an uncertain res
   assert.equal(calls[2].url.pathname, "/v1/storefront/orders/order%2Fbooking/booking-items/item%2Fbooking/cancel");
 });
 
-test("Booking Service slug lookup stays singular, answers its listing and sends no price flag", async (context) => {
+test("Booking Service slug lookup stays singular, answers its item and sends no price flag", async (context) => {
   let call;
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     call = { url: new URL(url), method: init.method || "GET" };
@@ -321,21 +323,21 @@ test("Booking Service slug lookup stays singular, answers its listing and sends 
   const client = storefront({ market: "bih" });
   const service = await client.eshop.bookingService.get({
     slug: "consultation",
-    catalog_id: ids.catalog,
+    package_id: ids.package,
     company_location_id: ids.companyLocation,
     include_price: true,
   });
   assert.equal(service.slugs.en, "consultation");
-  assert.equal(service.catalog_item_id, ids.catalogItem);
+  assert.equal(service.package_item_id, ids.packageItem);
   assert.equal("slug" in service, false);
   assert.equal("price" in service, false);
   assert.equal(call.url.pathname, "/v1/storefront/booking-services/consultation");
-  assert.deepEqual(Object.fromEntries(call.url.searchParams), { catalog_id: ids.catalog, company_location_id: ids.companyLocation });
+  assert.deepEqual(Object.fromEntries(call.url.searchParams), { package_id: ids.package, company_location_id: ids.companyLocation });
   assert.equal(call.method, "GET");
-  assert.throws(() => client.eshop.bookingService.get({ catalog_id: ids.catalog }), /id or its slug/);
+  assert.throws(() => client.eshop.bookingService.get({ package_id: ids.package }), /id or its slug/);
 });
 
-test("the booking calendar prices each slot from its listing and adds one cart line per appointment under the ids the app gives", async (context) => {
+test("the booking calendar prices each slot from its item and adds one cart line per appointment under the ids the app gives", async (context) => {
   const calls = [];
   const calendarDate = new Date();
   const availableLocalDate = `${calendarDate.getFullYear()}-${String(calendarDate.getMonth() + 1).padStart(2, "0")}-01`;
@@ -344,8 +346,9 @@ test("the booking calendar prices each slot from its listing and adds one cart l
     const call = { url: new URL(url), method: init.method || "GET", body: init.body ? JSON.parse(String(init.body)) : null, headers: new Headers(init.headers) };
     calls.push(call);
     const path = call.url.pathname;
+    if (path === "/v1/storefront/markets/by-key/bih") return jsonResponse(marketRecord("bih"));
     if (path.endsWith(`/booking-services/${serviceId}`)) return jsonResponse(storefrontService());
-    if (path.endsWith(`/catalog-items/${ids.catalogItem}/prices`)) return jsonResponse({ items: [offeringChoice()], cursor: null });
+    if (path.endsWith(`/package-items/${ids.packageItem}/prices`)) return jsonResponse({ items: [offeringChoice()], cursor: null });
     if (path.endsWith(`/booking-resources/${resourceId}`)) return jsonResponse(bookingResource());
     if (path.endsWith("/booking-services/availability")) {
       return jsonResponse({
@@ -377,49 +380,53 @@ test("the booking calendar prices each slot from its listing and adds one cart l
     throw new Error(`Unexpected request ${call.method} ${call.url}`);
   });
 
-  const facade = store();
-  const scope = { buyer: { type: "customer" }, catalog_id: ids.catalog };
+  const facade = store({ market: "bih" });
+  const scope = { buyer: { type: "customer" }, package_id: ids.package };
   await facade.eshop.cart(scope).create({ id: ids.cart });
   const calendar = facade.eshop.bookingCalendar(scope);
   const selected = await calendar.select({ booking_service_id: serviceId });
   assert.equal(selected.booking_service.id, serviceId);
-  assert.deepEqual(selected.booking_choices.map((choice) => choice.catalog_item_price_id), [ids.price]);
+  assert.deepEqual(selected.booking_choices.map((choice) => choice.price_id), [ids.price]);
   assert.deepEqual(selected.booking_resources.map((resource) => resource.id), [resourceId]);
   const availableDay = calendar.state.get().days.find((day) => day.iso === availableLocalDate);
   assert.equal(availableDay?.available, true);
   calendar.selectDate({ date: availableDay.iso });
-  const { slots, timezone } = calendar.state.get();
+  const { slots } = calendar.state.get();
   assert.equal(slots.length, 1);
   const [slot] = slots;
+  const { timezone } = slot;
+  assert.equal(timezone, "Europe/Sarajevo");
   assert.equal(slot.from, 1_800_000_000_000);
   assert.equal(slot.booking_offering_id, offeringId);
   assert.equal(slot.booking_resource_id, resourceId);
-  assert.equal(slot.catalog_item_price_id, ids.price);
+  assert.deepEqual(slot.price_ref, { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price });
   assert.equal(slot.price.unit_price.amount, 5000);
   assert.equal(slot.date_text, new Date(slot.from).toLocaleDateString("en", { weekday: "short", month: "short", day: "numeric", timeZone: timezone }));
   assert.equal(slot.time_text, [slot.from, slot.to].map((value) => new Date(value).toLocaleTimeString("en", {
     hour: "2-digit", minute: "2-digit", timeZone: timezone,
   })).join(" - "));
-  assert.throws(() => calendar.selectSlot({ slot: { ...slot, catalog_item_price_id: ids.otherPrice } }), /no matching price/);
+  assert.throws(() => calendar.selectSlot({ slot: { ...slot, price_ref: { ...slot.price_ref, price_id: ids.otherPrice } } }), /no matching price/);
   await assert.rejects(calendar.addToCart({ id: "slot-line", slot }), TypeError);
   const result = await calendar.addToCart({ id: lineId, slot, form_submission_id: ids.submission });
   assert.equal(result.line_items.length, 1);
   await calendar.nextMonth();
 
   const serviceRead = calls.find((call) => call.url.pathname.endsWith(`/booking-services/${serviceId}`));
-  assert.deepEqual(Object.fromEntries(serviceRead.url.searchParams), { catalog_id: ids.catalog });
+  assert.deepEqual(Object.fromEntries(serviceRead.url.searchParams), { package_id: ids.package });
   const priceRead = calls.find((call) => call.url.pathname.endsWith("/prices"));
-  assert.deepEqual(Object.fromEntries(priceRead.url.searchParams), { catalog_id: ids.catalog, include_price: "true", limit: "100" });
+  assert.deepEqual(Object.fromEntries(priceRead.url.searchParams), { package_id: ids.package, include_price: "true", limit: "100" });
   const resourceReads = calls.filter((call) => call.url.pathname.endsWith(`/booking-resources/${resourceId}`));
   assert.equal(resourceReads.length, 1, "a known resource is read once");
-  assert.deepEqual(Object.fromEntries(resourceReads[0].url.searchParams), { catalog_id: ids.catalog, offering_id: offeringId });
+  assert.deepEqual(Object.fromEntries(resourceReads[0].url.searchParams), { package_id: ids.package, offering_id: offeringId });
   const availabilityCalls = calls.filter((call) => call.url.pathname.endsWith("/booking-services/availability"));
+  const dayMilliseconds = 24 * 60 * 60 * 1_000;
   const firstBounds = availabilityCalls[0].url.searchParams;
-  assert.equal(Number(firstBounds.get("from")), Date.UTC(calendarDate.getFullYear(), calendarDate.getMonth(), 1));
-  assert.equal(Number(firstBounds.get("to")), Date.UTC(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1));
-  const chainedBounds = availabilityCalls.at(-1).url.searchParams;
-  assert.equal(Number(chainedBounds.get("from")), slot.to);
-  assert.equal(Number(chainedBounds.get("to")), slot.to + 31 * 24 * 60 * 60 * 1_000);
+  assert.equal(firstBounds.get("limit"), "1");
+  assert.equal(Number(firstBounds.get("from")), Date.UTC(calendarDate.getFullYear(), calendarDate.getMonth(), 1) - dayMilliseconds);
+  assert.equal(Number(firstBounds.get("to")), Date.UTC(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1) + dayMilliseconds);
+  const nextBounds = availabilityCalls.at(-1).url.searchParams;
+  assert.equal(Number(nextBounds.get("from")), Date.UTC(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1) - dayMilliseconds);
+  assert.equal(Number(nextBounds.get("to")), Date.UTC(calendarDate.getFullYear(), calendarDate.getMonth() + 2, 1) + dayMilliseconds);
 
   const additions = calls.filter((call) => call.url.pathname.endsWith("/booking-items"));
   assert.equal(additions.length, 1);
@@ -430,7 +437,7 @@ test("the booking calendar prices each slot from its listing and adds one cart l
       booking_offering_id: offeringId,
       requested_interval: { from: slot.from, to: slot.to },
       capacity_units: 1,
-      catalog_item_price_id: ids.price,
+      price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price },
       form_submission_id: ids.submission,
     },
   });
@@ -441,7 +448,7 @@ test("the booking calendar prices each slot from its listing and adds one cart l
   assert.equal("loadMoreOfferings" in calendar, false);
 });
 
-test("the booking calendar keeps the company location context of its cart and explicitly follows price and availability pages", async (context) => {
+test("the booking calendar keeps the company location context of its cart, reads every availability page and follows price pages when asked", async (context) => {
   const choiceCalls = [];
   const resourceCalls = [];
   const availabilityCalls = [];
@@ -453,9 +460,9 @@ test("the booking calendar keeps the company location context of its cart and ex
     const request = new URL(String(url));
     assert.equal(request.searchParams.has("company_id"), false);
     assert.equal(request.searchParams.get("company_location_id"), ids.companyLocation);
-    assert.equal(request.searchParams.get("catalog_id"), ids.catalog);
+    assert.equal(request.searchParams.get("package_id"), ids.package);
     if (request.pathname.endsWith(`/booking-services/${serviceId}`)) return jsonResponse(storefrontService());
-    if (request.pathname.endsWith(`/catalog-items/${ids.catalogItem}/prices`)) {
+    if (request.pathname.endsWith(`/package-items/${ids.packageItem}/prices`)) {
       choiceCalls.push(request);
       assert.equal(request.searchParams.get("limit"), "100");
       assert.equal(request.searchParams.get("include_price"), "true");
@@ -471,7 +478,7 @@ test("the booking calendar keeps the company location context of its cart and ex
     }
     if (request.pathname.endsWith("/booking-services/availability")) {
       availabilityCalls.push(request);
-      assert.equal(request.searchParams.get("limit"), "20");
+      assert.equal(request.searchParams.get("limit"), "1");
       assert.equal(request.searchParams.has("include_price"), false);
       return jsonResponse({
         from: Number(request.searchParams.get("from")), to: Number(request.searchParams.get("to")),
@@ -487,39 +494,33 @@ test("the booking calendar keeps the company location context of its cart and ex
   });
   const calendar = store().eshop.bookingCalendar({
     buyer: { type: "company_location", company_location_id: ids.companyLocation, purchase_order_number: null },
-    catalog_id: ids.catalog,
+    package_id: ids.package,
   });
   await calendar.select({ booking_service_id: serviceId });
   assert.equal(choiceCalls.length, 1);
-  assert.equal(availabilityCalls.length, 1, "availability must not eagerly follow continuations");
-  assert.equal(resourceCalls.length, 1);
-  assert.equal(calendar.state.get().availability.cursor, "availability-next");
-  assert.equal(calendar.state.get().booking_choices_cursor, "price-next");
-  const state = await calendar.loadMoreChoices();
-  assert.equal(choiceCalls.length, 2);
-  assert.equal(choiceCalls[1].searchParams.get("cursor"), "price-next");
-  assert.deepEqual(state.booking_choices.map((row) => row.catalog_item_price_id), [ids.price, ids.otherPrice]);
-  assert.equal(state.booking_choices_cursor, null);
-  assert.equal(state.loading_choices, false);
-  await calendar.loadMoreChoices();
-  assert.equal(choiceCalls.length, 2, "an exhausted list makes no further request");
-  repeatAvailabilityCursor = true;
-  await assert.rejects(calendar.loadMoreAvailability(), (error) => error.name === "ArkyError" && error.code === "answer_mismatch" && /didn't advance/.test(error.message));
-  assert.equal(calendar.state.get().availability.cursor, "availability-next");
-  assert.equal(calendar.state.get().availability.booking_resources.length, 1);
-  assert.equal(calendar.state.get().loading, false);
-  assert.equal(resourceCalls.length, 1);
-  repeatAvailabilityCursor = false;
-  await calendar.loadMoreAvailability();
-  assert.equal(availabilityCalls.length, 3);
+  assert.equal(availabilityCalls.length, 2, "a month read follows every availability page");
   assert.equal(availabilityCalls[1].searchParams.get("cursor"), "availability-next");
   assert.equal(availabilityCalls[1].searchParams.get("from"), availabilityCalls[0].searchParams.get("from"));
   assert.deepEqual(calendar.state.get().availability.booking_resources.map((row) => row.booking_resource_id), [resourceId, laterResourceId]);
   assert.deepEqual(calendar.state.get().booking_resources.map((row) => row.id), [resourceId, laterResourceId]);
   assert.equal(resourceCalls.length, 2);
   assert.equal(calendar.state.get().availability.cursor, null);
-  await calendar.loadMoreAvailability();
-  assert.equal(availabilityCalls.length, 3);
+  assert.equal(calendar.state.get().booking_choices_cursor, "price-next");
+  const state = await calendar.loadMoreChoices();
+  assert.equal(choiceCalls.length, 2);
+  assert.equal(choiceCalls[1].searchParams.get("cursor"), "price-next");
+  assert.deepEqual(state.booking_choices.map((row) => row.price_id), [ids.price, ids.otherPrice]);
+  assert.equal(state.booking_choices_cursor, null);
+  assert.equal(state.loading_choices, false);
+  await calendar.loadMoreChoices();
+  assert.equal(choiceCalls.length, 2, "an exhausted list makes no further request");
+  repeatAvailabilityCursor = true;
+  await assert.rejects(calendar.nextMonth(), (error) => error.name === "ArkyError" && error.code === "answer_mismatch" && /didn't advance/.test(error.message));
+  assert.equal(availabilityCalls.length, 4);
+  assert.equal(calendar.state.get().availability, null);
+  assert.equal(calendar.state.get().loading, false);
+  assert.equal(resourceCalls.length, 2);
+  assert.equal("loadMoreAvailability" in calendar, false);
   await assert.rejects(calendar.selectResource({ booking_resource_id: ids.variant }), TypeError);
 });
 
@@ -554,7 +555,7 @@ test("late availability cannot replace a newer booking service selection in the 
     throw new Error(`Unexpected request ${url}`);
   });
   const facade = store();
-  const calendar = facade.eshop.bookingCalendar({ buyer: { type: "customer" }, catalog_id: ids.catalog });
+  const calendar = facade.eshop.bookingCalendar({ buyer: { type: "customer" }, package_id: ids.package });
   try {
     const first = calendar.select({ booking_service_id: serviceId });
     await pending;

@@ -6,6 +6,7 @@ const paymentId = '3e6b7f70-4d2f-4f0e-9b7b-5d3b6c0a51d2';
 const action = {
   type: 'monri_components',
   environment: 'test', authenticity_token: 'test-token', client_secret: 'test-session-secret', save_card: false,
+  runs_on: { type: 'provider' },
 };
 const billing = {
   full_name: 'Test Buyer', address: 'Test Street 1', city: 'Sarajevo', zip: '71000',
@@ -75,6 +76,10 @@ test('Monri Components uses hosted card entry for the named payment and one deli
     await assert.rejects(mountCheckoutAction({ action: withoutSaveCard, element: target, payment_id: paymentId }), hasCode('invalid_action'));
     await assert.rejects(mountCheckoutAction({ action: { ...action, save_card: 'true' }, element: target, payment_id: paymentId }), hasCode('invalid_action'));
     await assert.rejects(mountCheckoutAction({ action: { ...action, payment_id: paymentId }, element: target, payment_id: paymentId }), hasCode('invalid_action'));
+    const { runs_on: _runsOn, ...withoutRunsOn } = action;
+    await assert.rejects(mountCheckoutAction({ action: withoutRunsOn, element: target, payment_id: paymentId }), hasCode('invalid_action'));
+    await assert.rejects(mountCheckoutAction({ action: { ...action, runs_on: { type: 'elsewhere' } }, element: target, payment_id: paymentId }), hasCode('invalid_action'));
+    await assert.rejects(mountCheckoutAction({ action: { ...action, runs_on: { type: 'simulator' } }, element: target, payment_id: paymentId }), hasCode('invalid_action'));
     await assert.rejects(mountCheckoutAction({ action, element: target }), /needs the payment_id of the payment it pays/);
     await assert.rejects(mountCheckoutAction({ action, element: target, payment_id: '' }), /needs the payment_id of the payment it pays/);
     window.location.protocol = 'http:';

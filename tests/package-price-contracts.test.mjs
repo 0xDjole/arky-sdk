@@ -2,14 +2,15 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createStorefront } from "../dist/storefront.js";
 import { formatPrice, getPriceAmount, formatMinor } from "../dist/utils.js";
+import { fixedIdFactories } from "./helpers/arky-fixtures.mjs";
 
 const publishableKey = `arky_pk_${"a".repeat(42)}A`;
 const companyId = "8f9a5793-561f-4655-8f6b-42f5d6ded326";
 const locationId = "5d7f1c39-8a24-4e60-b9d3-2e6c0a8f4b17";
-const catalogId = "e4c8a2f6-1b73-4d95-a0e7-5f2c9b6d3a18";
-const listingId = "5a8d2f61-3b7e-4c09-9f14-6d2b8e0a4c73";
+const packageId = "e4c8a2f6-1b73-4d95-a0e7-5f2c9b6d3a18";
+const packageItemId = "5a8d2f61-3b7e-4c09-9f14-6d2b8e0a4c73";
 const selectedPrice = {
-  catalog_item_price_id: "2c9e4a7b-5d31-4f86-a0b2-7e3c9d1f5a64",
+  price_id: "2c9e4a7b-5d31-4f86-a0b2-7e3c9d1f5a64",
   tax_mode: "inclusive",
   unit_price: { currency: "bam", amount: 2500 },
   compare_at: 3000,
@@ -17,7 +18,7 @@ const selectedPrice = {
 };
 
 function storefront() {
-  return createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`,
+  return createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories,
     apiUrl: "https://api.example.test",
     locale: "bs",
     market: "bih",
@@ -45,65 +46,65 @@ function assertStorefrontHeaders(calls) {
 }
 
 for (const [owner, route] of [["product", "products"], ["bookingService", "booking-services"]]) {
-  test(`${owner} detail forwards the catalog and buyer context, answers its listing and never asks for a price`, async (context) => {
-    const record = { id: "sellable", catalog_item_id: listingId };
+  test(`${owner} detail forwards the package and buyer context, answers its item and never asks for a price`, async (context) => {
+    const record = { id: "sellable", package_item_id: packageItemId };
     const calls = recordCalls(context, record);
     const api = storefront().eshop[owner];
-    const identifier = "catalog/item?literal";
-    assert.deepEqual(await api.get({ id: identifier, catalog_id: catalogId, company_id: companyId, include_price: true }), record);
-    await api.get({ slug: "the-slug", catalog_id: catalogId, company_location_id: locationId });
+    const identifier = "package/item?literal";
+    assert.deepEqual(await api.get({ id: identifier, package_id: packageId, company_id: companyId, include_price: true }), record);
+    await api.get({ slug: "the-slug", package_id: packageId, company_location_id: locationId });
     assert.deepEqual(calls.map((call) => [call.url.pathname, Object.fromEntries(call.url.searchParams)]), [
-      [`/v1/storefront/${route}/catalog%2Fitem%3Fliteral`, { catalog_id: catalogId, company_id: companyId }],
-      [`/v1/storefront/${route}/the-slug`, { catalog_id: catalogId, company_location_id: locationId }],
+      [`/v1/storefront/${route}/package%2Fitem%3Fliteral`, { package_id: packageId, company_id: companyId }],
+      [`/v1/storefront/${route}/the-slug`, { package_id: packageId, company_location_id: locationId }],
     ]);
     assert.equal("find" in api, false);
     assertStorefrontHeaders(calls);
   });
 
-  test(`${owner} reads a key only through the by-key route, with the same catalog context`, async (context) => {
-    const record = { id: "sellable", catalog_item_id: listingId };
+  test(`${owner} reads a key only through the by-key route, with the same package context`, async (context) => {
+    const record = { id: "sellable", package_item_id: packageItemId };
     const calls = recordCalls(context, record);
     const api = storefront().eshop[owner];
-    assert.deepEqual(await api.getByKey({ key: "classic-x1", catalog_id: catalogId, company_location_id: locationId }), record);
-    await api.getByKey({ key: "with/slash", catalog_id: catalogId });
-    await api.get({ slug: "classic-x1", catalog_id: catalogId });
+    assert.deepEqual(await api.getByKey({ key: "classic-x1", package_id: packageId, company_location_id: locationId }), record);
+    await api.getByKey({ key: "with/slash", package_id: packageId });
+    await api.get({ slug: "classic-x1", package_id: packageId });
     assert.deepEqual(calls.map((call) => [call.url.pathname, Object.fromEntries(call.url.searchParams)]), [
-      [`/v1/storefront/${route}/by-key/classic-x1`, { catalog_id: catalogId, company_location_id: locationId }],
-      [`/v1/storefront/${route}/by-key/with%2Fslash`, { catalog_id: catalogId }],
-      [`/v1/storefront/${route}/classic-x1`, { catalog_id: catalogId }],
+      [`/v1/storefront/${route}/by-key/classic-x1`, { package_id: packageId, company_location_id: locationId }],
+      [`/v1/storefront/${route}/by-key/with%2Fslash`, { package_id: packageId }],
+      [`/v1/storefront/${route}/classic-x1`, { package_id: packageId }],
     ]);
     assertStorefrontHeaders(calls);
   });
 }
 
 test("a variant and a booking offering keep their server-selected price when the caller asks for it", async (context) => {
-  const record = { id: "sellable", catalog_item_id: listingId, price: selectedPrice };
+  const record = { id: "sellable", package_item_id: packageItemId, price: selectedPrice };
   const calls = recordCalls(context, record);
   const client = storefront();
   assert.deepEqual(
-    await client.eshop.productVariant.get({ product_id: "product/1", id: "variant/1", catalog_id: catalogId, company_location_id: locationId, include_price: true }),
+    await client.eshop.productVariant.get({ product_id: "product/1", id: "variant/1", package_id: packageId, company_location_id: locationId, include_price: true }),
     record,
   );
-  assert.deepEqual(await client.eshop.bookingOffering.get({ id: "offering/1", catalog_id: catalogId, include_price: false }), record);
-  await client.eshop.bookingOffering.get({ id: "offering/2", catalog_id: catalogId, company_id: companyId });
+  assert.deepEqual(await client.eshop.bookingOffering.get({ id: "offering/1", package_id: packageId, include_price: false }), record);
+  await client.eshop.bookingOffering.get({ id: "offering/2", package_id: packageId, company_id: companyId });
   assert.deepEqual(calls.map((call) => [call.url.pathname, Object.fromEntries(call.url.searchParams)]), [
-    ["/v1/storefront/products/product%2F1/variants/variant%2F1", { catalog_id: catalogId, company_location_id: locationId, include_price: "true" }],
-    ["/v1/storefront/booking-offerings/offering%2F1", { catalog_id: catalogId, include_price: "false" }],
-    ["/v1/storefront/booking-offerings/offering%2F2", { catalog_id: catalogId, company_id: companyId }],
+    ["/v1/storefront/products/product%2F1/variants/variant%2F1", { package_id: packageId, company_location_id: locationId, include_price: "true" }],
+    ["/v1/storefront/booking-offerings/offering%2F1", { package_id: packageId, include_price: "false" }],
+    ["/v1/storefront/booking-offerings/offering%2F2", { package_id: packageId, company_id: companyId }],
   ]);
   assertStorefrontHeaders(calls);
 });
 
 test("the storefront store exposes the by-key reads next to get", async () => {
   const { initialize } = await import("../dist/storefront.js");
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl: "https://api.example.test", locale: "bs" });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: "https://api.example.test", locale: "bs" });
   assert.equal(typeof store.eshop.product.getByKey, "function");
   assert.equal(typeof store.eshop.bookingService.getByKey, "function");
   assert.equal(typeof store.category.getByKey, "function");
-  assert.equal(typeof store.eshop.catalogItem.findPrices, "function");
+  assert.equal(typeof store.eshop.packageItem.findPrices, "function");
 });
 
-test("the storefront has no separate digital product catalog", () => {
+test("the storefront has no separate digital product package", () => {
   const client = storefront();
   assert.equal("digital" in client.eshop, false);
   assert.equal("digitalProduct" in client.eshop, false);

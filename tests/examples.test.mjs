@@ -43,10 +43,11 @@ declare global {
   const arky: ArkyStore;
   const admin: AdminClient;
   const process: { env: Record<string, string | undefined> };
-  const catalog_id: string;
+  const package_id: string;
+  const package_item_id: string;
   const collection_id: string;
   const variant_id: string;
-  const catalog_item_price_id: string;
+  const price_id: string;
   const orderId: string;
   const address: PostalAddress;
   function solveBotCheck(provider: "turnstile" | "h_captcha", siteKey: string): Promise<string>;

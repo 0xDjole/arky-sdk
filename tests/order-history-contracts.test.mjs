@@ -4,8 +4,7 @@ import {
   createAdmin,
   orderBookingItems,
   orderProductItems,
-  orderPurchaseAccessItems,
-  orderCustomerGroupItems,
+  orderPackageItems,
   orderRentalUseItems,
 } from "../dist/index.js";
 import { companyLocationOrder, retainedOrder as retained } from "./fixtures/retained-order.mjs";
@@ -24,13 +23,12 @@ test("an order read keeps its cart source, the placed snapshot and every line fa
   const order = await client().eshop.order.get({ store_id: storeId, id: retained.id });
   assert.deepEqual(order, retained);
   assert.deepEqual(order.source, { type: "cart", cart_id: retained.source.cart_id, placed_by: retained.source.placed_by });
-  assert.deepEqual(order.line_items.map((line) => line.type), ["product", "booking", "customer_group", "purchase_access"]);
+  assert.deepEqual(order.line_items.map((line) => line.type), ["product", "booking", "package"]);
   assert.deepEqual(order.source.placed_by, { type: "customer", customer_id: retained.customer_id, customer_session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" });
   assert.deepEqual(order.buyer, { type: "customer" });
   const [product] = orderProductItems(order);
   const [booking] = orderBookingItems(order);
-  const [group] = orderCustomerGroupItems(order);
-  const [access] = orderPurchaseAccessItems(order);
+  const [packageLine] = orderPackageItems(order);
   assert.equal(product.snapshot.product_key, "consultation-credit");
   assert.equal(product.money_runs[0].money.unit_price, 1000);
   assert.equal("type" in product, true);
@@ -38,9 +36,8 @@ test("an order read keeps its cart source, the placed snapshot and every line fa
   assert.deepEqual(booking.status, { type: "confirmed", attendance: { type: "upcoming" } });
   assert.deepEqual(booking.reschedules, []);
   assert.equal("attendance" in booking, false);
-  assert.equal(group.customer_group_member_id, ids.customerGroupMember);
-  assert.equal(access.order_customer_group_line_item_id, group.id);
-  assert.equal("type" in group, true);
+  assert.equal(packageLine.package_member_id, ids.packageMember);
+  assert.equal("type" in packageLine, true);
   assert.deepEqual(orderRentalUseItems(order), []);
   assert.deepEqual(orderProductItems(null), []);
   assert.equal(order.totals.total, 2900);

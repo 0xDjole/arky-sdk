@@ -3,6 +3,11 @@ import type { AccountActor } from "./common";
 
 export type NoteTarget =
   | { type: "form_submission"; form_submission_id: string }
+  | {
+      type: "form_submission_stage_change";
+      form_submission_id: string;
+      changed_at: EpochMilliseconds;
+    }
   | { type: "customer"; customer_id: string }
   | { type: "company"; company_id: string }
   | { type: "order"; order_id: string }
@@ -67,27 +72,3 @@ export interface ConversationNoteTarget {
   conversation_id: string;
 }
 
-export type FindOrderNotesParams = OrderNoteTarget & NotePageParams;
-export type CreateOrderNoteParams = OrderNoteTarget & NoteCreateParams;
-export type UpdateOrderNoteParams = OrderNoteTarget & NoteUpdateParams;
-export type DeleteOrderNoteParams = OrderNoteTarget & NoteDeleteParams;
-
-export type FindCustomerNotesParams = CustomerNoteTarget & NotePageParams;
-export type CreateCustomerNoteParams = CustomerNoteTarget & NoteCreateParams;
-export type UpdateCustomerNoteParams = CustomerNoteTarget & NoteUpdateParams;
-export type DeleteCustomerNoteParams = CustomerNoteTarget & NoteDeleteParams;
-
-export type FindCompanyNotesParams = CompanyNoteTarget & NotePageParams;
-export type CreateCompanyNoteParams = CompanyNoteTarget & NoteCreateParams;
-export type UpdateCompanyNoteParams = CompanyNoteTarget & NoteUpdateParams;
-export type DeleteCompanyNoteParams = CompanyNoteTarget & NoteDeleteParams;
-
-export type FindFormSubmissionNotesParams = FormSubmissionNoteTarget & NotePageParams;
-export type CreateFormSubmissionNoteParams = FormSubmissionNoteTarget & NoteCreateParams;
-export type UpdateFormSubmissionNoteParams = FormSubmissionNoteTarget & NoteUpdateParams;
-export type DeleteFormSubmissionNoteParams = FormSubmissionNoteTarget & NoteDeleteParams;
-
-export type FindConversationNotesParams = ConversationNoteTarget & NotePageParams;
-export type CreateConversationNoteParams = ConversationNoteTarget & NoteCreateParams;
-export type UpdateConversationNoteParams = ConversationNoteTarget & NoteUpdateParams;
-export type DeleteConversationNoteParams = ConversationNoteTarget & NoteDeleteParams;

@@ -12,6 +12,7 @@ import type {
   CreateBookingOfferingParams,
   UpdateBookingOfferingParams,
   GetStorefrontAvailabilityParams,
+  GetAvailabilityParams,
 } from "arky-sdk/types";
 
 type Assert<T extends true> = T;
@@ -19,7 +20,19 @@ type Equal<A, B> = [A] extends [B] ? [B] extends [A] ? true : false : false;
 type Required<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
 type Missing<T, K extends PropertyKey> = Extract<K, keyof T> extends never ? true : false;
 
+type MoveRead = {
+  store_id: string;
+  booking_service_id: string;
+  from: GetAvailabilityParams["from"];
+  to: GetAvailabilityParams["to"];
+};
+
 export type BookingDefinitionContracts = [
+  Assert<Equal<(MoveRead & { moving_order_id: string }) extends GetAvailabilityParams ? true : false, false>>,
+  Assert<Equal<(MoveRead & { moving_order_booking_line_item_id: string }) extends GetAvailabilityParams ? true : false, false>>,
+  Assert<Equal<(MoveRead & { moving_order_id: string; moving_order_booking_line_item_id: string }) extends GetAvailabilityParams ? true : false, true>>,
+  Assert<Equal<MoveRead extends GetAvailabilityParams ? true : false, true>>,
+  Assert<Missing<GetStorefrontAvailabilityParams, "moving_order_id" | "moving_order_booking_line_item_id">>,
   Assert<Required<CreateBookingServiceParams, "segments">>,
   Assert<Required<CreateBookingServiceParams, "buffer_before_minutes">>,
   Assert<Required<CreateBookingServiceParams, "buffer_after_minutes">>,
@@ -36,5 +49,5 @@ export type BookingDefinitionContracts = [
   Assert<Missing<CreateBookingOfferingParams, "segments" | "tax_category_id" | "date_overrides">>,
   Assert<Missing<UpdateBookingOfferingParams, "booking_service_id" | "booking_resource_id">>,
   Assert<Equal<Extract<BookingVenue, { type: "not_fixed" }>, { type: "not_fixed"; store_location_id: string }>>,
-  Assert<Required<GetStorefrontAvailabilityParams, "catalog_id">>,
+  Assert<Required<GetStorefrontAvailabilityParams, "package_id">>,
 ];

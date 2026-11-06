@@ -28,8 +28,6 @@ export interface ContentReads {
   findMedia(params: { ids: string[] }, options?: RequestOptions): Promise<Media[]>;
 }
 
-const mediaIdsPerRead = 100;
-
 function blockOfType<T extends Block["type"]>(block: Block | null, key: string, types: readonly T[]): Extract<Block, { type: T }> | null {
   if (!block) return null;
   if (!(types as readonly string[]).includes(block.type)) {
@@ -74,15 +72,7 @@ async function readMedia(
 ): Promise<Record<string, Media>> {
   const ids = [...new Set(records.flatMap((record) => collectBlockReferences(record.blocks).media_ids))];
   const media: Record<string, Media> = {};
-  for (let start = 0; start < ids.length; start += mediaIdsPerRead) {
-    const asked = ids.slice(start, start + mediaIdsPerRead);
-    const found = await reads.findMedia({ ids: asked }, options);
-    if (!Array.isArray(found)) throw new ArkyError("answer_mismatch", "The media read did not answer a list");
-    for (const item of found) {
-      if (!asked.includes(item.id)) throw new ArkyError("answer_mismatch", "The media read answered a file it was not asked for");
-      media[item.id] = item;
-    }
-  }
+  for (const item of await reads.findMedia({ ids }, options)) media[item.id] = item;
   return media;
 }
 

@@ -91,7 +91,7 @@ export type CompanyContracts = [
   True<Equal<PublicTypes.Company, Company>>,
   True<Equal<PublicTypes.CompanyLocation, CompanyLocation>>,
   True<Equal<PublicTypes.ApiKey, ApiKey>>,
-  True<Equal<keyof Store, "id" | "name" | "owner_account_id" | "timezone" | "languages" | "status" | "email_sending" | "created_at" | "updated_at">>,
+  True<Equal<keyof Store, "id" | "name" | "owner_account_id" | "timezone" | "languages" | "mode" | "status" | "email_sending" | "created_at" | "updated_at">>,
   True<Equal<Store["status"]["type"], "active" | "deleting">>,
   True<Equal<Store["email_sending"], StoreEmailSending>>,
   True<Equal<StoreEmailSending, { type: "allowed" } | { type: "paused"; reason: string }>>,
@@ -158,9 +158,9 @@ export type CompanyContracts = [
   True<Equal<keyof CompanyRole, "id" | "store_id" | "key" | "permissions" | "created_at" | "updated_at">>,
   True<Equal<CompanyRole["permissions"], CompanyPermission[]>>,
   True<Equal<CompanyPermission,
-    | "admin" | "place_orders" | "join_customer_groups" | "access_digital_products" | "view_own_orders" | "view_company_orders"
-    | "view_own_customer_groups" | "view_company_customer_groups" | "manage_company" | "manage_addresses" | "manage_members"
-    | "manage_company_customer_groups" | "manage_payment_methods">>,
+    | "admin" | "place_orders" | "join_packages" | "access_digital_products" | "view_own_orders" | "view_company_orders"
+    | "view_own_packages" | "view_company_packages" | "manage_company" | "manage_addresses" | "manage_members"
+    | "manage_company_packages" | "manage_payment_methods">>,
   True<RequiredField<CreateCompanyRoleParams, "id">>,
   True<Equal<keyof UpdateCompanyRoleParams, "store_id" | "id" | "expected_updated_at" | "permissions">>,
   True<RequiredField<UpdateCompanyRoleParams, "expected_updated_at">>,

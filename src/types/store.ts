@@ -1,5 +1,8 @@
 import type { EpochMilliseconds } from "./time";
 import type { Currency, PostalAddressInput, SortDirection, TaxMode } from "./common";
+import type { PaymentRunsOn } from "./payment";
+
+export type StoreMode = "live" | "test";
 
 export type StoreStatus = { type: "active" } | { type: "deleting" };
 
@@ -11,6 +14,7 @@ export interface Store {
   owner_account_id: string;
   timezone: string;
   languages: string[];
+  mode: StoreMode;
   status: StoreStatus;
   email_sending: StoreEmailSending;
   created_at: EpochMilliseconds;
@@ -58,6 +62,7 @@ export type StoreSubscriptionPaymentAction =
       publishable_key: string;
       client_secret: string;
       expires_at: EpochMilliseconds;
+      runs_on: PaymentRunsOn;
     };
 
 export interface StoreSubscriptionSelection extends StoreSubscription {
@@ -70,7 +75,7 @@ export type FeatureType =
   | "booking_services"
   | "products"
   | "booking_resources"
-  | "customer_groups"
+  | "packages"
   | "media"
   | "members"
   | "categories"
@@ -79,15 +84,6 @@ export type FeatureType =
   | "webhooks"
   | "support_flows"
   | "broadcasts";
-
-export interface StoreUsage {
-  id: string;
-  store_id: string;
-  feature: FeatureType;
-  count: number;
-  created_at: EpochMilliseconds;
-  updated_at: EpochMilliseconds;
-}
 
 export type StoreUsageAllowance =
   | { type: "limited"; limit: number }
@@ -136,6 +132,7 @@ export interface CreateStoreSalesChannelInput {
 
 export interface CreateStoreParams {
   id: string;
+  mode: StoreMode;
   name: string;
   timezone: string;
   languages: string[];

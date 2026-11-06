@@ -8,7 +8,7 @@ export interface StoreStatusCountSegments {
   entries_by_status: "active" | "draft" | "scheduled" | "archived" | "deleting";
   categories_by_status: "active" | "draft" | "archived" | "deleting";
   forms_by_status: "active" | "draft" | "closed";
-  customer_groups_by_status: "draft" | "active" | "closed" | "archived";
+  packages_by_status: "draft" | "active" | "closed" | "archived" | "deleting";
   broadcasts_by_status: "draft" | "scheduled" | "sending" | "sent";
   conversations_by_status: "flow" | "waiting_for_team" | "resolved";
   carts_by_status: "active" | "abandoned" | "converted" | "superseded" | "merged" | "expired";
@@ -16,7 +16,7 @@ export interface StoreStatusCountSegments {
   orders_by_status: "pending" | "confirmed" | "partially_cancelled" | "cancelled";
   order_product_items_by_status: "pending" | "confirmed" | "cancelled";
   open_recurring_members_by_status: "awaiting_activation" | "active" | "blocked" | "paused";
-  open_rentals_by_status: "active" | "ending";
+  open_rentals_by_status: "waiting" | "active" | "ending";
   open_payments_by_type: "stripe_checkout" | "stripe_card" | "monri_checkout" | "monri_card" | "cash_on_delivery" | "manual";
   open_shipments_by_type: "fulfillment_job" | "fulfillment";
 }
@@ -24,11 +24,11 @@ export interface StoreStatusCountSegments {
 export type StoreStatusCountType = keyof StoreStatusCountSegments;
 
 export type StoreCountDayType =
-  | "new_products_day"
-  | "new_booking_services_day"
-  | "new_form_submissions_day"
-  | "new_customers_day"
-  | "new_orders_day"
+  | "products_created_day"
+  | "booking_services_created_day"
+  | "form_submissions_created_day"
+  | "customers_created_day"
+  | "orders_placed_day"
   | "page_views_day"
   | "booked_slots_day";
 

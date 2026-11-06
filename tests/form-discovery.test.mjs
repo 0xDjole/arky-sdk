@@ -3,7 +3,7 @@ import { File } from "node:buffer";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { initialize } from "../dist/storefront.js";
-import { apiUrl, errorResponse, ids, publishableKey, recordFetch, visitorStorage } from "./helpers/arky-fixtures.mjs";
+import { apiUrl, errorResponse, fixedIdFactories, ids, publishableKey, recordFetch, visitorStorage } from "./helpers/arky-fixtures.mjs";
 
 const STORE_ID = "a8c41e2f-6d95-4b07-83f1-0e5d7a9c2b36";
 const FORM_ID = ids.form;
@@ -100,7 +100,7 @@ test("storefront submit with the loaded form keeps the caller's id and answers a
     if (++submissions === 1) throw new TypeError("response lost");
     return { id: SUBMISSION_ID, form_id: FORM_ID, language: "en", answers: [], stage_id: "new", created_at: 2, updated_at: 2 };
   });
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, locale: "en", sessionStorage: visitorStorage() });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", sessionStorage: visitorStorage() });
   const request = { id: SUBMISSION_ID, form: intake, language: "en", values: { answer: "kept" } };
   await assert.rejects(store.forms.submit(request), /response lost/);
   const answer = await store.forms.submit(request);
@@ -120,7 +120,7 @@ test("storefront submit with the loaded form keeps the caller's id and answers a
 
 test("a submission against a form that changed since it loaded is refused as FORM_CHANGED without a hidden reload or resubmission", async (context) => {
   const calls = recordFetch(context, () => Response.json({ message: "The form changed; reload it", error: "FORM_SUBMISSION.FORM_CHANGED", status_code: 409, validation_errors: [] }, { status: 409 }));
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, locale: "en", sessionStorage: visitorStorage() });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", sessionStorage: visitorStorage() });
   const loaded = { ...intake, questions_updated_at: 7, updated_at: 8 };
   await assert.rejects(store.forms.submit({ id: SUBMISSION_ID, form: loaded, language: "en", values: { answer: "Kept" } }), (error) => {
     assert.equal(error.code, "FORM_SUBMISSION.FORM_CHANGED");
@@ -135,7 +135,7 @@ test("a submission against a form that changed since it loaded is refused as FOR
 
 test("a refused submission whose answers don't fit the form propagates its field errors without a resubmission", async (context) => {
   const calls = recordFetch(context, () => Response.json({ message: "The answers don't fit the form", error: "FORM_SUBMISSION.INVALID_INPUT", status_code: 400, validation_errors: [{ field: "answers[0].question_id", error: "FORM_SUBMISSION.UNKNOWN_QUESTION" }] }, { status: 400 }));
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, locale: "en", sessionStorage: visitorStorage() });
+  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", sessionStorage: visitorStorage() });
   await assert.rejects(store.forms.submit({ id: SUBMISSION_ID, form: intake, language: "en", values: { answer: "Kept" } }), (error) => {
     assert.equal(error.code, "FORM_SUBMISSION.INVALID_INPUT");
     assert.equal(error.statusCode, 400);
@@ -201,14 +201,14 @@ test("form emails name the received, stage and new-submission alert selections a
   const emails = {
     received: selection("3a5c7e9b-1d2f-4a6c-8e0b-2d4f6a8c0e1f"),
     stage_changed: { won: selection("9c1e3a5b-7d2f-4b6a-8c0e-2a4c6e8a0b1d") },
-    new_submission_alert: selection("1b3d5f7a-9c2e-4a6b-8d0f-2b4d6f8a0c1e"),
+    submission_alert: selection("1b3d5f7a-9c2e-4a6b-8d0f-2b4d6f8a0c1e"),
     alert_recipients: [{ type: "store_role", store_role_id: roleId, language: "en" }, { type: "email", email: "sales@example.test", language: "bs" }],
   };
   const calls = recordFetch(context, () => ({ ...intake, emails }));
   const api = admin().forms;
   const create = { id: FORM_ID, key: "intake", questions: intake.questions, stages: intake.stages, emails };
   assert.deepEqual((await api.create({ store_id: STORE_ID, ...create })).emails, emails);
-  const silent = { received: null, stage_changed: {}, new_submission_alert: null, alert_recipients: [] };
+  const silent = { received: null, stage_changed: {}, submission_alert: null, alert_recipients: [] };
   await api.update({ store_id: STORE_ID, id: FORM_ID, expected_updated_at: 1, emails: silent });
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
     ["POST", `/v1/stores/${STORE_ID}/forms`, create],

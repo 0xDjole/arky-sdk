@@ -8,19 +8,17 @@ import {
 	selectLocalizedText,
 } from '../dist/storefront.js';
 
-test('LocalizedText selects only the requested or explicitly configured default language', () => {
+test('LocalizedText selects only the requested language', () => {
 	const translations = { en: 'Shirt', 'sr-Latn-BA': 'Košulja', ja: 'シャツ' };
 	const block = { id: 'name', key: 'name', type: 'localized_text', value: translations };
-	assert.equal(selectLocalizedText(translations, 'sr-Latn-BA', 'en'), 'Košulja');
-	assert.equal(selectLocalizedText(translations, 'ja', 'en'), 'シャツ');
-	assert.equal(selectLocalizedText(translations, 'de', 'en'), 'Shirt');
+	assert.equal(selectLocalizedText(translations, 'sr-Latn-BA'), 'Košulja');
+	assert.equal(selectLocalizedText(translations, 'ja'), 'シャツ');
 	assert.equal(selectLocalizedText(translations, 'de'), null);
 	assert.equal(selectLocalizedText(translations, 'sr-latn-ba'), null);
 	assert.equal(selectLocalizedText(translations, 'toString'), null);
 	assert.equal(selectLocalizedText(null, 'en'), null);
 	assert.equal(getBlockTextValue(block, 'sr-Latn-BA'), 'Košulja');
 	assert.equal(getBlockTextValue(block, 'de'), '');
-	assert.equal(getBlockTextValue(block, 'de', 'en'), 'Shirt');
 	assert.equal(getBlockTextValue({ ...block, value: null }, 'en'), '');
 	assert.deepEqual(block.value, translations);
 });
@@ -32,7 +30,6 @@ test('LocalizedText is decoded recursively without treating translation keys as 
 	] }] };
 	assert.deepEqual(getBlockContentValue(entry, 'items', 'de'), [{ name: 'Hemd' }]);
 	assert.deepEqual(getBlockContentValue(entry, 'items', 'fr'), [{ name: null }]);
-	assert.deepEqual(getBlockContentValue(entry, 'items', 'fr', 'en'), [{ name: 'Shirt' }]);
 	assert.deepEqual(collectBlockReferences(entry.blocks), { media_ids: [], entry_ids: [], form_ids: [], product_ids: [] });
 });
 
@@ -40,7 +37,6 @@ test('LocalizedMarkdown blocks and plain Markdown use the same explicit language
 	const body = { id: 'body', key: 'body', type: 'localized_markdown', value: { en: '# Welcome', it: '# Benvenuto' } };
 	assert.equal(getBlockTextValue(body, 'it'), '# Benvenuto');
 	assert.equal(getBlockTextValue(body, 'de'), '');
-	assert.equal(getBlockTextValue(body, 'de', 'en'), '# Welcome');
 	assert.equal(getBlockContentValue({ blocks: [body] }, 'body', 'it'), '# Benvenuto');
 	assert.equal(
 		getBlockContentValue({ blocks: [{ id: 'scalar', key: 'scalar', type: 'markdown', value: '# Scalar' }] }, 'scalar', 'it'),

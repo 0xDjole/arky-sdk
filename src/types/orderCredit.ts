@@ -11,7 +11,6 @@ export type CreditTarget =
   | { type: "product"; line_item_id: string; span: UnitSpan }
   | { type: "booking"; line_item_id: string }
   | { type: "rental_use"; line_item_id: string }
-  | { type: "purchase_access"; line_item_id: string }
   | { type: "delivery"; delivery_group_id: string };
 
 export type OrderCreditAmount =

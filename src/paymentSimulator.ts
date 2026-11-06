@@ -1,15 +1,14 @@
 import type { StripeEmbeddedCheckoutAction } from "./types/embeddedCheckout";
-import type { CheckoutPaymentAction, MonriComponentsAction, PaymentMethodSetupStart } from "./types/payment";
+import type { CheckoutPaymentAction, MonriComponentsAction, StorefrontPaymentMethodSetupStart, PaymentRunsOn } from "./types/payment";
+import type { StoreSubscriptionPaymentAction } from "./types/store";
 import { ArkyError } from "./types/apiError";
-import { requireId } from "./utils/ids";
 
 export type PaymentSimulation =
-  | { type: "stripe_checkout"; action: StripeEmbeddedCheckoutAction; outcome: "complete" | "expire" }
-  | { type: "monri"; action: MonriComponentsAction; payment_id: string; attempt_id: string; outcome: "complete" | "decline" }
-  | { type: "card_setup"; setup: PaymentMethodSetupStart; outcome: "complete" | "cancel" | "decline" };
+  | { type: "stripe_checkout"; action: StripeEmbeddedCheckoutAction; outcome: "complete" | "decline" | "expire" }
+  | { type: "monri"; action: MonriComponentsAction; outcome: "complete" | "decline" }
+  | { type: "card_setup"; setup: StorefrontPaymentMethodSetupStart; outcome: "complete" | "cancel" | "decline" };
 
 export interface SimulatePaymentParams {
-  simulator_url: string;
   simulation: PaymentSimulation;
 }
 
@@ -17,40 +16,25 @@ export interface SimulatePaymentOptions {
   signal?: AbortSignal;
 }
 
-const simulatorSecret = "_secret_emulator";
-const notSimulated = "This payment isn't run by the local payment simulator";
-
-export function isSimulatedPayment(value: CheckoutPaymentAction | PaymentMethodSetupStart): boolean {
-  const secret = "client_secret" in value ? value.client_secret : null;
-  return typeof secret === "string" && secret.endsWith(simulatorSecret);
+interface SimulatorRequest {
+  url: string;
+  body: { type: PaymentSimulation["type"]; client_secret: string; outcome: string };
 }
 
-function simulatorOrigin(value: string): string {
-  let url: URL;
-  try {
-    url = new URL(value);
-  } catch {
-    throw new TypeError("The payment simulator address must be a loopback http origin, such as http://127.0.0.1:39090");
-  }
-  if (
-    url.protocol !== "http:" ||
-    !["localhost", "127.0.0.1"].includes(url.hostname) ||
-    url.username ||
-    url.password ||
-    url.pathname !== "/" ||
-    url.search ||
-    url.hash
-  ) {
-    throw new TypeError("The payment simulator address must be a loopback http origin, such as http://127.0.0.1:39090");
-  }
-  return url.origin;
+const notSimulated = "This payment isn't run by Arky's provider simulator";
+
+export function isSimulatedPayment(value: CheckoutPaymentAction | StoreSubscriptionPaymentAction | StorefrontPaymentMethodSetupStart): boolean {
+  return "runs_on" in value && value.runs_on.type === "simulator";
 }
 
-function simulatedSession(secret: string | null, shape: RegExp): string {
-  if (secret === null || !secret.endsWith(simulatorSecret)) throw new TypeError(notSimulated);
-  const session = secret.slice(0, -simulatorSecret.length);
-  if (!shape.test(session)) throw new TypeError(notSimulated);
-  return session;
+function simulatorPaymentsUrl(runsOn: PaymentRunsOn | undefined): string {
+  if (runsOn?.type !== "simulator" || !runsOn.api_url) throw new TypeError(notSimulated);
+  return `${runsOn.api_url}/v1/simulator/payments`;
+}
+
+function requireSecret(secret: string | null | undefined): string {
+  if (!secret) throw new TypeError(notSimulated);
+  return secret;
 }
 
 function requireOutcome(outcome: string, allowed: readonly string[]): string {
@@ -58,50 +42,58 @@ function requireOutcome(outcome: string, allowed: readonly string[]): string {
   return outcome;
 }
 
-function simulatorRequest(simulation: PaymentSimulation): { path: string; body?: string } {
+function simulatorRequest(simulation: PaymentSimulation): SimulatorRequest {
   switch (simulation.type) {
-    case "stripe_checkout": {
-      const outcome = requireOutcome(simulation.outcome, ["complete", "expire"]);
-      const session = simulatedSession(simulation.action.client_secret, /^cs_[A-Za-z0-9_]+$/);
-      return { path: `/local/checkout/${encodeURIComponent(session)}/${outcome}` };
-    }
-    case "monri": {
-      const outcome = requireOutcome(simulation.outcome, ["complete", "decline"]);
-      const session = simulatedSession(
-        simulation.action.client_secret,
-        /^monri_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
-      );
+    case "stripe_checkout":
       return {
-        path: `/local/monri/payments/${encodeURIComponent(session)}/${outcome}`,
-        body: JSON.stringify({
-          attempt_id: requireId(simulation.attempt_id, "simulated payment attempt"),
-          client_secret: simulation.action.client_secret,
-          payment_id: requireId(simulation.payment_id, "payment"),
-          authenticity_token: simulation.action.authenticity_token,
-          environment: simulation.action.environment,
-        }),
+        url: simulatorPaymentsUrl(simulation.action.runs_on),
+        body: {
+          type: simulation.type,
+          client_secret: requireSecret(simulation.action.client_secret),
+          outcome: requireOutcome(simulation.outcome, ["complete", "decline", "expire"]),
+        },
       };
-    }
-    case "card_setup": {
-      const outcome = requireOutcome(simulation.outcome, ["complete", "cancel", "decline"]);
-      const intent = simulatedSession(simulation.setup.client_secret, /^seti_[A-Za-z0-9_]+$/);
-      return { path: `/local/setup/${encodeURIComponent(intent)}/${outcome}` };
-    }
+    case "monri":
+      return {
+        url: simulatorPaymentsUrl(simulation.action.runs_on),
+        body: {
+          type: simulation.type,
+          client_secret: requireSecret(simulation.action.client_secret),
+          outcome: requireOutcome(simulation.outcome, ["complete", "decline"]),
+        },
+      };
+    case "card_setup":
+      return {
+        url: simulatorPaymentsUrl(simulation.setup.runs_on),
+        body: {
+          type: simulation.type,
+          client_secret: requireSecret(simulation.setup.client_secret),
+          outcome: requireOutcome(simulation.outcome, ["complete", "cancel", "decline"]),
+        },
+      };
   }
 }
 
+function notConfirmed(outcome: string, detail: string): ArkyError {
+  return new ArkyError("not_confirmed", `The provider simulator didn't confirm the ${outcome} outcome (${detail})`);
+}
+
 export async function simulatePayment(params: SimulatePaymentParams, options?: SimulatePaymentOptions): Promise<void> {
-  const origin = simulatorOrigin(params.simulator_url);
-  const { path, body } = simulatorRequest(params.simulation);
+  const { url, body } = simulatorRequest(params.simulation);
   const deadline = AbortSignal.timeout(20_000);
-  const response = await fetch(`${origin}${path}`, {
-    method: "POST",
-    ...(body === undefined ? {} : { headers: { "content-type": "application/json" }, body }),
-    credentials: "omit",
-    redirect: "error",
-    signal: options?.signal ? AbortSignal.any([options.signal, deadline]) : deadline,
-  });
-  if (response.status !== 204) {
-    throw new ArkyError("not_confirmed", `The payment simulator didn't confirm the ${params.simulation.outcome} outcome (status ${response.status})`);
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+      credentials: "omit",
+      redirect: "error",
+      signal: options?.signal ? AbortSignal.any([options.signal, deadline]) : deadline,
+    });
+  } catch (error) {
+    if (options?.signal?.aborted) throw error;
+    throw notConfirmed(body.outcome, "no answer");
   }
+  if (response.status !== 204) throw notConfirmed(body.outcome, `status ${response.status}`);
 }

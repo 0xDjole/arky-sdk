@@ -12,7 +12,7 @@ for (const definition of [
   { path: ["store", "salesChannel"], route: "sales-channels", filters: { key: "web" } },
   { path: ["store", "zone"], route: "zones", filters: { market_id: marketId } },
   { path: ["store", "taxCategory"], route: "tax-categories", filters: { key: "reduced" } },
-  { path: ["eshop", "catalog"], route: "catalogs", filters: { market_id: marketId } },
+  { path: ["eshop", "package"], route: "packages", filters: { market_id: marketId } },
   { path: ["store", "apiKey"], route: "api-keys", filters: { type: "publishable" } },
 ]) {
   test(`${definition.route} keep the empty-page continuation and the exact store and filters`, async (context) => {

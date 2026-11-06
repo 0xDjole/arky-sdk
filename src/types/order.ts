@@ -16,7 +16,9 @@ import type { PaymentTerms } from "./company";
 import type { InventoryTracking } from "./inventory";
 import type { BackorderPolicy } from "./product";
 import type { ShippingDeliveryEstimate } from "./shipping";
-import type { CustomerGroupOccurrence } from "./customerGroup";
+import type { PackagePriceRef } from "./package";
+import type { PackageOccurrence } from "./packageMember";
+import type { ProductVariantMeasure } from "./product";
 import type { Block } from "./block";
 
 export type RenewalRecoveryStatus = "recovering" | "exhausted" | "resolved";
@@ -31,7 +33,7 @@ export type OrderSource =
   | { type: "cart"; cart_id: string; placed_by: Actor }
   | {
       type: "renewal";
-      order_customer_group_line_item_id: string;
+      order_package_line_item_id: string;
       recovery: RenewalRecovery | null;
     };
 
@@ -51,7 +53,7 @@ export interface OrderTaxRegistration {
 export type OrderBuyerTax =
   | { type: "standard"; registrations: OrderTaxRegistration[] }
   | { type: "reverse_charge"; registration: OrderTaxRegistration }
-  | { type: "exempt"; reason: string };
+  | { type: "exempt"; reason: string; registrations: OrderTaxRegistration[] };
 
 export type OrderBuyer =
   | { type: "customer" }
@@ -73,7 +75,7 @@ export type OnAccountApproval = { type: "buyer_terms" } | { type: "account"; rea
 export type OrderCollection =
   | { type: "free" }
   | { type: "payment_option"; payment_option_id: string }
-  | { type: "customer_group_member" }
+  | { type: "package_member" }
   | {
       type: "on_account";
       payment_option_id: string;
@@ -99,7 +101,7 @@ export type OrderLineItemStatus =
 
 export type OrderLineItemOrigin =
   | { type: "direct" }
-  | { type: "customer_group"; order_customer_group_line_item_id: string; entitlement_id: string };
+  | { type: "package"; order_package_line_item_id: string; package_item_id: string };
 
 export interface OrderAccessRevocation {
   actor: AccountActor;
@@ -134,15 +136,9 @@ export type OrderProductFulfillmentSnapshot =
     };
 
 export type OrderLinePrice =
-  | { type: "catalog"; catalog_item_price_id: string; catalog_id: string }
-  | {
-      type: "purchase_access";
-      catalog_item_price_id: string;
-      catalog_id: string;
-      customer_group_member_id: string | null;
-    }
-  | { type: "offer"; catalog_item_price_id: string; catalog_id: string }
-  | { type: "customer_group_allocation" };
+  | ({ type: "listed" } & PackagePriceRef)
+  | ({ type: "offer" } & PackagePriceRef)
+  | { type: "package_allocation" };
 
 export interface OrderProductSnapshot {
   product_key: string;
@@ -150,6 +146,8 @@ export interface OrderProductSnapshot {
   variant_blocks: Block[];
   price: OrderLinePrice;
   fulfillment: OrderProductFulfillmentSnapshot;
+  category_ids: string[];
+  measure: ProductVariantMeasure;
 }
 
 export interface LineDiscount {
@@ -175,13 +173,10 @@ export type LineTaxTreatment =
   | { type: "not_collecting"; reason: string }
   | { type: "not_taxable"; reason: string }
   | { type: "zero_rated"; reason: string }
-  | { type: "exempt"; reason: string }
-  | { type: "reverse_charge" }
-  | { type: "buyer_exempt" };
+  | { type: "exempt"; reason: string };
 
 export type DeliveryTaxSource =
   | { type: "own"; tax_category_id: string; rule_id: string; treatment: LineTaxTreatment }
-  | { type: "group_share"; tax_group_id: string; treatment: LineTaxTreatment }
   | { type: "reverse_charge"; tax_category_id: string }
   | { type: "buyer_exempt"; tax_category_id: string };
 
@@ -194,7 +189,6 @@ export interface DeliveryTaxPart {
 
 export type LineTax =
   | { type: "own"; tax_category_id: string; rule_id: string; treatment: LineTaxTreatment }
-  | { type: "group_share"; tax_group_id: string; treatment: LineTaxTreatment }
   | { type: "reverse_charge"; tax_category_id: string }
   | { type: "buyer_exempt"; tax_category_id: string }
   | { type: "follow_goods"; parts: DeliveryTaxPart[] };
@@ -269,26 +263,13 @@ export interface OrderBookingLineItem {
   updated_at: EpochMilliseconds;
 }
 
-export type OrderTaxGroupSource =
-  | { type: "rule"; rule_id: string }
-  | { type: "reverse_charge" }
-  | { type: "buyer_exempt" };
-
-export interface OrderTaxGroup {
+export interface OrderPackageLineItem {
   id: string;
-  tax_category_id: string;
-  source: OrderTaxGroupSource;
-  quantity: number;
-}
-
-export interface OrderCustomerGroupLineItem {
-  id: string;
-  customer_group_member_id: string;
+  package_member_id: string;
   revision_id: string;
-  occurrence: CustomerGroupOccurrence;
+  occurrence: PackageOccurrence;
   revocation: OrderAccessRevocation | null;
   status: OrderLineItemStatus;
-  tax_groups: OrderTaxGroup[];
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
@@ -305,23 +286,11 @@ export interface OrderRentalUseLineItem {
   updated_at: EpochMilliseconds;
 }
 
-export interface OrderPurchaseAccessLineItem {
-  id: string;
-  order_customer_group_line_item_id: string;
-  entitlement_id: string;
-  revocation: OrderAccessRevocation | null;
-  status: OrderLineItemStatus;
-  money: LineMoney;
-  created_at: EpochMilliseconds;
-  updated_at: EpochMilliseconds;
-}
-
 export type OrderLineItem =
   | ({ type: "product" } & OrderProductLineItem)
   | ({ type: "booking" } & OrderBookingLineItem)
-  | ({ type: "customer_group" } & OrderCustomerGroupLineItem)
-  | ({ type: "rental_use" } & OrderRentalUseLineItem)
-  | ({ type: "purchase_access" } & OrderPurchaseAccessLineItem);
+  | ({ type: "package" } & OrderPackageLineItem)
+  | ({ type: "rental_use" } & OrderRentalUseLineItem);
 
 export type OrderLineItemType = OrderLineItem["type"];
 
@@ -331,7 +300,7 @@ export type OrderDeliveryDestination =
 
 export type DeliveryPricing =
   | { type: "rate"; rate_id: string }
-  | { type: "customer_group_delivery_terms"; delivery_terms_id: string };
+  | { type: "package_delivery_terms"; delivery_terms_id: string };
 
 export type OrderDeliveryTiming =
   | { type: "asap" }
@@ -444,6 +413,158 @@ export interface Order {
   totals: OrderTotals;
 }
 
+export type StorefrontOrderSource =
+  | { type: "cart"; cart_id: string; placed_by: StorefrontOrderPlacer }
+  | {
+      type: "renewal";
+      order_package_line_item_id: string;
+      recovery: RenewalRecovery | null;
+    };
+
+export type StorefrontOrderPlacer = { type: "customer"; customer_id: string } | { type: "account" };
+
+export type StorefrontOnAccountApproval = { type: "buyer_terms" } | { type: "account" };
+
+export type StorefrontOrderCollection =
+  | { type: "free" }
+  | { type: "payment_option"; payment_option_id: string }
+  | { type: "package_member" }
+  | {
+      type: "on_account";
+      payment_option_id: string;
+      terms: PaymentTerms;
+      due_at: EpochMilliseconds;
+      approval: StorefrontOnAccountApproval;
+    };
+
+export interface StorefrontAccessRevocation {
+  effective_at: EpochMilliseconds;
+}
+
+export type StorefrontOrderProductFulfillmentSnapshot =
+  | { type: "none" }
+  | {
+      type: "physical";
+      inventory_requirements: OrderInventoryRequirementSnapshot[];
+      backorder: BackorderPolicy;
+    }
+  | {
+      type: "digital";
+      content: OrderDigitalContent;
+      revocation: StorefrontAccessRevocation | null;
+    };
+
+export interface StorefrontOrderProductSnapshot {
+  product_key: string;
+  variant_sku: string | null;
+  variant_blocks: Block[];
+  price: OrderLinePrice;
+  fulfillment: StorefrontOrderProductFulfillmentSnapshot;
+  category_ids: string[];
+  measure: ProductVariantMeasure;
+}
+
+export interface StorefrontOrderProductLineItem {
+  id: string;
+  origin: OrderLineItemOrigin;
+  variant_id: string;
+  quantity: number;
+  cancelled_units: UnitSpan[];
+  form_submission_id: string | null;
+  snapshot: StorefrontOrderProductSnapshot;
+  status: OrderLineItemStatus;
+  money_runs: ProductMoneyRun[];
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+}
+
+export type StorefrontBookingAttendance =
+  | { type: "upcoming" }
+  | { type: "attended"; at: EpochMilliseconds }
+  | { type: "no_show"; at: EpochMilliseconds };
+
+export type StorefrontOrderBookingLineStatus =
+  | { type: "pending"; wait: OrderPaymentWait }
+  | { type: "confirmed"; attendance: StorefrontBookingAttendance }
+  | { type: "cancelled"; reason: OrderCancellationReason };
+
+export interface StorefrontBookingReschedule {
+  previous: TimeRange;
+  at: EpochMilliseconds;
+}
+
+export interface StorefrontOrderBookingLineItem {
+  id: string;
+  booking_offering_id: string;
+  booking_service_id: string;
+  booking_resource_id: string;
+  interval: TimeRange;
+  capacity_intervals: TimeRange[];
+  capacity_units: number;
+  form_submission_id: string | null;
+  snapshot: OrderBookingSnapshot;
+  status: StorefrontOrderBookingLineStatus;
+  reschedules: StorefrontBookingReschedule[];
+  money: LineMoney;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+}
+
+export interface StorefrontOrderPackageLineItem {
+  id: string;
+  package_member_id: string;
+  revision_id: string;
+  occurrence: PackageOccurrence;
+  revocation: StorefrontAccessRevocation | null;
+  status: OrderLineItemStatus;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+}
+
+export interface StorefrontOrderRentalUseLineItem {
+  id: string;
+  rental_id: string;
+  origin: OrderLineItemOrigin;
+  snapshot: StorefrontOrderProductSnapshot;
+  quantity: number;
+  status: OrderLineItemStatus;
+  money: LineMoney;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+}
+
+export type StorefrontOrderLineItem =
+  | ({ type: "product" } & StorefrontOrderProductLineItem)
+  | ({ type: "booking" } & StorefrontOrderBookingLineItem)
+  | ({ type: "package" } & StorefrontOrderPackageLineItem)
+  | ({ type: "rental_use" } & StorefrontOrderRentalUseLineItem);
+
+export interface StorefrontOrder {
+  id: string;
+  blocks: Block[];
+  number: string;
+  invoices: OrderInvoice[];
+  store_id: string;
+  source: StorefrontOrderSource;
+  customer_id: string;
+  contact: OrderContact;
+  buyer: OrderBuyer;
+  market_id: string;
+  sales_channel_id: string;
+  tax_mode: TaxMode;
+  collection: StorefrontOrderCollection;
+  line_items: StorefrontOrderLineItem[];
+  delivery_groups: OrderDeliveryGroup[];
+  currency: Currency;
+  promotions: OrderPromotion[];
+  billing_address: PostalAddress | null;
+  language: string;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+  status: OrderStatus;
+  totals: OrderTotals;
+}
+
 export interface OrderBookingItem {
   store_id: string;
   order_id: string;
@@ -464,7 +585,7 @@ export interface FindOrdersParams {
   customer_id?: string;
   company_id?: string;
   company_location_id?: string;
-  customer_group_member_id?: string;
+  package_member_id?: string;
   statuses?: OrderStatus[];
   sources?: OrderSourceFilter[];
   product_statuses?: OrderItemStatusFilter[];
@@ -662,31 +783,35 @@ export interface StorefrontDownloadOrderAssetParams {
   asset_id: string;
 }
 
-export function orderLineItemsOfType<T extends OrderLineItemType>(
-  order: Pick<Order, "line_items"> | null,
-  type: T,
-): Extract<OrderLineItem, { type: T }>[] {
+export function orderLineItemsOfType<
+  L extends OrderLineItem | StorefrontOrderLineItem,
+  T extends OrderLineItemType,
+>(order: { line_items: readonly L[] } | null, type: T): Extract<L, { type: T }>[] {
   return (order?.line_items ?? []).filter(
-    (item): item is Extract<OrderLineItem, { type: T }> => item.type === type,
+    (item): item is Extract<L, { type: T }> => item.type === type,
   );
 }
 
-export function orderProductItems(order: Pick<Order, "line_items"> | null) {
+export function orderProductItems<L extends OrderLineItem | StorefrontOrderLineItem>(
+  order: { line_items: readonly L[] } | null,
+) {
   return orderLineItemsOfType(order, "product");
 }
 
-export function orderBookingItems(order: Pick<Order, "line_items"> | null) {
+export function orderBookingItems<L extends OrderLineItem | StorefrontOrderLineItem>(
+  order: { line_items: readonly L[] } | null,
+) {
   return orderLineItemsOfType(order, "booking");
 }
 
-export function orderCustomerGroupItems(order: Pick<Order, "line_items"> | null) {
-  return orderLineItemsOfType(order, "customer_group");
+export function orderPackageItems<L extends OrderLineItem | StorefrontOrderLineItem>(
+  order: { line_items: readonly L[] } | null,
+) {
+  return orderLineItemsOfType(order, "package");
 }
 
-export function orderRentalUseItems(order: Pick<Order, "line_items"> | null) {
+export function orderRentalUseItems<L extends OrderLineItem | StorefrontOrderLineItem>(
+  order: { line_items: readonly L[] } | null,
+) {
   return orderLineItemsOfType(order, "rental_use");
-}
-
-export function orderPurchaseAccessItems(order: Pick<Order, "line_items"> | null) {
-  return orderLineItemsOfType(order, "purchase_access");
 }

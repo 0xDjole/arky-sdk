@@ -37,42 +37,35 @@ export interface AvailableSlot {
   to: EpochMilliseconds;
   bookingResourceId: string;
   bookingOfferingId: string;
+  timezone: string;
 }
 
-export function getSlotsForDate(
+export function fileSlots(
   availability: AvailabilityResponse | null,
-  dateStr: string,
-  bookingResourceId?: string | null,
-): AvailableSlot[] {
-  if (!availability) return [];
-  const slots: AvailableSlot[] = [];
+  bookingResourceId: string | null,
+  timezone: string | null,
+): Map<string, AvailableSlot[]> {
+  const filed = new Map<string, AvailableSlot[]>();
+  if (!availability) return filed;
   for (const resource of availability.booking_resources) {
     if (bookingResourceId && resource.booking_resource_id !== bookingResourceId) continue;
-    const day = resource.days.find((candidate) => candidate.date === dateStr);
-    if (!day) continue;
-    for (const slot of day.slots) {
-      if (slot.spots > 0) {
+    const zone = timezone ?? resource.timezone;
+    for (const day of resource.days) {
+      for (const slot of day.slots) {
+        if (slot.spots <= 0) continue;
+        const date = zone === resource.timezone ? day.date : calendarDateIn(slot.from, zone);
+        const slots = filed.get(date) ?? [];
         slots.push({
           from: slot.from,
           to: slot.to,
           bookingResourceId: resource.booking_resource_id,
           bookingOfferingId: resource.booking_offering_id,
+          timezone: zone,
         });
+        filed.set(date, slots);
       }
     }
   }
-  return slots.sort((a, b) => a.from - b.from);
-}
-
-export function hasAvailableSlotsForDate(
-  availability: AvailabilityResponse | null,
-  dateStr: string,
-  bookingResourceId?: string | null,
-): boolean {
-  if (!availability) return false;
-  return availability.booking_resources.some((resource) => {
-    if (bookingResourceId && resource.booking_resource_id !== bookingResourceId) return false;
-    const day = resource.days.find((candidate) => candidate.date === dateStr);
-    return !!day?.slots.some((slot) => slot.spots > 0);
-  });
+  for (const slots of filed.values()) slots.sort((a, b) => a.from - b.from);
+  return filed;
 }

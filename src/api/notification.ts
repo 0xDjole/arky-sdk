@@ -4,6 +4,7 @@ import type { PaginatedResponse } from "../types/common";
 import type { IncomingWebhook } from "../types/payment";
 import type {
   CheckEmailProviderSetupParams,
+  ConnectArkyResendEmailProviderParams,
   ConnectEmailProviderParams,
   CreateEmailAddressParams,
   CreateEmailLayoutParams,
@@ -183,6 +184,12 @@ export const createEmailProviderApi = (apiConfig: ApiConfig) => ({
     requireId(params.id, "email provider");
     const { store_id, ...body } = params;
     return apiConfig.httpClient.post<EmailProvider>(storePath(store_id, "email-providers"), body, options);
+  },
+
+  connectArkyResend(params: ConnectArkyResendEmailProviderParams, options?: RequestOptions): Promise<EmailProvider> {
+    requireId(params.id, "email provider");
+    const { store_id, ...body } = params;
+    return apiConfig.httpClient.post<EmailProvider>(storePath(store_id, "email-providers/arky-resend"), body, options);
   },
 
   replaceKey(params: ReplaceEmailProviderKeyParams, options?: RequestOptions): Promise<EmailProvider> {

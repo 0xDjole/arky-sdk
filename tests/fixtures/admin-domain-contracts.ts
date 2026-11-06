@@ -15,6 +15,9 @@ admin.account.auth.requestCode({ session_id, email: 'owner@example.test' });
 admin.account.auth.verify({ session_id: 'pending', code: '123456', store_id });
 
 export type AdminDomainContracts = [
+  Assert<Equal<Public.ApiKeyCreated["type"], 'created' | 'secret_created' | 'existing'>>,
+  Assert<Equal<Extract<Public.ApiKeyCreated, { value: string }>["type"], 'secret_created'>>,
+  Assert<Equal<keyof Extract<Public.ApiKeyCreated, { type: 'created' }>, 'type' | 'key'>>,
   Assert<Equal<keyof AdminSession, 'id' | 'email'>>,
   Assert<Missing<AdminSession, 'scope'>>,
   Assert<Missing<CreateAdminConfig, 'storeId'>>,
@@ -28,7 +31,7 @@ export type AdminDomainContracts = [
   Assert<Missing<Admin['store'], 'commerce'>>,
   Assert<Missing<Admin, 'setStoreId'>>,
   Assert<Missing<Admin, 'getMarket'>>,
-  Assert<Equal<keyof CreateStoreParams, 'id' | 'name' | 'timezone' | 'languages' | 'market' | 'sales_channel' | 'location_address'>>,
+  Assert<Equal<keyof CreateStoreParams, 'id' | 'mode' | 'name' | 'timezone' | 'languages' | 'market' | 'sales_channel' | 'location_address'>>,
   Assert<Equal<CreateStoreParams, Public.CreateStoreParams>>,
   Assert<Missing<Public.Store, 'billing_email'>>,
   Assert<Missing<Public.Store, 'contact_email'>>,

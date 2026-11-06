@@ -6,7 +6,7 @@ export default defineConfig({
     admin: 'src/admin.ts',
     storefront: 'src/storefront.ts',
     utils: 'src/utils/index.ts',
-    types: 'src/types/public.ts',
+    types: 'src/types/index.ts',
   },
   format: ['esm', 'cjs'],
   dts: true,

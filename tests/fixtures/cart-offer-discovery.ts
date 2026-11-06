@@ -1,4 +1,4 @@
-import type { Cart, CartOffer, FindStorefrontCartOffersParams, PaginatedResponse, StorefrontClient } from "arky-sdk";
+import type { Cart, CartOffer, FindStorefrontCartOffersParams, PaginatedResponse, StorefrontCart, StorefrontClient } from "arky-sdk";
 import type { FindStorefrontCartOffersParams as PublicParams } from "arky-sdk/types";
 import type { FindStorefrontCartOffersParams as StorefrontParams } from "arky-sdk/storefront";
 
@@ -11,7 +11,7 @@ export type CartOfferContracts = [
   Assert<Equal<FindStorefrontCartOffersParams, PublicParams>>,
   Assert<Equal<FindStorefrontCartOffersParams, StorefrontParams>>,
   Assert<Equal<Parameters<StorefrontClient["eshop"]["cart"]["findOffers"]>[0], FindStorefrontCartOffersParams>>,
-  Assert<Equal<Awaited<ReturnType<StorefrontClient["eshop"]["cart"]["findOffers"]>>, PaginatedResponse<Cart>>>,
+  Assert<Equal<Awaited<ReturnType<StorefrontClient["eshop"]["cart"]["findOffers"]>>, PaginatedResponse<StorefrontCart>>>,
   Assert<Equal<FindStorefrontCartOffersParams, ({ company_id: string; company_location_id?: never } | { company_id?: never; company_location_id: string }) & { limit?: number; cursor?: string | null }>>,
   Assert<Equal<keyof FindStorefrontCartOffersParams, "company_id" | "company_location_id" | "limit" | "cursor">>,
   Assert<RequiredField<Extract<FindStorefrontCartOffersParams, { company_id: string }>, "company_id">>,

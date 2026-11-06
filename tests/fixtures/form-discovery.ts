@@ -22,6 +22,7 @@ import type {
   FormSubmission,
   FormSubmissionSnapshot,
   FormSubmissionSource,
+  FormSubmissionStageChange,
   FormValuesInput,
   GetFormByKeyParams,
   GetFormParams,
@@ -30,6 +31,7 @@ import type {
   Note,
   NoteTarget,
   PaginatedResponse,
+  StorefrontForm,
   StorefrontFormSubmission,
   SubmitFormParams,
   SubmitFormRequest,
@@ -91,7 +93,7 @@ const stageChange: ChangeFormSubmissionStageParams = {
   note: { id: "9d1f3b5c-7e8a-4c2e-b4d6-8f0a2c4e6b7d", body: "Out of the delivery area" },
 };
 const alert: Email = { email_template_id: id, sending_address_id: form_id, from_name: "Shop", reply_to: { type: "external", email: "sales@example.test" } };
-const emails: FormEmails = { received: null, stage_changed: { won: alert }, new_submission_alert: alert, alert_recipients: [{ type: "email", email: "sales@example.test", language: "en" }] };
+const emails: FormEmails = { received: null, stage_changed: { won: alert }, submission_alert: alert, alert_recipients: [{ type: "email", email: "sales@example.test", language: "en" }] };
 const withEmails: CreateFormParams = { ...create, emails };
 const remove: DeleteFormSubmissionParams = { store_id, form_id, id, expected_updated_at: epochMilliseconds(3) };
 
@@ -114,25 +116,29 @@ const valuesSubmission: SubmitFormParams = { id, form: shown, language: "en", va
 const answered: Promise<StorefrontFormSubmission> = storefront.forms.submit(valuesSubmission);
 const raw: SubmitFormParams = { form_id, questions_updated_at: epochMilliseconds(4), id, language: "en", answers: [{ type: "select_many", question_id: "q-topic", key: "topic", option_keys: ["sales"] }] };
 const rawAnswered: Promise<StorefrontFormSubmission> = storefront.forms.submit(raw);
-const loaded: Promise<Form> = storefront.forms.getByKey({ key: "intake" });
-const loadedById: Promise<Form> = storefront.forms.get({ id: form_id });
+const loaded: Promise<StorefrontForm> = storefront.forms.getByKey({ key: "intake" });
+const loadedById: Promise<StorefrontForm> = storefront.forms.get({ id: form_id });
 
 declare const submission: FormSubmission;
 declare const savedNote: Note;
 const source: FormSubmissionSource = submission.source;
 const sessionId: string | null = submission.source.type === "storefront" ? submission.source.customer_session_id : null;
 const stageId: string = submission.stage.stage_id;
-const changeNote: string | null = submission.stage_history[0].note_id;
+const changedAt: EpochMilliseconds = submission.stage_history[0].changed_at;
 const formKey: string = submission.snapshot.form_key;
 const noteTarget: NoteTarget = savedNote.target;
 const submissionNoteTarget: NoteTarget = { type: "form_submission", form_submission_id: id };
+const stageChangeNoteTarget: NoteTarget = { type: "form_submission_stage_change", form_submission_id: id, changed_at: changedAt };
 
 export type FormContracts = [
+  Assert<Equal<keyof StorefrontForm, "id" | "key" | "questions" | "questions_updated_at" | "status">>,
+  Assert<Equal<Awaited<ReturnType<StoreForms["getByKey"]>>, StorefrontForm>>,
+  Assert<Equal<Awaited<ReturnType<StoreForms["get"]>>, StorefrontForm>>,
   Assert<Missing<FormsApi, "findByIds" | "getSubmissions" | "getPresentation" | "permanentlyDelete" | "updateSubmission" | "processSubmission">>,
   Assert<Missing<FormsApi, "createSubmissionNote" | "findSubmissionNotes" | "updateSubmissionNote" | "deleteSubmissionNote">>,
   Assert<Missing<FormsApi, "assignSubmission" | "setSubmissionCompany">>,
-  Assert<Equal<keyof FormEmails, "received" | "stage_changed" | "new_submission_alert" | "alert_recipients">>,
-  Assert<Equal<FormEmails["new_submission_alert"], Email | null>>,
+  Assert<Equal<keyof FormEmails, "received" | "stage_changed" | "submission_alert" | "alert_recipients">>,
+  Assert<Equal<FormEmails["submission_alert"], Email | null>>,
   Assert<Equal<FormEmails["stage_changed"], Record<string, Email>>>,
   Assert<Equal<FormEmails["alert_recipients"], AlertRecipient[]>>,
   Assert<Equal<Form["emails"], FormEmails>>,
@@ -192,7 +198,11 @@ export type FormContracts = [
   Assert<Missing<FormSubmission, "customer_session_id" | "accepted_request" | "fields">>,
   Assert<Equal<FormSubmissionSource["type"], "storefront" | "account">>,
   Assert<Equal<Extract<NoteTarget, { type: "form_submission" }>, { type: "form_submission"; form_submission_id: string }>>,
+  Assert<Equal<Extract<NoteTarget, { type: "form_submission_stage_change" }>, { type: "form_submission_stage_change"; form_submission_id: string; changed_at: EpochMilliseconds }>>,
+  Assert<Equal<NoteTarget["type"], "form_submission" | "form_submission_stage_change" | "customer" | "company" | "order" | "conversation">>,
+  Assert<Equal<keyof FormSubmissionStageChange, "from_stage_id" | "to_stage_id" | "actor" | "changed_at">>,
+  Assert<Missing<FormSubmissionStageChange, "note_id">>,
 ];
 
 void [page, read, readById, created, edited, submissions, staffCreated, staged, deleted, noted, notes, noteEdit, withEmails,
-  answered, rawAnswered, loaded, loadedById, source, sessionId, stageId, changeNote, formKey, noteTarget, submissionNoteTarget];
+  answered, rawAnswered, loaded, loadedById, source, sessionId, stageId, changedAt, formKey, noteTarget, submissionNoteTarget, stageChangeNoteTarget];

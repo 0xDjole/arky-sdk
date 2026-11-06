@@ -3,7 +3,7 @@ import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { createStorefront } from "../dist/storefront.js";
 import { hasStorePermission, storeLocationReadReach, storePermissionReach } from "../dist/utils.js";
-import { recordFetch } from "./helpers/arky-fixtures.mjs";
+import { fixedIdFactories, recordFetch } from "./helpers/arky-fixtures.mjs";
 
 const baseUrl = "https://api.store-roles.test";
 const storeId = "8ccad9a6-502e-440b-8373-b0fbaf36154c";
@@ -39,7 +39,7 @@ test("platform discovery keeps sorting and opaque continuation without hidden pa
 test("membership permissions use an exact Store read while own discovery preserves opaque pages", async (context) => {
   const calls = [];
   const cursor = "memberships:/+==";
-  const membership = { id: "member", store_id: storeId, store_name: "Contract Store", role_ids: [roleId],
+  const membership = { id: "member", store_id: storeId, store_name: "Contract Store", store_mode: "live", role_ids: [roleId],
     access: { permissions: [{ type: "fulfillment", locations: { type: "only", store_location_ids: [locationA] } }] }, status: { type: "active", account_id: accountId },
     created_at: 1, updated_at: 1 };
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
@@ -141,7 +141,7 @@ test("the owner transfers the Store and members are paused and resumed by status
   await assert.rejects(async () => admin.store.member.changeStatus({ store_id: storeId, id: accountId.toUpperCase(), expected_updated_at: 6, status: { type: "active" } }), { name: "TypeError", message: /membership id must be a canonical UUID/ });
   await assert.rejects(async () => admin.store.member.remove({ store_id: storeId, id: "slug" }), TypeError);
   assert.equal(calls.length, 3);
-  assert.equal("transferOwnership" in createStorefront(`arky_pk_${"o".repeat(42)}A`, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl: baseUrl }), false);
+  assert.equal("transferOwnership" in createStorefront(`arky_pk_${"o".repeat(42)}A`, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl }), false);
   assert.equal("buildHook" in admin.store, false);
 });
 
@@ -150,7 +150,7 @@ test("a role and a secret key give orders, payments and customers read-only or r
     { type: "orders", access: "read_only" },
     { type: "payments", access: "read_write" },
     { type: "customers", access: "read_only" },
-    { type: "catalog" },
+    { type: "packages" },
   ];
   const keyId = "6a1c3e85-7b29-4d04-9f6e-2c8a0d4b6e13";
   const calls = recordFetch(context, (call) => call.path.endsWith("/api-keys") ? { type: "created", key: { id: keyId }, value: "secret-value" } : { id: roleId, permissions });
@@ -184,13 +184,13 @@ test("store access helpers mirror the Server's permission and location reach rul
   assert.equal(hasStorePermission(mixed, "orders"), true);
   const readOnly = { permissions: [{ type: "orders", access: "read_only" }, { type: "payments", access: "read_only" }, { type: "customers", access: "read_only" }] };
   for (const type of ["orders", "payments", "customers"]) assert.equal(hasStorePermission(readOnly, type), true, type);
-  assert.equal(hasStorePermission(readOnly, "catalog"), false);
+  assert.equal(hasStorePermission(readOnly, "packages"), false);
   const admin = { permissions: [{ type: "admin" }] };
   assert.equal(hasStorePermission(admin, "fulfillment", locationA), true);
   assert.equal(hasStorePermission(admin, "analytics"), true);
   assert.deepEqual(storePermissionReach(admin, "inventory"), { type: "everywhere" });
   assert.deepEqual(storeLocationReadReach(admin), { type: "everywhere" });
-  assert.equal(storePermissionReach(picker, "catalog"), null);
+  assert.equal(storePermissionReach(picker, "packages"), null);
   assert.equal(hasStorePermission(null, "admin"), false);
   assert.deepEqual(storeLocationReadReach(null), { type: "only", store_location_ids: [] });
   const twoRoles = { permissions: [
@@ -220,7 +220,7 @@ test("own workspace discovery retains each Store name and access without public 
 
 test("a nonexpiring email invite is explicitly resent and accepted with its current version", async (context) => {
   const contact = { email: "packer@example.test", language: "en" };
-  const invited = { id: "member", store_id: storeId, store_name: "Contract Store", role_ids: [roleId], access: { permissions: [] }, status: { type: "invited", contact }, created_at: 1, updated_at: 2 };
+  const invited = { id: "member", store_id: storeId, store_name: "Contract Store", store_mode: "live", role_ids: [roleId], access: { permissions: [] }, status: { type: "invited", contact }, created_at: 1, updated_at: 2 };
   const accepted = { id: "member", store_id: storeId, role_ids: [roleId], status: { type: "active", account_id: accountId }, created_at: 1, updated_at: 3 };
   const calls = [];
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {

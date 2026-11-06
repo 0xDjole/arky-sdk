@@ -19,6 +19,13 @@ export class ArkyError extends Error {
 
 const apiErrorBrand = Symbol.for("arky.ArkyApiError");
 
+export interface ApiErrorResponse {
+  message: string;
+  error: string;
+  status_code: number;
+  validation_errors: Array<{ field: string; error: string }>;
+}
+
 export interface ArkyApiErrorDetails {
   message: string;
   code: string;

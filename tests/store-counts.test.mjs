@@ -40,7 +40,7 @@ test("a count report sends its span and reads as JSON query values and leaves ou
     from: "2026-09-17",
     to: "2026-10-16",
     totals: [
-      { type: "new_orders_day", segment: null, value: 12 },
+      { type: "orders_placed_day", segment: null, value: 12 },
       { type: "placed_value_by_market_day", segment: marketId, value: 125_000 },
       { type: "unique_visitors_day", segment: null, value: 340 },
     ],
@@ -51,7 +51,7 @@ test("a count report sends its span and reads as JSON query values and leaves ou
   };
   const calls = recordFetch(context, () => answer);
   const totals = [
-    { type: "new_orders_day" },
+    { type: "orders_placed_day" },
     { type: "placed_value_by_market_day", segment: marketId },
     { type: "unique_visitors_day" },
   ];
@@ -88,7 +88,14 @@ test("status counts read what a store still has open, with every segment the Ser
           { segment: "paused", value: 2 },
         ],
       },
-      { type: "open_rentals_by_status", segments: [{ segment: "active", value: 1 }, { segment: "ending", value: 1 }] },
+      {
+        type: "open_rentals_by_status",
+        segments: [
+          { segment: "waiting", value: 2 },
+          { segment: "active", value: 1 },
+          { segment: "ending", value: 1 },
+        ],
+      },
       {
         type: "open_payments_by_type",
         segments: [
@@ -169,7 +176,7 @@ test("count reads refuse a store id that is not canonical before sending", async
   const calls = recordFetch(context, () => ({ counts: [] }));
   await assert.rejects(async () => admin().counts.getStatuses({ store_id: "", types: ["orders_by_status"] }), TypeError);
   await assert.rejects(
-    async () => admin().counts.getReport({ store_id: "", from: "2026-10-01", to: "2026-10-02", totals: [{ type: "new_orders_day" }] }),
+    async () => admin().counts.getReport({ store_id: "", from: "2026-10-01", to: "2026-10-02", totals: [{ type: "orders_placed_day" }] }),
     TypeError,
   );
   assert.equal(calls.length, 0);
