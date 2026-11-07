@@ -41,7 +41,7 @@ test("Admin digital variants carry their asset ids and assets are uploaded under
   const archivedAsset = { ...asset, status: { type: "archived" }, updated_at: 4 };
   const responses = [variant, asset, { items: [asset], cursor: "next-asset" }, archivedAsset];
   const calls = recordFetch(context, () => responses.shift());
-  const admin = createAdmin({ apiUrl: baseUrl, secretKey: "arky_api_digital_contract" });
+  const admin = createAdmin({ apiUrl: baseUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   const { store_id: _store, status: _status, created_at: _created, updated_at: _updated, ...create } = variant;
   assert.deepEqual(await admin.eshop.productVariant.create({ store_id: storeId, ...create }), variant);
   const uploaded = await admin.eshop.digitalAsset.upload({ store_id: storeId, id: assetId, file: new File(["protected"], "guide.pdf", { type: "application/pdf" }) });
@@ -64,7 +64,7 @@ test("Admin digital variants carry their asset ids and assets are uploaded under
   assert.ok(uploadedFile instanceof File);
   assert.equal(uploadedFile.name, "guide.pdf");
   assert.equal(uploadedFile.type, "application/pdf");
-  assert.equal(calls[1].headers.get("authorization"), "Bearer arky_api_digital_contract");
+  assert.equal(calls[1].headers.get("authorization"), "Bearer arky_at_ttttttttttttttttttttttttttttttttttttttttttA");
   assert.equal(calls[1].headers.get("content-type"), null);
   assert.deepEqual(calls[2].query, { limit: "25", cursor: "asset-cursor" });
   assert.deepEqual(calls[3].body, { expected_updated_at: 3 });

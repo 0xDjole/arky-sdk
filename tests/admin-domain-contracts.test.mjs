@@ -197,13 +197,13 @@ test('a rejected refresh cannot clear a different Account login completed while 
   assert.equal(admin.isAuthenticated, true);
 });
 
-test('API-token rejection preserves the native snake_case failure without refresh or mutation replay', async (t) => {
+test('a refused account token keeps the native snake_case failure without refresh or mutation replay', async (t) => {
   const requests = [];
   const original = globalThis.fetch;
   t.after(() => { globalThis.fetch = original; });
   const response = {
-    message: 'Account API token is revoked',
-    error: 'INVALID_TOKEN',
+    message: 'Account token is revoked',
+    error: 'GENERAL.UNAUTHENTICATED',
     status_code: 401,
     validation_errors: [],
   };
@@ -216,8 +216,8 @@ test('API-token rejection preserves the native snake_case failure without refres
     });
     return Response.json(response, { status: 401, headers: { 'x-request-id': 'native-auth-rejection' } });
   };
-  const token = 'arky_api_native-revoked-credential';
-  const admin = createAdmin({ apiUrl: 'https://api.example.test', secretKey: token });
+  const token = `arky_at_${'r'.repeat(42)}A`;
+  const admin = createAdmin({ apiUrl: 'https://api.example.test', accountToken: token });
   const payload = {
     id: STORE_ID,
     mode: 'live',
@@ -234,7 +234,7 @@ test('API-token rejection preserves the native snake_case failure without refres
     await assert.rejects(operation, (error) => {
       assert.equal(error.message, response.message);
       assert.equal(error.statusCode, 401);
-      assert.equal(error.code, 'INVALID_TOKEN');
+      assert.equal(error.code, 'GENERAL.UNAUTHENTICATED');
       assert.equal(error.requestId, 'native-auth-rejection');
       assert.deepEqual(error.validationErrors, []);
       assert.deepEqual(error.response, response);

@@ -145,7 +145,7 @@ test("Admin resource discovery preserves bounded opaque continuation and ordered
     calls.push({ url: new URL(url), method: init.method, body: init.body });
     return jsonResponse(calls.length === 1 ? { items: [], cursor } : { items: [bookingResource()], cursor: null });
   });
-  const admin = createAdmin({ apiUrl: apiUrl, secretKey: "token" });
+  const admin = createAdmin({ apiUrl: apiUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   const filters = {
     query: "room", status: "active", limit: 1,
     sort_field: "key", sort_direction: "desc", created_at_from: 0, created_at_to: 10,
@@ -180,7 +180,7 @@ test("Admin booking runtime creates service, resource and offering under app-pic
     if (path.endsWith("/booking-offerings")) return jsonResponse(bookingOffering());
     return jsonResponse(order());
   });
-  const admin = createAdmin({ apiUrl: apiUrl, secretKey: "token" });
+  const admin = createAdmin({ apiUrl: apiUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   const { id: _serviceId, store_id: _serviceStore, created_at: _serviceCreated, updated_at: _serviceUpdated, ...serviceFields } = bookingService();
   const service = { id: serviceId, ...serviceFields };
   const { id: _resourceId, store_id: _resourceStore, created_at: _resourceCreated, updated_at: _resourceUpdated, ...resourceFields } = bookingResource();
@@ -293,7 +293,7 @@ test("booking cancellation resends the caller's credit id after an uncertain res
     if (calls.length % 2 === 1) return jsonResponse({ message: "Response unavailable", status_code: 503 }, 503);
     return jsonResponse(order());
   });
-  const admin = createAdmin({ apiUrl: apiUrl, secretKey: "token" });
+  const admin = createAdmin({ apiUrl: apiUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "bih", sessionStorage: visitorStorage() });
   for (const [client, target] of [[admin, { store_id: storeId }], [storefront, {}]]) {
     const request = { ...target, order_id: "order/booking", line_item_id: "item/booking", credit_id: creditId, expected_updated_at: 9 };

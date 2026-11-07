@@ -19,7 +19,7 @@ for (const [owner, path, filters] of [
       return new Response(JSON.stringify(page), { headers: { 'content-type': 'application/json' } });
     };
     try {
-      const api = createAdmin({ apiUrl: 'https://api.example.test', secretKey: 'arky_secret_test' }).eshop[owner];
+      const api = createAdmin({ apiUrl: 'https://api.example.test', accountToken: 'arky_at_ttttttttttttttttttttttttttttttttttttttttttA' }).eshop[owner];
       const input = { store_id: STORE_ID, ...filters, limit: 50, cursor: 'previous' };
       assert.deepEqual(
         await api.find(input),

@@ -52,7 +52,7 @@ test("per-call context is checked, refused on cart calls and refused by Admin", 
   assert.equal(calls.length, 1);
   assert.equal(calls[0].headers.get("x-arky-locale"), "it");
   assert.equal(calls[0].headers.get("authorization"), `Bearer ${visitorToken}`);
-  const admin = createAdmin({ apiUrl: apiUrl, secretKey: "arky_sk_test" });
+  const admin = createAdmin({ apiUrl: apiUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   await assert.rejects(admin.account.getMe({ locale: "it" }), /storefront request option/);
   assert.equal(calls.length, 1);
 });

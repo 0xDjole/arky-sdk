@@ -31,7 +31,7 @@ for (const scope of ["admin", "storefront"]) {
   test(`${scope} order discovery keeps combined filters, the chosen ordering and the opaque continuation`, async (context) => {
     const calls = recordFetch(context, (_call, count) => ({ items: [], cursor: count === 1 ? "order:+/=" : null }));
     const api = scope === "admin"
-      ? createAdmin({ apiUrl: apiUrl, secretKey: "arky_api_orders" }).eshop.order
+      ? createAdmin({ apiUrl: apiUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).eshop.order
       : createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() }).eshop.order;
     const filters = scope === "admin" ? { store_id: STORE_ID, customer_id: ids.customer, company_id: ids.company, ...shared } : shared;
     const first = await api.find(filters);
@@ -56,7 +56,7 @@ for (const scope of ["admin", "storefront"]) {
         assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
       } else {
         assert.equal(call.query.customer_id, ids.customer);
-        assert.equal(call.headers.get("authorization"), "Bearer arky_api_orders");
+        assert.equal(call.headers.get("authorization"), "Bearer arky_at_ttttttttttttttttttttttttttttttttttttttttttA");
       }
     }
   });

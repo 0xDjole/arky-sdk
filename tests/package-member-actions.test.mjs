@@ -15,7 +15,7 @@ const version = 1_700_000_000_000;
 const choices = [{ package_item_id: "dc78a8a7-27c3-47c2-8063-2f62c7f7a661", variant_id: ids.variant }];
 
 function members() {
-  return createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop.packageMember;
+  return createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).eshop.packageMember;
 }
 
 function change(member = { id: memberId }) {

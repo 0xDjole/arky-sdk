@@ -4,16 +4,25 @@ import type { PaginatedResponse } from "../types/common";
 import type {
   Account,
   AccountSession,
+  AccountToken,
+  AccountTokenCreated,
+  CreateAccountTokenParams,
+  DeleteAccountTokenParams,
   FindAccountSessionsParams,
   FindAccountsParams,
+  FindAccountTokensParams,
   RevokeAccountSessionParams,
+  RevokeAccountTokenParams,
 } from "../types/account";
+import { requireId } from "../utils/ids";
 import { segment } from "./paths";
 
 export interface DeleteAccountResult {
   success: boolean;
   message: string;
 }
+
+const tokensPath = "/v1/accounts/me/tokens";
 
 export const createAccountApi = (apiConfig: ApiConfig) => ({
   getMe(options?: RequestOptions): Promise<Account> {
@@ -38,6 +47,41 @@ export const createAccountApi = (apiConfig: ApiConfig) => ({
 
     revoke(params: RevokeAccountSessionParams, options?: RequestOptions): Promise<boolean> {
       return apiConfig.httpClient.delete<boolean>(`/v1/accounts/me/sessions/${segment(params.id)}`, options);
+    },
+  },
+
+  token: {
+    create(params: CreateAccountTokenParams, options?: RequestOptions): Promise<AccountTokenCreated> {
+      return apiConfig.httpClient.post<AccountTokenCreated>(
+        tokensPath,
+        {
+          id: requireId(params.id, "account token"),
+          name: params.name,
+          stores: params.stores,
+          permissions: params.permissions,
+          expires_at: params.expires_at,
+        },
+        options,
+      );
+    },
+
+    find(params: FindAccountTokensParams = {}, options?: RequestOptions): Promise<PaginatedResponse<AccountToken>> {
+      return apiConfig.httpClient.get<PaginatedResponse<AccountToken>>(tokensPath, { ...options, params });
+    },
+
+    revoke(params: RevokeAccountTokenParams, options?: RequestOptions): Promise<AccountToken> {
+      return apiConfig.httpClient.post<AccountToken>(
+        `${tokensPath}/${segment(params.id)}/revoke`,
+        { expected_updated_at: params.expected_updated_at },
+        options,
+      );
+    },
+
+    delete(params: DeleteAccountTokenParams, options?: RequestOptions): Promise<void> {
+      return apiConfig.httpClient.delete<void>(`${tokensPath}/${segment(params.id)}`, {
+        ...options,
+        params: { expected_updated_at: params.expected_updated_at },
+      });
     },
   },
 });

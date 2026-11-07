@@ -17,7 +17,7 @@ const email = {
 const audience = { include: [{ type: "package", package_id: memberPackageId }], exclude: [], conditions: [{ type: "ordered_within", days: 30 }] };
 
 function broadcasts() {
-  return createAdmin({ apiUrl: "https://broadcasts.test", secretKey: "arky_api_broadcasts" }).broadcast;
+  return createAdmin({ apiUrl: "https://broadcasts.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).broadcast;
 }
 
 test("a broadcast names its audience and one email selection, and preview and test name only a language", async (context) => {

@@ -24,6 +24,7 @@ const adminSurface = {
   account: ["delete", "find", "getMe"],
   "account.auth": ["refresh", "requestCode", "verify"],
   "account.session": ["find", "revoke"],
+  "account.token": ["create", "delete", "find", "revoke"],
   actions: ["find"],
   counts: ["getReport", "getStatuses"],
   broadcast: ["create", "delete", "find", "get", "preview", "schedule", "send", "test", "unschedule", "update"],
@@ -133,7 +134,7 @@ function surfaceOf(client) {
 }
 
 function admin() {
-  return createAdmin({ apiUrl: API, secretKey: "contract-token" });
+  return createAdmin({ apiUrl: API, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
 }
 
 test("store currencies and minor units match the Server's currency table, in its order", () => {

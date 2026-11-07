@@ -12,7 +12,7 @@ const jobLineId = "2d8e4b61-9a37-4c05-8f1e-6b3d0a7c5e92";
 const fulfillmentId = "9a1c5e37-6b28-4d40-b3f9-1e7d2c8a4b65";
 
 function eshop() {
-  return createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop;
+  return createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).eshop;
 }
 
 test("rental discovery forwards its filters, keeps the empty continuation and reads the rented terms", async (context) => {

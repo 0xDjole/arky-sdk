@@ -10,7 +10,7 @@ const splitJobId = "4c7e2a91-5d38-4b06-a1f9-8e3c6b0d2a57";
 const revision = 1_700_000_000_000;
 
 function eshop() {
-  return createAdmin({ apiUrl: baseUrl, secretKey: "contract-token" }).eshop;
+  return createAdmin({ apiUrl: baseUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).eshop;
 }
 
 test("warehouse slot resolution carries exact job positions and returns the selected physical units", async (context) => {

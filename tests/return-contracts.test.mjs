@@ -15,7 +15,7 @@ const orderReturn = {
 };
 
 function returns() {
-  return createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop.return;
+  return createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).eshop.return;
 }
 
 test("a buyer's return is created under the app-picked id and read through storefront routes only", async (context) => {

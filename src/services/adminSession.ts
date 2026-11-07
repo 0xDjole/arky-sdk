@@ -12,7 +12,7 @@ export type AdminLogoutResult =
   | { type: 'revoked'; session_id: string }
   | { type: 'unconfirmed'; session_id: string }
   | { type: 'local_only' }
-  | { type: 'secret_key' };
+  | { type: 'account_token' };
 
 const changedEvent = 'arky-admin-session-changed';
 

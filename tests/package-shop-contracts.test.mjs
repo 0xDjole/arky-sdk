@@ -12,7 +12,7 @@ const STORE_ID = "d7b1f4e9-2a63-4c58-8e0d-5b9c3a6f1e24";
 const OTHER_STORE_ID = "0a6e3c9f-5d21-4b87-9f4a-8c2e1b7d5a03";
 
 function admin() {
-  return createAdmin({ secretKey: "test-token", apiUrl: apiUrl });
+  return createAdmin({ accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA", apiUrl: apiUrl });
 }
 
 test("storefront package and offering reads name their shop, answer the plan's item and offering, and never ask for a price", async (context) => {

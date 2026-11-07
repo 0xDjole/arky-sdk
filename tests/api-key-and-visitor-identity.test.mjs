@@ -18,19 +18,30 @@ function issued() {
   return { customer: customer(), session: { type: "visitor", id: sessionId, customer_id: customerId, token: "customer_visitor_domain4", status: { type: "active" }, expires_at: 9000000000000 } };
 }
 
-test("store API keys carry typed scope and retain caller identity on retries", async (context) => {
-  const key = { id: keyId, store_id: storeId, name: "Backend", type: { type: "secret", token_hint: "secret", permissions: [], created_by: { account_id: customerId, snapshot: { email: "operator@example.test", credential_type: { type: "session" } } }, expires_at: null }, status: { type: "active" }, created_at: 1, updated_at: 1 };
-  const calls = recordFetch(context, (_call, count) => count === 1 ? { type: "secret_created", key, value: "secret-value" } : { type: "existing", key });
-  const admin = createAdmin({ apiUrl: "https://api.example.test", secretKey: "secret" });
-  const input = { store_id: storeId, id: keyId, name: "Backend", type: { type: "secret", permissions: [], expires_at: null } };
-  assert.equal((await admin.store.apiKey.create(input)).value, "secret-value");
+test("a store API key is a flat publishable key and keeps the caller's id on retries", async (context) => {
+  const salesChannelId = "0d6b2f84-3a19-4c57-8e20-7f4a1c9b5d36";
+  const key = { id: keyId, store_id: storeId, name: "Website", token: publishableKey, sales_channel_id: salesChannelId, bot_check: { type: "turnstile", site_key: "site-key" }, status: { type: "active" }, created_at: 1, updated_at: 1 };
+  const calls = recordFetch(context, (_call, count) => count === 1 ? { type: "created", key } : { type: "existing", key });
+  const admin = createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
+  const input = { store_id: storeId, id: keyId, name: "Website", sales_channel_id: salesChannelId, bot_check: { type: "turnstile", site_key: "site-key", secret_key: "turnstile-secret" } };
+  assert.deepEqual(await admin.store.apiKey.create(input), { type: "created", key });
   assert.deepEqual(await admin.store.apiKey.create(input), { type: "existing", key });
   for (const call of calls) {
+    assert.equal(call.method, "POST");
     assert.equal(call.path, `/v1/stores/${storeId}/api-keys`);
-    assert.deepEqual(call.body, { id: keyId, name: "Backend", type: input.type });
+    assert.deepEqual(call.body, { id: keyId, name: "Website", sales_channel_id: salesChannelId, bot_check: input.bot_check });
   }
   assert.equal("apiToken" in admin.account, false);
   assert.equal("storefrontKey" in admin.store, false);
+});
+
+test("deleting a revoked API key sends its version and answers nothing", async (context) => {
+  const calls = recordFetch(context, () => new Response(null, { status: 204 }));
+  const admin = createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
+  assert.equal(await admin.store.apiKey.delete({ store_id: storeId, id: keyId, expected_updated_at: 7 }), undefined);
+  assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
+    ["DELETE", `/v1/stores/${storeId}/api-keys/${keyId}`, { expected_updated_at: "7" }, null],
+  ]);
 });
 
 test("visitor identity and code sends use caller-picked UUIDs without exposing staff blocks", async (context) => {
@@ -81,7 +92,7 @@ test("expired Visitor replacement keeps the application-picked pair after a lost
 
 test("API-key discovery keeps the sales channel filter with native continuation", async (context) => {
   const calls = recordFetch(context, () => ({ items: [], cursor: null }));
-  const admin = createAdmin({ apiUrl: "https://api.example.test", secretKey: "secret" });
+  const admin = createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   await admin.store.apiKey.find({ store_id: storeId, sales_channel_id: keyId, cursor: "native-next", limit: 20 });
   assert.deepEqual(calls.map(({ method, path, query }) => ({ method, path, query })), [{ method: "GET", path: `/v1/stores/${storeId}/api-keys`, query: { sales_channel_id: keyId, cursor: "native-next", limit: "20" } }]);
 });

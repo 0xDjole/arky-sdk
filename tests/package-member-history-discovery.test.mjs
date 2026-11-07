@@ -20,7 +20,7 @@ test("member transport keeps combined filters, empty pages and explicit history 
     calls.push({ url: new URL(input), method: init.method ?? "GET", body: init.body ? JSON.parse(init.body) : null });
     return new Response(JSON.stringify(replies.shift()), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const api = createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop;
+  const api = createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).eshop;
   const members = { store_id: store, company_location_id: locationId, package_id: memberPackageId, package_offering_id: offeringId, status: "paused", limit: 20 };
   assert.deepEqual(await api.packageMember.find(members), { items: [], cursor });
   assert.equal(calls.length, 1);
@@ -52,7 +52,7 @@ test("member order history forwards its own cursor and exposes no retired financ
     requests.push({ url: new URL(url), method: init.method ?? "GET", body: init.body });
     return new Response(JSON.stringify(page), { headers: { "content-type": "application/json" } });
   });
-  const members = createAdmin({ secretKey: "test-token", apiUrl: "https://api.example.test" }).eshop.packageMember;
+  const members = createAdmin({ accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA", apiUrl: "https://api.example.test" }).eshop.packageMember;
   for (const owner of ["refunds", "disputes", "billing", "memberships"]) {
     assert.equal(owner in members, false, owner);
   }

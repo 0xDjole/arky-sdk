@@ -18,7 +18,7 @@ const application = {
 };
 
 function payments() {
-  return createAdmin({ apiUrl: apiUrl, secretKey: "contract-token" }).eshop.payment;
+  return createAdmin({ apiUrl: apiUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).eshop.payment;
 }
 
 test("payment discovery keeps native filters and its continuation on the named store", async (context) => {
@@ -47,7 +47,7 @@ test("refunds live inside their payment: create, record receipts, cancel and res
   const calls = recordFetch(context, () => ({ id: paymentId }));
   const api = payments();
   for (const removed of ["refund", "capture", "dispute"]) {
-    assert.equal(removed in createAdmin({ apiUrl: apiUrl, secretKey: "contract-token" }).eshop, false, removed);
+    assert.equal(removed in createAdmin({ apiUrl: apiUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).eshop, false, removed);
   }
   await api.createRefund({ store_id: storeId, payment_id: paymentId, id: refundId, money, reason: "customer_request", application, notify_customer: true });
   await api.recordRefundReceipt({ store_id: storeId, payment_id: paymentId, refund_id: refundId, expected_updated_at: 2, receipt: { type: "sent", reference: "SEPA-1" } });
@@ -100,7 +100,7 @@ test("a refused money command is propagated once with its code and never retried
 
 test("provider events are listed per card payment option and status, read by id and resolved with their version", async (context) => {
   const calls = recordFetch(context, (call) => call.path.endsWith("incoming-webhooks") ? { items: [], cursor: null } : { id: eventId });
-  const events = createAdmin({ apiUrl: apiUrl, secretKey: "contract-token" }).notification.incomingWebhook;
+  const events = createAdmin({ apiUrl: apiUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).notification.incomingWebhook;
   await events.find({ store_id: storeId, payment_option_id: ids.paymentOption, status: "review", limit: 20, cursor: "next" });
   await events.get({ store_id: storeId, id: eventId });
   await events.resolve({ store_id: storeId, id: eventId, expected_updated_at: 9, resolution: "ignore" });
@@ -113,7 +113,7 @@ test("provider events are listed per card payment option and status, read by id 
 
 test("a cash or manual option's inbox comes back as the Server's not-a-card-option refusal", async (context) => {
   const calls = recordFetch(context, () => errorResponse(409, "INCOMING_WEBHOOK.NOT_CARD_OPTION", "Only card payment options receive provider events"));
-  const events = createAdmin({ apiUrl: apiUrl, secretKey: "contract-token" }).notification.incomingWebhook;
+  const events = createAdmin({ apiUrl: apiUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).notification.incomingWebhook;
   await assert.rejects(events.find({ store_id: storeId, payment_option_id: ids.otherPaymentOption, status: "review" }), (error) => error.statusCode === 409 && error.code === "INCOMING_WEBHOOK.NOT_CARD_OPTION");
   assert.deepEqual(calls[0].query, { payment_option_id: ids.otherPaymentOption, status: "review" });
 });

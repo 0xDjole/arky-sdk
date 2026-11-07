@@ -9,7 +9,7 @@ const actionId = (index) => `3f8a2c61-${String(1000 + index)}-4e7b-9d05-2c6e8a1f
 const levelId = "8b2e6d14-3c97-4a05-b1f8-7e4c2a9d6f30";
 
 function eshop() {
-  return createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_api_inventory_contract" }).eshop;
+  return createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).eshop;
 }
 
 test("inventory levels keep combined parent filters, ordering and empty-page continuations", async (context) => {

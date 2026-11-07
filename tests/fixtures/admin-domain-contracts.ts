@@ -1,11 +1,12 @@
 import { createAdmin } from 'arky-sdk';
-import type { AdminSession, CreateAdminConfig, CreateStoreParams, RequestPendingAccountSessionParams } from 'arky-sdk';
+import type { AdminLogoutResult, AdminSession, CreateAdminConfig, CreateStoreParams, RequestPendingAccountSessionParams } from 'arky-sdk';
 import type * as Public from 'arky-sdk/types';
 
 type Assert<T extends true> = T;
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
 type Admin = ReturnType<typeof createAdmin>;
+type Tokens = Admin['account']['token'];
 
 const store_id = 'a4219f3b-50b1-4a78-902b-d7264ae027a9';
 const admin = createAdmin({ apiUrl: 'https://api.example.test' });
@@ -14,10 +15,40 @@ admin.account.auth.requestCode({ session_id, email: 'invited@example.test', stor
 admin.account.auth.requestCode({ session_id, email: 'owner@example.test' });
 admin.account.auth.verify({ session_id: 'pending', code: '123456', store_id });
 
+export const tokenClient = createAdmin({ apiUrl: 'https://api.example.test', accountToken: 'arky_at_ttttttttttttttttttttttttttttttttttttttttttA' });
+export const madeToken: Promise<Public.AccountTokenCreated> = admin.account.token.create({ id: '9c4e1a73-2b58-4d06-8f3a-7e1d5b9c2a64', name: 'CI', stores: { type: 'test_stores' }, permissions: [{ type: 'admin' }], expires_at: null });
+
 export type AdminDomainContracts = [
-  Assert<Equal<Public.ApiKeyCreated["type"], 'created' | 'secret_created' | 'existing'>>,
-  Assert<Equal<Extract<Public.ApiKeyCreated, { value: string }>["type"], 'secret_created'>>,
+  Assert<Equal<Public.ApiKeyCreated["type"], 'created' | 'existing'>>,
+  Assert<Equal<Extract<Public.ApiKeyCreated, { value: string }>, never>>,
   Assert<Equal<keyof Extract<Public.ApiKeyCreated, { type: 'created' }>, 'type' | 'key'>>,
+  Assert<Equal<Public.AccountTokenCreated["type"], 'secret_created' | 'existing'>>,
+  Assert<Equal<Extract<Public.AccountTokenCreated, { value: string }>["type"], 'secret_created'>>,
+  Assert<Equal<keyof Extract<Public.AccountTokenCreated, { type: 'secret_created' }>, 'type' | 'token' | 'value'>>,
+  Assert<Equal<keyof Extract<Public.AccountTokenCreated, { type: 'existing' }>, 'type' | 'token'>>,
+  Assert<Equal<keyof Public.AccountToken, 'id' | 'account_id' | 'name' | 'token_hint' | 'stores' | 'permissions' | 'expires_at' | 'status' | 'created_at' | 'updated_at'>>,
+  Assert<Equal<Public.AccountTokenStores, { type: 'all' } | { type: 'only'; store_ids: string[] } | { type: 'test_stores' }>>,
+  Assert<Equal<Public.AccountTokenStatus, { type: 'active' } | { type: 'revoked'; revoked_at: Public.EpochMilliseconds }>>,
+  Assert<Equal<Public.AccountToken['permissions'], Public.StorePermission[]>>,
+  Assert<Equal<Public.AccountToken['expires_at'], Public.EpochMilliseconds | null>>,
+  Assert<Equal<Public.CreateAccountTokenParams, { id: string; name: string; stores: Public.AccountTokenStores; permissions: Public.StorePermission[]; expires_at: Public.EpochMilliseconds | null }>>,
+  Assert<Equal<keyof Tokens, 'create' | 'find' | 'revoke' | 'delete'>>,
+  Assert<Equal<Parameters<Tokens['create']>[0], Public.CreateAccountTokenParams>>,
+  Assert<Equal<Awaited<ReturnType<Tokens['create']>>, Public.AccountTokenCreated>>,
+  Assert<Equal<Parameters<Tokens['find']>[0], Public.FindAccountTokensParams | undefined>>,
+  Assert<Equal<Public.FindAccountTokensParams, { limit?: number; cursor?: string | null }>>,
+  Assert<Equal<Awaited<ReturnType<Tokens['find']>>, Public.PaginatedResponse<Public.AccountToken>>>,
+  Assert<Equal<Parameters<Tokens['revoke']>[0], Public.RevokeAccountTokenParams>>,
+  Assert<Equal<Public.RevokeAccountTokenParams, { id: string; expected_updated_at: Public.EpochMilliseconds }>>,
+  Assert<Equal<Awaited<ReturnType<Tokens['revoke']>>, Public.AccountToken>>,
+  Assert<Equal<Parameters<Tokens['delete']>[0], Public.DeleteAccountTokenParams>>,
+  Assert<Equal<Public.DeleteAccountTokenParams, { id: string; expected_updated_at: Public.EpochMilliseconds }>>,
+  Assert<Equal<Awaited<ReturnType<Tokens['delete']>>, void>>,
+  Assert<Equal<Public.AccountCredentialType, { type: 'session' } | { type: 'account_token'; account_token_id: string }>>,
+  Assert<Equal<CreateAdminConfig['accountToken'], string | undefined>>,
+  Assert<Missing<CreateAdminConfig, 'secretKey'>>,
+  Assert<Equal<AdminLogoutResult['type'], 'revoked' | 'unconfirmed' | 'local_only' | 'account_token'>>,
+  Assert<Equal<Extract<AdminLogoutResult, { type: 'account_token' }>, { type: 'account_token' }>>,
   Assert<Equal<keyof AdminSession, 'id' | 'email'>>,
   Assert<Missing<AdminSession, 'scope'>>,
   Assert<Missing<CreateAdminConfig, 'storeId'>>,

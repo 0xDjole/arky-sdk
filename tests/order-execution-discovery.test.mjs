@@ -20,7 +20,7 @@ test("order execution reads keep empty continuations, the order filter and exact
     [{ fulfillment_job_line_id: "line", order_number: "1042", product_key: "stock-item", product_blocks: [], variant_sku: null, image: null, quantity: 2, source: { type: "order_product", order_product_line_item_id: "product", order_unit_spans: [] } }],
   ];
   const calls = recordFetch(context, () => replies.shift());
-  const api = createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop;
+  const api = createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).eshop;
   const scope = { store_id: STORE_ID, order_id: "accepted", limit: 20 };
   assert.deepEqual(await api.fulfillment.find(scope), { items: [], cursor });
   assert.equal(calls.length, 1);

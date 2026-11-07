@@ -7,7 +7,7 @@ const storeId = "6d2b8f41-3a75-4c09-9e1d-7b5c2a8f0e36";
 const marketId = "1c8e4a97-5d23-4f60-b9a1-3e7d5c0b2f84";
 
 function admin() {
-  return createAdmin({ apiUrl: "https://counts.test", secretKey: "arky_api_counts" });
+  return createAdmin({ apiUrl: "https://counts.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
 }
 
 test("status counts read the named counts by status in one call", async (context) => {

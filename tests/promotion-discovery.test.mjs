@@ -9,7 +9,7 @@ const id = "52718a47-c06b-49aa-b3a7-1ac29f9756a3";
 const codeId = "d31aa72d-5d0e-4b7f-b757-aab89c610d27";
 
 function eshop() {
-  return createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" }).eshop;
+  return createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).eshop;
 }
 
 test("promotion discovery keeps scoped filters, the opaque continuation and exact reads by key or code", async (context) => {
@@ -42,7 +42,7 @@ test("promotion discovery keeps scoped filters, the opaque continuation and exac
   assert.equal((await api.promotionCode.delete({ store_id: store, id: codeId, expected_updated_at: 456 })).status.type, "deleting");
   assert.equal(await api.promotionCode.delete({ store_id: store, id: codeId, expected_updated_at: 456 }), undefined);
   assert.equal(calls.length, 10);
-  assert.ok(calls.every((call) => call.path.startsWith(`/v1/stores/${store}/`) && call.headers.get("authorization") === "Bearer arky_secret_test"));
+  assert.ok(calls.every((call) => call.path.startsWith(`/v1/stores/${store}/`) && call.headers.get("authorization") === "Bearer arky_at_ttttttttttttttttttttttttttttttttttttttttttA"));
   assert.deepEqual(calls[1].query, { key: policy.key, status: "active", limit: "20", cursor });
   assert.deepEqual(calls[4].query, { promotion_id: id, code: code.code, status: "active", limit: "20", cursor });
   assert.equal(calls[2].path, `/v1/stores/${store}/promotions/by-key/${policy.key}`);

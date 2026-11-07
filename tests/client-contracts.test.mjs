@@ -12,7 +12,7 @@ const sessionId = "7f2a5c90-1d64-4e38-b9a7-0c3e8f6d2b15";
 const pendingSessionId = "3c8e1a64-7b29-4d05-9f3e-2a6c8b0d4e17";
 
 function admin() {
-  return createAdmin({ apiUrl: baseUrl, secretKey: "arky_api_admin_contract" });
+  return createAdmin({ apiUrl: baseUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
 }
 
 function issued(overrides = {}) {
@@ -415,7 +415,7 @@ test("storefront money helpers preserve exact zero, need an explicit locale and 
 test("SDK_VERSION equals the package version", async () => {
   const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
   assert.equal(SDK_VERSION, packageJson.version);
-  assert.equal(SDK_VERSION, "0.26.105");
+  assert.equal(SDK_VERSION, "0.26.106");
 });
 
 test("recursive storefront declarations never degrade to any", async () => {

@@ -10,7 +10,7 @@ const ENTRY_ID = "3d5f7b9c-1e2a-4b4d-8f6c-8e0a2c4e6f7b";
 const publishableKey = `arky_pk_${"s".repeat(43)}`;
 
 function admin() {
-  return createAdmin({ apiUrl: "https://content-contract.test", secretKey: "arky_api_content" });
+  return createAdmin({ apiUrl: "https://content-contract.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
 }
 
 test("Collection discovery retains native filters and empty-page continuation", async (context) => {

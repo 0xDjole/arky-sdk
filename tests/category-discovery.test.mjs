@@ -13,7 +13,7 @@ test("Category discovery keeps native filters and paged children across both cli
     calls.push({ url: new URL(url), method: init.method, body: init.body });
     return new Response(JSON.stringify({ items: [], cursor: "category:+/=" }), { headers: { "content-type": "application/json" } });
   });
-  const admin = createAdmin({ apiUrl: "https://category.test", secretKey: "arky_api_category" });
+  const admin = createAdmin({ apiUrl: "https://category.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories,
     apiUrl: "https://category.test", market: "market-contract", sessionStorage: new SessionStorage(),
   });
@@ -51,7 +51,7 @@ test("Category writes carry the app-picked id, tagged statuses and the version, 
     if (init.method === "DELETE") return new Response(JSON.stringify({ ...root, status: { type: "deleting" } }), { headers: { "content-type": "application/json" } });
     return new Response(JSON.stringify({ ...root, ...body }), { headers: { "content-type": "application/json" } });
   });
-  const api = createAdmin({ apiUrl: "https://category.test", secretKey: "arky_api_category" }).category;
+  const api = createAdmin({ apiUrl: "https://category.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).category;
   const create = { id: CATEGORY_ID, key: "topics", parent_id: null, slugs: { en: "topics" }, blocks: [], schema: [] };
   assert.deepEqual(await api.create({ store_id: STORE_ID, ...create }), root);
   assert.equal(calls[0].url.pathname, `/v1/stores/${STORE_ID}/categories`);
@@ -112,7 +112,7 @@ test("category answers on a record name each schema field by its id, never by it
     calls.push({ url: new URL(url), method: init.method, body: init.body ? JSON.parse(init.body) : undefined });
     return new Response(JSON.stringify({ id: CATEGORY_ID }), { headers: { "content-type": "application/json" } });
   });
-  const admin = createAdmin({ apiUrl: "https://category.test", secretKey: "arky_api_category" });
+  const admin = createAdmin({ apiUrl: "https://category.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   const productId = "6a8c0e2f-4b5d-4f7a-9c1e-3d5f7b9a1c2e";
   const categories = [{
     category_id: CATEGORY_ID,

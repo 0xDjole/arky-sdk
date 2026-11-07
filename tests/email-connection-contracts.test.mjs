@@ -9,7 +9,7 @@ const address = "4b6d8f0a-2e3a-4b7d-9f1c-3e5a7b9d1f2a";
 const event = "d8b35cf1-6867-49b0-863d-fdc1a6a6e6dc";
 
 function notification() {
-  return createAdmin({ apiUrl: "https://email-connections.test", secretKey: "arky_api_email" }).notification;
+  return createAdmin({ apiUrl: "https://email-connections.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).notification;
 }
 
 test("a store keeps several named email connections, each read, rekeyed and removed by its id and version", async (context) => {

@@ -103,7 +103,7 @@ const definitions = [
 ];
 
 const getApi = (client, path) => path.reduce((owner, key) => owner[key], client);
-const createClient = () => createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" });
+const createClient = () => createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
 const response = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
 test("company-wide and per-location grants are sent explicitly for an invited contact and survive exact reads", async (context) => {
@@ -209,7 +209,7 @@ for (const definition of definitions) {
     assert.equal(calls.at(-1).target.searchParams.get("expected_updated_at"), String(now));
     for (const call of calls) {
       assert.ok(call.target.pathname.startsWith(`/v1/stores/${selectedStoreId}/${definition.route}`));
-      assert.equal(call.headers.get("authorization"), "Bearer arky_secret_test");
+      assert.equal(call.headers.get("authorization"), "Bearer arky_at_ttttttttttttttttttttttttttttttttttttttttttA");
       assert.equal(call.body?.store_id, undefined);
       assert.equal(call.target.searchParams.has("store_id"), false);
     }
@@ -286,7 +286,7 @@ test("Market management sends explicit creation, a tax mode fixed at creation, p
   assert.equal(calls.at(-1).body, null);
   assert.deepEqual([...calls.at(-1).target.searchParams], [["expected_updated_at", String(now + 1)]]);
   for (const call of calls) {
-    assert.equal(call.headers.get("authorization"), "Bearer arky_secret_test");
+    assert.equal(call.headers.get("authorization"), "Bearer arky_at_ttttttttttttttttttttttttttttttttttttttttttA");
     assert.equal(call.body?.store_id, undefined);
     assert.equal(call.target.searchParams.has("store_id"), false);
   }

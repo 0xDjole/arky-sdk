@@ -18,7 +18,7 @@ function setup(context, respond = () => ({})) {
     calls.push(call);
     return new Response(JSON.stringify(respond(call)), { headers: { "content-type": "application/json" } });
   });
-  return { client: createAdmin({ apiUrl: "https://templates.test", secretKey: "arky_api_templates" }), calls };
+  return { client: createAdmin({ apiUrl: "https://templates.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }), calls };
 }
 
 function selection(templateId) {

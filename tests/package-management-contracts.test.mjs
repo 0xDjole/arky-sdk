@@ -105,7 +105,7 @@ for (const definition of definitions) {
         headers: { "content-type": "application/json" },
       });
     });
-    const client = createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" });
+    const client = createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
     const api = client.eshop[definition.owner];
     assert.deepEqual(await api.create({ store_id: otherStoreId, id, ...definition.create }), record);
     if (definition.update) {
@@ -126,7 +126,7 @@ for (const definition of definitions) {
     assert.equal(calls.length, expectedCalls);
     for (const call of calls) {
       assert.ok(call.url.pathname.startsWith(`/v1/stores/${otherStoreId}/${definition.route}`));
-      assert.equal(call.headers.get("authorization"), "Bearer arky_secret_test");
+      assert.equal(call.headers.get("authorization"), "Bearer arky_at_ttttttttttttttttttttttttttttttttttttttttttA");
       assert.equal(call.url.searchParams.has("store_id"), false);
       assert.equal(call.body?.store_id, undefined);
     }
@@ -161,7 +161,7 @@ for (const definition of definitions) {
 }
 
 test("price lists, assortments and separate price roots are gone from the Admin client", () => {
-  const client = createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" });
+  const client = createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   for (const removed of ["priceList", "assortment", "assortmentItem", "price"]) {
     assert.equal(removed in client.eshop, false);
   }
@@ -174,13 +174,13 @@ test("one item's price for one choice is read by its exact choice route", async 
     calls.push({ url: new URL(url), method: init.method ?? "GET", headers: new Headers(init.headers), body: init.body ?? null });
     return new Response(JSON.stringify(price), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const client = createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" });
+  const client = createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   assert.deepEqual(await client.eshop.packageItemPrice.getByChoice({ store_id: storeId, package_item_id: packageId, sellable }), price);
   assert.deepEqual(
     calls.map(({ url, method, body }) => [method, url.pathname, Object.fromEntries(url.searchParams), body]),
     [["GET", `/v1/stores/${storeId}/package-item-prices/by-choice`, { package_item_id: packageId, sellable: JSON.stringify(sellable) }, null]],
   );
-  assert.equal(calls[0].headers.get("authorization"), "Bearer arky_secret_test");
+  assert.equal(calls[0].headers.get("authorization"), "Bearer arky_at_ttttttttttttttttttttttttttttttttttttttttttA");
   for (const invented of [undefined, "retail", packageId.toUpperCase()]) {
     await assert.rejects(async () => client.eshop.packageItemPrice.getByChoice({ store_id: storeId, package_item_id: invented, sellable }), TypeError);
   }
@@ -213,7 +213,7 @@ test("buyer package reads use their exact routes and return the server answer", 
     const body = parsed.pathname.startsWith("/v1/storefront/") ? storefrontPackages : [shopPackage];
     return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const admin = createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" });
+  const admin = createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   const customer = { store_id: storeId, market_id: marketId, sales_channel_id: channelId, customer_id: customerId };
   assert.deepEqual(await admin.eshop.package.findPurchasable(customer), { items: [shopPackage], cursor: null });
   assert.deepEqual(await admin.eshop.package.findPurchasable({ ...customer, company_location_id: locationId }), { items: [shopPackage], cursor: null });
@@ -259,7 +259,7 @@ test("package copy and batch writes post their exact bodies with app-picked crea
       : parsed.pathname.endsWith("/package-item-prices/batch") ? [price] : [item];
     return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const client = createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" });
+  const client = createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   const markets = { source_market_id: marketId, target_market_id: otherStoreId };
   assert.deepEqual(await client.eshop.package.copy({ store_id: storeId, id: packageId, source_package_id: id, ...markets }), copyResult);
   assert.deepEqual(await client.eshop.package.copy({ store_id: storeId, id: packageId, source_package_id: id, ...markets, cursor: copyResult.cursor }), finished);
@@ -294,7 +294,7 @@ test("one package save carries its automatic item operations, and an item's crea
     calls.push({ url: new URL(url), method: init.method ?? "GET", body: init.body ? JSON.parse(init.body) : null });
     return new Response(JSON.stringify(detail), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const client = createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" });
+  const client = createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   const fields = { blocks: [], renewal: { type: "never" }, stay: { type: "any_time" }, minimum: { type: "none" }, schedule: { type: "scheduled", starts_at: null, ends_at: now }, status: { type: "active" } };
   const operations = [
     { action: "create", id: packageId, type: automatic },
@@ -319,7 +319,7 @@ test("archiving or scheduling all of an item's prices posts its one command with
     calls.push({ url: new URL(url), method: init.method ?? "GET", body: init.body ? JSON.parse(init.body) : null });
     return new Response(JSON.stringify(item), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const client = createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" });
+  const client = createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   const command = { expected_updated_at: now, status: { type: "archived" }, schedule: { type: "always" } };
   assert.deepEqual(await client.eshop.packageItem.setAllPrices({ store_id: storeId, id, ...command }), item);
   assert.deepEqual(calls.map(({ url, method, body }) => [method, url.pathname, body]), [
@@ -334,7 +334,7 @@ test("a price page names an item or a sellable and answers items and a cursor, w
     calls.push(new URL(url));
     return new Response(JSON.stringify(page), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const client = createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" });
+  const client = createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   assert.deepEqual(await client.eshop.packageItemPrice.find({ store_id: storeId, sellable, status: "archived", limit: 10 }), page);
   assert.deepEqual(Object.fromEntries(calls[0].searchParams), { sellable: JSON.stringify(sellable), status: "archived", limit: "10" });
 });
@@ -350,7 +350,7 @@ test("a plan is listed together with its one price, and the price id is the app'
     calls.push({ url: parsed, method: init.method ?? "GET", body: init.body ? JSON.parse(init.body) : null });
     return new Response(JSON.stringify(parsed.pathname.endsWith("/batch") ? [plan] : plan), { status: 201, headers: { "content-type": "application/json" } });
   });
-  const client = createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" });
+  const client = createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   const item = { type: "package", package_id: planId, price };
   assert.deepEqual(await client.eshop.packageItem.create({ store_id: storeId, id, package_id: packageId, market_id: marketId, item }), plan);
   assert.deepEqual(await client.eshop.packageItem.batch({ store_id: storeId, operations: [{ type: "create", id, package_id: packageId, market_id: marketId, item }] }), [plan]);

@@ -182,7 +182,7 @@ test("request duration uses monotonic milliseconds independently of wall-clock m
     wallClock -= 60_000;
     return jsonResponse({ id: "store" });
   });
-  const admin = createAdmin({ apiUrl: apiUrl, secretKey: "token" });
+  const admin = createAdmin({ apiUrl: apiUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   let duration;
   await admin.store.update({ id: storeId, expected_updated_at: knownInstant, name: "Time contract" }, { onSuccess(result) { duration = result.duration_ms; } });
   assert.equal(duration, 7.25);

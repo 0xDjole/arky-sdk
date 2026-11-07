@@ -41,7 +41,7 @@ type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
 const store_id = "56c82765-4f5a-47e9-bd6d-dba7c6354919";
 const admin = createAdmin({
   apiUrl: "https://api.example.test",
-  secretKey: "arky_secret_test",
+  accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA",
 });
 const members: FindPackageMembersParams = {
   store_id,

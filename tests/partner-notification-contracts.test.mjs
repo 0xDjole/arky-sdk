@@ -9,7 +9,7 @@ const notificationId = "d65211c1-743f-45fb-ab24-07221b1e3a7c";
 const templateId = "41d550d0-387b-4f24-b17a-87992ebcb3f9";
 
 function admin() {
-  return createAdmin({ apiUrl: "https://api.example.test", secretKey: "contract" });
+  return createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
 }
 
 test("a staff offer is made from the reviewed quote for the buyer's contact, sent with its expiry and note and withdrawn by version", async (context) => {

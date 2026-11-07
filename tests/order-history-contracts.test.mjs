@@ -15,7 +15,7 @@ const storeId = retained.store_id;
 const otherStoreId = "7d3b9f15-c2a6-4e80-9b4d-1a6e8c2f5d73";
 
 function client() {
-  return createAdmin({ apiUrl: baseUrl, secretKey: "arky_api_history_contract" });
+  return createAdmin({ apiUrl: baseUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
 }
 
 test("an order read keeps its cart source, the placed snapshot and every line family as sent", async (context) => {

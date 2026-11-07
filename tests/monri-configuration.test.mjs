@@ -8,7 +8,7 @@ const OTHER_STORE_ID = "1f6b8d23-4e97-4a50-b2c8-7d0e5a9c3f16";
 const savedCardTerms = { bs: "Kartica će se koristiti za vaše prihvaćene obnove." };
 
 function paymentOptions() {
-  return createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" }).store.paymentOption;
+  return createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).store.paymentOption;
 }
 
 test("Monri creation sends the app-picked id and explicit credentials once to the named store and returns the safe record", async (context) => {

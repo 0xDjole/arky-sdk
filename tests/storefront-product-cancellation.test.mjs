@@ -10,7 +10,7 @@ test("a buyer cannot cancel a product line from the storefront: the route is gon
   assert.equal("cancelProductItem" in store.eshop.order, false);
   assert.equal("cancelProductItem" in client.eshop.order, false);
   assert.equal(typeof store.eshop.order.cancelBookingItem, "function");
-  assert.equal(typeof createAdmin({ apiUrl, secretKey: "arky_secret_test" }).eshop.order.cancelProductItem, "function");
+  assert.equal(typeof createAdmin({ apiUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).eshop.order.cancelProductItem, "function");
 });
 
 test("a buyer's booking cancellation sends the app-picked credit id and the order version only", async (context) => {

@@ -183,7 +183,7 @@ export type { PaymentSimulation, SimulatePaymentOptions, SimulatePaymentParams }
 export { CheckoutFlowError, initialize } from "./storefrontStore";
 export type * from "./storefrontStore";
 
-export const SDK_VERSION = "0.26.105";
+export const SDK_VERSION = "0.26.106";
 
 export interface AdminSession {
   id: string;
@@ -201,13 +201,22 @@ export type AuthStateListener<T> = (session: T | null) => void;
 
 export interface CreateAdminConfig {
   apiUrl: string;
-  secretKey?: string;
+  accountToken?: string;
   refreshPath?: string | (() => string);
   forcedHeaders?: HttpClientConfig["forcedHeaders"];
   onUnauthorized?: HttpClientConfig["onUnauthorized"];
 }
 
+function validateAccountToken(accountToken: string): string {
+  const message = "A valid Arky account token is required (arky_at_ followed by 43 URL-safe characters)";
+  if (typeof accountToken !== "string") throw new TypeError(message);
+  const token = accountToken.trim();
+  if (!/^arky_at_[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/.test(token)) throw new TypeError(message);
+  return token;
+}
+
 export function createAdmin(config: CreateAdminConfig) {
+  const accountToken = config.accountToken === undefined ? null : validateAccountToken(config.accountToken);
   const sessionState = createAdminSessionState(config.apiUrl, config.refreshPath);
   const readAdminSession = sessionState.read;
   const writeAdminSession = sessionState.write;
@@ -228,14 +237,13 @@ export function createAdmin(config: CreateAdminConfig) {
   }
 
   const updateSession: AdminSessionUpdater = (updater) => {
-    if (config.secretKey) return;
+    if (accountToken) return;
     writeAdminSession(updater(readAdminSession()));
     emit();
   };
 
-  const secretKey = config.secretKey;
-  const authStorage: AuthStorage = secretKey
-    ? { getTokens: () => ({ access_token: secretKey }) }
+  const authStorage: AuthStorage = accountToken
+    ? { getTokens: () => ({ access_token: accountToken }) }
     : {
         getTokens() {
           const session = readAdminSession();
@@ -251,8 +259,8 @@ export function createAdmin(config: CreateAdminConfig) {
   const httpClient = createHttpClient({
     baseUrl: config.apiUrl,
     forcedHeaders: config.forcedHeaders,
-    refreshCredentials: secretKey ? undefined : sessionState.refresh,
-    onUnauthorized: secretKey ? () => false : config.onUnauthorized,
+    refreshCredentials: accountToken ? undefined : sessionState.refresh,
+    onUnauthorized: accountToken ? () => false : config.onUnauthorized,
     authStorage,
   });
 
@@ -360,12 +368,12 @@ export function createAdmin(config: CreateAdminConfig) {
     },
 
     get session(): AdminSession | null {
-      if (secretKey) return null;
+      if (accountToken) return null;
       return toPublic(readAdminSession());
     },
 
     get isAuthenticated(): boolean {
-      if (secretKey) return true;
+      if (accountToken) return true;
       return readAdminSession() !== null;
     },
 
@@ -392,7 +400,7 @@ export function createAdmin(config: CreateAdminConfig) {
     },
 
     async logout(): Promise<import("./services/adminSession").AdminLogoutResult> {
-      if (secretKey) return { type: "secret_key" };
+      if (accountToken) return { type: "account_token" };
       const result = await sessionState.logout();
       emit();
       return result;

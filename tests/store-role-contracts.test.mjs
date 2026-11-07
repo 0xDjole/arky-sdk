@@ -21,7 +21,7 @@ test("platform discovery keeps sorting and opaque continuation without hidden pa
       status: 200, headers: { "content-type": "application/json" },
     });
   });
-  const admin = createAdmin({ apiUrl: baseUrl, secretKey: "arky_account_access_contract" });
+  const admin = createAdmin({ apiUrl: baseUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   const stores = { query: "Workspace", limit: 1, sort_field: "name", sort_direction: "desc" };
   assert.deepEqual(await admin.store.find(stores), { items: [], cursor });
   assert.equal(calls.length, 1);
@@ -48,7 +48,7 @@ test("membership permissions use an exact Store read while own discovery preserv
     const body = parsed.pathname.endsWith("/membership") ? membership : { items: [], cursor: parsed.searchParams.has("cursor") ? null : cursor };
     return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const admin = createAdmin({ apiUrl: baseUrl, secretKey: "arky_account_access_contract" });
+  const admin = createAdmin({ apiUrl: baseUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   assert.deepEqual(await admin.store.member.getOwn({ store_id: storeId }, { headers: { "X-Trace-Id": "permission" } }), membership);
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url.pathname, `/v1/stores/${storeId}/membership`);
@@ -77,7 +77,7 @@ test("store roles are created under an app-picked id and use exact routes, versi
       : (init.method ?? "GET") === "GET" && parsed.pathname.endsWith("/roles") ? { items: [role], cursor: null } : role;
     return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const admin = createAdmin({ apiUrl: baseUrl, secretKey: "arky_account_access_contract" });
+  const admin = createAdmin({ apiUrl: baseUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   assert.deepEqual(await admin.store.role.create({ store_id: storeId, id: roleId, key: role.key, permissions: role.permissions }), role);
   await admin.store.role.update({ store_id: storeId, id: roleId, expected_updated_at: 2, key: "picker", permissions: [{ type: "fulfillment", locations: { type: "only", store_location_ids: [locationA] } }] });
   await admin.store.role.get({ store_id: storeId, id: roleId });
@@ -106,7 +106,7 @@ test("members are invited by caller-picked identity and re-roled by membership i
     calls.push({ url: new URL(url), method: init.method ?? "GET", body: init.body ? JSON.parse(String(init.body)) : null });
     return new Response(JSON.stringify(String(url).endsWith("/roles") ? { id: "member", role_ids: [roleId] } : true), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const admin = createAdmin({ apiUrl: baseUrl, secretKey: "arky_account_access_contract" });
+  const admin = createAdmin({ apiUrl: baseUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   const contact = { email: "packer@example.test", language: "bs" };
   await admin.store.member.invite({ store_id: storeId, id: accountId, contact, role_ids: [roleId] });
   await admin.store.member.updateRoles({ store_id: storeId, id: accountId, expected_updated_at: 5, role_ids: [roleId] });
@@ -128,7 +128,7 @@ test("the owner transfers the Store and members are paused and resumed by status
     const body = parsed.pathname.endsWith("/ownership/transfer") ? store : membership;
     return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const admin = createAdmin({ apiUrl: baseUrl, secretKey: "arky_account_access_contract" });
+  const admin = createAdmin({ apiUrl: baseUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   assert.deepEqual(await admin.store.member.transferOwnership({ store_id: storeId, account_id: accountId, expected_updated_at: 4 }), store);
   assert.deepEqual(await admin.store.member.changeStatus({ store_id: storeId, id: accountId, expected_updated_at: 5, status: { type: "disabled" } }), membership);
   await admin.store.member.changeStatus({ store_id: storeId, id: accountId, expected_updated_at: 6, status: { type: "active" } });
@@ -145,21 +145,22 @@ test("the owner transfers the Store and members are paused and resumed by status
   assert.equal("buildHook" in admin.store, false);
 });
 
-test("a role and a secret key give orders, payments and customers read-only or read-write access exactly as sent", async (context) => {
+test("a role and an account token give orders, payments and customers read-only or read-write access exactly as sent", async (context) => {
   const permissions = [
     { type: "orders", access: "read_only" },
     { type: "payments", access: "read_write" },
     { type: "customers", access: "read_only" },
     { type: "packages" },
   ];
-  const keyId = "6a1c3e85-7b29-4d04-9f6e-2c8a0d4b6e13";
-  const calls = recordFetch(context, (call) => call.path.endsWith("/api-keys") ? { type: "created", key: { id: keyId }, value: "secret-value" } : { id: roleId, permissions });
-  const admin = createAdmin({ apiUrl: baseUrl, secretKey: "arky_account_access_contract" });
+  const tokenId = "6a1c3e85-7b29-4d04-9f6e-2c8a0d4b6e13";
+  const stores = { type: "only", store_ids: [storeId] };
+  const calls = recordFetch(context, (call) => call.path.endsWith("/tokens") ? { type: "secret_created", token: { id: tokenId, permissions }, value: `arky_at_${"v".repeat(42)}A` } : { id: roleId, permissions });
+  const admin = createAdmin({ apiUrl: baseUrl });
   await admin.store.role.create({ store_id: storeId, id: roleId, key: "bookkeeping", permissions });
-  await admin.store.apiKey.create({ store_id: storeId, id: keyId, name: "Reports", type: { type: "secret", permissions, expires_at: null } });
+  await admin.account.token.create({ id: tokenId, name: "Reports", stores, permissions, expires_at: null });
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
     ["POST", `/v1/stores/${storeId}/roles`, { id: roleId, key: "bookkeeping", permissions }],
-    ["POST", `/v1/stores/${storeId}/api-keys`, { id: keyId, name: "Reports", type: { type: "secret", permissions, expires_at: null } }],
+    ["POST", "/v1/accounts/me/tokens", { id: tokenId, name: "Reports", stores, permissions, expires_at: null }],
   ]);
 });
 
@@ -211,7 +212,7 @@ test("own workspace discovery retains each Store name and access without public 
     calls.push({ path: new URL(url).pathname, method: init.method ?? "GET" });
     return Response.json({ items: memberships, cursor: null });
   });
-  const admin = createAdmin({ apiUrl: baseUrl, secretKey: "arky_account_access_contract" });
+  const admin = createAdmin({ apiUrl: baseUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   const page = await admin.store.member.findOwn({ limit: 20 });
   assert.deepEqual(page.items.map(({ store_name }) => store_name), ["First Store", "Second Store"]);
   assert.deepEqual(page.items.map(({ access }) => access.permissions[0]), [{ type: "orders", access: "read_write" }, { type: "orders", access: "read_only" }]);
@@ -230,7 +231,7 @@ test("a nonexpiring email invite is explicitly resent and accepted with its curr
     const body = parsed.pathname.endsWith("/invitation") ? true : parsed.pathname.endsWith("/membership/accept") ? accepted : invited;
     return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const admin = createAdmin({ apiUrl: baseUrl, secretKey: "arky_account_access_contract" });
+  const admin = createAdmin({ apiUrl: baseUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   const invite = { store_id: storeId, id: accountId, contact, role_ids: [roleId] };
   assert.equal(await admin.store.member.invite(invite), true);
   assert.equal(await admin.store.member.resendInvite({ store_id: storeId, id: accountId, expected_updated_at: 2 }), true);
@@ -258,7 +259,7 @@ test("a store's email sending is paused with a reason and allowed again, each wi
     calls.push({ url: parsed, method: init.method ?? "GET", body: init.body ? JSON.parse(String(init.body)) : null });
     return new Response(JSON.stringify(parsed.pathname.endsWith("/pause-email-sending") ? paused : allowed), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const admin = createAdmin({ apiUrl: baseUrl, secretKey: "arky_account_access_contract" });
+  const admin = createAdmin({ apiUrl: baseUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   assert.deepEqual((await admin.store.pauseEmailSending({ store_id: storeId, expected_updated_at: 4, reason: "Bounce rate review" })).email_sending, paused.email_sending);
   assert.deepEqual((await admin.store.allowEmailSending({ store_id: storeId, expected_updated_at: 5 })).email_sending, { type: "allowed" });
   assert.deepEqual(calls.map(({ url, method, body }) => [method, url.pathname + url.search, body]), [
@@ -285,7 +286,7 @@ test("membership removal sends the exact read version in the query with no body 
       headers: { "x-request-id": `membership-removal-${calls.length}` },
     });
   });
-  const admin = createAdmin({ apiUrl: baseUrl, secretKey: "arky_account_access_contract" });
+  const admin = createAdmin({ apiUrl: baseUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   const options = {
     headers: { "X-Trace-Id": "membership-removal" },
     signal: controller.signal,
@@ -302,7 +303,7 @@ test("membership removal sends the exact read version in the query with no body 
   for (const call of calls) {
     assert.equal(call.headers.get("Content-Type"), "application/json");
     assert.equal(call.headers.get("X-Trace-Id"), "membership-removal");
-    assert.equal(call.headers.get("Authorization"), "Bearer arky_account_access_contract");
+    assert.equal(call.headers.get("Authorization"), "Bearer arky_at_ttttttttttttttttttttttttttttttttttttttttttA");
     assert.equal(call.signal, controller.signal);
   }
   assert.deepEqual(successes.map(({ data, method, url, status, request_id }) => [data, method, url, status, request_id]), [
@@ -333,7 +334,7 @@ test("membership removal preserves native authority and version refusals", async
       validation_errors: [],
     }, { status: response.status });
   });
-  const admin = createAdmin({ apiUrl: baseUrl, secretKey: "arky_account_access_contract" });
+  const admin = createAdmin({ apiUrl: baseUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   for (const response of responses) {
     await assert.rejects(admin.store.member.remove({ store_id: storeId, id: roleId, expected_updated_at: 7 }, {
       onSuccess: () => { assert.fail("A refused removal must not invoke onSuccess"); },
