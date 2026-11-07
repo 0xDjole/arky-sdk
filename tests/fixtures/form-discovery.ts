@@ -49,7 +49,7 @@ type StoreForms = ReturnType<typeof initialize>["forms"];
 const store_id = "a8c41e2f-6d95-4b07-83f1-0e5d7a9c2b36";
 const form_id = "0f6a3c84-2d19-4e75-b8a1-5c9e7d3b2f60";
 const id = "4b9e2d71-8a36-4c05-9f1e-6d3a7b0c5e92";
-const api = createAdmin({ apiUrl: "https://forms.test", secretKey: "arky_api_forms" }).forms;
+const api = createAdmin({ apiUrl: "https://forms.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).forms;
 
 const stages: FormStage[] = [{ id: "new", key: "new" }, { id: "won", key: "won" }];
 const questions: FormQuestion[] = [

@@ -35,7 +35,7 @@ test("staff own-terms review and acceptance retain quantity, each frozen product
     withdrawn: null,
   };
   const calls = recordFetch(context, () => result);
-  const api = createAdmin({ apiUrl: apiUrl, secretKey: "contract" }).eshop
+  const api = createAdmin({ apiUrl: apiUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).eshop
     .packageMember;
   const terms = {
     package: {

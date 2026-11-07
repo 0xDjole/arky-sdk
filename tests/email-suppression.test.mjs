@@ -19,7 +19,7 @@ const record = {
 };
 
 function client() {
-  return createAdmin({ apiUrl: baseUrl, secretKey: "arky_api_suppressions" }).customers.emailSuppression;
+  return createAdmin({ apiUrl: baseUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).customers.emailSuppression;
 }
 
 function response(value) {

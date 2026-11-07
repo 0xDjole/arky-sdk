@@ -15,7 +15,7 @@ const reply = { email_template_id: templateId, sending_address_id: addressId, fr
 const contact = { email: "buyer@example.test", language: "bs" };
 
 function support() {
-  return createAdmin({ apiUrl: "https://support-contract.test", secretKey: "arky_api_support" }).support;
+  return createAdmin({ apiUrl: "https://support-contract.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).support;
 }
 
 function storefront() {
@@ -200,7 +200,7 @@ test("support writes carry the app-picked id, the conversation version or, for a
 test("an account reply is one write of the app-picked message id, its text and its delivery", async (context) => {
   const answer = { conversation: { id: conversationId }, message: { id: messageId } };
   const calls = recordFetch(context, () => answer);
-  const admin = createAdmin({ apiUrl: apiUrl, secretKey: "arky_api_support" });
+  const admin = createAdmin({ apiUrl: apiUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   assert.equal("sendConversationMessage" in admin.support.conversation, false);
   assert.deepEqual(await admin.support.conversation.reply({ store_id: ids.store, conversation_id: conversationId, id: messageId, expected_updated_at: 4, text: "I can help from here.", delivery: "chat_and_email", resolve: false }), answer);
   await admin.support.conversation.reply({ store_id: ids.store, conversation_id: conversationId, id: promptId, expected_updated_at: 5, text: "Done.", delivery: "email" });

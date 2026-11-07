@@ -36,7 +36,7 @@ test("payment reads preserve native Credit-derived status and its snapshot revis
   const calls = recordFetch(context, () => returned.shift());
   const api = createAdmin({
     apiUrl: "https://financial.example.test",
-    secretKey: "arky_api_finance",
+    accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA",
   }).eshop.payment;
   const before = await api.get({ store_id: STORE_ID, id: ids.payment });
   const current = await api.get({ store_id: STORE_ID, id: ids.payment });
@@ -67,7 +67,7 @@ test("payment discovery keeps combined scope, status, ordering and opaque contin
   });
   const client = createAdmin({
     apiUrl: "https://financial.example.test",
-    secretKey: "arky_api_finance",
+    accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA",
   });
   const filter = {
     order_id: "order-finance",
@@ -163,7 +163,7 @@ test("financial list failures are errors, not empty pages or replacement money c
   });
   const client = createAdmin({
     apiUrl: "https://financial.example.test",
-    secretKey: "arky_api_finance",
+    accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA",
   });
   await assert.rejects(
     client.eshop.payment.find({ store_id: STORE_ID }),
@@ -190,7 +190,7 @@ test("collection voids and whole-refund receipts carry only their existing ident
   const calls = recordFetch(context, () => ({ id: ids.payment }));
   const api = createAdmin({
     apiUrl: "https://financial.example.test",
-    secretKey: "arky_api_finance",
+    accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA",
   }).eshop.payment;
   const refundId = "6e2a9d47-1b85-4c30-9f7e-2d4c8a1b5e93";
   const collectionId = "fca5ba8e-86af-4dd8-a1cd-6d19bca62e12";
@@ -360,7 +360,7 @@ test("hold resolution names the retained hold and leaves recorded history intact
   const calls = recordFetch(context, () => payment);
   const api = createAdmin({
     apiUrl: "https://financial.example.test",
-    secretKey: "arky_api_finance",
+    accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA",
   }).eshop.payment;
   const request = {
     store_id: STORE_ID,

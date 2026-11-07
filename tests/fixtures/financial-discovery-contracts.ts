@@ -42,7 +42,7 @@ const payments: FindPaymentsParams = {
 };
 const client = createAdmin({
   apiUrl: "https://example.test",
-  secretKey: "arky_api_fixture",
+  accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA",
 });
 void client.eshop.payment.find(payments);
 void client.eshop.order.findPayments({ store_id, order_id: "order" });

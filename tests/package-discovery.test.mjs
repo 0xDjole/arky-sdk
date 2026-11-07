@@ -152,7 +152,7 @@ test("package and member transport keeps combined predicates, empty continuation
   });
   const admin = createAdmin({
     apiUrl: "https://api.example.test",
-    secretKey: "arky_secret_test",
+    accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA",
   });
   const filter = {
     store_id: store,
@@ -233,7 +233,7 @@ test("package and member transport keeps combined predicates, empty continuation
     calls.every(
       (call) =>
         call.url.pathname.startsWith(`/v1/stores/${store}/`) &&
-        call.headers.get("authorization") === "Bearer arky_secret_test",
+        call.headers.get("authorization") === "Bearer arky_at_ttttttttttttttttttttttttttttttttttttttttttA",
     ),
   );
   assert.deepEqual(Object.fromEntries(calls[1].url.searchParams), {

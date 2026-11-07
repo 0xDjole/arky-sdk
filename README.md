@@ -16,7 +16,7 @@ Pin the exact version, so the Server, Admin and storefronts move together.
 |---|---|---|
 | A website or web app | `initialize(publishableKey, options)`: the client plus reactive atoms, a cart store per buyer, package and market, a headless checkout and a booking calendar | `arky-sdk/storefront` |
 | Server code, or your own state layer | `createStorefront(publishableKey, options)`: the plain storefront client, the same calls without atoms | `arky-sdk/storefront` |
-| Staff tools, scripts, back offices | `createAdmin({ apiUrl, secretKey? })` | `arky-sdk/admin` |
+| Staff tools, scripts, back offices | `createAdmin({ apiUrl, accountToken? })` | `arky-sdk/admin` |
 
 `arky-sdk/storefront` exports everything a storefront needs: both clients, the helpers (prices, blocks, images, paging, payments, forms), the error classes and every type. `arky-sdk/utils` holds the helpers on their own, and `arky-sdk/types` the types with the error classes and constants.
 
@@ -641,12 +641,16 @@ An oversized request is refused with 413 `GENERAL.PAYLOAD_TOO_LARGE`. Form attac
 ```typescript
 import { createAdmin } from "arky-sdk/admin";
 
-const admin = createAdmin({ apiUrl: "https://api.arky.io", secretKey: process.env.ARKY_SECRET_KEY });
+const accountToken = process.env.ARKY_API_TOKEN;
+if (!accountToken) throw new Error("Set ARKY_API_TOKEN to an account token");
+const admin = createAdmin({ apiUrl: "https://api.arky.io", accountToken });
 const { items: markets } = await admin.store.market.find({ store_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" });
 console.log(markets.length);
 ```
 
-Without `secretKey`, an Account signs in with a code, and the client keeps and refreshes the Account session:
+`accountToken` takes an account token (`arky_at_` and 43 URL-safe characters, see [Account tokens](#account-tokens)); any other value throws a `TypeError` before a request goes out. The client never refreshes a token: a revoked or expired one, or one whose Account is being deleted, answers `401 GENERAL.UNAUTHENTICATED`. Its `session` is `null`, and `logout()` answers `{ type: "account_token" }` and revokes nothing.
+
+Without `accountToken`, an Account signs in with a code, and the client keeps and refreshes the Account session:
 
 ```typescript
 const pending = await admin.account.auth.requestCode({ session_id: crypto.randomUUID(), email: "staff@example.com" });
@@ -656,17 +660,17 @@ console.log(admin.session?.email);
 
 The app picks the code request's `session_id` once per send-code press and sends the same id on a retry: the same id and email answer the same pending session and send no second code. A store's sign-in (`store_id`) opens only that store.
 
-- **Store sign-in.** Pass `store_id` and the code email's `language` to `requestCode`, and `store_id` to `verify`, to sign in through a store's own site. Other stores, platform administration, creating a store and deleting the Account refuse that session (deleting the Account with `ACCOUNT.ARKY_SIGN_IN_REQUIRED`), and its session list shows only that store's sessions.
+- **Store sign-in.** Pass `store_id` and the code email's `language` to `requestCode`, and `store_id` to `verify`, to sign in through a store's own site. Other stores, platform administration, creating a store, accepting another store's invite, the Account's tokens and deleting the Account refuse that session with `403 ACCOUNT.ARKY_SIGN_IN_REQUIRED`, and its session list shows only that store's sessions.
 - **Sign-in refusals** carry their own codes: `ACCOUNT_SIGN_IN.CODE_RECENT`, `ACCOUNT_SIGN_IN.CODE_INVALID`, `ACCOUNT_SIGN_IN.ATTEMPTS_EXHAUSTED`, and `STORE_SIGN_IN.UNAVAILABLE` while a store's email sending is paused or its plan has lapsed. The same `session_id` with another email, through the other sign-in or after its code was used answers 409 `GENERAL.CONFLICT`.
 - **Session refresh.** The client refreshes when Arky refuses the access token and sends that request again; it never compares this device's clock with the session's expiry. The kept session holds `id`, `access_token`, `refresh_token` and `email`; any other stored value is no session, so the person signs in again. A logout Arky refuses for its access token rotates once and revokes again. Only Arky's own refusal of a refresh (401 `GENERAL.UNAUTHENTICATED` or 403 `GENERAL.UNAUTHORIZED` in Arky's error body) clears the kept session and reports `null` to `onAuthStateChanged`. Any other failed refresh, such as a 401 or 403 from a proxy in front of Arky, a 429, a 5xx or a lost answer, fails that request and keeps the session for the next try.
 - **Restored tokens.** A process restoring an Account access token can pass a `forcedHeaders` callback with its Bearer `Authorization` header and `onUnauthorized: () => false`.
-- **API keys.** Store API keys are made with `admin.store.apiKey`: a publishable key belongs to one sales channel, and a secret key carries explicit store permissions. A create answers `created` with the key, `secret_created` with the key and its `value` (shown once, for a secret key), or `existing` on a retry.
+- **API keys.** A store's API keys are publishable keys, made with `admin.store.apiKey.create({ store_id, id, name, sales_channel_id, bot_check })`: each belongs to one sales channel, its `token` (`arky_pk_...`) is public, and it authenticates no person. A create answers `created` with the key, or `existing` on a retry. A revoked key can be deleted, and `delete` answers nothing. Scripts, CI and agents use an [account token](#account-tokens).
 - **Customer import.** A customer import (`customers.previewImport`, `customers.import`) answers one outcome per row: `create` in a preview or `created`, `existing` when the row's id already names the same imported customer, which changes nothing, or `failed` with the row's error answer (`ApiErrorResponse`: its `error` code, `status_code` and `validation_errors`). The counts are `rows_to_create` in a preview and `customers_created` in the import, with `rows_existing` and `rows_failed`.
-- **Unknown card charges.** A Stripe card charge whose answer was lost is settled with `payment.resolveCharge`: `{ type: "made", transaction_id }` or `{ type: "payment_intent", payment_intent_id }` when Stripe shows it, or `{ type: "not_made" }`, which the payment then shows as `confirmed_not_made` with the account that confirmed it. A PaymentIntent of another charge is refused with `409 PAYMENT.INTENT_NOT_THIS_CHARGE`. Orders, Payments and Customers carry `access: "read_write" | "read_only"` in roles and secret keys alike: read-only reads what the full permission reads and is refused every write.
+- **Unknown card charges.** A Stripe card charge whose answer was lost is settled with `payment.resolveCharge`: `{ type: "made", transaction_id }` or `{ type: "payment_intent", payment_intent_id }` when Stripe shows it, or `{ type: "not_made" }`, which the payment then shows as `confirmed_not_made` with the account that confirmed it. A PaymentIntent of another charge is refused with `409 PAYMENT.INTENT_NOT_THIS_CHARGE`. Orders, Payments and Customers carry `access: "read_write" | "read_only"` in roles and account tokens alike: read-only reads what the full permission reads and is refused every write.
 
 | Namespace | What it covers |
 |---|---|
-| `account` | `getMe`, `find`, `delete`, `session`, `auth` |
+| `account` | `getMe`, `find`, `delete`, `session`, `token`, `auth` |
 | `platform` | `findCurrencies`, `findWebhookEvents`, `findStorePlans`, `administrator`, `stripeBillingEvent`, `resendEvent` |
 | `store` | the store, `subscription`, `usage`, `member`, `emails`, `role`, `webhook`, `country`, `location`, `market`, `salesChannel`, `apiKey`, `paymentOption`, `simulator`, `zone`, `taxCategory`, `shippingProfile`, `shippingMethod` |
 | `notification` | `outgoingEmail`, `outgoingWebhook`, `incomingWebhook`, `template`, `layout`, `emailProvider`, `emailAddress`, `resendEvent` |
@@ -729,9 +733,32 @@ What a delete answers is what Arky answers:
 - the note, for notes;
 - `{ deleted }`, for every other delete.
 
+## Account tokens
+
+A script, CI job or agent works through an account token, passed as `createAdmin({ apiUrl, accountToken })`. It acts as its Account: an action through it records the Account with `credential_type: { type: "account_token", account_token_id }`, so history shows which token acted. In each store it does only what both its `permissions` and the Account's roles there allow: `admin` on one side allows what the other side holds, an area both hold takes the narrower access, and the reads any Active member makes need neither. So it works in a store only while the Account is an Active member there, and its calls count against its own rate limit, not its address.
+
+An Arky session makes one, signed in within the recent sign-in window (15 minutes in production, else `403 ACCOUNT.RECENT_SIGN_IN_REQUIRED`):
+
+```typescript
+const made = await admin.account.token.create({
+  id: crypto.randomUUID(),
+  name: "CI",
+  stores: { type: "test_stores" },
+  permissions: [{ type: "admin" }],
+  expires_at: null,
+});
+if (made.type === "secret_created") console.log(made.token.token_hint, made.value.length);
+```
+
+- **Shown once.** `secret_created` carries the token and its `value`; Arky keeps only its hash, so the value can't be read again. The same create again under the same `id` answers `existing` with the token and no value, and the same `id` with anything else changed answers `409 GENERAL.CONFLICT`. `expires_at` is required: `null` for a token that never expires, or a time later than now.
+- **Where it works.** `stores` is `{ type: "all" }`: every store where the Account is an Active member, and it makes stores. `{ type: "only", store_ids }`: the listed stores, 1 to 100 in production, each once, each a store where the Account is an Active member (`404` otherwise) and not being deleted (`409 REFERENCE.DELETING`); it makes none. `{ type: "test_stores" }`: test stores only, which it makes and closes; it never reaches or makes a live store. A store, or a store create, outside its `stores` answers `403 ACCOUNT_TOKEN.STORE_NOT_COVERED`. A deleted store leaves an `only` token's list, and a token whose last listed store it was is deleted.
+- **Permissions** follow the role rules: `[{ type: "admin" }]` alone, or one or more of the others, each once. `fulfillment` and `inventory` take `locations: { type: "everywhere" }` only, and the Account's roles narrow that reach in each store. The owner's own actions (settings, Arky billing, member removal, the store's email connections, closing) need the owner's token holding `admin`.
+- **Listing, revoking, deleting.** `account.token.find({ limit, cursor })` lists the Account's tokens newest first, each with its `token_hint` (the value's first 16 characters) and never the value. `revoke({ id, expected_updated_at })` takes effect at once and answers the revoked token; revoking it again answers `409 ACCOUNT_TOKEN.REVOKED`. `delete({ id, expected_updated_at })` removes a revoked token and answers nothing; an active one answers `409 ACCOUNT_TOKEN.ACTIVE`. No call edits a token: rotate by making a new one, deploying it, then revoking the old one. An Account holds at most 50 tokens in production, revoked ones included until they are deleted (`409 ACCOUNT_TOKEN.LIMIT`).
+- **What a token never does.** Only an Arky session manages tokens: a token, or a store session, gets `403 ACCOUNT.ARKY_SIGN_IN_REQUIRED` there, and also at the Account's sessions, accepting a store invite, deleting the Account and every platform route. A token carries no platform-administrator rights and is never a recent sign-in, so owner transfer and closing a live store answer it `403 ACCOUNT.RECENT_SIGN_IN_REQUIRED`. `account.getMe()` works, and `store.find` and `store.member.findOwn` list only the stores it reaches.
+
 ## Test stores
 
-A test store is a real store that runs the code a live store runs. Its payments and emails go to Arky's own provider simulator, so no money moves and no mail leaves. You make one and drive it with an Account session or a secret key holding `Admin`.
+A test store is a real store that runs the code a live store runs. Its payments and emails go to Arky's own provider simulator, so no money moves and no mail leaves. You make one and drive it with an Account session or an account token holding `Admin`. A token with `stores: { type: "test_stores" }` makes, drives and closes test stores and never reaches a live one, so a token leaked from CI can't touch live data.
 
 An Account holds at most 5 test stores at a time, and a store being deleted counts until it is gone (`STORE.TEST_STORE_LIMIT`). `store.mode` is `"live"` or `"test"`, you name it when you make the store, and it never changes. `account.getMe()` answers the count as `test_stores`. A test store holds the test plan for free, can't pick or buy a plan (`STORE_SUBSCRIPTION.TEST_STORE`) and can't change owner (`STORE.TEST_STORE_TRANSFER`).
 
@@ -773,7 +800,7 @@ await admin.notification.emailProvider.connectArkyResend({
 });
 ```
 
-`store.paymentOption.arkyMonri.connect` takes the same fields as `arkyStripe.connect`. A storefront still reads `stripe` or `monri` as the option's `type`; `arky_stripe` and `arky_monri` show only on Admin's `PaymentOption`. To finish with a test store, call `store.requestDeletion`, as for any store.
+`store.paymentOption.arkyMonri.connect` takes the same fields as `arkyStripe.connect`. A storefront still reads `stripe` or `monri` as the option's `type`; `arky_stripe` and `arky_monri` show only on Admin's `PaymentOption`. To finish with a test store, call `store.requestDeletion`, as for any store. A test store needs no recent sign-in to close, so its owner's token holding `Admin` closes it; a live store needs the owner's session signed in within the recent window.
 
 **Paying in a browser.** On a simulated value `mountCheckoutAction` and `mountPaymentMethodSetup` load no provider script and work on a plain `http` page. They mount a small panel that says it is a test payment, with a button per outcome, each marked `data-arky-simulator-outcome`:
 

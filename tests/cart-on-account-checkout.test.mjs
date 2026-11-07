@@ -30,8 +30,8 @@ const onAccount = {
   reason: "Merchant approved Net30 for this one-time location purchase",
 };
 
-function admin(token = "arky_api_current") {
-  return createAdmin({ apiUrl: apiUrl, secretKey: token });
+function admin() {
+  return createAdmin({ apiUrl: apiUrl, accountToken: "arky_at_ccccccccccccccccccccccccccccccccccccccccccA" });
 }
 
 test("Admin on-account checkout sends the reviewed cart, app-picked order id, language, terms and reason in one POST", async (context) => {
@@ -45,7 +45,7 @@ test("Admin on-account checkout sends the reviewed cart, app-picked order id, la
   assert.equal(calls[0].method, "POST");
   assert.equal(calls[0].path, `/v1/stores/${ids.store}/carts/accept-on-account`);
   assert.deepEqual(calls[0].body, onAccount);
-  assert.equal(calls[0].headers.get("authorization"), "Bearer arky_api_current");
+  assert.equal(calls[0].headers.get("authorization"), "Bearer arky_at_ccccccccccccccccccccccccccccccccccccccccccA");
   assert.equal(calls[0].headers.get("x-review"), "on-account");
   assert.equal(calls[0].signal, signal);
   assert.equal(storage.length, 0);
@@ -119,7 +119,7 @@ test("company and location purchasing commands preserve the exact version and th
   assert.deepEqual(calls[0].body, { expected_updated_at: input.expected_updated_at, purchasing });
   assert.equal(calls[0].signal, signal);
   assert.equal(calls[0].headers.get("X-Review"), "native-cas");
-  assert.equal(calls[0].headers.get("Authorization"), "Bearer arky_api_current");
+  assert.equal(calls[0].headers.get("Authorization"), "Bearer arky_at_ccccccccccccccccccccccccccccccccccccccccccA");
   const standardCheckout = { payment: { type: "standard_checkout", billing_address: null }, allowed_payment_option_ids: [], purchase_order_number_required: false };
   await admin().companies.location.setPurchasing({ ...input, purchasing: standardCheckout });
   assert.deepEqual(calls[1].body, { expected_updated_at: input.expected_updated_at, purchasing: standardCheckout });

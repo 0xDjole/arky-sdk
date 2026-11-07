@@ -9,7 +9,7 @@ const OTHER_STORE_ID = "a0d6f2b8-3e51-4c79-9f24-7b1e5a3c8d60";
 const marketId = "4e8b2d61-7c35-4a09-9f1e-2b6d8a0c3e57";
 
 function store() {
-  return createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_secret_test" }).store;
+  return createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).store;
 }
 
 test("market changes use the named store, an app-picked id and the version, without routing fields in the body", async (context) => {

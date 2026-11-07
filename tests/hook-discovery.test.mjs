@@ -8,7 +8,7 @@ const hookId = "1c7e3a95-6b28-4d40-8f13-9a2e5c0d7b64";
 const testId = "5d9b1f37-2a84-4c60-b3e7-8f1a6c4d0e29";
 
 function store() {
-  return createAdmin({ apiUrl: "https://hooks.test", secretKey: "arky_api_hooks" }).store;
+  return createAdmin({ apiUrl: "https://hooks.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).store;
 }
 
 test("webhook discovery carries its native filters and keeps the empty-page continuation", async (context) => {

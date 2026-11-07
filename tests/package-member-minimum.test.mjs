@@ -14,7 +14,7 @@ const minimum = {
 };
 
 function members() {
-  return createAdmin({ apiUrl: "https://api.example.test", secretKey: "contract" }).eshop.packageMember;
+  return createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).eshop.packageMember;
 }
 
 test("the effective minimum is read at the caller's instant or at the Server's now, with the caller's request options", async (context) => {

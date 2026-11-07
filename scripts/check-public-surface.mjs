@@ -263,6 +263,8 @@ const removedIdentifiers = [
   "rows_valid",
   "rows_invalid",
   "customers_updated",
+  "ApiKeyType",
+  "secretKey",
 ];
 
 const removedIdentifierPattern = new RegExp(`\\b(?:${removedIdentifiers.join("|")})\\b`, "g");

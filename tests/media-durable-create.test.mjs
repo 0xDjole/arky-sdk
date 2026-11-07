@@ -22,7 +22,7 @@ function installBrowserState(context) {
 }
 
 function admin() {
-  return createAdmin({ apiUrl: baseUrl, secretKey: "contract-token" });
+  return createAdmin({ apiUrl: baseUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
 }
 
 function media(id = mediaId) {

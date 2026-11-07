@@ -13,7 +13,7 @@ const terms = { en: "Save this card for the store's agreed renewals." };
 const body = { id: optionId, key: "card", blocks: [], status: "active", saved_card_terms: terms };
 
 function admin() {
-  return createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_api_agent" });
+  return createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
 }
 
 function requests(calls) {
@@ -98,7 +98,7 @@ test("pay, decline and expire each post to the store's own control with no body 
     ["POST", `${base}/${ids.payment}/expire`, {}, null],
     ["POST", `${base}/payment%2Fone/pay`, {}, null],
   ]);
-  for (const call of calls) assert.equal(call.headers.get("authorization"), "Bearer arky_api_agent");
+  for (const call of calls) assert.equal(call.headers.get("authorization"), "Bearer arky_at_ttttttttttttttttttttttttttttttttttttttttttA");
   await assert.rejects(async () => payments.pay({ store_id: "shop", payment_id: ids.payment }), TypeError);
   assert.equal(calls.length, 4);
 });

@@ -3,6 +3,8 @@ name: SDK CI
 on:
   push:
     branches: [master]
+  pull_request:
+    branches: [master]
 
 concurrency:
   group: sdk-ci-${{ github.workflow }}-${{ github.ref }}

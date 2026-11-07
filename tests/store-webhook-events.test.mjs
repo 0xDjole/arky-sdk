@@ -13,7 +13,7 @@ test("store webhooks subscribe to package item price events by their Server name
   for (const retired of ["price.created", "price.updated", "price.deleted"]) assert.equal(WEBHOOK_UNIT_EVENT_TYPES.includes(retired), false, retired);
   const calls = recordFetch(context, () => ({ id: webhookId }));
   const events = [{ type: "package_item_price.created" }, { type: "package_item_price.deleted" }];
-  await createAdmin({ apiUrl: "https://webhooks.test", secretKey: "arky_api_webhooks" }).store.webhook.create({
+  await createAdmin({ apiUrl: "https://webhooks.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).store.webhook.create({
     store_id: storeId,
     id: webhookId,
     url: "https://hooks.example.test/arky",

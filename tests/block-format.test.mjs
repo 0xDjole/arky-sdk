@@ -35,7 +35,7 @@ test('formats a propertyless number block as its numeric value', () => {
 });
 
 test('the helpers are module exports, with no utils object on a client and no English-only date, text, phone or SVG helpers', () => {
-	const admin = createAdmin({ apiUrl: 'https://api.example.com', secretKey: 'arky_api_block_format' });
+	const admin = createAdmin({ apiUrl: 'https://api.example.com', accountToken: 'arky_at_ttttttttttttttttttttttttttttttttttttttttttA' });
 	assert.equal('utils' in admin, false);
 	assert.equal(typeof storefront.formatBlockValue, 'function');
 	for (const removed of ['formatDate', 'slugify', 'humanize', 'categorify', 'validatePhoneNumber', 'fetchSvgContent', 'getSvgContentForAstro', 'injectSvgIntoElement', 'nameToKey', 'tzGroups', 'findTimeZone', 'getBlockObjectValues', 'getBlockFromArray', 'extractBlockValues']) {

@@ -106,7 +106,7 @@ export interface Money {
 
 export type AccountCredentialType =
   | { type: "session" }
-  | { type: "secret_key"; api_key_id: string };
+  | { type: "account_token"; account_token_id: string };
 
 export interface AccountActorSnapshot {
   email: string;

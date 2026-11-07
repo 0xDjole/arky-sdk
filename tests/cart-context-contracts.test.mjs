@@ -25,7 +25,7 @@ const packageSelection = { id: packageLineId, package_id: ids.product, quantity:
 const companyBuyer = { type: "company_location", company_location_id: ids.companyLocation, purchase_order_number: "PO-7" };
 
 function admin() {
-  return createAdmin({ apiUrl: apiUrl, secretKey: "arky_api_cart" });
+  return createAdmin({ apiUrl: apiUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
 }
 
 function storefront(options = {}) {
@@ -132,7 +132,7 @@ test("a storefront location-choice cart is created for the company and then pick
 
 test("Admin quotes carry only the language the caller names; the client has no configured language", async (context) => {
   const calls = recordFetch(context, () => quoteRecord());
-  const client = createAdmin({ apiUrl: apiUrl, secretKey: "arky_api_cart", locale: "bs" });
+  const client = createAdmin({ apiUrl: apiUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA", locale: "bs" });
   assert.deepEqual(await client.eshop.cart.quote({ store_id: STORE_ID, id: ids.cart, language: "en" }), quoteRecord());
   assert.deepEqual(calls[0].body, { language: "en" });
   assert.equal(calls[0].path, `/v1/stores/${STORE_ID}/carts/${ids.cart}/quote`);

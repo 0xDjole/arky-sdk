@@ -10,7 +10,7 @@ const FORM_ID = ids.form;
 const SUBMISSION_ID = ids.submission;
 
 function admin() {
-  return createAdmin({ apiUrl: "https://forms.test", secretKey: "arky_api_forms" });
+  return createAdmin({ apiUrl: "https://forms.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
 }
 
 function submissionOf(call) {

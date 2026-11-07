@@ -9,7 +9,7 @@ const logo = "9a1c3e5b-7d2f-4b6a-8c0e-2f4a6c8e0b1d";
 const content = { en: { html: "<main>{{{body}}}</main>", text: "{{body}}" }, bs: { html: "<main>{{{body}}}</main>", text: "{{body}}" } };
 
 function layouts() {
-  return createAdmin({ apiUrl: "https://layouts.test", secretKey: "arky_api_layouts" }).notification.layout;
+  return createAdmin({ apiUrl: "https://layouts.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).notification.layout;
 }
 
 test("email layouts are listed in pages and read by id", async (context) => {

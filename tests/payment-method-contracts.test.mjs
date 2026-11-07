@@ -15,7 +15,7 @@ const owners = [
 ];
 
 function surfaceApi(surface) {
-  if (surface === "admin") return createAdmin({ apiUrl: apiUrl, secretKey: "arky_api_contract" }).eshop.paymentMethod;
+  if (surface === "admin") return createAdmin({ apiUrl: apiUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).eshop.paymentMethod;
   const make = surface === "initialized" ? initialize : createStorefront;
   return make(publishableKey, { ...idFactories, apiUrl, sessionStorage: visitorStorage() }).eshop.paymentMethod;
 }

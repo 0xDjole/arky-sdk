@@ -13,7 +13,7 @@ test('Media discovery preserves combined filters, ordering and empty-page contin
     return new Response(JSON.stringify({ items: [], cursor: calls.length === 1 ? 'media:+/=' : null }),
       { headers: { 'content-type': 'application/json' } });
   });
-  const api = createAdmin({ apiUrl: 'https://media.test', secretKey: 'arky_api_media' }).media;
+  const api = createAdmin({ apiUrl: 'https://media.test', accountToken: 'arky_at_ttttttttttttttttttttttttttttttttttttttttttA' }).media;
   const filters = { query: 'invoice', ids: ['media-a', 'media-b'], type: 'document', limit: 1,
     sort_field: 'file_name', sort_direction: 'asc' };
   const first = await api.find({ store_id: STORE_ID, ...filters });

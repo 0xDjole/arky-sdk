@@ -21,7 +21,7 @@ function stripeOption(webhook = { type: "not_configured" }) {
 }
 
 function stripe() {
-  return createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_api_stripe" }).store.paymentOption.stripe;
+  return createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).store.paymentOption.stripe;
 }
 
 test("Stripe is connected with the merchant's own keys under an app-picked id, and every later step names the option and its version", async (context) => {
@@ -75,7 +75,7 @@ test("checking a Stripe option's setup is a live read of the webhook the merchan
 
 test("Stripe steps keep the explicit store they were called with and refuse an invented id or store before any request", async (context) => {
   const calls = recordFetch(context, () => stripeOption());
-  const client = createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_api_stripe" });
+  const client = createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   assert.equal("setStoreId" in client, false);
   const params = { store_id: STORE_ID, id: ids.paymentOption, expected_updated_at: 7, restricted_key: "rk_test_scope", publishable_key: "pk_test_scope" };
   const pending = client.store.paymentOption.stripe.replaceKeys(params);
@@ -104,7 +104,7 @@ test("editing Stripe wording sends its exact languages and version without chang
   const result = stripeOption();
   result.type.saved_card_terms = changedTerms;
   const calls = recordFetch(context, () => result);
-  const api = createAdmin({ apiUrl: "https://api.example.test", secretKey: "arky_api_stripe" }).store.paymentOption;
+  const api = createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).store.paymentOption;
   assert.deepEqual(await api.update({ store_id: STORE_ID, id: ids.paymentOption, expected_updated_at: 7, blocks: [], status: "active", saved_card_terms: changedTerms }), result);
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
     ["PUT", `/v1/stores/${STORE_ID}/payment-options/${ids.paymentOption}`, { expected_updated_at: 7, blocks: [], status: "active", saved_card_terms: changedTerms }],
