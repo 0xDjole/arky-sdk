@@ -8,7 +8,8 @@ import type {
   GetCartOrderParams, StorefrontGetCartOrderParams, Order, PaymentMethodSetupStart,
   QuotePromotionCode, QuotePromotionCodeState, QuoteCartOfferParams, OrderPromotion, CheckoutCartOnAccountParams,
   CartProductLineItem, PackagePriceRef, StorefrontCreatedCart, StorefrontReorderedCart, StorefrontOrder,
-  StorefrontCheckoutAcceptance,
+  StorefrontCheckoutAcceptance, StorefrontCartQuote, StorefrontQuoteLine, StorefrontQuotePackageLine, StorefrontCartOffer,
+  StorefrontCartOfferLine, StorefrontPackageStart, PackageSelfSnapshot, QuoteLine,
 } from "arky-sdk";
 import type { ArkyCartCheckoutParams, ArkyCartStore } from "arky-sdk/storefront";
 import type * as Public from "arky-sdk/types";
@@ -149,7 +150,17 @@ export type CartContracts = [
   Assert<RequiredField<ArkyCartCheckoutParams, "payment">>,
   Assert<OptionalField<Parameters<StorefrontCart["checkout"]>[0], "order_id">>,
   Assert<RequiredField<Parameters<StorefrontCart["checkout"]>[0], "presentation_digest">>,
-  Assert<Equal<CartPresentationChangedError["quote"], CartQuote>>,
+  Assert<Equal<CartPresentationChangedError["quote"], StorefrontCartQuote>>,
+  Assert<Equal<Awaited<ReturnType<StorefrontCart["quote"]>>, StorefrontCartQuote>>,
+  Assert<Equal<ReturnType<ArkyCartStore["quote_result"]["get"]>, StorefrontCartQuote | null>>,
+  Assert<Equal<StorefrontCartQuote["lines"], StorefrontQuoteLine[]>>,
+  Assert<Equal<Extract<StorefrontQuoteLine, { type: "package" }>["package"], PackageSelfSnapshot>>,
+  Assert<Equal<StorefrontQuotePackageLine["start"], StorefrontPackageStart>>,
+  Assert<Equal<Exclude<keyof CartQuote, "lines">, Exclude<keyof StorefrontCartQuote, "lines">>>,
+  Assert<CartQuote extends StorefrontCartQuote ? true : false>,
+  Assert<QuoteLine extends StorefrontQuoteLine ? true : false>,
+  Assert<Equal<StorefrontCartOffer["lines"], StorefrontCartOfferLine[]>>,
+  Assert<Equal<Extract<StorefrontCartOfferLine, { type: "package" }>["package"], PackageSelfSnapshot>>,
   Assert<Equal<Awaited<ReturnType<StorefrontCart["pendingCheckout"]>>, CartCheckoutRequest | null>>,
   Assert<Equal<Awaited<ReturnType<StorefrontCart["checkout"]>>, StorefrontCheckoutAcceptance>>,
   Assert<Equal<Awaited<ReturnType<StorefrontCart["recoverCheckout"]>>, StorefrontCheckoutAcceptance | null>>,

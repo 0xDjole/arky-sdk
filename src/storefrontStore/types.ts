@@ -10,7 +10,7 @@ import type {
   CartPackageDeliveries,
   CartPackageLineItemInput,
   CartProductLineItemInput,
-  CartQuote,
+  StorefrontCartQuote,
   CheckoutPaymentChoice,
   PackageDeliveryChoices,
   StorefrontCheckoutCartInput,
@@ -137,7 +137,7 @@ export interface ArkyCheckoutState {
   step: ArkyCheckoutStep;
   busy: boolean;
   cart: StorefrontCart | null;
-  quote: CartQuote | null;
+  quote: StorefrontCartQuote | null;
   contact_email: EmailContact | null;
   contact_first_name: string | null;
   contact_last_name: string | null;

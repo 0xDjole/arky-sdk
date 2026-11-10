@@ -1,6 +1,7 @@
 import type { EpochMilliseconds } from "./time";
 import type { SortDirection } from "./common";
-import type { StorePermission } from "./storeRole";
+
+export type AccountAccess = { type: "regular" } | { type: "platform_admin" };
 
 export type AccountStatus = { type: "active" } | { type: "deleting" };
 
@@ -8,16 +9,9 @@ export interface Account {
   id: string;
   email: string;
   status: AccountStatus;
-  test_stores: number;
+  access: AccountAccess;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
-}
-
-export interface PlatformAdministrator {
-  id: string;
-  account_id: string;
-  email: string;
-  created_at: EpochMilliseconds;
 }
 
 export type AccountSessionStatus =
@@ -68,8 +62,7 @@ export interface RevokeAccountSessionParams {
 
 export type AccountTokenStores =
   | { type: "all" }
-  | { type: "only"; store_ids: string[] }
-  | { type: "test_stores" };
+  | { type: "only"; store_ids: string[] };
 
 export type AccountTokenStatus = { type: "active" } | { type: "revoked"; revoked_at: EpochMilliseconds };
 
@@ -79,7 +72,6 @@ export interface AccountToken {
   name: string;
   token_hint: string;
   stores: AccountTokenStores;
-  permissions: StorePermission[];
   expires_at: EpochMilliseconds | null;
   status: AccountTokenStatus;
   created_at: EpochMilliseconds;
@@ -94,7 +86,6 @@ export interface CreateAccountTokenParams {
   id: string;
   name: string;
   stores: AccountTokenStores;
-  permissions: StorePermission[];
   expires_at: EpochMilliseconds | null;
 }
 
@@ -113,15 +104,12 @@ export interface DeleteAccountTokenParams {
   expected_updated_at: EpochMilliseconds;
 }
 
-export interface FindPlatformAdministratorsParams {
+export interface FindPlatformAdminsParams {
+  limit?: number;
   cursor?: string | null;
 }
 
-export interface AddPlatformAdministratorParams {
-  id: string;
+export interface SetAccountAccessParams {
   account_id: string;
-}
-
-export interface RemovePlatformAdministratorParams {
-  id: string;
+  access: AccountAccess;
 }

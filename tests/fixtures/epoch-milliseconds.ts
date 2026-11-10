@@ -30,7 +30,7 @@ import type {
   Fulfillment,
   PackageItemPrice,
   PackageItemPriceChange,
-  StoreSubscriptionPaymentAction,
+  StoreSubscriptionPlan,
   TimeRange,
 } from "arky-sdk";
 
@@ -72,7 +72,7 @@ export type ContractChecks = [
   Assert<Checked<GetAvailabilityParams["from"]>>,
   Assert<Checked<FindOrdersParams["created_at_from"]>>,
   Assert<Checked<ExperimentResults["freshness_at"]>>,
-  Assert<Checked<Extract<StoreSubscriptionPaymentAction, { type: "stripe_embedded_checkout" }>["expires_at"]>>,
+  Assert<Checked<Extract<StoreSubscriptionPlan, { type: "active" }>["paid_until"]>>,
   Assert<Checked<DateTimeBlock["value"]>>,
   Assert<Checked<Extract<FormAnswer, { type: "date_time" }>["value"]>>,
   Assert<Checked<Extract<Order["line_items"][number], { type: "booking" }>["interval"]["from"]>>,

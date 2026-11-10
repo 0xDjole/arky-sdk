@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { createStorefront, initialize } from "../dist/storefront.js";
-import { apiUrl, fixedIdFactories, publishableKey, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
+import { apiUrl, fixedIdFactories, storefrontIdentity, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
 
 const storeId = "3b21b61d-7162-414c-a73a-888ccbc57c3e";
 const selectedStoreId = "7f3a7a66-3403-4112-b5e5-d004a62d00b0";
@@ -318,7 +318,7 @@ test("B2B management keeps server denials and conflicts without replacing the mu
 
 test("a buyer reads their company access as scoped grants, their memberships and the locations they may buy for", async (context) => {
   const access = {
-    company: { id: selectedStoreId, store_id: storeId, name: "Buyer", contact: { email: "accounts@example.test", language: "en" }, tax: { type: "standard", registrations: [] }, purchasing: standardCheckout, status: { type: "active" }, created_at: now, updated_at: now },
+    company: { type: "company", id: selectedStoreId, store_id: storeId, name: "Buyer", contact: { email: "accounts@example.test", language: "en" }, tax: { type: "standard", registrations: [{ country: "BA", region: null, identifier: "4200000000000", status: { type: "rejected", rejected_at: now } }] }, purchasing: standardCheckout, status: { type: "active" }, created_at: now, updated_at: now },
     grants: [
       { scope: { type: "company" }, permissions: ["place_orders", "join_packages"] },
       { scope: { type: "company_location", company_location_id: otherId }, permissions: ["view_company_orders", "manage_company_packages"] },
@@ -332,12 +332,17 @@ test("a buyer reads their company access as scoped grants, their memberships and
     if (target.pathname.endsWith("/company-memberships") || target.pathname.endsWith("/company-locations")) return response({ items: [], cursor: null });
     return response({ id: otherId });
   });
-  const shop = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() }).companies;
+  const shop = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() }).companies;
   assert.deepEqual(await shop.getAccess({ id: selectedStoreId }), access);
+  const locationsOnly = { company: { type: "locations", id: selectedStoreId, name: "Buyer", status: { type: "active" } }, grants: [access.grants[1]] };
+  access.company = locationsOnly.company;
+  access.grants = locationsOnly.grants;
+  assert.deepEqual(await shop.getAccess({ id: selectedStoreId }), locationsOnly);
   await shop.membership.find({ limit: 10 });
   await shop.location.find({ company_id: selectedStoreId, limit: 5 });
   await shop.location.get({ id: otherId });
   assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
+    ["GET", `/v1/storefront/companies/${selectedStoreId}/access`, {}],
     ["GET", `/v1/storefront/companies/${selectedStoreId}/access`, {}],
     ["GET", "/v1/storefront/company-memberships", { limit: "10" }],
     ["GET", "/v1/storefront/company-locations", { company_id: selectedStoreId, limit: "5" }],
@@ -348,7 +353,7 @@ test("a buyer reads their company access as scoped grants, their memberships and
 });
 
 function storefrontCompanies() {
-  return createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() }).companies;
+  return createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() }).companies;
 }
 
 test("a company manager changes the company, its locations and its members through the storefront twins of the staff routes", async (context) => {
@@ -396,7 +401,8 @@ test("a company manager changes the company, its locations and its members throu
   assert.deepEqual(calls[1].body.blocks, []);
   for (const call of calls) {
     assert.equal(call.headers.get("authorization"), `Bearer ${visitorToken}`);
-    assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
+    assert.equal(call.headers.get("x-arky-store-id"), storefrontIdentity.storeId);
+    assert.equal(call.headers.get("x-arky-sales-channel-id"), storefrontIdentity.salesChannelId);
     assert.equal(call.body?.store_id, undefined);
   }
   for (const index of [0, 2, 6]) assert.equal("id" in calls[index].body, false);
@@ -427,7 +433,7 @@ test("a storefront company location or membership is created only under the app'
 });
 
 function storeCompanies() {
-  return initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() }).companies;
+  return initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() }).companies;
 }
 
 test("the store's companies has the client's getAccess, update, location, membership and role, and each call reaches its /v1/storefront route", async (context) => {
@@ -480,6 +486,7 @@ test("the store's companies has the client's getAccess, update, location, member
   ]);
   for (const call of calls) {
     assert.equal(call.headers.get("authorization"), `Bearer ${visitorToken}`);
-    assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
+    assert.equal(call.headers.get("x-arky-store-id"), storefrontIdentity.storeId);
+    assert.equal(call.headers.get("x-arky-sales-channel-id"), storefrontIdentity.salesChannelId);
   }
 });

@@ -1,6 +1,6 @@
 import type { ApiConfig } from "../services/clientTypes";
 import type { RequestOptions } from "../types/api";
-import type { PaginatedResponse } from "../types/common";
+import type { DeletedResponse, PaginatedResponse } from "../types/common";
 import type {
   CreateExperimentParams,
   DeleteExperimentParams,
@@ -51,8 +51,8 @@ export const createExperimentsApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.put<Experiment>(experimentPath(store_id, id), body, options);
     },
 
-    delete(params: DeleteExperimentParams, options?: RequestOptions): Promise<void> {
-      return apiConfig.httpClient.delete<void>(experimentPath(params.store_id, params.id), {
+    delete(params: DeleteExperimentParams, options?: RequestOptions): Promise<DeletedResponse> {
+      return apiConfig.httpClient.delete<DeletedResponse>(experimentPath(params.store_id, params.id), {
         ...options,
         params: { expected_updated_at: params.expected_updated_at },
       });

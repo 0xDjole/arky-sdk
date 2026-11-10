@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { initialize } from "../dist/storefront.js";
-import { apiUrl, fixedIdFactories, ids, publishableKey, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
+import { apiUrl, fixedIdFactories, ids, storefrontIdentity, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
 
 const STORE_ID = "2f7b4d91-8c36-4a05-b1e9-6d3a0c8f5e27";
 const OTHER_STORE_ID = "a6c1e8f4-3b92-4d57-9e0a-5f2d7b1c8e46";
 const returnId = "4d7e1b39-1000-4c62-8a15-9e3f6b0d2c74";
 const lineId = "8c2a6e14-5b97-4d03-a1f8-3e6c9b0d7a52";
+const disposeActionId = "2b6f0c84-7e19-4d35-a8c2-1f4e9b7d3a60";
 const orderReturn = {
   type: "order",
   order_id: ids.order,
@@ -21,7 +22,7 @@ function returns() {
 test("a buyer's return is created under the app-picked id and read through storefront routes only", async (context) => {
   const retained = { id: returnId, status: { type: "requested", destination: { type: "undecided" } } };
   const calls = recordFetch(context, (call) => call.method === "GET" && call.path === "/v1/storefront/returns" ? { items: [], cursor: "next" } : retained);
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
   const request = { id: returnId, type: orderReturn, destination_store_location_id: null };
   const before = structuredClone(request);
   assert.deepEqual(await store.eshop.return.create(request), retained);
@@ -40,7 +41,7 @@ test("a buyer's return is created under the app-picked id and read through store
   assert.deepEqual(calls[0].body, request);
   await assert.rejects(store.eshop.return.create({ ...request, id: "return" }), TypeError);
   assert.equal(calls.length, 5);
-  assert.ok(calls.every((call) => call.headers.get("authorization") === `Bearer ${visitorToken}` && call.headers.get("x-arky-publishable-key") === publishableKey));
+  assert.ok(calls.every((call) => call.headers.get("authorization") === `Bearer ${visitorToken}` && (call.headers.get("x-arky-store-id") === storefrontIdentity.storeId && call.headers.get("x-arky-sales-channel-id") === storefrontIdentity.salesChannelId)));
 });
 
 test("return discovery carries every filter and keeps the empty continuation", async (context) => {
@@ -71,7 +72,7 @@ test("staff returns are created under the app-picked id, and every action goes t
     { type: "decide", store_location_id: "warehouse" },
     { type: "decline", reason: "Outside the return window", notify_customer: false },
     { type: "receive", items },
-    { type: "dispose", items: items.map((item) => ({ ...item, disposition: { type: "not_restocked", reason: "Broken seal" } })) },
+    { type: "dispose", action_id: disposeActionId, items: items.map((item) => ({ ...item, disposition: { type: "not_restocked", reason: "Broken seal" } })) },
     { type: "missing", items: [{ line_id: lineId, inventory_item_id: "item", quantity: 1 }] },
     { type: "tracking", trackings: [{ carrier: "DHL", number: "123", url: null }] },
     { type: "tracking", trackings: [] },
@@ -91,6 +92,12 @@ test("staff returns are created under the app-picked id, and every action goes t
     name: "TypeError",
     message: "The return id must be a canonical UUID v4 picked by the app",
   });
+  for (const action_id of [undefined, "dispose", disposeActionId.toUpperCase()]) {
+    await assert.rejects(
+      async () => api.execute({ store_id: STORE_ID, return_id: returnId, expected_updated_at: 1_700_000_000_000, command: { type: "dispose", action_id, items: [] } }),
+      { name: "TypeError", message: "The action id must be a canonical UUID v4 picked by the app" },
+    );
+  }
   assert.equal(calls.length, 2 + commands.length);
 });
 
@@ -110,7 +117,7 @@ test("a return read answers each line's product with the return, for staff and f
   assert.deepEqual(staffRead, named);
   assert.equal(staffRead.products[0].product.blocks[0].value.en, "Espresso beans");
   assert.equal(staffRead.products[1].product, null);
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
   assert.deepEqual(await store.eshop.return.get({ id: returnId }), named);
   assert.deepEqual(calls.map((call) => [call.method, call.path]), [
     ["GET", `/v1/stores/${STORE_ID}/returns/${returnId}`],

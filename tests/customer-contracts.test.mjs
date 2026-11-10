@@ -10,7 +10,7 @@ import {
   emailSession,
   idFactories,
   ids,
-  publishableKey,
+  storefrontIdentity,
   recordFetch,
   SessionStorage,
   sessionResult,
@@ -26,7 +26,7 @@ const identity = { customer_id: customerId, session_id: ids.session };
 const profile = [{ id: ids.line, key: "name", type: "text", value: "Ana" }];
 
 function client(storage = new SessionStorage()) {
-  return createStorefront(publishableKey, { ...idFactories, apiUrl: baseUrl, locale: "bs", visitorIdentity: identity, sessionStorage: storage });
+  return createStorefront(storefrontIdentity, { ...idFactories, apiUrl: baseUrl, locale: "bs", visitorIdentity: identity, sessionStorage: storage });
 }
 
 test("same caller-picked visitor identities share a request without sending contact fields", async (context) => {
@@ -65,9 +65,9 @@ test("Admin Customer commands send profile blocks, address changes and explicit 
 test("code requests retain caller ID, language and bot proof without claiming an address", async (context) => {
   const calls = recordFetch(context, (call) => call.path.endsWith("/identify") ? sessionResult() : { customer: customerRecord(), session: { id: ids.session, customer_id: customerId }, email_verification: { issued_at: 1, expires_at: 2 } });
   const storefront = client();
-  await storefront.customer.requestCode({ id: ids.form, contact: { email: "reader@example.test", language: "en" }, bot_check_token: "fixture-proof" });
+  await storefront.customer.requestCode({ id: ids.form, contact: { email: "reader@example.test", language: "en" } });
   assert.deepEqual(calls[0].body, identity);
-  assert.deepEqual(calls[1].body, { id: ids.form, contact: { email: "reader@example.test", language: "en" }, bot_check_token: "fixture-proof" });
+  assert.deepEqual(calls[1].body, { id: ids.form, contact: { email: "reader@example.test", language: "en" } });
   assert.equal(calls[1].headers.get("x-arky-locale"), "bs");
   assert.equal(storefront.session.customer.type.type, "anonymous");
   await assert.rejects(storefront.customer.requestCode({ id: "bad", contact: { email: "reader@example.test", language: "en" } }), TypeError);
@@ -228,9 +228,10 @@ test("a signed-in customer unsubscribes and resubscribes on the storefront with 
   ]);
   for (const call of calls) {
     assert.equal(call.headers.get("authorization"), `Bearer ${accessToken}`);
-    assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
+    assert.equal(call.headers.get("x-arky-store-id"), storefrontIdentity.storeId);
+    assert.equal(call.headers.get("x-arky-sales-channel-id"), storefrontIdentity.salesChannelId);
   }
   assert.deepEqual(storefront.session, before);
-  const store = initialize(publishableKey, { ...idFactories, apiUrl: baseUrl, locale: "bs", visitorIdentity: identity, sessionStorage: signedInStorage() });
+  const store = initialize(storefrontIdentity, { ...idFactories, apiUrl: baseUrl, locale: "bs", visitorIdentity: identity, sessionStorage: signedInStorage() });
   assert.equal(typeof store.customer.unsubscribe, "function");
 });

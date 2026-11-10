@@ -18,14 +18,14 @@ import {
   errorResponse,
   idFactories,
   jsonResponse,
-  publishableKey,
+  storefrontIdentity,
   quoteRecord,
   recordFetch,
   visitorStorage,
 } from "./helpers/arky-fixtures.mjs";
 
 function storefront() {
-  return createStorefront(publishableKey, { ...idFactories, apiUrl, locale: "en", sessionStorage: visitorStorage() });
+  return createStorefront(storefrontIdentity, { ...idFactories, apiUrl, locale: "en", sessionStorage: visitorStorage() });
 }
 
 test("a refused request throws an ArkyApiError with the Server's code, status, message and request id", async (context) => {
@@ -77,8 +77,8 @@ test("a 200 that isn't JSON fails as unreadable_answer", async (context) => {
   assert.ok(read instanceof ArkyNetworkError);
   assert.equal(read.code, "unreadable_answer");
   const reported = [];
-  const input = { store_id: "ab73eb42-89fd-4cbf-a1fd-fb84e6d78590", id: "912d27b1-2ed8-4a82-a2f1-318a45e31694", name: "Website", sales_channel_id: "0d6b2f84-3a19-4c57-8e20-7f4a1c9b5d36", bot_check: { type: "off" } };
-  const write = await admin.store.apiKey.create(input, { onError: (failure) => { reported.push(failure); } }).catch((caught) => caught);
+  const input = { store_id: "ab73eb42-89fd-4cbf-a1fd-fb84e6d78590", id: "912d27b1-2ed8-4a82-a2f1-318a45e31694", key: "web", market_ids: [], status: "active" };
+  const write = await admin.store.salesChannel.create(input, { onError: (failure) => { reported.push(failure); } }).catch((caught) => caught);
   assert.ok(write instanceof ArkyNetworkError);
   assert.equal(write.code, "unreadable_answer");
   assert.equal(reported.length, 1);

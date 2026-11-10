@@ -297,6 +297,22 @@ export type PackageSelfPrice =
   | ({ type: "listed" } & PackagePriceRef)
   | ({ type: "offer" } & PackagePriceRef);
 
+export type PackageSelfSnapshotItem =
+  | {
+      type: "get_product";
+      package_item_id: string;
+      variant_id: string;
+      quantity: number;
+      delivery: PackageDelivery;
+    }
+  | {
+      type: "rent_product";
+      package_item_id: string;
+      variant_id: string;
+      quantity: number;
+      tax_category_id: string;
+    };
+
 export interface PackageSelfSnapshot {
   package_id: string;
   renewal: PackageAcceptedRenewal;
@@ -304,7 +320,7 @@ export interface PackageSelfSnapshot {
   minimum: PackageMinimum;
   unit_price: number;
   price: PackageSelfPrice;
-  items: PackageSnapshotItem[];
+  items: PackageSelfSnapshotItem[];
 }
 
 export interface PackageMemberSelfAcceptedTerms {

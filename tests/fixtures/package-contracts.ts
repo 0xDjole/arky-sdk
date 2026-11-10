@@ -27,6 +27,7 @@ import type {
   PackageItemBatchOperation,
   PackageCopyResult,
   Schedule,
+  PackageScheduleInput,
   CopyPackageParams,
   PackageReadOptions,
   PackageAudience,
@@ -47,6 +48,7 @@ import type {
   StorefrontPrice,
   UpdatePackageItemParams,
   UpdatePackageParams,
+  DeletedResponse,
 } from "arky-sdk";
 import type { createAdmin } from "arky-sdk/admin";
 import type * as Public from "arky-sdk/types";
@@ -104,6 +106,7 @@ export type PackageContracts = [
   AssertFalse<"schedule" extends keyof CreatePackageItemParams ? true : false>,
   AssertFalse<"status" extends keyof CreatePackageItemParams ? true : false>,
   AssertTrue<Same<keyof SetPackageItemPricesParams, "store_id" | "id" | "expected_updated_at" | "status" | "schedule">>,
+  AssertTrue<Same<SetPackageItemPricesParams["schedule"], PackageScheduleInput>>,
   AssertTrue<Same<PackageItemRef["type"], "product" | "booking_service" | "package">>,
   AssertTrue<Same<PackagePriceComparison, { type: "none" } | { type: "amount"; amount: number }>>,
   AssertTrue<Same<PackageItemPrice["compare_at"], PackagePriceComparison>>,
@@ -150,8 +153,9 @@ export type PackageContracts = [
   AssertTrue<RequiredField<CreatePackageAccessParams, "level">>,
   AssertTrue<RequiredField<CreatePackageAccessParams, "audience">>,
   AssertTrue<Same<PackageReadOptions["package_id"], string>>,
-  AssertTrue<Same<Awaited<ReturnType<Eshop["packageItem"]["delete"]>>, void>>,
-  AssertTrue<Same<Awaited<ReturnType<Eshop["packageAccess"]["delete"]>>, void>>,
+  AssertTrue<Same<Awaited<ReturnType<Eshop["packageItem"]["delete"]>>, DeletedResponse>>,
+  AssertTrue<Same<Awaited<ReturnType<Eshop["packageAccess"]["delete"]>>, DeletedResponse>>,
+  AssertTrue<Same<Awaited<ReturnType<Eshop["packageOffering"]["delete"]>>, DeletedResponse>>,
   AssertTrue<Same<Awaited<ReturnType<Eshop["package"]["delete"]>>, Package>>,
   AssertTrue<RequiredField<DeletePackageParams, "expected_updated_at">>,
   AssertTrue<RequiredField<DeletePackageItemParams, "expected_updated_at">>,

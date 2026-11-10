@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createAdmin } from "../dist/admin.js";
-import { readPendingMediaCreate } from "../dist/utils.js";
+import { DurableRequestError, discardPendingMediaCreate, readPendingMediaCreate } from "../dist/utils.js";
 import { ExclusiveLockManager } from "./helpers/durable-request-fixtures.mjs";
 import { MemoryIndexedDbFactory } from "./helpers/indexeddb-fixture.mjs";
 import { errorResponse, installGlobal, jsonResponse, recordFetch } from "./helpers/arky-fixtures.mjs";
@@ -25,13 +25,14 @@ function admin() {
   return createAdmin({ apiUrl: baseUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
 }
 
-function media(id = mediaId) {
+function media(id = mediaId, visibility = "public") {
   return {
     id,
     store_id: storeId,
     file_name: "asset.png",
     alt: null,
     generation_id: "generation",
+    visibility,
     content: { type: "image", width_px: 1, height_px: 1 },
     status: { type: "ready" },
     created_at: 1,
@@ -128,6 +129,55 @@ test("a different file can't start while an unclear create is still saved", asyn
   assert.notEqual(await readPendingMediaCreate(storeId), null);
 });
 
+test("a_pending_media_create_can_be_discarded", async (context) => {
+  const { indexedDB } = installBrowserState(context);
+  let lose = true;
+  const calls = recordFetch(context, (call) => {
+    if (call.method === "PUT" && lose) throw new TypeError("response connection was lost");
+    if (call.method === "PUT") return media(otherMediaId);
+    return errorResponse(404, "MEDIA.NOT_FOUND", "Not found");
+  });
+  await assert.rejects(admin().media.create({ store_id: storeId, id: mediaId, file: asset([1]) }), /connection was lost/);
+  await assert.rejects(admin().media.create({ store_id: storeId, id: otherMediaId, file: asset([2]) }), /still keeps a different unresolved request/);
+  await discardPendingMediaCreate(storeId);
+  assert.equal(await readPendingMediaCreate(storeId), null);
+  assert.equal(indexedDB.peek("arky-durable-requests-v1", "media-create", storageKey), null);
+  lose = false;
+  assert.deepEqual(await admin().media.create({ store_id: storeId, id: otherMediaId, file: asset([2]) }), media(otherMediaId));
+  indexedDB.databases.get("arky-durable-requests-v1").stores.get("media-create").set(storageKey, { storageKey, requestJson: "{", blob: null });
+  await assert.rejects(admin().media.create({ store_id: storeId, id: mediaId, file: asset([3]) }), (error) => error instanceof DurableRequestError && error.code === "storage");
+  await assert.rejects(readPendingMediaCreate(storeId), (error) => error instanceof DurableRequestError && error.code === "storage");
+  await discardPendingMediaCreate(storeId);
+  assert.equal(await readPendingMediaCreate(storeId), null);
+  assert.deepEqual(calls.filter((call) => call.method === "PUT").map((call) => call.path), [
+    `/v1/stores/${storeId}/media/${mediaId}`,
+    `/v1/stores/${storeId}/media/${otherMediaId}`,
+  ]);
+});
+
+test("a media create still being sent can't be discarded from another tab", async (context) => {
+  installBrowserState(context);
+  let releaseUpload;
+  let markUploadEntered;
+  const uploadEntered = new Promise((resolve) => {
+    markUploadEntered = resolve;
+  });
+  const uploadGate = new Promise((resolve) => {
+    releaseUpload = resolve;
+  });
+  recordFetch(context, async () => {
+    markUploadEntered();
+    await uploadGate;
+    return media();
+  });
+  const first = admin().media.create({ store_id: storeId, id: mediaId, file: asset() });
+  await uploadEntered;
+  await assert.rejects(discardPendingMediaCreate(storeId), (error) => error instanceof DurableRequestError && error.code === "busy");
+  releaseUpload();
+  assert.deepEqual(await first, media());
+  assert.equal(await readPendingMediaCreate(storeId), null);
+});
+
 test("concurrent tabs send at most one media create", async (context) => {
   installBrowserState(context);
   let releaseUpload;
@@ -173,4 +223,33 @@ test("a create outside the browser is one plain upload with nothing saved", asyn
   assert.equal(calls[0].method, "PUT");
   assert.equal(calls[0].body.get("alt"), JSON.stringify({ en: "Logo" }));
   assert.equal(calls[0].body.get("file").name, "asset.png");
+});
+
+test("a private media retry keeps visibility with the exact file after a reload", async (context) => {
+  installBrowserState(context);
+  const first = recordFetch(context, (call) => call.method === "PUT"
+    ? Promise.reject(new TypeError("response connection was lost"))
+    : errorResponse(404, "GENERAL.NOT_FOUND", "Not found"));
+  const request = { store_id: storeId, id: mediaId, file: asset(), visibility: "private" };
+  await assert.rejects(admin().media.create(request), /connection was lost/);
+  assert.equal(first[0].body.get("visibility"), "private");
+  const recovered = await readPendingMediaCreate(storeId);
+  assert.equal(recovered.visibility, "private");
+  await assert.rejects(admin().media.create({ ...request, visibility: "public" }), /still keeps a different unresolved request/);
+  assert.equal(first.length, 2);
+  context.mock.restoreAll();
+  const retries = recordFetch(context, () => media(mediaId, "private"));
+  assert.deepEqual(await admin().media.create(recovered), media(mediaId, "private"));
+  assert.equal(retries[0].body.get("visibility"), "private");
+  assert.equal(await readPendingMediaCreate(storeId), null);
+});
+
+test("an ambiguous private media create is not reconciled against a public file with the same id", async (context) => {
+  installBrowserState(context);
+  const calls = recordFetch(context, (call) => call.method === "PUT"
+    ? Promise.reject(new TypeError("response connection was lost"))
+    : media(mediaId, "public"));
+  await assert.rejects(admin().media.create({ store_id: storeId, id: mediaId, file: asset(), visibility: "private" }), /connection was lost/);
+  assert.equal(calls.length, 2);
+  assert.equal((await readPendingMediaCreate(storeId)).visibility, "private");
 });

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/index.js";
 import { createStorefront } from "../dist/storefront.js";
-import { apiUrl, fixedIdFactories, ids, publishableKey, recordFetch } from "./helpers/arky-fixtures.mjs";
+import { apiUrl, fixedIdFactories, ids, storefrontIdentity, recordFetch } from "./helpers/arky-fixtures.mjs";
 
 const offeringId = "8d1c2f4e-5b6a-4c7d-8e9f-0a1b2c3d4e5f";
 const memberPackageId = "6b7f3f38-2a8b-4a1e-9f02-7a1d9a2f0f21";
@@ -19,7 +19,7 @@ test("storefront package and offering reads name their shop, answer the plan's i
   const calls = recordFetch(context, (call) => call.path.includes("/package-offerings/")
     ? { id: offeringId, key: "members-club", blocks: [], package_ids: [memberPackageId] }
     : { id: memberPackageId, package_item_id: ids.packageItem, package_offering_id: offeringId });
-  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "us", locale: "en" });
+  const client = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "us", locale: "en" });
   const memberPackage = await client.eshop.package.getByKey({ key: "monthly/plan", package_id: ids.package, company_id: ids.company });
   assert.equal(memberPackage.package_item_id, ids.packageItem);
   assert.equal(memberPackage.package_offering_id, offeringId);
@@ -73,7 +73,7 @@ test("a storefront package names each machine it lends by the product the Server
     package_offering_id: null,
   };
   const calls = recordFetch(context, () => package_);
-  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "us", locale: "en" });
+  const client = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "us", locale: "en" });
   for (const read of [
     await client.eshop.package.get({ id: memberPackageId, package_id: ids.package, company_location_id: ids.companyLocation }),
     await client.eshop.package.getByKey({ key: "milkpal-package", package_id: ids.package, company_location_id: ids.companyLocation }),
@@ -134,7 +134,7 @@ test("a package owns its renewal, stay and automatic item operations, and is cre
 test("package and offering edits carry the version, offerings list their packages with no status, and deletes send the version as a query", async (context) => {
   const deleting = { id: memberPackageId, status: { type: "deleting" } };
   const calls = recordFetch(context, (call) => call.method === "DELETE"
-    ? call.path.includes("/package-offerings/") ? new Response(null, { status: 204 }) : deleting
+    ? call.path.includes("/package-offerings/") ? { deleted: true } : deleting
     : call.method === "GET" ? { items: [], cursor: null } : { id: "record" });
   const client = admin().eshop;
   const update = { store_id: OTHER_STORE_ID, id: memberPackageId, expected_updated_at: 5, blocks: [], renewal: { type: "never" }, stay: { type: "any_time" }, minimum: { type: "none" }, schedule: { type: "always" }, status: { type: "closed" }, items: [] };
@@ -144,7 +144,7 @@ test("package and offering edits carry the version, offerings list their package
   await client.packageOffering.create({ store_id: STORE_ID, id: offeringId, key: "members-club", blocks: [], package_ids: [memberPackageId] });
   await client.packageOffering.update({ store_id: STORE_ID, id: offeringId, expected_updated_at: 7, blocks: [], package_ids: [memberPackageId, otherPackageId] });
   await client.packageOffering.find({ store_id: STORE_ID, key: "members-club", limit: 5 });
-  assert.equal(await client.packageOffering.delete({ store_id: STORE_ID, id: offeringId, expected_updated_at: 8 }), undefined);
+  assert.deepEqual(await client.packageOffering.delete({ store_id: STORE_ID, id: offeringId, expected_updated_at: 8 }), { deleted: true });
   const { store_id: _store, id: _id, ...updateBody } = update;
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
     ["PUT", `/v1/stores/${OTHER_STORE_ID}/packages/${memberPackageId}`, {}, updateBody],

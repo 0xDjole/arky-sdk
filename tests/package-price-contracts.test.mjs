@@ -4,7 +4,7 @@ import { createStorefront } from "../dist/storefront.js";
 import { formatPrice, getPriceAmount, formatMinor } from "../dist/utils.js";
 import { fixedIdFactories } from "./helpers/arky-fixtures.mjs";
 
-const publishableKey = `arky_pk_${"a".repeat(42)}A`;
+const storefrontIdentity = { storeId: "5e9b3d71-c826-4a04-b7f5-0d2a8e6c4f19", salesChannelId: "e5a8c2d7-3b91-4f06-9d4e-1c7b6a0f3e28" };
 const companyId = "8f9a5793-561f-4655-8f6b-42f5d6ded326";
 const locationId = "5d7f1c39-8a24-4e60-b9d3-2e6c0a8f4b17";
 const packageId = "e4c8a2f6-1b73-4d95-a0e7-5f2c9b6d3a18";
@@ -18,7 +18,7 @@ const selectedPrice = {
 };
 
 function storefront() {
-  return createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories,
+  return createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories,
     apiUrl: "https://api.example.test",
     locale: "bs",
     market: "bih",
@@ -36,7 +36,8 @@ function recordCalls(context, answer) {
 
 function assertStorefrontHeaders(calls) {
   for (const call of calls) {
-    assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
+    assert.equal(call.headers.get("x-arky-store-id"), storefrontIdentity.storeId);
+    assert.equal(call.headers.get("x-arky-sales-channel-id"), storefrontIdentity.salesChannelId);
     assert.equal(call.headers.get("x-arky-market"), "bih");
     assert.equal(call.headers.has("x-arky-sales-channel"), false);
     assert.equal(call.headers.get("x-arky-locale"), "bs");
@@ -97,7 +98,7 @@ test("a variant and a booking offering keep their server-selected price when the
 
 test("the storefront store exposes the by-key reads next to get", async () => {
   const { initialize } = await import("../dist/storefront.js");
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: "https://api.example.test", locale: "bs" });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: "https://api.example.test", locale: "bs" });
   assert.equal(typeof store.eshop.product.getByKey, "function");
   assert.equal(typeof store.eshop.bookingService.getByKey, "function");
   assert.equal(typeof store.category.getByKey, "function");

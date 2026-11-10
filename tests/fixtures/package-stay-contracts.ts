@@ -40,6 +40,7 @@ import type {
   PackageMemberRenewal,
   PackageOccurrence,
   PackageSelfSnapshot,
+  PackageSelfSnapshotItem,
   PackageStart,
   PackageRenewal,
   EpochMilliseconds,
@@ -68,6 +69,7 @@ type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ?
 type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
 type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
 type OptionalField<T, K extends keyof T> = {} extends Pick<T, K> ? true : false;
+type Assignable<A, B> = A extends B ? true : false;
 type AdminEshop = ReturnType<typeof createAdmin>["eshop"];
 type AdminMembers = AdminEshop["packageMember"];
 type BuyerMembers = ReturnType<typeof createStorefront>["eshop"]["packageMember"];
@@ -134,7 +136,10 @@ export type AutomaticItemContract = [
   Assert<Equal<StorefrontPackageRentalProduct["package_item_id"], string>>,
   Assert<Equal<StorefrontPackageRentalProduct["product"], ProductReference | null>>,
   Assert<Missing<Package, "rental_products">>,
-  Assert<Equal<PackageSelfSnapshot["items"], PackageSnapshotItem[]>>,
+  Assert<Equal<PackageSelfSnapshot["items"], PackageSelfSnapshotItem[]>>,
+  Assert<Equal<keyof Extract<PackageSelfSnapshotItem, { type: "get_product" }>, "type" | "package_item_id" | "variant_id" | "quantity" | "delivery">>,
+  Assert<Equal<keyof Extract<PackageSelfSnapshotItem, { type: "rent_product" }>, "type" | "package_item_id" | "variant_id" | "quantity" | "tax_category_id">>,
+  Assert<Assignable<PackageSnapshotItem, PackageSelfSnapshotItem>>,
   Assert<Equal<PackageSnapshotItem["type"], "get_product" | "rent_product">>,
   Assert<Equal<keyof Extract<PackageSnapshotItem, { type: "get_product" }>, "type" | "package_item_id" | "variant_id" | "quantity" | "delivery" | "allocation_weight">>,
   Assert<Equal<Extract<PackageSnapshotItem, { type: "get_product" }>["variant_id"], string>>,

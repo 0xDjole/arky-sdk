@@ -5,19 +5,23 @@ import { initialize } from "../dist/storefront.js";
 import {
   apiUrl,
   cartRecord,
+  checkoutRequest,
   emailSession,
   errorResponse,
   factoryId,
   ids,
   idFactories,
   idSequence,
-  publishableKey,
+  installGlobal,
+  storefrontIdentity,
   quoteRecord,
   recordFetch,
   sessionResult,
   signedInStorage,
+  visitorSession,
   visitorStorage,
 } from "./helpers/arky-fixtures.mjs";
+import { ExclusiveLockManager, MemoryStorage } from "./helpers/durable-request-fixtures.mjs";
 
 const customer = { type: "customer" };
 const profileA = "1b3d5f7a-9c2e-4a6b-8d0f-2e4a6c8e0b1d";
@@ -50,7 +54,7 @@ function variant(id, productId, profile) {
 }
 
 function store(createId = idFactories.createId) {
-  return initialize(publishableKey, { ...idFactories, createId, apiUrl, locale: "en", market: "hrv", sessionStorage: visitorStorage() });
+  return initialize(storefrontIdentity, { ...idFactories, createId, apiUrl, locale: "en", market: "hrv", sessionStorage: visitorStorage() });
 }
 
 test("eshop.cart gives one cart store per buyer and package, each with its own state", async (context) => {
@@ -344,7 +348,7 @@ test("a signed-in shopper's token refresh during a cart write keeps the cart vie
     }
     throw new Error(`Unexpected request ${call.method} ${call.path}`);
   });
-  const arky = initialize(publishableKey, { ...idFactories, createId: idSequence(factoryId(1)), apiUrl, locale: "en", market: "hrv", sessionStorage: signedInStorage() });
+  const arky = initialize(storefrontIdentity, { ...idFactories, createId: idSequence(factoryId(1)), apiUrl, locale: "en", market: "hrv", sessionStorage: signedInStorage() });
   const scoped = arky.eshop.cart({ buyer: customer, package_id: ids.package });
   await scoped.create({ id: ids.cart });
   const written = await scoped.addProduct({ variant_id: ids.variant, quantity: 1, price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price } });
@@ -359,5 +363,62 @@ test("a signed-in shopper's token refresh during a cart write keeps the cart vie
     `/v1/storefront/carts/${ids.cart}/product-items`,
     "/v1/storefront/customer/refresh",
     `/v1/storefront/carts/${ids.cart}/product-items`,
+  ]);
+});
+
+test("after_logout_another_customer_gets_a_new_cart", async (context) => {
+  const durable = new MemoryStorage();
+  installGlobal(context, "window", globalThis);
+  installGlobal(context, "localStorage", durable);
+  installGlobal(context, "navigator", { locks: new ExclusiveLockManager() });
+  const nextShopper = { customer_id: ids.otherCustomer, session_id: ids.otherSession };
+  const nextToken = `customer_visitor_${"b".repeat(64)}`;
+  const calls = recordFetch(context, (call) => {
+    if (call.path === "/v1/storefront/customer/logout") return new Response(null, { status: 204 });
+    if (call.path === "/v1/storefront/customer/identify") {
+      return sessionResult(call.body.customer_id, visitorSession(call.body.customer_id, call.body.session_id, nextToken));
+    }
+    if (call.path === "/v1/storefront/carts/accept") throw new TypeError("Lost response");
+    if (call.method === "POST" && call.path === "/v1/storefront/carts") {
+      const owner = call.headers.get("authorization") === `Bearer ${nextToken}` ? ids.otherCustomer : ids.customer;
+      return { type: "created", cart: cartRecord({ id: call.body.id, customer_id: owner }), recovery_token: `token-${call.body.id}` };
+    }
+    throw new Error(`Unexpected request ${call.method} ${call.path}`);
+  });
+  const arky = initialize(storefrontIdentity, {
+    ...idFactories,
+    createVisitorIdentity: () => nextShopper,
+    createId: idSequence(ids.cart, ids.otherCart),
+    apiUrl,
+    locale: "en",
+    market: "hrv",
+    sessionStorage: visitorStorage(),
+  });
+  const cart = arky.eshop.cart({ buyer: customer, package_id: ids.package });
+  assert.equal((await cart.create()).id, ids.cart);
+  const request = checkoutRequest({ cart_id: ids.cart });
+  await arky.client.eshop.cart.retainCheckout({ ...request, scope: cart.scope });
+  await assert.rejects(arky.client.eshop.cart.recoverCheckout({ scope: cart.scope }), /Lost response/);
+  const keptKeys = [...durable.values.keys()].filter((key) => key.startsWith("arky:cart-checkout:v5:"));
+  assert.equal(keptKeys.length, 1);
+  assert.ok(keptKeys[0].includes(encodeURIComponent(ids.customer)));
+  const kept = durable.getItem(keptKeys[0]);
+  assert.deepEqual(await cart.pendingCheckout(), request);
+
+  assert.deepEqual(await arky.customer.logout(), { type: "revoked", session_id: ids.session });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(cart.cart.get(), null);
+  const fresh = await cart.ensure();
+  assert.equal(fresh.id, ids.otherCart);
+  assert.equal(fresh.customer_id, ids.otherCustomer);
+  assert.equal(await cart.pendingCheckout(), null);
+  assert.equal(await arky.client.eshop.cart.pendingCheckout({ scope: cart.scope }), null);
+  assert.equal(durable.getItem(keptKeys[0]), kept);
+  assert.deepEqual(calls.map((call) => [call.method, call.path]), [
+    ["POST", "/v1/storefront/carts"],
+    ["POST", "/v1/storefront/carts/accept"],
+    ["POST", "/v1/storefront/customer/logout"],
+    ["POST", "/v1/storefront/customer/identify"],
+    ["POST", "/v1/storefront/carts"],
   ]);
 });

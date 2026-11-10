@@ -6,6 +6,7 @@ import type {
   OrderFinancialSummary,
   Payment,
   PaymentHold,
+  PaymentHoldReason,
   PaymentHoldStatus,
   PaymentStatusName,
   PaymentType,
@@ -109,7 +110,13 @@ export type FinancialContracts = [
       RecordedRefund[]
     >
   >,
-  Assert<Equal<Payment["holds"][number]["message"], string>>,
+  Assert<Equal<Payment["holds"][number]["reason"], PaymentHoldReason>>,
+  Assert<Missing<PaymentHold, "message">>,
+  Assert<Equal<PaymentHoldReason["type"], "money_after_end" | "amount_mismatch" | "second_charge" | "unknown_provider_state" | "dispute_currency" | "staff_outcome_disagrees" | "refund_amount_mismatch" | "binding_mismatch" | "refusal_disagrees" | "unproven_card_attempt">>,
+  Assert<Equal<Extract<PaymentHoldReason, { type: "staff_outcome_disagrees" }>["operation"], "charge" | "refund" | "void" | "refund_not_made">>,
+  Assert<Equal<keyof Extract<PaymentHoldReason, { type: "amount_mismatch" }>, "type" | "collected" | "expected">>,
+  Assert<Equal<keyof Extract<PaymentHoldReason, { type: "refund_amount_mismatch" }>, "type" | "refund_id" | "recorded" | "reported">>,
+  Assert<Equal<keyof Extract<PaymentHoldReason, { type: "refusal_disagrees" }>, "type" | "http_status" | "intent_id" | "state">>,
   Assert<Equal<PaymentHold["status"], PaymentHoldStatus>>,
   Assert<Equal<PaymentHoldStatus["type"], "open" | "resolved">>,
   Assert<RequiredField<PaymentHold, "id">>,

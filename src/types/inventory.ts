@@ -318,5 +318,6 @@ export interface MoveInventoryUnitParams extends GetInventoryUnitParams {
 
 export interface WriteOffInventoryUnitParams extends GetInventoryUnitParams {
   expected_updated_at: EpochMilliseconds;
+  action_id: string;
   reason: string;
 }

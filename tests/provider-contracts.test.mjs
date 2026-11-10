@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { createAdmin } from "../dist/admin.js";
 import { createStorefront } from "../dist/storefront.js";
-import { apiUrl, errorResponse, fixedIdFactories, ids, publishableKey, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
+import { apiUrl, errorResponse, fixedIdFactories, ids, storefrontIdentity, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
 
 const storeId = "5d1e8b24-9c63-4a07-b2f5-8e3a6c0d9f41";
 const otherStoreId = "a7c3e915-2d48-4b6f-8e01-3f9b5d7c2a64";
@@ -139,7 +139,7 @@ test("a refund made in Monri's back office is recorded under the app's refund id
 
 test("a buyer reads their own order's payments through storefront routes", async (context) => {
   const calls = recordFetch(context, (call) => call.path.endsWith("/payments") ? [] : { id: paymentId });
-  const orders = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() }).eshop.order;
+  const orders = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() }).eshop.order;
   await orders.findPayments({ order_id: ids.order });
   await orders.getPayment({ order_id: ids.order, payment_id: paymentId });
   await orders.resumePayment({ order_id: ids.order });

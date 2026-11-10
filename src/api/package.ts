@@ -1,6 +1,6 @@
 import type { ApiConfig } from "../services/clientTypes";
 import type { RequestOptions } from "../types/api";
-import type { PaginatedResponse } from "../types/common";
+import type { DeletedResponse, PaginatedResponse } from "../types/common";
 import type {
   BatchPackageItemPricesParams,
   BatchPackageItemsParams,
@@ -144,8 +144,8 @@ export const createPackageItemPriceApi = (apiConfig: ApiConfig) => ({
     );
   },
 
-  delete(params: DeletePackageItemPriceParams, options?: RequestOptions): Promise<void> {
-    return apiConfig.httpClient.delete<void>(storeRecordPath(params.store_id, "package-item-prices", params.id), {
+  delete(params: DeletePackageItemPriceParams, options?: RequestOptions): Promise<DeletedResponse> {
+    return apiConfig.httpClient.delete<DeletedResponse>(storeRecordPath(params.store_id, "package-item-prices", params.id), {
       ...options,
       params: { expected_updated_at: params.expected_updated_at },
     });
@@ -195,8 +195,8 @@ export const createPackageItemApi = (apiConfig: ApiConfig) => ({
     );
   },
 
-  delete(params: DeletePackageItemParams, options?: RequestOptions): Promise<void> {
-    return apiConfig.httpClient.delete<void>(storeRecordPath(params.store_id, "package-items", params.id), {
+  delete(params: DeletePackageItemParams, options?: RequestOptions): Promise<DeletedResponse> {
+    return apiConfig.httpClient.delete<DeletedResponse>(storeRecordPath(params.store_id, "package-items", params.id), {
       ...options,
       params: { expected_updated_at: params.expected_updated_at },
     });
@@ -222,7 +222,7 @@ export const createPackageAccessApi = (apiConfig: ApiConfig) => ({
     return apiConfig.httpClient.post<PackageAccess>(storePath(store_id, "package-accesses"), body, options);
   },
 
-  delete(params: DeletePackageAccessParams, options?: RequestOptions): Promise<void> {
-    return apiConfig.httpClient.delete<void>(storeRecordPath(params.store_id, "package-accesses", params.id), options);
+  delete(params: DeletePackageAccessParams, options?: RequestOptions): Promise<DeletedResponse> {
+    return apiConfig.httpClient.delete<DeletedResponse>(storeRecordPath(params.store_id, "package-accesses", params.id), options);
   },
 });

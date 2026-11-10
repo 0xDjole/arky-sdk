@@ -2,8 +2,8 @@ import type { RequestOptions } from "../types/httpClient";
 import type { Block } from "../types/block";
 import type { PaginatedResponse } from "../types/common";
 import type {
-  Collection,
-  Entry,
+  PublicCollection,
+  PublicEntry,
   Media,
   StorefrontFindEntriesParams,
   StorefrontFindEntryBySlugParams,
@@ -21,10 +21,10 @@ import { collectBlockReferences, selectLocalizedText } from "../utils/blocks";
 import { readAllPages } from "../utils/paginate";
 
 export interface ContentReads {
-  getCollection(params: LoadContentCollectionParams, options?: RequestOptions): Promise<Collection>;
-  getEntry(params: { id: string }, options?: RequestOptions): Promise<Entry>;
-  findEntries(params: StorefrontFindEntriesParams, options?: RequestOptions): Promise<PaginatedResponse<Entry>>;
-  findEntryBySlug(params: StorefrontFindEntryBySlugParams, options?: RequestOptions): Promise<Entry | null>;
+  getCollection(params: LoadContentCollectionParams, options?: RequestOptions): Promise<PublicCollection>;
+  getEntry(params: { id: string }, options?: RequestOptions): Promise<PublicEntry>;
+  findEntries(params: StorefrontFindEntriesParams, options?: RequestOptions): Promise<PaginatedResponse<PublicEntry>>;
+  findEntryBySlug(params: StorefrontFindEntryBySlugParams, options?: RequestOptions): Promise<PublicEntry | null>;
   findMedia(params: { ids: string[] }, options?: RequestOptions): Promise<Media[]>;
 }
 
@@ -76,11 +76,11 @@ async function readMedia(
   return media;
 }
 
-function loaded<T extends Collection | Entry>(record: T, locale: string, mediaById: Readonly<Record<string, Media>>): LoadedContent<T> {
+function loaded<T extends PublicCollection | PublicEntry>(record: T, locale: string, mediaById: Readonly<Record<string, Media>>): LoadedContent<T> {
   return { ...contentBlocks(record.blocks, locale, mediaById), record, media_by_id: mediaById };
 }
 
-async function readEntry(reads: ContentReads, params: LoadContentEntryParams, options?: RequestOptions): Promise<Entry> {
+async function readEntry(reads: ContentReads, params: LoadContentEntryParams, options?: RequestOptions): Promise<PublicEntry> {
   if ("id" in params) return reads.getEntry({ id: params.id }, options);
   if ("slug" in params) {
     const found = await reads.findEntryBySlug({ collection_id: params.collection_id, slug: params.slug }, options);
@@ -89,7 +89,7 @@ async function readEntry(reads: ContentReads, params: LoadContentEntryParams, op
   }
   const page = await reads.findEntries({ collection_id: params.collection_id, key: params.key, limit: 1 }, options);
   const found = page.items[0];
-  if (!found || found.key !== params.key) throw new ArkyError("not_found", `No entry has the key '${params.key}' in this collection`);
+  if (!found || found.type.key !== params.key) throw new ArkyError("not_found", `No entry has the key '${params.key}' in this collection`);
   return found;
 }
 
@@ -98,7 +98,7 @@ export async function loadContent(
   params: LoadContentParams,
   locale: string,
   options?: RequestOptions,
-): Promise<LoadedContent<Collection> | LoadedContent<Entry>> {
+): Promise<LoadedContent<PublicCollection> | LoadedContent<PublicEntry>> {
   if ("collection" in params) {
     const collection = await reads.getCollection(params.collection, options);
     return loaded(collection, locale, await readMedia(reads, [collection], options));
@@ -112,7 +112,7 @@ export async function loadContentEntries(
   params: LoadContentEntriesParams,
   locale: string,
   options?: RequestOptions,
-): Promise<LoadedContent<Entry>[]> {
+): Promise<LoadedContent<PublicEntry>[]> {
   const entries = await readAllPages((cursor) => reads.findEntries({ ...params, ...(cursor ? { cursor } : {}) }, options));
   const media = await readMedia(reads, entries, options);
   return entries.map((entry) => loaded(entry, locale, media));

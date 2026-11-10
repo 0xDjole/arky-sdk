@@ -45,6 +45,10 @@ function toServerError(value: unknown, statusCode: number): ServerError {
   };
 }
 
+export function reportHookFailure(error: unknown): void {
+  console.error("An Arky request hook failed", error);
+}
+
 export function refusedByArky(response: { status: number; data: unknown }): boolean {
   if (!isRecord(response.data) || response.data.status_code !== response.status) return false;
   return (
@@ -70,7 +74,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
     method: string,
     path: string,
     body?: unknown,
-    options?: TransportOptions<T> & { body?: unknown },
+    options?: TransportOptions<T>,
     retried = false,
   ): Promise<T> {
     if (!cfg.storefrontMode && (options?.locale !== undefined || options?.market !== undefined)) {
@@ -122,11 +126,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
       headers,
       signal: options?.signal,
     };
-    if (
-      method !== "GET" &&
-      body !== undefined &&
-      (method !== "DELETE" || options?.body !== undefined)
-    ) {
+    if (method !== "GET" && method !== "DELETE" && body !== undefined) {
       fetchOptions.body = multipart
         ? (body as FormData)
         : body instanceof URLSearchParams
@@ -153,7 +153,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
       if (options?.onError && method !== "GET") {
         Promise.resolve(
           options.onError({ error: err, method, url: fullUrl, aborted }),
-        ).catch(() => {});
+        ).catch(reportHookFailure);
       }
       throw err;
     }
@@ -175,7 +175,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
             url: fullUrl,
             status: res.status,
           }),
-        ).catch(() => {});
+        ).catch(reportHookFailure);
       }
       throw err;
     }
@@ -202,7 +202,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
             url: fullUrl,
             status: res.status,
           }),
-        ).catch(() => {});
+        ).catch(reportHookFailure);
       }
       throw err;
     }
@@ -219,7 +219,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
         if (recovered) {
           return request<T>(method, path, body, options, true);
         }
-      } else if (cfg.refreshCredentials && tokens) {
+      } else if (cfg.refreshCredentials && tokens && refusedByArky({ status: res.status, data })) {
         await refreshedTokens(tokens);
         return request<T>(method, path, body, options, true);
       }
@@ -250,8 +250,9 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
             request_id: requestId || null,
             duration_ms: performance.now() - startedAt,
           }),
-        ).catch(() => {});
+        ).catch(reportHookFailure);
       }
+      cfg.onRefused?.(err);
       throw err;
     }
 
@@ -267,7 +268,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
           request_id: requestId || null,
           duration_ms: performance.now() - startedAt,
         }),
-      ).catch(() => {});
+      ).catch(reportHookFailure);
     }
     return data as T;
   }
@@ -281,7 +282,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
       request<T>("PUT", path, body, opts),
     patch: <T>(path: string, body: unknown, opts?: TransportOptions<T>) =>
       request<T>("PATCH", path, body, opts),
-    delete: <T>(path: string, opts?: TransportOptions<T> & { body?: unknown }) =>
-      request<T>("DELETE", path, opts?.body, opts),
+    delete: <T>(path: string, opts?: TransportOptions<T>) =>
+      request<T>("DELETE", path, undefined, opts),
   };
 }

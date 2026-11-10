@@ -48,7 +48,7 @@ function parsedSession(raw: string | null): AdminSessionInternal | null {
   return validSession(value) ? value : null;
 }
 
-function errorBody(body: string): unknown {
+function parsedBody(body: string): unknown {
   try {
     return JSON.parse(body);
   } catch {
@@ -135,7 +135,12 @@ export function createAdminSessionState(baseUrl: string, refreshPath?: string | 
       const response = await fetch(`${apiUrl}${path}`, { ...init, signal: controller.signal });
       const body = await response.text();
       if (body.length > 16_384) throw new ArkyNetworkError('unreadable_answer', 'Account session response exceeds its bound', { url: `${apiUrl}${path}`, statusCode: response.status });
-      return { ok: response.ok, status: response.status, data: response.ok ? JSON.parse(body) : errorBody(body) };
+      if (!response.ok) return { ok: false, status: response.status, data: parsedBody(body) };
+      const data = parsedBody(body);
+      if (data === null) {
+        throw new ArkyNetworkError('unreadable_answer', 'Arky answered the Account session call without a readable JSON body', { url: `${apiUrl}${path}`, statusCode: response.status });
+      }
+      return { ok: true, status: response.status, data };
     } finally {
       clearTimeout(timer);
     }

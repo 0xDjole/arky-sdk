@@ -11,7 +11,7 @@ import {
   ids,
   installGlobal,
   placedOrder,
-  publishableKey,
+  storefrontIdentity,
   recordFetch,
   visitorStorage,
 } from "./helpers/arky-fixtures.mjs";
@@ -20,7 +20,7 @@ const orderToken = `arky_ot_${"T".repeat(42)}A`;
 const otherOrderToken = `arky_ot_${"U".repeat(42)}A`;
 
 function storefront() {
-  return createStorefront(publishableKey, { ...idFactories, apiUrl, locale: "en", sessionStorage: visitorStorage() });
+  return createStorefront(storefrontIdentity, { ...idFactories, apiUrl, locale: "en", sessionStorage: visitorStorage() });
 }
 
 function page(items, cursor) {
@@ -158,6 +158,7 @@ test("content.load resolves block media in batches of 100 and reads blocks in th
     id: ids.form,
     store_id: ids.store,
     key: "website",
+    type: "public",
     schema: [],
     status: { type: "active" },
     created_at: 1,
@@ -182,7 +183,7 @@ test("content.load resolves block media in batches of 100 and reads blocks in th
     if (call.path === "/v1/storefront/media") return JSON.parse(call.query.ids).map(media);
     throw new Error(`Unexpected request ${call.path}`);
   });
-  const store = initialize(publishableKey, { ...idFactories, apiUrl, locale: "it", sessionStorage: visitorStorage() });
+  const store = initialize(storefrontIdentity, { ...idFactories, apiUrl, locale: "it", sessionStorage: visitorStorage() });
   const site = await store.content.load({ collection: { key: "website" } }, { locale: "en" });
   const mediaReads = calls.filter((call) => call.path === "/v1/storefront/media");
   assert.deepEqual(mediaReads.map((call) => JSON.parse(call.query.ids).length), [100, 50]);
@@ -206,8 +207,8 @@ test("content.load and loadEntries never swallow a failed read", async (context)
   recordFetch(context, (call) => {
     if (call.path === "/v1/storefront/entries") {
       return call.query.cursor
-        ? { items: [{ id: ids.otherLine, key: "two", slugs: {}, blocks: [], collection_id: ids.form, store_id: ids.store, status: { type: "active" }, created_at: 1, updated_at: 1, validation_errors: [] }], cursor: null }
-        : { items: [{ id: ids.line, key: "one", slugs: {}, blocks: [{ id: mediaId(1), key: "cover", type: "media", value: mediaId(1) }], collection_id: ids.form, store_id: ids.store, status: { type: "active" }, created_at: 1, updated_at: 1, validation_errors: [] }], cursor: "next" };
+        ? { items: [{ id: ids.otherLine, type: { type: "public", key: "two", slugs: {} }, blocks: [], collection_id: ids.form, store_id: ids.store, status: { type: "active" }, created_at: 1, updated_at: 1, validation_errors: [] }], cursor: null }
+        : { items: [{ id: ids.line, type: { type: "public", key: "one", slugs: {} }, blocks: [{ id: mediaId(1), key: "cover", type: "media", value: mediaId(1) }], collection_id: ids.form, store_id: ids.store, status: { type: "active" }, created_at: 1, updated_at: 1, validation_errors: [] }], cursor: "next" };
     }
     if (call.path === "/v1/storefront/media") return failMedia ? errorResponse(503, "GENERAL.UNAVAILABLE", "Media is down") : JSON.parse(call.query.ids).map(media);
     if (call.path === "/v1/storefront/collections/broken") return errorResponse(500, "GENERAL.INTERNAL", "Boom");
@@ -218,7 +219,7 @@ test("content.load and loadEntries never swallow a failed read", async (context)
   await assert.rejects(client.content.loadEntries({ collection_id: ids.form }), /Media is down/);
   failMedia = false;
   const entries = await client.content.loadEntries({ collection_id: ids.form, limit: 1 });
-  assert.deepEqual(entries.map((entry) => entry.record.key), ["one", "two"]);
+  assert.deepEqual(entries.map((entry) => entry.record.type.key), ["one", "two"]);
   assert.equal(entries[0].media("cover").id, mediaId(1));
   await assert.rejects(client.content.load({ entry: { collection_id: ids.form, key: "absent" } }), /No entry has the key 'absent'/);
 });

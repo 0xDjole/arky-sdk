@@ -524,9 +524,21 @@ export type PaymentType =
 
 export type PaymentTypeName = PaymentType["type"];
 
+export type PaymentHoldReason =
+  | { type: "money_after_end" }
+  | { type: "amount_mismatch"; collected: Money; expected: Money }
+  | { type: "second_charge" }
+  | { type: "unknown_provider_state"; object_id: string; state: string }
+  | { type: "dispute_currency" }
+  | { type: "staff_outcome_disagrees"; operation: "charge" | "refund" | "void" | "refund_not_made" }
+  | { type: "refund_amount_mismatch"; refund_id: string; recorded: Money; reported: Money }
+  | { type: "binding_mismatch"; intent_id: string }
+  | { type: "refusal_disagrees"; http_status: number; intent_id: string; state: string }
+  | { type: "unproven_card_attempt" };
+
 export interface PaymentHold {
   id: string;
-  message: string;
+  reason: PaymentHoldReason;
   opened_at: EpochMilliseconds;
   status: PaymentHoldStatus;
 }
@@ -835,8 +847,8 @@ export type IncomingWebhookType =
       payment_option_id: string;
       transaction: MonriTransactionFact;
     }
-  | { type: "stripe_billing"; event: StripeEvent }
-  | { type: "resend"; event: ResendEvent }
+  | { type: "stripe_billing"; network_id: string; event: StripeEvent }
+  | { type: "network_resend"; network_id: string; event: ResendEvent }
   | {
       type: "store_resend";
       store_id: string;
@@ -1206,24 +1218,28 @@ export interface ResolveIncomingWebhookParams {
 }
 
 export interface FindStripeBillingEventsParams {
+  network_id: string;
   status: IncomingWebhookStatusName;
   limit?: number;
   cursor?: string | null;
 }
 
 export interface ResolveStripeBillingEventParams {
+  network_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   resolution: IncomingWebhookResolution;
 }
 
 export interface FindResendEventsParams {
+  network_id: string;
   status: IncomingWebhookStatusName;
   limit?: number;
   cursor?: string | null;
 }
 
 export interface ResolveResendEventParams {
+  network_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   resolution: IncomingWebhookResolution;

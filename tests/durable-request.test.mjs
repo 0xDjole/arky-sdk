@@ -1,9 +1,18 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
+import { createStorefront } from "../dist/storefront.js";
 import {
   ExclusiveLockManager,
   MemoryStorage,
 } from "./helpers/durable-request-fixtures.mjs";
+import {
+  apiUrl,
+  checkoutRequest,
+  fixedIdFactories,
+  ids,
+  storefrontIdentity,
+  visitorStorage,
+} from "./helpers/arky-fixtures.mjs";
 
 let importNonce = 0;
 
@@ -392,5 +401,33 @@ test("a definite refusal is any 4xx except a timeout or throttle; server and net
   }
   for (const error of [null, undefined, "409", new TypeError("network lost"), { statusCode: "409" }, { status: 409 }]) {
     assert.equal(isDefiniteRefusal(error), false, String(error));
+  }
+});
+
+test("a_403_keeps_the_kept_request", async (context) => {
+  const windowDescriptor = Object.getOwnPropertyDescriptor(globalThis, "window");
+  installGlobal("window", globalThis);
+  context.after(() => (windowDescriptor ? Object.defineProperty(globalThis, "window", windowDescriptor) : delete globalThis.window));
+  const keptKey = `arky:cart-checkout:v5:${encodeURIComponent(`storefront:${apiUrl}:${storefrontIdentity.storeId}:${storefrontIdentity.salesChannelId}:${ids.customer}`)}`;
+  for (const [status, code, keeps] of [
+    [403, "GENERAL.FORBIDDEN", true],
+    [401, "CART.TOKEN_REFUSED", true],
+    [409, "GENERAL.CONFLICT", false],
+    [404, "GENERAL.NOT_FOUND", false],
+    [400, "GENERAL.BAD_REQUEST", false],
+  ]) {
+    const { storage } = installBrowserState();
+    const accepts = [];
+    context.mock.method(globalThis, "fetch", async (url) => {
+      accepts.push(new URL(url).pathname);
+      return Response.json({ message: "Refused", error: code, status_code: status, validation_errors: [] }, { status });
+    });
+    const client = createStorefront(storefrontIdentity, { ...fixedIdFactories, apiUrl, locale: "en", market: "bih", sessionStorage: visitorStorage() });
+    await client.eshop.cart.retainCheckout(checkoutRequest());
+    await assert.rejects(client.eshop.cart.recoverCheckout(), (error) => error.statusCode === status && error.code === code);
+    assert.deepEqual(accepts, ["/v1/storefront/carts/accept"], String(status));
+    assert.equal(storage.getItem(keptKey) !== null, keeps, String(status));
+    if (keeps) assert.deepEqual(await client.eshop.cart.pendingCheckout(), checkoutRequest(), String(status));
+    context.mock.restoreAll();
   }
 });

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createStorefront, initialize } from "../dist/storefront.js";
-import { apiUrl, ids, idFactories, jsonResponse, publishableKey, recordFetch } from "./helpers/arky-fixtures.mjs";
+import { apiUrl, ids, idFactories, jsonResponse, storefrontIdentity, recordFetch } from "./helpers/arky-fixtures.mjs";
 
 const packageItem = {
   package_item_id: ids.packageItem,
@@ -24,7 +24,7 @@ const choice = {
 };
 
 function storefront() {
-  return createStorefront(publishableKey, { ...idFactories, apiUrl, locale: "en", market: "eu" });
+  return createStorefront(storefrontIdentity, { ...idFactories, apiUrl, locale: "en", market: "eu" });
 }
 
 test("package search sends the package, buyer context, price flag and JSON selection, and answers the page as sent", async (context) => {
@@ -58,7 +58,8 @@ test("package search sends the package, buyer context, price flag and JSON selec
   assert.equal(calls[0].query.limit, "24");
   assert.equal(calls[0].query.cursor, "previous-items");
   assert.deepEqual(JSON.parse(calls[0].query.selection), selection);
-  assert.equal(calls[0].headers.get("x-arky-publishable-key"), publishableKey);
+  assert.equal(calls[0].headers.get("x-arky-store-id"), storefrontIdentity.storeId);
+    assert.equal(calls[0].headers.get("x-arky-sales-channel-id"), storefrontIdentity.salesChannelId);
   assert.equal(calls[0].headers.get("x-arky-market"), "eu");
   assert.equal(calls[0].headers.get("x-arky-locale"), "en");
 });
@@ -118,7 +119,7 @@ test("an item's prices page under its encoded id, each carrying the reference a 
 });
 
 test("the store exposes the same package item reads and every refused read surfaces its status", async (context) => {
-  const store = initialize(publishableKey, { ...idFactories, apiUrl, locale: "en" });
+  const store = initialize(storefrontIdentity, { ...idFactories, apiUrl, locale: "en" });
   assert.equal(store.eshop.packageItem, store.client.eshop.packageItem);
   assert.deepEqual(Object.keys(store.eshop.packageItem), ["find", "getByParent", "findPrices"]);
   for (const [status, code] of [[403, "GENERAL.FORBIDDEN"], [409, "PACKAGE.ACCESS_CHANGED"], [409, "SEARCH.RESULT_LIMIT"], [409, "PACKAGE.CLOSED"]]) {

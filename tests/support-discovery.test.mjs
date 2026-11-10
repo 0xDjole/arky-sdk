@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { createStorefront } from "../dist/storefront.js";
-import { apiUrl, fixedIdFactories, ids, publishableKey, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
+import { apiUrl, fixedIdFactories, ids, storefrontIdentity, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
 
 const STORE_ID = "7d4b2e90-5c16-4a83-bf07-3e9a1c6d8f25";
 const conversationId = "7c2e9a41-5b3d-4f86-a1e0-3d4c2b9f6e18";
@@ -19,7 +19,7 @@ function support() {
 }
 
 function storefront() {
-  return createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "bs", sessionStorage: visitorStorage() });
+  return createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "bs", sessionStorage: visitorStorage() });
 }
 
 function storefrontConversation(state = "flow") {
@@ -258,13 +258,13 @@ test("a storefront chat message is one write with the app-picked id, the input a
   };
   const calls = recordFetch(context, (call) => call.method === "POST" ? flowReply : call.path.endsWith("/messages") ? { items: flowReply.messages, cursor: null } : flowReply.messages[1]);
   const client = storefront().support.conversation;
-  assert.deepEqual(await client.sendMessage({ conversation_id: conversationId, id: messageId, input: { type: "button", label: "Talk to a person" }, prompt_message_id: promptId }), flowReply);
+  assert.deepEqual(await client.sendMessage({ conversation_id: conversationId, id: messageId, input: { type: "button", index: 1 }, prompt_message_id: promptId }), flowReply);
   await client.sendMessage({ conversation_id: conversationId, id: promptId, input: { type: "email_contact", contact } });
   assert.deepEqual(await client.findMessages({ conversation_id: conversationId, limit: 20, cursor: "older" }), { items: flowReply.messages, cursor: null });
   assert.deepEqual(await client.getMessage({ conversation_id: conversationId, message_id: "flow-reply" }), flowReply.messages[1]);
   const base = `/v1/storefront/conversations/${conversationId}`;
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
-    ["POST", `${base}/messages`, {}, { id: messageId, input: { type: "button", label: "Talk to a person" }, prompt_message_id: promptId }],
+    ["POST", `${base}/messages`, {}, { id: messageId, input: { type: "button", index: 1 }, prompt_message_id: promptId }],
     ["POST", `${base}/messages`, {}, { id: promptId, input: { type: "email_contact", contact } }],
     ["GET", `${base}/messages`, { limit: "20", cursor: "older" }, null],
     ["GET", `${base}/messages/flow-reply`, {}, null],

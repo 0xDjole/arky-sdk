@@ -10,15 +10,28 @@ export type CollectionStatus =
 
 export type CollectionEditableStatus = Exclude<CollectionStatus, { type: "deleting" }>;
 
+export type CollectionType = "public" | "private" | "shared" | "notes";
+
+export type PrivateCollectionType = "private" | "shared";
+
 export interface Collection {
   id: string;
   store_id: string;
   key: string;
+  type: CollectionType;
   schema: BlockSchema[];
   blocks: Block[];
   status: CollectionStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
+}
+
+export interface PublicCollection extends Collection {
+  type: "public";
+}
+
+export interface PrivateCollection extends Collection {
+  type: PrivateCollectionType;
 }
 
 export interface CollectionCleanupReference {
@@ -41,17 +54,86 @@ export type EntryStatus =
 
 export type EntryEditableStatus = Exclude<EntryStatus, { type: "deleting" }>;
 
+export type PublicEntryType = { type: "public"; key: string; slugs: Record<string, string> };
+
+export type PrivateEntryType =
+  | { type: "private_store" }
+  | { type: "private_customer"; customer_id: string }
+  | { type: "private_company"; company_id: string }
+  | { type: "private_order"; order_id: string }
+  | { type: "private_conversation"; conversation_id: string }
+  | { type: "private_form_submission"; form_submission_id: string };
+
+export type SharedEntryType = { type: "shared"; customer_id: string };
+
+export type NoteEntryType =
+  | { type: "note_customer"; customer_id: string }
+  | { type: "note_company"; company_id: string }
+  | { type: "note_order"; order_id: string }
+  | { type: "note_conversation"; conversation_id: string }
+  | { type: "note_form_submission"; form_submission_id: string }
+  | { type: "note_form_submission_stage_change"; form_submission_id: string; changed_at: EpochMilliseconds };
+
+export type EntryType = PublicEntryType | PrivateEntryType | SharedEntryType | NoteEntryType;
+
+export type PrivateEntryStatus = Exclude<EntryStatus, { type: "scheduled" }>;
+
+export type PrivateEntryEditableStatus = Exclude<PrivateEntryStatus, { type: "deleting" }>;
+
 export interface Entry {
   id: string;
   store_id: string;
   collection_id: string;
-  key: string;
-  slugs: Record<string, string>;
+  type: EntryType;
   blocks: Block[];
   status: EntryStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
   validation_errors: { field: string; error: string }[];
+}
+
+export interface PublicEntry extends Entry {
+  type: PublicEntryType;
+}
+
+export interface PrivateEntry extends Entry {
+  type: PrivateEntryType | SharedEntryType;
+  status: PrivateEntryStatus;
+}
+
+export interface SharedEntry extends PrivateEntry {
+  type: SharedEntryType;
+}
+
+export type EntryOwner =
+  | { type: "store" }
+  | { type: "customer"; customer_id: string }
+  | { type: "company"; company_id: string }
+  | { type: "order"; order_id: string }
+  | { type: "conversation"; conversation_id: string }
+  | { type: "form_submission"; form_submission_id: string };
+
+export type EntryAccessActor =
+  | { type: "account_session"; account_id: string; email: string }
+  | { type: "account_token"; account_id: string; email: string; account_token_id: string }
+  | { type: "customer"; customer_id: string; customer_session_id: string }
+  | { type: "arky" };
+
+export type EntryAccessAction = "read" | "create" | "update" | "delete";
+
+export interface EntryAccess {
+  id: string;
+  store_id: string;
+  collection_id: string;
+  entry_id: string;
+  actor: EntryAccessActor;
+  action: EntryAccessAction;
+  at: EpochMilliseconds;
+}
+
+export interface PrivateFileLink {
+  url: string;
+  expires_at: EpochMilliseconds;
 }
 
 export type CategoryStatus =
@@ -121,7 +203,7 @@ export type VideoFormat = "mp4" | "webm" | "quicktime";
 export interface MediaFile {
   size_bytes: number;
   sha256: string;
-  url: string;
+  url: string | null;
 }
 
 export interface MediaImage {
@@ -129,7 +211,7 @@ export interface MediaImage {
   sha256: string;
   width_px: number;
   height_px: number;
-  url: string;
+  url: string | null;
 }
 
 export type MediaContent =
@@ -151,12 +233,15 @@ export type MediaImageSize = "original" | "thumbnail" | "small" | "medium" | "la
 
 export type MediaStatus = { type: "active" } | { type: "deleting" };
 
+export type MediaVisibility = "public" | "private";
+
 export interface Media {
   id: string;
   store_id: string;
   file_name: string;
   alt: LocalizedText | null;
   generation_id: string;
+  visibility: MediaVisibility;
   content: MediaContent;
   status: MediaStatus;
   created_at: EpochMilliseconds;
@@ -246,7 +331,7 @@ export interface FindEntriesByIdsParams {
   store_id: string;
   ids: string[];
   limit?: number;
-  cursor?: string | null;
+  cursor?: never;
 }
 
 export type FindEntriesParams = FindCollectionEntriesParams | FindEntriesByIdsParams;
@@ -268,7 +353,7 @@ export interface StorefrontFindCollectionEntriesParams {
 export interface StorefrontFindEntriesByIdsParams {
   ids: string[];
   limit?: number;
-  cursor?: string | null;
+  cursor?: never;
 }
 
 export type StorefrontFindEntriesParams = StorefrontFindCollectionEntriesParams | StorefrontFindEntriesByIdsParams;
@@ -315,6 +400,83 @@ export interface DeleteEntryParams {
   store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
+}
+
+export interface FindPrivateCollectionsParams extends FindCollectionsParams {
+  type?: PrivateCollectionType;
+}
+
+export interface CreatePrivateCollectionParams extends CreateCollectionParams {
+  type: PrivateCollectionType;
+}
+
+export interface GetPrivateCollectionParams extends GetCollectionParams {}
+
+export interface UpdatePrivateCollectionParams extends UpdateCollectionParams {}
+
+export interface DeletePrivateCollectionParams extends DeleteCollectionParams {}
+
+export interface FindPrivateEntriesParams {
+  store_id: string;
+  collection_id: string;
+  owner?: EntryOwner;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface GetPrivateEntryParams {
+  store_id: string;
+  collection_id: string;
+  id: string;
+}
+
+export interface CreatePrivateEntryParams {
+  store_id: string;
+  collection_id: string;
+  id: string;
+  type: PrivateEntryType | SharedEntryType;
+  blocks: Block[];
+  status?: PrivateEntryEditableStatus;
+}
+
+export interface UpdatePrivateEntryParams extends GetPrivateEntryParams {
+  expected_updated_at: EpochMilliseconds;
+  blocks?: Block[];
+  status?: PrivateEntryEditableStatus;
+}
+
+export interface DeletePrivateEntryParams extends GetPrivateEntryParams {
+  expected_updated_at: EpochMilliseconds;
+}
+
+export interface PrivateEntryFileLinkParams extends GetPrivateEntryParams {
+  media_id: string;
+  variant: MediaImageSize;
+}
+
+export type FindEntryAccessesParams = {
+  store_id: string;
+  limit?: number;
+  cursor?: string | null;
+} & (
+  | { entry_id: string; collection_id?: never; account_id?: never }
+  | { collection_id: string; entry_id?: never; account_id?: never }
+  | { account_id: string; entry_id?: never; collection_id?: never }
+);
+
+export interface FindSharedEntriesParams {
+  collection_id?: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface GetSharedEntryParams {
+  id: string;
+}
+
+export interface SharedEntryFileLinkParams extends GetSharedEntryParams {
+  media_id: string;
+  variant: MediaImageSize;
 }
 
 export interface FindCategoriesParams {
@@ -389,6 +551,7 @@ export type CreateMediaParams =
       store_id: string;
       id: string;
       file: File;
+      visibility?: MediaVisibility;
       alt?: LocalizedText | null;
       source_url?: never;
     }
@@ -396,6 +559,7 @@ export type CreateMediaParams =
       store_id: string;
       id: string;
       source_url: string;
+      visibility?: MediaVisibility;
       alt?: LocalizedText | null;
       file?: never;
     };

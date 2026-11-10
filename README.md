@@ -14,8 +14,8 @@ Pin the exact version, so the Server, Admin and storefronts move together.
 
 | You are building | Call | Import from |
 |---|---|---|
-| A website or web app | `initialize(publishableKey, options)`: the client plus reactive atoms, a cart store per buyer, package and market, a headless checkout and a booking calendar | `arky-sdk/storefront` |
-| Server code, or your own state layer | `createStorefront(publishableKey, options)`: the plain storefront client, the same calls without atoms | `arky-sdk/storefront` |
+| A website or web app | `initialize({ storeId, salesChannelId }, options)`: the client plus reactive atoms, a cart store per buyer, package and market, a headless checkout and a booking calendar | `arky-sdk/storefront` |
+| Server code, or your own state layer | `createStorefront({ storeId, salesChannelId }, options)`: the plain storefront client, the same calls without atoms | `arky-sdk/storefront` |
 | Staff tools, scripts, back offices | `createAdmin({ apiUrl, accountToken? })` | `arky-sdk/admin` |
 
 `arky-sdk/storefront` exports everything a storefront needs: both clients, the helpers (prices, blocks, images, paging, payments, forms), the error classes and every type. `arky-sdk/utils` holds the helpers on their own, and `arky-sdk/types` the types with the error classes and constants.
@@ -30,7 +30,7 @@ Pin the exact version, so the Server, Admin and storefronts move together.
 - **Changes carry the version they read.** Updates and actions send `expected_updated_at` (the `updated_at` you read); a stale one is refused with 409. The cart store sends it for you. Stock actions and two conversation actions name what they read instead. A stock action names the stock level (its id, or `expected_level_id` on a movement or a unit receipt) and its `action_id` (a unit receipt names its new unit's `id`), and an adjustment names the count it corrects in `expected_count` (the level's `on_hand`, or its `unavailable` with `from_set_aside`). Assigning a conversation names the assignee you read (`expected_account_id`), and changing its reply email the selection you read (`expected_reply`). A value that moved is refused with 409 `GENERAL.CONFLICT`. A package's access row has no version, so its delete names only the row's id.
 - **A cart keeps its market.** A cart call names the cart's own market: another one is refused with `409 CART.OTHER_MARKET`, so a cart kept from another market is read, or moved with an `update` whose `market_id` is the context's, before anything is added.
 - **Plan access.** A store without plan access refuses storefront changes with `402 STORE.SUBSCRIPTION_REQUIRED`, an email change and the code request for it included; buyers can still identify, sign in with a code, sign out, read and edit their profile, and read what they hold.
-- **Context is explicit.** Storefront requests carry the publishable key, which decides the sales channel, plus the locale and the market you set with `setContext({ locale, market })`. A call names the package it reads, and the company or one of its locations it acts for, never both. Every commercial call (packages, their items, products, bookings and carts) names its market, even when the key's channel sells in one: without it Arky refuses with 409 `SALES_CHANNEL.MARKET_REQUIRED`, and a market the channel doesn't sell in with `SALES_CHANNEL.MARKET_NOT_LISTED`. Content reads need no market. A locale outside the store's languages is refused with `STORE.LANGUAGE_NOT_SUPPORTED`.
+- **Context is explicit.** Storefront requests carry `X-Arky-Store-Id` and `X-Arky-Sales-Channel-Id`, plus the locale and the market you set with `setContext({ locale, market })`. A call names the package it reads, and the company or one of its locations it acts for, never both. Every commercial call (packages, their items, products, bookings and carts) names its market, even when the named channel sells in one: without it Arky refuses with 409 `SALES_CHANNEL.MARKET_REQUIRED`, and a market the channel doesn't sell in with `SALES_CHANNEL.MARKET_NOT_LISTED`. Content reads need no market. A locale outside the store's languages is refused with `STORE.LANGUAGE_NOT_SUPPORTED`.
 - **Errors carry a code.** Everything the SDK throws at runtime is an `ArkyError` with a `code` that you map to your own text. A `TypeError` means your code passed a wrong value. See [Errors](#errors).
 
 ## 1. Set up the store
@@ -38,7 +38,7 @@ Pin the exact version, so the Server, Admin and storefronts move together.
 ```typescript
 import { createOrderToken, initialize } from "arky-sdk/storefront";
 
-const arky = initialize("arky_pk_...", {
+const arky = initialize({ storeId: "5e9b3d71-c826-4a04-b7f5-0d2a8e6c4f19", salesChannelId: "e5a8c2d7-3b91-4f06-9d4e-1c7b6a0f3e28" }, {
   locale: "en",
   market: "eu",
   createVisitorIdentity: () => ({ customer_id: crypto.randomUUID(), session_id: crypto.randomUUID() }),
@@ -54,10 +54,10 @@ console.log(setup.name, setup.languages, arky.currency.get(), shopPackage?.id);
 ```
 
 - **The four factories are required.** The app picks every customer, session and record id and every order token; `createOrderToken` makes a token in the shape Arky accepts. Without them `initialize` throws.
-- **`apiUrl`** defaults to `https://api.arky.io`. Only an `arky_pk_...` publishable key is accepted.
-- **Sessions** are kept in `localStorage`. During server rendering, pass a request-local `sessionStorage` adapter. `visitorIdentity` restores a visitor pair your app picked earlier.
-- **`arky.store.load()`** reads the store's setup and the current market and fills the `setup`, `market`, `currency` and `allowed_payment_option_ids` atoms. `arky.getSetup()` only answers the setup: `name`, `timezone`, `languages`, `payment_options` and `bot_check`.
-- **Packages.** A package is a set of things you can buy, get or rent; a shop is a package with priced items. `eshop.package.find()` lists the packages open to this buyer in the current market and sales channel, each with its access `level`. Pick yours by its `key`; every item, product, booking and cart call names its `package_id`. `package` is a reserved word in strict TypeScript, so a local holding one is `shopPackage` or `memberPackage`; properties such as `eshop.package` are fine.
+- **`apiUrl`** defaults to `https://api.arky.io`. The store and sales-channel IDs are required canonical UUID v4 values. They are public identifiers and authenticate no person.
+- **Sessions** are kept in `localStorage`, separately for each API URL, store and sales channel. During server rendering, pass a request-local `sessionStorage` adapter. `visitorIdentity` restores a visitor pair your app picked earlier.
+- **`arky.store.load()`** reads the store's setup and the current market and fills the `setup`, `market`, `currency` and `allowed_payment_option_ids` atoms. `arky.getSetup()` only answers the setup: `name`, `timezone`, `languages` and `payment_options`. The setup is read once per client. A `409 PAYMENT_METHOD.TERMS_CHANGED` refusal (the store changed an option's saved-card wording) drops it, so the next `getSetup()` or `store.load()` reads the new wording.
+- **Packages.** A package is a set of things you can buy, get or rent; a shop is a package with priced items. `eshop.package.find()` lists the packages open to this buyer in the current market and sales channel, each with its `blocks` (its name and texts) and its access `level`. Pick yours by its `key`; every item, product, booking and cart call names its `package_id`. `package` is a reserved word in strict TypeScript, so a local holding one is `shopPackage` or `memberPackage`; properties such as `eshop.package` are fine.
 - **`setContext({ locale, market })`** changes the language or the market. A market change clears every cart view; each market keeps its own carts and its own cart store, and switching back reads them again.
 
 The store has the same calls as the plain client, under the same names. On top of them it has atoms (`session`, `setup`, `market`, `currency`, `locale`, …) and three helpers, each for one buyer and package in the current market: `eshop.cart(scope)`, `eshop.checkoutFlow(scope)` and `eshop.bookingCalendar(scope)`. The plain client's own cart calls stay reachable at `arky.client.eshop.cart`.
@@ -97,7 +97,7 @@ console.log(rows, page.cursor);
   - `sort`: `package_order` (the default), `relevance` (needs `text`) or `starting_price` (needs `price_basis`), and `direction`, `asc` unless you ask for `desc`. Relevance has no descending order.
 - **Prices in search.** With `include_price: true` and an access level that shows prices, an answer has its `currency` and `price_summary`, `{ basis, min_amount, max_amount, price_count }` over the item's prices on sale. A package's item holds exactly one price, and its answer names it as `price_id`.
 - **Pages.** A page holds 20 answers unless you ask for more, and a page can come back short with a `cursor`: follow it.
-- **Media.** `media.find({ ids })` takes any number of ids and reads them 100 at a time, and an answer that isn't a list or names a file it didn't ask for is refused (`ArkyError` `answer_mismatch`); `content.load` and `loadEntries` read their media through it. Every file has its public URL at `content.original.url`. Images also come as `thumbnail`, `small`, `medium` and `large`, and `getImageUrl(media, size)` picks one.
+- **Media.** `media.find({ ids })` takes any number of ids and reads them 100 at a time, and an answer that isn't a list or names a file it didn't ask for is refused (`ArkyError` `answer_mismatch`); `content.load` and `loadEntries` read their media through it. Storefront reads answer Public files, with their URL at `content.original.url`. Images also come as `thumbnail`, `small`, `medium` and `large`, and `getImageUrl(media, size)` picks one. Private files have null metadata URLs and `getImageUrl` returns null for them.
 - **Texts are blocks.** `findBlock(record, key)` finds a block and `getBlockTextValue(block, locale)` reads its text in the language you name, never another; an empty string means there is none.
 
 A product page reads the product by its slug in the current language, then the prices of its item:
@@ -115,7 +115,7 @@ console.log(choices.map((choice) => [choice.price_id, choice.content.sku, choice
 
 ## 3. Cart
 
-`arky.eshop.cart({ buyer, package_id })` answers the cart store of that buyer and package in the current market: the same store on every call, shared with the checkout flow and the booking calendar of the same scope. A shopper who switches market gets that market's cart store. A store kept from before the switch refuses its next call with `CartError` `context_changed`. Storefront cart reads answer the buyer's copy of the cart, `StorefrontCart`, and the line helpers take it.
+`arky.eshop.cart({ buyer, package_id })` answers the cart store of that buyer and package in the current market: the same store on every call, shared with the checkout flow and the booking calendar of the same scope. A shopper who switches market gets that market's cart store. A store kept from before the switch refuses its next call with `CartError` `context_changed`. Storefront cart reads answer the buyer's copy of the cart, `StorefrontCart`, and the line helpers take it. Its quote is the buyer's copy too, `StorefrontCartQuote`: a package line's `package` leaves out each item's allocation weight, and its `start` leaves out the reason the store team wrote for an amendment.
 
 ```typescript
 const cart = arky.eshop.cart({ buyer: { type: "customer" }, package_id });
@@ -135,13 +135,13 @@ if (line) {
   - `cart`, `product_items`, `booking_items`, `package_items`, `item_count`;
   - `quote_result`, `promotion_codes` and `last_order`, where `promotion_codes` holds every code the quote lists, each with its `state`: `applied`, `stopped` (a promotion ahead of it stopped the ones after it) or `not_applied` (it takes nothing off this cart);
   - `status`: `loading`, `syncing`, `fetching_quote`, `processing_checkout`, `error` and `quote_error`, where an error is `{ code, message }`.
-- **Reads:** `ensure()` loads the cart this browser selected for the buyer, package and market, or creates one under an id from `createId`, kept across a lost answer. `load()` only loads; `create({ id? })` only creates.
+- **Reads:** `ensure()` loads the cart this browser selected for the buyer, package and market, or creates one under an id from `createId`, kept across a lost answer. `load()` only loads; `create({ id? })` only creates. With no session, `load()` answers `null` and sends nothing, so a visitor who only browses never becomes a Customer; the first write identifies the visitor. A selected cart that now names another buyer, package or market ends the selection: another buyer or package is refused once with `CartError` `other_cart`, another market reads as no cart.
 - **Changes:** each answers the changed cart and sends the cart id and version for you. Line ids come from `createId` when you leave them out.
   - lines: `addProduct`, `addBooking`, `addPackage`, `setProductQuantity({ line_item_id, quantity })`, `removeItem({ line_item_id })`, `clear()`;
   - checkout details: `shipTo({ destination, contact_email? })`, `setDeliveryGroups({ delivery_groups })`, `selectShippingMethod({ shipping_method_id })`, `setBillingAddress({ billing_address })`, `setBuyer({ buyer })` (a company buyer's `purchase_order_number`), `setPromotionCodes({ promotion_codes })`, which replaces the whole list, so pass the codes you keep plus the new one;
   - package deliveries: `setFutureDeliveries({ packages })` and `quoteFutureDeliveries({ packages })`.
 - **Quote and checkout:** `quote({ contact_email? })`, `checkout(...)`, `retainCheckout(...)`, `pendingCheckout()` and `recoverCheckout()`. Most pages use the [checkout flow](#4-checkout) instead.
-- **After a failed write:** a write whose answer is lost, or that is refused because the cart changed (409), drops the view: `cart` and `quote_result` turn `null`, and the next `ensure()` reads the current cart. `reset()` drops the view by hand; `clear()` empties the cart in Arky.
+- **After a failed write:** a write whose answer is lost, or that is refused because the cart changed (409), drops the view: `cart` and `quote_result` turn `null`, and the next `ensure()` reads the current cart. `reset()` drops the view by hand; `clear()` empties the cart in Arky. A change made while another change to the same cart is still being sent is refused with `CartError` `busy` before anything is sent, and the view keeps the first change's answer.
 - **Prices.** Every line names the exact price it is bought at, `price: { package_id, package_item_id, price_id }`, one of its item's prices read with `packageItem.findPrices`, so product, booking and package lines name it the same way. A cart is priced from its own package only: a club's prices are the products the club package lists, bought in a cart of that package, and money off for its members in another shop is a promotion with a `package` condition.
 
 A cart line names its variant. To show names, quote the cart and read its products:
@@ -183,7 +183,7 @@ for (const delivery of state.quote?.deliveries ?? []) {
     });
   }
 }
-if (state.step === "payment") state = await checkout.place({ return_url: (orderId) => `${location.origin}/order/${orderId}` });
+if (state.step === "payment") state = await checkout.place({ return_url: (orderId) => `${location.origin}/order?order_id=${orderId}` });
 
 const placed = state.placed;
 if (placed && placed.payment_action.type !== "none") {
@@ -255,7 +255,7 @@ Saved cards use `eshop.paymentMethod.requestSetup`, `startSetup`, `mountPaymentM
 
 A membership replaces its card by saving a new one and selecting it: `eshop.packageMember.selectPaymentMethod({ id, expected_updated_at, payment_method_id })` charges any renewal that's owed, and `resume` then restarts a blocked membership. A Stripe card is saved with the setup above. A Monri membership's buyer places a paid checkout under the Monri option with `place({ save_payment_method: true, payment_method_terms })` and, once its payment succeeds, selects `state.placed.payment_method_id`. Arky has no payment page for an owed renewal order.
 
-Each checkout answer, card setup start and store plan answer carries `runs_on`, which says where the payment runs: `{ type: "provider" }`, or `{ type: "simulator", api_url }` on a [test store](#test-stores). These two mounts handle both, so the same site code works on a test store and a live one.
+Each checkout action and card setup carries `runs_on`, which says where the payment runs: `{ type: "provider" }`, or `{ type: "simulator", api_url }` on a [test store](#test-stores). These two mounts handle both, so the same site code works on a test store and a live one. A network's store-billing card setup also works with `mountPaymentMethodSetup`.
 
 ## 5. Order page
 
@@ -299,32 +299,35 @@ arky.session.subscribe((session) => console.log(session?.type));
 await arky.customer.requestCode({ contact: { email: "ana@example.com", language: "en" } });
 await arky.customer.verify({ code: "123456" });
 const me = await arky.customer.getMe();
-await arky.customer.updateMe({
-  expected_updated_at: me.customer.updated_at,
-  profile: [{ id: crypto.randomUUID(), key: "first_name", type: "text", value: "Ana" }],
-});
+if (me) {
+  await arky.customer.updateMe({
+    expected_updated_at: me.customer.updated_at,
+    profile: [{ id: crypto.randomUUID(), key: "first_name", type: "text", value: "Ana" }],
+  });
+}
 const { items: orders } = await arky.eshop.order.find({ limit: 20 });
 console.log(orders.length);
-await arky.customer.logout();
+const signedOut = await arky.customer.logout();
+console.log(signedOut.type);
 ```
 
 - **Visitors and customers.** Customers are anonymous visitors until they verify their inbox. `requestCode({ contact: { email, language } })` takes the code email's id from `createId`; a lost answer is retried under the same id, so the customer gets one email. A verified customer's `type.contact` keeps the email and the language their emails use.
 - **`verify`** signs the customer in under a new session id from `createSessionId`. When the visitor signs in as a customer who already exists, Arky merges the visitor's cart into that customer's cart, and the cart store follows it.
 - **Sign-in refusals** carry their own codes: `CUSTOMER_SIGN_IN.CODE_RECENT` (a new code within the configured interval, sixty seconds in production), `CUSTOMER_SIGN_IN.CODE_INVALID` (a wrong or expired code, or none waiting) and `CUSTOMER_SIGN_IN.ATTEMPTS_EXHAUSTED` (too many wrong codes for the address).
-- **Session lifetime.** A signed-in session's access token lasts an hour; the SDK refreshes it on the first 401 and keeps every cart and checkout view. Every tab of a browser uses the one stored session: the SDK reads it for each request, refreshes it in one tab at a time under a Web Lock, uses a session another tab already refreshed instead of refreshing again, and reports a session another tab changed to `onAuthStateChanged`. A browser that refuses storage keeps the session in that tab only, and the client's `sessionStorageUnavailable` is then `true`, so the site can tell the shopper that other tabs won't share the sign-in. Only Arky's own refusal of that refresh (401 `GENERAL.UNAUTHENTICATED` or 403 `GENERAL.UNAUTHORIZED` in Arky's error body) clears the session and reports it to `onAuthStateChanged` and the `session` atom. Any other failed refresh, such as a 401 or 403 from a proxy, a 429, a 5xx or a lost answer, fails that request with the refresh's error and keeps the session for the next try. A visitor whose token Arky itself refuses (401 `GENERAL.UNAUTHENTICATED` in Arky's error body, for example after the visitor session expired) is replaced: the SDK identifies a new visitor and sends the request once more. Any other 401, such as a proxy's, fails that request and keeps the visitor. Changing the shopper, signing out or switching markets clears checkout contact, delivery, payment selection and the displayed order. A late response from the previous context cannot restore them; kept checkout requests remain available for explicit recovery.
+- **No session, no visitor.** With no session, `getMe()` answers `null` and sends nothing, as `eshop.cart.getCurrent` and a cart store's `load()` do. The first write, such as a code request, a cart or a form submission, identifies the visitor.
+- **Signing out.** `logout()` forgets the session in this browser and answers `{ type: "revoked", session_id }` when Arky confirmed it, `{ type: "unconfirmed", session_id }` when the request failed, so an earlier copy of the session may still work until it expires, or `{ type: "local_only" }` when there was no session.
+- **Session lifetime.** A signed-in session's access token lasts an hour; the SDK refreshes it on the first 401 and keeps every cart and checkout view. Every tab of a browser uses the one stored session: the SDK reads it for each request, refreshes it in one tab at a time under a Web Lock, uses a session another tab already refreshed instead of refreshing again, and reports a session another tab changed to `onAuthStateChanged`. A browser without Web Locks refuses the refresh with `ArkyError` `storage`. A browser that refuses storage keeps the session in that tab only, and the client's `sessionStorageUnavailable` is then `true`, so the site can tell the shopper that other tabs won't share the sign-in. Only Arky's own refusal of that refresh (401 `GENERAL.UNAUTHENTICATED` or 403 `GENERAL.UNAUTHORIZED` in Arky's error body) clears the session and reports it to `onAuthStateChanged` and the `session` atom. Any other failed refresh, such as a 401 or 403 from a proxy, a 429 or a 5xx, fails that request with the refresh's error and keeps the session for the next try. A refresh whose answer was lost after Arky made the new session has already replaced the old one, so the next refresh is refused and the shopper signs in again. A visitor whose token Arky itself refuses (401 `GENERAL.UNAUTHENTICATED` in Arky's error body, for example after the visitor session expired) is replaced: the SDK identifies a new visitor and sends the request once more. Any other 401, such as a proxy's, fails that request and keeps the visitor. Changing the shopper, signing out or switching markets clears checkout contact, delivery, payment selection and the displayed order. A late response from the previous context cannot restore them; a kept checkout request stays in the browser for explicit recovery by the customer who kept it, and another customer signed in on the same browser neither sees it nor is blocked by it.
 - **Email changes.** On a signed-in session, `requestCode` starts an email change: the code goes to the new address and `changeEmail({ code })` proves it. `updateMe` changes the profile blocks, the addresses and the `language` the customer's emails are written in (one of the store's languages, otherwise `CUSTOMER.LANGUAGE_NOT_SUPPORTED`), never a verified email. `unsubscribe()` and `resubscribe()` record the customer's email choice.
 
-## 7. Forms and the bot check
+## 7. Forms
 
 ```typescript
 import { FormAnswerError } from "arky-sdk/storefront";
 
-const { bot_check } = await arky.getSetup();
 const form = await arky.forms.getByKey({ key: "contact" });
-const bot_check_token = bot_check.type === "off" ? undefined : await solveBotCheck(bot_check.type, bot_check.site_key);
 
 try {
-  await arky.forms.submit({ form, values: { email: "ana@example.com", message: "Hello" }, language: "en", bot_check_token });
+  await arky.forms.submit({ form, values: { email: "ana@example.com", message: "Hello" }, language: "en" });
 } catch (error) {
   if (error instanceof FormAnswerError) console.log(error.questionKey, error.code);
   else throw error;
@@ -333,10 +336,10 @@ try {
 
 - **Submitting.** `forms.submit` takes the loaded `form` and a `{ key: value }` map, checks each value against its question and builds the answers. You can also pass `form_id`, `questions_updated_at` and `answers` that you built yourself.
 - **Answer errors.** A value that doesn't fit throws a `FormAnswerError` with the question's key and a code: `required`, `invalid`, `too_short`, `too_long`, `pattern_mismatch`, `too_small`, `too_large`, `unknown_option`, `too_many_files` (more than the question's `max_files`), `file_size` (an empty file), `file_name` or `unknown_question`.
+- **Lengths and patterns.** Text lengths count characters as Arky does, so an emoji counts once. A question's `pattern` is checked before sending only where JavaScript reads it as Arky does: a pattern with `\d`, `\w` or `\b` (Unicode classes in Arky), or one JavaScript can't read, is left to Arky, which answers the question's field error.
 - **Empty answers** are left out. File answers carry `File` objects and are sent as multipart. Arky's configured limits refuse what is too big (production: 10 MiB a file, 20 files and 50 MiB a request): 413 `FORM_SUBMISSION.FILE_TOO_LARGE`, 409 `FORM_SUBMISSION.TOO_MANY_FILES` and 413 `GENERAL.PAYLOAD_TOO_LARGE`.
 - **The form a shopper sees.** `forms.get` and `forms.getByKey` answer `StorefrontForm`: `id`, `key`, `questions`, `questions_updated_at` and `status`, without the store's email and stage settings.
 - **Changed forms.** When the form's questions changed since you loaded it, Arky refuses with 409 `FORM_SUBMISSION.FORM_CHANGED`: load it again.
-- **Bot check.** When the publishable key has a bot check on, `getSetup().bot_check` names the provider (`turnstile` or `h_captcha`) and its `site_key`. Render that provider's widget and send its token as `bot_check_token` with `forms.submit`, `forms.recoverSubmission`, `customer.requestCode` and `newsletter.requestCode`. Send a fresh token on every retry.
 
 A long form can keep its answers in the browser until they are sent, so a lost answer survives a reload:
 
@@ -402,6 +405,8 @@ console.log(title, site.media("hero")?.id, post.text("title"), posts.length);
 - **Accessors.** The answer has `record`, `blocks`, `media_by_id` and accessors in the call's locale: `block(key)`, `text(key)`, `media(key)`, `object(key)` and `list(key)`. Text is read in the exact language asked for, never another, and an accessor for a block of another type throws.
 - **Missing entries.** A key or slug that matches no entry throws an `ArkyError` with code `not_found`.
 - **Plain reads:** `content.collection.get({ id })`, `content.collection.getByKey({ key })`, `content.entry.get({ id })` and `content.entry.find`, which takes `collection_id` with `key`, `slug`, `query` or `filters`, or a list of `ids`.
+- **Public shapes.** These routes answer `PublicCollection` and `PublicEntry`. A collection has `type: "public"`; an entry keeps its key and slugs in `type: { type: "public", key, slugs }`, so a loaded entry's URL uses `post.record.type.slugs.it`. Public entry create and update still take `key` and `slugs` as request fields.
+- **Shared entries.** After the customer signs in, `sharedEntries.find({ collection_id?, limit?, cursor? })`, `get({ id })` and `fileLink({ id, media_id, variant })` read the entries shared with that customer. A file link answers `{ url, expires_at }` and lasts five minutes. These reads use the customer's session and each read is logged. Public content reads do not expose Private, Shared or Note entries.
 
 ## Errors
 
@@ -415,7 +420,7 @@ Everything the SDK throws at runtime is an `ArkyError` with a `code`; map the co
 | `DurableRequestError` | a retry-safe request couldn't run | `storage` (no `localStorage` or Web Locks; nothing was sent), `busy`, `pending`, `answer_mismatch`, `settled_elsewhere` |
 | `CartError` | the cart store or the cart selection | `no_cart`, `not_ready`, `busy`, `other_cart`, `context_changed`, `answer_mismatch`, `storage`, `no_session` |
 | `CheckoutFlowError` | a checkout step | see [Checkout](#4-checkout) |
-| `FormAnswerError` | a form value doesn't fit its question | see [Forms](#7-forms-and-the-bot-check) |
+| `FormAnswerError` | a form value doesn't fit its question | see [Forms](#7-forms) |
 | `MonriCheckoutError` | Monri card entry | `invalid_card`, `invalid_details`, `unknown_result`, `already_submitted`, `invalid_action`, `unavailable` |
 | `PackageJoinError` | a free package sign-up | `sign_in_required`, `email_mismatch`, `not_free`, `sign_up_used`, `sign_up_expired` |
 | `ScheduledResultTimeoutError` | `pollScheduledResult` stopped waiting | `timeout` |
@@ -444,11 +449,11 @@ export function canRetry(error: unknown): boolean {
 ## Retry-safe requests
 
 The calls that take their ids from the factories keep them in `localStorage` under a cross-tab Web Lock, so a lost answer is retried under the same id.
-- **Kept requests.** A checkout, a free package sign-up and a kept form submission keep their whole request, and drop it on a success or a definite refusal.
-- **Light creates.** Form submissions, support conversations and messages, and sign-in code requests keep only their id and a fingerprint of the request.
+- **Kept requests.** A checkout, a free package sign-up and a kept form submission keep their whole request, and drop it on a success or a definite refusal other than `401` and `403`. An authentication or authorization refusal can come after Arky stored the record, so it keeps the request for a retry.
+- **Light creates.** Form submissions, support conversations and messages, sign-in code requests and a tracked action that names no id (`actions.track`) keep only their id and a fingerprint of the request. A tracked action keeps one slot per action key, so a second track of a key while the first is still being sent is refused with `DurableRequestError` `busy`.
 - **Cart writes** in a browser need `localStorage` and Web Locks too, because they check that no checkout of that cart is unfinished.
 
-A checkout without `order_id` and `order_token` takes them from the factories and keeps the request before it is sent. Sending the same checkout again recovers the kept one; a different one is refused (`DurableRequestError` `pending`) until it is recovered. The store's cart keeps its checkout in its own buyer, package and market scope, so a company's branches check out side by side. The plain client's `eshop.cart.checkout` keeps it in one shared slot unless you pass `scope: { buyer, package_id }`; `pendingCheckout({ scope })` and `recoverCheckout({ scope })` read and finish it.
+A checkout without `order_id` and `order_token` takes them from the factories and keeps the request before it is sent. Sending the same checkout again recovers the kept one; a different one is refused (`DurableRequestError` `pending`) until it is recovered. The store's cart keeps its checkout in its own buyer, package and market scope, so a company's branches check out side by side. The plain client's `eshop.cart.checkout` keeps it in one shared slot unless you pass `scope: { buyer, package_id }`; `pendingCheckout({ scope })` and `recoverCheckout({ scope })` read and finish it. Every slot belongs to the customer session that kept it: a visitor who signs in still finds the checkout they kept as a guest, and another customer on the same browser starts clean. With no session, `pendingCheckout` and `recoverCheckout` answer `null`.
 
 ## The plain client
 
@@ -457,7 +462,7 @@ A checkout without `order_id` and `order_token` takes them from the factories an
 ```typescript
 import { createOrderToken, createStorefront, readAllPages } from "arky-sdk/storefront";
 
-const client = createStorefront("arky_pk_...", {
+const client = createStorefront({ storeId: "5e9b3d71-c826-4a04-b7f5-0d2a8e6c4f19", salesChannelId: "e5a8c2d7-3b91-4f06-9d4e-1c7b6a0f3e28" }, {
   locale: "en",
   market: "eu",
   createVisitorIdentity: () => ({ customer_id: crypto.randomUUID(), session_id: crypto.randomUUID() }),
@@ -509,10 +514,10 @@ A checkout refused because the quote changed throws a `CartPresentationChangedEr
   - the member's actions: `cancel`, `pause`, `resume`, `skipNext`, `selectPaymentMethod`, `reviewSwitch`, `switch`, `reviewTerms`, `changeTerms` and `withdrawRevision`;
   - `withdrawRevision` withdraws a change that hasn't taken effect yet. Withdrawing a store team's amendment also cancels the lines of its zero-price order and withdraws the rentals it opened, and so does ending the membership before the amendment's date, so no confirmed order is left with nothing to ship.
 - **Other eshop reads:** `eshop.minimumProgress.get`, `eshop.paymentMethod` (saved cards), `eshop.rental` (`find`, `get({ id })`, each rental with the rented machine's `product`: a `ProductReference` with its current blocks, whatever the package lists or sells, or `null` once the product no longer exists, and its `status` as Arky stores it, see the rental statuses below) and `eshop.return` (`create`, `get({ id })`, which also answers each line's product as a `ProductReference`, `find`, `getOrderOptions`, `findRentalOptions`).
-- **`companies`,** the signed-in customer's companies: `getAccess({ id })`, `membership.find` (the customer's own), `location.find` and `location.get({ id })`. Members whose grants allow it also manage the company: `update` (`manage_company`); `location.create`, `update` and `delete` (`manage_addresses`); and `membership.find({ company_id })`, `create`, `update`, `delete`, `resendInvite` and `role.find({ company_id })` (`manage_members`). Creates take the app's `id`, and a location create sends `blocks: []`. Members never see company or location `blocks`, and their updates keep the stored ones. A location delete answers `{ deleted }`.
+- **`companies`,** the signed-in customer's companies: `getAccess({ id })`, `membership.find` (the customer's own), `location.find` and `location.get({ id })`. Members whose grants allow it also manage the company: `update` (`manage_company`); `location.create`, `update` and `delete` (`manage_addresses`); and `membership.find({ company_id })`, `create`, `update`, `delete`, `resendInvite` and `role.find({ company_id })` (`manage_members`). Creates take the app's `id`, and a location create sends `blocks: []`. Members never see company or location `blocks`, and their updates keep the stored ones. A location delete answers `{ deleted }`. `getAccess` answers `company` as `{ type: "company", ...the company }` for a member with a Company grant, or `{ type: "locations", id, name, status }` for a member whose grants name locations only. A buyer's copy of a rejected tax registration carries `rejected_at` and no reason.
 - **`store`:** `country.find`, `country.get({ code })`, `location.find`, `location.get({ id })`, `market.find`, `market.get({ id })`, `market.getByKey({ key })` and `load()` (on the store only).
 - **`category`:** `get`, `getByKey` and `findChildren({ id })`.
-- **`support.conversation`:** `start({ language, flow_key })` starts a chat on the named support flow, one with a chat entry and text in that language; a start without a flow is refused (`400`), and a `flow_key` that isn't a key throws a `TypeError` before anything is sent. The calls are `start`, `get({ id })`, `findMessages({ conversation_id })`, `getMessage({ conversation_id, message_id })` and `sendMessage({ conversation_id, input, prompt_message_id? })`, under the customer's own session. `start` and `sendMessage` take their ids from `createId`. A `flow_email_contact` prompt is answered with `input: { type: "email_contact", contact }`.
+- **`support.conversation`:** `start({ language, flow_key })` starts a chat on the named support flow, one with a chat entry and text in that language; a start without a flow is refused (`400`), and a `flow_key` that isn't a key throws a `TypeError` before anything is sent. The calls are `start`, `get({ id })`, `findMessages({ conversation_id })`, `getMessage({ conversation_id, message_id })` and `sendMessage({ conversation_id, input, prompt_message_id? })`, under the customer's own session. `start` and `sendMessage` take their ids from `createId`. A `flow_email_contact` prompt is answered with `input: { type: "email_contact", contact }`, and a `flow_choice` prompt with `input: { type: "button", index }`, the pressed button's place in the prompt's `buttons`, counted from 0.
 - **Tracking:**
   - `actions.track({ id?, key, data? })`: the id comes from `createId` when left out and is kept for the retry;
   - `experiments.use({ key })`: call it only where that version is shown;
@@ -650,39 +655,41 @@ console.log(markets.length);
 
 `accountToken` takes an account token (`arky_at_` and 43 URL-safe characters, see [Account tokens](#account-tokens)); any other value throws a `TypeError` before a request goes out. The client never refreshes a token: a revoked or expired one, or one whose Account is being deleted, answers `401 GENERAL.UNAUTHENTICATED`. Its `session` is `null`, and `logout()` answers `{ type: "account_token" }` and revokes nothing.
 
-Without `accountToken`, an Account signs in with a code, and the client keeps and refreshes the Account session:
+Without `accountToken`, an Account signs in with a code sent by the named network, and the client keeps and refreshes the Account session:
 
 ```typescript
-const pending = await admin.account.auth.requestCode({ session_id: crypto.randomUUID(), email: "staff@example.com" });
+const network_id = "0f6a3c84-2d19-4e75-b8a1-5c9e7d3b2f60";
+const pending = await admin.account.auth.requestCode({ session_id: crypto.randomUUID(), network_id, email: "staff@example.com" });
 await admin.account.auth.verify({ session_id: pending.session_id, code: "123456" });
 console.log(admin.session?.email);
 ```
 
 The app picks the code request's `session_id` once per send-code press and sends the same id on a retry: the same id and email answer the same pending session and send no second code. A store's sign-in (`store_id`) opens only that store.
 
-- **Store sign-in.** Pass `store_id` and the code email's `language` to `requestCode`, and `store_id` to `verify`, to sign in through a store's own site. Other stores, platform administration, creating a store, accepting another store's invite, the Account's tokens and deleting the Account refuse that session with `403 ACCOUNT.ARKY_SIGN_IN_REQUIRED`, and its session list shows only that store's sessions.
+- **Store sign-in.** Pass `store_id` and the code email's `language` to `requestCode`, and `store_id` to `verify`, to sign in through a live store's own site. Test stores require network sign-in, whose code goes to the person's real inbox. Other stores, platform administration, creating a store, accepting another store's invite, the Account's tokens and deleting the Account refuse a store-scoped session with `403 ACCOUNT.ARKY_SIGN_IN_REQUIRED`, and its session list shows only that store's sessions.
 - **Sign-in refusals** carry their own codes: `ACCOUNT_SIGN_IN.CODE_RECENT`, `ACCOUNT_SIGN_IN.CODE_INVALID`, `ACCOUNT_SIGN_IN.ATTEMPTS_EXHAUSTED`, and `STORE_SIGN_IN.UNAVAILABLE` while a store's email sending is paused or its plan has lapsed. The same `session_id` with another email, through the other sign-in or after its code was used answers 409 `GENERAL.CONFLICT`.
-- **Session refresh.** The client refreshes when Arky refuses the access token and sends that request again; it never compares this device's clock with the session's expiry. The kept session holds `id`, `access_token`, `refresh_token` and `email`; any other stored value is no session, so the person signs in again. A logout Arky refuses for its access token rotates once and revokes again. Only Arky's own refusal of a refresh (401 `GENERAL.UNAUTHENTICATED` or 403 `GENERAL.UNAUTHORIZED` in Arky's error body) clears the kept session and reports `null` to `onAuthStateChanged`. Any other failed refresh, such as a 401 or 403 from a proxy in front of Arky, a 429, a 5xx or a lost answer, fails that request and keeps the session for the next try.
+- **Session refresh.** The client refreshes when Arky refuses the access token and sends that request again; it never compares this device's clock with the session's expiry. The kept session holds `id`, `access_token`, `refresh_token` and `email`; any other stored value is no session, so the person signs in again. A logout Arky refuses for its access token rotates once and revokes again. Only Arky's own refusal of a refresh (401 `GENERAL.UNAUTHENTICATED` or 403 `GENERAL.UNAUTHORIZED` in Arky's error body) clears the kept session and reports `null` to `onAuthStateChanged`. Any other failed refresh, such as a 401 or 403 from a proxy in front of Arky, a 429 or a 5xx, fails that request and keeps the session for the next try. A refresh rotates the refresh token, so after a lost refresh answer the next refresh is refused and the person signs in again. A browser without Web Locks refuses the refresh with `ArkyError` `storage`, and a refresh answer that isn't JSON fails with `ArkyNetworkError` `unreadable_answer`.
 - **Restored tokens.** A process restoring an Account access token can pass a `forcedHeaders` callback with its Bearer `Authorization` header and `onUnauthorized: () => false`.
-- **API keys.** A store's API keys are publishable keys, made with `admin.store.apiKey.create({ store_id, id, name, sales_channel_id, bot_check })`: each belongs to one sales channel, its `token` (`arky_pk_...`) is public, and it authenticates no person. A create answers `created` with the key, or `existing` on a retry. A revoked key can be deleted, and `delete` answers nothing. Scripts, CI and agents use an [account token](#account-tokens).
+- **Media uploads.** `media.create({ store_id, id, file, visibility })` accepts `visibility: "public" | "private"`, fixed at creation; omitting it creates Public media. URL imports use `source_url` instead of `file`. In a browser, it keeps the exact file and visibility in IndexedDB until Arky confirms them, one kept upload per store, and refuses a different upload with `DurableRequestError` `pending` while one is kept. `readPendingMediaCreate(store_id)` from `arky-sdk/utils` reads the kept upload back for a retry under its id, and `discardPendingMediaCreate(store_id)` drops it, also one whose stored file can't be read; a discard while that upload is still being sent is refused with `busy`.
 - **Customer import.** A customer import (`customers.previewImport`, `customers.import`) answers one outcome per row: `create` in a preview or `created`, `existing` when the row's id already names the same imported customer, which changes nothing, or `failed` with the row's error answer (`ApiErrorResponse`: its `error` code, `status_code` and `validation_errors`). The counts are `rows_to_create` in a preview and `customers_created` in the import, with `rows_existing` and `rows_failed`.
-- **Unknown card charges.** A Stripe card charge whose answer was lost is settled with `payment.resolveCharge`: `{ type: "made", transaction_id }` or `{ type: "payment_intent", payment_intent_id }` when Stripe shows it, or `{ type: "not_made" }`, which the payment then shows as `confirmed_not_made` with the account that confirmed it. A PaymentIntent of another charge is refused with `409 PAYMENT.INTENT_NOT_THIS_CHARGE`. Orders, Payments and Customers carry `access: "read_write" | "read_only"` in roles and account tokens alike: read-only reads what the full permission reads and is refused every write.
+- **Unknown card charges.** A Stripe card charge whose answer was lost is settled with `payment.resolveCharge`: `{ type: "made", transaction_id }` or `{ type: "payment_intent", payment_intent_id }` when Stripe shows it, or `{ type: "not_made" }`, which the payment then shows as `confirmed_not_made` with the account that confirmed it. A PaymentIntent of another charge is refused with `409 PAYMENT.INTENT_NOT_THIS_CHARGE`. Orders, Payments and Customers carry `access: "read" | "write"` in roles. Write includes Read; an account token uses its Account's current access.
 
 | Namespace | What it covers |
 |---|---|
 | `account` | `getMe`, `find`, `delete`, `session`, `token`, `auth` |
-| `platform` | `findCurrencies`, `findWebhookEvents`, `findStorePlans`, `administrator`, `stripeBillingEvent`, `resendEvent` |
-| `store` | the store, `subscription`, `usage`, `member`, `emails`, `role`, `webhook`, `country`, `location`, `market`, `salesChannel`, `apiKey`, `paymentOption`, `simulator`, `zone`, `taxCategory`, `shippingProfile`, `shippingMethod` |
+| `platform` | `findCurrencies`, `findWebhookEvents`, `access`, `stripeBillingEvent`, `resendEvent` |
+| `store` | the store, `testStores`, `wipe`, `subscription`, `usage`, `member`, `emails`, `role`, `webhook`, `country`, `location`, `market`, `salesChannel`, `paymentOption`, `simulator`, `zone`, `taxCategory`, `shippingProfile`, `shippingMethod` |
+| `network` | networks, their `plan` list, Stripe connection and sign-in email settings |
 | `notification` | `outgoingEmail`, `outgoingWebhook`, `incomingWebhook`, `template`, `layout`, `emailProvider`, `emailAddress`, `resendEvent` |
 | `broadcast` | one email to the members of packages |
 | `support` | `flow` and `conversation` (chat and email in one record) |
-| `media`, `category`, `content` | files, categories, collections and entries |
+| `media`, `category`, `content` | files, categories, public collections and entries, `privateCollection`, `privateEntry`, `entryAccess` |
 | `forms` | forms, submissions, stage changes, files, `notes` |
 | `companies`, `customers` | companies with locations, roles, memberships and notes; customers with sessions, email suppressions, notes, `erase` and `merge` |
 | `actions`, `experiments`, `counts` | the customer timeline, A/B tests (`getResults`), the store's counts (`getStatuses`, `getReport`) |
 | `eshop` | products, variants, digital assets, bookings, packages with their items, `packageItemPrice` and `packageAccess`, offerings and members, promotions, payment methods, payments, carts, orders (with `resumePayment`, credits and notes), inventory, fulfillment, returns and rentals |
 
-- **Provider webhooks.** Arky never creates, replaces or deletes a webhook at Stripe or Resend: the merchant makes one at Arky's address and pastes its signing secret. A Stripe option saves it with `store.paymentOption.stripe.saveWebhookSecret`, for the first paste and every roll; a Resend connection carries it as `webhook_secret` in `notification.emailProvider.connect` and `replaceKey`. `stripe.checkSetup` and `emailProvider.checkSetup` answer the address and events to set and name each problem they find. Make the Stripe webhook a Snapshot destination (Stripe suggests Thin), on any API version. Give a Resend connection a Full access API key: a Sending access key can only send, and Arky also reads the account's webhooks, domains, suppressions and received mail.
+- **Store-provider webhooks.** The merchant makes a webhook at Arky's address and pastes its signing secret. A Stripe option saves it with `store.paymentOption.stripe.saveWebhookSecret`, for the first paste and every roll; a Resend connection carries it as `webhook_secret` in `notification.emailProvider.connect` and `replaceKey`. `stripe.checkSetup` and `emailProvider.checkSetup` answer the address and events to set and name each problem they find. Make the Stripe webhook a Snapshot destination (Stripe suggests Thin), on any API version. Give a Resend connection a Full access API key: a Sending access key can only send, and Arky also reads the account's webhooks, domains, suppressions and received mail.
 - **Card payment posts.** `notification.incomingWebhook.find({ payment_option_id, status })` lists one Stripe or Monri option's received posts.
 - **Monri.** `store.paymentOption.monri.replaceMerchantKey` gives an option a new merchant key, and `eshop.payment.recordMadeRefund` records a refund already made in Monri's back office.
 - **Support.** `support.conversation.assign({ expected_account_id, account_id })` and `selectReplyEmail({ expected_reply, reply })` name the value they read.
@@ -692,9 +699,10 @@ The app picks the code request's `session_id` once per send-code press and sends
 - **Collection cleanup.** `content.collection.getCleanup({ store_id, id })` shows a deleting collection's cleanup: `running`, or the entry or collection where it stopped with what blocks it.
 - **Packages and their automatic items.** `eshop.package.create` and `update` save a package and its automatic items together: `items` is a list of operations, `{ action: "create", id, type }`, `{ action: "update", id, expected_updated_at, type }` and `{ action: "delete", id, expected_updated_at }`, where `type` is a `get_product` or `rent_product` type. A `get_product` delivery is `none`, `once_per_period` or `repeating_in_period`. A stay ends with `renew`, `renew_once`, `continue_without_stay` or `stop`. A `variants` minimum lists `variant_ids`, and each unit counts by its variant's `measure`. A `schedule` that names only an end, `{ type: "scheduled", starts_at: null, ends_at }`, starts at the save's own time. `find` lists packages with `automatic_item_count` and `market_ids`, and `get` and `getByKey` answer `items` too. `eshop.package.copy({ store_id, id, source_package_id, source_market_id, target_market_id, cursor })` copies one market's priced items.
 - **Priced items.** `eshop.packageItem` creates one per parent and market (`{ store_id, id, package_id, market_id, item }`), and `update` changes only its `position`. `item` is `{ type: "product", product_id }`, `{ type: "booking_service", booking_service_id }` or `{ type: "package", package_id, price: { id, amount, compare_at, changes, schedule, status } }`: a plan is listed together with its one price, `0` when the plan is free. An item's prices sit in their wrappers: a `product` item's `prices` are `{ variant_id, price }`, a `booking_service` item's `{ booking_offering_id, price }`, and a `package` item holds one `price`, which can be archived or removed with the item but never deleted alone (`PACKAGE_ITEM_PRICE.REQUIRED`). An item has no status or schedule of its own: `setAllPrices({ store_id, id, expected_updated_at, status, schedule })` archives or schedules all its prices at once, applying started dated changes first, and it forgets which were already archived.
-- **Item prices.** Prices live inside their item and change only by named operations on `eshop.packageItemPrice`: `create`, `update` with that price's own `updated_at`, `delete` and `batch`. A price answer carries `package_item_updated_at`, the item's new version, so a later reorder gives no false stale error. `getByChoice({ store_id, package_item_id, sellable })` reads one item's price for one choice exactly, archived or not, and answers 404 when that choice has no price. `find` names a `package_item_id` or a `sellable` and answers `{ items, cursor }` straight from Arky's own records. A price answer names its choice as `sellable`, taken from its wrapper.
+- **Item prices.** Prices live inside their item and change only by named operations on `eshop.packageItemPrice`: `create`, `update` with that price's own `updated_at`, `delete` and `batch`. A price answer carries `package_item_updated_at`, the item's new version, so a later reorder gives no false stale error. `getByChoice({ store_id, package_item_id, sellable })` reads one item's price for one choice exactly, archived or not, and answers 404 when that choice has no price. `find` names a `package_item_id` or a `sellable` and answers `{ items, cursor }` straight from Arky's own records. A price answer names its choice as `sellable`, taken from its wrapper. `create`, `update` and `packageItem.setAllPrices` take a `schedule` that may name only an end, `{ type: "scheduled", starts_at: null, ends_at }`, which starts at the save's own time; `batch`, and a plan's price inside `packageItem.create` and `packageItem.batch`, need a `starts_at`.
 - **Access rows.** `eshop.packageAccess` creates and deletes rows, never edits them, so a row has no `updated_at`: `delete({ store_id, id })` names only the row, and `find` lists a package's rows by `created_at`, with `sort_direction`.
 - **Offerings.** `eshop.packageOffering` saves `{ key, blocks, package_ids }`. An offering has no status: each of its packages sells, takes joins and moves under its own status and schedule.
+- **Promotion schedules.** `promotion.create` and `update` take a `schedule` that may name only an end, `{ type: "scheduled", starts_at: null, ends_at }`, which starts at the save's own time; a promotion read answers the saved start.
 - **Promotion limits.** Promotions and their codes use `limit: { type: "unlimited" }` or `limit: { type: "limited", max_uses: number }`. Whether a promotion or code has a cap is fixed when it is created; a later edit may change a limited cap's number. A promotion's `customer_limit` caps its uses per buyer email in the same shape, and an edit may change it either way: a signed-in customer counts by their verified email, a guest by the checkout's contact email. Reads return `uses`, with uncapped uses appearing after the count queue applies them. Taking or returning a use leaves the promotion and code's `updated_at` unchanged. `PromotionWebhookPayload` and `PromotionCodeWebhookPayload` carry settings, including `limit` and the promotion's `customer_limit`, without `uses`.
 
 A promotion taken through a code, capped at 1,000 uses in all and one per buyer email:
@@ -727,54 +735,127 @@ await admin.eshop.promotionCode.create({
 ```
 
 What a delete answers is what Arky answers:
-- the record marked `deleting`, for records that clean up after themselves: markets, store locations, packages, products, booking services, offerings and resources, categories, collections, media and companies. Variants, promotions and promotion codes answer it too, or nothing when the record is already gone;
-- nothing, for inventory items, package item prices, package items and accesses, package offerings, and experiments. Inventory items have only `active` and `archived` statuses; their delete removes the item and its empty levels together and answers 204;
+- the record marked `deleting`, for records that clean up after themselves: markets, store locations, packages, products, booking services, offerings and resources, categories, collections, media and companies. Promotions and promotion codes answer it too, and one that is already gone answers `404`. Variants answer it, or nothing when the variant is already gone;
+- `{ deleted: true }`, for inventory items, inventory levels, package item prices, package items, package accesses and package offerings, and `404` for one that is missing or another store's. Inventory items have only `active` and `archived` statuses; their delete removes the item and its empty levels together;
+- nothing, for experiments;
 - `true` or `false`, for email templates, layouts, providers and addresses;
 - the note, for notes;
 - `{ deleted }`, for every other delete.
 
+## Private content
+
+Collections have an immutable `type`: `public`, `private`, `shared` or `notes`. Platform and store Admins manage Private and Shared collection definitions through `content.privateCollection.create`, `find`, `get`, `update` and `delete`. Their entries use `content.privateEntry`; ordinary `content.collection` and `content.entry` routes serve Public content.
+
+```typescript
+const store_id = "5e9b3d71-c826-4a04-b7f5-0d2a8e6c4f19";
+const customer_id = "07b6e8c1-4f39-4a25-89d3-2e6c1b7f0a54";
+const collection = await admin.content.privateCollection.create({
+  store_id,
+  id: crypto.randomUUID(),
+  key: "customer-history",
+  type: "private",
+  schema: [],
+  blocks: [],
+});
+
+const entry = await admin.content.privateEntry.create({
+  store_id,
+  collection_id: collection.id,
+  id: crypto.randomUUID(),
+  type: { type: "private_customer", customer_id },
+  blocks: [],
+});
+
+const history = await admin.content.privateEntry.find({
+  store_id,
+  collection_id: collection.id,
+  owner: { type: "customer", customer_id },
+  limit: 20,
+});
+console.log(entry.id, history.items, history.cursor);
+```
+
+- **Entry types.** A Public entry has `{ type: "public", key, slugs }`. Private entries are `private_store`, `private_customer`, `private_company`, `private_order`, `private_conversation` or `private_form_submission`, each naming only its relevant owner id. A Shared entry has `{ type: "shared", customer_id }`. Note entries have the corresponding `note_*` type, including `note_form_submission_stage_change` with `changed_at`. Entries have no top-level `key`, `slugs` or `actor`.
+- **Changing entries.** Private entry `get`, `update` and `delete` name `store_id`, `collection_id` and `id`; writes also name `expected_updated_at`. The type and owner are fixed at creation. Private and Shared entries allow `active`, `draft` and `archived`; scheduled publication belongs to Public entries. Lists take an optional `owner`, `limit` and `cursor`, with no text search or block filters.
+- **Permissions.** `{ type: "public_collections", access: "read" | "write" }` covers Public collections. `{ type: "collection", collection_id, access: "read" | "write" }` covers one Private or Shared collection; a role may hold several such grants. Write includes Read. The store owner and Admins reach every collection.
+- **Files.** Private and Shared entries use Private media. `content.privateEntry.fileLink({ store_id, collection_id, id, media_id, variant })` reads a file named by that entry and answers `{ url, expires_at }`. The link lasts five minutes and needs the same permission as the entry. Media metadata has `visibility` and null URLs for Private files; `media.find({ store_id, visibility: "private" })` lists their metadata to permitted staff.
+- **Access log.** `content.entryAccess.find({ store_id, entry_id, limit, cursor })` reads the immutable log, newest first. Choose exactly one of `entry_id`, `collection_id` or `account_id`. Each row names its entry, collection, `actor`, `action` (`read`, `create`, `update`, `delete`) and `at`. Actors are `account_session`, `account_token`, `customer` or `arky`. The owner and Admins can read the log; entries' reads and writes fail if their access row cannot be saved. Rows remain after entries are deleted.
+- **Notes.** Existing customer, company, order, conversation and form-submission note calls keep their request and response shapes. The store's fixed Notes collection holds them internally. Their author comes from the Create access row; editing or deleting a note writes no additional access row.
+
+## Networks and store plans
+
+A live store has `type: { type: "live", account_id, network_id }`. Its network owns its sign-in sender, Stripe connection and plans. Any account with network sign-in can open a live store; platform admins manage networks, plans and Account access through `network` and `platform.access.set({ account_id, access })`. Account access is `{ type: "regular" }` or `{ type: "platform_admin" }`.
+
+`network.plan.find({ network_id })` lists every plan. A plan's price is `free`, `lifetime` with `amount` and `currency`, `monthly` with those fields plus `months` and `trial_days`, or `yearly` with `years` and `trial_days`. Features use `{ type: "unlimited" }` or `{ type: "max", count }`, including `test_stores`. Move stores off a plan before deleting it.
+
+```typescript
+const network_id = "0f6a3c84-2d19-4e75-b8a1-5c9e7d3b2f60";
+const plan_id = "93ac1e72-8b40-42d5-a617-c49f02b8653e";
+const store = await admin.store.create({
+  id: crypto.randomUUID(),
+  type: { type: "live", network_id, plan: { type: "free", plan_id } },
+  name: "My shop",
+  timezone: "Europe/Sarajevo",
+  languages: ["en"],
+  market: { key: "eu", currency: "eur", tax_mode: "inclusive" },
+  sales_channel: { key: "web" },
+  location_address: { country: "BA" },
+});
+```
+
+For a paid plan, call `store.subscription.createCardSetup({ network_id, id })` with a stable app-picked id. Mount its answer with `mountPaymentMethodSetup`, confirm it, then create the store with `plan: { type: "card", plan_id, setup_intent_id }`. A platform admin may instead choose `{ type: "grant", plan_id }`.
+
+`store.subscription.get({ store_id })` returns a flat `plan` state: `granted`, `trialing`, `active`, `past_due`, `cancellation_scheduled`, `unpaid` or `cancelled`. Every state names its `plan_id`; billed states carry `stripe_customer_id` and `stripe_payment_method_id`. Trialing carries `trial_ends_at`; Active, PastDue and CancellationScheduled carry `paid_until`. Unpaid and Cancelled have no plan access. Test stores use their live store's plan and have no subscription of their own.
+
+- `changePlan({ store_id, plan_id, expected_updated_at, setup_intent_id? })` changes the plan. Same-interval changes keep the renewal date and add prorated charges or credits to the next bill; interval changes credit unused time, bill immediately and reset the renewal date.
+- `setCard({ store_id, setup_intent_id, expected_updated_at })` saves a newly confirmed card setup.
+- `pendingPayment({ store_id })` returns `{ type: "none" }` or `{ type: "stripe", payment_intent_id, publishable_key, client_secret, runs_on }` for a payment that needs confirmation.
+- `cancel({ store_id, expected_updated_at })` schedules the end of paid access. `grant({ store_id, plan_id, expected_updated_at })` is a platform-admin action; `endGrant({ store_id, plan_id, expected_updated_at, setup_intent_id? })` names the replacement plan and a card setup when needed.
+- Network provider posts go to `/v1/networks/{network_id}/webhooks/stripe` and `/v1/networks/{network_id}/webhooks/resend`. `platform.stripeBillingEvent` and `platform.resendEvent` require `network_id` for both `find` and `resolve`. Their types are `stripe_billing` and `network_resend`; the network's sign-in email is `network_sign_in`, each carrying its `network_id`.
+
 ## Account tokens
 
-A script, CI job or agent works through an account token, passed as `createAdmin({ apiUrl, accountToken })`. It acts as its Account: an action through it records the Account with `credential_type: { type: "account_token", account_token_id }`, so history shows which token acted. In each store it does only what both its `permissions` and the Account's roles there allow: `admin` on one side allows what the other side holds, an area both hold takes the narrower access, and the reads any Active member makes need neither. So it works in a store only while the Account is an Active member there, and its calls count against its own rate limit, not its address.
+A script, CI job or agent works through an account token, passed as `createAdmin({ apiUrl, accountToken })`. It acts as its Account and uses that Account's current roles and owner powers. History records `credential_type: { type: "account_token", account_token_id }`. A token has a store reach, with no separate permission list. Its calls count against its own rate limit once the Server has validated it. A token client has no session and reports no `onAuthStateChanged` callbacks.
 
 An Arky session makes one, signed in within the recent sign-in window (15 minutes in production, else `403 ACCOUNT.RECENT_SIGN_IN_REQUIRED`):
 
 ```typescript
+const live_store_id = "5e9b3d71-c826-4a04-b7f5-0d2a8e6c4f19";
 const made = await admin.account.token.create({
   id: crypto.randomUUID(),
   name: "CI",
-  stores: { type: "test_stores" },
-  permissions: [{ type: "admin" }],
+  stores: { type: "only", store_ids: [live_store_id] },
   expires_at: null,
 });
 if (made.type === "secret_created") console.log(made.token.token_hint, made.value.length);
 ```
 
 - **Shown once.** `secret_created` carries the token and its `value`; Arky keeps only its hash, so the value can't be read again. The same create again under the same `id` answers `existing` with the token and no value, and the same `id` with anything else changed answers `409 GENERAL.CONFLICT`. `expires_at` is required: `null` for a token that never expires, or a time later than now.
-- **Where it works.** `stores` is `{ type: "all" }`: every store where the Account is an Active member, and it makes stores. `{ type: "only", store_ids }`: the listed stores, 1 to 100 in production, each once, each a store where the Account is an Active member (`404` otherwise) and not being deleted (`409 REFERENCE.DELETING`); it makes none. `{ type: "test_stores" }`: test stores only, which it makes and closes; it never reaches or makes a live store. A store, or a store create, outside its `stores` answers `403 ACCOUNT_TOKEN.STORE_NOT_COVERED`. A deleted store leaves an `only` token's list, and a token whose last listed store it was is deleted.
-- **Permissions** follow the role rules: `[{ type: "admin" }]` alone, or one or more of the others, each once. `fulfillment` and `inventory` take `locations: { type: "everywhere" }` only, and the Account's roles narrow that reach in each store. The owner's own actions (settings, Arky billing, member removal, the store's email connections, closing) need the owner's token holding `admin`.
-- **Listing, revoking, deleting.** `account.token.find({ limit, cursor })` lists the Account's tokens newest first, each with its `token_hint` (the value's first 16 characters) and never the value. `revoke({ id, expected_updated_at })` takes effect at once and answers the revoked token; revoking it again answers `409 ACCOUNT_TOKEN.REVOKED`. `delete({ id, expected_updated_at })` removes a revoked token and answers nothing; an active one answers `409 ACCOUNT_TOKEN.ACTIVE`. No call edits a token: rotate by making a new one, deploying it, then revoking the old one. An Account holds at most 50 tokens in production, revoked ones included until they are deleted (`409 ACCOUNT_TOKEN.LIMIT`).
-- **What a token never does.** Only an Arky session manages tokens: a token, or a store session, gets `403 ACCOUNT.ARKY_SIGN_IN_REQUIRED` there, and also at the Account's sessions, accepting a store invite, deleting the Account and every platform route. A token carries no platform-administrator rights and is never a recent sign-in, so owner transfer and closing a live store answer it `403 ACCOUNT.RECENT_SIGN_IN_REQUIRED`. `account.getMe()` works, and `store.find` and `store.member.findOwn` list only the stores it reaches.
+- **Where it works.** `{ type: "all" }` covers the stores the Account can use. `{ type: "only", store_ids }` covers only the listed live stores and their test stores, and can create test children when its Account has owner powers on the live store. The Account's current access still applies to every request. A target outside the token's reach answers `403 ACCOUNT_TOKEN.STORE_NOT_COVERED`. Deleting a listed store removes it from the token; an empty token is deleted.
+- **Owner actions.** Closing, wiping, transferring ownership and creating or listing test stores require the owner's Account or a platform admin. A member's token does not gain owner powers.
+- **Listing, revoking, deleting.** `account.token.find({ limit, cursor })` lists the Account's tokens newest first, each with its `token_hint` (the value's first 16 characters) and never the value. `revoke({ id, expected_updated_at })` takes effect at once and answers the revoked token; revoking it again answers `409 ACCOUNT_TOKEN.REVOKED`. `delete({ id, expected_updated_at })` removes a revoked token and answers `{ deleted: true }`; an active one answers `409 ACCOUNT_TOKEN.ACTIVE`. No call edits a token: rotate by making a new one, deploying it, then revoking the old one. An Account holds at most 50 tokens in production, revoked ones included until they are deleted (`409 ACCOUNT_TOKEN.LIMIT`).
+- **Account and platform access.** Token management, Account session management, invite acceptance and Account deletion require an Arky session. Platform routes require a platform admin's session or `All` token; an `Only` token never reaches them. `account.getMe()` works for tokens, and store lists include only their reachable stores.
 
 ## Test stores
 
-A test store is a real store that runs the code a live store runs. Its payments and emails go to Arky's own provider simulator, so no money moves and no mail leaves. You make one and drive it with an Account session or an account token holding `Admin`. A token with `stores: { type: "test_stores" }` makes, drives and closes test stores and never reaches a live one, so a token leaked from CI can't touch live data.
+A test store belongs to a live store through `type: { type: "test", store_id: live_store_id }`. It inherits the live store's owner and plan access. Its payments and emails use test providers, and the live plan's `test_stores` limit bounds how many children it holds; children being deleted still count until removal finishes.
 
-An Account holds at most 5 test stores at a time, and a store being deleted counts until it is gone (`STORE.TEST_STORE_LIMIT`). `store.mode` is `"live"` or `"test"`, you name it when you make the store, and it never changes. `account.getMe()` answers the count as `test_stores`. A test store holds the test plan for free, can't pick or buy a plan (`STORE_SUBSCRIPTION.TEST_STORE`) and can't change owner (`STORE.TEST_STORE_TRANSFER`).
+Use the live store owner's session or an `Only` account token naming that live store. `store.testStores.find({ store_id: live_store_id })` lists its children. A test store cannot choose its own plan or transfer its own owner. `store.wipe({ id, expected_updated_at, confirmation })` clears a store's business data while keeping its settings, members, connections and billing; the store refuses ordinary use while its status is `wiping`.
 
-A store's mode decides what it may connect, and each wrong pairing is refused when the option or connection is made:
+The store's type decides which providers it may connect:
 
 | Store | Card payments | Email |
 |---|---|---|
 | `live` | `stripe` with live keys, `monri` in `live` | `resend` |
 | `test` | `arky_stripe`, `arky_monri`, `stripe` with test keys, `monri` in `test` | `arky_resend` |
 
-Making a store sets up no providers, in either mode. A test store's setup script connects them with keyless calls, and nothing picks a provider for you:
+Making a store sets up no providers, for either type. A test store's setup script connects them with keyless calls, and nothing picks a provider for you:
 
 ```typescript
+const live_store_id = "5e9b3d71-c826-4a04-b7f5-0d2a8e6c4f19";
 const store = await admin.store.create({
   id: crypto.randomUUID(),
-  mode: "test",
+  type: { type: "test", store_id: live_store_id },
   name: "My shop (test)",
   timezone: "Europe/Sarajevo",
   languages: ["en"],
@@ -800,11 +881,11 @@ await admin.notification.emailProvider.connectArkyResend({
 });
 ```
 
-`store.paymentOption.arkyMonri.connect` takes the same fields as `arkyStripe.connect`. A storefront still reads `stripe` or `monri` as the option's `type`; `arky_stripe` and `arky_monri` show only on Admin's `PaymentOption`. To finish with a test store, call `store.requestDeletion`, as for any store. A test store needs no recent sign-in to close, so its owner's token holding `Admin` closes it; a live store needs the owner's session signed in within the recent window.
+`store.paymentOption.arkyMonri.connect` takes the same fields as `arkyStripe.connect`. A storefront still reads `stripe` or `monri` as the option's `type`; `arky_stripe` and `arky_monri` show only on Admin's `PaymentOption`. To finish with a test store, call `store.requestDeletion`, as for any store. The owner's account token can close or wipe live and test stores within its reach. Each call still needs the exact name in `confirmation` and the current `expected_updated_at`.
 
 **Paying in a browser.** On a simulated value `mountCheckoutAction` and `mountPaymentMethodSetup` load no provider script and work on a plain `http` page. They mount a small panel that says it is a test payment, with a button per outcome, each marked `data-arky-simulator-outcome`:
 
-- **Stripe checkout** and a store plan: `complete`, `decline` and `expire`. A click plays that outcome and then runs `onComplete`, and the mount has `type: "simulator"`. A decline leaves the page open for another try.
+- **Stripe checkout:** `complete`, `decline` and `expire`. A click plays that outcome and then runs `onComplete`, and the mount has `type: "simulator"`. A decline leaves the page open for another try.
 - **Monri:** `complete` and `decline`. A click picks the outcome, and the mount's `confirm(details)` sends it, `complete` until another is picked.
 - **Card setup:** `complete`, `decline` and `cancel`. A click picks the outcome, and `confirm` sends it and throws `ArkyError` `declined` for a decline.
 
@@ -820,6 +901,8 @@ if (placed && placed.payment_action.type === "stripe_embedded_checkout" && isSim
 ```
 
 Anything but a confirmed answer throws `ArkyError` `not_confirmed`, and repeating an outcome is safe.
+
+A pending store subscription payment with `type: "stripe"` and simulator `runs_on` uses `simulatePayment({ simulation: { type: "stripe_payment_intent", action: payment, outcome: "complete" } })`. Its offered outcomes are `complete` and `decline`.
 
 **Driving a test store through the API.** These need `Admin`, and each refuses a live store with `SIMULATOR.LIVE_STORE`:
 
@@ -848,7 +931,7 @@ await admin.store.simulator.plannedOutcomes.create({
 
 Nothing moves the clock, so month ends and expiry dates can't be reached ahead of their date.
 
-**Going live.** Make a second store as `mode: "live"` with the same setup script and live keys. Test data never moves. Arky's address stays the same: a site's environment names the store and its publishable key, and its code doesn't change, because the checkout answer says where each payment runs.
+**Going live.** Run the setup script against the parent live store with live provider keys. Test data stays in its test store. The site's environment supplies the live store ID and sales-channel ID; its storefront code stays the same.
 
 ## Utilities
 
@@ -863,7 +946,7 @@ Nothing moves the clock, so month ends and expiry dates can't be reached ahead o
 - **Addresses:** `missingShippingFields(address)` names the fields a shipping address still misses, in the order Arky checks them, with `COUNTRIES_WITHOUT_POSTAL_CODES` and `COUNTRIES_WITH_SHIPPING_STATES` (from `arky-sdk/utils`).
 - **Lines:** `cartProductItems(cart)`, `cartBookingItems`, `cartPackageItems`, `orderProductItems(order)`, `orderBookingItems`, `orderPackageItems`, `orderRentalUseItems` and `orderLineItemsOfType(order, type)` pick the lines of one type.
 - **Ids:** `requireId`, `isCanonicalId`, `createOrderToken` and `isOrderToken`.
-- **Provider simulator.** `isSimulatedPayment(value)` says a checkout action, card setup or store plan action runs on Arky's provider simulator, and `simulatePayment({ simulation }, { signal? })` plays its outcome ([Test stores](#test-stores)).
+- **Provider simulator.** `isSimulatedPayment(value)` says a checkout action, card setup or pending store payment runs on Arky's provider simulator. `simulatePayment({ simulation }, { signal? })` plays a checkout, card-setup or store-payment outcome ([Test stores](#test-stores)).
 
 `arky-sdk/utils` has the same helpers, without the payment mounts, the simulator, the line pickers and `CURRENCY_MINOR_UNITS`, plus a few for apps and back offices:
 - key checks: `isValidKey`, `validateKey` and `toKey`; currencies: `isCurrency` and `SUPPORTED_STORE_CURRENCIES`;

@@ -1,21 +1,24 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import { ArkyError, CartPresentationChangedError, DurableRequestError } from "../dist/index.js";
-import { createStorefront } from "../dist/storefront.js";
+import { createStorefront, initialize } from "../dist/storefront.js";
 import { ExclusiveLockManager, MemoryStorage } from "./helpers/durable-request-fixtures.mjs";
 import {
   apiUrl,
+  cartRecord,
   checkoutRequest,
   fixedIdFactories,
   ids,
+  idSequence,
+  marketRecord,
   placedAcceptance,
   placedOrder,
-  publishableKey,
+  storefrontIdentity,
   quoteRecord,
   visitorStorage,
 } from "./helpers/arky-fixtures.mjs";
 
-const storageKey = `arky:cart-checkout:v5:${encodeURIComponent(`storefront:${apiUrl}:${publishableKey}`)}`;
+const storageKey = `arky:cart-checkout:v5:${encodeURIComponent(`storefront:${apiUrl}:${storefrontIdentity.storeId}:${storefrontIdentity.salesChannelId}:${ids.customer}`)}`;
 const request = checkoutRequest();
 const originals = new Map(["fetch", "localStorage", "navigator", "window"].map((name) => [name, Object.getOwnPropertyDescriptor(globalThis, name)]));
 
@@ -32,7 +35,7 @@ function browser(storage = new MemoryStorage()) {
 }
 
 function storefront() {
-  return createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", market: "bih", sessionStorage: visitorStorage() });
+  return createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", market: "bih", sessionStorage: visitorStorage() });
 }
 
 function capture(respond) {
@@ -247,13 +250,13 @@ test("a concurrent tab cannot queue a duplicate checkout or read pending state t
   assert.equal(calls.length, 0);
 });
 
-test("any definite refusal clears the kept request, while a timeout, throttle or server failure keeps it", async () => {
-  for (const status of [400, 403, 404, 409, 422, 408, 429, 500, 503]) {
+test("a definite refusal clears the kept request, while an authentication or authorization refusal, a timeout, a throttle or a server failure keeps it", async () => {
+  for (const status of [400, 401, 403, 404, 409, 422, 408, 429, 500, 503]) {
     const { storage } = browser();
     const calls = capture(() => Response.json({ message: "Rejected", error: "CART.NOT_READY", status_code: status, validation_errors: [] }, { status }));
     await assert.rejects(retainAndRecover(), (error) => error.statusCode === status);
     assert.equal(calls.filter((call) => call.path.endsWith("/carts/accept")).length, 1);
-    const definite = status < 500 && status !== 408 && status !== 429;
+    const definite = status < 500 && ![401, 403, 408, 429].includes(status);
     assert.equal(storage.getItem(storageKey) === null, definite, String(status));
   }
 });
@@ -515,4 +518,82 @@ test("each kept-checkout failure says what failed: bad input, a held lock, anoth
     assert.equal(error instanceof ArkyError, true);
     assert.equal(error.code, code);
   }
+});
+
+function opened() {
+  let open;
+  const gate = new Promise((resolve) => {
+    open = resolve;
+  });
+  return { gate, open };
+}
+
+function storedLine(id) {
+  return { type: "product", id, variant_id: ids.variant, quantity: 1, form_submission_id: null, price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price } };
+}
+
+const productToAdd = { variant_id: ids.variant, quantity: 1, price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price } };
+
+function cartStoreServer({ write, read }) {
+  return capture(async (call) => {
+    if (call.path.startsWith("/v1/storefront/markets/by-key/")) return Response.json(marketRecord(decodeURIComponent(call.path.split("/").at(-1))));
+    if (call.method === "POST" && call.path === "/v1/storefront/carts") {
+      return Response.json({ type: "created", cart: cartRecord({ id: call.body.id, package_id: call.body.package_id }), recovery_token: `token-${call.body.id}` });
+    }
+    if (call.method === "POST" && call.path === `/v1/storefront/carts/${ids.cart}/product-items`) {
+      write.started.open();
+      await write.release.gate;
+      return Response.json(cartRecord({ updated_at: 1_700_000_000_002, line_items: [storedLine(call.body.product.id)] }));
+    }
+    if (call.method === "GET" && call.path === `/v1/storefront/carts/${ids.otherCart}`) {
+      read.started.open();
+      await read.release.gate;
+      return Response.json(cartRecord({ id: ids.otherCart, package_id: ids.otherPackage, updated_at: 1_700_000_000_009 }));
+    }
+    throw new Error(`Unexpected request ${call.method} ${call.path}`);
+  });
+}
+
+function cartStore() {
+  return initialize(storefrontIdentity, { ...fixedIdFactories, createId: idSequence(ids.line, ids.otherLine), apiUrl, locale: "en", market: "bih", sessionStorage: visitorStorage() });
+}
+
+test("a_write_refused_busy_leaves_the_running_writes_answer_in_view", async () => {
+  browser();
+  const write = { started: opened(), release: opened() };
+  const calls = cartStoreServer({ write, read: { started: opened(), release: opened() } });
+  const cart = cartStore().eshop.cart({ buyer: { type: "customer" }, package_id: ids.package });
+  await cart.create({ id: ids.cart });
+  const first = cart.addProduct(productToAdd);
+  await write.started.gate;
+  await assert.rejects(cart.addProduct(productToAdd), (error) => error.code === "busy");
+  write.release.open();
+  const written = await first;
+  assert.deepEqual(cart.cart.get(), written);
+  assert.equal(cart.item_count.get(), 1);
+  assert.equal(cart.status.get().syncing, false);
+  assert.equal(cart.status.get().error, null);
+  assert.equal(calls.filter((call) => call.path.endsWith("/product-items")).length, 1);
+});
+
+test("a cart write refused by another cart's running write keeps the read it raced", async () => {
+  browser();
+  const write = { started: opened(), release: opened() };
+  const read = { started: opened(), release: opened() };
+  cartStoreServer({ write, read });
+  const arky = cartStore();
+  const shop = arky.eshop.cart({ buyer: { type: "customer" }, package_id: ids.package });
+  const club = arky.eshop.cart({ buyer: { type: "customer" }, package_id: ids.otherPackage });
+  await shop.create({ id: ids.cart });
+  await club.create({ id: ids.otherCart });
+  const reading = club.load();
+  await read.started.gate;
+  const writing = shop.addProduct(productToAdd);
+  await write.started.gate;
+  await assert.rejects(club.addProduct(productToAdd), (error) => error instanceof DurableRequestError && error.code === "busy");
+  read.release.open();
+  assert.equal((await reading).updated_at, 1_700_000_000_009);
+  assert.equal(club.cart.get().updated_at, 1_700_000_000_009);
+  write.release.open();
+  assert.equal((await writing).line_items.length, 1);
 });

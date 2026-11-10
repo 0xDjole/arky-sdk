@@ -96,11 +96,11 @@ test("stock commands carry the app-picked action id and the exact incoming stock
 });
 
 test("levels are created under an app-picked id and removed with their version", async (context) => {
-  const calls = recordFetch(context, (call) => call.method === "DELETE" ? undefined : { id: levelId });
+  const calls = recordFetch(context, (call) => call.method === "DELETE" ? { deleted: true } : { id: levelId });
   const api = eshop().inventoryLevel;
   await api.create({ store_id: STORE_ID, id: levelId, inventory_item_id: "item", store_location_id: "warehouse" });
   await api.get({ store_id: STORE_ID, id: levelId });
-  assert.equal(await api.remove({ store_id: STORE_ID, id: levelId, expected_updated_at: 9 }), undefined);
+  assert.deepEqual(await api.remove({ store_id: STORE_ID, id: levelId, expected_updated_at: 9 }), { deleted: true });
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
     ["POST", `/v1/stores/${STORE_ID}/inventory-levels`, {}, { id: levelId, inventory_item_id: "item", store_location_id: "warehouse" }],
     ["GET", `/v1/stores/${STORE_ID}/inventory-levels/${levelId}`, {}, null],

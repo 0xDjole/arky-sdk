@@ -22,6 +22,7 @@ import type {
   PackageDeliveryTerms,
   PackageOccurrence,
   PackageProductChoice,
+  PackageSelfSnapshot,
   PackageSnapshot,
   PackageStart,
 } from "./packageMember";
@@ -223,10 +224,14 @@ export type StorefrontCartOfferStatus =
       note: string | null;
     };
 
+export type StorefrontCartOfferLine =
+  | { type: "item"; line_item_id: string; base_unit_price: number; rebate_per_unit: number }
+  | { type: "package"; line_item_id: string; package: PackageSelfSnapshot; rebate_per_unit: number };
+
 export interface StorefrontCartOffer {
   contact: EmailContact;
   reviewed_at: EpochMilliseconds;
-  lines: CartOfferLine[];
+  lines: StorefrontCartOfferLine[];
   supersedes_cart_id: string | null;
   status: StorefrontCartOfferStatus;
 }
@@ -530,6 +535,47 @@ export interface CartQuote {
   tax_mode: TaxMode;
   language: string;
   lines: QuoteLine[];
+  deliveries: QuoteDelivery[];
+  promotions: OrderPromotion[];
+  promotion_codes: QuotePromotionCode[];
+  billing_address: PostalAddress | null;
+  totals: QuoteTotals;
+  payment_option_ids: string[];
+  suggested_payment_option_id: string | null;
+  blockers: QuoteBlocker[];
+  ready: boolean;
+  quoted_at: EpochMilliseconds;
+  presentation_digest: string;
+}
+
+export interface StorefrontQuotePackageLine {
+  line_item_id: string;
+  package: PackageSelfSnapshot;
+  start: StorefrontPackageStart;
+  occurrence: PackageOccurrence;
+  items: QuotePackageItemLine[];
+  deliveries: PackageDeliveryTerms[];
+  saves_card: boolean;
+  rental_change: QuoteRentalChange | null;
+}
+
+export type StorefrontQuoteLine =
+  | ({ type: "product" } & QuoteProductLine)
+  | ({ type: "booking" } & QuoteBookingLine)
+  | ({ type: "package" } & StorefrontQuotePackageLine);
+
+export interface StorefrontCartQuote {
+  cart_id: string | null;
+  store_id: string;
+  customer_id: string;
+  buyer: CartBuyer;
+  market_id: string;
+  sales_channel_id: string;
+  package_id: string;
+  currency: Currency;
+  tax_mode: TaxMode;
+  language: string;
+  lines: StorefrontQuoteLine[];
   deliveries: QuoteDelivery[];
   promotions: OrderPromotion[];
   promotion_codes: QuotePromotionCode[];

@@ -2,13 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { createStorefront } from "../dist/storefront.js";
-import { factoryOrderToken, idFactories, publishableKey, recordFetch, ids, visitorSession, storedSession, SessionStorage, errorResponse } from "./helpers/arky-fixtures.mjs";
+import { factoryOrderToken, idFactories, storefrontIdentity, recordFetch, ids, visitorSession, storedSession, SessionStorage, errorResponse } from "./helpers/arky-fixtures.mjs";
 
 const storeId = "ab73eb42-89fd-4cbf-a1fd-fb84e6d78590";
 const customerId = "63ebda09-b0da-40c7-85ee-4ad9f2310c30";
 const sessionId = "ce6ebdd2-cc85-4e54-81fe-df0cb14d9339";
 const emailId = "3175e0eb-0ceb-47e7-a7a8-081c14cce3b1";
-const keyId = "912d27b1-2ed8-4a82-a2f1-318a45e31694";
 
 function customer() {
   return { id: customerId, store_id: storeId, type: { type: "anonymous" }, profile: [], created_at: 1, updated_at: 1 };
@@ -18,36 +17,14 @@ function issued() {
   return { customer: customer(), session: { type: "visitor", id: sessionId, customer_id: customerId, token: "customer_visitor_domain4", status: { type: "active" }, expires_at: 9000000000000 } };
 }
 
-test("a store API key is a flat publishable key and keeps the caller's id on retries", async (context) => {
-  const salesChannelId = "0d6b2f84-3a19-4c57-8e20-7f4a1c9b5d36";
-  const key = { id: keyId, store_id: storeId, name: "Website", token: publishableKey, sales_channel_id: salesChannelId, bot_check: { type: "turnstile", site_key: "site-key" }, status: { type: "active" }, created_at: 1, updated_at: 1 };
-  const calls = recordFetch(context, (_call, count) => count === 1 ? { type: "created", key } : { type: "existing", key });
-  const admin = createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
-  const input = { store_id: storeId, id: keyId, name: "Website", sales_channel_id: salesChannelId, bot_check: { type: "turnstile", site_key: "site-key", secret_key: "turnstile-secret" } };
-  assert.deepEqual(await admin.store.apiKey.create(input), { type: "created", key });
-  assert.deepEqual(await admin.store.apiKey.create(input), { type: "existing", key });
-  for (const call of calls) {
-    assert.equal(call.method, "POST");
-    assert.equal(call.path, `/v1/stores/${storeId}/api-keys`);
-    assert.deepEqual(call.body, { id: keyId, name: "Website", sales_channel_id: salesChannelId, bot_check: input.bot_check });
-  }
-  assert.equal("apiToken" in admin.account, false);
-  assert.equal("storefrontKey" in admin.store, false);
-});
 
-test("deleting a revoked API key sends its version and answers nothing", async (context) => {
-  const calls = recordFetch(context, () => new Response(null, { status: 204 }));
-  const admin = createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
-  assert.equal(await admin.store.apiKey.delete({ store_id: storeId, id: keyId, expected_updated_at: 7 }), undefined);
-  assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
-    ["DELETE", `/v1/stores/${storeId}/api-keys/${keyId}`, { expected_updated_at: "7" }, null],
-  ]);
-});
+
+
 
 test("visitor identity and code sends use caller-picked UUIDs without exposing staff blocks", async (context) => {
   const calls = recordFetch(context, (call) => call.path.endsWith("request-code") ? { customer: customer(), session: { id: sessionId, store_id: storeId, customer_id: customerId }, email_verification: { issued_at: 1, expires_at: 600001 } } : issued());
   const memory = new Map();
-  const client = createStorefront(publishableKey, { ...idFactories, apiUrl: "https://api.example.test", locale: "en", sessionStorage: { getItem: (key) => memory.get(key) ?? null, setItem: (key, value) => memory.set(key, value), removeItem: (key) => memory.delete(key) }, visitorIdentity: { customer_id: customerId, session_id: sessionId } });
+  const client = createStorefront(storefrontIdentity, { ...idFactories, apiUrl: "https://api.example.test", locale: "en", sessionStorage: { getItem: (key) => memory.get(key) ?? null, setItem: (key, value) => memory.set(key, value), removeItem: (key) => memory.delete(key) }, visitorIdentity: { customer_id: customerId, session_id: sessionId } });
   await client.customer.identify({ customer_id: customerId, session_id: sessionId });
   await client.customer.requestCode({ id: emailId, contact: { email: "buyer@example.test", language: "en" } });
   assert.deepEqual(calls.map((call) => call.body), [{ customer_id: customerId, session_id: sessionId }, { id: emailId, contact: { email: "buyer@example.test", language: "en" } }]);
@@ -69,7 +46,7 @@ test("expired Visitor replacement keeps the application-picked pair after a lost
     if (call.headers.get("authorization") === `Bearer ${prior.token}`) return errorResponse(401, "GENERAL.UNAUTHENTICATED", "Visitor expired");
     return { customer: customer(), session: { id: sessionId, store_id: storeId, customer_id: customerId } };
   });
-  const client = createStorefront(publishableKey, {
+  const client = createStorefront(storefrontIdentity, {
     apiUrl: "https://api.example.test",
     sessionStorage: new SessionStorage(storedSession(ids.customer, prior)),
     createVisitorIdentity: () => { picks++; return { customer_id: customerId, session_id: sessionId }; },
@@ -78,7 +55,11 @@ test("expired Visitor replacement keeps the application-picked pair after a lost
     createOrderToken: () => factoryOrderToken,
   });
   await assert.rejects(client.customer.getMe(), /Lost response/);
-  await Promise.all([client.customer.getMe(), client.customer.getMe()]);
+  assert.equal(await client.customer.getMe(), null);
+  await Promise.all([
+    client.customer.updateMe({ expected_updated_at: 1, profile: [] }),
+    client.customer.updateMe({ expected_updated_at: 1, profile: [] }),
+  ]);
   assert.equal(picks, 1);
   assert.equal(attempts, 2);
   const identities = calls.filter((call) => call.path.endsWith("/identify"));
@@ -90,12 +71,7 @@ test("expired Visitor replacement keeps the application-picked pair after a lost
   assert.equal(client.session.id, sessionId);
 });
 
-test("API-key discovery keeps the sales channel filter with native continuation", async (context) => {
-  const calls = recordFetch(context, () => ({ items: [], cursor: null }));
-  const admin = createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
-  await admin.store.apiKey.find({ store_id: storeId, sales_channel_id: keyId, cursor: "native-next", limit: 20 });
-  assert.deepEqual(calls.map(({ method, path, query }) => ({ method, path, query })), [{ method: "GET", path: `/v1/stores/${storeId}/api-keys`, query: { sales_channel_id: keyId, cursor: "native-next", limit: "20" } }]);
-});
+
 
 test("a refused first identify picks new visitor ids and the request goes on", async (context) => {
   const firstPair = { customer_id: "0b1c2d3e-4f50-4a61-8b72-9c83d4e5f601", session_id: "1c2d3e4f-5061-4b72-8c83-9d94e5f60712" };
@@ -114,17 +90,68 @@ test("a refused first identify picks new visitor ids and the request goes on", a
     throw new Error(`Unexpected request ${call.method} ${call.path}`);
   });
   const memory = new Map();
-  const client = createStorefront(publishableKey, {
+  const client = createStorefront(storefrontIdentity, {
     ...idFactories,
     createVisitorIdentity: () => picks[picked++],
     apiUrl: "https://api.example.test",
     locale: "en",
     sessionStorage: { getItem: (key) => memory.get(key) ?? null, setItem: (key, value) => memory.set(key, value), removeItem: (key) => memory.delete(key) },
   });
-  const me = await client.customer.getMe();
+  const me = await client.customer.updateMe({ expected_updated_at: 1, profile: [] });
   assert.equal(me.customer.id, secondPair.customer_id);
   const identifies = calls.filter((call) => call.path === "/v1/storefront/customer/identify");
   assert.deepEqual(identifies.map((call) => call.body), [firstPair, secondPair]);
   assert.equal(picked, 2);
   assert.equal(calls.at(-1).path, "/v1/storefront/customer/me");
 });
+
+test("a_storefront_request_names_its_store_and_channel", async (context) => {
+  const calls = recordFetch(context, () => ({ name: "Store", timezone: "UTC", languages: ["en"], payment_options: [] }));
+  const client = createStorefront(storefrontIdentity, idFactories);
+  await client.getSetup();
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].headers.get("x-arky-store-id"), storefrontIdentity.storeId);
+  assert.equal(calls[0].headers.get("x-arky-sales-channel-id"), storefrontIdentity.salesChannelId);
+  assert.equal(calls[0].headers.has("x-arky-publishable-key"), false);
+  assert.equal(calls[0].headers.has("x-api-key"), false);
+  assert.equal(calls[0].headers.has("authorization"), false);
+  assert.equal("apiKey" in createAdmin({ apiUrl: "https://api.example.test" }).store, false);
+});
+
+for (const status of [400, 401, 403, 404, 409, 422]) {
+  test(`a definite identify refusal ${status} replaces the durable pair before reload`, async (context) => {
+    const first = { customer_id: ids.customer, session_id: ids.session };
+    const replacement = { customer_id: ids.otherCustomer, session_id: ids.otherSession };
+    let retained = first;
+    let picks = 0;
+    const calls = recordFetch(context, () => errorResponse(status, "CUSTOMER.IDENTIFY_REFUSED", "Refused"));
+    const options = {
+      ...idFactories, apiUrl: "https://api.example.test", sessionStorage: new SessionStorage(),
+      visitorIdentity: retained,
+      createVisitorIdentity: () => { picks++; retained = replacement; return replacement; },
+    };
+    const client = createStorefront(storefrontIdentity, options);
+    await assert.rejects(client.customer.identify(), (error) => error.statusCode === status);
+    assert.equal(picks, 1);
+    assert.deepEqual(retained, replacement);
+    const reloaded = createStorefront(storefrontIdentity, { ...options, visitorIdentity: retained });
+    await assert.rejects(reloaded.customer.identify(), (error) => error.statusCode === status);
+    assert.deepEqual(calls.map((call) => call.body), [first, replacement]);
+  });
+}
+
+for (const status of [408, 429, 500, 503]) {
+  test(`an ambiguous identify response ${status} retains the same pair`, async (context) => {
+    const pair = { customer_id: ids.customer, session_id: ids.session };
+    let picks = 0;
+    const calls = recordFetch(context, () => errorResponse(status, "GENERAL.UNAVAILABLE", "Try again"));
+    const client = createStorefront(storefrontIdentity, {
+      ...idFactories, apiUrl: "https://api.example.test", sessionStorage: new SessionStorage(),
+      visitorIdentity: pair, createVisitorIdentity: () => { picks++; return pair; },
+    });
+    await assert.rejects(client.customer.identify());
+    await assert.rejects(client.customer.identify());
+    assert.equal(picks, 0);
+    assert.deepEqual(calls.map((call) => call.body), [pair, pair]);
+  });
+}

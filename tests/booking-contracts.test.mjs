@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { createAdmin, orderBookingItems } from "../dist/admin.js";
 import { createStorefront, initialize } from "../dist/storefront.js";
-import { apiUrl, cartRecord, fixedIdFactories, ids, jsonResponse, marketRecord, publishableKey, visitorStorage } from "./helpers/arky-fixtures.mjs";
+import { apiUrl, cartRecord, fixedIdFactories, ids, jsonResponse, marketRecord, storefrontIdentity, visitorStorage } from "./helpers/arky-fixtures.mjs";
 
 const storeId = ids.store;
 const otherStoreId = ids.otherStore;
@@ -131,11 +131,11 @@ function order() {
 }
 
 function storefront(options = {}) {
-  return createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage(), ...options });
+  return createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage(), ...options });
 }
 
 function store(options = {}) {
-  return initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", sessionStorage: visitorStorage(), ...options });
+  return initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", sessionStorage: visitorStorage(), ...options });
 }
 
 test("Admin resource discovery preserves bounded opaque continuation and ordered filters, and the storefront only reads one resource", async (context) => {
@@ -294,7 +294,7 @@ test("booking cancellation resends the caller's credit id after an uncertain res
     return jsonResponse(order());
   });
   const admin = createAdmin({ apiUrl: apiUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
-  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "bih", sessionStorage: visitorStorage() });
+  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "bih", sessionStorage: visitorStorage() });
   for (const [client, target] of [[admin, { store_id: storeId }], [storefront, {}]]) {
     const request = { ...target, order_id: "order/booking", line_item_id: "item/booking", credit_id: creditId, expected_updated_at: 9 };
     await assert.rejects(client.eshop.order.cancelBookingItem(request), (error) => error.statusCode === 503);

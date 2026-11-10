@@ -37,7 +37,6 @@ export type JoinFreePackageResult =
 
 export interface RequestNewsletterCodeParams {
   contact: EmailContact;
-  bot_check_token?: string;
 }
 
 export type RequestNewsletterCodeResult = { type: "code_sent" } | { type: "verified" };

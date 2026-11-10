@@ -1,5 +1,5 @@
 import { createAdmin } from '../../dist/index.js';
-import type { AlertRecipient, CheckEmailProviderSetupParams, ConnectEmailProviderParams, CreateEmailAddressParams, CreateEmailLayoutParams, CreateEmailTemplateParams, Email, EmailAddress, EmailAddressReadiness, EmailCapabilityReadiness, EmailContent, EmailCreationTemplates, EmailLayout, EmailLayoutContent, EmailPreview, EmailPreviewSummary, EmailProvider, EmailProviderDnsRecord, EmailProviderDomain, EmailProviderDomainStatus, EmailProviderSetup, EmailProviderSetupProblem, EmailReplyTo, EmailTemplate, EmailTemplateDefault, EmailTemplateType, EmailTemplateTypeName, EpochMilliseconds, FindEmailTemplatesParams, FindOutgoingEmailsParams, IncomingWebhook, OutgoingEmail, OutgoingEmailSummary, PaginatedResponse, ReplaceEmailProviderKeyParams, SendEmailTemplateTestParams, StoreEmailSettings, UpdateEmailLayoutParams, UpdateEmailTemplateParams } from '../../dist/index.js';
+import type { AlertRecipient, CheckEmailProviderSetupParams, ConnectEmailProviderParams, CreateEmailAddressParams, CreateEmailLayoutParams, CreateEmailTemplateParams, Email, EmailAddress, EmailAddressReadiness, EmailCapabilityReadiness, EmailReadinessReason, EmailContent, EmailCreationTemplates, EmailLayout, EmailLayoutContent, EmailPreview, EmailPreviewSummary, EmailProvider, EmailProviderDnsRecord, EmailProviderDomain, EmailProviderDomainStatus, EmailProviderSetup, EmailProviderSetupProblem, EmailReplyTo, EmailTemplate, EmailTemplateDefault, EmailTemplateType, EmailTemplateTypeName, EpochMilliseconds, FindEmailTemplatesParams, FindOutgoingEmailsParams, IncomingWebhook, OutgoingEmail, OutgoingEmailSummary, PaginatedResponse, ReplaceEmailProviderKeyParams, SendEmailTemplateTestParams, StoreEmailSettings, UpdateEmailLayoutParams, UpdateEmailTemplateParams } from '../../dist/index.js';
 type Assert<T extends true> = T;
 type Equal<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
@@ -63,7 +63,7 @@ export type EmailTemplateContracts = [
   Assert<OptionalField<CreateEmailLayoutParams, 'logo_media_id'>>,
   Assert<RequiredField<UpdateEmailLayoutParams, 'logo_media_id'>>,
   Assert<Equal<keyof EmailProvider, 'id' | 'store_id' | 'name' | 'type' | 'created_at' | 'updated_at'>>,
-  Assert<Equal<EmailProviderDomainStatus, 'not_started' | 'pending' | 'verified' | 'partially_verified' | 'partially_failed' | 'failed' | 'temporary_failure'>>,
+  Assert<Equal<EmailProviderDomainStatus, 'not_started' | 'pending' | 'verified' | 'partially_verified' | 'partially_failed' | 'failed' | 'temporary_failure' | 'unknown'>>,
   Assert<Equal<EmailProviderDomain['status'], EmailProviderDomainStatus>>,
   Assert<Equal<EmailProviderDomain['records'], EmailProviderDnsRecord[]>>,
   Assert<Equal<keyof EmailProviderDnsRecord, 'record' | 'status' | 'type' | 'name' | 'value' | 'priority'>>,
@@ -85,7 +85,8 @@ export type EmailTemplateContracts = [
   Assert<Equal<Awaited<ReturnType<typeof client.notification.emailProvider.replaceKey>>, EmailProvider>>,
   Assert<Equal<Awaited<ReturnType<typeof client.notification.emailProvider.find>>, PaginatedResponse<EmailProvider>>>,
   Assert<Equal<keyof EmailAddress, 'id' | 'store_id' | 'email_provider_id' | 'email'>>,
-  Assert<Equal<EmailCapabilityReadiness, { type: 'ready' } | { type: 'unavailable'; reason: string } | { type: 'check_failed'; reason: string }>>,
+  Assert<Equal<EmailCapabilityReadiness, { type: 'ready' } | { type: 'unavailable'; reason: EmailReadinessReason } | { type: 'check_failed'; reason: EmailReadinessReason }>>,
+  Assert<Equal<EmailReadinessReason, 'domain_absent' | 'sending_disabled' | 'sending_unverified' | 'receiving_disabled' | 'receiving_unverified' | 'webhook_missing' | 'webhook_duplicated' | 'webhook_disabled' | 'webhook_events_missing' | 'webhook_secret_mismatch' | 'webhook_changed' | 'provider_refused' | 'daily_quota_used_up' | 'monthly_quota_used_up' | 'rate_limited' | 'no_answer' | 'request_not_built'>>,
   Assert<Equal<Awaited<ReturnType<typeof client.notification.outgoingEmail.get>>, OutgoingEmail>>,
   Assert<Equal<OutgoingEmail['preview'], EmailPreview | null>>,
   Assert<Equal<OutgoingEmailSummary['preview'], EmailPreviewSummary | null>>,

@@ -55,6 +55,8 @@ export type ReturnContract = [
   Assert<Equal<ReturnInspectionUnit, { store_id: string; return_id: string; line_id: string; inventory_item_id: string; inventory_unit_id: string }>>,
   Assert<Equal<ReturnCommand["type"], "approve" | "decide" | "decline" | "cancel" | "receive" | "dispose" | "missing" | "tracking">>,
   Assert<Equal<Extract<ReturnCommand, { type: "decide" }>, { type: "decide"; store_location_id: string }>>,
+  Assert<Equal<keyof Extract<ReturnCommand, { type: "dispose" }>, "type" | "action_id" | "items">>,
+  Assert<Equal<Extract<ReturnCommand, { type: "dispose" }>["action_id"], string>>,
   Assert<Equal<keyof Extract<ReturnCommand, { type: "receive" }>["items"][number], "line_id" | "inventory_item_id" | "quantity" | "inventory_unit_ids">>,
   Assert<Equal<keyof Extract<ReturnCommand, { type: "missing" }>["items"][number], "line_id" | "inventory_item_id" | "quantity">>,
   Assert<Equal<keyof ActOnReturnParams, "store_id" | "return_id" | "expected_updated_at" | "command">>,

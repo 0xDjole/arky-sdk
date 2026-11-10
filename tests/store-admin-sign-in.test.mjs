@@ -1,21 +1,21 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
-import { recordFetch } from "./helpers/arky-fixtures.mjs";
+import { recordFetch, ids } from "./helpers/arky-fixtures.mjs";
 
 const baseUrl = "https://store-admin-sign-in.test";
 const storeId = "8ccad9a6-502e-440b-8373-b0fbaf36154c";
 const sessionId = "6f1d3b85-2c47-4e90-a8b3-5d7f9e1c3a62";
 const otherSessionId = "9a2c4e61-8b3d-4f07-b5e9-1c6d8f0a2b74";
 
-test("a store-admin code is asked for in the language its store email is written in, and Arky's own code needs only the email, each under the app's sign-in session id", async (context) => {
+test("a store-admin code is asked for in the language its store email is written in, and a network's code names its network, each under the app's sign-in session id", async (context) => {
   const calls = recordFetch(context, (call) => ({ session_id: call.body.session_id, verification_expires_at: 900 }));
   const auth = createAdmin({ apiUrl: baseUrl }).account.auth;
   assert.deepEqual(await auth.requestCode({ session_id: sessionId, email: "owner@example.test", store_id: storeId, language: "bs" }), { session_id: sessionId, verification_expires_at: 900 });
-  await auth.requestCode({ session_id: otherSessionId, email: "operator@example.test" });
+  await auth.requestCode({ session_id: otherSessionId, email: "operator@example.test", network_id: ids.network });
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
     ["POST", `/v1/stores/${storeId}/auth/code`, { session_id: sessionId, email: "owner@example.test", language: "bs" }],
-    ["POST", "/v1/auth/code", { session_id: otherSessionId, email: "operator@example.test" }],
+    ["POST", "/v1/auth/code", { session_id: otherSessionId, email: "operator@example.test", network_id: ids.network }],
   ]);
   await assert.rejects(async () => auth.requestCode({ session_id: sessionId, email: "owner@example.test", store_id: "store", language: "bs" }), {
     name: "TypeError",
@@ -28,7 +28,7 @@ test("a code request without the app's canonical sign-in session id is refused b
   const calls = recordFetch(context, (call) => ({ session_id: call.body.session_id, verification_expires_at: 900 }));
   const auth = createAdmin({ apiUrl: baseUrl }).account.auth;
   for (const session_id of [undefined, "pending", sessionId.toUpperCase(), "00000000-0000-1000-8000-000000000000"]) {
-    for (const params of [{ session_id, email: "operator@example.test" }, { session_id, email: "owner@example.test", store_id: storeId, language: "bs" }]) {
+    for (const params of [{ session_id, email: "operator@example.test", network_id: ids.network }, { session_id, email: "owner@example.test", store_id: storeId, language: "bs" }]) {
       await assert.rejects(async () => auth.requestCode(params), {
         name: "TypeError",
         message: "The sign-in session id must be a canonical UUID v4 picked by the app",

@@ -9,7 +9,7 @@ import type {
   RefreshStripePaymentOptionParams,
   ReplaceStripeKeysParams,
   SaveStripeWebhookSecretParams,
-  StoreSubscriptionPaymentAction,
+  StoreSubscriptionPayment,
   StripeConnection,
   StripeSetup,
   StripeSetupProblem,
@@ -26,7 +26,7 @@ type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ?
 type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
 type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
 type StripeCheckout = Extract<CheckoutPaymentAction, { type: "stripe_embedded_checkout" }>;
-type BillingCheckout = Extract<StoreSubscriptionPaymentAction, { type: "stripe_embedded_checkout" }>;
+type BillingPayment = Extract<StoreSubscriptionPayment, { type: "stripe" }>;
 
 export type StripeConnectionContracts = [
   Assert<Equal<keyof Stripe, "connect" | "saveWebhookSecret" | "checkSetup" | "replaceKeys" | "refresh">>,
@@ -63,7 +63,7 @@ export type StripeConnectionContracts = [
   Assert<Equal<Extract<PaymentOptionType, { type: "stripe" }>["account_id"], StripeConnection["account_id"]>>,
   Assert<Missing<StripeConnection, "restricted_key" | "secret_key" | "signing_secret">>,
   Assert<Missing<StripeCheckout, "account_id" | "connected_account_id">>,
-  Assert<Missing<BillingCheckout, "account_id" | "stripe_account_id">>,
+  Assert<Missing<BillingPayment, "account_id" | "stripe_account_id">>,
   Assert<Equal<PaymentOption["status"], "active" | "disabled">>,
 ];
 

@@ -52,6 +52,7 @@ import {
   createCompanyRoleApi,
 } from "./api/company";
 import { createCollectionApi, createEntryApi } from "./api/content";
+import { createEntryAccessApi, createPrivateCollectionApi, createPrivateEntryApi } from "./api/privateContent";
 import { createCustomersApi } from "./api/customers";
 import { createDigitalAssetApi } from "./api/digitalAsset";
 import { createEmailSuppressionApi } from "./api/emailSuppression";
@@ -92,6 +93,7 @@ import { createPackageMemberApi, createPackageOfferingApi } from "./api/packageM
 import { createPaymentApi, createIncomingWebhookApi } from "./api/payment";
 import { createPaymentMethodApi } from "./api/paymentMethod";
 import { createPaymentOptionApi } from "./api/paymentOption";
+import { createNetworkApi } from "./api/network";
 import { createPlatformApi } from "./api/platform";
 import { createProductApi, createProductVariantApi } from "./api/product";
 import { createPromotionApi, createPromotionCodeApi } from "./api/promotion";
@@ -102,7 +104,6 @@ import { createShippingMethodApi } from "./api/shippingMethod";
 import { createShippingProfileApi } from "./api/shippingProfile";
 import { createStoreSimulatorApi } from "./api/simulator";
 import { createStoreApi } from "./api/store";
-import { createApiKeyApi } from "./api/apiKey";
 import { createStoreRoleApi } from "./api/storeRole";
 import {
   createStorefrontApi,
@@ -183,12 +184,17 @@ export type { PaymentSimulation, SimulatePaymentOptions, SimulatePaymentParams }
 export { CheckoutFlowError, initialize } from "./storefrontStore";
 export type * from "./storefrontStore";
 
-export const SDK_VERSION = "0.26.106";
+export const SDK_VERSION = "0.26.107";
 
 export interface AdminSession {
   id: string;
   email?: string;
 }
+
+export type StorefrontLogoutResult =
+  | { type: "revoked"; session_id: string }
+  | { type: "unconfirmed"; session_id: string }
+  | { type: "local_only" };
 
 export interface StorefrontCustomerSession {
   customer: StorefrontCustomer;
@@ -198,6 +204,10 @@ export interface StorefrontCustomerSession {
 }
 
 export type AuthStateListener<T> = (session: T | null) => void;
+
+function reportListenerFailure(error: unknown): void {
+  console.error("An Arky auth state listener failed", error);
+}
 
 export interface CreateAdminConfig {
   apiUrl: string;
@@ -217,7 +227,8 @@ function validateAccountToken(accountToken: string): string {
 
 export function createAdmin(config: CreateAdminConfig) {
   const accountToken = config.accountToken === undefined ? null : validateAccountToken(config.accountToken);
-  const sessionState = createAdminSessionState(config.apiUrl, config.refreshPath);
+  const apiUrl = config.apiUrl.replace(/\/+$/, "");
+  const sessionState = createAdminSessionState(apiUrl, config.refreshPath);
   const readAdminSession = sessionState.read;
   const writeAdminSession = sessionState.write;
   let unsubscribeStorage: (() => void) | null = null;
@@ -232,7 +243,7 @@ export function createAdmin(config: CreateAdminConfig) {
     for (const listener of listeners) {
       Promise.resolve()
         .then(() => listener(current))
-        .catch(() => {});
+        .catch(reportListenerFailure);
     }
   }
 
@@ -257,16 +268,16 @@ export function createAdmin(config: CreateAdminConfig) {
       };
 
   const httpClient = createHttpClient({
-    baseUrl: config.apiUrl,
+    baseUrl: apiUrl,
     forcedHeaders: config.forcedHeaders,
     refreshCredentials: accountToken ? undefined : sessionState.refresh,
     onUnauthorized: accountToken ? () => false : config.onUnauthorized,
     authStorage,
   });
 
-  const apiConfig: ApiConfig = { httpClient, baseUrl: config.apiUrl, authStorage };
+  const apiConfig: ApiConfig = { httpClient, baseUrl: apiUrl, authStorage };
   const authHttpClient = createHttpClient({
-    baseUrl: config.apiUrl,
+    baseUrl: apiUrl,
     authStorage: { getTokens: () => null },
     onUnauthorized: () => false,
   });
@@ -279,6 +290,7 @@ export function createAdmin(config: CreateAdminConfig) {
       auth: createAuthApi({ ...apiConfig, httpClient: authHttpClient }, updateSession, sessionState.refreshExplicit),
     },
     platform: createPlatformApi(apiConfig),
+    network: createNetworkApi(apiConfig),
     store: {
       ...createStoreApi(apiConfig),
       country: createCountryApi(apiConfig),
@@ -287,7 +299,6 @@ export function createAdmin(config: CreateAdminConfig) {
       location: createLocationApi(apiConfig),
       market: createMarketApi(apiConfig),
       salesChannel: createSalesChannelApi(apiConfig),
-      apiKey: createApiKeyApi(apiConfig),
       emails: createStoreEmailsApi(apiConfig),
       paymentOption: createPaymentOptionApi(apiConfig),
       simulator: createStoreSimulatorApi(apiConfig),
@@ -313,6 +324,9 @@ export function createAdmin(config: CreateAdminConfig) {
     content: {
       collection: createCollectionApi(apiConfig),
       entry: createEntryApi(apiConfig),
+      privateCollection: createPrivateCollectionApi(apiConfig),
+      privateEntry: createPrivateEntryApi(apiConfig),
+      entryAccess: createEntryAccessApi(apiConfig),
     },
     forms: {
       ...createFormsApi(apiConfig),
@@ -382,13 +396,14 @@ export function createAdmin(config: CreateAdminConfig) {
     },
 
     onAuthStateChanged(listener: AuthStateListener<AdminSession>): () => void {
+      if (accountToken) return () => {};
       listeners.add(listener);
       if (!unsubscribeStorage) unsubscribeStorage = sessionState.subscribe(emit);
       const current = toPublic(readAdminSession());
       if (current) {
         Promise.resolve()
           .then(() => listener(current))
-          .catch(() => {});
+          .catch(reportListenerFailure);
       }
       return () => {
         listeners.delete(listener);
@@ -419,6 +434,11 @@ export interface StorefrontSessionStorage {
 export interface StorefrontContext {
   locale?: string;
   market?: string;
+}
+
+export interface StorefrontIdentity {
+  storeId: string;
+  salesChannelId: string;
 }
 
 export interface StorefrontOptions extends StorefrontContext {
@@ -461,27 +481,8 @@ function normalizeStorefrontApiUrl(value: string | undefined): string {
   return input.replace(/\/+$/, "");
 }
 
-function validatePublishableKey(publishableKey: string): string {
-  const message = "A valid Arky publishable key is required (arky_pk_ followed by 43 URL-safe characters)";
-  if (typeof publishableKey !== "string") throw new TypeError(message);
-  const key = publishableKey.trim();
-  if (!/^arky_pk_[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/.test(key)) throw new TypeError(message);
-  return key;
-}
-
-function publishableKeyFingerprint(publishableKey: string): string {
-  let hashA = 0x811c9dc5;
-  let hashB = 0x9e3779b9;
-  for (let index = 0; index < publishableKey.length; index += 1) {
-    const code = publishableKey.charCodeAt(index);
-    hashA = Math.imul(hashA ^ code, 0x01000193);
-    hashB = Math.imul(hashB ^ code, 0x85ebca6b);
-  }
-  return `${(hashA >>> 0).toString(36)}${(hashB >>> 0).toString(36)}`;
-}
-
-function storefrontSessionStorageKey(apiUrl: string, publishableKey: string): string {
-  return `arky_customer_session:v4:${encodeURIComponent(apiUrl.toLowerCase())}:${publishableKeyFingerprint(publishableKey)}`;
+function storefrontSessionStorageKey(apiUrl: string, storeId: string, salesChannelId: string): string {
+  return `arky_customer_session:v4:${encodeURIComponent(apiUrl)}:${storeId}:${salesChannelId}`;
 }
 
 type StoredCustomerSession = CustomerSessionResult & { version: 4 };
@@ -575,15 +576,15 @@ function sameEmail(left: string, right: string): boolean {
   return left.trim().toLowerCase() === right.trim().toLowerCase();
 }
 
-function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions: StorefrontOptions) {
-  const publishableKey = validatePublishableKey(publishableKeyInput);
+function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOptions: StorefrontOptions) {
+  const storeId = requireId(identity?.storeId, "store");
+  const salesChannelId = requireId(identity?.salesChannelId, "sales channel");
   const options = requireIdFactories(suppliedOptions);
   const apiUrl = normalizeStorefrontApiUrl(options.apiUrl);
   let locale = options.locale?.trim() ?? "";
   let market = contextKey(options.market, "market");
   const listeners = new Set<AuthStateListener<StorefrontCustomerSession>>();
   let automaticRefreshPromise: Promise<CustomerSessionResult> | null = null;
-  let automaticRefreshId: string | null = null;
   let identifyPromise: Promise<CustomerSessionResult> | null = null;
   let identifyKey: string | null = null;
   let pendingVerifySessionId: string | null = null;
@@ -601,7 +602,7 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
   const sharedWithOtherTabs = !explicitSessionStorage && defaultSessionStorage.type === "available";
   let storageUnavailable = defaultSessionStorage.type === "refused";
   const canCreateVisitorSession = typeof window !== "undefined" || Boolean(explicitSessionStorage);
-  const storageKey = storefrontSessionStorageKey(apiUrl, publishableKey);
+  const storageKey = storefrontSessionStorageKey(apiUrl, storeId, salesChannelId);
   let memorySession: CustomerSessionResult | null = null;
   let unsubscribeStorage: (() => void) | null = null;
 
@@ -670,7 +671,7 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
     for (const listener of listeners) {
       Promise.resolve()
         .then(() => listener(current))
-        .catch(() => {});
+        .catch(reportListenerFailure);
     }
   }
 
@@ -714,7 +715,8 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
     const headerLocale = requestLocale(context.locale);
     const headerMarket = requestMarket(context.market);
     return {
-      "X-Arky-Publishable-Key": publishableKey,
+      "X-Arky-Store-Id": storeId,
+      "X-Arky-Sales-Channel-Id": salesChannelId,
       ...(headerLocale ? { "X-Arky-Locale": headerLocale } : {}),
       ...(headerMarket ? { "X-Arky-Market": headerMarket } : {}),
     };
@@ -725,8 +727,9 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
     storefrontMode: true,
     forcedHeaders: storefrontHeaders,
     onUnauthorized: ({ authorizationToken, path, response }) => recoverUnauthorized(authorizationToken, path, response),
+    onRefused: forgetChangedSetup,
   });
-  const publishableKeyHttpClient = createHttpClient({
+  const publicHttpClient = createHttpClient({
     baseUrl: apiUrl,
     authStorage: { getTokens: () => null },
     storefrontMode: true,
@@ -734,12 +737,16 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
     onUnauthorized: () => false,
   });
 
-  const apiConfig: StorefrontApiConfig = { httpClient, publishableKeyHttpClient, apiUrl, publishableKey, authStorage };
+  const apiConfig: StorefrontApiConfig = { httpClient, publicHttpClient, apiUrl, storeId, salesChannelId, authStorage };
 
   function requireVisitorSessionCapability(): void {
     if (!canCreateVisitorSession) {
       throw new TypeError("Stateful storefront calls during SSR need an explicit request-local sessionStorage adapter");
     }
+  }
+
+  function forgetChangedSetup(error: ArkyApiError): void {
+    if (error.code === "PAYMENT_METHOD.TERMS_CHANGED") setupValue = null;
   }
 
   async function getSetup(requestOptions?: RequestOptions): Promise<StorefrontSetup> {
@@ -828,10 +835,13 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
   const storefrontApi = createStorefrontApi(
     apiConfig,
     updateSession,
-    { ensureVisitorSession, getSetup },
+    { ensureVisitorSession, hasSession: () => Boolean(authorizationToken()), getSetup },
     {
       namespace: storageKey,
       storage: sessionStorage,
+      storageRefused: () => {
+        storageUnavailable = true;
+      },
       customerId: () => storedSession()?.customer.id ?? null,
       market: () => market || null,
       marketId,
@@ -865,9 +875,15 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
         return result;
       },
       (error: unknown) => {
-        if (error instanceof ArkyApiError && error.statusCode === 409 && pending()) {
+        if (error instanceof ArkyApiError && isDefiniteRefusal(error) && pending()) {
           pendingVisitorIdentity = null;
           visitorIdentityConsumed = true;
+          // The factory replaces any durable pair now, so a reload cannot replay the refusal.
+          const replacement = options.createVisitorIdentity();
+          pendingVisitorIdentity = {
+            customer_id: requireId(replacement.customer_id, "customer"),
+            session_id: requireId(replacement.session_id, "customer session"),
+          };
         }
         throw error;
       },
@@ -896,7 +912,7 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
     if (params.id !== undefined) requireId(params.id, "sign-in email");
     await ensureVisitorSession();
     const send = (id: string) =>
-      customerApi.requestCode({ id, contact: params.contact, bot_check_token: params.bot_check_token });
+      customerApi.requestCode({ id, contact: params.contact });
     const result =
       params.id !== undefined
         ? await send(params.id)
@@ -962,8 +978,8 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
     updateSession((previous) => (previous ? { ...previous, customer } : previous));
   }
 
-  async function me(options?: RequestOptions): Promise<CustomerMe> {
-    await ensureVisitorSession();
+  async function me(options?: RequestOptions): Promise<CustomerMe | null> {
+    if (!authorizationToken()) return null;
     const requested = storedSession();
     const result = await customerApi.getMe(options);
     applyAnsweredCustomer(requested, result);
@@ -988,16 +1004,18 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
     return customerApi.unsubscribe(options);
   }
 
-  async function logout(): Promise<void> {
+  async function logout(): Promise<StorefrontLogoutResult> {
     identifyPromise = null;
-    if (!authorizationToken()) {
+    const requested = storedSession();
+    if (!requested || !authorizationToken(requested)) {
       updateSession(() => null);
-      return;
+      return { type: "local_only" };
     }
     try {
       await customerApi.logout();
+      return { type: "revoked", session_id: requested.session.id };
     } catch {
-      updateSession(() => null);
+      return { type: "unconfirmed", session_id: requested.session.id };
     }
   }
 
@@ -1005,7 +1023,7 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
     const signedIn = verifiedContact();
     if (signedIn !== null && sameEmail(signedIn.email, params.contact.email)) return { type: "verified" };
     if (storedSession()?.session.type === "email_authenticated") await logout();
-    await requestCode({ contact: params.contact, bot_check_token: params.bot_check_token });
+    await requestCode({ contact: params.contact });
     return { type: "code_sent" };
   }
 
@@ -1031,7 +1049,6 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
 
   function setMarket(value: string): void {
     market = contextKey(value, "market");
-    identifyPromise = null;
   }
 
   function setLocale(value: string): void {
@@ -1053,18 +1070,14 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
         await exclusive(`${storageKey}:refresh`, async () => {
           if (authorizationToken() !== failedAuthorizationToken) return;
           if (!automaticRefreshPromise) {
-            const refreshSessionId = automaticRefreshId ?? requireId(options.createSessionId(), "customer session");
-            automaticRefreshId = refreshSessionId;
-            automaticRefreshPromise = refresh({ session_id: refreshSessionId }).then((result) => {
-              automaticRefreshId = null;
-              return result;
-            }).finally(() => { automaticRefreshPromise = null; });
+            automaticRefreshPromise = refresh({ session_id: requireId(options.createSessionId(), "customer session") }).finally(() => {
+              automaticRefreshPromise = null;
+            });
           }
           await automaticRefreshPromise;
         });
         return true;
       } catch (error) {
-        automaticRefreshId = null;
         if (!(error instanceof ArkyApiError) || !refusedByArky({ status: error.statusCode, data: error.response })) throw error;
         if (authorizationToken() === failedAuthorizationToken) updateSession(() => null);
         return false;
@@ -1077,6 +1090,7 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
     if (!refusedByArky(response)) return false;
     if (authorizationToken() === failedAuthorizationToken) updateSession(() => null);
     if (/\/customer\/identify$/.test(path)) return true;
+    if (/\/customer\/logout$/.test(path)) return false;
     const recovery = ensureVisitorSession();
     const trackedRecovery = recovery.finally(() => {
       if (visitorRecoveryPromise === trackedRecovery) visitorRecoveryPromise = null;
@@ -1120,7 +1134,7 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
       if (current) {
         Promise.resolve()
           .then(() => listener(current))
-          .catch(() => {});
+          .catch(reportListenerFailure);
       }
       return () => {
         listeners.delete(listener);
@@ -1135,6 +1149,7 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
     category: storefrontApi.category,
     media: storefrontApi.media,
     content: storefrontApi.content,
+    sharedEntries: storefrontApi.sharedEntries,
     forms: storefrontApi.forms,
     eshop: storefrontApi.eshop,
     companies: storefrontApi.companies,
@@ -1158,7 +1173,7 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
     experiments: storefrontApi.experiments,
     pageViews: createStorefrontPageViewsApi(apiConfig),
     support: createStorefrontSupportApi(httpClient, ensureVisitorSession, flows),
-    broadcast: createStorefrontBroadcastApi(publishableKeyHttpClient),
+    broadcast: createStorefrontBroadcastApi(publicHttpClient),
     getSetup,
     setContext,
     getMarket: () => market,
@@ -1168,8 +1183,8 @@ function createStorefrontClientCore(publishableKeyInput: string, suppliedOptions
 
 export type StorefrontClient = ReturnType<typeof createStorefrontClientCore>;
 
-export function createStorefront(publishableKey: string, options: StorefrontOptions): StorefrontClient {
-  return createStorefrontClientCore(publishableKey, options);
+export function createStorefront(identity: StorefrontIdentity, options: StorefrontOptions): StorefrontClient {
+  return createStorefrontClientCore(identity, options);
 }
 
 export { createOrderToken, isOrderToken, retainOrderToken, replaceOrderToken, readOrderToken } from "./utils/orderToken";

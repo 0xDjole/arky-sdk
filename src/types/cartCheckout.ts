@@ -1,5 +1,5 @@
 import type { RequestOptions, RequestSuccessContext } from "./httpClient";
-import type { CartQuote, StorefrontCheckoutAcceptance, StorefrontCheckoutCartInput } from "./cart";
+import type { StorefrontCartQuote, StorefrontCheckoutAcceptance, StorefrontCheckoutCartInput } from "./cart";
 import type { StorefrontOrder } from "./order";
 import { ArkyApiError, type ArkyApiErrorDetails } from "./apiError";
 
@@ -26,7 +26,7 @@ export class CartPresentationChangedError extends ArkyApiError {
   }
 
   constructor(
-    readonly quote: CartQuote,
+    readonly quote: StorefrontCartQuote,
     answer: Pick<ArkyApiErrorDetails, "response" | "method" | "url" | "requestId"> = {},
   ) {
     super({

@@ -45,7 +45,8 @@ test("a count report sends its span and reads as JSON query values and leaves ou
       { type: "unique_visitors_day", segment: null, value: 340 },
     ],
     breakdowns: [
-      { type: "page_views_by_page_day", segments: [{ segment: "/", value: 90 }], other_segments: 3, other_value: 12 },
+      { type: "page_views_by_page_day", segments: [{ segment: "/", value: 90 }], other_segments: 3, other_value: { type: "count", value: 12 } },
+      { type: "placed_value_by_market_day", segments: [{ segment: marketId, value: 125_000 }], other_segments: 2, other_value: { type: "money", currencies: [{ currency: "eur", value: 4_000 }, { currency: "bam", value: 9_100 }] } },
     ],
     series: [],
   };

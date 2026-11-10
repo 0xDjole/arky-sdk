@@ -32,7 +32,7 @@ export {
 } from "./durableRequest";
 export type { DurableRequest, DurableRequestErrorCode } from "./durableRequest";
 
-export { readPendingMediaCreate } from "./durableMediaCreate";
+export { discardPendingMediaCreate, readPendingMediaCreate } from "./durableMediaCreate";
 
 export { paginate, readAllPages } from "./paginate";
 export type { PageRead, PaginateOptions } from "./paginate";

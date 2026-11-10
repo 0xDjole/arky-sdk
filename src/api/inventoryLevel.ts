@@ -1,6 +1,6 @@
 import type { ApiConfig } from "../services/clientTypes";
 import type { RequestOptions } from "../types/api";
-import type { PaginatedResponse } from "../types/common";
+import type { DeletedResponse, PaginatedResponse } from "../types/common";
 import type {
   ChangeSetAsideParams,
   CreateInventoryLevelParams,
@@ -72,8 +72,8 @@ export const createInventoryLevelApi = (apiConfig: ApiConfig) => {
       return action<InventoryLevel>(store_id, id, "incoming", body, options);
     },
 
-    remove(params: RemoveInventoryLevelParams, options?: RequestOptions): Promise<void> {
-      return apiConfig.httpClient.delete<void>(storeRecordPath(params.store_id, collection, params.id), {
+    remove(params: RemoveInventoryLevelParams, options?: RequestOptions): Promise<DeletedResponse> {
+      return apiConfig.httpClient.delete<DeletedResponse>(storeRecordPath(params.store_id, collection, params.id), {
         ...options,
         params: { expected_updated_at: params.expected_updated_at },
       });

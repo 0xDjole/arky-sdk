@@ -2,7 +2,7 @@ import type { EpochMilliseconds } from "./time";
 import type { IncomingWebhookResolution, IncomingWebhookStatusName } from "./payment";
 
 export type OutgoingEmailType =
-  | { type: "arky_sign_in" }
+  | { type: "network_sign_in"; network_id: string }
   | { type: "customer_sign_in"; sending_address_id: string }
   | { type: "store_admin_sign_in"; sending_address_id: string }
   | { type: "store_admin_invite"; sending_address_id: string }
@@ -270,7 +270,7 @@ export interface EmailLayout {
 
 export type EmailProviderType =
   | { type: "resend"; webhook_id: string }
-  | { type: "arky_resend"; webhook_id: string };
+  | { type: "arky_resend" };
 
 export interface EmailProvider {
   id: string;
@@ -302,7 +302,8 @@ export type EmailProviderDomainStatus =
   | "partially_verified"
   | "partially_failed"
   | "failed"
-  | "temporary_failure";
+  | "temporary_failure"
+  | "unknown";
 
 export interface EmailProviderDnsRecord {
   record: string;
@@ -329,10 +330,29 @@ export interface EmailAddress {
   email: string;
 }
 
+export type EmailReadinessReason =
+  | "domain_absent"
+  | "sending_disabled"
+  | "sending_unverified"
+  | "receiving_disabled"
+  | "receiving_unverified"
+  | "webhook_missing"
+  | "webhook_duplicated"
+  | "webhook_disabled"
+  | "webhook_events_missing"
+  | "webhook_secret_mismatch"
+  | "webhook_changed"
+  | "provider_refused"
+  | "daily_quota_used_up"
+  | "monthly_quota_used_up"
+  | "rate_limited"
+  | "no_answer"
+  | "request_not_built";
+
 export type EmailCapabilityReadiness =
   | { type: "ready" }
-  | { type: "unavailable"; reason: string }
-  | { type: "check_failed"; reason: string };
+  | { type: "unavailable"; reason: EmailReadinessReason }
+  | { type: "check_failed"; reason: EmailReadinessReason };
 
 export interface EmailAddressReadiness {
   sending: EmailCapabilityReadiness;
@@ -416,6 +436,7 @@ export interface PreviewEmailTemplateParams {
   store_id: string;
   id: string;
   language: string;
+  layout_id?: string;
   content?: EmailContent;
 }
 

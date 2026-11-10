@@ -9,7 +9,7 @@ import {
   ids,
   idFactories,
   idSequence,
-  publishableKey,
+  storefrontIdentity,
   recordFetch,
   visitorStorage,
 } from "./helpers/arky-fixtures.mjs";
@@ -153,7 +153,7 @@ function calendarServer(context, { pages = [[stayEntry()]], choices = [offeringC
 }
 
 function calendarStore(createId = idSequence(factoryId(1), factoryId(2))) {
-  return initialize(publishableKey, { ...idFactories, createId, apiUrl, locale: "en", market: "bih", sessionStorage: visitorStorage() });
+  return initialize(storefrontIdentity, { ...idFactories, createId, apiUrl, locale: "en", market: "bih", sessionStorage: visitorStorage() });
 }
 
 function availabilityReads(calls) {

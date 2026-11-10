@@ -42,6 +42,7 @@ test('the helpers are module exports, with no utils object on a client and no En
 		assert.equal(removed in utils, false, removed);
 		assert.equal(removed in storefront, false, removed);
 	}
+	assert.equal('getBlockLabel' in storefront, false);
 });
 
 test('localized and structured blocks format through the explicit language without inventing one', () => {

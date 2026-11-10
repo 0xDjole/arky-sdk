@@ -16,8 +16,9 @@ export type MediaDiscoveryContracts = [
   Assert<Equal<FindMediaParams['sort_field'], 'file_name' | 'created_at' | 'updated_at' | undefined>>,
   Assert<Equal<FindMediaParams['type'], 'image' | 'video' | 'pdf' | undefined>>,
   Assert<Missing<FindMediaParams, 'mime_type'>>,
+  Assert<Missing<FindMediaParams, 'visibility'>>,
   Assert<Equal<keyof Parameters<typeof storefront.media.find>[0], 'ids'>>,
   Assert<Missing<typeof storefront.media, 'findByIds'>>,
   Assert<Equal<MediaContent['type'], 'image' | 'video' | 'pdf'>>,
-  Assert<Equal<Extract<MediaContent, { type: 'pdf' }>['original']['url'], string>>,
+  Assert<Equal<Extract<MediaContent, { type: 'pdf' }>['original']['url'], string | null>>,
 ];

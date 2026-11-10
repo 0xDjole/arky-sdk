@@ -8,8 +8,11 @@ import {
   ids,
   idFactories,
   marketRecord,
-  publishableKey,
+  storefrontIdentity,
   recordFetch,
+  SessionStorage,
+  sessionResult,
+  visitorSession,
   visitorStorage,
 } from "./helpers/arky-fixtures.mjs";
 
@@ -19,7 +22,7 @@ const austria = "7d2e9b41-6c05-4a38-9f7e-5b1c8d3a6f92";
 const marketIds = { de: germany, at: austria };
 
 function storefront(storage, options = {}) {
-  return createStorefront(publishableKey, { ...idFactories, apiUrl, locale: "en", market: "de", sessionStorage: storage, ...options });
+  return createStorefront(storefrontIdentity, { ...idFactories, apiUrl, locale: "en", market: "de", sessionStorage: storage, ...options });
 }
 
 function marketServer(context, respond = () => { throw new Error("Unexpected request"); }) {
@@ -158,7 +161,7 @@ test("a cart update names the market it moves to and carries the reference of ea
 
 test("the store makes its cart in the current market through the same read", async (context) => {
   const calls = marketServer(context);
-  const arky = initialize(publishableKey, { ...idFactories, apiUrl, locale: "en", market: "de", sessionStorage: visitorStorage() });
+  const arky = initialize(storefrontIdentity, { ...idFactories, apiUrl, locale: "en", market: "de", sessionStorage: visitorStorage() });
   const scope = { buyer: customer, package_id: ids.package };
   const german = arky.eshop.cart(scope);
   const created = await german.create({ id: ids.cart });
@@ -172,4 +175,31 @@ test("the store makes its cart in the current market through the same read", asy
     [ids.cart, germany],
     [ids.otherCart, austria],
   ]);
+});
+
+test("a_market_change_during_identify_reuses_it", async (context) => {
+  let release;
+  const held = new Promise((resolve) => {
+    release = resolve;
+  });
+  let markStarted;
+  const started = new Promise((resolve) => {
+    markStarted = resolve;
+  });
+  const calls = recordFetch(context, async (call) => {
+    if (call.path !== "/v1/storefront/customer/identify") throw new Error(`Unexpected request ${call.path}`);
+    markStarted();
+    await held;
+    return sessionResult(ids.customer, visitorSession(ids.customer, ids.session));
+  });
+  const api = storefront(new SessionStorage());
+  const first = api.customer.identify();
+  await started;
+  api.setContext({ market: "at" });
+  const second = api.customer.identify();
+  release();
+  const [answered, reused] = await Promise.all([first, second]);
+  assert.equal(reused.session.id, answered.session.id);
+  assert.equal(api.getMarket(), "at");
+  assert.deepEqual(calls.map((call) => [call.path, call.headers.get("authorization")]), [["/v1/storefront/customer/identify", null]]);
 });

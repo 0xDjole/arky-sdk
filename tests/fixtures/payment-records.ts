@@ -134,7 +134,7 @@ export const recordedPayment: Payment = {
   holds: [
     {
       id: "531b79f6-86d4-48cd-a241-73b7f16256b6",
-      message: "Late cash",
+      reason: { type: "money_after_end" },
       opened_at: at,
       status: {
         type: "resolved",
@@ -145,7 +145,7 @@ export const recordedPayment: Payment = {
     },
     {
       id: "90ce1835-5c4b-47de-9f81-38980b7e7bcd",
-      message: "Late cash",
+      reason: { type: "money_after_end" },
       opened_at: at,
       status: { type: "open" },
     },

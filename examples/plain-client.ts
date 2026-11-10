@@ -1,6 +1,6 @@
 import { createOrderToken, createStorefront, readAllPages } from "arky-sdk/storefront";
 
-const client = createStorefront("arky_pk_...", {
+const client = createStorefront({ storeId: "5e9b3d71-c826-4a04-b7f5-0d2a8e6c4f19", salesChannelId: "e5a8c2d7-3b91-4f06-9d4e-1c7b6a0f3e28" }, {
   apiUrl: "https://api.arky.io",
   locale: "en",
   market: "eu",

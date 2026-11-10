@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { File } from "node:buffer";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
-import { initialize } from "../dist/storefront.js";
-import { apiUrl, errorResponse, fixedIdFactories, ids, publishableKey, recordFetch, visitorStorage } from "./helpers/arky-fixtures.mjs";
+import { buildFormAnswers, FormAnswerError, initialize } from "../dist/storefront.js";
+import { apiUrl, errorResponse, fixedIdFactories, ids, storefrontIdentity, recordFetch, visitorStorage } from "./helpers/arky-fixtures.mjs";
 
 const STORE_ID = "a8c41e2f-6d95-4b07-83f1-0e5d7a9c2b36";
 const FORM_ID = ids.form;
@@ -100,7 +100,7 @@ test("storefront submit with the loaded form keeps the caller's id and answers a
     if (++submissions === 1) throw new TypeError("response lost");
     return { id: SUBMISSION_ID, form_id: FORM_ID, language: "en", answers: [], stage_id: "new", created_at: 2, updated_at: 2 };
   });
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", sessionStorage: visitorStorage() });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", sessionStorage: visitorStorage() });
   const request = { id: SUBMISSION_ID, form: intake, language: "en", values: { answer: "kept" } };
   await assert.rejects(store.forms.submit(request), /response lost/);
   const answer = await store.forms.submit(request);
@@ -120,7 +120,7 @@ test("storefront submit with the loaded form keeps the caller's id and answers a
 
 test("a submission against a form that changed since it loaded is refused as FORM_CHANGED without a hidden reload or resubmission", async (context) => {
   const calls = recordFetch(context, () => Response.json({ message: "The form changed; reload it", error: "FORM_SUBMISSION.FORM_CHANGED", status_code: 409, validation_errors: [] }, { status: 409 }));
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", sessionStorage: visitorStorage() });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", sessionStorage: visitorStorage() });
   const loaded = { ...intake, questions_updated_at: 7, updated_at: 8 };
   await assert.rejects(store.forms.submit({ id: SUBMISSION_ID, form: loaded, language: "en", values: { answer: "Kept" } }), (error) => {
     assert.equal(error.code, "FORM_SUBMISSION.FORM_CHANGED");
@@ -135,7 +135,7 @@ test("a submission against a form that changed since it loaded is refused as FOR
 
 test("a refused submission whose answers don't fit the form propagates its field errors without a resubmission", async (context) => {
   const calls = recordFetch(context, () => Response.json({ message: "The answers don't fit the form", error: "FORM_SUBMISSION.INVALID_INPUT", status_code: 400, validation_errors: [{ field: "answers[0].question_id", error: "FORM_SUBMISSION.UNKNOWN_QUESTION" }] }, { status: 400 }));
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", sessionStorage: visitorStorage() });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", sessionStorage: visitorStorage() });
   await assert.rejects(store.forms.submit({ id: SUBMISSION_ID, form: intake, language: "en", values: { answer: "Kept" } }), (error) => {
     assert.equal(error.code, "FORM_SUBMISSION.INVALID_INPUT");
     assert.equal(error.statusCode, 400);
@@ -304,4 +304,55 @@ test("a staff submission leaves out whitespace-only text, empty choices and empt
     answers: [{ type: "boolean", question_id: "q-member", key: "member", value: false }],
   });
   assert.deepEqual([...calls[0].body.keys()], ["submission"]);
+});
+
+function textQuestion(overrides) {
+  return { id: "q-name", key: "name", type: "text", required: true, label: { type: "shown", text: { en: "Name" } }, min_length: null, max_length: null, pattern: null, ...overrides };
+}
+
+function patternMismatch(error) {
+  return error instanceof FormAnswerError && error.code === "pattern_mismatch" && error.questionKey === "name";
+}
+
+test("a_unicode_pattern_accepts_what_the_server_accepts", () => {
+  const name = "Đorđe Šćekić";
+  const accepted = [
+    ["^\\p{L}+( \\p{L}+)*$", name],
+    ["^[\\w ]+$", name],
+    ["\\bĐorđe\\b", name],
+    ["^\\d{4}$", "١٢٣٤"],
+    ["(?i)^đorđe šćekić$", name],
+    ["^\\pL+$", "Ana"],
+  ];
+  for (const [pattern, value] of accepted) {
+    assert.deepEqual(
+      buildFormAnswers({ questions: [textQuestion({ pattern })] }, { name: value }),
+      [{ question_id: "q-name", key: "name", type: "text", value }],
+      pattern,
+    );
+  }
+  assert.throws(() => buildFormAnswers({ questions: [textQuestion({ pattern: "^\\p{Lu}" })] }, { name: "đorđe" }), patternMismatch);
+  assert.throws(() => buildFormAnswers({ questions: [textQuestion({ pattern: "^[a-z]+$" })] }, { name }), patternMismatch);
+  assert.throws(() => buildFormAnswers({ questions: [textQuestion({ pattern: "^\\\\d$" })] }, { name: "5" }), patternMismatch);
+});
+
+test("an_emoji_answer_at_the_limit_passes", () => {
+  const value = "Super 🍕🍕🍕🍕";
+  assert.equal(value.length, 14);
+  assert.deepEqual(
+    buildFormAnswers({ questions: [textQuestion({ max_length: 10 })] }, { name: value }),
+    [{ question_id: "q-name", key: "name", type: "text", value }],
+  );
+  assert.throws(
+    () => buildFormAnswers({ questions: [textQuestion({ max_length: 9 })] }, { name: value }),
+    (error) => error instanceof FormAnswerError && error.code === "too_long",
+  );
+  assert.deepEqual(
+    buildFormAnswers({ questions: [textQuestion({ min_length: 3 })] }, { name: "🍕🍕🍕" }),
+    [{ question_id: "q-name", key: "name", type: "text", value: "🍕🍕🍕" }],
+  );
+  assert.throws(
+    () => buildFormAnswers({ questions: [textQuestion({ min_length: 3 })] }, { name: "🍕🍕" }),
+    (error) => error instanceof FormAnswerError && error.code === "too_short",
+  );
 });

@@ -8,7 +8,7 @@ import {
   idFactories,
   ids,
   installGlobal,
-  publishableKey,
+  storefrontIdentity,
   recordFetch,
   SessionStorage,
   visitorStorage,
@@ -33,10 +33,10 @@ function refuseFetch(context) {
   });
 }
 
-test("a page view is one text beacon with only the publishable key, the path and the referrer", (context) => {
+test("a page view is one text beacon with only the store, sales channel, path and referrer", (context) => {
   const sent = stubBeacon(context);
   const calls = refuseFetch(context);
-  const storefront = createStorefront(publishableKey, { ...idFactories, apiUrl, sessionStorage: visitorStorage() });
+  const storefront = createStorefront(storefrontIdentity, { ...idFactories, apiUrl, sessionStorage: visitorStorage() });
 
   storefront.pageViews.send({
     path: "/products/example?utm_source=mail",
@@ -51,11 +51,11 @@ test("a page view is one text beacon with only the publishable key, the path and
   assert.equal(typeof sent[0].body, "string");
   assert.deepEqual(sent.map((beacon) => beacon.parsed), [
     {
-      publishable_key: publishableKey,
+      store_id: storefrontIdentity.storeId, sales_channel_id: storefrontIdentity.salesChannelId,
       path: "/products/example?utm_source=mail",
       referrer: "https://www.google.com/search?q=example",
     },
-    { publishable_key: publishableKey, path: "/", referrer: null },
+    { store_id: storefrontIdentity.storeId, sales_channel_id: storefrontIdentity.salesChannelId, path: "/", referrer: null },
   ]);
   for (const beacon of sent) {
     assert.equal(beacon.body.includes(ids.session), false);
@@ -67,7 +67,7 @@ test("a page view is one text beacon with only the publishable key, the path and
 
 test("a page view forwards no session, customer, store or visitor field from the caller", (context) => {
   const sent = stubBeacon(context);
-  const storefront = createStorefront(publishableKey, { ...idFactories, apiUrl, sessionStorage: visitorStorage() });
+  const storefront = createStorefront(storefrontIdentity, { ...idFactories, apiUrl, sessionStorage: visitorStorage() });
 
   storefront.pageViews.send({
     path: "/",
@@ -79,7 +79,7 @@ test("a page view forwards no session, customer, store or visitor field from the
   });
 
   assert.deepEqual(sent.map((beacon) => beacon.parsed), [
-    { publishable_key: publishableKey, path: "/", referrer: null },
+    { store_id: storefrontIdentity.storeId, sales_channel_id: storefrontIdentity.salesChannelId, path: "/", referrer: null },
   ]);
 });
 
@@ -87,7 +87,7 @@ test("an empty referrer travels as none, and a page view never creates or stores
   const sent = stubBeacon(context);
   const calls = refuseFetch(context);
   const storage = new SessionStorage();
-  const storefront = createStorefront(publishableKey, {
+  const storefront = createStorefront(storefrontIdentity, {
     apiUrl,
     sessionStorage: storage,
     createVisitorIdentity: () => ({ customer_id: ids.customer, session_id: ids.session }),
@@ -99,7 +99,7 @@ test("an empty referrer travels as none, and a page view never creates or stores
   storefront.pageViews.send({ path: "/about", referrer: "" });
 
   assert.deepEqual(sent.map((beacon) => beacon.parsed), [
-    { publishable_key: publishableKey, path: "/about", referrer: null },
+    { store_id: storefrontIdentity.storeId, sales_channel_id: storefrontIdentity.salesChannelId, path: "/about", referrer: null },
   ]);
   assert.equal(calls.length, 0);
   assert.equal(storefront.session, null);
@@ -108,7 +108,7 @@ test("an empty referrer travels as none, and a page view never creates or stores
 
 test("a page view refuses a path without a leading slash and a referrer that is not text", (context) => {
   const sent = stubBeacon(context);
-  const storefront = createStorefront(publishableKey, { ...idFactories, apiUrl, sessionStorage: visitorStorage() });
+  const storefront = createStorefront(storefrontIdentity, { ...idFactories, apiUrl, sessionStorage: visitorStorage() });
 
   assert.throws(() => storefront.pageViews.send({ path: "products/example" }), TypeError);
   assert.throws(() => storefront.pageViews.send({ path: "https://shop.example/products" }), TypeError);
@@ -117,7 +117,7 @@ test("a page view refuses a path without a leading slash and a referrer that is 
 });
 
 test("a page view fails visibly outside a browser and when the browser does not queue it", (context) => {
-  const storefront = createStorefront(publishableKey, { ...idFactories, apiUrl, sessionStorage: visitorStorage() });
+  const storefront = createStorefront(storefrontIdentity, { ...idFactories, apiUrl, sessionStorage: visitorStorage() });
   assert.equal(typeof globalThis.navigator?.sendBeacon, "undefined");
   assert.throws(() => storefront.pageViews.send({ path: "/" }), /navigator\.sendBeacon/);
 
@@ -129,12 +129,12 @@ test("a page view fails visibly outside a browser and when the browser does not 
 test("the initialized store sends page views through the same call and keeps actions for tracked outcomes", async (context) => {
   const sent = stubBeacon(context);
   const calls = recordFetch(context, () => new Response(null, { status: 204 }));
-  const store = initialize(publishableKey, { ...idFactories, apiUrl, locale: "en", sessionStorage: visitorStorage() });
+  const store = initialize(storefrontIdentity, { ...idFactories, apiUrl, locale: "en", sessionStorage: visitorStorage() });
 
   store.pageViews.send({ path: "/", referrer: "https://news.example.org/story" });
 
   assert.deepEqual(sent.map((beacon) => beacon.parsed), [
-    { publishable_key: publishableKey, path: "/", referrer: "https://news.example.org/story" },
+    { store_id: storefrontIdentity.storeId, sales_channel_id: storefrontIdentity.salesChannelId, path: "/", referrer: "https://news.example.org/story" },
   ]);
   assert.equal(store.actions.pageView, undefined);
   assert.equal(calls.length, 0);

@@ -1,7 +1,7 @@
 import type { ApiConfig } from "../services/clientTypes";
 import type { HttpClient } from "../types/httpClient";
 import type { RequestOptions } from "../types/api";
-import type { PaginatedResponse } from "../types/common";
+import type { DeletedResponse, PaginatedResponse } from "../types/common";
 import type { Order, StorefrontOrder } from "../types/order";
 import type {
   GetStorefrontPackageByKeyParams,
@@ -135,8 +135,8 @@ export const createPackageOfferingApi = (apiConfig: ApiConfig) => ({
   delete(
     params: DeletePackageOfferingParams,
     options?: RequestOptions,
-  ): Promise<void> {
-    return apiConfig.httpClient.delete<void>(
+  ): Promise<DeletedResponse> {
+    return apiConfig.httpClient.delete<DeletedResponse>(
       storeRecordPath(params.store_id, "package-offerings", params.id),
       {
         ...options,

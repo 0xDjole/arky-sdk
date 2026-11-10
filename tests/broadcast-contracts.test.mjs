@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { createStorefront, initialize } from "../dist/storefront.js";
-import { apiUrl, errorResponse, idFactories, publishableKey, recordFetch, SessionStorage, signedInStorage } from "./helpers/arky-fixtures.mjs";
+import { apiUrl, errorResponse, idFactories, storefrontIdentity, recordFetch, SessionStorage, signedInStorage } from "./helpers/arky-fixtures.mjs";
 
 const storeId = "4f2a9c61-7e3b-4d85-a0c9-1b6e8d3f5a27";
 const broadcastId = "6e2b9d41-3c58-4a07-9f1e-2d7c5b0a8e63";
@@ -59,11 +59,11 @@ test("a scheduled broadcast carries the content frozen when it was scheduled, an
   ]);
 });
 
-test("the store's own unsubscribe page posts the one-click form with the email's token through the publishable key and no customer session, even while a customer is signed in", async (context) => {
+test("the store's own unsubscribe page posts the one-click form with the email's token through the storefront IDs and no customer session, even while a customer is signed in", async (context) => {
   const calls = recordFetch(context, () => ({ result: "unsubscribed" }));
   const tokens = ["v1.store/one+reader=", "v1.store/two+reader="];
-  const storefront = createStorefront(publishableKey, { ...idFactories, apiUrl, locale: "bs", sessionStorage: signedInStorage() });
-  const store = initialize(publishableKey, { ...idFactories, apiUrl, locale: "bs", sessionStorage: signedInStorage() });
+  const storefront = createStorefront(storefrontIdentity, { ...idFactories, apiUrl, locale: "bs", sessionStorage: signedInStorage() });
+  const store = initialize(storefrontIdentity, { ...idFactories, apiUrl, locale: "bs", sessionStorage: signedInStorage() });
   assert.equal(storefront.isAuthenticated, true);
   assert.equal(store.isAuthenticated, true);
   assert.deepEqual(await storefront.broadcast.unsubscribe({ token: tokens[0] }), { result: "unsubscribed" });
@@ -76,7 +76,8 @@ test("the store's own unsubscribe page posts the one-click form with the email's
     assert.equal(call.url.search, `?token=${encodeURIComponent(tokens[index])}`);
     assert.equal(call.headers.get("content-type"), "application/x-www-form-urlencoded");
     assert.equal(call.body, "List-Unsubscribe=One-Click");
-    assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
+    assert.equal(call.headers.get("x-arky-store-id"), storefrontIdentity.storeId);
+    assert.equal(call.headers.get("x-arky-sales-channel-id"), storefrontIdentity.salesChannelId);
     assert.equal(call.headers.has("authorization"), false);
   });
   assert.deepEqual(Object.keys(storefront.broadcast), ["unsubscribe"]);
@@ -85,7 +86,7 @@ test("the store's own unsubscribe page posts the one-click form with the email's
 
 test("an unsubscribe with a token the Server can't read comes back as its refusal", async (context) => {
   const calls = recordFetch(context, () => errorResponse(404, "GENERAL.NOT_FOUND", "Not found"));
-  const storefront = createStorefront(publishableKey, { ...idFactories, apiUrl, sessionStorage: new SessionStorage() });
+  const storefront = createStorefront(storefrontIdentity, { ...idFactories, apiUrl, sessionStorage: new SessionStorage() });
   await assert.rejects(storefront.broadcast.unsubscribe({ token: "unreadable" }), (error) => error.statusCode === 404 && error.code === "GENERAL.NOT_FOUND");
   assert.equal(calls.length, 1);
 });

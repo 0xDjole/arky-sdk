@@ -7,6 +7,7 @@ import type {
   FindMediaParams,
   GetMediaParams,
   Media,
+  MediaVisibility,
   ReplaceMediaContentParams,
   UpdateMediaParams,
 } from "../types/content";
@@ -35,8 +36,8 @@ function isAmbiguousMediaResult(error: unknown): boolean {
   return status === null || status >= 500;
 }
 
-function matchingMedia(media: Media, storeId: string, mediaId: string): boolean {
-  return typeof media === "object" && media !== null && media.id === mediaId && media.store_id === storeId;
+function matchingMedia(media: Media, storeId: string, mediaId: string, visibility: MediaVisibility): boolean {
+  return typeof media === "object" && media !== null && media.id === mediaId && media.store_id === storeId && media.visibility === visibility;
 }
 
 export const createMediaApi = (apiConfig: ApiConfig) => {
@@ -45,6 +46,7 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
     if (exact.file) formData.append("file", exact.file);
     else formData.append("source_url", exact.source_url);
     if (exact.alt) formData.append("alt", JSON.stringify(exact.alt));
+    if (exact.visibility !== undefined) formData.append("visibility", exact.visibility);
     return apiConfig.httpClient.put<Media>(storeRecordPath(exact.store_id, "media", exact.id), formData, options);
   };
 
@@ -69,7 +71,7 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
               const reconciled = await apiConfig.httpClient.get<Media>(
                 storeRecordPath(storeId, "media", pending.params.id),
               );
-              if (matchingMedia(reconciled, storeId, pending.params.id)) {
+              if (matchingMedia(reconciled, storeId, pending.params.id, pending.params.visibility ?? "public")) {
                 await clearPendingMediaCreate(pending.durable);
                 return reconciled;
               }
@@ -77,7 +79,7 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
           }
           throw error;
         }
-        if (!matchingMedia(result, storeId, pending.params.id)) {
+        if (!matchingMedia(result, storeId, pending.params.id, pending.params.visibility ?? "public")) {
           throw new DurableRequestError(
             "answer_mismatch",
             `${mediaCreateLabel} was answered with another media; the request is kept for a retry`,

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { createStorefront } from "../dist/storefront.js";
-import { apiUrl, fixedIdFactories, publishableKey, recordFetch, visitorStorage } from "./helpers/arky-fixtures.mjs";
+import { apiUrl, fixedIdFactories, storefrontIdentity, recordFetch, visitorStorage } from "./helpers/arky-fixtures.mjs";
 
 const store = "75669224-5b13-4994-a4a7-98b0d3d90d89";
 const id = "52718a47-c06b-49aa-b3a7-1ac29f9756a3";
@@ -20,9 +20,9 @@ test("promotion discovery keeps scoped filters, the opaque continuation and exac
     { items: [], cursor }, { items: [policy], cursor: null }, policy,
     { items: [], cursor }, { items: [code], cursor: null }, code,
     new Response(JSON.stringify({ ...policy, status: { type: "deleting" } }), { status: 202, headers: { "content-type": "application/json" } }),
-    new Response(null, { status: 204 }),
+    Response.json({ message: "Not found", error: "GENERAL.NOT_FOUND", status_code: 404, validation_errors: [] }, { status: 404 }),
     new Response(JSON.stringify({ ...code, status: { type: "deleting" } }), { status: 202, headers: { "content-type": "application/json" } }),
-    new Response(null, { status: 204 }),
+    Response.json({ message: "Not found", error: "GENERAL.NOT_FOUND", status_code: 404, validation_errors: [] }, { status: 404 }),
   ];
   const calls = recordFetch(context, () => replies.shift());
   const api = eshop();
@@ -38,9 +38,9 @@ test("promotion discovery keeps scoped filters, the opaque continuation and exac
   assert.deepEqual(await api.promotionCode.find({ ...codeQuery, cursor: codePage.cursor }), { items: [code], cursor: null });
   assert.deepEqual(await api.promotionCode.getByCode({ store_id: store, code: "WINTER/10" }), code);
   assert.equal((await api.promotion.delete({ store_id: store, id, expected_updated_at: 123 })).status.type, "deleting");
-  assert.equal(await api.promotion.delete({ store_id: store, id, expected_updated_at: 123 }), undefined);
+  await assert.rejects(api.promotion.delete({ store_id: store, id, expected_updated_at: 123 }), (error) => error.statusCode === 404 && error.code === "GENERAL.NOT_FOUND");
   assert.equal((await api.promotionCode.delete({ store_id: store, id: codeId, expected_updated_at: 456 })).status.type, "deleting");
-  assert.equal(await api.promotionCode.delete({ store_id: store, id: codeId, expected_updated_at: 456 }), undefined);
+  await assert.rejects(api.promotionCode.delete({ store_id: store, id: codeId, expected_updated_at: 456 }), (error) => error.statusCode === 404 && error.code === "GENERAL.NOT_FOUND");
   assert.equal(calls.length, 10);
   assert.ok(calls.every((call) => call.path.startsWith(`/v1/stores/${store}/`) && call.headers.get("authorization") === "Bearer arky_at_ttttttttttttttttttttttttttttttttttttttttttA"));
   assert.deepEqual(calls[1].query, { key: policy.key, status: "active", limit: "20", cursor });
@@ -150,7 +150,7 @@ test("fixed promotion transports currency alternatives, explicit item scope and 
 test("a storefront reads a promotion's key and blocks by id with one request and no conditions or counters", async (context) => {
   const shown = { id, key: "winter-sale", blocks: [{ id: "8e2c4a61-7b39-4d05-9f1a-3c6e8b0d2f47", key: "headline", type: "text", value: "Winter sale" }] };
   const calls = recordFetch(context, () => shown);
-  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "bs", sessionStorage: visitorStorage() });
+  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "bs", sessionStorage: visitorStorage() });
   assert.deepEqual(await storefront.eshop.promotion.get({ id }), shown);
   await storefront.eshop.promotion.get({ id: "promotion/one" });
   assert.deepEqual(calls.map((call) => [call.method, call.path, call.body]), [
@@ -158,7 +158,8 @@ test("a storefront reads a promotion's key and blocks by id with one request and
     ["GET", "/v1/storefront/promotions/promotion%2Fone", null],
   ]);
   for (const call of calls) {
-    assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
+    assert.equal(call.headers.get("x-arky-store-id"), storefrontIdentity.storeId);
+    assert.equal(call.headers.get("x-arky-sales-channel-id"), storefrontIdentity.salesChannelId);
     assert.equal(call.headers.get("x-arky-locale"), "bs");
   }
   assert.deepEqual(Object.keys(storefront.eshop.promotion), ["get"]);

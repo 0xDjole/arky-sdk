@@ -4,7 +4,7 @@ import type { RequestOptions } from "../types/api";
 import type { PaginatedResponse } from "../types/common";
 import type {
   StorefrontCart,
-  CartQuote,
+  StorefrontCartQuote,
   StorefrontCheckoutAcceptance,
   StorefrontCreatedCart,
   FindStorefrontCartOffersParams,
@@ -57,8 +57,8 @@ import type {
 import type { EmailContact } from "../types/common";
 import type {
   Category,
-  Collection,
-  Entry,
+  PublicCollection,
+  PublicEntry,
   Media,
   StorefrontFindCategoryChildrenParams,
   StorefrontFindEntriesParams,
@@ -184,6 +184,7 @@ import { createStorefrontCompanyApi } from "./company";
 import { createStorefrontFormsApi } from "./forms";
 import { createStorefrontPackageApi } from "./packageMember";
 import { createStorefrontPaymentMethodApi } from "./paymentMethod";
+import { createSharedEntriesApi } from "./privateContent";
 import { segment, storefrontBase } from "./paths";
 import { createCountryApi } from "./location";
 
@@ -193,6 +194,7 @@ export type CustomerSessionUpdater = (
 
 export interface StorefrontLifecycle {
   ensureVisitorSession(): Promise<void>;
+  hasSession(): boolean;
   getSetup(options?: RequestOptions): Promise<StorefrontSetup>;
 }
 
@@ -204,7 +206,6 @@ export interface IdentifyCustomerParams {
 export interface RequestCustomerCodeRequest {
   id: string;
   contact: EmailContact;
-  bot_check_token?: string;
 }
 
 export type RequestCustomerCodeParams = Omit<RequestCustomerCodeRequest, "id"> & { id?: string };
@@ -294,9 +295,16 @@ export const createStorefrontApi = (
   flows: StorefrontFlowContext,
 ) => {
   const { httpClient } = apiConfig;
-  const checkoutScope = `storefront:${apiConfig.apiUrl}:${apiConfig.publishableKey}`;
+  const checkoutScope = `storefront:${apiConfig.apiUrl}:${apiConfig.storeId}:${apiConfig.salesChannelId}`;
   const cartPath = (id: string) => `${storefrontBase}/carts/${segment(id)}`;
-  const cartSelection = createCartSelection(cartSelectionContext, checkoutScope, {
+  const keptCheckoutScopes = (): readonly string[] => {
+    const customerId = cartSelectionContext.customerId();
+    if (!customerId) throw new ArkyError("no_session", "A cart change or a kept checkout needs the customer session first");
+    const signedInFrom = cartSelection.signedInFrom(customerId);
+    const own = `${checkoutScope}:${customerId}`;
+    return signedInFrom === null ? [own] : [own, `${checkoutScope}:${signedInFrom}`];
+  };
+  const cartSelection = createCartSelection(cartSelectionContext, keptCheckoutScopes, {
     get: (params, options) => httpClient.get<StorefrontCart>(cartPath(params.id), cartTokenOptions(options, params.token)),
     create: (params, options) =>
       httpClient.post<StorefrontCreatedCart>(
@@ -313,7 +321,7 @@ export const createStorefrontApi = (
   });
   const cartToken = (target: { id: string; token?: string | null }) => target.token ?? cartSelection.token(target.id);
   const cartMutation = <T>(target: { id: string; token?: string | null }, path: string, body: () => object, options?: RequestOptions) =>
-    withCartMutation(checkoutScope, { type: "cart", cart_id: target.id }, () =>
+    withCartMutation(keptCheckoutScopes(), { type: "cart", cart_id: target.id }, () =>
       httpClient.post<T>(`${cartPath(target.id)}/${path}`, body(), cartTokenOptions(options, cartToken(target))),
     );
   const keptSlot = (scope: StorefrontCurrentCartParams | undefined) => {
@@ -357,20 +365,20 @@ export const createStorefrontApi = (
   };
 
   const collection = {
-    get(params: StorefrontGetCollectionParams, options?: RequestOptions): Promise<Collection> {
-      return httpClient.get<Collection>(`${storefrontBase}/collections/${segment(params.id)}`, options);
+    get(params: StorefrontGetCollectionParams, options?: RequestOptions): Promise<PublicCollection> {
+      return httpClient.get<PublicCollection>(`${storefrontBase}/collections/${segment(params.id)}`, options);
     },
-    getByKey(params: StorefrontGetCollectionByKeyParams, options?: RequestOptions): Promise<Collection> {
-      return httpClient.get<Collection>(`${storefrontBase}/collections/${segment(params.key)}`, options);
+    getByKey(params: StorefrontGetCollectionByKeyParams, options?: RequestOptions): Promise<PublicCollection> {
+      return httpClient.get<PublicCollection>(`${storefrontBase}/collections/${segment(params.key)}`, options);
     },
   };
 
   const entry = {
-    find(params: StorefrontFindEntriesParams, options?: RequestOptions): Promise<PaginatedResponse<Entry>> {
-      return httpClient.get<PaginatedResponse<Entry>>(`${storefrontBase}/entries`, { ...options, params });
+    find(params: StorefrontFindEntriesParams, options?: RequestOptions): Promise<PaginatedResponse<PublicEntry>> {
+      return httpClient.get<PaginatedResponse<PublicEntry>>(`${storefrontBase}/entries`, { ...options, params });
     },
-    get(params: StorefrontGetEntryParams, options?: RequestOptions): Promise<Entry> {
-      return httpClient.get<Entry>(`${storefrontBase}/entries/${segment(params.id)}`, options);
+    get(params: StorefrontGetEntryParams, options?: RequestOptions): Promise<PublicEntry> {
+      return httpClient.get<PublicEntry>(`${storefrontBase}/entries/${segment(params.id)}`, options);
     },
   };
 
@@ -421,7 +429,7 @@ export const createStorefrontApi = (
     async createCart(params, options) {
       requireId(params.id, "cart");
       const slot = cartScopeKey({ buyer: params.buyer, package_id: params.package_id }, cartSelectionContext.market());
-      return withCartMutation(checkoutScope, { type: "new_cart", slot }, () =>
+      return withCartMutation(keptCheckoutScopes(), { type: "new_cart", slot }, () =>
         httpClient.post<StorefrontCreatedCart>(
           `${storefrontBase}/carts`,
           { id: params.id, buyer: params.buyer, package_id: params.package_id, market_id: params.market_id },
@@ -436,7 +444,7 @@ export const createStorefrontApi = (
         () => ({ expected_updated_at: params.expected_updated_at, package: storefrontCartPackage(params.package) }),
         options,
       ),
-    quote: (params, options) => httpClient.post<CartQuote>(`${cartPath(params.id)}/quote`, {}, cartTokenOptions(options, cartToken(params))),
+    quote: (params, options) => httpClient.post<StorefrontCartQuote>(`${cartPath(params.id)}/quote`, {}, cartTokenOptions(options, cartToken(params))),
     accept: (request, options) => checkoutTransport.post(request, options),
     getOrder: (id, orderToken, options) => httpClient.get<StorefrontOrder>(orderPath(id), orderTokenOptions({ ...options, order_token: orderToken })),
   };
@@ -446,7 +454,6 @@ export const createStorefrontApi = (
     const request = (id: string): SubmitFormRequest => ({
       ...draft,
       id,
-      ...(params.bot_check_token !== undefined ? { bot_check_token: params.bot_check_token } : {}),
     });
     if (params.id !== undefined) {
       requireId(params.id, "form submission");
@@ -491,7 +498,7 @@ export const createStorefrontApi = (
       keptFormKey(params.form_id),
       (kept, sendOptions) =>
         forms.submit(
-          { ...kept, ...(params.bot_check_token !== undefined ? { bot_check_token: params.bot_check_token } : {}) },
+          kept,
           sendOptions,
         ),
       options,
@@ -550,6 +557,7 @@ export const createStorefrontApi = (
   }
 
   return {
+    sharedEntries: createSharedEntriesApi(httpClient),
     customer: {
       async identify(params: IdentifyCustomerParams, options?: RequestOptions): Promise<CustomerSessionResult> {
         requireId(params.customer_id, "customer");
@@ -566,7 +574,7 @@ export const createStorefrontApi = (
         requireId(params.id, "sign-in email");
         const result = await httpClient.post<CustomerCodeResult>(
           `${storefrontBase}/customer/request-code`,
-          { id: params.id, contact: { email: params.contact.email, language: params.contact.language }, bot_check_token: params.bot_check_token },
+          { id: params.id, contact: { email: params.contact.email, language: params.contact.language } },
           options,
         );
         updateCustomerSession((previous) => {
@@ -616,7 +624,7 @@ export const createStorefrontApi = (
       async refresh(params: RefreshCustomerSessionParams, options?: RequestOptions): Promise<CustomerSessionResult> {
         const refreshToken = apiConfig.authStorage.getTokens()?.refresh_token;
         if (!refreshToken) throw new ArkyError("no_session", "An email-authenticated customer session is required");
-        const result = await apiConfig.publishableKeyHttpClient.post<CustomerSessionResult>(
+        const result = await apiConfig.publicHttpClient.post<CustomerSessionResult>(
           `${storefrontBase}/customer/refresh`,
           { session_id: requireId(params.session_id, "customer session"), refresh_token: refreshToken },
           options,
@@ -681,7 +689,7 @@ export const createStorefrontApi = (
         const loaded = await loadContent(contentReads, params, flows.locale(options), options);
         return loaded as LoadedContentFor<P>;
       },
-      loadEntries(params: LoadContentEntriesParams, options?: RequestOptions): Promise<LoadedContent<Entry>[]> {
+      loadEntries(params: LoadContentEntriesParams, options?: RequestOptions): Promise<LoadedContent<PublicEntry>[]> {
         return loadContentEntries(contentReads, params, flows.locale(options), options);
       },
     },
@@ -814,7 +822,8 @@ export const createStorefrontApi = (
         },
 
         async getCurrent(params: StorefrontCurrentCartParams, options?: RequestOptions): Promise<StorefrontCart | null> {
-          await lifecycle.ensureVisitorSession();
+          requireId(params?.package_id, "package");
+          if (!lifecycle.hasSession()) return null;
           return cartSelection.current(params, options);
         },
 
@@ -849,7 +858,7 @@ export const createStorefrontApi = (
 
         async update(params: StorefrontUpdateCartParams, options?: RequestOptions): Promise<StorefrontCart> {
           await lifecycle.ensureVisitorSession();
-          return withCartMutation(checkoutScope, { type: "cart", cart_id: params.id }, () =>
+          return withCartMutation(keptCheckoutScopes(), { type: "cart", cart_id: params.id }, () =>
             httpClient.put<StorefrontCart>(cartPath(params.id), storefrontCartUpdateBody(params), cartTokenOptions(options, cartToken(params))),
           );
         },
@@ -914,7 +923,7 @@ export const createStorefrontApi = (
 
         async setFutureDeliveries(params: StorefrontSetCartFutureDeliveriesParams, options?: RequestOptions): Promise<StorefrontCart> {
           await lifecycle.ensureVisitorSession();
-          return withCartMutation(checkoutScope, { type: "cart", cart_id: params.id }, () =>
+          return withCartMutation(keptCheckoutScopes(), { type: "cart", cart_id: params.id }, () =>
             httpClient.put<StorefrontCart>(
               `${cartPath(params.id)}/future-deliveries`,
               { expected_updated_at: params.expected_updated_at, packages: params.packages },
@@ -935,9 +944,9 @@ export const createStorefrontApi = (
           );
         },
 
-        async quote(params: StorefrontQuoteCartParams, options?: RequestOptions): Promise<CartQuote> {
+        async quote(params: StorefrontQuoteCartParams, options?: RequestOptions): Promise<StorefrontCartQuote> {
           await lifecycle.ensureVisitorSession();
-          return httpClient.post<CartQuote>(`${cartPath(params.id)}/quote`, params.contact_email !== undefined ? { contact_email: params.contact_email } : {}, cartTokenOptions(options, cartToken(params)));
+          return httpClient.post<StorefrontCartQuote>(`${cartPath(params.id)}/quote`, params.contact_email !== undefined ? { contact_email: params.contact_email } : {}, cartTokenOptions(options, cartToken(params)));
         },
 
         async checkout(params: StorefrontCheckoutCartRequest, options?: RequestOptions): Promise<StorefrontCheckoutAcceptance> {
@@ -948,20 +957,28 @@ export const createStorefrontApi = (
           if (order_id !== undefined || order_token !== undefined) {
             throw new TypeError("A checkout names both its order_id and order_token, or neither so the app's factories pick them");
           }
-          return checkoutCartWithAppIds(checkoutScope, keptSlot(scope), draft, flows, checkoutTransport, options);
+          const slot = keptSlot(scope);
+          await lifecycle.ensureVisitorSession();
+          return checkoutCartWithAppIds(keptCheckoutScopes(), checkoutScope, slot, draft, flows, checkoutTransport, options);
         },
 
         async retainCheckout(params: StorefrontCheckoutCartParams): Promise<CartCheckoutRequest> {
           const { token: _token, scope, ...request } = params;
-          return retainCartCheckout(checkoutScope, keptSlot(scope), request);
+          const slot = keptSlot(scope);
+          await lifecycle.ensureVisitorSession();
+          return retainCartCheckout(keptCheckoutScopes(), checkoutScope, slot, request);
         },
 
-        pendingCheckout(params: StorefrontKeptCheckoutParams = {}): Promise<CartCheckoutRequest | null> {
-          return pendingCartCheckout(checkoutScope, keptSlot(params.scope));
+        async pendingCheckout(params: StorefrontKeptCheckoutParams = {}): Promise<CartCheckoutRequest | null> {
+          const slot = keptSlot(params.scope);
+          if (!lifecycle.hasSession()) return null;
+          return pendingCartCheckout(keptCheckoutScopes(), slot);
         },
 
-        recoverCheckout(params: StorefrontKeptCheckoutParams = {}, options?: RequestOptions): Promise<StorefrontCheckoutAcceptance | null> {
-          return recoverCartCheckout(checkoutScope, keptSlot(params.scope), checkoutTransport, options);
+        async recoverCheckout(params: StorefrontKeptCheckoutParams = {}, options?: RequestOptions): Promise<StorefrontCheckoutAcceptance | null> {
+          const slot = keptSlot(params.scope);
+          if (!lifecycle.hasSession()) return null;
+          return recoverCartCheckout(keptCheckoutScopes(), slot, checkoutTransport, options);
         },
       },
 

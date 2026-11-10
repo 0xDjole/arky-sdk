@@ -2,6 +2,7 @@ import { createAdmin } from "arky-sdk/admin";
 import type {
   AssignPackageMemberParams,
   CommerceParty,
+  DeletedResponse,
   Package,
   PackageDetail,
   PackageMember,
@@ -49,6 +50,6 @@ export type PackageDiscoveryContracts = [
   Assert<Equal<AssignPackageMemberParams["subject"], CommerceParty>>,
   Assert<Equal<CommerceParty, { type: "customer"; customer_id: string } | { type: "company"; company_id: string } | { type: "company_location"; company_location_id: string }>>,
   Assert<Equal<Awaited<ReturnType<typeof admin.eshop.package.delete>>, Package>>,
-  Assert<Equal<Awaited<ReturnType<typeof admin.eshop.packageOffering.delete>>, void>>,
+  Assert<Equal<Awaited<ReturnType<typeof admin.eshop.packageOffering.delete>>, DeletedResponse>>,
   Assert<Equal<Awaited<ReturnType<typeof admin.eshop.packageMember.assign>>, PackageMember>>,
 ];

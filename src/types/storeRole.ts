@@ -1,13 +1,13 @@
 import type { EpochMilliseconds } from "./time";
 import type { EmailContact, SortDirection } from "./common";
-import type { Account, AccountSortField } from "./account";
-import type { StoreMode } from "./store";
+import type { AccountSortField } from "./account";
+import type { StoreType } from "./store";
 
 export type LocationReach =
   | { type: "everywhere" }
   | { type: "only"; store_location_ids: string[] };
 
-export type StorePermissionAccess = "read_write" | "read_only";
+export type StorePermissionAccess = "read" | "write";
 
 export type StorePermission =
   | { type: "admin" }
@@ -18,7 +18,8 @@ export type StorePermission =
   | { type: "fulfillment"; locations: LocationReach }
   | { type: "inventory"; locations: LocationReach }
   | { type: "marketing" }
-  | { type: "content" }
+  | { type: "public_collections"; access: StorePermissionAccess }
+  | { type: "collection"; collection_id: string; access: StorePermissionAccess }
   | { type: "support" }
   | { type: "email" }
   | { type: "analytics" };
@@ -56,12 +57,17 @@ export interface StoreMembership {
 
 export interface StoreMembershipWithStoreName extends StoreMembership {
   store_name: string;
-  store_mode: StoreMode;
+  store_type: StoreType;
   access: StoreAccess;
 }
 
+export interface StoreMemberAccount {
+  id: string;
+  email: string;
+}
+
 export interface StoreMember {
-  account: Account | null;
+  account: StoreMemberAccount | null;
   membership: StoreMembership;
 }
 

@@ -5,15 +5,17 @@ import { ArkyApiError, ArkyNetworkError, createStorefront, initialize, isDefinit
 import {
   accessToken,
   apiUrl,
+  cartRecord,
   customerRecord,
   emailSession,
   errorResponse,
   idFactories,
   ids,
   jsonResponse,
-  publishableKey,
+  storefrontIdentity,
   recordFetch,
   refreshToken,
+  SessionStorage,
   sessionResult,
   signedInStorage,
   visitorSession,
@@ -41,13 +43,13 @@ test("a storefront without every id factory is refused when it is created", () =
     { apiUrl, createVisitorIdentity, createSessionId, createId },
     { apiUrl, createVisitorIdentity, createSessionId, createOrderToken },
   ]) {
-    assert.throws(() => createStorefront(publishableKey, options), missingFactories);
-    assert.throws(() => initialize(publishableKey, options), missingFactories);
+    assert.throws(() => createStorefront(storefrontIdentity, options), missingFactories);
+    assert.throws(() => initialize(storefrontIdentity, options), missingFactories);
   }
-  assert.throws(() => createStorefront(publishableKey, { ...idFactories, createSessionId: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), missingFactories);
-  assert.throws(() => createStorefront(publishableKey, { ...idFactories, createId: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), missingFactories);
-  assert.equal(createStorefront(publishableKey, { ...idFactories, apiUrl }).session, null);
-  assert.equal(initialize(publishableKey, { ...idFactories, apiUrl }).session.get(), null);
+  assert.throws(() => createStorefront(storefrontIdentity, { ...idFactories, createSessionId: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), missingFactories);
+  assert.throws(() => createStorefront(storefrontIdentity, { ...idFactories, createId: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), missingFactories);
+  assert.equal(createStorefront(storefrontIdentity, { ...idFactories, apiUrl }).session, null);
+  assert.equal(initialize(storefrontIdentity, { ...idFactories, apiUrl }).session.get(), null);
 });
 
 test("verify issues the signed-in session under a new id from createSessionId and keeps it for a retry", async (context) => {
@@ -60,7 +62,7 @@ test("verify issues the signed-in session under a new id from createSessionId an
     if (verifications === 2) return errorResponse(400, "GENERAL.BAD_REQUEST", "Invalid or expired verification code");
     return sessionResult(ids.customer, emailSession(ids.customer, call.body.session_id));
   });
-  const client = createStorefront(publishableKey, {
+  const client = createStorefront(storefrontIdentity, {
     apiUrl,
     sessionStorage: visitorStorage(),
     ...idFactories,
@@ -85,7 +87,7 @@ test("verify issues the signed-in session under a new id from createSessionId an
 
 test("a signed-in session that Arky refuses to refresh is cleared and reported as a sign-out", async (context) => {
   assert.throws(
-    () => createStorefront(publishableKey, { apiUrl, sessionStorage: signedInStorage(), createVisitorIdentity: idFactories.createVisitorIdentity }),
+    () => createStorefront(storefrontIdentity, { apiUrl, sessionStorage: signedInStorage(), createVisitorIdentity: idFactories.createVisitorIdentity }),
     missingFactories,
   );
 
@@ -105,7 +107,7 @@ test("a signed-in session that Arky refuses to refresh is cleared and reported a
     throw new Error(`Unexpected request: ${call.path}`);
   });
   const storage = signedInStorage();
-  const client = createStorefront(publishableKey, {
+  const client = createStorefront(storefrontIdentity, {
     apiUrl,
     sessionStorage: storage,
     ...idFactories,
@@ -126,14 +128,12 @@ test("a signed-in session that Arky refuses to refresh is cleared and reported a
   assert.deepEqual(storage.keys("arky_customer_session:"), []);
   assert.equal(reported.at(-1), null);
 
-  const me = await client.customer.getMe();
-  assert.equal(me.customer.id, replacementCustomerId);
+  assert.equal(await client.customer.getMe(), null);
   assert.deepEqual(calls.map((call) => [call.path, call.headers.get("authorization"), call.body]), [
     ["/v1/storefront/customer/me", `Bearer ${accessToken}`, null],
     ["/v1/storefront/customer/refresh", null, { session_id: ids.otherSession, refresh_token: emailSession().refresh_token }],
-    ["/v1/storefront/customer/identify", null, { customer_id: replacementCustomerId, session_id: replacementSessionId }],
-    ["/v1/storefront/customer/me", `Bearer ${replacementVisitorToken}`, null],
   ]);
+  assert.equal(client.hasSession, false);
 });
 
 test("only Arky's own refusal of the automatic refresh signs the shopper out; a lost answer, a 429 or a 503 keeps the session and fails the request with that error", async (context) => {
@@ -149,7 +149,7 @@ test("only Arky's own refusal of the automatic refresh signs the shopper out; a 
     const label = String(status);
     const storage = signedInStorage();
     const retained = storage.initial;
-    const client = createStorefront(publishableKey, { ...idFactories, apiUrl, sessionStorage: storage });
+    const client = createStorefront(storefrontIdentity, { ...idFactories, apiUrl, sessionStorage: storage });
     const reported = [];
     const unsubscribe = client.onAuthStateChanged((session) => reported.push(session));
     const sent = calls.length;
@@ -204,7 +204,7 @@ test("a 401 or 403 that Arky did not send on the automatic refresh keeps the sig
     answer = make;
     const storage = signedInStorage();
     const retained = storage.initial;
-    const client = createStorefront(publishableKey, { ...idFactories, apiUrl, sessionStorage: storage });
+    const client = createStorefront(storefrontIdentity, { ...idFactories, apiUrl, sessionStorage: storage });
     const reported = [];
     const unsubscribe = client.onAuthStateChanged((session) => reported.push(session));
     await assert.rejects(client.customer.getMe(), (error) => error instanceof ArkyApiError && error.code === "REQUEST_FAILED" && error.statusCode === status);
@@ -241,7 +241,7 @@ test("a refused automatic refresh can't sign out the session the shopper got whi
     return refused;
   });
   const storage = signedInStorage();
-  const client = createStorefront(publishableKey, { ...idFactories, apiUrl, sessionStorage: storage });
+  const client = createStorefront(storefrontIdentity, { ...idFactories, apiUrl, sessionStorage: storage });
   const reported = [];
   client.onAuthStateChanged((session) => reported.push(session));
 
@@ -287,7 +287,7 @@ test("a 401 that Arky did not send keeps the visitor, and only Arky's own 401 re
   for (const proxyAnswer of proxyAnswers) {
     const storage = visitorStorage();
     const retained = storage.initial;
-    const client = createStorefront(publishableKey, {
+    const client = createStorefront(storefrontIdentity, {
       ...idFactories,
       apiUrl,
       sessionStorage: storage,
@@ -319,4 +319,37 @@ test("a 401 that Arky did not send keeps the visitor, and only Arky's own 401 re
     ]);
     unsubscribe();
   }
+});
+
+test("ensure_session_retries_identify_once_after_a_409", async (context) => {
+  const firstPair = { customer_id: "0b1c2d3e-4f50-4a61-8b72-9c83d4e5f601", session_id: "1c2d3e4f-5061-4b72-8c83-9d94e5f60712" };
+  const secondPair = { customer_id: replacementCustomerId, session_id: replacementSessionId };
+  const picks = [firstPair, secondPair];
+  let identifies = 0;
+  const calls = recordFetch(context, (call) => {
+    if (call.path === "/v1/storefront/customer/identify") {
+      identifies += 1;
+      if (identifies === 1) throw new TypeError("Lost response");
+      if (call.body.customer_id === firstPair.customer_id) return errorResponse(409, "GENERAL.CONFLICT", "The visitor ids are taken");
+      return sessionResult(secondPair.customer_id, visitorSession(secondPair.customer_id, secondPair.session_id, replacementVisitorToken));
+    }
+    if (call.method === "POST" && call.path === "/v1/storefront/carts") {
+      return { type: "created", cart: cartRecord({ id: call.body.id, customer_id: secondPair.customer_id }), recovery_token: "token" };
+    }
+    throw new Error(`Unexpected request ${call.method} ${call.path}`);
+  });
+  const store = initialize(storefrontIdentity, {
+    ...idFactories,
+    createVisitorIdentity: () => picks.shift(),
+    apiUrl,
+    locale: "en",
+    market: "bih",
+    sessionStorage: new SessionStorage(),
+  });
+  const cart = store.eshop.cart({ buyer: { type: "customer" }, package_id: ids.package });
+  await assert.rejects(cart.create({ id: ids.cart }), /Lost response/);
+  assert.equal((await cart.create({ id: ids.cart })).id, ids.cart);
+  assert.deepEqual(calls.filter((call) => call.path === "/v1/storefront/customer/identify").map((call) => call.body), [firstPair, firstPair, secondPair]);
+  assert.equal(store.session.get().customer.id, secondPair.customer_id);
+  assert.equal(picks.length, 0);
 });

@@ -1,6 +1,4 @@
 export const apiUrl = "https://api.example.test";
-export const publishableKey = `arky_pk_${"a".repeat(42)}A`;
-export const otherPublishableKey = `arky_pk_${"b".repeat(42)}E`;
 export const visitorToken = `customer_visitor_${"v".repeat(64)}`;
 export const accessToken = `customer_access_${"t".repeat(64)}`;
 export const refreshToken = `customer_refresh_${"r".repeat(64)}`;
@@ -25,6 +23,9 @@ export const ids = {
   otherPackage: "9b2e4d71-6a35-4c08-8f1e-3d7a5c9b2e46",
   market: "9c1d5e83-4a27-4f60-b8e2-6d3a0f7c1b94",
   channel: "e5a8c2d7-3b91-4f06-9d4e-1c7b6a0f3e28",
+  otherChannel: "2f93c156-7d04-4b8a-96e5-01caeb47a632",
+  network: "61dcba27-8e49-43b5-90a6-2f7e56834cd1",
+  plan: "fea7c682-3b91-4ad5-8e20-69d137b54c08",
   paymentOption: "5b8c1e47-3d29-4a6f-9c15-7e0d2f4a8b31",
   otherPaymentOption: "2f0a5d3c-9a1e-4b7e-8f4c-6c2a1b3d5e70",
   payment: "f17c0b95-2e4d-4a83-9b6c-31d5e8a70f24",
@@ -41,6 +42,9 @@ export const ids = {
   packageItem: "5a8d2f61-3b7e-4c09-9f14-6d2b8e0a4c73",
   picked: "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36",
 };
+
+export const storefrontIdentity = { storeId: ids.store, salesChannelId: ids.channel };
+export const otherStorefrontIdentity = { storeId: ids.otherStore, salesChannelId: ids.otherChannel };
 
 export const factoryOrderToken = `arky_ot_${"F".repeat(42)}A`;
 

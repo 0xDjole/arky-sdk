@@ -328,13 +328,15 @@ requirePattern("api/notification.ts", /export const createEmailAddressApi\b/, "e
 requirePattern("api/broadcast.ts", /export const createBroadcastApi\b/, "broadcasts replace campaigns");
 requirePattern("api/support.ts", /support-flows/, "support flows replace support agents");
 requirePattern("api/payment.ts", /incoming-webhooks/, "incoming webhooks have a dedicated history");
-requirePattern("api/platform.ts", /\/v1\/platform\/administrators\/me/, "platform administrators read their own record");
-forbidPattern("index.ts", /X-Arky-Sales-Channel/i, "a storefront request sells through its key's channel and names none");
+requirePattern("api/platform.ts", /\/v1\/accounts\/me\/platform-admin/, "platform administrators read their account access");
+requirePattern("index.ts", /"X-Arky-Store-Id":\s*storeId/, "storefront requests name their store");
+requirePattern("index.ts", /"X-Arky-Sales-Channel-Id":\s*salesChannelId/, "storefront requests name their sales channel");
 requirePattern("index.ts", /"X-Arky-Locale"/, "storefront requests name their language");
-requirePattern("api/storefront.ts", /export interface RequestCustomerCodeRequest\s*\{\s*id:\s*string;\s*contact:\s*EmailContact;\s*bot_check_token\?:\s*string;\s*\}/,
-  "a sign-in code request requires id and the email contact with optional bot-check proof");
-requirePattern("api/storefront.ts", /\/customer\/request-code`,\s*\{\s*id:\s*params\.id,\s*contact:\s*\{\s*email:\s*params\.contact\.email,\s*language:\s*params\.contact\.language\s*\},\s*bot_check_token:\s*params\.bot_check_token\s*,?\s*\}/,
-  "a sign-in code request posts the caller's id, the email contact with its explicit language and optional bot-check proof");
+requirePattern("api/storefront.ts", /export interface RequestCustomerCodeRequest\s*\{\s*id:\s*string;\s*contact:\s*EmailContact;\s*\}/,
+  "a sign-in code request requires id and the email contact");
+requirePattern("api/storefront.ts", /\/customer\/request-code`,\s*\{\s*id:\s*params\.id,\s*contact:\s*\{\s*email:\s*params\.contact\.email,\s*language:\s*params\.contact\.language\s*\}\s*,?\s*\}/,
+  "a sign-in code request posts the caller's id and email contact with its explicit language");
+forbidPattern("api/storefront.ts", /\bbot_check_token\b/, "customer sign-in uses the server's request admission without a bot-check field");
 forbidPattern("types/market.ts", /export interface CreateStorefrontKeyParams\s*\{[^}]*publishable_key/,
   "Arky generates the publishable key; the create carries none");
 requirePattern("api/order.ts", /resend-receipt`,\s*\{\s*id:\s*params\.id,\s*expected_updated_at:\s*params\.expected_updated_at\s*\}/, "a receipt resend posts the app's id and exact retained Order version");
@@ -364,7 +366,7 @@ requirePattern("api/payment.ts", /\/refunds\/made`/, "staff record a refund alre
 requirePattern("api/cart.ts", /"offer\/quote"/, "staff read an offer's quote before making it");
 requirePattern("api/content.ts", /"collections", params\.id\)\}\/cleanup`/, "staff follow a deleting collection's cleanup");
 requirePattern("api/broadcast.ts", /"\/v1\/broadcasts\/unsubscribe"/, "a store's own unsubscribe page posts the token through the SDK");
-requirePattern("index.ts", /broadcast: createStorefrontBroadcastApi\(publishableKeyHttpClient\)/, "the storefront client unsubscribes with the publishable key alone");
+requirePattern("index.ts", /broadcast: createStorefrontBroadcastApi\(publicHttpClient\)/, "broadcast unsubscribe uses the public store and sales-channel client without a customer session");
 requirePattern("api/company.ts", /export function createStorefrontCompanyApi\b/, "company members manage their company from the storefront");
 requirePattern("api/storefront.ts", /companies: createStorefrontCompanyApi\(/, "storefront company calls answer the member copies without blocks");
 forbidPattern("api/storefront.ts", /orders\/\$\{segment\(params\.order_id\)\}\/product-items/, "customers cancel booking items only; staff cancel product items");

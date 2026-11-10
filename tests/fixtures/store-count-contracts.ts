@@ -1,5 +1,8 @@
 import type { createAdmin } from "arky-sdk/admin";
 import type {
+  Currency,
+  StoreCountBreakdown,
+  StoreCountOtherValue,
   GetStoreCountReportParams,
   GetStoreStatusCountsParams,
   StoreCountDayType,
@@ -19,6 +22,8 @@ type Accepts<T, V> = V extends T ? true : false;
 type Segment<Type extends StoreStatusCountType> = Extract<StoreStatusCount, { type: Type }>["segments"][number]["segment"];
 
 export type StoreCountContracts = [
+  Assert<Equal<StoreCountBreakdown["other_value"], StoreCountOtherValue>>,
+  Assert<Equal<StoreCountOtherValue, { type: "count"; value: number } | { type: "money"; currencies: { currency: Currency; value: number }[] }>>,
   Assert<Equal<StoreStatusCountSegments["open_recurring_members_by_status"], "awaiting_activation" | "active" | "blocked" | "paused">>,
   Assert<Equal<StoreStatusCountSegments["open_rentals_by_status"], "waiting" | "active" | "ending">>,
   Assert<

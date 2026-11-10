@@ -44,8 +44,10 @@ import type {
   SimulatorStripeOperation,
   Store,
   StoreMembershipWithStoreName,
-  StoreMode,
-  StoreSubscriptionPaymentAction,
+  StoreType,
+  StoreCardSetup,
+  CreateStoreType,
+  StoreSubscriptionPayment,
   StorefrontPaymentMethodSetupStart,
   StorefrontPaymentOption,
   StorefrontPaymentOptionType,
@@ -63,33 +65,35 @@ type PaymentOptions = Admin["store"]["paymentOption"];
 type EmailProviders = Admin["notification"]["emailProvider"];
 type Simulator = Admin["store"]["simulator"];
 type StripeAction = Extract<CheckoutPaymentAction, { type: "stripe_embedded_checkout" }>;
-type PlanAction = Extract<StoreSubscriptionPaymentAction, { type: "stripe_embedded_checkout" }>;
+type PlanAction = Extract<StoreSubscriptionPayment, { type: "stripe" }>;
 type SimulatorMount = Extract<EmbeddedCheckoutMount, { type: "simulator" }>;
 
 export type TestStoreContracts = [
-  Assert<Equal<StoreMode, "live" | "test">>,
-  Assert<Equal<Store["mode"], StoreMode>>,
-  Assert<Equal<CreateStoreParams["mode"], StoreMode>>,
-  Assert<RequiredField<CreateStoreParams, "mode">>,
-  Assert<Equal<Account["test_stores"], number>>,
-  Assert<Equal<StoreMembershipWithStoreName["store_mode"], StoreMode>>,
+  Assert<Equal<StoreType, { type: "live"; account_id: string; network_id: string } | { type: "test"; store_id: string }>>,
+  Assert<Equal<Store["type"], StoreType>>,
+  Assert<Equal<CreateStoreParams["type"], CreateStoreType>>,
+  Assert<RequiredField<CreateStoreParams, "type">>,
+  Assert<Missing<Account, "test_stores">>,
+  Assert<Equal<StoreMembershipWithStoreName["store_type"], StoreType>>,
 
   Assert<Equal<PaymentRunsOn, { type: "provider" } | { type: "simulator"; api_url: string }>>,
   Assert<Equal<StripeAction["runs_on"], PaymentRunsOn>>,
   Assert<Equal<PlanAction["runs_on"], PaymentRunsOn>>,
   Assert<Equal<MonriComponentsAction["runs_on"], PaymentRunsOn>>,
   Assert<Equal<PaymentMethodSetupStart["runs_on"], PaymentRunsOn>>,
-  Assert<Equal<Parameters<typeof isSimulatedPayment>[0], CheckoutPaymentAction | StoreSubscriptionPaymentAction | StorefrontPaymentMethodSetupStart>>,
+  Assert<Equal<Parameters<typeof isSimulatedPayment>[0], CheckoutPaymentAction | StoreSubscriptionPayment | StorefrontPaymentMethodSetupStart | StoreCardSetup>>,
   Assert<Equal<ReturnType<typeof isSimulatedPayment>, boolean>>,
   Assert<Equal<typeof isSimulatedPayment, typeof storefrontIsSimulatedPayment>>,
   Assert<Equal<typeof simulatePayment, typeof storefrontSimulatePayment>>,
 
-  Assert<Equal<PaymentSimulation["type"], "stripe_checkout" | "monri" | "card_setup">>,
+  Assert<Equal<PaymentSimulation["type"], "stripe_checkout" | "stripe_payment_intent" | "monri" | "card_setup">>,
   Assert<Equal<Extract<PaymentSimulation, { type: "stripe_checkout" }>["action"], StripeEmbeddedCheckoutAction>>,
   Assert<Equal<Extract<PaymentSimulation, { type: "stripe_checkout" }>["outcome"], "complete" | "decline" | "expire">>,
+  Assert<Equal<Extract<PaymentSimulation, { type: "stripe_payment_intent" }>["action"], PlanAction>>,
+  Assert<Equal<Extract<PaymentSimulation, { type: "stripe_payment_intent" }>["outcome"], "complete" | "decline">>,
   Assert<Equal<Extract<PaymentSimulation, { type: "monri" }>["action"], MonriComponentsAction>>,
   Assert<Equal<Extract<PaymentSimulation, { type: "monri" }>["outcome"], "complete" | "decline">>,
-  Assert<Equal<Extract<PaymentSimulation, { type: "card_setup" }>["setup"], StorefrontPaymentMethodSetupStart>>,
+  Assert<Equal<Extract<PaymentSimulation, { type: "card_setup" }>["setup"], StorefrontPaymentMethodSetupStart | StoreCardSetup>>,
   Assert<Equal<Extract<PaymentSimulation, { type: "card_setup" }>["outcome"], "complete" | "cancel" | "decline">>,
   Assert<Missing<Extract<PaymentSimulation, { type: "monri" }>, "payment_id" | "attempt_id">>,
   Assert<Equal<keyof SimulatePaymentParams, "simulation">>,
@@ -116,7 +120,8 @@ export type TestStoreContracts = [
   Assert<Equal<Awaited<ReturnType<PaymentOptions["arkyMonri"]["connect"]>>, PaymentOption>>,
 
   Assert<Equal<EmailProvider["type"]["type"], "resend" | "arky_resend">>,
-  Assert<Equal<Extract<EmailProvider["type"], { type: "arky_resend" }>["webhook_id"], string>>,
+  Assert<Equal<Extract<EmailProvider["type"], { type: "arky_resend" }>, { type: "arky_resend" }>>,
+  Assert<Equal<Extract<EmailProvider["type"], { type: "resend" }>["webhook_id"], string>>,
   Assert<Equal<Parameters<EmailProviders["connectArkyResend"]>[0], ConnectArkyResendEmailProviderParams>>,
   Assert<Equal<ConnectArkyResendEmailProviderParams, { store_id: string; id: string; name: string; domains: string[] }>>,
   Assert<Equal<Awaited<ReturnType<EmailProviders["connectArkyResend"]>>, EmailProvider>>,
@@ -162,6 +167,14 @@ export const stripeSimulation: PaymentSimulation = {
   type: "stripe_checkout",
   action: { type: "stripe_embedded_checkout", publishable_key: "pk_test_arky", client_secret: "cs_secret_x", expires_at: 1 as EpochMilliseconds, runs_on: { type: "simulator", api_url: "https://api.arky.io" } },
   outcome: "decline",
+};
+
+export const storePaymentSimulation: SimulatePaymentParams = {
+  simulation: {
+    type: "stripe_payment_intent",
+    action: { type: "stripe", payment_intent_id: "pi_store", publishable_key: "pk_test_network", client_secret: "pi_store_secret_exact", runs_on: { type: "simulator", api_url: "https://api.arky.io" } },
+    outcome: "complete",
+  },
 };
 
 export const planned: CreateSimulatorPlannedOutcomeParams = {

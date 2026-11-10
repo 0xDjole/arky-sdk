@@ -27,10 +27,19 @@ export class DurableRequestError extends ArkyError {
   }
 }
 
+function refusalStatus(error: unknown): number | null {
+  if (typeof error !== "object" || error === null || !("statusCode" in error)) return null;
+  return typeof error.statusCode === "number" ? error.statusCode : null;
+}
+
 export function isDefiniteRefusal(error: unknown): boolean {
-  if (typeof error !== "object" || error === null || !("statusCode" in error)) return false;
-  const status = error.statusCode;
-  return typeof status === "number" && status >= 400 && status < 500 && status !== 408 && status !== 429;
+  const status = refusalStatus(error);
+  return status !== null && status >= 400 && status < 500 && status !== 408 && status !== 429;
+}
+
+export function refusalClearsKeptRequest(error: unknown): boolean {
+  const status = refusalStatus(error);
+  return isDefiniteRefusal(error) && status !== 401 && status !== 403;
 }
 
 function unavailable(

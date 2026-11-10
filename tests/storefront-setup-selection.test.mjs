@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createStorefront, initialize } from "../dist/storefront.js";
-import { apiUrl, fixedIdFactories, publishableKey, recordFetch } from "./helpers/arky-fixtures.mjs";
+import { apiUrl, fixedIdFactories, ids, storefrontIdentity, recordFetch, visitorStorage } from "./helpers/arky-fixtures.mjs";
 
 const market = (key, currency = "eur") => ({ id: `id-${key}`, key, currency, tax_mode: "exclusive", payment_option_ids: [`provider-${key}`] });
 const setup = () => ({
@@ -17,7 +17,7 @@ test("the setup carries no market, and the selected market is one exact read by 
     if (call.path === "/v1/storefront/markets/by-key/trade") return market("trade", "usd");
     throw new Error(`Unexpected request: ${call.path}`);
   }, { answerMarkets: false });
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "trade" });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "trade" });
   const loaded = await store.store.load();
   assert.deepEqual(loaded, setup());
   assert.equal("markets" in loaded, false);
@@ -36,7 +36,7 @@ test("the setup carries no market, and the selected market is one exact read by 
 
 test("without an explicit market the setup loads without inventing one, and a malformed market key is refused up front", async (context) => {
   const calls = recordFetch(context, () => setup());
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl });
   assert.deepEqual(await store.store.load(), setup());
   assert.equal(store.market.get(), null);
   assert.equal(store.currency.get(), null);
@@ -44,8 +44,8 @@ test("without an explicit market the setup loads without inventing one, and a ma
   assert.equal(store.getMarket(), "");
   assert.deepEqual(calls.map((call) => call.path), ["/v1/storefront"]);
   for (const selected of ["Retail", "retail market", "retail\tmarket"]) {
-    assert.throws(() => initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: selected }), /market must be a valid exact key/);
-    assert.throws(() => createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: selected }), /market must be a valid exact key/);
+    assert.throws(() => initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: selected }), /market must be a valid exact key/);
+    assert.throws(() => createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: selected }), /market must be a valid exact key/);
   }
 });
 
@@ -68,7 +68,7 @@ test("a late market read can't replace a newer market selection or its currency 
     if (call.path.endsWith("/new")) return market("new", "usd");
     throw new Error(`Unexpected request: ${call.path}`);
   }, { answerMarkets: false });
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "old" });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "old" });
   const rejected = assert.rejects(store.store.load(), /market changed while the store setup was loading/);
   await requested;
   store.setContext({ market: "new" });
@@ -93,7 +93,7 @@ test("a failed or mismatched market read never falls back to another market", as
     }
     throw new Error(`Unexpected request: ${call.path}`);
   }, { answerMarkets: false });
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "trade" });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "trade" });
   await assert.rejects(store.store.load(), (error) => error.statusCode === 503);
   assert.equal(store.market.get(), null);
   failure = false;
@@ -105,11 +105,57 @@ test("a failed or mismatched market read never falls back to another market", as
 
 test("a market read by key encodes the key and creates no session", async (context) => {
   const calls = recordFetch(context, () => market("retail"), { answerMarkets: false });
-  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl });
+  const client = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl });
   await client.store.market.getByKey({ key: "a/b" });
   assert.equal(calls.length, 1);
   assert.equal(calls[0].path, "/v1/storefront/markets/by-key/a%2Fb");
   assert.equal(calls[0].method, "GET");
   assert.equal(calls[0].headers.get("authorization"), null);
   assert.equal(client.hasSession, false);
+});
+
+test("terms_changed_rereads_the_setup", async (context) => {
+  let wording = "Save this card for renewals.";
+  const setupWith = () => ({
+    name: "Store",
+    timezone: "UTC",
+    languages: ["en"],
+    payment_options: [{ id: ids.paymentOption, key: "card", blocks: [], type: "stripe", saved_card_terms: { en: wording } }],
+  });
+  const calls = recordFetch(context, (call) => {
+    if (call.path === "/v1/storefront") return setupWith();
+    if (call.path === "/v1/storefront/markets/by-key/trade") return market("trade");
+    if (call.path === "/v1/storefront/payment-methods/setup") {
+      if (call.body.terms !== wording) {
+        return Response.json({ message: "The saved-card wording changed; reload it and ask again", error: "PAYMENT_METHOD.TERMS_CHANGED", status_code: 409, validation_errors: [] }, { status: 409 });
+      }
+      return { id: call.body.id };
+    }
+    throw new Error(`Unexpected request: ${call.path}`);
+  }, { answerMarkets: false });
+  const store = initialize(storefrontIdentity, { ...fixedIdFactories, apiUrl, market: "trade", sessionStorage: visitorStorage() });
+  const shown = (await store.store.load()).payment_options[0].saved_card_terms.en;
+  wording = "Save this card for renewals and owed charges.";
+  const request = {
+    id: ids.payment,
+    owner: { type: "customer", customer_id: ids.customer },
+    payment_option_id: ids.paymentOption,
+    language: "en",
+    terms: shown,
+    accept_storage_and_off_session_use: true,
+  };
+  await assert.rejects(store.eshop.paymentMethod.requestSetup(request), (error) => error.code === "PAYMENT_METHOD.TERMS_CHANGED");
+  const reloaded = await store.store.load();
+  assert.equal(reloaded.payment_options[0].saved_card_terms.en, wording);
+  assert.equal(store.setup.get().payment_options[0].saved_card_terms.en, wording);
+  assert.deepEqual(await store.eshop.paymentMethod.requestSetup({ ...request, terms: reloaded.payment_options[0].saved_card_terms.en }), { id: ids.payment });
+  assert.deepEqual(await store.getSetup(), reloaded);
+  assert.deepEqual(calls.map((call) => call.path), [
+    "/v1/storefront",
+    "/v1/storefront/markets/by-key/trade",
+    "/v1/storefront/payment-methods/setup",
+    "/v1/storefront",
+    "/v1/storefront/markets/by-key/trade",
+    "/v1/storefront/payment-methods/setup",
+  ]);
 });

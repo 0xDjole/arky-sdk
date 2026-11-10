@@ -111,7 +111,7 @@ export function collectBlockReferences(blocks: readonly Block[]): BlockReference
 }
 
 export function getImageUrl(media: Media | null | undefined, size: MediaImageSize = "original"): string | null {
-  if (!media) return null;
+  if (!media || media.visibility === "private") return null;
   const content = media.content;
   if (content.type === "image") return content[size].url;
   return content.original.url;

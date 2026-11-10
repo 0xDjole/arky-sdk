@@ -11,7 +11,7 @@ import {
   installGlobal,
   placedAcceptance,
   placedOrder,
-  publishableKey,
+  storefrontIdentity,
   recordFetch,
   visitorStorage,
 } from "./helpers/arky-fixtures.mjs";
@@ -89,7 +89,7 @@ test("Admin keeps no browser retention for on-account or ordinary checkout", () 
 
 test("the storefront has no on-account acceptance; a company location buyer pays on account through the checkout payment choice", async (context) => {
   const calls = recordFetch(context, (call) => call.method === "GET" ? placedOrder() : placedAcceptance());
-  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", market: "bih", sessionStorage: visitorStorage() });
+  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", market: "bih", sessionStorage: visitorStorage() });
   for (const removed of ["checkoutOnAccount", "retainOnAccountCheckout", "recoverOnAccountCheckout"]) {
     assert.equal(removed in storefront.eshop.cart, false, removed);
   }

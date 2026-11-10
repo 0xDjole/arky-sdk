@@ -13,6 +13,7 @@ import type {
   EmailFailure,
   ArkyCartCheckoutParams,
   StorefrontContext,
+  StorefrontIdentity,
   AccountSession,
   AccountSessionScope,
   AuthToken,
@@ -32,6 +33,7 @@ import type {
   CreateSupportFlowParams,
   Customer,
   CustomerMe,
+  StorefrontLogoutResult,
   CustomerSearchSnapshot,
   EmailAddress,
   EmailContact,
@@ -49,7 +51,6 @@ import type {
   PaginatedResponse,
   Payment,
   PaymentType,
-  PlatformAdministrator,
   PreviewEmailTemplateParams,
   IncomingWebhook,
   RecordRefundReceiptParams,
@@ -92,7 +93,7 @@ type Store = ReturnType<typeof initialize>;
 type Answer<F extends (...args: never[]) => unknown> = Awaited<ReturnType<F>>;
 
 const admin = createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
-const storefront = createStorefront(`arky_pk_${"a".repeat(42)}A`, { apiUrl: "https://api.example.test", locale: "bs", market: "bih", createVisitorIdentity: () => ({ customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A` });
+const storefront = createStorefront({ storeId: "5e9b3d71-c826-4a04-b7f5-0d2a8e6c4f19", salesChannelId: "e5a8c2d7-3b91-4f06-9d4e-1c7b6a0f3e28" }, { apiUrl: "https://api.example.test", locale: "bs", market: "bih", createVisitorIdentity: () => ({ customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A` });
 const store_id = "c3d8f1a2-6b47-4e95-8a0c-2f7d5e9b1a63";
 
 export const notificationPage: Promise<PaginatedResponse<OutgoingEmailSummary>> = admin.notification.outgoingEmail.find({ store_id, to: "buyer@example.test", type: "event_email", limit: 20 });
@@ -109,7 +110,7 @@ export const pausedSending: Promise<StoreRecord> = admin.store.pauseEmailSending
 export const allowedSending: Promise<StoreRecord> = admin.store.allowEmailSending({ store_id, expected_updated_at: createdAt });
 
 export type AdminSurfaceContracts = [
-  Assert<Equal<keyof Admin, "account" | "platform" | "store" | "notification" | "broadcast" | "support" | "media" | "category" | "content" | "forms" | "companies" | "customers" | "actions" | "experiments" | "counts" | "eshop" | "session" | "isAuthenticated" | "sessionStorageUnavailable" | "onAuthStateChanged" | "logout">>,
+  Assert<Equal<keyof Admin, "account" | "network" | "platform" | "store" | "notification" | "broadcast" | "support" | "media" | "category" | "content" | "forms" | "companies" | "customers" | "actions" | "experiments" | "counts" | "eshop" | "session" | "isAuthenticated" | "sessionStorageUnavailable" | "onAuthStateChanged" | "logout">>,
   Assert<Missing<Admin, "automation">>,
   Assert<Missing<Admin, "campaign">>,
   Assert<Missing<Admin, "leadResearch">>,
@@ -126,8 +127,8 @@ export type AdminSurfaceContracts = [
   Assert<Equal<keyof Admin["broadcast"], "find" | "get" | "create" | "update" | "delete" | "schedule" | "unschedule" | "send" | "preview" | "test">>,
   Assert<Equal<keyof Admin["support"], "flow" | "conversation">>,
   Assert<Missing<Admin["store"], "storefrontClient">>,
-  Assert<Equal<keyof Admin["store"]["apiKey"], "find" | "get" | "create" | "revoke" | "delete">>,
-  Assert<Equal<keyof Admin["platform"]["administrator"], "find" | "getMe" | "add" | "remove">>,
+  Assert<Missing<Admin["store"], "apiKey">>,
+  Assert<Equal<keyof Admin["platform"]["access"], "find" | "getMe" | "set">>,
   Assert<Equal<keyof Admin["eshop"]["payment"], "find" | "get" | "createManual" | "recordCollection" | "voidCollection" | "createRefund" | "recordMadeRefund" | "recordRefundReceipt" | "cancelRefund" | "resolveRefund" | "resolveCharge" | "resolveHold" | "cancel">>,
   Assert<Equal<Parameters<Admin["eshop"]["payment"]["recordMadeRefund"]>[0], RecordMadeRefundParams>>,
   Assert<Equal<Answer<Admin["eshop"]["payment"]["recordMadeRefund"]>, Payment>>,
@@ -142,7 +143,7 @@ export type AdminSurfaceContracts = [
   Assert<Equal<Answer<Admin["account"]["session"]["find"]>, PaginatedResponse<AccountSession>>>,
   Assert<Equal<Answer<Admin["account"]["auth"]["verify"]>, AuthToken>>,
   Assert<Missing<AuthToken, "scope">>,
-  Assert<Equal<Answer<Admin["platform"]["administrator"]["add"]>, PlatformAdministrator>>,
+  Assert<Equal<Answer<Admin["platform"]["access"]["set"]>, Account>>,
   Assert<Equal<Answer<Admin["platform"]["stripeBillingEvent"]["resolve"]>, IncomingWebhook>>,
   Assert<Equal<Answer<Admin["notification"]["template"]["create"]>, EmailTemplate>>,
   Assert<Equal<Answer<Admin["notification"]["emailAddress"]["create"]>, EmailAddress>>,
@@ -203,12 +204,15 @@ export type StorefrontSurfaceContracts = [
   Assert<Equal<Store["eshop"]["promotion"], Storefront["eshop"]["promotion"]>>,
   Assert<Equal<keyof ChangeCustomerEmailParams, "code">>,
   Assert<Equal<Answer<Storefront["customer"]["changeEmail"]>, CustomerMe>>,
-  Assert<Equal<keyof RequestCustomerCodeParams, "id" | "contact" | "bot_check_token">>,
+  Assert<Equal<Answer<Storefront["customer"]["getMe"]>, CustomerMe | null>>,
+  Assert<Equal<Answer<Storefront["customer"]["logout"]>, StorefrontLogoutResult>>,
+  Assert<Equal<StorefrontLogoutResult, { type: "revoked"; session_id: string } | { type: "unconfirmed"; session_id: string } | { type: "local_only" }>>,
+  Assert<Equal<keyof RequestCustomerCodeParams, "id" | "contact">>,
   Assert<OptionalField<RequestCustomerCodeParams, "id">>,
   Assert<RequiredField<RequestCustomerCodeParams, "contact">>,
   Assert<Equal<RequestCustomerCodeParams["contact"], EmailContact>>,
-  Assert<Equal<keyof SubmitFormParams, "id" | "language" | "bot_check_token">>,
-  Assert<Equal<keyof SubmitFormRequest, "form_id" | "questions_updated_at" | "id" | "language" | "answers" | "bot_check_token">>,
+  Assert<Equal<keyof SubmitFormParams, "id" | "language">>,
+  Assert<Equal<keyof SubmitFormRequest, "form_id" | "questions_updated_at" | "id" | "language" | "answers">>,
   Assert<Equal<Answer<Storefront["forms"]["submit"]>, StorefrontFormSubmission>>,
   Assert<Equal<keyof StorefrontFormSubmission, "id" | "form_id" | "language" | "answers" | "stage_id" | "created_at" | "updated_at">>,
   Assert<Equal<keyof NonNullable<Parameters<Storefront["store"]["location"]["find"]>[0]>, "key" | "sort_field" | "sort_direction" | "limit" | "cursor">>,
@@ -222,13 +226,13 @@ export type StorefrontSurfaceContracts = [
   Assert<RequiredField<StorefrontOptions, "createOrderToken">>,
   Assert<Missing<Storefront, "withContext">>,
   Assert<Missing<Store, "withContext">>,
-  Assert<Equal<Parameters<typeof createStorefront>, [string, StorefrontOptions]>>,
-  Assert<Equal<Parameters<typeof initialize>, [string, StorefrontOptions]>>,
+  Assert<Equal<Parameters<typeof createStorefront>, [StorefrontIdentity, StorefrontOptions]>>,
+  Assert<Equal<Parameters<typeof initialize>, [StorefrontIdentity, StorefrontOptions]>>,
   Assert<Equal<keyof VerifyCustomerCodeParams, "code">>,
   Assert<Equal<Parameters<Storefront["customer"]["verify"]>, [VerifyCustomerCodeParams]>>,
   Assert<Missing<Storefront, "setSalesChannel" | "getSalesChannel" | "subscription_plans" | "subscription_offerings">>,
   Assert<Missing<Store, "setSalesChannel" | "getSalesChannel" | "sales_channel_key">>,
-  Assert<Equal<keyof Public.StorefrontSetup, "name" | "timezone" | "languages" | "payment_options" | "bot_check">>,
+  Assert<Equal<keyof Public.StorefrontSetup, "name" | "timezone" | "languages" | "payment_options">>,
   Assert<Equal<Parameters<Storefront["eshop"]["packageMember"]["getSwitchDeliveryOptions"]>[0], Public.StorefrontGetPackageMemberSwitchDeliveryOptionsParams>>,
   Assert<Equal<Answer<Storefront["eshop"]["packageMember"]["getSwitchDeliveryOptions"]>, Public.PackageMemberDeliveryOptions>>,
   Assert<Equal<keyof Public.StorefrontGetPackageMemberSwitchDeliveryOptionsParams, "id" | "delivery_id" | "expected_updated_at" | "revision_id" | "language" | "to_package_id" | "choices" | "price" | "deliveries">>,

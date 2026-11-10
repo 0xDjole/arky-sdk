@@ -17,7 +17,7 @@ const setup = {
   publishable_key: "pk_test_arky_store",
   runs_on: simulated,
 };
-const plan = { type: "stripe_embedded_checkout", publishable_key: "pk_test_arky", client_secret: "cs_plan_secret_randomplan", expires_at: 1_900_000_000_000, runs_on: simulated };
+const plan = { type: "stripe", payment_intent_id: "pi_store", publishable_key: "pk_test_arky", client_secret: "pi_store_secret_exact", runs_on: simulated };
 const billing = { full_name: "Test Buyer", address: "Test Street 1", city: "Sarajevo", zip: "71000", phone: "+38761123456", country: "BA", email: "buyer@example.test" };
 const simulatorPayments = `${api_url}/v1/simulator/payments`;
 
@@ -115,13 +115,17 @@ test("simulatePayment posts the client secret and outcome to the address the pay
   });
   assert.equal(await simulatePayment({ simulation: { type: "stripe_checkout", action: stripe, outcome: "complete" } }), undefined);
   await simulatePayment({ simulation: { type: "stripe_checkout", action: stripe, outcome: "decline" } });
-  await simulatePayment({ simulation: { type: "stripe_checkout", action: plan, outcome: "expire" } });
+  await simulatePayment({ simulation: { type: "stripe_checkout", action: stripe, outcome: "expire" } });
+  await adminSimulatePayment({ simulation: { type: "stripe_payment_intent", action: plan, outcome: "complete" } });
+  await adminSimulatePayment({ simulation: { type: "stripe_payment_intent", action: plan, outcome: "decline" } });
   await rootSimulatePayment({ simulation: { type: "monri", action: monri, outcome: "decline" } });
   await adminSimulatePayment({ simulation: { type: "card_setup", setup, outcome: "cancel" } });
   assert.deepEqual(calls.map(({ url, init }) => [url, init.method, JSON.parse(init.body)]), [
     [simulatorPayments, "POST", { type: "stripe_checkout", client_secret: stripe.client_secret, outcome: "complete" }],
     [simulatorPayments, "POST", { type: "stripe_checkout", client_secret: stripe.client_secret, outcome: "decline" }],
-    [simulatorPayments, "POST", { type: "stripe_checkout", client_secret: plan.client_secret, outcome: "expire" }],
+    [simulatorPayments, "POST", { type: "stripe_checkout", client_secret: stripe.client_secret, outcome: "expire" }],
+    [simulatorPayments, "POST", { type: "stripe_payment_intent", client_secret: plan.client_secret, outcome: "complete" }],
+    [simulatorPayments, "POST", { type: "stripe_payment_intent", client_secret: plan.client_secret, outcome: "decline" }],
     [simulatorPayments, "POST", { type: "monri", client_secret: monri.client_secret, outcome: "decline" }],
     [simulatorPayments, "POST", { type: "card_setup", client_secret: setup.client_secret, outcome: "cancel" }],
   ]);
@@ -138,6 +142,9 @@ test("simulatePayment refuses a real payment, an outcome that value doesn't offe
   const calls = recordFetch(context, accepted);
   const refused = [
     { type: "stripe_checkout", action: { ...stripe, runs_on: provider }, outcome: "complete" },
+    { type: "stripe_payment_intent", action: { ...plan, runs_on: provider }, outcome: "complete" },
+    { type: "stripe_payment_intent", action: plan, outcome: "expire" },
+    { type: "stripe_payment_intent", action: { ...plan, client_secret: null }, outcome: "complete" },
     { type: "monri", action: { ...monri, runs_on: provider }, outcome: "complete" },
     { type: "card_setup", setup: { ...setup, runs_on: provider }, outcome: "complete" },
     { type: "stripe_checkout", action: { ...stripe, runs_on: undefined }, outcome: "complete" },
@@ -214,11 +221,11 @@ test("a simulated Stripe action mounts Arky's panel with no Stripe.js, and a cli
   assert.equal(target.children.length, 0);
 });
 
-test("a simulated store plan action mounts the same panel, and an expire is posted too", async (context) => {
+test("a simulated Stripe checkout posts an expire outcome and removes its panel on destroy", async (context) => {
   const target = fakePage(context);
   const calls = recordFetch(context, accepted);
   let completed = 0;
-  const mounted = await mountCheckoutAction({ action: plan, element: target, onComplete: () => { completed += 1; } });
+  const mounted = await mountCheckoutAction({ action: stripe, element: target, onComplete: () => { completed += 1; } });
   assert.equal(mounted.type, "simulator");
   outcomeButtons(target).expire.click();
   await until(() => completed === 1);

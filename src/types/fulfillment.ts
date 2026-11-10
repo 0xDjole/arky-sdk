@@ -356,6 +356,7 @@ export type CustomerShipmentStatus =
 export interface CustomerOrderShipment {
   fulfillment_id: string;
   status: CustomerShipmentStatus;
+  trackings: Tracking[];
   preparation_started_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }

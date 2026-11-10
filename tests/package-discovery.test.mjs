@@ -5,7 +5,7 @@ import { createStorefront, initialize } from "../dist/storefront.js";
 import {
   apiUrl,
   fixedIdFactories,
-  publishableKey,
+  storefrontIdentity,
   SessionStorage,
 } from "./helpers/arky-fixtures.mjs";
 
@@ -32,7 +32,7 @@ const storefrontMemberCalls = [
 ];
 
 test("the storefront reads packages, offerings and the shopper's own members under eshop, with no assign or email consent calls", () => {
-  const client = createStorefront(publishableKey, {
+  const client = createStorefront(storefrontIdentity, {
     visitorIdentity: {
       customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58",
       session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63",
@@ -41,7 +41,7 @@ test("the storefront reads packages, offerings and the shopper's own members und
     apiUrl,
     sessionStorage: new SessionStorage(),
   });
-  const store = initialize(publishableKey, {
+  const store = initialize(storefrontIdentity, {
     visitorIdentity: {
       customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58",
       session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63",

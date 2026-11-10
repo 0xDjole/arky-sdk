@@ -11,7 +11,7 @@ import type {
 import type { EmailContact, PaginatedResponse } from "../types/common";
 import type {
   StorefrontCart,
-  CartQuote,
+  StorefrontCartQuote,
   StorefrontCheckoutAcceptance,
   StorefrontCreatedCart,
   StorefrontAddCartPackageParams,
@@ -29,8 +29,8 @@ import {
   DurableRequestError,
   durableRequestPayload,
   getOrCreateDurableRequest,
-  isDefiniteRefusal,
   readDurableRequest,
+  refusalClearsKeptRequest,
   withDurableRequestLock,
   type DurableRequest,
 } from "../utils/durableRequest";
@@ -55,7 +55,7 @@ export interface FreeJoinDeps {
   ): Promise<PaginatedResponse<StorefrontPackageItemPrice>>;
   createCart(params: StorefrontCreateCartParams & { market_id: string }, options?: RequestOptions): Promise<StorefrontCreatedCart>;
   addPackageLine(params: StorefrontAddCartPackageParams, options?: RequestOptions): Promise<StorefrontCart>;
-  quote(params: { id: string }, options?: RequestOptions): Promise<CartQuote>;
+  quote(params: { id: string }, options?: RequestOptions): Promise<StorefrontCartQuote>;
   accept(request: CartCheckoutRequest, options?: RequestOptions): Promise<StorefrontCheckoutAcceptance>;
   getOrder(id: string, orderToken: string, options?: RequestOptions): Promise<StorefrontOrder>;
 }
@@ -247,7 +247,7 @@ export async function joinFreePackage(
     try {
       result = await place(deps, request, price, contact, options);
     } catch (error) {
-      if (isDefiniteRefusal(error) || error instanceof PackageJoinError) clearDurableRequest(durable, label);
+      if (refusalClearsKeptRequest(error) || error instanceof PackageJoinError) clearDurableRequest(durable, label);
       throw error;
     }
     clearDurableRequest(durable, label);

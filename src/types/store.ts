@@ -2,49 +2,34 @@ import type { EpochMilliseconds } from "./time";
 import type { Currency, PostalAddressInput, SortDirection, TaxMode } from "./common";
 import type { PaymentRunsOn } from "./payment";
 
-export type StoreMode = "live" | "test";
+export type StoreType =
+  | { type: "live"; account_id: string; network_id: string }
+  | { type: "test"; store_id: string };
 
-export type StoreStatus = { type: "active" } | { type: "deleting" };
+export type StoreStatus = { type: "active" } | { type: "wiping" } | { type: "deleting" };
 
 export type StoreEmailSending = { type: "allowed" } | { type: "paused"; reason: string };
 
 export interface Store {
   id: string;
   name: string;
-  owner_account_id: string;
   timezone: string;
   languages: string[];
-  mode: StoreMode;
+  type: StoreType;
   status: StoreStatus;
   email_sending: StoreEmailSending;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
-export type StoreBillingStatus =
-  | { type: "trialing" }
-  | { type: "active" }
-  | { type: "past_due" }
-  | { type: "unpaid" }
-  | { type: "cancellation_scheduled" }
-  | { type: "cancelled" };
-
-export type BillingProvider = {
-  type: "stripe";
-  customer_id: string;
-  subscription_id: string;
-};
-
 export type StoreSubscriptionPlan =
-  | { type: "none" }
   | { type: "granted"; plan_id: string }
-  | {
-      type: "billed";
-      plan_id: string;
-      status: StoreBillingStatus;
-      paid_until: EpochMilliseconds;
-      provider: BillingProvider;
-    };
+  | { type: "trialing"; plan_id: string; trial_ends_at: EpochMilliseconds; stripe_customer_id: string; stripe_payment_method_id: string }
+  | { type: "active"; plan_id: string; paid_until: EpochMilliseconds; stripe_customer_id: string; stripe_payment_method_id: string }
+  | { type: "past_due"; plan_id: string; paid_until: EpochMilliseconds; stripe_customer_id: string; stripe_payment_method_id: string }
+  | { type: "cancellation_scheduled"; plan_id: string; paid_until: EpochMilliseconds; stripe_customer_id: string; stripe_payment_method_id: string }
+  | { type: "unpaid"; plan_id: string; stripe_customer_id: string; stripe_payment_method_id: string }
+  | { type: "cancelled"; plan_id: string };
 
 export interface StoreSubscription {
   id: string;
@@ -55,18 +40,15 @@ export interface StoreSubscription {
   updated_at: EpochMilliseconds;
 }
 
-export type StoreSubscriptionPaymentAction =
+export type StoreSubscriptionPayment =
   | { type: "none" }
-  | {
-      type: "stripe_embedded_checkout";
-      publishable_key: string;
-      client_secret: string;
-      expires_at: EpochMilliseconds;
-      runs_on: PaymentRunsOn;
-    };
+  | { type: "stripe"; payment_intent_id: string; publishable_key: string; client_secret: string; runs_on: PaymentRunsOn };
 
-export interface StoreSubscriptionSelection extends StoreSubscription {
-  payment_action: StoreSubscriptionPaymentAction;
+export interface StoreCardSetup {
+  setup_intent_id: string;
+  publishable_key: string;
+  client_secret: string;
+  runs_on: PaymentRunsOn;
 }
 
 export type FeatureType =
@@ -83,12 +65,12 @@ export type FeatureType =
   | "forms"
   | "webhooks"
   | "support_flows"
-  | "broadcasts";
+  | "broadcasts"
+  | "test_stores";
 
 export type StoreUsageAllowance =
   | { type: "limited"; limit: number }
-  | { type: "unlimited" }
-  | { type: "no_plan" };
+  | { type: "unlimited" };
 
 export interface StoreUsageItem {
   feature: FeatureType;
@@ -101,24 +83,14 @@ export interface StoreUsageSummary {
   items: StoreUsageItem[];
 }
 
-export interface StorePlanFeature {
-  limit: number | null;
-}
+export type CreateStorePlan =
+  | { type: "free"; plan_id: string }
+  | { type: "card"; plan_id: string; setup_intent_id: string }
+  | { type: "grant"; plan_id: string };
 
-export type StorePlanInterval = "lifetime" | "month" | "year";
-
-export interface StorePlan {
-  id: string;
-  provider_price_id: string | null;
-  name: string;
-  tier: number;
-  amount: number;
-  currency: Currency;
-  interval: StorePlanInterval;
-  interval_count: number;
-  trial_days: number | null;
-  features: Record<FeatureType, StorePlanFeature>;
-}
+export type CreateStoreType =
+  | { type: "live"; network_id: string; plan: CreateStorePlan }
+  | { type: "test"; store_id: string };
 
 export interface CreateStoreMarketInput {
   key: string;
@@ -132,7 +104,7 @@ export interface CreateStoreSalesChannelInput {
 
 export interface CreateStoreParams {
   id: string;
-  mode: StoreMode;
+  type: CreateStoreType;
   name: string;
   timezone: string;
   languages: string[];
@@ -182,26 +154,32 @@ export interface GetStoreSubscriptionParams {
   store_id: string;
 }
 
-export interface SelectStorePlanParams {
+export interface ChangeStorePlanParams {
   store_id: string;
   plan_id: string;
-  return_url: string;
+  expected_updated_at: EpochMilliseconds;
+  setup_intent_id?: string;
 }
 
-export interface CreateStorePortalSessionParams {
+export interface EndStoreGrantParams extends ChangeStorePlanParams {}
+export interface GrantStorePlanParams {
   store_id: string;
-  return_url: string;
+  plan_id: string;
+  expected_updated_at: EpochMilliseconds;
 }
-
-export interface EndStoreGrantParams {
+export interface SetStoreSubscriptionCardParams {
+  store_id: string;
+  setup_intent_id: string;
+  expected_updated_at: EpochMilliseconds;
+}
+export interface CancelStoreSubscriptionParams {
   store_id: string;
   expected_updated_at: EpochMilliseconds;
 }
+export interface CreateStoreCardSetupParams { network_id: string; id: string }
+export interface FindTestStoresParams { store_id: string; limit?: number; cursor?: string | null }
+export interface WipeStoreParams extends RequestStoreDeletionParams {}
 
 export interface GetStoreUsageParams {
   store_id: string;
-}
-
-export interface StorePortalSession {
-  portal_url: string;
 }

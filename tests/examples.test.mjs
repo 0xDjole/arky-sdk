@@ -50,7 +50,6 @@ declare global {
   const price_id: string;
   const orderId: string;
   const address: PostalAddress;
-  function solveBotCheck(provider: "turnstile" | "h_captcha", siteKey: string): Promise<string>;
 }
 
 export {};

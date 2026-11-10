@@ -1,4 +1,5 @@
 import type {
+  Block,
   Package,
   PackageAccessLevel,
   PackageContext,
@@ -44,7 +45,8 @@ export type BuyerPackageContracts = [
   AssertTrue<Same<Awaited<ReturnType<StorefrontPackageApi["find"]>>, PaginatedResponse<StorefrontPackageChoice>>>,
   AssertTrue<Same<Awaited<ReturnType<FacadePackageApi["find"]>>, PaginatedResponse<StorefrontPackageChoice>>>,
   AssertTrue<Same<keyof StorefrontPackageApi, "find" | "get" | "getByKey" | "getProductChoices" | "joinFree">>,
-  AssertTrue<Same<keyof StorefrontPackageChoice, "id" | "key" | "level">>,
+  AssertTrue<Same<keyof StorefrontPackageChoice, "id" | "key" | "blocks" | "level">>,
+  AssertTrue<Same<StorefrontPackageChoice["blocks"], Block[]>>,
   AssertTrue<Same<StorefrontPackageChoice["level"], PackageAccessLevel>>,
   AssertTrue<Same<PublicStorefrontPackage, StorefrontPackageChoice>>,
   AssertTrue<RequiredField<FindPurchasablePackagesParams, "sales_channel_id">>,

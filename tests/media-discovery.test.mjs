@@ -14,7 +14,7 @@ test('Media discovery preserves combined filters, ordering and empty-page contin
       { headers: { 'content-type': 'application/json' } });
   });
   const api = createAdmin({ apiUrl: 'https://media.test', accountToken: 'arky_at_ttttttttttttttttttttttttttttttttttttttttttA' }).media;
-  const filters = { query: 'invoice', ids: ['media-a', 'media-b'], type: 'document', limit: 1,
+  const filters = { query: 'invoice', ids: ['media-a', 'media-b'], type: 'pdf', visibility: 'private', limit: 1,
     sort_field: 'file_name', sort_direction: 'asc' };
   const first = await api.find({ store_id: STORE_ID, ...filters });
   assert.deepEqual(first, { items: [], cursor: 'media:+/=' });
@@ -39,7 +39,7 @@ test('Storefront Media reference batches remain exact and preserve request order
     calls.push({ url: new URL(url), method: init.method });
     return new Response(JSON.stringify(roots), { headers: { 'content-type': 'application/json' } });
   });
-  const api = createStorefront(`arky_pk_${'m'.repeat(42)}A`, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: 'https://media.test' });
+  const api = createStorefront({ storeId: "5e9b3d71-c826-4a04-b7f5-0d2a8e6c4f19", salesChannelId: "e5a8c2d7-3b91-4f06-9d4e-1c7b6a0f3e28" }, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: 'https://media.test' });
   assert.deepEqual(await api.media.find({ ids: ['second', 'first'] }), { items: roots, cursor: null });
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url.pathname, '/v1/storefront/media');
@@ -55,7 +55,7 @@ test('Storefront media.find takes any number of ids and reads them 100 at a time
     asked.push(ids);
     return new Response(JSON.stringify(ids.map((id) => ({ id }))), { headers: { 'content-type': 'application/json' } });
   });
-  const api = createStorefront(`arky_pk_${'m'.repeat(42)}A`, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: 'https://media.test' });
+  const api = createStorefront({ storeId: "5e9b3d71-c826-4a04-b7f5-0d2a8e6c4f19", salesChannelId: "e5a8c2d7-3b91-4f06-9d4e-1c7b6a0f3e28" }, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: 'https://media.test' });
   const ids = Array.from({ length: 205 }, (_, index) => `media-${index}`);
   assert.deepEqual(await api.media.find({ ids }), { items: ids.map((id) => ({ id })), cursor: null });
   assert.deepEqual(asked.map((batch) => batch.length), [100, 100, 5]);
@@ -65,7 +65,7 @@ test('Storefront media.find takes any number of ids and reads them 100 at a time
 test('Storefront media.find refuses an answer that is not a list or names a file it did not ask for', async context => {
   const answers = [{ items: [{ id: 'asked' }] }, [{ id: 'asked' }, { id: 'other' }]];
   context.mock.method(globalThis, 'fetch', async () => new Response(JSON.stringify(answers.shift()), { headers: { 'content-type': 'application/json' } }));
-  const api = createStorefront(`arky_pk_${'m'.repeat(42)}A`, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: 'https://media.test' });
+  const api = createStorefront({ storeId: "5e9b3d71-c826-4a04-b7f5-0d2a8e6c4f19", salesChannelId: "e5a8c2d7-3b91-4f06-9d4e-1c7b6a0f3e28" }, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: 'https://media.test' });
   await assert.rejects(api.media.find({ ids: ['asked'] }), { code: 'answer_mismatch', message: 'The media read did not answer a list' });
   await assert.rejects(api.media.find({ ids: ['asked'] }), { code: 'answer_mismatch', message: 'The media read answered a file it was not asked for' });
 });

@@ -305,7 +305,6 @@ export interface GetStorefrontFormByKeyParams {
 }
 
 export interface SubmitFormRequest {
-  bot_check_token?: string;
   form_id: string;
   questions_updated_at: EpochMilliseconds;
   id: string;
@@ -327,7 +326,6 @@ export interface FormValuesInput {
 export type SubmitFormParams = (FormAnswersInput | FormValuesInput) & {
   id?: string;
   language: string;
-  bot_check_token?: string;
 };
 
 export type KeptFormAnswer = Exclude<FormAnswer, { type: "file" }>;
@@ -357,7 +355,6 @@ export interface PendingFormSubmissionParams {
 
 export interface RecoverFormSubmissionParams {
   form_id: string;
-  bot_check_token?: string;
 }
 
 export type FormAnswerErrorCode =

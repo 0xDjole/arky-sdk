@@ -6,7 +6,7 @@ import {
   apiUrl,
   fixedIdFactories,
   ids,
-  publishableKey,
+  storefrontIdentity,
   recordFetch,
   visitorStorage,
   visitorToken,
@@ -98,7 +98,7 @@ test("buyer own-terms sends only editable accepted fields and preserves the exac
     withdrawn: null,
   };
   const calls = recordFetch(context, () => result);
-  const api = createStorefront(publishableKey, {
+  const api = createStorefront(storefrontIdentity, {
     apiUrl,
     sessionStorage: visitorStorage(),
     visitorIdentity: {
@@ -154,7 +154,7 @@ test("buyer current terms reads the canonical member response with authenticatio
     head_revision_id: null,
   };
   const calls = recordFetch(context, () => result);
-  const api = createStorefront(publishableKey, {
+  const api = createStorefront(storefrontIdentity, {
     apiUrl,
     sessionStorage: visitorStorage(),
     visitorIdentity: {
@@ -200,7 +200,7 @@ test("sale and accepted Product choices keep exact package and current member re
     ],
   };
   const calls = recordFetch(context, () => result);
-  const api = createStorefront(publishableKey, {
+  const api = createStorefront(storefrontIdentity, {
     apiUrl,
     sessionStorage: visitorStorage(),
     visitorIdentity: {
@@ -284,7 +284,7 @@ test("member delivery options preserve proposed terms and exact authenticated ve
     offers: [],
   };
   const calls = recordFetch(context, () => result);
-  const api = createStorefront(publishableKey, {
+  const api = createStorefront(storefrontIdentity, {
     apiUrl,
     sessionStorage: visitorStorage(),
     visitorIdentity: {
@@ -370,7 +370,7 @@ test("a switch's new delivery lists its rates through the switch delivery option
     ],
   };
   const calls = recordFetch(context, () => result);
-  const api = createStorefront(publishableKey, {
+  const api = createStorefront(storefrontIdentity, {
     apiUrl,
     sessionStorage: visitorStorage(),
     visitorIdentity: {

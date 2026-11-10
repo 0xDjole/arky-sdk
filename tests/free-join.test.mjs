@@ -15,7 +15,7 @@ import {
   installGlobal,
   placedAcceptance,
   placedOrder,
-  publishableKey,
+  storefrontIdentity,
   quoteRecord,
   recordFetch,
   sessionResult,
@@ -66,7 +66,7 @@ function packagePrice(overrides = {}, amount = 0) {
 const choicesPath = `/v1/storefront/package-items/${ids.packageItem}/prices`;
 
 function client(sessionStorage, createId = idSequence(factoryId(1), factoryId(2), ids.order)) {
-  return createStorefront(publishableKey, { ...idFactories, createId, createOrderToken: () => orderToken, apiUrl, locale: "en", market: "bih", sessionStorage });
+  return createStorefront(storefrontIdentity, { ...idFactories, createId, createOrderToken: () => orderToken, apiUrl, locale: "en", market: "bih", sessionStorage });
 }
 
 function joinServer(context, { loseAccept = false, packageRecord = freePackage(), choicePages = [{ items: [packagePrice()], cursor: null }] } = {}) {
@@ -225,7 +225,7 @@ test("newsletter.requestCode skips a code for the signed-in address and signs ou
     }
     throw new Error(`Unexpected request ${call.path}`);
   });
-  const api = createStorefront(publishableKey, {
+  const api = createStorefront(storefrontIdentity, {
     ...idFactories,
     createVisitorIdentity: () => ({ customer_id: ids.otherCustomer, session_id: ids.otherSession }),
     createId: idSequence(factoryId(4)),

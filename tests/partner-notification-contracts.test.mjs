@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { createStorefront } from "../dist/storefront.js";
-import { apiUrl, errorResponse, fixedIdFactories, ids, publishableKey, quoteRecord, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
+import { apiUrl, errorResponse, fixedIdFactories, ids, storefrontIdentity, quoteRecord, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
 
 const storeId = "3b21b61d-7162-414c-a73a-888ccbc57c3e";
 const notificationId = "d65211c1-743f-45fb-ab24-07221b1e3a7c";
@@ -26,7 +26,7 @@ test("a staff offer is made from the reviewed quote for the buyer's contact, sen
     ["POST", `${base}/offer/withdraw`, { expected_updated_at: 125 }],
   ]);
   for (const removed of ["reviewFirstOrderTerms", "sealFirstOrderTerms", "withdrawFirstOrderTerms"]) assert.equal(removed in admin().eshop.cart, false, removed);
-  assert.equal("repeat" in createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl }).eshop.cart, false);
+  assert.equal("repeat" in createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl }).eshop.cart, false);
 });
 
 test("staff see an offer's codes-only quote before making it, with the cart version and the offer language", async (context) => {
@@ -77,7 +77,7 @@ test("minimum progress is read for exactly one customer, company or company loca
   assert.deepEqual(await admin().eshop.minimumProgress.get({ store_id: storeId, company_location_id: ids.companyLocation }), locationProgress);
   assert.deepEqual(await admin().eshop.minimumProgress.get({ store_id: storeId, company_id: ids.company }), companyProgress);
   await admin().eshop.minimumProgress.get({ store_id: storeId, customer_id: ids.customer });
-  const shop = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
+  const shop = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
   assert.deepEqual(await shop.eshop.minimumProgress.get({ company_id: ids.company }), companyProgress);
   assert.deepEqual(await shop.eshop.minimumProgress.get({ company_location_id: ids.companyLocation }), locationProgress);
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [

@@ -46,9 +46,21 @@ export interface SupportFlow {
   updated_at: EpochMilliseconds;
 }
 
+export type ConversationFlowFailureReason =
+  | "step_missing"
+  | "chat_step_in_email"
+  | "loops_without_customer"
+  | "text_language_missing"
+  | "no_email_contact"
+  | "email_selection_gone"
+  | "email_selection_unusable"
+  | "email_template_unsuitable"
+  | "email_render_failed"
+  | "email_language_missing";
+
 export interface ConversationFlowFailure {
   step_key: string;
-  reason: string;
+  reason: ConversationFlowFailureReason;
   at: EpochMilliseconds;
 }
 
@@ -223,7 +235,7 @@ export interface StorefrontConversationReply {
 }
 
 export type ChatInput =
-  | { type: "button"; label: string }
+  | { type: "button"; index: number }
   | { type: "text"; text: string }
   | { type: "email_contact"; contact: EmailContact };
 

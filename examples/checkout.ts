@@ -43,7 +43,7 @@ if (option) checkout.selectPaymentOption({ payment_option_id: option });
 
 if (state.step === "payment") {
   try {
-    state = await checkout.place({ return_url: (orderId) => `${location.origin}/order/${orderId}` });
+    state = await checkout.place({ return_url: (orderId) => `${location.origin}/order?order_id=${orderId}` });
   } catch (error) {
     if (error instanceof CheckoutFlowError && error.code === "presentation_changed") {
       console.log("the quote changed; show the new total", checkout.state.get().quote?.totals.total);

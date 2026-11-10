@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { SUPPORTED_STORE_CURRENCIES, convertToMajor, convertToMinor, formatMinor, getCurrencyMinorUnits } from "../dist/utils.js";
-import { recordFetch } from "./helpers/arky-fixtures.mjs";
+import { ids, recordFetch } from "./helpers/arky-fixtures.mjs";
 
 const STORE_ID = "4f2a9c61-7e3b-4d85-a0c9-1b6e8d3f5a27";
 const API = "https://api.example.test";
@@ -36,6 +36,9 @@ const adminSurface = {
   "companies.role": ["create", "delete", "find", "get", "update"],
   "content.collection": ["create", "delete", "find", "get", "getByKey", "getCleanup", "update"],
   "content.entry": ["create", "delete", "find", "get", "update"],
+  "content.privateCollection": ["create", "delete", "find", "get", "update"],
+  "content.privateEntry": ["create", "delete", "fileLink", "find", "get", "update"],
+  "content.entryAccess": ["find"],
   customers: ["create", "erase", "find", "findSessions", "get", "import", "merge", "previewImport", "revokeAllSessions", "revokeSession", "update"],
   "customers.emailSuppression": ["block", "find", "get", "recordResubscribe", "recordUnsubscribe", "unblock"],
   "customers.notes": ["create", "delete", "find", "update"],
@@ -87,11 +90,11 @@ const adminSurface = {
   "notification.layout": ["create", "delete", "find", "get", "update"],
   "notification.resendEvent": ["find", "resolve"],
   "notification.template": ["create", "delete", "find", "findDefaults", "get", "preview", "test", "update"],
-  platform: ["findCurrencies", "findStorePlans", "findWebhookEvents"],
-  "platform.administrator": ["add", "find", "getMe", "remove"],
+  platform: ["findCurrencies", "findWebhookEvents"],
+  "platform.access": ["find", "getMe", "set"],
   "platform.resendEvent": ["find", "resolve"],
   "platform.stripeBillingEvent": ["find", "resolve"],
-  store: ["allowEmailSending", "create", "find", "get", "pauseEmailSending", "requestDeletion", "update"],
+  store: ["allowEmailSending", "create", "find", "get", "pauseEmailSending", "requestDeletion", "update", "wipe"],
   "store.country": ["find", "get"],
   "store.location": ["create", "delete", "find", "get", "getByKey", "update"],
   "store.market": ["create", "delete", "find", "get", "getByKey", "update"],
@@ -108,11 +111,15 @@ const adminSurface = {
   "store.simulator.emails": ["find"],
   "store.simulator.payments": ["decline", "expire", "pay"],
   "store.simulator.plannedOutcomes": ["create", "find", "remove"],
-  "store.apiKey": ["create", "delete", "find", "get", "revoke"],
   "store.emails": ["get", "update"],
-  "store.subscription": ["createPortalSession", "endGrant", "get", "select"],
+  "store.subscription": ["cancel", "changePlan", "createCardSetup", "endGrant", "get", "grant", "pendingPayment", "setCard"],
   "store.taxCategory": ["create", "delete", "find", "get", "getByKey", "update"],
   "store.usage": ["get"],
+  "store.testStores": ["find"],
+  network: ["create", "delete", "find", "get", "update"],
+  "network.stripe": ["remove", "set"],
+  "network.email": ["replaceResendKey"],
+  "network.plan": ["create", "delete", "find", "update"],
   "store.webhook": ["create", "delete", "find", "test", "update"],
   "store.zone": ["create", "delete", "find", "get", "getByKey", "update"],
   "support.conversation": ["assign", "changeChatVisibility", "find", "findMessages", "get", "getAttachmentLink", "getMessage", "reply", "resolve", "selectReplyEmail", "startEmail"],
@@ -177,7 +184,7 @@ test("deleted features and store switching are absent from the Admin client", ()
   for (const removed of ["stop", "emailSender"]) assert.equal(removed in client.notification, false, removed);
   for (const removed of ["channel", "ai"]) assert.equal(removed in client.support, false, removed);
   assert.equal("category" in client.content, false);
-  for (const removed of ["getCheckout", "retainSelection", "recoverSelection", "pendingSelection", "cancel", "reactivate", "getPlans"]) {
+  for (const removed of ["getCheckout", "retainSelection", "recoverSelection", "pendingSelection", "reactivate", "getPlans", "select", "createPortalSession"]) {
     assert.equal(removed in client.store.subscription, false, removed);
   }
   for (const removed of ["setup", "configure", "cancelConfiguration", "getConfigurationChange", "openDashboard", "getConnection", "createWebhook", "rotateWebhookSecret"]) {
@@ -242,28 +249,28 @@ test("sales channels are created under the app-picked id with their markets and 
   assert.equal(calls.length, 3);
 });
 
-test("platform reads and administrator changes use the platform routes, and a new administrator brings its app-picked id", async (context) => {
-  const administratorId = "2f6a9c13-8b47-4d05-a1e8-7c3b0d5f9e26";
-  const calls = recordFetch(context, (call) => call.path === "/v1/platform/currencies" ? ["eur"] : call.path === "/v1/platform/events" ? [] : call.method === "DELETE" ? true : { items: [], cursor: null });
+test("platform access is changed on the existing Account", async (context) => {
+  const accountId = "2f6a9c13-8b47-4d05-a1e8-7c3b0d5f9e26";
+  const calls = recordFetch(context, (call) => call.path === "/v1/platform/currencies" ? ["eur"] : call.path === "/v1/platform/events" ? [] : { items: [], cursor: null });
   const platform = admin().platform;
   assert.deepEqual(await platform.findCurrencies(), { items: ["eur"], cursor: null });
   assert.deepEqual(await platform.findWebhookEvents(), { items: [], cursor: null });
-  await platform.findStorePlans();
-  await platform.administrator.find({ cursor: "next" });
-  await platform.administrator.add({ id: administratorId, account_id: "account" });
-  await platform.administrator.remove({ id: administratorId });
-  await platform.stripeBillingEvent.find({ status: "review", limit: 10 });
-  await platform.stripeBillingEvent.resolve({ id: "event/1", expected_updated_at: 4, resolution: "apply" });
+  await platform.access.find({ cursor: "next" });
+  await platform.access.getMe();
+  await platform.access.set({ account_id: accountId, access: { type: "platform_admin" } });
+  await platform.access.set({ account_id: accountId, access: { type: "regular" } });
+  await platform.stripeBillingEvent.find({ network_id: ids.network, status: "review", limit: 10 });
+  await platform.stripeBillingEvent.resolve({ network_id: ids.network, id: "event/1", expected_updated_at: 4, resolution: "apply" });
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
     ["GET", "/v1/platform/currencies", {}, null],
     ["GET", "/v1/platform/events", {}, null],
-    ["GET", "/v1/stores/plans", {}, null],
-    ["GET", "/v1/platform/administrators", { cursor: "next" }, null],
-    ["POST", "/v1/platform/administrators", {}, { id: administratorId, account_id: "account" }],
-    ["DELETE", `/v1/platform/administrators/${administratorId}`, {}, null],
-    ["GET", "/v1/platform/incoming-webhooks/stripe-billing", { status: "review", limit: "10" }, null],
-    ["POST", "/v1/platform/incoming-webhooks/stripe-billing/event%2F1/resolve", {}, { expected_updated_at: 4, resolution: "apply" }],
+    ["GET", "/v1/accounts", { cursor: "next", access: "platform_admin" }, null],
+    ["GET", "/v1/accounts/me/platform-admin", {}, null],
+    ["PUT", `/v1/accounts/${accountId}/access`, {}, { access: { type: "platform_admin" } }],
+    ["PUT", `/v1/accounts/${accountId}/access`, {}, { access: { type: "regular" } }],
+    ["GET", "/v1/platform/incoming-webhooks/stripe-billing", { network_id: ids.network, status: "review", limit: "10" }, null],
+    ["POST", "/v1/platform/incoming-webhooks/stripe-billing/event%2F1/resolve", {}, { network_id: ids.network, expected_updated_at: 4, resolution: "apply" }],
   ]);
-  await assert.rejects(async () => platform.administrator.add({ id: "admin", account_id: "account" }), TypeError);
+  await assert.rejects(async () => platform.access.set({ account_id: "account", access: { type: "platform_admin" } }), TypeError);
   assert.equal(calls.length, 8);
 });

@@ -8,10 +8,10 @@ import type {
   CartLineItem,
   CartLineItemInput,
   CartProductLineItem,
-  CartQuote,
+  StorefrontCartQuote,
   StorefrontCheckoutAcceptance,
   PackageDeliveryOffers,
-  QuoteLine,
+  StorefrontQuoteLine,
   QuotePromotionCode,
   StorefrontCheckoutCartInput,
   StorefrontCartLineItem,
@@ -23,7 +23,7 @@ import { CartError } from "../types/cartSelection";
 import { ArkyApiError, ArkyNetworkError, errorInfo } from "../types/apiError";
 import type { CompanyPartyQuery } from "../types/common";
 import type { StorefrontCheckoutCartRequest, StorefrontClient } from "../index";
-import { isDefiniteRefusal } from "../utils/durableRequest";
+import { DurableRequestError, isDefiniteRefusal } from "../utils/durableRequest";
 import { fingerprint } from "../utils/fingerprint";
 import { epochMillisecondsNow } from "../utils/time";
 import type {
@@ -192,7 +192,7 @@ export function deliveryGroupsFor(
 export function createCartStore(context: CartStoreContext, scope: ArkyCartScope) {
   const { client } = context;
   const cart = atom<StorefrontCart | null>(null);
-  const quote = atom<CartQuote | null>(null);
+  const quote = atom<StorefrontCartQuote | null>(null);
   const last_order = atom<ArkyLastOrder | null>(null);
   const cart_status = map<ArkyCartStatus>({ ...idleStatus });
   const product_items = computed(cart, (value) => cartProductItems(value));
@@ -206,6 +206,7 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
   const promotion_codes = computed(quote, (value): QuotePromotionCode[] => value?.promotion_codes ?? []);
 
   let cartRevision = 0;
+  let writing = false;
   let pendingCartId: string | null = null;
 
   function reset(): void {
@@ -237,15 +238,27 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
     return value;
   }
 
+  function refuseWhileWriting(): void {
+    if (writing) throw new CartError("busy", "A change to this cart is still being sent");
+  }
+
+  function forgetRefusedRevision(error: unknown, revision: number): void {
+    if (error instanceof DurableRequestError && revision === cartRevision) cartRevision = revision - 1;
+  }
+
   async function runCartWrite(operation: (current: StorefrontCart) => Promise<StorefrontCart>): Promise<StorefrontCart> {
     const started = await context.beginCartOperation();
+    refuseWhileWriting();
+    const current = requireCart();
+    writing = true;
     const revision = ++cartRevision;
     cart_status.setKey("syncing", true);
     cart_status.setKey("error", null);
     try {
-      const value = await operation(requireCart());
+      const value = await operation(current);
       return applyCart(started, value, revision);
     } catch (error) {
+      forgetRefusedRevision(error, revision);
       if (started.isCurrent()) {
         cart_status.setKey("error", errorInfo(error));
         if (revision === cartRevision && cartMayHaveChanged(error)) {
@@ -255,11 +268,14 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
       }
       throw error;
     } finally {
+      writing = false;
       if (started.isCurrent()) cart_status.setKey("syncing", false);
     }
   }
 
   async function load(): Promise<StorefrontCart | null> {
+    context.assertMarket();
+    if (!client.hasSession) return null;
     const started = await context.beginCartOperation();
     const revision = ++cartRevision;
     cart_status.setKey("loading", true);
@@ -284,15 +300,20 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
 
   async function create(params: ArkyCartCreateParams = {}): Promise<StorefrontCart> {
     const started = await context.beginCartOperation();
+    refuseWhileWriting();
     const id = params.id ?? (pendingCartId ??= context.appId("cart"));
+    writing = true;
     const revision = ++cartRevision;
     try {
       const created = await client.eshop.cart.create({ id, buyer: scope.buyer ?? { type: "customer" }, package_id: scope.package_id });
       if (pendingCartId === id) pendingCartId = null;
       return applyCart(started, created.cart, revision);
     } catch (error) {
+      forgetRefusedRevision(error, revision);
       if (pendingCartId === id && isDefiniteRefusal(error)) pendingCartId = null;
       throw error;
+    } finally {
+      writing = false;
     }
   }
 
@@ -367,9 +388,9 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
     return runCartWrite((current) => client.eshop.cart.update({ ...version(current), delivery_groups: params.delivery_groups }));
   }
 
-  async function shippingProfiles(current: StorefrontCart, lines: QuoteLine[]): Promise<Map<string, string>> {
+  async function shippingProfiles(current: StorefrontCart, lines: StorefrontQuoteLine[]): Promise<Map<string, string>> {
     const physical = lines.filter(
-      (line): line is Extract<QuoteLine, { type: "product" }> => line.type === "product" && line.snapshot.fulfillment.type === "physical",
+      (line): line is Extract<StorefrontQuoteLine, { type: "product" }> => line.type === "product" && line.snapshot.fulfillment.type === "physical",
     );
     const variants = [...new Map(physical.map((line) => [line.variant_id, line.product_id])).entries()];
     const profileByVariant = new Map<string, string>();
@@ -459,7 +480,7 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
     return runCartWrite((current) => client.eshop.cart.clear(version(current)));
   }
 
-  async function fetchQuote(params: ArkyCartQuoteParams = {}, options?: RequestOptions): Promise<CartQuote> {
+  async function fetchQuote(params: ArkyCartQuoteParams = {}, options?: RequestOptions): Promise<StorefrontCartQuote> {
     const started = await context.beginCartOperation();
     const current = requireCart();
     const language = context.requireLocale();

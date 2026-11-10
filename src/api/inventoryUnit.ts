@@ -68,6 +68,7 @@ export const createInventoryUnitApi = (apiConfig: ApiConfig) => ({
   },
 
   writeOff(params: WriteOffInventoryUnitParams, options?: RequestOptions): Promise<InventoryUnit> {
+    requireId(params.action_id, "action");
     const { store_id, id, ...body } = params;
     return apiConfig.httpClient.post<InventoryUnit>(`${storeRecordPath(store_id, collection, id)}/write-off`, body, options);
   },

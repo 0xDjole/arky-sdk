@@ -1,12 +1,7 @@
 import type { ApiConfig } from "../services/clientTypes";
 import type { RequestOptions } from "../types/api";
 import type { PaginatedResponse } from "../types/common";
-import type {
-  AddPlatformAdministratorParams,
-  FindPlatformAdministratorsParams,
-  PlatformAdministrator,
-  RemovePlatformAdministratorParams,
-} from "../types/account";
+import type { Account, FindPlatformAdminsParams, SetAccountAccessParams } from "../types/account";
 import type { WebhookEventMetadata } from "../types/webhook";
 import type {
   FindStripeBillingEventsParams,
@@ -15,7 +10,6 @@ import type {
   IncomingWebhook,
   ResolveStripeBillingEventParams,
 } from "../types/payment";
-import type { StorePlan } from "../types/store";
 import { requireId } from "../utils/ids";
 import { segment } from "./paths";
 
@@ -30,36 +24,18 @@ export const createPlatformApi = (apiConfig: ApiConfig) => ({
     return { items, cursor: null };
   },
 
-  findStorePlans(options?: RequestOptions): Promise<PaginatedResponse<StorePlan>> {
-    return apiConfig.httpClient.get<PaginatedResponse<StorePlan>>("/v1/stores/plans", options);
-  },
-
-  administrator: {
-    find(
-      params: FindPlatformAdministratorsParams = {},
-      options?: RequestOptions,
-    ): Promise<PaginatedResponse<PlatformAdministrator>> {
-      return apiConfig.httpClient.get<PaginatedResponse<PlatformAdministrator>>("/v1/platform/administrators", {
-        ...options,
-        params,
+  access: {
+    find(params: FindPlatformAdminsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<Account>> {
+      return apiConfig.httpClient.get<PaginatedResponse<Account>>("/v1/accounts", {
+        ...options, params: { ...params, access: "platform_admin" },
       });
     },
-
-    getMe(options?: RequestOptions): Promise<PlatformAdministrator> {
-      return apiConfig.httpClient.get<PlatformAdministrator>("/v1/platform/administrators/me", options);
+    getMe(options?: RequestOptions): Promise<Account> {
+      return apiConfig.httpClient.get<Account>("/v1/accounts/me/platform-admin", options);
     },
-
-    add(params: AddPlatformAdministratorParams, options?: RequestOptions): Promise<PlatformAdministrator> {
-      requireId(params.id, "platform administrator");
-      return apiConfig.httpClient.post<PlatformAdministrator>(
-        "/v1/platform/administrators",
-        { id: params.id, account_id: params.account_id },
-        options,
-      );
-    },
-
-    remove(params: RemovePlatformAdministratorParams, options?: RequestOptions): Promise<boolean> {
-      return apiConfig.httpClient.delete<boolean>(`/v1/platform/administrators/${segment(params.id)}`, options);
+    set(params: SetAccountAccessParams, options?: RequestOptions): Promise<Account> {
+      return apiConfig.httpClient.put<Account>(`/v1/accounts/${segment(requireId(params.account_id, "account"))}/access`,
+        { access: params.access }, options);
     },
   },
 
@@ -74,7 +50,7 @@ export const createPlatformApi = (apiConfig: ApiConfig) => ({
     resolve(params: ResolveStripeBillingEventParams, options?: RequestOptions): Promise<IncomingWebhook> {
       return apiConfig.httpClient.post<IncomingWebhook>(
         `/v1/platform/incoming-webhooks/stripe-billing/${segment(params.id)}/resolve`,
-        { expected_updated_at: params.expected_updated_at, resolution: params.resolution },
+        { network_id: params.network_id, expected_updated_at: params.expected_updated_at, resolution: params.resolution },
         options,
       );
     },

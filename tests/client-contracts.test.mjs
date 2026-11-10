@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { createAdmin, SDK_VERSION } from "../dist/index.js";
 import { createStorefront, formatMinor, formatMoney, formatPrice, getPriceAmount } from "../dist/storefront.js";
-import { apiUrl as baseUrl, fixedIdFactories, ids, jsonResponse, publishableKey, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
+import { apiUrl as baseUrl, fixedIdFactories, ids, jsonResponse, storefrontIdentity, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
 
 const storeId = ids.store;
 const otherStoreId = ids.otherStore;
@@ -38,7 +38,7 @@ test("Admin reads need no Market or Store context and invent none", async (conte
   await client.store.get({ id: storeId });
   assert.equal(calls.length, 1);
   assert.equal(calls[0].href, `${baseUrl}/v1/stores/${storeId}`);
-  for (const header of ["x-arky-market", "x-arky-locale", "x-arky-sales-channel", "x-arky-publishable-key"]) {
+  for (const header of ["x-arky-market", "x-arky-locale", "x-arky-store-id", "x-arky-sales-channel-id"]) {
     assert.equal(calls[0].headers.has(header), false, header);
   }
 });
@@ -65,14 +65,14 @@ test("admin code login activates the same pending Account Session and remembers 
   const responses = [{ session_id: pendingSessionId, verification_expires_at: 900 }, issued()];
   const calls = recordFetch(context, () => responses.shift());
   const client = createAdmin({ apiUrl: baseUrl });
-  const pending = await client.account.auth.requestCode({ session_id: pendingSessionId, email: "operator@example.test" });
+  const pending = await client.account.auth.requestCode({ session_id: pendingSessionId, email: "operator@example.test", network_id: ids.network });
   const verified = await client.account.auth.verify({ session_id: pending.session_id, code: "123456" });
   assert.equal(verified.id, sessionId);
   assert.equal("scope" in verified, false);
   assert.deepEqual(client.session, { id: sessionId, email: "operator@example.test" });
   assert.equal(client.isAuthenticated, true);
   assert.deepEqual(calls.map((call) => [call.method, call.href, call.body]), [
-    ["POST", `${baseUrl}/v1/auth/code`, { session_id: pendingSessionId, email: "operator@example.test" }],
+    ["POST", `${baseUrl}/v1/auth/code`, { session_id: pendingSessionId, email: "operator@example.test", network_id: ids.network }],
     ["POST", `${baseUrl}/v1/auth/verify`, { session_id: pendingSessionId, code: "123456" }],
   ]);
 });
@@ -123,7 +123,7 @@ test("request errors keep the server response and read its snake_case status and
   let errorContext;
   recordFetch(context, () => jsonResponse(response, 400));
   await assert.rejects(
-    admin().account.auth.requestCode({ session_id: pendingSessionId, email: "invalid" }, { onError: (failure) => { errorContext = failure; } }),
+    admin().account.auth.requestCode({ session_id: pendingSessionId, email: "invalid", network_id: ids.network }, { onError: (failure) => { errorContext = failure; } }),
     (error) => {
       assert.equal(error.name, "ApiError");
       assert.equal(error.message, response.message);
@@ -147,7 +147,7 @@ test("a field error keeps the Server's own text and the SDK invents no code for 
     validation_errors: [{ field: "email", error: "" }],
   };
   recordFetch(context, () => jsonResponse(response, 400));
-  await assert.rejects(admin().account.auth.requestCode({ session_id: pendingSessionId, email: "invalid" }), (error) => {
+  await assert.rejects(admin().account.auth.requestCode({ session_id: pendingSessionId, email: "invalid", network_id: ids.network }), (error) => {
     assert.deepEqual(error.validationErrors, [{ field: "email", error: "" }]);
     assert.equal(JSON.stringify(error.validationErrors).includes("GENERAL."), false);
     return true;
@@ -195,11 +195,11 @@ test("a camelCase error body is not the Server's shape: its field errors are not
 });
 
 test("Store create carries the app-picked id, its languages, first market and channel; update carries the version", async (context) => {
-  const store = { id: storeId, name: "Client Contract", owner_account_id: ids.account, timezone: "Europe/Sarajevo", languages: ["en", "bs"], mode: "live", status: { type: "active" }, email_sending: { type: "allowed" }, created_at: 1, updated_at: 1 };
+  const store = { id: storeId, name: "Client Contract", timezone: "Europe/Sarajevo", languages: ["en", "bs"], type: { type: "live", account_id: ids.account, network_id: ids.network }, status: { type: "active" }, email_sending: { type: "allowed" }, created_at: 1, updated_at: 1 };
   const calls = recordFetch(context, () => store);
   const create = {
     id: storeId,
-    mode: "live",
+    type: { type: "live", network_id: ids.network, plan: { type: "free", plan_id: ids.plan } },
     name: "Client Contract",
     timezone: "Europe/Sarajevo",
     languages: ["en", "bs"],
@@ -330,21 +330,22 @@ test("admin market deletion sends the version and answers the market marked dele
 });
 
 test("Category is top-level on both clients", () => {
-  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl });
+  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl });
   assert.equal("category" in admin().content, false);
   assert.equal("category" in storefront.content, false);
   assert.equal(typeof admin().category.find, "function");
   assert.equal(typeof storefront.category.get, "function");
 });
 
-test("storefront collection lookup uses a keyless route with the publishable key and locale headers", async (context) => {
+test("storefront collection lookup uses a keyless route with the store, sales-channel and locale headers", async (context) => {
   const calls = recordFetch(context, () => ({ id: "collection-contract", key: "articles" }));
-  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl, locale: "en" });
+  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl, locale: "en" });
   await storefront.content.collection.getByKey({ key: "articles" });
   await storefront.content.collection.get({ id: ids.form });
   assert.deepEqual(calls.map((call) => call.href), [`${baseUrl}/v1/storefront/collections/articles`, `${baseUrl}/v1/storefront/collections/${ids.form}`]);
   for (const call of calls) {
-    assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
+    assert.equal(call.headers.get("x-arky-store-id"), storefrontIdentity.storeId);
+    assert.equal(call.headers.get("x-arky-sales-channel-id"), storefrontIdentity.salesChannelId);
     assert.equal(call.headers.get("x-arky-locale"), "en");
     assert.equal(call.headers.get("authorization"), null);
   }
@@ -370,18 +371,19 @@ test("admin Product writes carry the app-picked id and version and InventoryLeve
 
 test("storefront variant read carries the exact product and buyer context", async (context) => {
   const calls = recordFetch(context, () => ({}));
-  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl, locale: "en" });
+  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl, locale: "en" });
   await storefront.eshop.productVariant.get({ product_id: "lean-product", id: "variant-one", package_id: ids.package, company_location_id: "location-one", include_price: true });
   await storefront.eshop.productVariant.get({ product_id: "lean-product", id: "variant-one", package_id: ids.package, company_id: "company-one" });
   assert.equal(calls[0].href, `${baseUrl}/v1/storefront/products/lean-product/variants/variant-one?package_id=${ids.package}&company_location_id=location-one&include_price=true`);
   assert.equal(calls[1].href, `${baseUrl}/v1/storefront/products/lean-product/variants/variant-one?package_id=${ids.package}&company_id=company-one`);
-  assert.equal(calls[0].headers.get("x-arky-publishable-key"), publishableKey);
+  assert.equal(calls[0].headers.get("x-arky-store-id"), storefrontIdentity.storeId);
+    assert.equal(calls[0].headers.get("x-arky-sales-channel-id"), storefrontIdentity.salesChannelId);
 });
 
 test("storefront cart reads send the recovery credential only in the cart-token header", async (context) => {
   const recoveryToken = "cart-recovery-contract-token";
   const calls = recordFetch(context, () => ({ id: ids.cart }));
-  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl, sessionStorage: visitorStorage() });
+  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl, sessionStorage: visitorStorage() });
   await storefront.eshop.cart.get(
     { id: ids.cart, token: recoveryToken },
     {
@@ -397,7 +399,7 @@ test("storefront cart reads send the recovery credential only in the cart-token 
 });
 
 test("storefront money helpers preserve exact zero, need an explicit locale and reject invalid minor units", () => {
-  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl, market: "ita" });
+  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl, market: "ita" });
   assert.equal("utils" in storefront, false);
   assert.equal("utils" in admin(), false);
   const price = { price_id: ids.price, tax_mode: "inclusive", unit_price: { amount: 0, currency: "eur" }, compare_at: null, priced_at: 1 };
@@ -415,7 +417,7 @@ test("storefront money helpers preserve exact zero, need an explicit locale and 
 test("SDK_VERSION equals the package version", async () => {
   const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
   assert.equal(SDK_VERSION, packageJson.version);
-  assert.equal(SDK_VERSION, "0.26.106");
+  assert.equal(SDK_VERSION, "0.26.107");
 });
 
 test("recursive storefront declarations never degrade to any", async () => {

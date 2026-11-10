@@ -4,7 +4,7 @@ import type {
   InventoryItem, InventoryItemStatus, InventoryTracking, InventoryLevel, InventoryStockLevel, InventoryMovement,
   InventoryMovementReason, InventoryQuantity, ChangeSetAsideParams, MoveInventoryParams,
   ReceiveStockMoveParams, IncomingStock, RecordInventoryMovementParams, ManualInventoryMovementReason,
-  CreateInventoryItemParams, UpdateInventoryItemParams, CreateInventoryLevelParams,
+  CreateInventoryItemParams, UpdateInventoryItemParams, CreateInventoryLevelParams, DeletedResponse,
 } from "arky-sdk";
 import type {
   InventoryLevel as PublicLevel, InventoryMovement as PublicMovement,
@@ -70,7 +70,8 @@ export type InventoryContracts = [
   True<RequiredField<FindInventoryMovementsParams, "store_id">>,
   True<RequiredField<CreateInventoryItemParams, "id">>,
   True<RequiredField<CreateInventoryLevelParams, "id">>,
-  True<Same<Awaited<ReturnType<Api["inventoryItem"]["delete"]>>, void>>,
+  True<Same<Awaited<ReturnType<Api["inventoryItem"]["delete"]>>, DeletedResponse>>,
+  True<Same<Awaited<ReturnType<Api["inventoryLevel"]["remove"]>>, DeletedResponse>>,
   True<"inventoryReservation" extends keyof Api ? false : true>,
 ];
 

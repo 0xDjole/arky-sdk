@@ -1,6 +1,6 @@
 import type { ApiConfig } from "../services/clientTypes";
 import type { RequestOptions } from "../types/api";
-import type { PaginatedResponse } from "../types/common";
+import type { DeletedResponse, PaginatedResponse } from "../types/common";
 import type {
   Account,
   AccountSession,
@@ -17,11 +17,6 @@ import type {
 import { requireId } from "../utils/ids";
 import { segment } from "./paths";
 
-export interface DeleteAccountResult {
-  success: boolean;
-  message: string;
-}
-
 const tokensPath = "/v1/accounts/me/tokens";
 
 export const createAccountApi = (apiConfig: ApiConfig) => ({
@@ -29,8 +24,8 @@ export const createAccountApi = (apiConfig: ApiConfig) => ({
     return apiConfig.httpClient.get<Account>("/v1/accounts/me", options);
   },
 
-  delete(options?: RequestOptions): Promise<DeleteAccountResult> {
-    return apiConfig.httpClient.delete<DeleteAccountResult>("/v1/accounts", options);
+  delete(options?: RequestOptions): Promise<Account> {
+    return apiConfig.httpClient.delete<Account>("/v1/accounts", options);
   },
 
   find(params: FindAccountsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<Account>> {
@@ -58,7 +53,6 @@ export const createAccountApi = (apiConfig: ApiConfig) => ({
           id: requireId(params.id, "account token"),
           name: params.name,
           stores: params.stores,
-          permissions: params.permissions,
           expires_at: params.expires_at,
         },
         options,
@@ -77,8 +71,8 @@ export const createAccountApi = (apiConfig: ApiConfig) => ({
       );
     },
 
-    delete(params: DeleteAccountTokenParams, options?: RequestOptions): Promise<void> {
-      return apiConfig.httpClient.delete<void>(`${tokensPath}/${segment(params.id)}`, {
+    delete(params: DeleteAccountTokenParams, options?: RequestOptions): Promise<DeletedResponse> {
+      return apiConfig.httpClient.delete<DeletedResponse>(`${tokensPath}/${segment(params.id)}`, {
         ...options,
         params: { expected_updated_at: params.expected_updated_at },
       });

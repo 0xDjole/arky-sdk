@@ -15,7 +15,7 @@ import {
   installGlobal,
   placedAcceptance,
   placedOrder,
-  publishableKey,
+  storefrontIdentity,
   quoteRecord,
   recordFetch,
   SessionStorage,
@@ -95,7 +95,7 @@ function refreshed() {
 function server(context, accept, paymentStatus = "paid", readPayment = () => payment(paymentStatus), cart = cartRecord({ line_items: [line] }), refresh = refreshed) {
   let current = cart;
   const calls = recordFetch(context, (call) => {
-    if (call.path === "/v1/storefront") return { name: "Shop", timezone: "Europe/Zagreb", languages: ["en"], payment_options: [], bot_check: { type: "off" } };
+    if (call.path === "/v1/storefront") return { name: "Shop", timezone: "Europe/Zagreb", languages: ["en"], payment_options: [] };
     if (call.path === "/v1/storefront/markets/by-key/hrv") return { id: ids.market, key: "hrv", currency: "eur", payment_option_ids: [ids.paymentOption] };
     if (call.path === "/v1/storefront/customer/refresh") return refresh();
     if (call.path === "/v1/storefront/customer/identify") {
@@ -140,7 +140,7 @@ function server(context, accept, paymentStatus = "paid", readPayment = () => pay
 }
 
 async function readyCheckout(sessionStorage = visitorStorage(), openedContact = null) {
-  const arky = initialize(publishableKey, {
+  const arky = initialize(storefrontIdentity, {
     ...idFactories,
     createId: idSequence(factoryId(1), ids.order),
     createOrderToken: () => `arky_ot_${"C".repeat(42)}A`,
@@ -337,7 +337,7 @@ for (const change of ["shopper", "market"]) {
 test("opening the first checkout identifies its visitor once before loading the cart", async (context) => {
   browser(context);
   const calls = server(context, () => placedAcceptance({ payment_id: ids.payment }));
-  const arky = initialize(publishableKey, { ...idFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: new SessionStorage() });
+  const arky = initialize(storefrontIdentity, { ...idFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: new SessionStorage() });
   const checkout = arky.eshop.checkoutFlow({ buyer: customer, package_id: ids.package });
   const state = await checkout.open();
   assert.equal(state.step, "cart");
@@ -392,7 +392,7 @@ test("a guest's quotes carry the contact email, so a promotion code capped per b
 });
 
 test("a taken booking slot, a price that can't hold its fixed fee or a package that adds a second minimum shows on the cart step, not the shipping step", () => {
-  const arky = initialize(publishableKey, { ...idFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: visitorStorage() });
+  const arky = initialize(storefrontIdentity, { ...idFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: visitorStorage() });
   const checkout = arky.eshop.checkoutFlow({ buyer: customer, package_id: ids.package });
   checkout.cart.cart.set(cartRecord({ line_items: [line] }));
   checkout.setContact({ contact_email: ana });
@@ -409,7 +409,7 @@ test("a taken booking slot, a price that can't hold its fixed fee or a package t
 });
 
 test("a package held by a package change waiting to take effect shows on the cart step, not the shipping step", () => {
-  const arky = initialize(publishableKey, { ...idFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: visitorStorage() });
+  const arky = initialize(storefrontIdentity, { ...idFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: visitorStorage() });
   const checkout = arky.eshop.checkoutFlow({ buyer: customer, package_id: ids.package });
   checkout.cart.cart.set(cartRecord({ line_items: [line] }));
   checkout.setContact({ contact_email: ana });
@@ -422,7 +422,7 @@ test("a package held by a package change waiting to take effect shows on the car
 });
 
 test("a switch line whose change Arky refuses, or a cart none of its payment options can pay, shows on the cart step, not the details or shipping step", () => {
-  const arky = initialize(publishableKey, { ...idFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: visitorStorage() });
+  const arky = initialize(storefrontIdentity, { ...idFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: visitorStorage() });
   const checkout = arky.eshop.checkoutFlow({ buyer: customer, package_id: ids.package });
   checkout.cart.cart.set(cartRecord({ line_items: [line] }));
   checkout.setContact({ contact_email: ana });
@@ -462,7 +462,7 @@ test("placing a package that a waiting package change holds is refused with its 
 });
 
 test("a line whose price can't hold its fixed fee shows on the cart step, and a delivery that no longer fits its lines on the details step", () => {
-  const arky = initialize(publishableKey, { ...idFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: visitorStorage() });
+  const arky = initialize(storefrontIdentity, { ...idFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: visitorStorage() });
   const checkout = arky.eshop.checkoutFlow({ buyer: customer, package_id: ids.package });
   checkout.cart.cart.set(cartRecord({ line_items: [line] }));
   checkout.setContact({ contact_email: ana });
@@ -505,7 +505,7 @@ test("the flow keeps its checkout in its own cart scope, so the client's shared 
   });
   const { arky, checkout } = await readyCheckout();
   await assert.rejects(checkout.place(), (error) => error instanceof CheckoutFlowError && error.code === "interrupted");
-  const shared = `arky:cart-checkout:v5:${encodeURIComponent(`storefront:${apiUrl}:${publishableKey}`)}`;
+  const shared = `arky:cart-checkout:v5:${encodeURIComponent(`storefront:${apiUrl}:${storefrontIdentity.storeId}:${storefrontIdentity.salesChannelId}:${ids.customer}`)}`;
   assert.equal(storage.getItem(shared), null);
   assert.ok(storage.getItem(`${shared}:${encodeURIComponent(`customer|${ids.package}|hrv`)}`));
   assert.equal(await arky.client.eshop.cart.pendingCheckout(), null);
@@ -520,7 +520,7 @@ function storageWithContact(contact) {
 }
 
 function contactCheckout(sessionStorage, locale) {
-  const arky = initialize(publishableKey, {
+  const arky = initialize(storefrontIdentity, {
     ...idFactories,
     createId: idSequence(factoryId(1), ids.order),
     createOrderToken: () => `arky_ot_${"C".repeat(42)}A`,
@@ -679,7 +679,7 @@ test("an order opened from its link is placed with no card setup to mount", asyn
     if (call.path === `/v1/storefront/orders/${ids.order}/payments`) return [];
     throw new Error(`Unexpected request ${call.method} ${call.path}`);
   });
-  const arky = initialize(publishableKey, { ...idFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: visitorStorage() });
+  const arky = initialize(storefrontIdentity, { ...idFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: visitorStorage() });
   const checkout = arky.eshop.checkoutFlow({ buyer: customer, package_id: ids.package });
   const { state, url } = await checkout.openOrder({ order_id: ids.order, url: `https://shop.example.test/order/${ids.order}#order_token=${token}` });
   assert.equal(url, `https://shop.example.test/order/${ids.order}`);

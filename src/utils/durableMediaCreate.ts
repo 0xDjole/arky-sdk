@@ -1,6 +1,6 @@
 import type { LocalizedText } from "../types/common";
-import type { CreateMediaParams } from "../types/content";
-import { DurableRequestError } from "./durableRequest";
+import type { CreateMediaParams, MediaVisibility } from "../types/content";
+import { DurableRequestError, withDurableRequestLock } from "./durableRequest";
 import { isCanonicalId } from "./ids";
 import { isRecord } from "./record";
 
@@ -19,6 +19,7 @@ interface FileMediaCreatePayload {
   store_id: string;
   media_id: string;
   alt: LocalizedText | null;
+  visibility: MediaVisibility;
   type: "file";
   file_name: string;
   mime_type: string;
@@ -31,6 +32,7 @@ interface UrlMediaCreatePayload {
   store_id: string;
   media_id: string;
   alt: LocalizedText | null;
+  visibility: MediaVisibility;
   type: "source_url";
   source_url: string;
 }
@@ -191,9 +193,10 @@ function parsePayload(requestJson: string): MediaCreatePayload {
     throw unavailable("payload identity is invalid");
   }
   if (!validAlt(value.alt)) throw unavailable("payload alt text is invalid");
+  if (value.visibility !== "public" && value.visibility !== "private") throw unavailable("payload visibility is invalid");
   if (
     value.type === "source_url" &&
-    exactKeys(value, ["store_id", "media_id", "alt", "type", "source_url"]) &&
+    exactKeys(value, ["store_id", "media_id", "alt", "visibility", "type", "source_url"]) &&
     typeof value.source_url === "string" &&
     value.source_url.length > 0
   ) {
@@ -205,6 +208,7 @@ function parsePayload(requestJson: string): MediaCreatePayload {
       "store_id",
       "media_id",
       "alt",
+      "visibility",
       "type",
       "file_name",
       "mime_type",
@@ -298,6 +302,7 @@ async function payloadFor(
         store_id: storeId,
         media_id: params.id,
         alt: params.alt ?? null,
+        visibility: params.visibility ?? "public",
         type: "file",
         file_name: params.file.name,
         mime_type: params.file.type,
@@ -313,6 +318,7 @@ async function payloadFor(
       store_id: storeId,
       media_id: params.id,
       alt: params.alt ?? null,
+      visibility: params.visibility ?? "public",
       type: "source_url",
       source_url: params.source_url,
     },
@@ -329,6 +335,7 @@ function paramsFrom(
       store_id: payload.store_id,
       id: payload.media_id,
       alt: payload.alt,
+      visibility: payload.visibility,
       source_url: payload.source_url,
     };
   }
@@ -340,6 +347,7 @@ function paramsFrom(
     store_id: payload.store_id,
     id: payload.media_id,
     alt: payload.alt,
+    visibility: payload.visibility,
     file: new FileConstructor([durable.blob], payload.file_name, {
       type: payload.mime_type,
       lastModified: payload.last_modified,
@@ -405,6 +413,14 @@ export async function clearPendingMediaCreate(
   if ((await readRaw(durable.storageKey)) !== null) {
     throw unavailable("state was not cleared");
   }
+}
+
+export async function discardPendingMediaCreate(storeId: string): Promise<void> {
+  const storageKey = mediaCreateStorageKey(storeId);
+  await withDurableRequestLock(storageKey, mediaCreateLabel, async () => {
+    await deleteRaw(storageKey);
+    if ((await readRaw(storageKey)) !== null) throw unavailable("state was not cleared");
+  });
 }
 
 export type { DurableMediaCreate };

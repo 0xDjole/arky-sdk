@@ -3,7 +3,14 @@ import type { RequestOptions } from "../types/api";
 import type { PaginatedResponse } from "../types/common";
 import type {
   AllowStoreEmailSendingParams,
-  CreateStorePortalSessionParams,
+  CreateStoreCardSetupParams,
+  StoreCardSetup,
+  StoreSubscriptionPayment,
+  SetStoreSubscriptionCardParams,
+  CancelStoreSubscriptionParams,
+  GrantStorePlanParams,
+  FindTestStoresParams,
+  WipeStoreParams,
   CreateStoreParams,
   EndStoreGrantParams,
   GetStoreUsageParams,
@@ -12,11 +19,9 @@ import type {
   GetStoreSubscriptionParams,
   PauseStoreEmailSendingParams,
   RequestStoreDeletionParams,
-  SelectStorePlanParams,
+  ChangeStorePlanParams,
   Store,
-  StorePortalSession,
   StoreSubscription,
-  StoreSubscriptionSelection,
   StoreUsageSummary,
   UpdateStoreParams,
 } from "../types/store";
@@ -87,29 +92,44 @@ export const createStoreApi = (apiConfig: ApiConfig) => ({
       return apiConfig.httpClient.get<StoreSubscription>(storePath(params.store_id, "subscription"), options);
     },
 
-    select(params: SelectStorePlanParams, options?: RequestOptions): Promise<StoreSubscriptionSelection> {
-      return apiConfig.httpClient.post<StoreSubscriptionSelection>(
-        storePath(params.store_id, "subscription"),
-        { plan_id: params.plan_id, return_url: params.return_url },
-        options,
-      );
+    changePlan(params: ChangeStorePlanParams, options?: RequestOptions): Promise<StoreSubscription> {
+      const { store_id, ...body } = params;
+      return apiConfig.httpClient.put<StoreSubscription>(storePath(store_id, "subscription/plan"), body, options);
     },
-
-    createPortalSession(params: CreateStorePortalSessionParams, options?: RequestOptions): Promise<StorePortalSession> {
-      return apiConfig.httpClient.post<StorePortalSession>(
-        storePath(params.store_id, "subscription/portal"),
-        { return_url: params.return_url },
-        options,
-      );
+    createCardSetup(params: CreateStoreCardSetupParams, options?: RequestOptions): Promise<StoreCardSetup> {
+      return apiConfig.httpClient.post<StoreCardSetup>(`/v1/networks/${segment(requireId(params.network_id, "network"))}/card-setups`,
+        { id: requireId(params.id, "card setup") }, options);
     },
-
+    setCard(params: SetStoreSubscriptionCardParams, options?: RequestOptions): Promise<StoreSubscription> {
+      const { store_id, ...body } = params;
+      return apiConfig.httpClient.put<StoreSubscription>(storePath(store_id, "subscription/card"), body, options);
+    },
+    pendingPayment(params: GetStoreSubscriptionParams, options?: RequestOptions): Promise<StoreSubscriptionPayment> {
+      return apiConfig.httpClient.get<StoreSubscriptionPayment>(storePath(params.store_id, "subscription/payment"), options);
+    },
+    cancel(params: CancelStoreSubscriptionParams, options?: RequestOptions): Promise<StoreSubscription> {
+      const { store_id, ...body } = params;
+      return apiConfig.httpClient.post<StoreSubscription>(storePath(store_id, "subscription/cancel"), body, options);
+    },
+    grant(params: GrantStorePlanParams, options?: RequestOptions): Promise<StoreSubscription> {
+      const { store_id, ...body } = params;
+      return apiConfig.httpClient.post<StoreSubscription>(storePath(store_id, "subscription/grant"), body, options);
+    },
     endGrant(params: EndStoreGrantParams, options?: RequestOptions): Promise<StoreSubscription> {
-      return apiConfig.httpClient.post<StoreSubscription>(
-        storePath(params.store_id, "subscription/end-grant"),
-        { expected_updated_at: params.expected_updated_at },
-        options,
-      );
+      const { store_id, ...body } = params;
+      return apiConfig.httpClient.post<StoreSubscription>(storePath(store_id, "subscription/end-grant"), body, options);
     },
+  },
+
+  testStores: {
+    find(params: FindTestStoresParams, options?: RequestOptions): Promise<PaginatedResponse<Store>> {
+      const { store_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<Store>>(storePath(store_id, "test-stores"), { ...options, params: query });
+    },
+  },
+  wipe(params: WipeStoreParams, options?: RequestOptions): Promise<Store> {
+    const { id, ...body } = params;
+    return apiConfig.httpClient.post<Store>(storePath(id, "wipe"), body, options);
   },
 
   usage: {

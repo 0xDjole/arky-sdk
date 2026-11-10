@@ -1,4 +1,6 @@
+import type { StorefrontIdentity } from "../index";
 import { atom, computed } from "nanostores";
+import { ArkyApiError } from "../types/apiError";
 import { CartError } from "../types/cartSelection";
 import type { StorefrontMarket, StorefrontSetup } from "../types/storefront";
 import { isOrderToken } from "../utils/orderToken";
@@ -10,8 +12,8 @@ import { createCartStore, type CartScope, type CartStore, type CartStoreContext 
 import { createCheckoutFlow, type CheckoutFlow } from "./checkoutFlow";
 import type { ArkyCartScope, ArkyStoreConfig } from "./types";
 
-function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig) {
-  const client = createStorefront(publishableKey, config);
+function initializeStoreCore(identity: StorefrontIdentity, config: ArkyStoreConfig) {
+  const client = createStorefront(identity, config);
   const session = atom<StorefrontCustomerSession | null>(client.session);
   const setup = atom<StorefrontSetup | null>(null);
   const locale = atom(client.getLocale());
@@ -68,7 +70,7 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig) {
   async function loadSetup(): Promise<StorefrontSetup> {
     const key = market_key.get();
     const revision = contextRevision;
-    const result = setup.get() ?? (await client.getSetup());
+    const result = await client.getSetup();
     const value = key ? await client.store.market.getByKey({ key }) : null;
     if (revision !== contextRevision || key !== market_key.get()) {
       throw new CartError("context_changed", "The market changed while the store setup was loading");
@@ -79,12 +81,18 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig) {
     return result;
   }
 
+  function identifyVisitor(): Promise<unknown> {
+    return client.customer.identify().catch((error: unknown) => {
+      if (!(error instanceof ArkyApiError) || error.statusCode !== 409) throw error;
+      return client.customer.identify();
+    });
+  }
+
   async function ensureSession(): Promise<StorefrontCustomerSession | null> {
     synchronizeSession();
     if (client.hasSession) return client.session;
     if (!sessionRequest) {
-      sessionRequest = client.customer
-        .identify()
+      sessionRequest = identifyVisitor()
         .then(() => client.session)
         .finally(() => {
           sessionRequest = null;
@@ -210,6 +218,7 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig) {
     },
     media: client.media,
     content: client.content,
+    sharedEntries: client.sharedEntries,
     forms: client.forms,
     category: client.category,
     eshop: {
@@ -228,8 +237,8 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig) {
 
 export type ArkyStore = ReturnType<typeof initializeStoreCore>;
 
-export function initialize(publishableKey: string, options: ArkyStoreConfig): ArkyStore {
-  return initializeStoreCore(publishableKey, options);
+export function initialize(identity: StorefrontIdentity, options: ArkyStoreConfig): ArkyStore {
+  return initializeStoreCore(identity, options);
 }
 
 export type ArkyCartStore = CartStore;

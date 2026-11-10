@@ -2,7 +2,7 @@ import { atom, computed } from "nanostores";
 import type {
   StorefrontCart,
   CartDeliveryDestination,
-  CartQuote,
+  StorefrontCartQuote,
   StorefrontCheckoutAcceptance,
   CheckoutPaymentChoice,
   QuoteBlocker,
@@ -104,7 +104,7 @@ const initialLocal: CheckoutLocal = {
   error: null,
 };
 
-function stepOf(cart: StorefrontCart | null, quote: CartQuote | null, local: CheckoutLocal): ArkyCheckoutStep {
+function stepOf(cart: StorefrontCart | null, quote: StorefrontCartQuote | null, local: CheckoutLocal): ArkyCheckoutStep {
   if (local.placed) {
     if (local.placed.payment_id === null) return "placed";
     const outcome = local.payment ? paymentOutcome(local.payment) : null;
@@ -228,7 +228,7 @@ export function createCheckoutFlow(context: CheckoutFlowContext, cart: CartStore
     };
   }
 
-  async function quote(operation: CartScope): Promise<CartQuote | null> {
+  async function quote(operation: CartScope): Promise<StorefrontCartQuote | null> {
     operation.assertCurrent();
     const current = cart.cart.get();
     if (!current || current.line_items.length === 0) {
@@ -307,7 +307,7 @@ export function createCheckoutFlow(context: CheckoutFlowContext, cart: CartStore
     }
   }
 
-  function paymentChoice(current: CartQuote, orderId: string, params: ArkyCheckoutPlaceParams): CheckoutPaymentChoice {
+  function paymentChoice(current: StorefrontCartQuote, orderId: string, params: ArkyCheckoutPlaceParams): CheckoutPaymentChoice {
     const saveCard = params.save_payment_method === true;
     if (current.totals.total === 0 && !saveCard) return { type: "free" };
     const paymentOptionId = local.get().payment_option_id;

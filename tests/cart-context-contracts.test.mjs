@@ -10,7 +10,7 @@ import {
   ids,
   placedAcceptance,
   placedOrder,
-  publishableKey,
+  storefrontIdentity,
   quoteRecord,
   recordFetch,
   visitorStorage,
@@ -29,7 +29,7 @@ function admin() {
 }
 
 function storefront(options = {}) {
-  return createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "bs", market: "bih", sessionStorage: visitorStorage(), ...options });
+  return createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "bs", market: "bih", sessionStorage: visitorStorage(), ...options });
 }
 
 test("the exact source Cart Order read preserves the authoritative nullable response and sends no Cart capability", async (context) => {
@@ -301,7 +301,7 @@ test("initialize quotes and checks out a package-only cart through the reviewed 
     if (call.method === "GET") return placedOrder();
     throw new Error(`Unexpected request ${call.method} ${call.path}`);
   });
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "bs", market: "bih", sessionStorage: visitorStorage() });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "bs", market: "bih", sessionStorage: visitorStorage() });
   const cart = store.eshop.cart({ buyer: { type: "customer" }, package_id: ids.package });
   await cart.create({ id: ids.cart });
   assert.equal(cart.item_count.get(), 1);
@@ -371,7 +371,7 @@ test("initialize saves future deliveries into the loaded cart and drops its stal
     if (call.path.endsWith("/quote")) return quoteRecord();
     return updated;
   });
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "bs", market: "bih", sessionStorage: visitorStorage() });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "bs", market: "bih", sessionStorage: visitorStorage() });
   const cart = store.eshop.cart({ buyer: { type: "customer" }, package_id: ids.package });
   await cart.create({ id: ids.cart });
   await cart.quote();
@@ -393,7 +393,7 @@ test("initialize refuses a late quote after the language changed and a late deli
     started();
     return pending;
   });
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "bs", market: "bih", sessionStorage: visitorStorage() });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "bs", market: "bih", sessionStorage: visitorStorage() });
   const cart = store.eshop.cart({ buyer: { type: "customer" }, package_id: ids.package });
   await cart.create({ id: ids.cart });
   const quote = cart.quote();

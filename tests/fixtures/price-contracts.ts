@@ -23,11 +23,13 @@ import type {
   DeletePackageItemPriceParams,
   SellableRef,
   Schedule,
+  PackageScheduleInput,
   PackageItemPriceBatchOperation,
   BatchPackageItemPricesParams,
   CartBookingLineItemInput,
   CartPackageLineItemInput,
   CartProductLineItemInput,
+  DeletedResponse,
 } from "arky-sdk";
 import type { createAdmin } from "arky-sdk/admin";
 import type { PackageItemPrice as PublicPackageItemPrice } from "arky-sdk/types";
@@ -62,6 +64,10 @@ export type PriceContracts = [
   True<RequiredField<CreatePackageItemPriceParams, "package_item_id">>,
   True<RequiredField<CreatePackageItemPriceParams, "sellable">>,
   True<RequiredField<CreatePackageItemPriceParams, "schedule">>,
+  True<Same<CreatePackageItemPriceParams["schedule"], PackageScheduleInput>>,
+  True<Same<UpdatePackageItemPriceParams["schedule"], PackageScheduleInput>>,
+  True<Same<Extract<PackageItemPriceBatchOperation, { type: "create" }>["schedule"], Schedule>>,
+  True<Same<Extract<PackageItemPriceBatchOperation, { type: "update" }>["schedule"], Schedule>>,
   True<RequiredField<CreatePackageItemPriceParams, "compare_at">>,
   False<"currency" | "package_id" | "min_quantity" | "max_quantity" extends keyof CreatePackageItemPriceParams ? true : false>,
   False<
@@ -88,7 +94,7 @@ export type PriceContracts = [
   True<RequiredField<Extract<PackageItemPriceBatchOperation, { type: "update" }>, "changes">>,
   False<"changes" extends keyof Extract<PackageItemPriceBatchOperation, { type: "delete" }> ? true : false>,
   True<RequiredField<DeletePackageItemPriceParams, "expected_updated_at">>,
-  True<Same<Awaited<ReturnType<PriceApi["delete"]>>, void>>,
+  True<Same<Awaited<ReturnType<PriceApi["delete"]>>, DeletedResponse>>,
   True<Same<PackageItemPriceBatchOperation["type"], "create" | "update" | "delete">>,
   True<Same<Parameters<PriceApi["batch"]>[0], BatchPackageItemPricesParams>>,
   True<Same<Awaited<ReturnType<PriceApi["batch"]>>, PackageItemPrice[]>>,

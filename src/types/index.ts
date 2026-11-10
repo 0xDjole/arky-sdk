@@ -80,4 +80,5 @@ export type { CartErrorCode } from "./cartSelection";
 export { CartError } from "./cartSelection";
 export { FulfillmentSelectionError } from "./fulfillmentSelection";
 
-export type * from "./apiKey";
+
+export type * from "./network";

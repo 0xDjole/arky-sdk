@@ -237,6 +237,7 @@ export interface PackageAccess {
 export interface StorefrontPackageChoice {
   id: string;
   key: string;
+  blocks: Block[];
   level: PackageAccessLevel;
 }
 
@@ -456,7 +457,7 @@ export interface CreatePackageItemPriceParams {
   amount: number;
   compare_at: PackagePriceComparison;
   changes: PackageItemPriceChange[];
-  schedule: Schedule;
+  schedule: PackageScheduleInput;
   status: PriceStatus;
 }
 
@@ -467,7 +468,7 @@ export interface UpdatePackageItemPriceParams {
   amount: number;
   compare_at: PackagePriceComparison;
   changes: PackageItemPriceChange[];
-  schedule: Schedule;
+  schedule: PackageScheduleInput;
   status: PriceStatus;
 }
 
@@ -478,8 +479,8 @@ export interface DeletePackageItemPriceParams {
 }
 
 export type PackageItemPriceBatchOperation =
-  | ({ type: "create" } & Omit<CreatePackageItemPriceParams, "store_id">)
-  | ({ type: "update" } & Omit<UpdatePackageItemPriceParams, "store_id">)
+  | ({ type: "create" } & Omit<CreatePackageItemPriceParams, "store_id" | "schedule"> & { schedule: Schedule })
+  | ({ type: "update" } & Omit<UpdatePackageItemPriceParams, "store_id" | "schedule"> & { schedule: Schedule })
   | { type: "delete"; id: string; expected_updated_at: EpochMilliseconds };
 
 export interface BatchPackageItemPricesParams {
@@ -619,7 +620,7 @@ export interface SetPackageItemPricesParams {
   id: string;
   expected_updated_at: EpochMilliseconds;
   status: PriceStatus;
-  schedule: Schedule;
+  schedule: PackageScheduleInput;
 }
 
 export type PackageItemBatchOperation =

@@ -47,7 +47,7 @@ export type PartnerNotificationContracts = [
   Assert<Missing<Admin["notification"], "find" | "get" | "stop" | "cancel">>,
   Assert<Equal<keyof OutgoingEmail, "id" | "type" | "to" | "email_provider_id" | "delivery_report" | "complained_at" | "preview" | "send_before" | "status" | "created_at" | "updated_at">>,
   Assert<Equal<keyof OutgoingEmailSummary, keyof OutgoingEmail>>,
-  Assert<Equal<OutgoingEmailType["type"], "arky_sign_in" | "customer_sign_in" | "store_admin_sign_in" | "store_admin_invite" | "event_email" | "receipt_resend" | "template_test" | "broadcast_email" | "support_reply">>,
+  Assert<Equal<OutgoingEmailType["type"], "network_sign_in" | "customer_sign_in" | "store_admin_sign_in" | "store_admin_invite" | "event_email" | "receipt_resend" | "template_test" | "broadcast_email" | "support_reply">>,
   Assert<Equal<Extract<OutgoingEmailType, { type: "store_admin_invite" }>["sending_address_id"], string>>,
   Assert<Equal<Extract<OutgoingEmailType, { type: "support_reply" }>["sending_address_id"], string>>,
   Assert<Missing<Extract<OutgoingEmailType, { type: "receipt_resend" }>, "sender_id">>,

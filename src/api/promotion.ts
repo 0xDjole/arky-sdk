@@ -51,8 +51,8 @@ export const createPromotionApi = (apiConfig: ApiConfig) => ({
     return apiConfig.httpClient.put<Promotion>(storeRecordPath(store_id, "promotions", id), body, options);
   },
 
-  delete(params: DeletePromotionParams, options?: RequestOptions): Promise<Promotion | undefined> {
-    return apiConfig.httpClient.delete<Promotion | undefined>(
+  delete(params: DeletePromotionParams, options?: RequestOptions): Promise<Promotion> {
+    return apiConfig.httpClient.delete<Promotion>(
       storeRecordPath(params.store_id, "promotions", params.id),
       { ...options, params: { expected_updated_at: params.expected_updated_at } },
     );
@@ -90,8 +90,8 @@ export const createPromotionCodeApi = (apiConfig: ApiConfig) => ({
     return apiConfig.httpClient.put<PromotionCode>(storeRecordPath(store_id, "promotion-codes", id), body, options);
   },
 
-  delete(params: DeletePromotionCodeParams, options?: RequestOptions): Promise<PromotionCode | undefined> {
-    return apiConfig.httpClient.delete<PromotionCode | undefined>(
+  delete(params: DeletePromotionCodeParams, options?: RequestOptions): Promise<PromotionCode> {
+    return apiConfig.httpClient.delete<PromotionCode>(
       storeRecordPath(params.store_id, "promotion-codes", params.id),
       { ...options, params: { expected_updated_at: params.expected_updated_at } },
     );

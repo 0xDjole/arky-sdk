@@ -39,7 +39,7 @@ test("platform discovery keeps sorting and opaque continuation without hidden pa
 test("membership permissions use an exact Store read while own discovery preserves opaque pages", async (context) => {
   const calls = [];
   const cursor = "memberships:/+==";
-  const membership = { id: "member", store_id: storeId, store_name: "Contract Store", store_mode: "live", role_ids: [roleId],
+  const membership = { id: "member", store_id: storeId, store_name: "Contract Store", store_type: { type: "live", account_id: accountId, network_id: storeId }, role_ids: [roleId],
     access: { permissions: [{ type: "fulfillment", locations: { type: "only", store_location_ids: [locationA] } }] }, status: { type: "active", account_id: accountId },
     created_at: 1, updated_at: 1 };
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
@@ -119,7 +119,7 @@ test("members are invited by caller-picked identity and re-roled by membership i
 });
 
 test("the owner transfers the Store and members are paused and resumed by status", async (context) => {
-  const store = { id: storeId, name: "Contract Store", owner_account_id: accountId };
+  const store = { id: storeId, name: "Contract Store", type: { type: "live", account_id: accountId, network_id: storeId } };
   const membership = { id: "member", store_id: storeId, role_ids: [roleId], status: { type: "disabled", account_id: accountId }, created_at: 1, updated_at: 6 };
   const calls = [];
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
@@ -141,26 +141,26 @@ test("the owner transfers the Store and members are paused and resumed by status
   await assert.rejects(async () => admin.store.member.changeStatus({ store_id: storeId, id: accountId.toUpperCase(), expected_updated_at: 6, status: { type: "active" } }), { name: "TypeError", message: /membership id must be a canonical UUID/ });
   await assert.rejects(async () => admin.store.member.remove({ store_id: storeId, id: "slug" }), TypeError);
   assert.equal(calls.length, 3);
-  assert.equal("transferOwnership" in createStorefront(`arky_pk_${"o".repeat(42)}A`, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl }), false);
+  assert.equal("transferOwnership" in createStorefront({ storeId: "5e9b3d71-c826-4a04-b7f5-0d2a8e6c4f19", salesChannelId: "e5a8c2d7-3b91-4f06-9d4e-1c7b6a0f3e28" }, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl }), false);
   assert.equal("buildHook" in admin.store, false);
 });
 
 test("a role and an account token give orders, payments and customers read-only or read-write access exactly as sent", async (context) => {
   const permissions = [
-    { type: "orders", access: "read_only" },
-    { type: "payments", access: "read_write" },
-    { type: "customers", access: "read_only" },
+    { type: "orders", access: "read" },
+    { type: "payments", access: "write" },
+    { type: "customers", access: "read" },
     { type: "packages" },
   ];
   const tokenId = "6a1c3e85-7b29-4d04-9f6e-2c8a0d4b6e13";
   const stores = { type: "only", store_ids: [storeId] };
-  const calls = recordFetch(context, (call) => call.path.endsWith("/tokens") ? { type: "secret_created", token: { id: tokenId, permissions }, value: `arky_at_${"v".repeat(42)}A` } : { id: roleId, permissions });
+  const calls = recordFetch(context, (call) => call.path.endsWith("/tokens") ? { type: "secret_created", token: { id: tokenId, stores, expires_at: null }, value: `arky_at_${"v".repeat(42)}A` } : { id: roleId, permissions });
   const admin = createAdmin({ apiUrl: baseUrl });
   await admin.store.role.create({ store_id: storeId, id: roleId, key: "bookkeeping", permissions });
-  await admin.account.token.create({ id: tokenId, name: "Reports", stores, permissions, expires_at: null });
+  await admin.account.token.create({ id: tokenId, name: "Reports", stores, expires_at: null });
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
     ["POST", `/v1/stores/${storeId}/roles`, { id: roleId, key: "bookkeeping", permissions }],
-    ["POST", "/v1/accounts/me/tokens", { id: tokenId, name: "Reports", stores, permissions, expires_at: null }],
+    ["POST", "/v1/accounts/me/tokens", { id: tokenId, name: "Reports", stores, expires_at: null }],
   ]);
 });
 
@@ -173,17 +173,17 @@ test("store access helpers mirror the Server's permission and location reach rul
   assert.equal(hasStorePermission(picker, "fulfillment", locationA), false);
   assert.equal(hasStorePermission(picker, "fulfillment"), false);
   assert.equal(hasStorePermission(picker, "orders"), false);
-  const paymentsOnly = { permissions: [{ type: "payments", access: "read_write" }] };
+  const paymentsOnly = { permissions: [{ type: "payments", access: "write" }] };
   assert.equal(hasStorePermission(paymentsOnly, "payments"), true);
   assert.equal(hasStorePermission(paymentsOnly, "orders"), false);
   assert.deepEqual(storeLocationReadReach(paymentsOnly), { type: "everywhere" });
   assert.equal(hasStorePermission(paymentsOnly, "inventory", locationA), false);
   assert.equal(hasStorePermission(paymentsOnly, "fulfillment", locationA), false);
   assert.deepEqual(storeLocationReadReach(picker), { type: "only", store_location_ids: [locationA, locationB].sort() });
-  const mixed = { permissions: [...picker.permissions, { type: "orders", access: "read_only" }] };
+  const mixed = { permissions: [...picker.permissions, { type: "orders", access: "read" }] };
   assert.deepEqual(storeLocationReadReach(mixed), { type: "everywhere" });
   assert.equal(hasStorePermission(mixed, "orders"), true);
-  const readOnly = { permissions: [{ type: "orders", access: "read_only" }, { type: "payments", access: "read_only" }, { type: "customers", access: "read_only" }] };
+  const readOnly = { permissions: [{ type: "orders", access: "read" }, { type: "payments", access: "read" }, { type: "customers", access: "read" }] };
   for (const type of ["orders", "payments", "customers"]) assert.equal(hasStorePermission(readOnly, type), true, type);
   assert.equal(hasStorePermission(readOnly, "packages"), false);
   const admin = { permissions: [{ type: "admin" }] };
@@ -205,7 +205,7 @@ test("own workspace discovery retains each Store name and access without public 
   const calls = [];
   const memberships = ["First Store", "Second Store"].map((store_name, index) => ({
     id: `membership-${index}`, store_id: index === 0 ? storeId : accountId, store_name,
-    role_ids: [roleId], access: { permissions: [{ type: "orders", access: index === 0 ? "read_write" : "read_only" }] }, status: { type: "active", account_id: accountId },
+    role_ids: [roleId], access: { permissions: [{ type: "orders", access: index === 0 ? "write" : "read" }] }, status: { type: "active", account_id: accountId },
     created_at: 1, updated_at: 1,
   }));
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
@@ -215,13 +215,13 @@ test("own workspace discovery retains each Store name and access without public 
   const admin = createAdmin({ apiUrl: baseUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   const page = await admin.store.member.findOwn({ limit: 20 });
   assert.deepEqual(page.items.map(({ store_name }) => store_name), ["First Store", "Second Store"]);
-  assert.deepEqual(page.items.map(({ access }) => access.permissions[0]), [{ type: "orders", access: "read_write" }, { type: "orders", access: "read_only" }]);
+  assert.deepEqual(page.items.map(({ access }) => access.permissions[0]), [{ type: "orders", access: "write" }, { type: "orders", access: "read" }]);
   assert.deepEqual(calls, [{ path: "/v1/stores/memberships", method: "GET" }]);
 });
 
 test("a nonexpiring email invite is explicitly resent and accepted with its current version", async (context) => {
   const contact = { email: "packer@example.test", language: "en" };
-  const invited = { id: "member", store_id: storeId, store_name: "Contract Store", store_mode: "live", role_ids: [roleId], access: { permissions: [] }, status: { type: "invited", contact }, created_at: 1, updated_at: 2 };
+  const invited = { id: "member", store_id: storeId, store_name: "Contract Store", store_type: { type: "live", account_id: accountId, network_id: storeId }, role_ids: [roleId], access: { permissions: [] }, status: { type: "invited", contact }, created_at: 1, updated_at: 2 };
   const accepted = { id: "member", store_id: storeId, role_ids: [roleId], status: { type: "active", account_id: accountId }, created_at: 1, updated_at: 3 };
   const calls = [];
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
@@ -251,7 +251,7 @@ test("a nonexpiring email invite is explicitly resent and accepted with its curr
 });
 
 test("a store's email sending is paused with a reason and allowed again, each with the store version", async (context) => {
-  const paused = { id: storeId, name: "Contract Store", owner_account_id: accountId, email_sending: { type: "paused", reason: "Bounce rate review" }, updated_at: 5 };
+  const paused = { id: storeId, name: "Contract Store", type: { type: "live", account_id: accountId, network_id: storeId }, email_sending: { type: "paused", reason: "Bounce rate review" }, updated_at: 5 };
   const allowed = { ...paused, email_sending: { type: "allowed" }, updated_at: 6 };
   const calls = [];
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {

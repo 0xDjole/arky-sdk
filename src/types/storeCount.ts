@@ -1,4 +1,5 @@
 import type { CalendarDate } from "./time";
+import type { Currency } from "./common";
 
 export interface StoreStatusCountSegments {
   products_by_status: "active" | "draft" | "archived" | "deleting";
@@ -92,11 +93,20 @@ export interface StoreCountTotal {
   value: number;
 }
 
+export interface StoreCountCurrencyValue {
+  currency: Currency;
+  value: number;
+}
+
+export type StoreCountOtherValue =
+  | { type: "count"; value: number }
+  | { type: "money"; currencies: StoreCountCurrencyValue[] };
+
 export interface StoreCountBreakdown {
   type: StoreCountSegmentedDayType;
   segments: StoreCountSegment[];
   other_segments: number;
-  other_value: number;
+  other_value: StoreCountOtherValue;
 }
 
 export interface StoreCountPoint {

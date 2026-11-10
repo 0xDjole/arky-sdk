@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { createStorefront } from "../dist/storefront.js";
-import { apiUrl, fixedIdFactories, ids, publishableKey, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
+import { apiUrl, fixedIdFactories, ids, storefrontIdentity, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
 
 const STORE_ID = "9d3e7b50-1a26-4f8c-b74e-0c5a2d9f6e13";
 
@@ -32,7 +32,7 @@ for (const scope of ["admin", "storefront"]) {
     const calls = recordFetch(context, (_call, count) => ({ items: [], cursor: count === 1 ? "order:+/=" : null }));
     const api = scope === "admin"
       ? createAdmin({ apiUrl: apiUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).eshop.order
-      : createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() }).eshop.order;
+      : createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() }).eshop.order;
     const filters = scope === "admin" ? { store_id: STORE_ID, customer_id: ids.customer, company_id: ids.company, ...shared } : shared;
     const first = await api.find(filters);
     assert.deepEqual(first, { items: [], cursor: "order:+/=" });
@@ -53,7 +53,8 @@ for (const scope of ["admin", "storefront"]) {
         assert.equal("customer_id" in call.query, false);
         assert.equal("company_id" in call.query, false);
         assert.equal(call.headers.get("authorization"), `Bearer ${visitorToken}`);
-        assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
+        assert.equal(call.headers.get("x-arky-store-id"), storefrontIdentity.storeId);
+    assert.equal(call.headers.get("x-arky-sales-channel-id"), storefrontIdentity.salesChannelId);
       } else {
         assert.equal(call.query.customer_id, ids.customer);
         assert.equal(call.headers.get("authorization"), "Bearer arky_at_ttttttttttttttttttttttttttttttttttttttttttA");
@@ -64,7 +65,7 @@ for (const scope of ["admin", "storefront"]) {
 
 test("storefront order reads go through the buyer's own routes and need the buyer's session", async (context) => {
   const calls = recordFetch(context, (call) => call.path.endsWith("/fulfillments") ? [] : { id: ids.order });
-  const orders = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() }).eshop.order;
+  const orders = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() }).eshop.order;
   await orders.get({ id: ids.order });
   assert.deepEqual(await orders.findFulfillments({ order_id: ids.order }), { items: [], cursor: null });
   assert.deepEqual(calls.map(({ method, path }) => [method, path]), [

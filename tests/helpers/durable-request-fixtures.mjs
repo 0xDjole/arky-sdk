@@ -50,3 +50,26 @@ export class ExclusiveLockManager {
     }
   }
 }
+
+export class QueuedLockManager {
+  constructor() {
+    this.tails = new Map();
+  }
+
+  async request(name, options, callback) {
+    const previous = this.tails.get(name) ?? Promise.resolve();
+    let release;
+    const finished = new Promise((resolve) => {
+      release = resolve;
+    });
+    const tail = previous.then(() => finished);
+    this.tails.set(name, tail);
+    await previous;
+    try {
+      return await callback({ name, mode: options.mode ?? "exclusive" });
+    } finally {
+      release();
+      if (this.tails.get(name) === tail) this.tails.delete(name);
+    }
+  }
+}

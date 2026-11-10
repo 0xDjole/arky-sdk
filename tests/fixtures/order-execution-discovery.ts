@@ -105,6 +105,8 @@ export type FulfillmentJobContract = [
   Assert<Equal<FulfillmentJobBuyer, { type: "customer"; customer_id: string } | { type: "company"; company_id: string; company_name: string } | { type: "company_location"; company_id: string; company_name: string; company_location_id: string; company_location_name: string }>>,
   Assert<Equal<Extract<FulfillmentJob["type"], { type: "order_delivery" }>["timing"], OrderDeliveryTiming>>,
   Assert<Equal<CustomerOrderFulfillment["timing"], OrderDeliveryTiming>>,
+  Assert<Equal<CustomerOrderFulfillment["shipments"][number]["trackings"], Tracking[]>>,
+  Assert<Equal<keyof CustomerOrderFulfillment["shipments"][number], "fulfillment_id" | "status" | "trackings" | "preparation_started_at" | "updated_at">>,
   Assert<Equal<Extract<FulfillmentJob["type"], { type: "order_delivery" }>["lines"], FulfillmentJobLine[]>>,
   Assert<Equal<Extract<FulfillmentJob["type"], { type: "rental_replacement" }>["line"], FulfillmentJobLine>>,
   Assert<Equal<keyof FulfillmentJobLine, "id" | "source" | "inventory_requirements" | "quantity" | "fulfilled_quantity" | "cancelled_units" | "moved_units">>,

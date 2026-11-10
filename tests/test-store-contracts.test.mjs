@@ -20,12 +20,12 @@ function requests(calls) {
   return calls.map(({ method, path, query, body: sent }) => [method, path, query, sent]);
 }
 
-test("store.create names the mode and answers the store with its mode, and requestDeletion closes it the ordinary way", async (context) => {
-  const store = { id: storeId, name: "Agent test store", owner_account_id: ids.account, timezone: "Europe/Sarajevo", languages: ["en"], mode: "test", status: { type: "active" }, email_sending: { type: "allowed" }, created_at: 1, updated_at: 2 };
+test("store.create names a test store's live parent and answers that type, and requestDeletion closes it the ordinary way", async (context) => {
+  const store = { id: storeId, name: "Agent test store", timezone: "Europe/Sarajevo", languages: ["en"], type: { type: "test", store_id: ids.store }, status: { type: "active" }, email_sending: { type: "allowed" }, created_at: 1, updated_at: 2 };
   const calls = recordFetch(context, () => store);
   const create = {
     id: storeId,
-    mode: "test",
+    type: { type: "test", store_id: ids.store },
     name: "Agent test store",
     timezone: "Europe/Sarajevo",
     languages: ["en"],
@@ -34,7 +34,7 @@ test("store.create names the mode and answers the store with its mode, and reque
     location_address: { country: "BA", city: "Sarajevo", postal_code: "71000", street1: "1 Test Way" },
   };
   const made = await admin().store.create(create);
-  assert.equal(made.mode, "test");
+  assert.deepEqual(made.type, { type: "test", store_id: ids.store });
   await admin().store.requestDeletion({ id: storeId, confirmation: "Agent test store", expected_updated_at: 2 });
   assert.deepEqual(requests(calls), [
     ["POST", "/v1/stores", {}, create],
@@ -70,7 +70,7 @@ test("Admin filters payment options by the Arky types", async (context) => {
 });
 
 test("ArkyResend connects with a keyless call that names the connection and its domains", async (context) => {
-  const connection = { id: providerId, store_id: storeId, name: "Test mail", type: { type: "arky_resend", webhook_id: "wh_arky" }, created_at: 1, updated_at: 2 };
+  const connection = { id: providerId, store_id: storeId, name: "Test mail", type: { type: "arky_resend" }, created_at: 1, updated_at: 2 };
   const calls = recordFetch(context, () => connection);
   const api = admin().notification.emailProvider;
   const params = { store_id: storeId, id: providerId, name: "Test mail", domains: ["shop.example.test"] };

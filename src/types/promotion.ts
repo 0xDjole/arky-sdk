@@ -1,6 +1,7 @@
 import type { EpochMilliseconds } from "./time";
 import type { Block } from "./block";
 import type { Money, Schedule, SortDirection } from "./common";
+import type { PackageScheduleInput } from "./package";
 
 export type PromotionTarget =
   | { type: "products"; product_ids: string[] }
@@ -124,7 +125,7 @@ export interface CreatePromotionParams {
   priority: number;
   limit: PromotionLimit;
   customer_limit: PromotionLimit;
-  schedule: Schedule;
+  schedule: PackageScheduleInput;
   status: PromotionEditableStatus;
 }
 
@@ -140,7 +141,7 @@ export interface UpdatePromotionParams {
   priority: number;
   limit: PromotionLimit;
   customer_limit: PromotionLimit;
-  schedule: Schedule;
+  schedule: PackageScheduleInput;
   status: PromotionEditableStatus;
 }
 

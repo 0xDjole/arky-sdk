@@ -10,7 +10,7 @@ import {
   fixedIdFactories,
   ids,
   installGlobal,
-  publishableKey,
+  storefrontIdentity,
   quoteRecord,
   recordFetch,
   visitorSession,
@@ -47,7 +47,7 @@ function gate() {
 const scope = { buyer: customerBuyer, package_id: ids.package };
 
 function storeWithCart(options = {}) {
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", market: "market-a", sessionStorage: visitorStorage(), ...options });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", market: "market-a", sessionStorage: visitorStorage(), ...options });
   const cart = store.eshop.cart(scope);
   cart.cart.set(cartRecord({ line_items: [productLine] }));
   return { store, cart };
@@ -121,7 +121,7 @@ test("a market change clears the selected cart view, and a late read for the old
     await reads.get(id).waiting;
     return cartRecord({ id });
   });
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", market: "market-a", sessionStorage: visitorStorage() });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", market: "market-a", sessionStorage: visitorStorage() });
   const cart = store.eshop.cart(scope);
   await cart.create({ id: ids.cart });
   store.setContext({ market: "market-b" });
@@ -193,7 +193,7 @@ for (const change of ["buyer", "language"]) {
   });
 }
 
-test("a buyer or market change leaves an unresolved checkout request byte for byte", async (context) => {
+test("a buyer or market change leaves an unresolved checkout request byte for byte, and another buyer never sees it", async (context) => {
   const durable = new MemoryStorage();
   installGlobal(context, "window", globalThis);
   installGlobal(context, "localStorage", durable);
@@ -203,14 +203,14 @@ test("a buyer or market change leaves an unresolved checkout request byte for by
     assert.equal(call.path, "/v1/storefront/carts/accept");
     throw new TypeError("response lost");
   });
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", market: "market-a", sessionStorage: visitorStorage() });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", market: "market-a", sessionStorage: visitorStorage() });
   const scoped = store.eshop.cart(scope);
   const request = checkoutRequest();
   await store.client.eshop.cart.retainCheckout({ ...request, scope });
   await assert.rejects(store.client.eshop.cart.recoverCheckout({ scope }), /response lost/);
   const pending = await scoped.pendingCheckout();
   assert.deepEqual(pending, request);
-  const key = `arky:cart-checkout:v5:${encodeURIComponent(`storefront:${apiUrl}:${publishableKey}`)}:${encodeURIComponent(`customer|${ids.package}|market-a`)}`;
+  const key = `arky:cart-checkout:v5:${encodeURIComponent(`storefront:${apiUrl}:${storefrontIdentity.storeId}:${storefrontIdentity.salesChannelId}:${ids.customer}`)}:${encodeURIComponent(`customer|${ids.package}|market-a`)}`;
   const retained = durable.getItem(key);
   assert.ok(retained);
   store.setContext({ market: "market-b" });
@@ -220,6 +220,7 @@ test("a buyer or market change leaves an unresolved checkout request byte for by
   assert.equal(durable.getItem(key), retained);
   assert.equal(await store.eshop.cart(scope).pendingCheckout(), null);
   store.setContext({ market: "market-a" });
-  assert.deepEqual(await scoped.pendingCheckout(), pending);
+  assert.equal(await scoped.pendingCheckout(), null);
+  assert.equal(durable.getItem(key), retained);
   assert.equal(calls.filter((call) => call.path.endsWith("/carts/accept")).length, 1);
 });

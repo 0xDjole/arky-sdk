@@ -233,7 +233,7 @@ export type ReturnCommand =
   | { type: "decline"; reason: string; notify_customer: boolean }
   | { type: "cancel" }
   | { type: "receive"; items: ReceiveReturnItem[] }
-  | { type: "dispose"; items: DisposeReturnItem[] }
+  | { type: "dispose"; action_id: string; items: DisposeReturnItem[] }
   | { type: "missing"; items: MissingReturnItem[] }
   | { type: "tracking"; trackings: Tracking[] };
 
