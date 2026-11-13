@@ -454,6 +454,7 @@ export function createBookingCalendar(context: BookingCalendarContext, cart: Car
         capacity_units: params.capacity_units ?? 1,
         form_submission_id: params.form_submission_id ?? null,
         price: slot.price_ref,
+        session: params.session ?? null,
       });
       patch(clearSelection());
       refresh();

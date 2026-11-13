@@ -9,7 +9,7 @@ import { exclusive } from "./services/sessionLock";
 import { createHttpClient, refusedByArky } from "./services/createHttpClient";
 import { durableCreateKey, runDurableCreate } from "./services/durableCreate";
 import type { AuthStorage, HttpClientConfig, RequestContextOverride } from "./types/httpClient";
-import type { RequestOptions } from "./types/api";
+import type { AdminRequestOptions, RequestOptions } from "./types/api";
 import type {
   AdminSessionInternal,
   AdminSessionUpdater,
@@ -25,20 +25,27 @@ import {
   type RequestNewsletterCodeResult,
 } from "./types/packageJoin";
 import type {
-  ChangeCustomerEmailParams,
+  CreateOwnLoginParams,
+  DeleteOwnLoginParams,
+  OwnLoginParams,
   StorefrontCustomer,
+  StorefrontCustomerLogin,
   CustomerCodeResult,
   CustomerMe,
   CustomerSessionIssued,
   CustomerSessionResult,
   CustomerSessionStatus,
   UpdateCustomerMeParams,
+  UpdateOwnLoginParams,
+  VerifyNewLoginParams,
 } from "./types/customer";
 import { CartError } from "./types/cartSelection";
 import type { StorefrontMarket, StorefrontSetup } from "./types/storefront";
 import type { EmailContact } from "./types/common";
 import { createAccountApi } from "./api/account";
 import { createActionsApi } from "./api/actions";
+import { createAuditLogApi } from "./api/auditLog";
+import { createSupportAccessApi } from "./api/supportAccess";
 import { createCountsApi } from "./api/counts";
 import { createAuthApi } from "./api/auth";
 import { createBookingOfferingApi, createBookingResourceApi, createBookingServiceApi } from "./api/booking";
@@ -52,10 +59,9 @@ import {
   createCompanyRoleApi,
 } from "./api/company";
 import { createCollectionApi, createEntryApi } from "./api/content";
-import { createEntryAccessApi, createPrivateCollectionApi, createPrivateEntryApi } from "./api/privateContent";
+import { createPrivateCollectionApi, createPrivateEntryApi } from "./api/privateContent";
 import { createCustomersApi } from "./api/customers";
 import { createDigitalAssetApi } from "./api/digitalAsset";
-import { createEmailSuppressionApi } from "./api/emailSuppression";
 import { createExperimentsApi } from "./api/experiments";
 import { createFormsApi } from "./api/forms";
 import {
@@ -78,21 +84,22 @@ import {
   createOrderNoteApi,
 } from "./api/note";
 import {
-  createStoreEmailsApi,
   createEmailAddressApi,
   createEmailLayoutApi,
-  createEmailProviderApi,
-  createEmailTemplateApi,
-  createOutgoingEmailApi,
+  createNotificationApi,
+  createOutgoingMessageApi,
   createOutgoingWebhookApi,
   createStoreResendEventApi,
+  createTemplateApi,
 } from "./api/notification";
 import { createOrderApi } from "./api/order";
+import { createInvoiceApi } from "./api/invoice";
 import { createPackageAccessApi, createPackageApi, createPackageItemApi, createPackageItemPriceApi } from "./api/package";
 import { createPackageMemberApi, createPackageOfferingApi } from "./api/packageMember";
 import { createPaymentApi, createIncomingWebhookApi } from "./api/payment";
 import { createPaymentMethodApi } from "./api/paymentMethod";
 import { createPaymentOptionApi } from "./api/paymentOption";
+import { createPhoneNumberApi } from "./api/phoneNumber";
 import { createNetworkApi } from "./api/network";
 import { createPlatformApi } from "./api/platform";
 import { createProductApi, createProductVariantApi } from "./api/product";
@@ -104,7 +111,9 @@ import { createShippingMethodApi } from "./api/shippingMethod";
 import { createShippingProfileApi } from "./api/shippingProfile";
 import { createStoreSimulatorApi } from "./api/simulator";
 import { createStoreApi } from "./api/store";
+import { createStoreProviderApi } from "./api/storeProvider";
 import { createStoreRoleApi } from "./api/storeRole";
+import { createSuppressionApi } from "./api/suppression";
 import {
   createStorefrontApi,
   type CustomerSessionUpdater,
@@ -184,7 +193,7 @@ export type { PaymentSimulation, SimulatePaymentOptions, SimulatePaymentParams }
 export { CheckoutFlowError, initialize } from "./storefrontStore";
 export type * from "./storefrontStore";
 
-export const SDK_VERSION = "0.26.107";
+export const SDK_VERSION = "0.26.114";
 
 export interface AdminSession {
   id: string;
@@ -201,6 +210,7 @@ export interface StorefrontCustomerSession {
   id: string;
   type: CustomerSessionIssued["type"];
   status: CustomerSessionStatus;
+  login: StorefrontCustomerLogin | null;
 }
 
 export type AuthStateListener<T> = (session: T | null) => void;
@@ -225,7 +235,7 @@ function validateAccountToken(accountToken: string): string {
   return token;
 }
 
-export function createAdmin(config: CreateAdminConfig) {
+function createAdminClient(config: CreateAdminConfig) {
   const accountToken = config.accountToken === undefined ? null : validateAccountToken(config.accountToken);
   const apiUrl = config.apiUrl.replace(/\/+$/, "");
   const sessionState = createAdminSessionState(apiUrl, config.refreshPath);
@@ -299,7 +309,10 @@ export function createAdmin(config: CreateAdminConfig) {
       location: createLocationApi(apiConfig),
       market: createMarketApi(apiConfig),
       salesChannel: createSalesChannelApi(apiConfig),
-      emails: createStoreEmailsApi(apiConfig),
+      provider: createStoreProviderApi(apiConfig),
+      phoneNumber: createPhoneNumberApi(apiConfig),
+      auditLog: createAuditLogApi(apiConfig),
+      supportAccess: createSupportAccessApi(apiConfig),
       paymentOption: createPaymentOptionApi(apiConfig),
       simulator: createStoreSimulatorApi(apiConfig),
       zone: createZoneApi(apiConfig),
@@ -308,12 +321,12 @@ export function createAdmin(config: CreateAdminConfig) {
       shippingMethod: createShippingMethodApi(apiConfig),
     },
     notification: {
+      notification: createNotificationApi(apiConfig),
       incomingWebhook: createIncomingWebhookApi(apiConfig),
-      outgoingEmail: createOutgoingEmailApi(apiConfig),
+      outgoingMessage: createOutgoingMessageApi(apiConfig),
       outgoingWebhook: createOutgoingWebhookApi(apiConfig),
-      template: createEmailTemplateApi(apiConfig),
+      template: createTemplateApi(apiConfig),
       layout: createEmailLayoutApi(apiConfig),
-      emailProvider: createEmailProviderApi(apiConfig),
       emailAddress: createEmailAddressApi(apiConfig),
       resendEvent: createStoreResendEventApi(apiConfig),
     },
@@ -326,7 +339,6 @@ export function createAdmin(config: CreateAdminConfig) {
       entry: createEntryApi(apiConfig),
       privateCollection: createPrivateCollectionApi(apiConfig),
       privateEntry: createPrivateEntryApi(apiConfig),
-      entryAccess: createEntryAccessApi(apiConfig),
     },
     forms: {
       ...createFormsApi(apiConfig),
@@ -341,7 +353,7 @@ export function createAdmin(config: CreateAdminConfig) {
     },
     customers: {
       ...createCustomersApi(apiConfig),
-      emailSuppression: createEmailSuppressionApi(apiConfig),
+      suppression: createSuppressionApi(apiConfig),
       notes: createCustomerNoteApi(apiConfig),
     },
     actions: createActionsApi(apiConfig),
@@ -368,6 +380,7 @@ export function createAdmin(config: CreateAdminConfig) {
       order: {
         ...createOrderApi(apiConfig),
         notes: createOrderNoteApi(apiConfig),
+        invoice: createInvoiceApi(apiConfig),
       },
       inventoryItem: createInventoryItemApi(apiConfig),
       inventoryLevel: createInventoryLevelApi(apiConfig),
@@ -423,7 +436,25 @@ export function createAdmin(config: CreateAdminConfig) {
   };
 }
 
-export type AdminClient = ReturnType<typeof createAdmin>;
+type SameType<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+
+type AdminArguments<Args extends readonly unknown[]> = {
+  [Index in keyof Args]: SameType<Args[Index], RequestOptions | undefined> extends true ? AdminRequestOptions | undefined : Args[Index];
+};
+
+type AdminSurface<Surface> = {
+  [Name in keyof Surface]: Surface[Name] extends (...args: infer Args) => infer Answer
+    ? (...args: AdminArguments<Args>) => Answer
+    : Surface[Name] extends object
+      ? AdminSurface<Surface[Name]>
+      : Surface[Name];
+};
+
+export type AdminClient = AdminSurface<ReturnType<typeof createAdminClient>>;
+
+export function createAdmin(config: CreateAdminConfig): AdminClient {
+  return createAdminClient(config);
+}
 
 export interface StorefrontSessionStorage {
   getItem(key: string): string | null;
@@ -482,10 +513,10 @@ function normalizeStorefrontApiUrl(value: string | undefined): string {
 }
 
 function storefrontSessionStorageKey(apiUrl: string, storeId: string, salesChannelId: string): string {
-  return `arky_customer_session:v4:${encodeURIComponent(apiUrl)}:${storeId}:${salesChannelId}`;
+  return `arky_customer_session:v5:${encodeURIComponent(apiUrl)}:${storeId}:${salesChannelId}`;
 }
 
-type StoredCustomerSession = CustomerSessionResult & { version: 4 };
+type StoredCustomerSession = CustomerSessionResult & { version: 5 };
 
 function isIssuedCustomerSession(value: unknown): value is CustomerSessionIssued {
   if (!isRecord(value)) return false;
@@ -504,7 +535,8 @@ function isIssuedCustomerSession(value: unknown): value is CustomerSessionIssued
     );
   }
   return (
-    value.type === "email_authenticated" &&
+    value.type === "logged_in" &&
+    typeof value.login_id === "string" &&
     typeof value.access_token === "string" &&
     value.access_token.startsWith("customer_access_") &&
     typeof value.refresh_token === "string" &&
@@ -515,8 +547,12 @@ function isIssuedCustomerSession(value: unknown): value is CustomerSessionIssued
   );
 }
 
-function isStoredContact(value: unknown): value is EmailContact {
-  return isRecord(value) && typeof value.email === "string" && typeof value.language === "string";
+function isStoredName(value: unknown): boolean {
+  return value === null || (isRecord(value) && typeof value.first_name === "string" && typeof value.last_name === "string");
+}
+
+function isStoredOptionalId(value: unknown): boolean {
+  return value === null || typeof value === "string";
 }
 
 function isStoredCustomer(value: unknown): value is StorefrontCustomer {
@@ -524,13 +560,32 @@ function isStoredCustomer(value: unknown): value is StorefrontCustomer {
     isRecord(value) &&
     typeof value.id === "string" &&
     typeof value.store_id === "string" &&
+    isStoredName(value.name) &&
+    Array.isArray(value.addresses) &&
+    isStoredOptionalId(value.default_shipping_address_id) &&
+    isStoredOptionalId(value.default_billing_address_id) &&
     Array.isArray(value.profile) &&
-    isRecord(value.type) &&
-    (value.type.type === "anonymous" ||
-      (value.type.type === "verified" && isStoredContact(value.type.contact) && Array.isArray(value.type.addresses))) &&
     isEpochMilliseconds(value.created_at) &&
     isEpochMilliseconds(value.updated_at)
   );
+}
+
+function isStoredLogin(value: unknown): value is StorefrontCustomerLogin {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    isRecord(value.type) &&
+    typeof value.type.type === "string" &&
+    typeof value.type.language === "string" &&
+    (typeof value.type.email === "string" || typeof value.type.number === "string") &&
+    isEpochMilliseconds(value.created_at) &&
+    isEpochMilliseconds(value.updated_at)
+  );
+}
+
+function isStoredSessionLogin(session: CustomerSessionIssued, login: unknown): boolean {
+  if (session.type === "visitor") return login === null || login === undefined;
+  return isStoredLogin(login) && login.id === session.login_id;
 }
 
 function parseStoredCustomerSession(value: string | null): CustomerSessionResult | null {
@@ -539,14 +594,19 @@ function parseStoredCustomerSession(value: string | null): CustomerSessionResult
     const parsed: unknown = JSON.parse(value);
     if (
       !isRecord(parsed) ||
-      parsed.version !== 4 ||
+      parsed.version !== 5 ||
       !isStoredCustomer(parsed.customer) ||
       !isIssuedCustomerSession(parsed.session) ||
-      parsed.session.customer_id !== parsed.customer.id
+      parsed.session.customer_id !== parsed.customer.id ||
+      !isStoredSessionLogin(parsed.session, parsed.login)
     ) {
       return null;
     }
-    return { customer: parsed.customer, session: parsed.session };
+    return {
+      customer: parsed.customer,
+      session: parsed.session,
+      login: isStoredLogin(parsed.login) ? parsed.login : null,
+    };
   } catch {
     return null;
   }
@@ -643,14 +703,24 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
   }
 
   function writeCustomerSession(session: CustomerSessionResult | null): void {
-    if (session && (!isIssuedCustomerSession(session.session) || !isStoredCustomer(session.customer))) {
+    if (
+      session &&
+      (!isIssuedCustomerSession(session.session) ||
+        !isStoredCustomer(session.customer) ||
+        !isStoredSessionLogin(session.session, session.login))
+    ) {
       throw new RangeError("The customer session must be active and carry epoch-millisecond times");
     }
     memorySession = session;
     if (!sessionStorage || storageUnavailable) return;
     try {
       if (session) {
-        const stored: StoredCustomerSession = { version: 4, customer: session.customer, session: session.session };
+        const stored: StoredCustomerSession = {
+          version: 5,
+          customer: session.customer,
+          session: session.session,
+          login: session.login,
+        };
         sessionStorage.setItem(storageKey, JSON.stringify(stored));
       } else {
         sessionStorage.removeItem(storageKey);
@@ -662,7 +732,13 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
 
   function toPublic(value: CustomerSessionResult | null): StorefrontCustomerSession | null {
     return value
-      ? { customer: value.customer, id: value.session.id, type: value.session.type, status: value.session.status }
+      ? {
+          customer: value.customer,
+          id: value.session.id,
+          type: value.session.type,
+          status: value.session.status,
+          login: value.login,
+        }
       : null;
   }
 
@@ -816,8 +892,8 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
 
   function verifiedContact(): EmailContact | null {
     const current = storedSession();
-    if (!current || current.session.type !== "email_authenticated" || current.customer.type.type !== "verified") return null;
-    return current.customer.type.contact;
+    if (!current || current.session.type !== "logged_in" || current.login?.type.type !== "verified_email") return null;
+    return { email: current.login.type.email, language: current.login.type.language };
   }
 
   const flows: StorefrontFlowContext = {
@@ -919,7 +995,7 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
         : await runDurableCreate({
             key: pendingKey("sign-in-email", ""),
             label: "sign-in code request",
-            input: { contact: { email: params.contact.email, language: params.contact.language } },
+            input: { contact: params.contact },
             appId: () => appId("sign-in email"),
             send,
             confirms: () => true,
@@ -934,7 +1010,12 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
     pendingVerifySessionId ??= requireId(options.createSessionId(), "customer session");
     const sessionId = pendingVerifySessionId;
     try {
-      const result = await customerApi.verify({ session_id: sessionId, code: params.code });
+      const result = await customerApi.verify({
+        session_id: sessionId,
+        code: params.code,
+        email: params.email,
+        number: params.number,
+      });
       pendingVerifySessionId = null;
       identifyPromise = null;
       return result;
@@ -944,12 +1025,36 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
     }
   }
 
-  async function changeEmail(params: ChangeCustomerEmailParams, options?: RequestOptions): Promise<CustomerMe> {
+  async function verifyNewLogin(params: VerifyNewLoginParams, options?: RequestOptions): Promise<CustomerMe> {
     await ensureVisitorSession();
     const requested = storedSession();
-    const result = await customerApi.changeEmail(params, options);
+    const result = await customerApi.verifyNewLogin(params, options);
     applyAnsweredCustomer(requested, result);
     identifyPromise = null;
+    return result;
+  }
+
+  async function addLogin(params: CreateOwnLoginParams, options?: RequestOptions): Promise<CustomerMe> {
+    await ensureVisitorSession();
+    const requested = storedSession();
+    const result = await customerApi.addLogin(params, options);
+    applyAnsweredCustomer(requested, result);
+    return result;
+  }
+
+  async function updateLogin(params: UpdateOwnLoginParams, options?: RequestOptions): Promise<CustomerMe> {
+    await ensureVisitorSession();
+    const requested = storedSession();
+    const result = await customerApi.updateLogin(params, options);
+    applyAnsweredCustomer(requested, result);
+    return result;
+  }
+
+  async function deleteLogin(params: DeleteOwnLoginParams, options?: RequestOptions): Promise<CustomerMe | null> {
+    await ensureVisitorSession();
+    const requested = storedSession();
+    const result = await customerApi.deleteLogin(params, options);
+    if (result) applyAnsweredCustomer(requested, result);
     return result;
   }
 
@@ -994,14 +1099,14 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
     return result;
   }
 
-  async function resubscribe(options?: RequestOptions): Promise<CustomerMe> {
+  async function resubscribe(params: OwnLoginParams, options?: RequestOptions): Promise<CustomerMe> {
     await ensureVisitorSession();
-    return customerApi.resubscribe(options);
+    return customerApi.resubscribe(params, options);
   }
 
-  async function unsubscribe(options?: RequestOptions): Promise<CustomerMe> {
+  async function unsubscribe(params: OwnLoginParams, options?: RequestOptions): Promise<CustomerMe> {
     await ensureVisitorSession();
-    return customerApi.unsubscribe(options);
+    return customerApi.unsubscribe(params, options);
   }
 
   async function logout(): Promise<StorefrontLogoutResult> {
@@ -1022,16 +1127,18 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
   async function requestNewsletterCode(params: RequestNewsletterCodeParams): Promise<RequestNewsletterCodeResult> {
     const signedIn = verifiedContact();
     if (signedIn !== null && sameEmail(signedIn.email, params.contact.email)) return { type: "verified" };
-    if (storedSession()?.session.type === "email_authenticated") await logout();
-    await requestCode({ contact: params.contact });
+    if (storedSession()?.session.type === "logged_in") await logout();
+    await requestCode({
+      contact: { type: "email", email: params.contact.email, language: params.contact.language },
+    });
     return { type: "code_sent" };
   }
 
   async function joinNewsletter(params: JoinNewsletterParams, requestOptions?: RequestOptions): Promise<JoinFreePackageResult> {
     if (params.code !== undefined) {
       const result = await verify({ code: params.code });
-      const email = result.customer.type.type === "verified" ? result.customer.type.contact.email : null;
-      if (result.session.type !== "email_authenticated" || email === null || !sameEmail(email, params.email)) {
+      const email = result.login?.type.type === "verified_email" ? result.login.type.email : null;
+      if (result.session.type !== "logged_in" || email === null || !sameEmail(email, params.email)) {
         throw new PackageJoinError("email_mismatch", "The code confirmed another email address; start again");
       }
     }
@@ -1065,7 +1172,7 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
     const stored = storedSession();
     const storedToken = authorizationToken(stored);
     if (storedToken && storedToken !== failedAuthorizationToken) return true;
-    if (storedToken === failedAuthorizationToken && stored?.session.type === "email_authenticated") {
+    if (storedToken === failedAuthorizationToken && stored?.session.type === "logged_in") {
       try {
         await exclusive(`${storageKey}:refresh`, async () => {
           if (authorizationToken() !== failedAuthorizationToken) return;
@@ -1120,7 +1227,7 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
 
     get isAuthenticated(): boolean {
       const current = storedSession();
-      return current?.session.status.type === "active" && current.session.type === "email_authenticated";
+      return current?.session.status.type === "active" && current.session.type === "logged_in";
     },
 
     get sessionStorageUnavailable(): boolean {
@@ -1157,7 +1264,10 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
       identify,
       requestCode,
       verify,
-      changeEmail,
+      verifyNewLogin,
+      addLogin,
+      updateLogin,
+      deleteLogin,
       refresh,
       logout,
       getMe: me,

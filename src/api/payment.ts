@@ -69,6 +69,7 @@ export const createPaymentApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.post<Payment>(`${paymentPath(params.store_id, params.payment_id)}/collections`, {
         id: params.id,
         money: params.money,
+        method: params.method,
         reference: params.reference,
       }, options);
     },

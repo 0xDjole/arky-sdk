@@ -2,15 +2,18 @@ import type { createAdmin } from "arky-sdk/admin";
 import type {
   CheckoutPaymentAction,
   CheckStripeSetupParams,
-  ConnectStripePaymentOptionParams,
+  ConnectStripeStoreProviderParams,
+  CreateCardPaymentOptionParams,
   EpochMilliseconds,
   PaymentOption,
   PaymentOptionType,
-  RefreshStripePaymentOptionParams,
+  RefreshStripeStoreProviderParams,
   ReplaceStripeKeysParams,
   SaveStripeWebhookSecretParams,
+  StoreProvider,
   StoreSubscriptionPayment,
   StripeConnection,
+  StripeSecretKeyKind,
   StripeSetup,
   StripeSetupProblem,
   StripeWebhook,
@@ -20,7 +23,9 @@ import type {
 } from "arky-sdk";
 
 type Admin = ReturnType<typeof createAdmin>;
-type Stripe = Admin["store"]["paymentOption"]["stripe"];
+type Provider = Admin["store"]["provider"];
+type Options = Admin["store"]["paymentOption"];
+type StripeLogin = Extract<StoreProvider["type"], { type: "stripe" }>;
 type Assert<T extends true> = T;
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
@@ -29,34 +34,42 @@ type StripeCheckout = Extract<CheckoutPaymentAction, { type: "stripe_embedded_ch
 type BillingPayment = Extract<StoreSubscriptionPayment, { type: "stripe" }>;
 
 export type StripeConnectionContracts = [
-  Assert<Equal<keyof Stripe, "connect" | "saveWebhookSecret" | "checkSetup" | "replaceKeys" | "refresh">>,
-  Assert<Equal<Parameters<Stripe["connect"]>[0], ConnectStripePaymentOptionParams>>,
-  Assert<Equal<Parameters<Stripe["saveWebhookSecret"]>[0], SaveStripeWebhookSecretParams>>,
+  Assert<Missing<Options, "stripe" | "arkyStripe">>,
+  Assert<Equal<Parameters<Provider["connectStripe"]>[0], ConnectStripeStoreProviderParams>>,
+  Assert<Equal<ConnectStripeStoreProviderParams, { store_id: string; id: string; restricted_key: string; publishable_key: string }>>,
+  Assert<Equal<Awaited<ReturnType<Provider["connectStripe"]>>, StoreProvider>>,
+  Assert<Equal<StripeLogin["secret_key"], StripeSecretKeyKind>>,
+  Assert<Equal<StripeSecretKeyKind, "standard" | "restricted">>,
+  Assert<Equal<Parameters<Provider["saveStripeWebhookSecret"]>[0], SaveStripeWebhookSecretParams>>,
   Assert<Equal<SaveStripeWebhookSecretParams, { store_id: string; id: string; expected_updated_at: EpochMilliseconds; signing_secret: string; previous_secret_expires_at: EpochMilliseconds | null }>>,
   Assert<RequiredField<SaveStripeWebhookSecretParams, "previous_secret_expires_at">>,
-  Assert<Equal<Awaited<ReturnType<Stripe["saveWebhookSecret"]>>, PaymentOption>>,
-  Assert<Equal<Parameters<Stripe["checkSetup"]>[0], CheckStripeSetupParams>>,
+  Assert<Equal<Awaited<ReturnType<Provider["saveStripeWebhookSecret"]>>, StoreProvider>>,
+  Assert<Equal<Parameters<Provider["checkStripeSetup"]>[0], CheckStripeSetupParams>>,
   Assert<Equal<CheckStripeSetupParams, { store_id: string; id: string }>>,
-  Assert<Equal<Awaited<ReturnType<Stripe["checkSetup"]>>, StripeSetup>>,
+  Assert<Equal<Awaited<ReturnType<Provider["checkStripeSetup"]>>, StripeSetup>>,
   Assert<Equal<StripeSetup, { webhook_address: string; events: string[]; webhook_id: string | null; problems: StripeSetupProblem[] }>>,
   Assert<Missing<StripeSetup, "api_version">>,
   Assert<Equal<StripeSetupProblem["type"], "charges_disabled" | "webhook_secret_missing" | "webhook_unreadable" | "webhook_missing" | "webhook_duplicated" | "webhook_disabled" | "webhook_events_missing" | "webhook_replaced">>,
   Assert<Equal<Extract<StripeSetupProblem, { type: "webhook_replaced" }>, { type: "webhook_replaced"; saved_webhook_id: string }>>,
-  Assert<Missing<Stripe, "createWebhook" | "rotateWebhookSecret">>,
-  Assert<Equal<Parameters<Stripe["replaceKeys"]>[0], ReplaceStripeKeysParams>>,
-  Assert<Equal<Parameters<Stripe["refresh"]>[0], RefreshStripePaymentOptionParams>>,
-  Assert<Equal<Awaited<ReturnType<Stripe["connect"]>>, PaymentOption>>,
-  Assert<Equal<Awaited<ReturnType<Stripe["refresh"]>>, PaymentOption>>,
-  Assert<RequiredField<ConnectStripePaymentOptionParams, "id">>,
-  Assert<RequiredField<ConnectStripePaymentOptionParams, "restricted_key">>,
-  Assert<RequiredField<ConnectStripePaymentOptionParams, "saved_card_terms">>,
-  Assert<Equal<ConnectStripePaymentOptionParams["saved_card_terms"], LocalizedMarkdown>>,
+  Assert<Missing<Provider, "createWebhook" | "rotateWebhookSecret">>,
+  Assert<Equal<Parameters<Provider["replaceStripeKeys"]>[0], ReplaceStripeKeysParams>>,
+  Assert<Equal<Awaited<ReturnType<Provider["replaceStripeKeys"]>>, StoreProvider>>,
+  Assert<Equal<Parameters<Provider["refreshStripe"]>[0], RefreshStripeStoreProviderParams>>,
+  Assert<Equal<Awaited<ReturnType<Provider["refreshStripe"]>>, StoreProvider>>,
+  Assert<Equal<Parameters<Options["createStripe"]>[0], CreateCardPaymentOptionParams>>,
+  Assert<Equal<Awaited<ReturnType<Options["createStripe"]>>, PaymentOption>>,
+  Assert<RequiredField<ConnectStripeStoreProviderParams, "id">>,
+  Assert<RequiredField<ConnectStripeStoreProviderParams, "restricted_key">>,
+  Assert<RequiredField<CreateCardPaymentOptionParams, "provider_id">>,
+  Assert<RequiredField<CreateCardPaymentOptionParams, "saved_card_terms">>,
+  Assert<Equal<CreateCardPaymentOptionParams["saved_card_terms"], LocalizedMarkdown>>,
   Assert<Equal<StripeConnection["saved_card_terms"], LocalizedMarkdown>>,
+  Assert<Equal<StripeConnection["provider_id"], string>>,
   Assert<RequiredField<UpdatePaymentOptionParams, "saved_card_terms">>,
   Assert<Equal<UpdatePaymentOptionParams["saved_card_terms"], LocalizedMarkdown | null>>,
-  Assert<RequiredField<RefreshStripePaymentOptionParams, "expected_updated_at">>,
+  Assert<RequiredField<RefreshStripeStoreProviderParams, "expected_updated_at">>,
   Assert<RequiredField<ReplaceStripeKeysParams, "expected_updated_at">>,
-  Assert<Missing<ConnectStripePaymentOptionParams, "request_id" | "connected_account_id" | "configuration">>,
+  Assert<Missing<ConnectStripeStoreProviderParams, "request_id" | "connected_account_id" | "configuration">>,
   Assert<Equal<StripeWebhook["type"], "not_configured" | "awaiting_first_event" | "verified">>,
   Assert<Missing<StripeWebhookEndpoint, "endpoint_url" | "api_version">>,
   Assert<Equal<keyof StripeWebhookEndpoint, "endpoint_id" | "enabled_events" | "previous_signing_secret">>,
@@ -67,13 +80,19 @@ export type StripeConnectionContracts = [
   Assert<Equal<PaymentOption["status"], "active" | "disabled">>,
 ];
 
-export const connect: ConnectStripePaymentOptionParams = {
+export const connect: ConnectStripeStoreProviderParams = {
   store_id: "4c7a2e95-1d38-4b60-8f9e-0a5d3c7b2e14",
   id: "5b8c1e47-3d29-4a6f-9c15-7e0d2f4a8b31",
+  restricted_key: "rk_test",
+  publishable_key: "pk_test",
+};
+
+export const option: CreateCardPaymentOptionParams = {
+  store_id: "4c7a2e95-1d38-4b60-8f9e-0a5d3c7b2e14",
+  provider_id: "5b8c1e47-3d29-4a6f-9c15-7e0d2f4a8b31",
+  id: "2e9d4b17-6a35-4c80-b1f2-8d7e3a5c9f04",
   key: "stripe",
   blocks: [],
   status: "active",
-  restricted_key: "rk_test",
-  publishable_key: "pk_test",
   saved_card_terms: { en: "The Store's exact saved-card wording." },
 };

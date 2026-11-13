@@ -4,12 +4,16 @@ import type { PaginatedResponse } from "../types/common";
 import type {
   CreateSimulatorPlannedOutcomeParams,
   FindSimulatedEmailsParams,
+  FindSimulatedSmsParams,
   FindSimulatorPlannedOutcomesParams,
   RemoveSimulatorPlannedOutcomeParams,
+  SimulatedCall,
   SimulatedEmail,
+  SimulatedSms,
   SimulatorPaymentControlParams,
   SimulatorPlannedOutcome,
   SimulatorPlannedOutcomeRemoval,
+  StartSimulatedCallParams,
 } from "../types/simulator";
 import { requireId } from "../utils/ids";
 import { segment, storePath, storeRecordPath } from "./paths";
@@ -46,6 +50,26 @@ export const createStoreSimulatorApi = (apiConfig: ApiConfig) => {
           ...options,
           params: query,
         });
+      },
+    },
+
+    sms: {
+      find(params: FindSimulatedSmsParams, options?: RequestOptions): Promise<PaginatedResponse<SimulatedSms>> {
+        const { store_id, ...query } = params;
+        return apiConfig.httpClient.get<PaginatedResponse<SimulatedSms>>(storePath(store_id, "simulator/sms"), {
+          ...options,
+          params: query,
+        });
+      },
+    },
+
+    calls: {
+      start(params: StartSimulatedCallParams, options?: RequestOptions): Promise<SimulatedCall> {
+        return apiConfig.httpClient.post<SimulatedCall>(
+          storePath(params.store_id, "simulator/calls"),
+          { to: params.to, from: params.from },
+          options,
+        );
       },
     },
 

@@ -74,6 +74,7 @@ interface CheckoutLocal {
 
 const lineBlockers: QuoteBlocker["type"][] = [
   "booking_unavailable",
+  "booking_session",
   "tax_unavailable",
   "package_minimum_conflict",
   "package_change_scheduled",

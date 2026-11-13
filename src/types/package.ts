@@ -187,6 +187,11 @@ export type PackageAutomaticItemType =
       quantity: number;
       tax_category_id: string;
       allocation_weight: number;
+    }
+  | {
+      type: "booking_sessions";
+      booking_service_ids: string[];
+      sessions: number;
     };
 
 export type PackageItemType = PackagePricedItemType | PackageAutomaticItemType;
@@ -253,6 +258,11 @@ export type StorefrontPackageItemTermsType =
       variant_id: string;
       quantity: number;
       tax_category_id: string;
+    }
+  | {
+      type: "booking_sessions";
+      booking_service_ids: string[];
+      sessions: number;
     };
 
 export interface StorefrontPackageItemTerms {

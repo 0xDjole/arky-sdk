@@ -8,6 +8,7 @@ const logoutStorageKey = `arky_admin_session:${logoutBaseUrl}`;
 const loginSessionId = "5f3c9a21-7e46-4b08-9d2c-1a6e8b4f0c37";
 const laterSessionId = "8d1b6f47-2a93-4c05-b7e8-4f0a2c9d6e13";
 const loginStoreId = "2b7d4e90-6c15-4a38-8f2e-9d1c5b7a3e64";
+const loginNetworkId = "4e8a1c37-9b25-4d60-a3f7-1c5e9b2d7f48";
 
 function installWindow(context) {
   const storage = new MemoryStorage();
@@ -241,10 +242,10 @@ test("a later login survives the completion of an earlier logout", async (contex
 
 test("account deletion returns the accepted deleting account", async (context) => {
   installWindow(context);
-  const account = { id: loginSessionId, email: "operator@example.test", access: { type: "regular" }, status: { type: "deleting" }, created_at: 1, updated_at: 2 };
+  const account = { id: loginSessionId, email: "operator@example.test", access: { type: "network", network_id: loginNetworkId }, status: { type: "deleting" }, created_at: 1, updated_at: 2 };
   const calls = recordFetch(context, (call) => call.method === "DELETE" ? [202, account] : [200, issuedCredentials()]);
   const admin = createAdmin({ apiUrl: logoutBaseUrl });
-  await admin.account.auth.verify({ session_id: loginSessionId, code: "123456" });
+  await admin.account.auth.verify({ session_id: loginSessionId, network_id: loginNetworkId, code: "123456" });
   assert.deepEqual(await admin.account.delete(), account);
   assert.deepEqual(calls.at(-1), { url: `${logoutBaseUrl}/v1/accounts`, method: "DELETE", authorization: "Bearer access-current", body: undefined });
 });

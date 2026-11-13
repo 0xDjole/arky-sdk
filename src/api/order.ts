@@ -1,15 +1,15 @@
 import type { ApiConfig } from "../services/clientTypes";
 import type { RequestOptions } from "../types/api";
 import type { PaginatedResponse } from "../types/common";
-import type { OutgoingEmail } from "../types/notification";
+import type { OutgoingMessage } from "../types/notification";
 import type {
-  AddOrderInvoiceParams,
-  DeleteOrderInvoiceParams,
+  AnswerOrderBookingItemParams,
   CancelOrderBookingItemParams,
   CancelOrderParams,
   CancelOrderProductItemParams,
   CorrectOrderDeliveryAddressParams,
   FindOrderBookingItemsParams,
+  FindOrderFinancialSummariesParams,
   FindOrderPaymentsParams,
   FindOrdersParams,
   GetOrderFinancialSummaryParams,
@@ -19,11 +19,14 @@ import type {
   Order,
   OrderBookingItem,
   OrderFinancialSummary,
+  OrderFinancialSummaryOfOrder,
   ResendOrderReceiptParams,
   RescheduleOrderBookingItemParams,
+  ResizeOrderBookingItemParams,
   ResumeOrderPaymentParams,
   RevokeOrderAccessParams,
   UpdateOrderParams,
+  VisitStep,
 } from "../types/order";
 import type {
   CreateOrderCreditParams,
@@ -70,18 +73,6 @@ export const createOrderApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    addInvoice(params: AddOrderInvoiceParams, options?: RequestOptions): Promise<Order> {
-      requireId(params.id, "invoice");
-      const { store_id, order_id, ...body } = params;
-      return apiConfig.httpClient.post<Order>(`${orderPath(store_id, order_id)}/invoices`, body, options);
-    },
-
-    deleteInvoice(params: DeleteOrderInvoiceParams, options?: RequestOptions): Promise<Order> {
-      return apiConfig.httpClient.delete<Order>(`${orderPath(params.store_id, params.order_id)}/invoices/${segment(params.invoice_id)}`, {
-        ...options, params: { expected_updated_at: params.expected_updated_at },
-      });
-    },
-
     findBookingItems(
       params: FindOrderBookingItemsParams,
       options?: RequestOptions,
@@ -98,9 +89,9 @@ export const createOrderApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.post<Order>(`${orderPath(store_id, id)}/access/revoke`, body, options);
     },
 
-    resendReceipt(params: ResendOrderReceiptParams, options?: RequestOptions): Promise<OutgoingEmail> {
+    resendReceipt(params: ResendOrderReceiptParams, options?: RequestOptions): Promise<OutgoingMessage> {
       requireId(params.id, "receipt");
-      return apiConfig.httpClient.post<OutgoingEmail>(
+      return apiConfig.httpClient.post<OutgoingMessage>(
         `${orderPath(params.store_id, params.order_id)}/resend-receipt`,
         { id: params.id, expected_updated_at: params.expected_updated_at },
         options,
@@ -151,6 +142,71 @@ export const createOrderApi = (apiConfig: ApiConfig) => {
       );
     },
 
+    cancelBookingSeries(params: CancelOrderBookingItemParams, options?: RequestOptions): Promise<Order> {
+      requireId(params.credit_id, "credit");
+      if (typeof params.notify_customer !== "boolean") throw new TypeError("Cancellation requires an explicit customer email choice");
+      return apiConfig.httpClient.post<Order>(
+        bookingItemPath(params.store_id, params.order_id, params.line_item_id, "series/cancel"),
+        {
+          credit_id: params.credit_id,
+          expected_updated_at: params.expected_updated_at,
+          notify_customer: params.notify_customer,
+        },
+        options,
+      );
+    },
+
+    rescheduleBookingSeries(params: RescheduleOrderBookingItemParams, options?: RequestOptions): Promise<Order> {
+      return apiConfig.httpClient.post<Order>(
+        bookingItemPath(params.store_id, params.order_id, params.line_item_id, "series/reschedule"),
+        {
+          expected_updated_at: params.expected_updated_at,
+          starts_at: params.starts_at,
+          notify_customer: params.notify_customer,
+        },
+        options,
+      );
+    },
+
+    resizeBookingItem(params: ResizeOrderBookingItemParams, options?: RequestOptions): Promise<Order> {
+      return apiConfig.httpClient.post<Order>(
+        bookingItemPath(params.store_id, params.order_id, params.line_item_id, "resize"),
+        { expected_updated_at: params.expected_updated_at, ends_at: params.ends_at },
+        options,
+      );
+    },
+
+    stepBookingItem(params: MarkOrderBookingItemParams & { step: VisitStep }, options?: RequestOptions): Promise<Order> {
+      const verbs: Record<VisitStep, string> = {
+        upcoming: "upcoming",
+        waiting: "waiting",
+        in_progress: "in-progress",
+        attended: "attend",
+        no_show: "no-show",
+      };
+      return apiConfig.httpClient.post<Order>(
+        bookingItemPath(params.store_id, params.order_id, params.line_item_id, verbs[params.step]),
+        { expected_updated_at: params.expected_updated_at },
+        options,
+      );
+    },
+
+    markBookingItemWaiting(params: MarkOrderBookingItemParams, options?: RequestOptions): Promise<Order> {
+      return apiConfig.httpClient.post<Order>(
+        bookingItemPath(params.store_id, params.order_id, params.line_item_id, "waiting"),
+        { expected_updated_at: params.expected_updated_at },
+        options,
+      );
+    },
+
+    startBookingItem(params: MarkOrderBookingItemParams, options?: RequestOptions): Promise<Order> {
+      return apiConfig.httpClient.post<Order>(
+        bookingItemPath(params.store_id, params.order_id, params.line_item_id, "in-progress"),
+        { expected_updated_at: params.expected_updated_at },
+        options,
+      );
+    },
+
     attendBookingItem(params: MarkOrderBookingItemParams, options?: RequestOptions): Promise<Order> {
       return apiConfig.httpClient.post<Order>(
         bookingItemPath(params.store_id, params.order_id, params.line_item_id, "attend"),
@@ -167,8 +223,27 @@ export const createOrderApi = (apiConfig: ApiConfig) => {
       );
     },
 
+    answerBookingItem(params: AnswerOrderBookingItemParams, options?: RequestOptions): Promise<Order> {
+      return apiConfig.httpClient.post<Order>(
+        bookingItemPath(params.store_id, params.order_id, params.line_item_id, "response"),
+        { expected_updated_at: params.expected_updated_at, answer: params.answer },
+        options,
+      );
+    },
+
     getFinancialSummary(params: GetOrderFinancialSummaryParams, options?: RequestOptions): Promise<OrderFinancialSummary> {
       return apiConfig.httpClient.get<OrderFinancialSummary>(`${orderPath(params.store_id, params.id)}/financial-summary`, options);
+    },
+
+    findFinancialSummaries(
+      params: FindOrderFinancialSummariesParams,
+      options?: RequestOptions,
+    ): Promise<OrderFinancialSummaryOfOrder[]> {
+      const { store_id, ...query } = params;
+      return apiConfig.httpClient.get<OrderFinancialSummaryOfOrder[]>(storePath(store_id, `${collection}/financial-summaries`), {
+        ...options,
+        params: query,
+      });
     },
 
     async findPayments(params: FindOrderPaymentsParams, options?: RequestOptions): Promise<PaginatedResponse<Payment>> {

@@ -48,6 +48,8 @@ export interface FormStage {
 
 export type FormStatus = { type: "active" } | { type: "draft" } | { type: "closed" };
 
+export type FormType = "public" | "private";
+
 export interface FormEmails {
   received: Email | null;
   stage_changed: Record<string, Email>;
@@ -59,6 +61,7 @@ export interface Form {
   id: string;
   store_id: string;
   key: string;
+  type: FormType;
   emails: FormEmails;
   questions: FormQuestion[];
   stages: FormStage[];
@@ -138,10 +141,9 @@ export type FormValue = string | number | boolean | Coordinates | string[] | Fil
 
 export type FormValues = Record<string, FormValue | null | undefined>;
 
-export interface FormSubmissionStage {
-  stage_id: string;
-  changed_at: EpochMilliseconds;
-}
+export type FormSubmissionStage =
+  | { type: "none" }
+  | { type: "at"; stage_id: string; changed_at: EpochMilliseconds };
 
 export interface FormSubmissionStageChange {
   from_stage_id: string;
@@ -171,9 +173,18 @@ export interface StorefrontFormSubmission {
   form_id: string;
   language: string;
   answers: FormAnswer[];
-  stage_id: string;
+  stage_id: string | null;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
+}
+
+export interface StorefrontFormSubmissionListItem extends StorefrontFormSubmission {
+  form_key: string;
+}
+
+export interface FindStorefrontFormSubmissionsParams {
+  limit?: number;
+  cursor?: string | null;
 }
 
 export interface FormSubmissionFileLink {
@@ -215,8 +226,9 @@ export interface CreateFormParams {
   store_id: string;
   id: string;
   key: string;
+  type: FormType;
   questions: FormQuestion[];
-  stages: FormStage[];
+  stages?: FormStage[];
 }
 
 export interface UpdateFormParams {
@@ -241,7 +253,7 @@ export interface FindFormSubmissionsParams {
   form_id?: string;
   form_ids?: string[];
   customer_id?: string;
-  stage_id?: string;
+  stage?: string;
   select?: FormSubmissionSelectFilter[];
   query?: string;
   sort_field?: "created_at";
@@ -283,8 +295,7 @@ export interface ChangeFormSubmissionStageParams {
   store_id: string;
   form_id: string;
   id: string;
-  expected_stage_id: string;
-  expected_changed_at: EpochMilliseconds;
+  expected_stage: FormSubmissionStage;
   to_stage_id: string;
   note: FormSubmissionStageNote | null;
 }

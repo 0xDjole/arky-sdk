@@ -62,6 +62,28 @@ export interface OrderCredit {
   total: number;
 }
 
+export type StorefrontOrderCreditSource =
+  | { type: "cancellation" }
+  | { type: "return"; return_id: string }
+  | { type: "account" }
+  | { type: "system" };
+
+export type StorefrontOrderCreditStatus =
+  | { type: "active" }
+  | { type: "voided"; voided_at: EpochMilliseconds };
+
+export interface StorefrontOrderCredit {
+  id: string;
+  store_id: string;
+  order_id: string;
+  source: StorefrontOrderCreditSource;
+  status: StorefrontOrderCreditStatus;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+  currency: Currency;
+  total: number;
+}
+
 export interface CreateOrderCreditParams {
   store_id: string;
   order_id: string;

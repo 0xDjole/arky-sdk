@@ -14,8 +14,6 @@ const removedIdentifiers = [
   "CustomerEmail",
   "CustomerStatus",
   "EmailDomain",
-  "NotificationType",
-  "createNotificationApi",
   "createStorefrontKeyApi",
   "MessageDelivery",
   "createMessageDeliveryApi",
@@ -265,6 +263,12 @@ const removedIdentifiers = [
   "customers_updated",
   "ApiKeyType",
   "secretKey",
+  "OrderInvoice",
+  "OrderInvoiceType",
+  "AddOrderInvoiceParams",
+  "DeleteOrderInvoiceParams",
+  "addInvoice",
+  "deleteInvoice",
 ];
 
 const removedIdentifierPattern = new RegExp(`\\b(?:${removedIdentifiers.join("|")})\\b`, "g");
@@ -305,6 +309,17 @@ for (const file of listTypeScriptFiles(sourceDir)) {
   }
 }
 
+const reactDir = resolve(sourceDir, "react");
+const frameworkImportPattern =
+  /\bfrom\s+["'](?:react|react-dom|@tanstack)(?:\/[^"']*)?["']|\bimport\(\s*["'](?:react|react-dom|@tanstack)(?:\/[^"']*)?["']|\bfrom\s+["'](?:\.{1,2}\/)+react(?:\/[^"']*)?["']/g;
+for (const file of listTypeScriptFiles(sourceDir)) {
+  if (file.startsWith(`${reactDir}/`)) continue;
+  const source = stripComments(readFileSync(file, "utf8"));
+  for (const match of source.matchAll(frameworkImportPattern)) {
+    report(file, source, match.index ?? 0, "the core SDK stays framework-free; React and TanStack Query live only in arky-sdk/react");
+  }
+}
+
 function read(path) {
   const file = resolve(sourceDir, path);
   return { file, source: readFileSync(file, "utf8") };
@@ -321,9 +336,9 @@ function forbidPattern(path, pattern, message) {
   if (match) report(file, source, match.index ?? 0, message);
 }
 
-requirePattern("api/notification.ts", /export const createOutgoingEmailApi\b/, "outgoing email history has its own surface");
+requirePattern("api/notification.ts", /export const createOutgoingMessageApi\b/, "outgoing message history has its own surface");
 requirePattern("api/notification.ts", /export const createOutgoingWebhookApi\b/, "outgoing webhook history has its own surface");
-requirePattern("api/notification.ts", /export const createEmailProviderApi\b/, "email provider exposes live domain discovery");
+requirePattern("api/storeProvider.ts", /export const createStoreProviderApi\b/, "a store's Resend login exposes live domain discovery");
 requirePattern("api/notification.ts", /export const createEmailAddressApi\b/, "email addresses replace email senders and support channels");
 requirePattern("api/broadcast.ts", /export const createBroadcastApi\b/, "broadcasts replace campaigns");
 requirePattern("api/support.ts", /support-flows/, "support flows replace support agents");
@@ -332,10 +347,10 @@ requirePattern("api/platform.ts", /\/v1\/accounts\/me\/platform-admin/, "platfor
 requirePattern("index.ts", /"X-Arky-Store-Id":\s*storeId/, "storefront requests name their store");
 requirePattern("index.ts", /"X-Arky-Sales-Channel-Id":\s*salesChannelId/, "storefront requests name their sales channel");
 requirePattern("index.ts", /"X-Arky-Locale"/, "storefront requests name their language");
-requirePattern("api/storefront.ts", /export interface RequestCustomerCodeRequest\s*\{\s*id:\s*string;\s*contact:\s*EmailContact;\s*\}/,
-  "a sign-in code request requires id and the email contact");
-requirePattern("api/storefront.ts", /\/customer\/request-code`,\s*\{\s*id:\s*params\.id,\s*contact:\s*\{\s*email:\s*params\.contact\.email,\s*language:\s*params\.contact\.language\s*\}\s*,?\s*\}/,
-  "a sign-in code request posts the caller's id and email contact with its explicit language");
+requirePattern("api/storefront.ts", /export interface RequestCustomerCodeRequest\s*\{\s*id:\s*string;\s*contact:\s*CustomerLoginContact;\s*\}/,
+  "a sign-in code request requires id and the email or phone contact");
+requirePattern("api/storefront.ts", /\/customer\/request-code`,\s*\{\s*id:\s*params\.id,\s*contact:\s*params\.contact\s*\}/,
+  "a sign-in code request posts the caller's id and its email or phone contact with its explicit language");
 forbidPattern("api/storefront.ts", /\bbot_check_token\b/, "customer sign-in uses the server's request admission without a bot-check field");
 forbidPattern("types/market.ts", /export interface CreateStorefrontKeyParams\s*\{[^}]*publishable_key/,
   "Arky generates the publishable key; the create carries none");
@@ -345,21 +360,22 @@ requirePattern("api/store.ts", /storePath\(params\.store_id, "usage"\)/, "the ow
 requirePattern("api/store.ts", /"subscription\/end-grant"/, "platform administrators end a granted plan");
 requirePattern("api/order.ts", /line_item_id, "attend"\)/, "staff mark a booking attended through its attend route");
 requirePattern("api/fulfillment.ts", /\/cash-collections`/, "a pickup clerk records collected cash on the fulfillment job");
-requirePattern("api/storefront.ts", /\/customer\/me\/unsubscribe`/, "a signed-in customer unsubscribes on the storefront");
+requirePattern("api/storefront.ts", /\/customer\/me\/logins\/\$\{segment\(params\.login_id\)\}\/unsubscribe`/, "a signed-in customer unsubscribes one of their own logins on the storefront");
 requirePattern("api/storefront.ts", /\/promotions\/\$\{segment\(params\.id\)\}`/, "a storefront reads a promotion's key and blocks by id");
-requirePattern("api/notification.ts", /replaceKey\(/, "a store replaces its Resend key on the same provider");
+requirePattern("api/storeProvider.ts", /replaceResendKey\(/, "a store replaces its Resend key on the same provider");
 requirePattern("api/support.ts", /\/chat-visibility`/, "staff show or hide a received email in the chat");
 requirePattern("api/return.ts", /\/execute`/, "return actions post to the return's execute route");
 requirePattern("api/fulfillment.ts", /\$\{jobPath\(params\.store_id, params\.fulfillment_job_id\)\}\/execute`/, "fulfillment job commands post to the job's execute route");
 requirePattern("api/fulfillment.ts", /\$\{fulfillmentPath\(params\.store_id, params\.fulfillment_id\)\}\/execute`/, "fulfillment commands post to the fulfillment's execute route");
 requirePattern("api/rental.ts", /"rentals", params\.id\)\}\/execute`/, "rental commands post to the rental's execute route");
-requirePattern("api/paymentOption.ts", /stripeAction\(params\.store_id, params\.id, "webhook-secret"/, "a Stripe option saves the webhook signing secret the merchant pasted");
-requirePattern("api/paymentOption.ts", /stripePath\(params\.store_id, params\.id, "setup"\)/, "staff check a Stripe option's webhook setup");
-requirePattern("api/paymentOption.ts", /\/monri\/\$\{segment\(params\.id\)\}\/replace-merchant-key`/, "a Monri option takes a new merchant key");
-requirePattern("api/notification.ts", /"email-providers", params\.id\)\}\/setup`/, "staff check a Resend connection's webhook setup");
-requirePattern("api/paymentOption.ts", /\/arky-stripe`/, "a test store connects ArkyStripe with a keyless call");
-requirePattern("api/paymentOption.ts", /\/arky-monri`/, "a test store connects ArkyMonri with a keyless call");
-requirePattern("api/notification.ts", /"email-providers\/arky-resend"/, "a test store connects ArkyResend with a keyless call");
+requirePattern("api/storeProvider.ts", /stripePath\(params\.store_id, params\.id, "webhook-secret"\)/, "a Stripe login saves the webhook signing secret the merchant pasted");
+requirePattern("api/storeProvider.ts", /stripePath\(params\.store_id, params\.id, "setup"\)/, "staff check a Stripe login's webhook setup");
+requirePattern("api/storeProvider.ts", /\/monri\/\$\{segment\(params\.id\)\}\/replace-merchant-key`/, "a Monri login takes a new merchant key");
+requirePattern("api/storeProvider.ts", /resendPath\(params\.store_id, params\.id, "setup"\)/, "staff check a Resend connection's webhook setup");
+requirePattern("api/storeProvider.ts", /"store-providers\/arky-stripe"/, "a test store connects ArkyStripe with a keyless call");
+requirePattern("api/storeProvider.ts", /"store-providers\/arky-monri"/, "a test store connects ArkyMonri with a keyless call");
+requirePattern("api/paymentOption.ts", /provider_id: params\.provider_id/, "a card payment option names the store provider it charges through");
+requirePattern("api/storeProvider.ts", /"store-providers\/arky-resend"/, "a test store connects ArkyResend with a keyless call");
 requirePattern("paymentSimulator.ts", /\$\{runsOn\.api_url\}\/v1\/simulator\/payments/, "simulatePayment posts to the address the payment's own answer names");
 forbidPattern("paymentSimulator.ts", /127\.0\.0\.1|localhost/, "simulatePayment works against any Arky, never only a local one");
 requirePattern("api/payment.ts", /\/refunds\/made`/, "staff record a refund already made in Monri's back office");
@@ -439,6 +455,13 @@ for (const route of ["categories", "products", "booking-services"]) {
   requirePattern("api/storefront.ts", new RegExp(`\\$\\{storefrontBase\\}/${route}/by-key/`), `storefront ${route} are read by key through their by-key route`);
 }
 forbidPattern("api/storefront.ts", /"key" in params \? params\.key : params\.slug/, "the plain storefront category read takes an id or a slug, never a key");
+
+for (const path of ["react/index.ts", "react/methodTypes.ts"]) {
+  forbidPattern(path, /\bProxy\b/, "the Arky hooks mirror the client with a plain walk, never a Proxy");
+  forbidPattern(path, /^(?:import|export)\s+(?!type\b)[^;]*?\bfrom\s+["']\.\.\//m, "arky-sdk/react imports only types from the core, so its bundle carries none of it");
+}
+requirePattern("react/index.ts", /Object\.getOwnPropertyDescriptors\(group\)/, "the hooks walk reads property descriptors, so it never runs a getter such as session");
+requirePattern("react/index.ts", /queryClient\.invalidateQueries\(\{ queryKey \}\)/, "a write invalidates its group's prefix and the keys its caller names");
 
 if (failures > 0) {
   console.error(`Found ${failures} public SDK surface issue(s).`);

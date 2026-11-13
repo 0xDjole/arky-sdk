@@ -8,7 +8,7 @@ const storeId = "7b2d9e40-1c63-4f85-a9e7-3d0c5b8f2a16";
 const subscription = {
   id: "d397ff50-690b-4da7-9fb9-17740e535d69",
   store_id: storeId,
-  plan: { type: "active", plan_id: ids.plan, paid_until: 1_900_000_000_000, stripe_customer_id: "cus_store", stripe_payment_method_id: "pm_store" },
+  plan: { type: "active", plan_id: ids.plan, paid_until: 1_900_000_000_000, stripe_customer_id: "cus_store", stripe_payment_method_id: "pm_store", card: { brand: "visa", last4: "4242", exp_month: 12, exp_year: 2035 } },
   trial_used: false,
   created_at: 1,
   updated_at: 2,
@@ -41,10 +41,11 @@ test("changing a store plan sends its version and optional confirmed card setup,
   const calls = recordFetch(context, () => subscription);
   const api = admin().store.subscription;
   for (const removed of ["retainSelection", "recoverSelection", "pendingSelection", "select", "createPortalSession", "reactivate"]) assert.equal(removed in api, false, removed);
-  const request = { store_id: storeId, plan_id: ids.plan, expected_updated_at: 1, setup_intent_id: "seti_confirmed" };
+  const card = { network_provider_id: ids.picked, setup_intent_id: "seti_confirmed" };
+  const request = { store_id: storeId, plan_id: ids.plan, expected_updated_at: 1, card };
   assert.deepEqual(await api.changePlan(request), subscription);
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
-    ["PUT", `/v1/stores/${storeId}/subscription/plan`, { plan_id: ids.plan, expected_updated_at: 1, setup_intent_id: "seti_confirmed" }],
+    ["PUT", `/v1/stores/${storeId}/subscription/plan`, { plan_id: ids.plan, expected_updated_at: 1, card }],
   ]);
   assert.deepEqual(storage.writes, []);
 });
@@ -82,12 +83,12 @@ test("subscription reads, a pending confirmation and ending a grant use the name
   const api = admin().store.subscription;
   assert.deepEqual(await api.get({ store_id: storeId }), subscription);
   assert.deepEqual(await api.pendingPayment({ store_id: storeId }), payment);
-  await api.endGrant({ store_id: storeId, plan_id: ids.plan, setup_intent_id: "seti_confirmed", expected_updated_at: 2 });
+  await api.endGrant({ store_id: storeId, plan_id: ids.plan, card: { network_provider_id: ids.picked, setup_intent_id: "seti_confirmed" }, expected_updated_at: 2 });
   await admin().store.usage.get({ store_id: storeId });
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
     ["GET", `/v1/stores/${storeId}/subscription`, null],
     ["GET", `/v1/stores/${storeId}/subscription/payment`, null],
-    ["POST", `/v1/stores/${storeId}/subscription/end-grant`, { plan_id: ids.plan, setup_intent_id: "seti_confirmed", expected_updated_at: 2 }],
+    ["POST", `/v1/stores/${storeId}/subscription/end-grant`, { plan_id: ids.plan, card: { network_provider_id: ids.picked, setup_intent_id: "seti_confirmed" }, expected_updated_at: 2 }],
     ["GET", `/v1/stores/${storeId}/usage`, null],
   ]);
   for (const store_id of [undefined, "", "store-subscription", storeId.toUpperCase()]) {
@@ -95,4 +96,21 @@ test("subscription reads, a pending confirmation and ending a grant use the name
     await assert.rejects(async () => api.get({ store_id }), TypeError);
   }
   assert.equal(calls.length, 4);
+});
+
+test("the plan read names its store and answers the plan the store is on with its status", async (context) => {
+  const summary = {
+    store_id: storeId,
+    plan: { id: ids.plan, network_id: ids.network, name: "Medical", tier: 2, price: { type: "monthly", amount: 4_900, currency: "eur", months: 1, per: "staff_calendar", trial_days: 14 }, features: { members: { type: "max", count: 10 }, store_locations: { type: "max", count: 3 }, staff_calendars: { type: "max", count: 12 } }, created_at: 1, updated_at: 2 },
+    status: { type: "trialing", trial_ends_at: 1_900_000_000_000 },
+  };
+  const calls = recordFetch(context, () => summary);
+  const read = await admin().store.plan.get({ store_id: storeId });
+  assert.deepEqual(read, summary);
+  assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [["GET", `/v1/stores/${storeId}/plan`, {}, null]]);
+  for (const store_id of [undefined, "", "store-plan", storeId.toUpperCase()]) {
+    await assert.rejects(async () => admin().store.plan.get({ store_id }), TypeError);
+  }
+  assert.equal(calls.length, 1);
+  assert.deepEqual(Object.keys(admin().store.plan), ["get"]);
 });

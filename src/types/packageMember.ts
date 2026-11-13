@@ -47,6 +47,12 @@ export type PackageSnapshotItem =
       quantity: number;
       tax_category_id: string;
       allocation_weight: number;
+    }
+  | {
+      type: "booking_sessions";
+      package_item_id: string;
+      booking_service_ids: string[];
+      sessions: number;
     };
 
 export interface PackageSnapshot {
@@ -146,6 +152,11 @@ export type PackageMemberStatus =
 
 export type PackageMemberStatusName = PackageMemberStatus["type"];
 
+export interface PackageMemberSessions {
+  package_item_id: string;
+  used: number;
+}
+
 export interface PackageMember {
   id: string;
   store_id: string;
@@ -153,6 +164,7 @@ export interface PackageMember {
   subject: CommerceParty;
   renewal: PackageMemberRenewal;
   status: PackageMemberStatus;
+  sessions_used: PackageMemberSessions[];
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
@@ -201,6 +213,7 @@ export interface PackageMemberSelf {
   subject: CommerceParty;
   renewal: PackageMemberSelfRenewal;
   status: PackageMemberSelfStatus;
+  sessions_used: PackageMemberSessions[];
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
@@ -311,6 +324,12 @@ export type PackageSelfSnapshotItem =
       variant_id: string;
       quantity: number;
       tax_category_id: string;
+    }
+  | {
+      type: "booking_sessions";
+      package_item_id: string;
+      booking_service_ids: string[];
+      sessions: number;
     };
 
 export interface PackageSelfSnapshot {

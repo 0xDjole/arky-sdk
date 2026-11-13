@@ -1,17 +1,68 @@
 import type { EpochMilliseconds } from "./time";
 import type { SortDirection } from "./common";
 
-export type AccountAccess = { type: "regular" } | { type: "platform_admin" };
+export type AccountAccess = { type: "network"; network_id: string } | { type: "platform" };
 
 export type AccountStatus = { type: "active" } | { type: "deleting" };
+
+export interface AccountName {
+  first_name: string;
+  last_name: string;
+}
+
+export type AccountSecondFactor =
+  | { type: "off" }
+  | { type: "totp"; since: EpochMilliseconds; recovery_codes_left: number };
 
 export interface Account {
   id: string;
   email: string;
+  name: AccountName | null;
+  phone: string | null;
   status: AccountStatus;
   access: AccountAccess;
+  second_factor: AccountSecondFactor;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
+}
+
+export interface UpdateAccountProfileParams {
+  name?: AccountName | null;
+  phone?: string | null;
+  expected_updated_at: EpochMilliseconds;
+}
+
+export interface NewRecoveryCodesParams {
+  code: string;
+}
+
+export interface RecoveryCodes {
+  account: Account;
+  recovery_codes: string[];
+}
+
+export interface ResetAccountSecondFactorParams {
+  account_id: string;
+}
+
+export interface SecondFactorSetup {
+  secret: string;
+  setup_token: string;
+  expires_at: EpochMilliseconds;
+}
+
+export interface TurnOnSecondFactorParams {
+  setup_token: string;
+  code: string;
+}
+
+export interface SecondFactorTurnedOn {
+  account: Account;
+  recovery_codes: string[];
+}
+
+export interface TurnOffSecondFactorParams {
+  code: string;
 }
 
 export type AccountSessionStatus =
@@ -20,6 +71,12 @@ export type AccountSessionStatus =
       email: string;
       failed_attempts: number;
       verification_expires_at: EpochMilliseconds;
+    }
+  | {
+      type: "pending_second_factor";
+      account_id: string;
+      failed_attempts: number;
+      expires_at: EpochMilliseconds;
     }
   | {
       type: "active";
@@ -31,12 +88,16 @@ export type AccountSessionStatus =
   | { type: "superseded" }
   | { type: "revoked" };
 
-export type AccountSessionScope = { type: "arky" } | { type: "store"; store_id: string };
+export type AccountSessionScope =
+  | { type: "platform" }
+  | { type: "network"; network_id: string }
+  | { type: "store"; store_id: string };
 
 export interface AccountSession {
   id: string;
   scope: AccountSessionScope;
   status: AccountSessionStatus;
+  user_agent: string | null;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
@@ -104,12 +165,16 @@ export interface DeleteAccountTokenParams {
   expected_updated_at: EpochMilliseconds;
 }
 
-export interface FindPlatformAdminsParams {
+export interface FindPlatformAccountsParams {
   limit?: number;
   cursor?: string | null;
 }
 
-export interface SetAccountAccessParams {
+export interface AddPlatformAccountParams {
+  id: string;
+  email: string;
+}
+
+export interface DeletePlatformAccountParams {
   account_id: string;
-  access: AccountAccess;
 }

@@ -32,7 +32,7 @@ export type CartContracts = [
   Assert<Equal<Extract<CartStatus, { type: "converted" }>, { type: "converted" }>>,
   Assert<Equal<Extract<CartStatus, { type: "superseded" }>, { type: "superseded" }>>,
   Assert<Equal<Cart["origin"], CartOrigin>>,
-  Assert<Equal<CartOrigin["type"], "storefront" | "reorder" | "account">>,
+  Assert<Equal<CartOrigin["type"], "storefront" | "reorder" | "account" | "assistant">>,
   Assert<Equal<Cart["line_items"], CartLineItem[]>>,
   Assert<Equal<CartLineItem["type"], "product" | "booking" | "package">>,
   Assert<Equal<Cart["buyer"], CartBuyer>>,

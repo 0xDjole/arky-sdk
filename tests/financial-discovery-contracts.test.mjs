@@ -120,6 +120,56 @@ test("payment discovery keeps combined scope, status, ordering and opaque contin
     assert.equal(removed in client.eshop, false, removed);
 });
 
+test("a list reads its Orders' financial summaries in one GET that names the Orders as one JSON id list", async (context) => {
+  const orderIds = [
+    "172454c6-6cbf-407f-9b65-8095860793d9",
+    "5b8e2f14-7c39-4a06-9d1e-3f6a8c2b7d40",
+  ];
+  const summary = {
+    currency: "eur",
+    total: 1000,
+    active_credit: 0,
+    due: 1000,
+    paid: 600,
+    refunded: 0,
+    refund_pending: 0,
+    disputed: 0,
+    net_paid: 600,
+    outstanding: 400,
+    excess: 0,
+    concerns: [{ type: "payment_hold", payment_id: ids.payment }],
+  };
+  const answer = orderIds.map((order_id) => ({ order_id, summary }));
+  const calls = recordFetch(context, () => answer);
+  const api = createAdmin({
+    apiUrl: "https://financial.example.test",
+    accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA",
+  }).eshop.order;
+  const request = { store_id: STORE_ID, order_ids: orderIds };
+  const original = structuredClone(request);
+  assert.deepEqual(await api.findFinancialSummaries(request), answer);
+  assert.deepEqual(request, original);
+  assert.deepEqual(
+    calls.map(({ method, path, query, body }) => [method, path, query, body]),
+    [
+      [
+        "GET",
+        `/v1/stores/${STORE_ID}/orders/financial-summaries`,
+        { order_ids: JSON.stringify(orderIds) },
+        null,
+      ],
+    ],
+  );
+  await assert.rejects(
+    async () => api.findFinancialSummaries({ store_id: "store", order_ids: orderIds }),
+    {
+      name: "TypeError",
+      message: "A Store target must be an explicit canonical UUID-v4",
+    },
+  );
+  assert.equal(calls.length, 1);
+});
+
 test("a buyer reads an order's payments on the storefront by the order and payment ids only", async (context) => {
   const calls = [];
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
@@ -302,6 +352,7 @@ test("hold resolution names the retained hold and leaves recorded history intact
         {
           id: "fca5ba8e-86af-4dd8-a1cd-6d19bca62e12",
           money: { amount: 1200, currency: "eur" },
+          method: "bank_transfer",
           recorded_by: actor,
           reference: "Original typo",
           recorded_at: 1,

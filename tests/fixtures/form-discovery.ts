@@ -1,12 +1,13 @@
 import { createAdmin, epochMilliseconds, initialize } from "arky-sdk";
 import type {
   AlertRecipient,
+  AuditAction,
+  CustomerScope,
   EmailContact,
   EpochMilliseconds,
   ChangeFormSubmissionStageParams,
   CreateFormParams,
   CreateFormSubmissionParams,
-  DeletedResponse,
   DeleteFormSubmissionParams,
   Email,
   FindFormSubmissionsParams,
@@ -17,11 +18,16 @@ import type {
   FormEmails,
   FormOptionSnapshot,
   FormQuestion,
+  FormScope,
   FormStage,
   FormStatus,
+  FormType,
+  StorePermission,
+  StorePermissionAccess,
   FormSubmission,
   FormSubmissionSnapshot,
   FormSubmissionSource,
+  FormSubmissionStage,
   FormSubmissionStageChange,
   FormValuesInput,
   GetFormByKeyParams,
@@ -60,13 +66,13 @@ const questions: FormQuestion[] = [
 const filter: FindFormsParams = { store_id, status: "draft", sort_field: "key", sort_direction: "asc", cursor: null };
 const byKey: GetFormByKeyParams = { store_id, key: "intake" };
 const byId: GetFormParams = { store_id, id: form_id };
-const create: CreateFormParams = { store_id, id: form_id, key: "intake", questions, stages };
+const create: CreateFormParams = { store_id, id: form_id, key: "intake", type: "private", questions, stages };
 const edit: UpdateFormParams = { store_id, id: form_id, expected_updated_at: epochMilliseconds(1), status: { type: "closed" } };
 const submissionFilter: FindFormSubmissionsParams = {
   store_id,
   form_id,
   customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58",
-  stage_id: "new",
+  stage: "new",
   select: [{ question_id: "q-topic", option_keys: ["sales"] }],
   sort_field: "created_at",
   cursor: null,
@@ -87,12 +93,11 @@ const stageChange: ChangeFormSubmissionStageParams = {
   store_id,
   form_id,
   id,
-  expected_stage_id: "new",
-  expected_changed_at: epochMilliseconds(1),
+  expected_stage: { type: "at", stage_id: "new", changed_at: epochMilliseconds(1) },
   to_stage_id: "won",
   note: { id: "9d1f3b5c-7e8a-4c2e-b4d6-8f0a2c4e6b7d", body: "Out of the delivery area" },
 };
-const alert: Email = { email_template_id: id, sending_address_id: form_id, from_name: "Shop", reply_to: { type: "external", email: "sales@example.test" } };
+const alert: Email = { email_template_id: id, email_address_id: form_id, from_name: "Shop", reply_to_address_id: form_id };
 const emails: FormEmails = { received: null, stage_changed: { won: alert }, submission_alert: alert, alert_recipients: [{ type: "email", email: "sales@example.test", language: "en" }] };
 const withEmails: CreateFormParams = { ...create, emails };
 const remove: DeleteFormSubmissionParams = { store_id, form_id, id, expected_updated_at: epochMilliseconds(3) };
@@ -105,7 +110,7 @@ const edited: Promise<Form> = api.update(edit);
 const submissions: Promise<PaginatedResponse<FormSubmission>> = api.findSubmissions(submissionFilter);
 const staffCreated: Promise<FormSubmission> = api.createSubmission(staffEntry);
 const staged: Promise<FormSubmission> = api.changeSubmissionStage(stageChange);
-const deleted: Promise<DeletedResponse> = api.deleteSubmission(remove);
+const deleted: Promise<{ deleted: true }> = api.deleteSubmission(remove);
 const noted: Promise<Note> = api.notes.create({ store_id, form_id, form_submission_id: id, id: "2c7e9a41-5b3d-4f86-a1e0-7d4c2b9f6e38", body: "Called back" });
 const notes: Promise<PaginatedResponse<Note>> = api.notes.find({ store_id, form_id, form_submission_id: id, limit: 20 });
 const noteEdit: Promise<Note> = api.notes.update({ store_id, form_id, form_submission_id: id, id: "2c7e9a41-5b3d-4f86-a1e0-7d4c2b9f6e38", expected_updated_at: epochMilliseconds(2), body: "Called back twice" });
@@ -123,7 +128,7 @@ declare const submission: FormSubmission;
 declare const savedNote: Note;
 const source: FormSubmissionSource = submission.source;
 const sessionId: string | null = submission.source.type === "storefront" ? submission.source.customer_session_id : null;
-const stageId: string = submission.stage.stage_id;
+const stageId: string | null = submission.stage.type === "at" ? submission.stage.stage_id : null;
 const changedAt: EpochMilliseconds = submission.stage_history[0].changed_at;
 const formKey: string = submission.snapshot.form_key;
 const noteTarget: NoteTarget = savedNote.target;
@@ -149,7 +154,7 @@ export type FormContracts = [
   Assert<Equal<Parameters<FormsApi["find"]>[0], FindFormsParams>>,
   Assert<Equal<Awaited<ReturnType<FormsApi["find"]>>, PaginatedResponse<Form>>>,
   Assert<Equal<Awaited<ReturnType<FormsApi["findSubmissions"]>>, PaginatedResponse<FormSubmission>>>,
-  Assert<Equal<Awaited<ReturnType<FormsApi["deleteSubmission"]>>, DeletedResponse>>,
+  Assert<Equal<Awaited<ReturnType<FormsApi["deleteSubmission"]>>, { deleted: true }>>,
   Assert<Equal<Awaited<ReturnType<FormsApi["notes"]["create"]>>, Note>>,
   Assert<Equal<Parameters<FormsApi["getByKey"]>[0], GetFormByKeyParams>>,
   Assert<Equal<keyof GetFormParams, "store_id" | "id">>,
@@ -167,7 +172,7 @@ export type FormContracts = [
   Assert<RequiredField<SubmitFormParams, "language">>,
   Assert<RequiredField<SubmitFormRequest, "questions_updated_at">>,
   Assert<RequiredField<Form, "questions_updated_at">>,
-  Assert<RequiredField<CreateFormParams, "stages">>,
+  Assert<OptionalField<CreateFormParams, "stages">>,
   Assert<Equal<SubmitFormRequest["questions_updated_at"], EpochMilliseconds>>,
   Assert<Missing<FormValuesInput, "questions_updated_at">>,
   Assert<Equal<keyof FormSubmissionSnapshot, "form_key" | "questions" | "options">>,
@@ -176,14 +181,14 @@ export type FormContracts = [
   Assert<Missing<SubmitFormRequest, "store_id" | "locale" | "presentation_digest" | "fields">>,
   Assert<Missing<FormValuesInput, "presentation">>,
   Assert<RequiredField<CreateFormParams, "id">>,
-  Assert<RequiredField<CreateFormParams, "stages">>,
+  Assert<Equal<CreateFormParams["stages"], FormStage[] | undefined>>,
   Assert<Missing<CreateFormParams, "schema">>,
   Assert<RequiredField<CreateFormSubmissionParams, "customer_id">>,
   Assert<RequiredField<CreateFormSubmissionParams, "language">>,
   Assert<RequiredField<UpdateFormParams, "expected_updated_at">>,
   Assert<RequiredField<DeleteFormSubmissionParams, "expected_updated_at">>,
-  Assert<RequiredField<ChangeFormSubmissionStageParams, "expected_stage_id">>,
-  Assert<RequiredField<ChangeFormSubmissionStageParams, "expected_changed_at">>,
+  Assert<RequiredField<ChangeFormSubmissionStageParams, "expected_stage">>,
+  Assert<Equal<ChangeFormSubmissionStageParams["expected_stage"], FormSubmissionStage>>,
   Assert<RequiredField<ChangeFormSubmissionStageParams, "note">>,
   Assert<Equal<FormStatus["type"], "active" | "draft" | "closed">>,
   Assert<Equal<NonNullable<FindFormsParams["status"]>, FormStatus["type"]>>,
@@ -202,6 +207,16 @@ export type FormContracts = [
   Assert<Equal<NoteTarget["type"], "form_submission" | "form_submission_stage_change" | "customer" | "company" | "order" | "conversation">>,
   Assert<Equal<keyof FormSubmissionStageChange, "from_stage_id" | "to_stage_id" | "actor" | "changed_at">>,
   Assert<Missing<FormSubmissionStageChange, "note_id">>,
+  Assert<Equal<FormType, "public" | "private">>,
+  Assert<Equal<Form["type"], FormType>>,
+  Assert<RequiredField<CreateFormParams, "type">>,
+  Assert<Equal<CreateFormParams["type"], FormType>>,
+  Assert<Missing<UpdateFormParams, "type">>,
+  Assert<Equal<FormScope, { type: "all" } | { type: "only"; form_ids: string[] }>>,
+  Assert<Equal<Extract<StorePermission, { type: "private_forms" }>, { type: "private_forms"; forms: FormScope; customers: CustomerScope; access: StorePermissionAccess }>>,
+  Assert<Equal<Extract<AuditAction, { action: "form_submission_read" }>, { action: "form_submission_read"; form_id: string; form_submission_id: string; customer_id: string }>>,
+  Assert<Equal<Extract<AuditAction, { action: "form_submission_file_read" }>, { action: "form_submission_file_read"; form_submission_id: string; customer_id: string; sha256: string }>>,
+  Assert<Equal<Extract<AuditAction, { action: "form_submission_list_read" }>, { action: "form_submission_list_read" }>>,
 ];
 
 void [page, read, readById, created, edited, submissions, staffCreated, staged, deleted, noted, notes, noteEdit, withEmails,

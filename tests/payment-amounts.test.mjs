@@ -56,8 +56,8 @@ const cash = payment(ids.credit, 3000, {
   type: "cash_on_delivery",
   status: "open",
   collections: [
-    { id: "c1", money: eur(1000), recorded_by: actor, reference: null, recorded_at: 1, status: { type: "active" } },
-    { id: "c2", money: eur(500), recorded_by: actor, reference: null, recorded_at: 1, status: { type: "voided", by: actor, reason: "Wrong", at: 2 } },
+    { id: "c1", money: eur(1000), method: "cash", recorded_by: actor, reference: null, recorded_at: 1, status: { type: "active" } },
+    { id: "c2", money: eur(500), method: "card", recorded_by: actor, reference: null, recorded_at: 1, status: { type: "voided", by: actor, reason: "Wrong", at: 2 } },
   ],
   refunds: [
     { id: "x1", money: eur(200), request: {}, status: { type: "sent", ...receipt }, created_at: 1 },

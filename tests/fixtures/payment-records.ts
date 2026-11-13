@@ -1,5 +1,6 @@
 import { epochMilliseconds } from "arky-sdk";
 import type {
+  CollectionMethod,
   MonriCardPaymentStatus,
   MonriCheckoutStatus,
   MonriRefund,
@@ -73,6 +74,7 @@ export const monriPayment: Payment = {
   store_id: "5e9b3d71-c826-4a04-b7f5-0d2a8e6c4f19",
   order_id: "4a2c7c0d-4389-4aae-b3d7-02ff834a024d",
   payment_option_id: "5b8c1e47-3d29-4a6f-9c15-7e0d2f4a8b31",
+  payment_option_key: "monri-cards",
   money: { amount: 4000, currency: "bam" },
   type: {
     type: "monri_checkout",
@@ -97,6 +99,7 @@ export const recordedPayment: Payment = {
       {
         id: "fca5ba8e-86af-4dd8-a1cd-6d19bca62e12",
         money: { amount: 4000, currency: "bam" },
+        method: "cash",
         recorded_by: actor,
         reference: "Wrong cash entry",
         recorded_at: at,
@@ -217,6 +220,8 @@ export type PaymentRecordContracts = [
   Assert<Equal<RecordedCollection["status"], RecordedCollectionStatus>>,
   Assert<Equal<RecordedCollectionStatus["type"], "active" | "voided">>,
   Assert<Equal<RecordedRefund["status"], RecordedRefundStatus>>,
+  Assert<Equal<RecordedCollection["method"], CollectionMethod>>,
+  Assert<Equal<CollectionMethod, "cash" | "card" | "bank_transfer" | "other">>,
   Assert<
     Equal<
       RecordedRefundStatus["type"],

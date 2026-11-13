@@ -87,7 +87,7 @@ export type CompanyContracts = [
   True<Equal<PublicTypes.Company, Company>>,
   True<Equal<PublicTypes.CompanyLocation, CompanyLocation>>,
   True<Equal<keyof Store, "id" | "name" | "timezone" | "languages" | "type" | "status" | "email_sending" | "created_at" | "updated_at">>,
-  True<Equal<Store["status"]["type"], "active" | "wiping" | "deleting">>,
+  True<Equal<Store["status"]["type"], "active" | "suspended" | "wiping" | "deleting">>,
   True<Equal<Store["email_sending"], StoreEmailSending>>,
   True<Equal<StoreEmailSending, { type: "allowed" } | { type: "paused"; reason: string }>>,
   True<RequiredField<CreateStoreParams, "market">>,

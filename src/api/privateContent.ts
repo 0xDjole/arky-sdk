@@ -6,20 +6,19 @@ import type {
   CreatePrivateEntryParams,
   DeletePrivateCollectionParams,
   DeletePrivateEntryParams,
-  EntryAccess,
-  FindEntryAccessesParams,
   FindPrivateCollectionsParams,
   FindPrivateEntriesParams,
   FindSharedEntriesParams,
   GetPrivateCollectionParams,
   GetPrivateEntryParams,
   GetSharedEntryParams,
+  PrintPrivateEntryParams,
   PrivateCollection,
   PrivateEntry,
   PrivateEntryFileLinkParams,
   PrivateFileLink,
-  SharedEntry,
   SharedEntryFileLinkParams,
+  StorefrontSharedEntry,
   UpdatePrivateCollectionParams,
   UpdatePrivateEntryParams,
 } from "../types/content";
@@ -100,25 +99,23 @@ export const createPrivateEntryApi = (apiConfig: ApiConfig) => ({
       { ...options, params: { variant: params.variant } },
     );
   },
-});
 
-export const createEntryAccessApi = (apiConfig: ApiConfig) => ({
-  find(params: FindEntryAccessesParams, options?: RequestOptions): Promise<PaginatedResponse<EntryAccess>> {
-    const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<PaginatedResponse<EntryAccess>>(storePath(store_id, "entry-accesses"), {
-      ...options,
-      params: query,
-    });
+  print(params: PrintPrivateEntryParams, options?: RequestOptions): Promise<PrivateEntry> {
+    return apiConfig.httpClient.post<PrivateEntry>(
+      `${privateEntriesPath(params.store_id, params.collection_id)}/${segment(params.id)}/print`,
+      undefined,
+      options,
+    );
   },
 });
 
 export const createSharedEntriesApi = (httpClient: HttpClient) => ({
-  find(params: FindSharedEntriesParams = {}, options?: RequestOptions): Promise<PaginatedResponse<SharedEntry>> {
-    return httpClient.get<PaginatedResponse<SharedEntry>>(`${storefrontBase}/shared-entries`, { ...options, params });
+  find(params: FindSharedEntriesParams = {}, options?: RequestOptions): Promise<PaginatedResponse<StorefrontSharedEntry>> {
+    return httpClient.get<PaginatedResponse<StorefrontSharedEntry>>(`${storefrontBase}/shared-entries`, { ...options, params });
   },
 
-  get(params: GetSharedEntryParams, options?: RequestOptions): Promise<SharedEntry> {
-    return httpClient.get<SharedEntry>(`${storefrontBase}/shared-entries/${segment(params.id)}`, options);
+  get(params: GetSharedEntryParams, options?: RequestOptions): Promise<StorefrontSharedEntry> {
+    return httpClient.get<StorefrontSharedEntry>(`${storefrontBase}/shared-entries/${segment(params.id)}`, options);
   },
 
   fileLink(params: SharedEntryFileLinkParams, options?: RequestOptions): Promise<PrivateFileLink> {

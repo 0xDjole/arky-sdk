@@ -23,12 +23,21 @@ function isLocationBound(permission: StorePermission): boolean {
   return permission.type === "fulfillment" || permission.type === "inventory";
 }
 
+const notHeldByAdmin: readonly StorePermissionType[] = [
+  "private_collections",
+  "customer_entries",
+  "private_forms",
+  "calls",
+];
+
 export function storePermissionReach(
   access: StoreAccess | null | undefined,
   permission: StorePermissionType,
 ): LocationReach | null {
   if (!access) return null;
-  if (access.permissions.some((item) => item.type === "admin")) return { type: "everywhere" };
+  if (!notHeldByAdmin.includes(permission) && access.permissions.some((item) => item.type === "admin")) {
+    return { type: "everywhere" };
+  }
   return access.permissions
     .filter((item) => item.type === permission)
     .map(permissionReach)

@@ -3,64 +3,60 @@ import type { RequestOptions } from "../types/api";
 import type { PaginatedResponse } from "../types/common";
 import type { IncomingWebhook } from "../types/payment";
 import type {
-  CheckEmailProviderSetupParams,
-  ConnectArkyResendEmailProviderParams,
-  ConnectEmailProviderParams,
   CreateEmailAddressParams,
   CreateEmailLayoutParams,
-  CreateEmailTemplateParams,
+  CreateNotificationParams,
+  CreateTemplateParams,
   DeleteEmailAddressParams,
   DeleteEmailLayoutParams,
-  DeleteEmailProviderParams,
-  DeleteEmailTemplateParams,
+  DeleteNotificationParams,
+  DeleteTemplateParams,
   EmailAddress,
   EmailAddressReadiness,
   EmailLayout,
-  EmailProvider,
-  EmailProviderDomain,
-  EmailProviderSetup,
-  EmailTemplate,
-  EmailTemplateDefault,
-  EmailTemplatePreview,
   FindEmailAddressesParams,
   FindEmailLayoutsParams,
-  FindEmailProviderDomainsParams,
-  FindEmailProvidersParams,
-  FindEmailTemplateDefaultsParams,
-  FindEmailTemplatesParams,
-  FindOutgoingEmailsParams,
+  FindNotificationsParams,
+  FindOutgoingMessagesParams,
   FindOutgoingWebhooksParams,
   FindStoreResendEventsParams,
+  FindTemplateDefaultsParams,
+  FindTemplatesParams,
+  GetEmailAddressNetworkDomainParams,
   GetEmailAddressParams,
   GetEmailAddressReadinessParams,
   GetEmailLayoutParams,
-  GetEmailProviderParams,
-  GetEmailTemplateParams,
-  GetOutgoingEmailParams,
+  GetNotificationParams,
+  GetOutgoingMessageParams,
   GetOutgoingWebhookParams,
-  GetStoreEmailsParams,
-  OutgoingEmail,
-  OutgoingEmailSummary,
+  GetTemplateParams,
+  NetworkStoreAddresses,
+  Notification,
+  OutgoingMessage,
+  OutgoingMessageSummary,
   OutgoingWebhook,
-  PreviewEmailTemplateParams,
-  ReplaceEmailProviderKeyParams,
+  PreviewTemplateParams,
+  ReminderResult,
   ResolveStoreResendEventParams,
+  SendBookingReminderParams,
   SendEmailTemplateTestParams,
-  StoreEmails,
+  Template,
+  TemplateDefault,
+  TemplatePreview,
   UpdateEmailLayoutParams,
-  UpdateEmailTemplateParams,
-  UpdateStoreEmailsParams,
+  UpdateNotificationParams,
+  UpdateTemplateParams,
 } from "../types/notification";
 import { requireId } from "../utils/ids";
-import { storePath, storeRecordPath } from "./paths";
+import { segment, storePath, storeRecordPath } from "./paths";
 
-export const createOutgoingEmailApi = (apiConfig: ApiConfig) => ({
-  find(params: FindOutgoingEmailsParams, options?: RequestOptions): Promise<PaginatedResponse<OutgoingEmailSummary>> {
+export const createOutgoingMessageApi = (apiConfig: ApiConfig) => ({
+  find(params: FindOutgoingMessagesParams, options?: RequestOptions): Promise<PaginatedResponse<OutgoingMessageSummary>> {
     const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<PaginatedResponse<OutgoingEmailSummary>>(storePath(store_id, "outgoing-emails"), { ...options, params: query });
+    return apiConfig.httpClient.get<PaginatedResponse<OutgoingMessageSummary>>(storePath(store_id, "outgoing-messages"), { ...options, params: query });
   },
-  get(params: GetOutgoingEmailParams, options?: RequestOptions): Promise<OutgoingEmail> {
-    return apiConfig.httpClient.get<OutgoingEmail>(storeRecordPath(params.store_id, "outgoing-emails", params.id), options);
+  get(params: GetOutgoingMessageParams, options?: RequestOptions): Promise<OutgoingMessage> {
+    return apiConfig.httpClient.get<OutgoingMessage>(storeRecordPath(params.store_id, "outgoing-messages", params.id), options);
   },
 });
 
@@ -74,62 +70,111 @@ export const createOutgoingWebhookApi = (apiConfig: ApiConfig) => ({
   },
 });
 
-export const createEmailTemplateApi = (apiConfig: ApiConfig) => ({
-  find(params: FindEmailTemplatesParams, options?: RequestOptions): Promise<PaginatedResponse<EmailTemplate>> {
+export const createTemplateApi = (apiConfig: ApiConfig) => ({
+  find(params: FindTemplatesParams, options?: RequestOptions): Promise<PaginatedResponse<Template>> {
     const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<PaginatedResponse<EmailTemplate>>(storePath(store_id, "email-templates"), {
+    return apiConfig.httpClient.get<PaginatedResponse<Template>>(storePath(store_id, "email-templates"), {
       ...options,
       params: query,
     });
   },
 
-  get(params: GetEmailTemplateParams, options?: RequestOptions): Promise<EmailTemplate> {
-    return apiConfig.httpClient.get<EmailTemplate>(storeRecordPath(params.store_id, "email-templates", params.id), options);
+  get(params: GetTemplateParams, options?: RequestOptions): Promise<Template> {
+    return apiConfig.httpClient.get<Template>(storeRecordPath(params.store_id, "email-templates", params.id), options);
   },
 
-  async findDefaults(params: FindEmailTemplateDefaultsParams, options?: RequestOptions): Promise<PaginatedResponse<EmailTemplateDefault>> {
-    const items = await apiConfig.httpClient.get<EmailTemplateDefault[]>(storePath(params.store_id, "email-templates/defaults"), options);
+  async findDefaults(params: FindTemplateDefaultsParams, options?: RequestOptions): Promise<PaginatedResponse<TemplateDefault>> {
+    const items = await apiConfig.httpClient.get<TemplateDefault[]>(storePath(params.store_id, "email-templates/defaults"), options);
     return { items, cursor: null };
   },
 
-  create(params: CreateEmailTemplateParams, options?: RequestOptions): Promise<EmailTemplate> {
-    requireId(params.id, "email template");
+  create(params: CreateTemplateParams, options?: RequestOptions): Promise<Template> {
+    requireId(params.id, "template");
     const { store_id, ...body } = params;
-    return apiConfig.httpClient.post<EmailTemplate>(storePath(store_id, "email-templates"), body, options);
+    return apiConfig.httpClient.post<Template>(storePath(store_id, "email-templates"), body, options);
   },
 
-  update(params: UpdateEmailTemplateParams, options?: RequestOptions): Promise<EmailTemplate> {
+  update(params: UpdateTemplateParams, options?: RequestOptions): Promise<Template> {
     const { store_id, id, ...body } = params;
-    return apiConfig.httpClient.put<EmailTemplate>(storeRecordPath(store_id, "email-templates", id), body, options);
+    return apiConfig.httpClient.put<Template>(storeRecordPath(store_id, "email-templates", id), body, options);
   },
 
-  delete(params: DeleteEmailTemplateParams, options?: RequestOptions): Promise<boolean> {
+  delete(params: DeleteTemplateParams, options?: RequestOptions): Promise<boolean> {
     return apiConfig.httpClient.delete<boolean>(storeRecordPath(params.store_id, "email-templates", params.id), {
       ...options,
       params: { expected_updated_at: params.expected_updated_at },
     });
   },
 
-  preview(params: PreviewEmailTemplateParams, options?: RequestOptions): Promise<EmailTemplatePreview> {
+  preview(params: PreviewTemplateParams, options?: RequestOptions): Promise<TemplatePreview> {
     const { store_id, id, ...body } = params;
-    return apiConfig.httpClient.post<EmailTemplatePreview>(
+    return apiConfig.httpClient.post<TemplatePreview>(
       `${storeRecordPath(store_id, "email-templates", id)}/preview`,
       body,
       options,
     );
   },
 
-  test(params: SendEmailTemplateTestParams, options?: RequestOptions): Promise<OutgoingEmail> {
-    requireId(params.outgoing_email_id, "test email");
-    return apiConfig.httpClient.post<OutgoingEmail>(
+  test(params: SendEmailTemplateTestParams, options?: RequestOptions): Promise<OutgoingMessage> {
+    requireId(params.outgoing_message_id, "test email");
+    return apiConfig.httpClient.post<OutgoingMessage>(
       `${storeRecordPath(params.store_id, "email-templates", params.id)}/test`,
       {
-        id: params.outgoing_email_id,
+        id: params.outgoing_message_id,
         language: params.language,
-        sending_address_id: params.sending_address_id,
+        email_address_id: params.email_address_id,
         from_name: params.from_name,
-        reply_to: params.reply_to,
+        reply_to_address_id: params.reply_to_address_id,
       },
+      options,
+    );
+  },
+});
+
+export const createNotificationApi = (apiConfig: ApiConfig) => ({
+  find(params: FindNotificationsParams, options?: RequestOptions): Promise<PaginatedResponse<Notification>> {
+    const { store_id, ...query } = params;
+    return apiConfig.httpClient.get<PaginatedResponse<Notification>>(storePath(store_id, "notifications"), {
+      ...options,
+      params: query,
+    });
+  },
+
+  get(params: GetNotificationParams, options?: RequestOptions): Promise<Notification> {
+    return apiConfig.httpClient.get<Notification>(storeRecordPath(params.store_id, "notifications", params.id), options);
+  },
+
+  create(params: CreateNotificationParams, options?: RequestOptions): Promise<Notification> {
+    requireId(params.id, "notification");
+    return apiConfig.httpClient.post<Notification>(
+      storePath(params.store_id, "notifications"),
+      { id: params.id, type: params.type, status: params.status },
+      options,
+    );
+  },
+
+  update(params: UpdateNotificationParams, options?: RequestOptions): Promise<Notification> {
+    return apiConfig.httpClient.put<Notification>(
+      storeRecordPath(params.store_id, "notifications", params.id),
+      { expected_updated_at: params.expected_updated_at, type: params.type, status: params.status },
+      options,
+    );
+  },
+
+  delete(params: DeleteNotificationParams, options?: RequestOptions): Promise<boolean> {
+    return apiConfig.httpClient.delete<boolean>(storeRecordPath(params.store_id, "notifications", params.id), {
+      ...options,
+      params: { expected_updated_at: params.expected_updated_at },
+    });
+  },
+
+  sendBookingReminder(params: SendBookingReminderParams, options?: RequestOptions): Promise<ReminderResult> {
+    return apiConfig.httpClient.post<ReminderResult>(
+      storePath(
+        params.store_id,
+        `orders/${segment(params.order_id)}/booking-items/${segment(params.order_booking_item_id)}/reminder`,
+      ),
+      { notification_id: params.notification_id },
       options,
     );
   },
@@ -167,62 +212,6 @@ export const createEmailLayoutApi = (apiConfig: ApiConfig) => ({
   },
 });
 
-export const createEmailProviderApi = (apiConfig: ApiConfig) => ({
-  find(params: FindEmailProvidersParams, options?: RequestOptions): Promise<PaginatedResponse<EmailProvider>> {
-    const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<PaginatedResponse<EmailProvider>>(storePath(store_id, "email-providers"), {
-      ...options,
-      params: query,
-    });
-  },
-
-  get(params: GetEmailProviderParams, options?: RequestOptions): Promise<EmailProvider> {
-    return apiConfig.httpClient.get<EmailProvider>(storeRecordPath(params.store_id, "email-providers", params.id), options);
-  },
-
-  connect(params: ConnectEmailProviderParams, options?: RequestOptions): Promise<EmailProvider> {
-    requireId(params.id, "email provider");
-    const { store_id, ...body } = params;
-    return apiConfig.httpClient.post<EmailProvider>(storePath(store_id, "email-providers"), body, options);
-  },
-
-  connectArkyResend(params: ConnectArkyResendEmailProviderParams, options?: RequestOptions): Promise<EmailProvider> {
-    requireId(params.id, "email provider");
-    const { store_id, ...body } = params;
-    return apiConfig.httpClient.post<EmailProvider>(storePath(store_id, "email-providers/arky-resend"), body, options);
-  },
-
-  replaceKey(params: ReplaceEmailProviderKeyParams, options?: RequestOptions): Promise<EmailProvider> {
-    return apiConfig.httpClient.put<EmailProvider>(
-      storeRecordPath(params.store_id, "email-providers", params.id),
-      { expected_updated_at: params.expected_updated_at, api_key: params.api_key, webhook_secret: params.webhook_secret },
-      options,
-    );
-  },
-
-  delete(params: DeleteEmailProviderParams, options?: RequestOptions): Promise<boolean> {
-    return apiConfig.httpClient.delete<boolean>(storeRecordPath(params.store_id, "email-providers", params.id), {
-      ...options,
-      params: { expected_updated_at: params.expected_updated_at },
-    });
-  },
-
-  async findDomains(params: FindEmailProviderDomainsParams, options?: RequestOptions): Promise<PaginatedResponse<EmailProviderDomain>> {
-    const items = await apiConfig.httpClient.get<EmailProviderDomain[]>(
-      `${storeRecordPath(params.store_id, "email-providers", params.id)}/domains`,
-      options,
-    );
-    return { items, cursor: null };
-  },
-
-  checkSetup(params: CheckEmailProviderSetupParams, options?: RequestOptions): Promise<EmailProviderSetup> {
-    return apiConfig.httpClient.get<EmailProviderSetup>(
-      `${storeRecordPath(params.store_id, "email-providers", params.id)}/setup`,
-      options,
-    );
-  },
-});
-
 export const createEmailAddressApi = (apiConfig: ApiConfig) => ({
   find(params: FindEmailAddressesParams, options?: RequestOptions): Promise<PaginatedResponse<EmailAddress>> {
     const { store_id, ...query } = params;
@@ -252,16 +241,9 @@ export const createEmailAddressApi = (apiConfig: ApiConfig) => ({
       options,
     );
   },
-});
 
-export const createStoreEmailsApi = (apiConfig: ApiConfig) => ({
-  get(params: GetStoreEmailsParams, options?: RequestOptions): Promise<StoreEmails> {
-    return apiConfig.httpClient.get<StoreEmails>(storePath(params.store_id, "emails"), options);
-  },
-
-  update(params: UpdateStoreEmailsParams, options?: RequestOptions): Promise<StoreEmails> {
-    const { store_id, ...body } = params;
-    return apiConfig.httpClient.put<StoreEmails>(storePath(store_id, "emails"), body, options);
+  getNetworkDomain(params: GetEmailAddressNetworkDomainParams, options?: RequestOptions): Promise<NetworkStoreAddresses> {
+    return apiConfig.httpClient.get<NetworkStoreAddresses>(storePath(params.store_id, "email-addresses/network-domain"), options);
   },
 });
 

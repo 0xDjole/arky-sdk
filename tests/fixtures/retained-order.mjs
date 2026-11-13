@@ -84,7 +84,7 @@ export const retainedOrder = {
         timezone: "America/New_York",
         price: { type: "listed", package_id: "e4c8a2f6-1b73-4d95-a0e7-5f2c9b6d3a18", package_item_id: "package-item", price_id: "booking-price" },
       },
-      status: { type: "confirmed", attendance: { type: "upcoming" } },
+      status: { type: "confirmed", attendance: { type: "upcoming", response: { type: "unanswered" } } },
       reschedules: [],
       money: bookingMoney,
       created_at: placedAt,

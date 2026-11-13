@@ -37,7 +37,7 @@ const contactForm = {
 };
 
 function storedSessionOf(storage) {
-  const [key] = storage.keys("arky_customer_session:v4:");
+  const [key] = storage.keys("arky_customer_session:v5:");
   return key ? JSON.parse(storage.getItem(key)) : null;
 }
 
@@ -120,7 +120,7 @@ test("a fresh visitor's first cart load sends nothing, and a create identifies o
     assert.equal(call.headers.has("x-arky-sales-channel"), false);
   }
   const stored = storedSessionOf(storage);
-  assert.equal(stored.version, 4);
+  assert.equal(stored.version, 5);
   assert.equal(stored.session.token, visitorToken);
 });
 
@@ -193,7 +193,7 @@ test("forms.submit with the loaded form reads it anonymously, identifies lazily 
   });
   assert.deepEqual([...calls[2].body.keys()], ["submission"]);
   assert.equal(calls.some((call) => call.href.includes("store_id")), false);
-  assert.equal(storedSessionOf(storage).version, 4);
+  assert.equal(storedSessionOf(storage).version, 5);
 });
 
 test("forms.submit checks the values against the shown form before identifying or submitting, and a whitespace-only required answer is missing", async (context) => {
@@ -250,10 +250,11 @@ test("a raw storefront submission stays stateful and sends only the id, the load
 test("Visitor identify sends only the application-picked IDs and does not claim a contact address", async (context) => {
   const storage = new SessionStorage();
   const store = initialize(storefrontIdentity, { ...idFactories, apiUrl, sessionStorage: storage });
-  const calls = recordFetch(context, () => ({ customer: customerRecord(), session: visitorSession() }));
+  const calls = recordFetch(context, () => ({ customer: customerRecord(), session: visitorSession(), login: null }));
   const identity = { customer_id: ids.customer, session_id: ids.session };
   const result = await store.customer.identify(identity);
-  assert.deepEqual(result.customer.type, { type: "anonymous" });
+  assert.equal(result.login, null);
+  assert.deepEqual(result.customer.addresses, []);
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [["POST", "/v1/storefront/customer/identify", identity]]);
   assert.equal("captureEmail" in store.customer, false);
   assert.equal("email" in storedSessionOf(storage).customer, false);

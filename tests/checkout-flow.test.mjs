@@ -515,8 +515,8 @@ test("the flow keeps its checkout in its own cart scope, so the client's shared 
 
 function storageWithContact(contact) {
   const signedIn = sessionResult(ids.customer, emailSession());
-  signedIn.customer.type.contact = contact;
-  return new SessionStorage(JSON.stringify({ version: 4, ...signedIn }));
+  signedIn.login.type = { type: "verified_email", email: contact.email, language: contact.language, unsubscribed: false };
+  return new SessionStorage(JSON.stringify({ version: 5, ...signedIn }));
 }
 
 function contactCheckout(sessionStorage, locale) {

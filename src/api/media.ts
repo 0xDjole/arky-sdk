@@ -40,13 +40,20 @@ function matchingMedia(media: Media, storeId: string, mediaId: string, visibilit
   return typeof media === "object" && media !== null && media.id === mediaId && media.store_id === storeId && media.visibility === visibility;
 }
 
+function requireVisibility(value: unknown): MediaVisibility {
+  if (value !== "public" && value !== "private") {
+    throw new TypeError('Media visibility must be an explicit "public" or "private"');
+  }
+  return value;
+}
+
 export const createMediaApi = (apiConfig: ApiConfig) => {
   const send = (exact: CreateMediaParams, options?: RequestOptions) => {
     const formData = new FormData();
     if (exact.file) formData.append("file", exact.file);
     else formData.append("source_url", exact.source_url);
     if (exact.alt) formData.append("alt", JSON.stringify(exact.alt));
-    if (exact.visibility !== undefined) formData.append("visibility", exact.visibility);
+    formData.append("visibility", requireVisibility(exact.visibility));
     return apiConfig.httpClient.put<Media>(storeRecordPath(exact.store_id, "media", exact.id), formData, options);
   };
 
@@ -54,6 +61,7 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
     async create(params: CreateMediaParams, options?: RequestOptions): Promise<Media> {
       const storeId = requireStoreId(params.store_id);
       requireId(params.id, "media");
+      requireVisibility(params.visibility);
       if (!browserHasDurableStorage()) return send(params, options);
       const storageKey = mediaCreateStorageKey(storeId);
       return withDurableRequestLock(storageKey, mediaCreateLabel, async () => {
@@ -71,7 +79,7 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
               const reconciled = await apiConfig.httpClient.get<Media>(
                 storeRecordPath(storeId, "media", pending.params.id),
               );
-              if (matchingMedia(reconciled, storeId, pending.params.id, pending.params.visibility ?? "public")) {
+              if (matchingMedia(reconciled, storeId, pending.params.id, pending.params.visibility)) {
                 await clearPendingMediaCreate(pending.durable);
                 return reconciled;
               }
@@ -79,7 +87,7 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
           }
           throw error;
         }
-        if (!matchingMedia(result, storeId, pending.params.id, pending.params.visibility ?? "public")) {
+        if (!matchingMedia(result, storeId, pending.params.id, pending.params.visibility)) {
           throw new DurableRequestError(
             "answer_mismatch",
             `${mediaCreateLabel} was answered with another media; the request is kept for a retry`,

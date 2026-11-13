@@ -8,11 +8,13 @@ import type {
   LocalizedMarkdown,
   Money,
   ProviderEffectError,
+  ProviderLogin,
   ProviderOperationClaim,
   SortDirection,
 } from "./common";
 import type { PackageMemberCard, PackageMemberSelfCard } from "./packageMember";
 import type { EmailFailure } from "./notification";
+import type { StoreProviderStatus } from "./storeProvider";
 
 export type MonriEnvironment = "test" | "live";
 
@@ -53,6 +55,9 @@ export interface StripeSetup {
 }
 
 export interface StripeConnection {
+  provider_id: string;
+  provider_status: StoreProviderStatus;
+  provider_updated_at: EpochMilliseconds;
   account_id: string;
   livemode: boolean;
   publishable_key: string;
@@ -63,6 +68,9 @@ export interface StripeConnection {
 }
 
 export interface MonriConnection {
+  provider_id: string;
+  provider_status: StoreProviderStatus;
+  provider_updated_at: EpochMilliseconds;
   environment: MonriEnvironment;
   saved_card_terms: LocalizedMarkdown;
 }
@@ -352,6 +360,8 @@ export interface MonriRefund {
 
 export type RecordedStatus = "open" | "cancelled";
 
+export type CollectionMethod = "cash" | "card" | "bank_transfer" | "other";
+
 export type RecordedCollectionStatus =
   | { type: "active" }
   | { type: "voided"; by: AccountActor; reason: string; at: EpochMilliseconds };
@@ -359,6 +369,7 @@ export type RecordedCollectionStatus =
 export interface RecordedCollection {
   id: string;
   money: Money;
+  method: CollectionMethod;
   recorded_by: AccountActor;
   reference: string | null;
   recorded_at: EpochMilliseconds;
@@ -552,6 +563,7 @@ export interface Payment {
   store_id: string;
   order_id: string;
   payment_option_id: string;
+  payment_option_key: string;
   money: Money;
   type: PaymentType;
   holds: PaymentHold[];
@@ -566,6 +578,7 @@ export interface StorefrontPayment {
   store_id: string;
   order_id: string;
   payment_option_id: string;
+  payment_option_key: string;
   money: Money;
   type: StorefrontPaymentType;
   holds: StorefrontPaymentHold[];
@@ -685,6 +698,7 @@ export type StorefrontManualRequest = { type: "at_checkout" } | { type: "later" 
 export interface StorefrontRecordedCollection {
   id: string;
   money: Money;
+  method: CollectionMethod;
   recorded_at: EpochMilliseconds;
   status: StorefrontRecordedCollectionStatus;
 }
@@ -812,7 +826,7 @@ export interface ResendEvent {
   event_type: string;
   email_id: string;
   occurred_at: EpochMilliseconds;
-  outgoing_email_id: string | null;
+  outgoing_message_id: string | null;
   message_id: string | null;
   recipients: string[];
   failure: EmailFailure | null;
@@ -834,32 +848,41 @@ export interface MonriTransactionFact {
   created_at: EpochMilliseconds;
 }
 
+export type TwilioSmsEvent =
+  | { type: "sent"; message_sid: string }
+  | { type: "delivered"; message_sid: string }
+  | { type: "failed"; message_sid: string; code: string };
+
 export type IncomingWebhookType =
+  | { type: "network_resend"; network_id: string; network_provider_id: string; event: ResendEvent }
+  | { type: "store_resend"; store_id: string; login: ProviderLogin; event: ResendEvent }
   | {
       type: "stripe_payments";
       store_id: string;
       payment_option_id: string;
+      store_provider_id: string;
       event: StripeEvent;
     }
   | {
       type: "monri_payments";
       store_id: string;
       payment_option_id: string;
+      store_provider_id: string;
       transaction: MonriTransactionFact;
     }
-  | { type: "stripe_billing"; network_id: string; event: StripeEvent }
-  | { type: "network_resend"; network_id: string; event: ResendEvent }
+  | { type: "stripe_billing"; network_id: string; network_provider_id: string; event: StripeEvent }
   | {
-      type: "store_resend";
+      type: "twilio_sms";
       store_id: string;
-      email_provider_id: string;
-      event: ResendEvent;
+      login: ProviderLogin;
+      outgoing_message_id: string;
+      event: TwilioSmsEvent;
     };
 
 export type IncomingWebhookTarget =
   | { type: "conversation_message"; conversation_message_id: string }
-  | { type: "outgoing_email"; outgoing_email_id: string }
-  | { type: "email_suppression"; email_suppression_id: string }
+  | { type: "outgoing_message"; outgoing_message_id: string }
+  | { type: "suppression"; suppression_id: string }
   | { type: "payment"; payment_id: string }
   | { type: "payment_method"; payment_method_id: string }
   | { type: "store_subscription"; store_subscription_id: string };
@@ -925,47 +948,9 @@ export interface CreatePaymentOptionParams {
   status: PaymentOptionStatus;
 }
 
-export interface CreateMonriPaymentOptionParams {
+export interface CreateCardPaymentOptionParams {
   store_id: string;
-  id: string;
-  key: string;
-  blocks: Block[];
-  status: PaymentOptionStatus;
-  environment: MonriEnvironment;
-  merchant_key: string;
-  authenticity_token: string;
-  saved_card_terms: LocalizedMarkdown;
-}
-
-export interface ReplaceMonriMerchantKeyParams {
-  store_id: string;
-  id: string;
-  expected_updated_at: EpochMilliseconds;
-  merchant_key: string;
-}
-
-export interface ConnectStripePaymentOptionParams {
-  store_id: string;
-  id: string;
-  key: string;
-  blocks: Block[];
-  status: PaymentOptionStatus;
-  restricted_key: string;
-  publishable_key: string;
-  saved_card_terms: LocalizedMarkdown;
-}
-
-export interface ConnectArkyStripePaymentOptionParams {
-  store_id: string;
-  id: string;
-  key: string;
-  blocks: Block[];
-  status: PaymentOptionStatus;
-  saved_card_terms: LocalizedMarkdown;
-}
-
-export interface ConnectArkyMonriPaymentOptionParams {
-  store_id: string;
+  provider_id: string;
   id: string;
   key: string;
   blocks: Block[];
@@ -980,33 +965,6 @@ export interface UpdatePaymentOptionParams {
   blocks: Block[];
   status: PaymentOptionStatus;
   saved_card_terms: LocalizedMarkdown | null;
-}
-
-export interface SaveStripeWebhookSecretParams {
-  store_id: string;
-  id: string;
-  expected_updated_at: EpochMilliseconds;
-  signing_secret: string;
-  previous_secret_expires_at: EpochMilliseconds | null;
-}
-
-export interface CheckStripeSetupParams {
-  store_id: string;
-  id: string;
-}
-
-export interface ReplaceStripeKeysParams {
-  store_id: string;
-  id: string;
-  expected_updated_at: EpochMilliseconds;
-  restricted_key: string;
-  publishable_key: string;
-}
-
-export interface RefreshStripePaymentOptionParams {
-  store_id: string;
-  id: string;
-  expected_updated_at: EpochMilliseconds;
 }
 
 export type FindPaymentMethodsParams = (
@@ -1110,6 +1068,7 @@ export interface RecordPaymentCollectionParams {
   payment_id: string;
   id: string;
   money: Money;
+  method: CollectionMethod;
   reference: string | null;
 }
 
@@ -1219,6 +1178,7 @@ export interface ResolveIncomingWebhookParams {
 
 export interface FindStripeBillingEventsParams {
   network_id: string;
+  network_provider_id: string;
   status: IncomingWebhookStatusName;
   limit?: number;
   cursor?: string | null;
@@ -1226,6 +1186,7 @@ export interface FindStripeBillingEventsParams {
 
 export interface ResolveStripeBillingEventParams {
   network_id: string;
+  network_provider_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   resolution: IncomingWebhookResolution;
@@ -1233,6 +1194,7 @@ export interface ResolveStripeBillingEventParams {
 
 export interface FindResendEventsParams {
   network_id: string;
+  network_provider_id: string;
   status: IncomingWebhookStatusName;
   limit?: number;
   cursor?: string | null;
@@ -1240,6 +1202,7 @@ export interface FindResendEventsParams {
 
 export interface ResolveResendEventParams {
   network_id: string;
+  network_provider_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   resolution: IncomingWebhookResolution;

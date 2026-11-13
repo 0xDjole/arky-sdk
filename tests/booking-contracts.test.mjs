@@ -12,6 +12,7 @@ const serviceId = "a3c5e7f9-1b2d-4f68-8a0c-2e4f6a8c0b1d";
 const resourceId = "b4d6f8a0-2c3e-4a79-9b1d-3f5a7b9d1c2e";
 const offeringId = "c5e7a9b1-3d4f-4b8a-8c2e-4a6b8c0e2d3f";
 const taxCategoryId = "d6f8b0c2-4e5a-4c9b-9d3f-5b7c9d1f3e4a";
+const membershipId = "e7a9c1d3-5f6b-4dac-8e4a-6c8d0e2a4f5b";
 const lineId = ids.line;
 const creditId = ids.credit;
 
@@ -29,7 +30,6 @@ function bookingService(overrides = {}) {
     slot_interval_minutes: 30,
     booking_window: { opens_before_start_minutes: 43_200, closes_before_start_minutes: 120 },
     customer_changes: { type: "not_allowed" },
-    reminder_offsets_minutes: [1440, 60],
     tax_category_id: taxCategoryId,
     status: { type: "active" },
     created_at: 1,
@@ -48,6 +48,7 @@ function bookingResource(overrides = {}) {
     store_id: storeId,
     key: "room-one",
     slugs: { en: "room-one" },
+    type: { type: "staff", store_membership_id: membershipId },
     blocks: [],
     categories: [],
     timezone: "Europe/Sarajevo",
@@ -58,6 +59,10 @@ function bookingResource(overrides = {}) {
     updated_at: 1,
     ...overrides,
   };
+}
+
+function storefrontResource(overrides = {}) {
+  return bookingResource({ type: { type: "staff" }, ...overrides });
 }
 
 function bookingOffering(overrides = {}) {
@@ -196,6 +201,8 @@ test("Admin booking runtime creates service, resource and offering under app-pic
   await admin.eshop.order.cancelBookingItem({ store_id: storeId, order_id: loadedOrder.id, line_item_id: line.id, credit_id: creditId, expected_updated_at: 2 });
   await admin.eshop.order.attendBookingItem({ store_id: storeId, order_id: loadedOrder.id, line_item_id: line.id, expected_updated_at: 3 });
   await admin.eshop.order.markBookingItemNoShow({ store_id: storeId, order_id: loadedOrder.id, line_item_id: line.id, expected_updated_at: 4 });
+  const { id: _updatedId, ...resourceUpdate } = { ...resource, type: { type: "equipment" }, expected_updated_at: 5 };
+  await admin.eshop.bookingResource.update({ store_id: storeId, id: resourceId, ...resourceUpdate });
 
   for (const removed of ["service", "provider", "booking"]) assert.equal(removed in admin.eshop, false, removed);
   for (const removed of ["getBookings", "getBookingAppointment", "completeBookingItem"]) assert.equal(removed in admin.eshop.order, false, removed);
@@ -207,7 +214,10 @@ test("Admin booking runtime creates service, resource and offering under app-pic
     [`/v1/stores/${storeId}/orders/${ids.order}/booking-items/${lineId}/cancel`, "POST", { credit_id: creditId, expected_updated_at: 2 }],
     [`/v1/stores/${storeId}/orders/${ids.order}/booking-items/${lineId}/attend`, "POST", { expected_updated_at: 3 }],
     [`/v1/stores/${storeId}/orders/${ids.order}/booking-items/${lineId}/no-show`, "POST", { expected_updated_at: 4 }],
+    [`/v1/stores/${storeId}/booking-resources/${resourceId}`, "PUT", resourceUpdate],
   ]);
+  assert.deepEqual(calls[1].body.type, { type: "staff", store_membership_id: membershipId });
+  assert.deepEqual(calls[7].body.type, { type: "equipment" });
   for (const [create, record] of [
     [admin.eshop.bookingService.create, service],
     [admin.eshop.bookingResource.create, resource],
@@ -217,7 +227,7 @@ test("Admin booking runtime creates service, resource and offering under app-pic
       await assert.rejects(async () => create({ store_id: storeId, ...record, id }), TypeError);
     }
   }
-  assert.equal(calls.length, 7);
+  assert.equal(calls.length, 8);
 });
 
 test("storefront booking runtime reads one offering and its resource in the package and sends the slot with its item's price", async (context) => {
@@ -227,7 +237,7 @@ test("storefront booking runtime reads one offering and its resource in the pack
     calls.push(call);
     const path = call.url.pathname;
     if (path.endsWith(`/booking-offerings/${offeringId}`)) return jsonResponse(storefrontOffering());
-    if (path.endsWith(`/booking-resources/${resourceId}`)) return jsonResponse(bookingResource());
+    if (path.endsWith(`/booking-resources/${resourceId}`)) return jsonResponse(storefrontResource());
     if (path.endsWith("/booking-services/availability")) {
       return jsonResponse({
         from: 1_800_000_000_000, to: 1_800_086_400_000, cursor: null,
@@ -349,7 +359,7 @@ test("the booking calendar prices each slot from its item and adds one cart line
     if (path === "/v1/storefront/markets/by-key/bih") return jsonResponse(marketRecord("bih"));
     if (path.endsWith(`/booking-services/${serviceId}`)) return jsonResponse(storefrontService());
     if (path.endsWith(`/package-items/${ids.packageItem}/prices`)) return jsonResponse({ items: [offeringChoice()], cursor: null });
-    if (path.endsWith(`/booking-resources/${resourceId}`)) return jsonResponse(bookingResource());
+    if (path.endsWith(`/booking-resources/${resourceId}`)) return jsonResponse(storefrontResource());
     if (path.endsWith("/booking-services/availability")) {
       return jsonResponse({
         from: Number(call.url.searchParams.get("from")),
@@ -455,7 +465,7 @@ test("the booking calendar keeps the company location context of its cart, reads
   let repeatAvailabilityCursor = false;
   const laterResourceId = "f8b0d2e4-6a7c-4e1d-8f5b-7d9e1f3b5c6a";
   const laterOfferingId = "a9c1e3f5-7b8d-4f2e-9a6c-8e0f2a4c6d7b";
-  const laterResource = bookingResource({ id: laterResourceId });
+  const laterResource = storefrontResource({ id: laterResourceId });
   context.mock.method(globalThis, "fetch", async (url) => {
     const request = new URL(String(url));
     assert.equal(request.searchParams.has("company_id"), false);
@@ -474,7 +484,7 @@ test("the booking calendar keeps the company location context of its cart, reads
       resourceCalls.push(request);
       const requested = request.pathname.split("/").at(-1);
       assert.equal(request.searchParams.get("offering_id"), requested === laterResourceId ? laterOfferingId : offeringId);
-      return jsonResponse(requested === laterResourceId ? laterResource : bookingResource());
+      return jsonResponse(requested === laterResourceId ? laterResource : storefrontResource());
     }
     if (request.pathname.endsWith("/booking-services/availability")) {
       availabilityCalls.push(request);
@@ -549,7 +559,7 @@ test("late availability cannot replace a newer booking service selection in the 
     if (request.pathname.endsWith("/prices")) return jsonResponse({ items: [], cursor: null });
     if (request.pathname.includes("/booking-resources/")) {
       resourceReads.push(request.pathname.split("/").at(-1));
-      return jsonResponse(bookingResource({ id: request.pathname.split("/").at(-1) }));
+      return jsonResponse(storefrontResource({ id: request.pathname.split("/").at(-1) }));
     }
     if (request.pathname.includes("/booking-services/")) return jsonResponse(storefrontService({ id: request.pathname.split("/").at(-1) }));
     throw new Error(`Unexpected request ${url}`);
@@ -572,4 +582,26 @@ test("late availability cannot replace a newer booking service selection in the 
   } finally {
     releaseOld?.();
   }
+});
+
+test("a booking offering sends its daily cap on create and update and leaves it out unless named", async (context) => {
+  const calls = [];
+  context.mock.method(globalThis, "fetch", async (url, init = {}) => {
+    calls.push({ url: new URL(url), method: init.method || "GET", body: init.body ? JSON.parse(String(init.body)) : null });
+    return jsonResponse(bookingOffering({ max_per_day: 12 }));
+  });
+  const admin = createAdmin({ apiUrl: apiUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
+  const { id: _id, store_id: _store, status: _status, created_at: _created, updated_at: _updated, ...fields } = bookingOffering();
+  const created = await admin.eshop.bookingOffering.create({ store_id: storeId, id: offeringId, ...fields, status: { type: "active" }, max_per_day: 12 });
+  assert.equal(created.max_per_day, 12);
+  await admin.eshop.bookingOffering.update({ store_id: storeId, id: offeringId, expected_updated_at: 2, max_per_day: 3 });
+  await admin.eshop.bookingOffering.update({ store_id: storeId, id: offeringId, expected_updated_at: 3, max_per_day: null });
+  await admin.eshop.bookingOffering.update({ store_id: storeId, id: offeringId, expected_updated_at: 4, status: { type: "archived" } });
+  assert.deepEqual(calls.map((call) => [call.url.pathname, call.method, call.body]), [
+    [`/v1/stores/${storeId}/booking-offerings`, "POST", { id: offeringId, ...fields, max_per_day: 12, status: { type: "active" } }],
+    [`/v1/stores/${storeId}/booking-offerings/${offeringId}`, "PUT", { max_per_day: 3, expected_updated_at: 2 }],
+    [`/v1/stores/${storeId}/booking-offerings/${offeringId}`, "PUT", { max_per_day: null, expected_updated_at: 3 }],
+    [`/v1/stores/${storeId}/booking-offerings/${offeringId}`, "PUT", { status: { type: "archived" }, expected_updated_at: 4 }],
+  ]);
+  assert.equal("max_per_day" in calls[3].body, false, "an update that names no cap keeps it");
 });

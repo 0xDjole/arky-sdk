@@ -153,7 +153,7 @@ test("support start and send reuse their factory ids after a lost answer", async
       lose = false;
       throw new TypeError("Lost response");
     }
-    const conversation = { id: conversationId, language: "en", state: "waiting_for_team", created_at: 1, updated_at: 1 };
+    const conversation = { id: conversationId, type: { type: "chat", language: "en" }, subject: "", state: "waiting_for_store", customer_read: { type: "unread" }, created_at: 1, updated_at: 1 };
     if (call.path === "/v1/storefront/conversations") return { conversation, messages: [] };
     return {
       conversation,
@@ -189,21 +189,21 @@ test("requestCode keeps its factory id for the same email and takes a new one fo
     return {
       customer: customerRecord(),
       session: { id: ids.session, store_id: ids.store, customer_id: ids.customer },
-      email_verification: { issued_at: 1, expires_at: 2 },
+      code: { issued_at: 1, expires_at: 2 },
     };
   });
   const client = storefront(idSequence(factoryId(1), factoryId(2), factoryId(3)));
-  await assert.rejects(client.customer.requestCode({ contact: { email: "ana@example.test", language: "en" } }), /Lost response/);
-  await client.customer.requestCode({ contact: { email: "ana@example.test", language: "en" } });
-  await client.customer.requestCode({ contact: { email: "ivo@example.test", language: "en" } });
-  await client.customer.requestCode({ contact: { email: "ivo@example.test", language: "hr" } });
-  await client.customer.requestCode({ id: ids.submission, contact: { email: "ivo@example.test", language: "en" } });
+  await assert.rejects(client.customer.requestCode({ contact: { type: "email", email: "ana@example.test", language: "en" } }), /Lost response/);
+  await client.customer.requestCode({ contact: { type: "email", email: "ana@example.test", language: "en" } });
+  await client.customer.requestCode({ contact: { type: "email", email: "ivo@example.test", language: "en" } });
+  await client.customer.requestCode({ contact: { type: "email", email: "ivo@example.test", language: "hr" } });
+  await client.customer.requestCode({ id: ids.submission, contact: { type: "email", email: "ivo@example.test", language: "en" } });
   assert.deepEqual(calls.map((call) => [call.body.id, call.body.contact]), [
-    [factoryId(1), { email: "ana@example.test", language: "en" }],
-    [factoryId(1), { email: "ana@example.test", language: "en" }],
-    [factoryId(2), { email: "ivo@example.test", language: "en" }],
-    [factoryId(3), { email: "ivo@example.test", language: "hr" }],
-    [ids.submission, { email: "ivo@example.test", language: "en" }],
+    [factoryId(1), { type: "email", email: "ana@example.test", language: "en" }],
+    [factoryId(1), { type: "email", email: "ana@example.test", language: "en" }],
+    [factoryId(2), { type: "email", email: "ivo@example.test", language: "en" }],
+    [factoryId(3), { type: "email", email: "ivo@example.test", language: "hr" }],
+    [ids.submission, { type: "email", email: "ivo@example.test", language: "en" }],
   ]);
   assert.equal("bot_check_token" in calls[1].body, false);
 });

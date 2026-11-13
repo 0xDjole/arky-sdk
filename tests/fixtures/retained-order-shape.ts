@@ -31,7 +31,6 @@ const bookingMoney: LineMoney = {
 };
 
 export const typedRetainedOrder: Order = {
-  invoices: [],
   blocks: [],
   id: "4a2c7c0d-4389-4aae-b3d7-02ff834a024d",
   number: "1001",
@@ -74,6 +73,7 @@ export const typedRetainedOrder: Order = {
     {
       type: "booking",
       id: "19f4bc18-4259-46b8-b5ef-3579d1dac971",
+      booking_type: { type: "main" },
       booking_offering_id: "offering",
       booking_service_id: "service",
       booking_resource_id: "resource",
@@ -87,9 +87,10 @@ export const typedRetainedOrder: Order = {
         timezone: "America/New_York",
         price: { type: "listed", package_id: "e4c8a2f6-1b73-4d95-a0e7-5f2c9b6d3a18", package_item_id: "package-item", price_id: "booking-price" },
       },
-      status: { type: "confirmed", attendance: { type: "upcoming" } },
+      status: { type: "confirmed", attendance: { type: "upcoming", response: { type: "unanswered" } } },
       reschedules: [],
       money: bookingMoney,
+      session: null,
       created_at: placedAt,
       updated_at: placedAt,
     },

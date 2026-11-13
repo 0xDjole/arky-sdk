@@ -10,11 +10,21 @@ const sessionId = "ce6ebdd2-cc85-4e54-81fe-df0cb14d9339";
 const emailId = "3175e0eb-0ceb-47e7-a7a8-081c14cce3b1";
 
 function customer() {
-  return { id: customerId, store_id: storeId, type: { type: "anonymous" }, profile: [], created_at: 1, updated_at: 1 };
+  return {
+    id: customerId,
+    store_id: storeId,
+    name: null,
+    addresses: [],
+    default_shipping_address_id: null,
+    default_billing_address_id: null,
+    profile: [],
+    created_at: 1,
+    updated_at: 1,
+  };
 }
 
 function issued() {
-  return { customer: customer(), session: { type: "visitor", id: sessionId, customer_id: customerId, token: "customer_visitor_domain4", status: { type: "active" }, expires_at: 9000000000000 } };
+  return { customer: customer(), session: { type: "visitor", id: sessionId, customer_id: customerId, token: "customer_visitor_domain4", status: { type: "active" }, expires_at: 9000000000000 }, login: null };
 }
 
 
@@ -22,12 +32,12 @@ function issued() {
 
 
 test("visitor identity and code sends use caller-picked UUIDs without exposing staff blocks", async (context) => {
-  const calls = recordFetch(context, (call) => call.path.endsWith("request-code") ? { customer: customer(), session: { id: sessionId, store_id: storeId, customer_id: customerId }, email_verification: { issued_at: 1, expires_at: 600001 } } : issued());
+  const calls = recordFetch(context, (call) => call.path.endsWith("request-code") ? { customer: customer(), session: { id: sessionId, store_id: storeId, customer_id: customerId }, code: { issued_at: 1, expires_at: 600001 } } : issued());
   const memory = new Map();
   const client = createStorefront(storefrontIdentity, { ...idFactories, apiUrl: "https://api.example.test", locale: "en", sessionStorage: { getItem: (key) => memory.get(key) ?? null, setItem: (key, value) => memory.set(key, value), removeItem: (key) => memory.delete(key) }, visitorIdentity: { customer_id: customerId, session_id: sessionId } });
   await client.customer.identify({ customer_id: customerId, session_id: sessionId });
-  await client.customer.requestCode({ id: emailId, contact: { email: "buyer@example.test", language: "en" } });
-  assert.deepEqual(calls.map((call) => call.body), [{ customer_id: customerId, session_id: sessionId }, { id: emailId, contact: { email: "buyer@example.test", language: "en" } }]);
+  await client.customer.requestCode({ id: emailId, contact: { type: "email", email: "buyer@example.test", language: "en" } });
+  assert.deepEqual(calls.map((call) => call.body), [{ customer_id: customerId, session_id: sessionId }, { id: emailId, contact: { type: "email", email: "buyer@example.test", language: "en" } }]);
   assert.equal("blocks" in client.session.customer, false);
   assert.equal(calls[1].headers.get("X-Arky-Locale"), "en");
 });

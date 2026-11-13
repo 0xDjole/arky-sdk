@@ -11,7 +11,7 @@ export interface StoreStatusCountSegments {
   forms_by_status: "active" | "draft" | "closed";
   packages_by_status: "draft" | "active" | "closed" | "archived" | "deleting";
   broadcasts_by_status: "draft" | "scheduled" | "sending" | "sent";
-  conversations_by_status: "flow" | "waiting_for_team" | "resolved";
+  conversations_by_status: "flow" | "waiting_for_store" | "resolved";
   carts_by_status: "active" | "abandoned" | "converted" | "superseded" | "merged" | "expired";
   customers_by_type: "anonymous" | "verified";
   orders_by_status: "pending" | "confirmed" | "partially_cancelled" | "cancelled";
@@ -31,7 +31,9 @@ export type StoreCountDayType =
   | "customers_created_day"
   | "orders_placed_day"
   | "page_views_day"
-  | "booked_slots_day";
+  | "booked_slots_day"
+  | "missed_calls_day"
+  | "call_seconds_day";
 
 export type StoreCountUniqueDayType = "unique_buyers_day" | "unique_visitors_day";
 
@@ -40,9 +42,22 @@ export type StoreCountSegmentedDayType =
   | "refunded_value_by_market_day"
   | "page_views_by_page_day"
   | "page_views_by_country_day"
-  | "page_views_by_referrer_day";
+  | "page_views_by_referrer_day"
+  | "calls_by_outcome_day"
+  | "booked_minutes_by_resource_day"
+  | "booking_lines_by_status_day"
+  | "bookings_by_sales_channel_day"
+  | "messages_sent_by_notification_day";
 
-export type StoreCountReportType = StoreCountDayType | StoreCountUniqueDayType | StoreCountSegmentedDayType;
+export type StoreCountMarketDayType = "paid_value_by_location_day";
+
+export type StoreCountBookingOutcome = "attended" | "no_show" | "cancelled";
+
+export type StoreCountReportType =
+  | StoreCountDayType
+  | StoreCountUniqueDayType
+  | StoreCountSegmentedDayType
+  | StoreCountMarketDayType;
 
 export interface StoreCountSegment<Segment extends string = string> {
   segment: Segment;
@@ -66,17 +81,18 @@ export interface GetStoreStatusCountsParams {
 }
 
 export type StoreCountTotalRead =
-  | { type: StoreCountDayType | StoreCountUniqueDayType; segment?: never }
-  | { type: StoreCountSegmentedDayType; segment: string };
+  | { type: StoreCountDayType | StoreCountUniqueDayType; market_id?: never; segment?: never }
+  | { type: StoreCountSegmentedDayType; market_id?: never; segment: string }
+  | { type: StoreCountMarketDayType; market_id: string; segment: string };
 
-export interface StoreCountBreakdownRead {
-  type: StoreCountSegmentedDayType;
-  limit?: number;
-}
+export type StoreCountBreakdownRead =
+  | { type: StoreCountSegmentedDayType; market_id?: never; limit?: number }
+  | { type: StoreCountMarketDayType; market_id: string; limit?: number };
 
 export type StoreCountSeriesRead =
-  | { type: StoreCountDayType; segment?: never }
-  | { type: StoreCountSegmentedDayType; segment: string };
+  | { type: StoreCountDayType; market_id?: never; segment?: never }
+  | { type: StoreCountSegmentedDayType; market_id?: never; segment: string }
+  | { type: StoreCountMarketDayType; market_id: string; segment: string };
 
 export interface GetStoreCountReportParams {
   store_id: string;
@@ -89,6 +105,7 @@ export interface GetStoreCountReportParams {
 
 export interface StoreCountTotal {
   type: StoreCountReportType;
+  market_id: string | null;
   segment: string | null;
   value: number;
 }
@@ -103,7 +120,8 @@ export type StoreCountOtherValue =
   | { type: "money"; currencies: StoreCountCurrencyValue[] };
 
 export interface StoreCountBreakdown {
-  type: StoreCountSegmentedDayType;
+  type: StoreCountSegmentedDayType | StoreCountMarketDayType;
+  market_id: string | null;
   segments: StoreCountSegment[];
   other_segments: number;
   other_value: StoreCountOtherValue;
@@ -115,7 +133,8 @@ export interface StoreCountPoint {
 }
 
 export interface StoreCountSeries {
-  type: StoreCountDayType | StoreCountSegmentedDayType;
+  type: StoreCountDayType | StoreCountSegmentedDayType | StoreCountMarketDayType;
+  market_id: string | null;
   segment: string | null;
   points: StoreCountPoint[];
 }

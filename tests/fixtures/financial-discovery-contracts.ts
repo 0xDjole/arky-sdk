@@ -1,9 +1,11 @@
 import { createAdmin, createStorefront } from "arky-sdk";
 import type {
   CreatePaymentRefundParams,
+  FindOrderFinancialSummariesParams,
   FindPaymentsParams,
   OrderFinancialConcern,
   OrderFinancialSummary,
+  OrderFinancialSummaryOfOrder,
   Payment,
   PaymentHold,
   PaymentHoldReason,
@@ -165,6 +167,22 @@ export type FinancialContracts = [
       OrderFinancialSummary
     >
   >,
+  Assert<
+    Equal<
+      Parameters<Admin["eshop"]["order"]["findFinancialSummaries"]>[0],
+      FindOrderFinancialSummariesParams
+    >
+  >,
+  Assert<Equal<keyof FindOrderFinancialSummariesParams, "store_id" | "order_ids">>,
+  Assert<Equal<FindOrderFinancialSummariesParams["order_ids"], string[]>>,
+  Assert<
+    Equal<
+      Awaited<ReturnType<Admin["eshop"]["order"]["findFinancialSummaries"]>>,
+      OrderFinancialSummaryOfOrder[]
+    >
+  >,
+  Assert<Equal<keyof OrderFinancialSummaryOfOrder, "order_id" | "summary">>,
+  Assert<Equal<OrderFinancialSummaryOfOrder["summary"], OrderFinancialSummary>>,
   Assert<
     Equal<
       OrderFinancialConcern["type"],

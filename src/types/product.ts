@@ -96,7 +96,6 @@ export interface BookingService {
   slot_interval_minutes: number;
   booking_window: BookingWindow;
   customer_changes: BookingCustomerChanges;
-  reminder_offsets_minutes: number[];
   tax_category_id: string;
 }
 
@@ -150,6 +149,7 @@ export interface BookingOffering {
   booking_service_id: string;
   booking_resource_id: string;
   venue: BookingVenue;
+  max_per_day: number | null;
   status: BookingOfferingStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
@@ -164,11 +164,16 @@ export type BookingResourceStatus =
 
 export type BookingResourceEditableStatus = Exclude<BookingResourceStatus, { type: "deleting" }>;
 
+export type BookingResourceType = { type: "staff"; store_membership_id: string } | { type: "equipment" };
+
+export type StorefrontBookingResourceType = { type: "staff" } | { type: "equipment" };
+
 export interface BookingResource {
   id: string;
   store_id: string;
   key: string;
   slugs: Record<string, string>;
+  type: BookingResourceType;
   blocks: Block[];
   categories: CategoryEntry[];
   timezone: string;
@@ -220,7 +225,21 @@ export type StorefrontBookingService = BookingService & { package_item_id: strin
 
 export type StorefrontBookingOffering = BookingOffering & { package_item_id: string; price: StorefrontPrice | null };
 
-export type StorefrontBookingResource = BookingResource;
+export interface StorefrontBookingResource {
+  id: string;
+  store_id: string;
+  key: string;
+  slugs: Record<string, string>;
+  type: StorefrontBookingResourceType;
+  blocks: Block[];
+  categories: CategoryEntry[];
+  timezone: string;
+  capacity: number;
+  status: BookingResourceStatus;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+  hours: BookingHours;
+}
 
 export interface AvailabilitySlot {
   from: EpochMilliseconds;
@@ -409,7 +428,6 @@ export interface CreateBookingServiceParams {
   slot_interval_minutes: number;
   booking_window: BookingWindow;
   customer_changes: BookingCustomerChanges;
-  reminder_offsets_minutes: number[];
   tax_category_id: string;
 }
 
@@ -428,7 +446,6 @@ export interface UpdateBookingServiceParams {
   slot_interval_minutes?: number;
   booking_window?: BookingWindow;
   customer_changes?: BookingCustomerChanges;
-  reminder_offsets_minutes?: number[];
   tax_category_id?: string;
 }
 
@@ -467,6 +484,7 @@ export interface CreateBookingResourceParams {
   id: string;
   key: string;
   slugs: Record<string, string>;
+  type: BookingResourceType;
   blocks: Block[];
   categories: CategoryEntry[];
   timezone: string;
@@ -481,6 +499,7 @@ export interface UpdateBookingResourceParams {
   expected_updated_at: EpochMilliseconds;
   key?: string;
   slugs?: Record<string, string>;
+  type?: BookingResourceType;
   blocks?: Block[];
   categories?: CategoryEntry[];
   timezone?: string;
@@ -501,6 +520,7 @@ export interface CreateBookingOfferingParams {
   booking_service_id: string;
   booking_resource_id: string;
   venue: BookingVenue;
+  max_per_day?: number | null;
   status: BookingOfferingEditableStatus;
   hours: BookingOfferingHours;
 }
@@ -510,6 +530,7 @@ export interface UpdateBookingOfferingParams {
   id: string;
   expected_updated_at: EpochMilliseconds;
   venue?: BookingVenue;
+  max_per_day?: number | null;
   status?: BookingOfferingEditableStatus;
   hours?: BookingOfferingHours;
 }

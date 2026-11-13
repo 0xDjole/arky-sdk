@@ -2,10 +2,10 @@ import { ArkyApiError } from "arky-sdk/storefront";
 import { arky } from "./setup.js";
 
 arky.session.subscribe((session) => {
-  console.log(session?.type === "email_authenticated" ? `signed in as ${session.customer.id}` : "visitor");
+  console.log(session?.type === "logged_in" ? `signed in as ${session.customer.id}` : "visitor");
 });
 
-await arky.customer.requestCode({ contact: { email: "ana@example.com", language: "en" } });
+await arky.customer.requestCode({ contact: { type: "email", email: "ana@example.com", language: "en" } });
 
 const signedIn = await arky.customer.verify({ code: "123456" }).then(
   () => true,

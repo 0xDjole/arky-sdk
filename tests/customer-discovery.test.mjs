@@ -44,3 +44,21 @@ test('Customer exact-ID batches preserve request order without adding discovery 
   assert.deepEqual(JSON.parse(request.searchParams.get('ids')), ['second', 'first']);
   for (const field of ['store_id', 'query', 'sort_field', 'limit', 'cursor']) assert.equal(request.searchParams.has(field), false);
 });
+
+test('A customer list row names each phone login SMS choice, so a list needs no login read per customer', async context => {
+  const logins = [
+    { id: 'phone-yes', status: 'unverified', address: { type: 'phone', number: '+38761111111', sms: 'on' } },
+    { id: 'phone-no', status: 'verified', address: { type: 'phone', number: '+38761222222', sms: 'off' } },
+    { id: 'mail', status: 'invited', address: { type: 'email', email: 'ana@example.test' } },
+  ];
+  const response = {
+    items: [{ customer: { id: 'patient' }, logins, has_cart: false, has_customer_action: false, has_order: false, latest_order_contact: null }],
+    cursor: null,
+  };
+  context.mock.method(globalThis, 'fetch', async () =>
+    new Response(JSON.stringify(response), { headers: { 'content-type': 'application/json' } }));
+  const api = createAdmin({ apiUrl: 'https://customers.test', accountToken: 'arky_at_ttttttttttttttttttttttttttttttttttttttttttA' }).customers;
+  const page = await api.find({ store_id: STORE_ID });
+  assert.deepEqual(page.items[0].logins, logins);
+  assert.deepEqual(page.items[0].logins.map((login) => login.address.type === 'phone' ? login.address.sms : null), ['on', 'off', null]);
+});

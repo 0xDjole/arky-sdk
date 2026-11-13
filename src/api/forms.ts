@@ -135,8 +135,8 @@ export const createFormsApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    deleteSubmission(params: DeleteFormSubmissionParams, options?: RequestOptions): Promise<DeletedResponse> {
-      return apiConfig.httpClient.delete<DeletedResponse>(submissionPath(params.store_id, params.form_id, params.id), {
+    deleteSubmission(params: DeleteFormSubmissionParams, options?: RequestOptions): Promise<{ deleted: true }> {
+      return apiConfig.httpClient.delete<{ deleted: true }>(submissionPath(params.store_id, params.form_id, params.id), {
         ...options,
         params: { expected_updated_at: params.expected_updated_at },
       });

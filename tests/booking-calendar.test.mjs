@@ -65,7 +65,6 @@ function bookingService() {
     slot_interval_minutes: 1440,
     booking_window: { opens_before_start_minutes: null, closes_before_start_minutes: 0 },
     customer_changes: { type: "not_allowed" },
-    reminder_offsets_minutes: [],
     tax_category_id: ids.paymentOption,
     status: { type: "active" },
     created_at: 1,

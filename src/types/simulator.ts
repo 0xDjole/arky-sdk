@@ -95,6 +95,37 @@ export interface FindSimulatedEmailsParams {
   cursor?: string | null;
 }
 
+export interface SimulatedSms {
+  id: string;
+  from: string;
+  to: string;
+  body: string;
+  status: string;
+  error_code: string | null;
+  created_at: EpochMilliseconds;
+}
+
+export interface FindSimulatedSmsParams {
+  store_id: string;
+  to?: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface SimulatedCall {
+  id: string;
+  from: string | null;
+  to: string;
+  status: string;
+  created_at: EpochMilliseconds;
+}
+
+export interface StartSimulatedCallParams {
+  store_id: string;
+  to: string;
+  from: string | null;
+}
+
 export type CreateSimulatorPlannedOutcomeParams = SimulatorPlannedOperation & {
   store_id: string;
   id: string;

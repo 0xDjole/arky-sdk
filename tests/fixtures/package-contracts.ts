@@ -80,7 +80,7 @@ export type PackageContracts = [
   AssertFalse<"deleting" extends CreatePackageParams["status"]["type"] ? true : false>,
   AssertTrue<"deleting" extends Package["status"]["type"] ? true : false>,
   AssertTrue<Same<PackageItem["type"], PackageItemType>>,
-  AssertTrue<Same<PackageItemType["type"], "product" | "booking_service" | "package" | "get_product" | "rent_product">>,
+  AssertTrue<Same<PackageItemType["type"], "product" | "booking_service" | "package" | "get_product" | "rent_product" | "booking_sessions">>,
   AssertTrue<Same<Extract<PackageItemType, { type: "product" }>, { type: "product"; market_id: string; product_id: string; prices: PackageProductPrice[] }>>,
   AssertTrue<Same<Extract<PackageItemType, { type: "booking_service" }>, { type: "booking_service"; market_id: string; booking_service_id: string; prices: PackageBookingPrice[] }>>,
   AssertTrue<Same<Extract<PackageItemType, { type: "package" }>, { type: "package"; market_id: string; package_id: string; price: PackageItemPriceEntry }>>,

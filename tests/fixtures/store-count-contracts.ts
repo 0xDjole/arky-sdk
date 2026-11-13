@@ -1,7 +1,9 @@
 import type { createAdmin } from "arky-sdk/admin";
 import type {
   Currency,
+  StoreCountBookingOutcome,
   StoreCountBreakdown,
+  StoreCountBreakdownRead,
   StoreCountOtherValue,
   GetStoreCountReportParams,
   GetStoreStatusCountsParams,
@@ -33,7 +35,7 @@ export type StoreCountContracts = [
     >
   >,
   Assert<Equal<StoreStatusCountSegments["open_shipments_by_type"], "fulfillment_job" | "fulfillment">>,
-  Assert<Equal<StoreStatusCountSegments["conversations_by_status"], "flow" | "waiting_for_team" | "resolved">>,
+  Assert<Equal<StoreStatusCountSegments["conversations_by_status"], "flow" | "waiting_for_store" | "resolved">>,
   Assert<Equal<Segment<"conversations_by_status">, StoreStatusCountSegments["conversations_by_status"]>>,
   Assert<Equal<Segment<"open_recurring_members_by_status">, StoreStatusCountSegments["open_recurring_members_by_status"]>>,
   Assert<Equal<Segment<"open_rentals_by_status">, StoreStatusCountSegments["open_rentals_by_status"]>>,
@@ -47,6 +49,22 @@ export type StoreCountContracts = [
   Assert<Accepts<StoreCountTotal["type"], "booked_slots_day">>,
   Assert<Equal<Accepts<StoreStatusCountType, "booked_slots_day">, false>>,
   Assert<Equal<Accepts<StoreCountReportType, "open_payments_by_type">, false>>,
+  Assert<Equal<StoreCountBookingOutcome, "attended" | "no_show" | "cancelled">>,
+  Assert<Accepts<StoreCountReportType, "booked_minutes_by_resource_day">>,
+  Assert<Accepts<StoreCountReportType, "booking_lines_by_status_day">>,
+  Assert<Accepts<StoreCountReportType, "bookings_by_sales_channel_day">>,
+  Assert<Accepts<StoreCountReportType, "paid_value_by_location_day">>,
+  Assert<Accepts<StoreCountReportType, "messages_sent_by_notification_day">>,
+  Assert<Accepts<StoreCountTotalRead, { type: "booking_lines_by_status_day"; segment: string }>>,
+  Assert<Accepts<StoreCountTotalRead, { type: "paid_value_by_location_day"; market_id: string; segment: string }>>,
+  Assert<Equal<Accepts<StoreCountTotalRead, { type: "paid_value_by_location_day"; segment: string }>, false>>,
+  Assert<Equal<Accepts<StoreCountTotalRead, { type: "booked_minutes_by_resource_day"; market_id: string; segment: string }>, false>>,
+  Assert<Accepts<StoreCountBreakdownRead, { type: "messages_sent_by_notification_day"; limit: number }>>,
+  Assert<Accepts<StoreCountBreakdownRead, { type: "paid_value_by_location_day"; market_id: string }>>,
+  Assert<Equal<Accepts<StoreCountBreakdownRead, { type: "paid_value_by_location_day" }>, false>>,
+  Assert<Accepts<StoreCountSeriesRead, { type: "paid_value_by_location_day"; market_id: string; segment: string }>>,
+  Assert<Equal<StoreCountTotal["market_id"], string | null>>,
+  Assert<Equal<StoreCountBreakdown["market_id"], string | null>>,
   Assert<Equal<Parameters<Admin["counts"]["getStatuses"]>[0], GetStoreStatusCountsParams>>,
   Assert<Equal<Parameters<Admin["counts"]["getReport"]>[0], GetStoreCountReportParams>>,
 ];
@@ -66,4 +84,18 @@ export const upcomingBookings: GetStoreCountReportParams = {
   from: "2026-10-17",
   to: "2027-10-16",
   totals: [{ type: "booked_slots_day" }],
+};
+
+export const deskReport: GetStoreCountReportParams = {
+  store_id: "6d2b8f41-3a75-4c09-9e1d-7b5c2a8f0e36",
+  from: "2026-10-01",
+  to: "2026-10-31",
+  totals: [
+    { type: "booking_lines_by_status_day", segment: "no_show" },
+    { type: "paid_value_by_location_day", market_id: "1c8e4a97-5d23-4f60-b9a1-3e7d5c0b2f84", segment: "3f9d2c71-6b84-4e05-a1d3-9c7e5b2a0f68" },
+  ],
+  breakdowns: [
+    { type: "booked_minutes_by_resource_day" },
+    { type: "paid_value_by_location_day", market_id: "1c8e4a97-5d23-4f60-b9a1-3e7d5c0b2f84", limit: 5 },
+  ],
 };

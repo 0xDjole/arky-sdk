@@ -7,6 +7,7 @@ import { MemoryStorage, QueuedLockManager } from './helpers/durable-request-fixt
 const STORE_ID = 'a4219f3b-50b1-4a78-902b-d7264ae027a9';
 const SESSION_ID = '5d0c8a3e-7b21-4f64-9a1e-3c2b8d7e6f50';
 const OTHER_SESSION_ID = '0b8e4d27-5f13-4a69-9c2e-7d1a6f3b8e40';
+const NETWORK_ID = '6a2d9f41-3c87-4b15-8e60-2f9b4d7c1a53';
 
 function issued(now, issuedCount, id = SESSION_ID) {
   return {
@@ -194,10 +195,10 @@ test('a rejected refresh cannot clear a different Account login completed while 
     return Response.json(issued(now, verifies, verifies === 1 ? SESSION_ID : OTHER_SESSION_ID));
   });
   const admin = createAdmin({ apiUrl: 'https://api.refresh-race.test' });
-  await admin.account.auth.verify({ session_id: SESSION_ID, code: '123456' });
+  await admin.account.auth.verify({ session_id: SESSION_ID, network_id: NETWORK_ID, code: '123456' });
   const refresh = assert.rejects(admin.account.auth.refresh({ refresh_token: 'refresh-1' }));
   await started;
-  await admin.account.auth.verify({ session_id: OTHER_SESSION_ID, code: '654321' });
+  await admin.account.auth.verify({ session_id: OTHER_SESSION_ID, network_id: NETWORK_ID, code: '654321' });
   refuseRefresh(Response.json({ message: 'Unauthorized', error: 'GENERAL.UNAUTHORIZED', status_code: 403 }, { status: 403 }));
   await refresh;
   assert.equal(admin.session.id, OTHER_SESSION_ID);

@@ -56,15 +56,19 @@ function refreshedSession(now) {
 
 function customerSession(instant) {
   return {
-    version: 4,
+    version: 5,
     customer: {
       id: "customer-time",
       store_id: storeId,
-      type: { type: "anonymous" },
+      name: null,
+      addresses: [],
+      default_shipping_address_id: null,
+      default_billing_address_id: null,
       profile: [],
       created_at: instant,
       updated_at: instant,
     },
+    login: null,
     session: {
       id: "session-time",
       customer_id: "customer-time",
@@ -86,7 +90,7 @@ function customerKey() {
       removeItem() {},
     },
   });
-  assert.match(key, /^arky_customer_session:v4:/);
+  assert.match(key, /^arky_customer_session:v5:/);
   return key;
 }
 
@@ -95,7 +99,7 @@ test("auth cutover ignores old-unit namespaces without changing durable effect r
   browserStorage(context, storage);
   storage.seed("arky_admin_session", JSON.stringify(adminSession()));
   storage.seed("arky_admin_session:v2", JSON.stringify({ version: 2, session: adminSession() }));
-  storage.seed(customerKey().replace(":v4:", ":v2:"), JSON.stringify({ ...customerSession(1_700_000_000), version: 2 }));
+  storage.seed(customerKey().replace(":v5:", ":v4:"), JSON.stringify({ ...customerSession(1_700_000_000), version: 4 }));
   const durableKey = "arky:cart-checkout:v5:pending-request";
   storage.seed(durableKey, JSON.stringify({ requestId: "frozen-id", payload: { amount: 200 } }));
   const before = [...storage.values];
@@ -128,7 +132,7 @@ test("new auth storage rejects wrong envelopes and non-integer or unsafe instant
     storage.seed(key, JSON.stringify(customerSession(instant)));
     assert.equal(createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: storage }).session, null);
   }
-  for (const version of [undefined, 1, 2, 3, 5]) {
+  for (const version of [undefined, 1, 2, 3, 4]) {
     storage.seed(adminKey, JSON.stringify({ version, session: adminSession() }));
     storage.seed(key, JSON.stringify({ ...customerSession(knownInstant), version }));
     assert.equal(createAdmin({ apiUrl: apiUrl }).session, null);

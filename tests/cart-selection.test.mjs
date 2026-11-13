@@ -375,7 +375,7 @@ test("a visitor who signs in as an existing customer lands on the cart the serve
       return cart;
     }
     if (call.path === "/v1/storefront/customer/request-code") {
-      return { customer: sessionResult().customer, session: { id: ids.session, customer_id: ids.customer }, email_verification: { issued_at: 1, expires_at: 2 } };
+      return { customer: sessionResult().customer, session: { id: ids.session, customer_id: ids.customer }, code: { issued_at: 1, expires_at: 2 } };
     }
     if (call.path === "/v1/storefront/customer/verify") {
       store.records.set(ids.cart, { ...store.records.get(ids.cart), status: { type: "merged", target_cart_id: ids.otherCart } });
@@ -391,7 +391,7 @@ test("a visitor who signs in as an existing customer lands on the cart the serve
   const storefront = client(storage);
   await storefront.eshop.cart.create({ id: ids.cart, buyer: customerBuyer, package_id: ids.package });
   await storefront.eshop.cart.addProduct({ id: ids.cart, expected_updated_at: 1, product: { id: ids.line, variant_id: ids.variant, quantity: 1, price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price } } });
-  await storefront.customer.requestCode({ id: ids.form, contact: { email: "buyer@example.test", language: "en" } });
+  await storefront.customer.requestCode({ id: ids.form, contact: { type: "email", email: "buyer@example.test", language: "en" } });
   await storefront.customer.verify({ code: "123456" });
   assert.equal(storefront.session.customer.id, ids.otherCustomer);
   const signInLinks = storage.keys("arky:cart-sign-in:v1:");

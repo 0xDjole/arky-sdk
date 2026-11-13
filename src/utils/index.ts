@@ -35,6 +35,8 @@ export type { DurableRequest, DurableRequestErrorCode } from "./durableRequest";
 export { discardPendingMediaCreate, readPendingMediaCreate } from "./durableMediaCreate";
 
 export { paginate, readAllPages } from "./paginate";
+export { secondFactorOtpauthUrl } from "./secondFactor";
+export type { SecondFactorOtpauthParams } from "./secondFactor";
 export type { PageRead, PaginateOptions } from "./paginate";
 export { latestPayment, paymentOutcome } from "./paymentOutcome";
 export type { PaymentOutcome } from "./paymentOutcome";

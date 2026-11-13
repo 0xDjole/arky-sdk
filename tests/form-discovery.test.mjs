@@ -22,6 +22,7 @@ const intake = {
   id: FORM_ID,
   store_id: STORE_ID,
   key: "intake",
+  type: "private",
   questions: [
     { id: "q-answer", key: "answer", type: "text", required: true, label: { type: "shown", text: { en: "Answer" } }, min_length: null, max_length: null, pattern: null },
     { id: "q-topic", key: "topic", type: "select_one", required: false, label: { type: "hidden" }, options: [{ key: "sales", label: { en: "Sales" } }] },
@@ -58,7 +59,7 @@ test("Form discovery keeps native filters, nullable continuations and exact id b
 test("Form writes carry the app-picked id, typed questions and stages, and the version", async (context) => {
   const calls = recordFetch(context, (call) => call.method === "DELETE" ? { deleted: true } : intake);
   const api = admin().forms;
-  const create = { id: FORM_ID, key: "intake", questions: intake.questions, stages: intake.stages };
+  const create = { id: FORM_ID, key: "intake", type: "private", questions: intake.questions, stages: intake.stages };
   assert.deepEqual(await api.create({ store_id: STORE_ID, ...create }), intake);
   await api.update({ store_id: STORE_ID, id: FORM_ID, expected_updated_at: 1, status: { type: "closed" } });
   await api.get({ store_id: STORE_ID, id: FORM_ID });
@@ -79,15 +80,19 @@ test("submission discovery reads every form or one form and sends the select fil
   const calls = recordFetch(context, () => ({ items: [], cursor: null }));
   const api = admin().forms;
   const select = [{ question_id: "q-topic", option_keys: ["sales"] }];
-  const filters = { form_ids: [FORM_ID], customer_id: ids.customer, stage_id: "new", select, query: "answer", sort_field: "created_at", sort_direction: "asc", limit: 1, created_at_from: 0, cursor: "sub:+/=" };
+  const filters = { form_ids: [FORM_ID], customer_id: ids.customer, stage: "new", select, query: "answer", sort_field: "created_at", sort_direction: "asc", limit: 1, created_at_from: 0, cursor: "sub:+/=" };
   await api.findSubmissions({ store_id: STORE_ID, ...filters });
   await api.findSubmissions({ store_id: STORE_ID, form_id: FORM_ID, select });
+  await api.findSubmissions({ store_id: STORE_ID, form_id: FORM_ID, stage: "none" });
   assert.equal(calls[0].path, `/v1/stores/${STORE_ID}/forms/submissions`);
   assert.deepEqual(JSON.parse(calls[0].query.form_ids), [FORM_ID]);
   assert.deepEqual(JSON.parse(calls[0].query.select), select);
   assert.equal(calls[0].query.customer_id, ids.customer);
   assert.equal(calls[0].query.cursor, "sub:+/=");
   assert.equal(calls[0].query.created_at_from, "0");
+  assert.equal(calls[0].query.stage, "new");
+  assert.equal("stage_id" in calls[0].query, false);
+  assert.deepEqual(calls[2].query, { stage: "none" });
   for (const removed of ["company_id", "assignee_account_id"]) assert.equal(removed in calls[0].query, false, removed);
   assert.equal(calls[1].path, `/v1/stores/${STORE_ID}/forms/${FORM_ID}/submissions`);
   assert.deepEqual(Object.keys(calls[1].query), ["select"]);
@@ -161,7 +166,7 @@ test("staff submission work uses exact stage, file, note and deletion routes and
     ],
   });
   const noteId = "9d1f3b5c-7e8a-4c2e-b4d6-8f0a2c4e6b7d";
-  await api.changeSubmissionStage({ store_id: STORE_ID, form_id: FORM_ID, id: SUBMISSION_ID, expected_stage_id: "new", expected_changed_at: 5, to_stage_id: "won", note: { id: noteId, body: "Signed" } });
+  await api.changeSubmissionStage({ store_id: STORE_ID, form_id: FORM_ID, id: SUBMISSION_ID, expected_stage: { type: "at", stage_id: "new", changed_at: 5 }, to_stage_id: "won", note: { id: noteId, body: "Signed" } });
   await api.getSubmissionFile({ store_id: STORE_ID, form_id: FORM_ID, id: SUBMISSION_ID, sha256: "c".repeat(64) });
   await api.notes.create({ store_id: STORE_ID, form_id: FORM_ID, form_submission_id: SUBMISSION_ID, id: noteId, body: "Called back" });
   await api.notes.find({ store_id: STORE_ID, form_id: FORM_ID, form_submission_id: SUBMISSION_ID, limit: 20 });
@@ -187,9 +192,9 @@ test("staff submission work uses exact stage, file, note and deletion routes and
   const part = calls[0].body.get("file-0");
   assert.equal(part.name, "brief.pdf");
   assert.equal(await part.text(), "%PDF");
-  assert.deepEqual(calls[1].body, { expected_stage_id: "new", expected_changed_at: 5, to_stage_id: "won", note: { id: noteId, body: "Signed" } });
+  assert.deepEqual(calls[1].body, { expected_stage: { type: "at", stage_id: "new", changed_at: 5 }, to_stage_id: "won", note: { id: noteId, body: "Signed" } });
   assert.deepEqual(calls[3].body, { id: noteId, body: "Called back" });
-  await assert.rejects(async () => api.changeSubmissionStage({ store_id: STORE_ID, form_id: FORM_ID, id: SUBMISSION_ID, expected_stage_id: "new", expected_changed_at: 5, to_stage_id: "won", note: { id: "note-1", body: "x" } }), TypeError);
+  await assert.rejects(async () => api.changeSubmissionStage({ store_id: STORE_ID, form_id: FORM_ID, id: SUBMISSION_ID, expected_stage: { type: "none" }, to_stage_id: "won", note: { id: "note-1", body: "x" } }), TypeError);
   await assert.rejects(async () => api.createSubmission({ store_id: STORE_ID, form_id: FORM_ID, id: "submission-1", customer_id: ids.customer, language: "en", answers: [] }), TypeError);
   await assert.rejects(async () => api.notes.create({ store_id: STORE_ID, form_id: FORM_ID, form_submission_id: SUBMISSION_ID, id: "note-1", body: "x" }), TypeError);
   assert.equal(calls.length, 6);
@@ -197,7 +202,7 @@ test("staff submission work uses exact stage, file, note and deletion routes and
 
 test("form emails name the received, stage and new-submission alert selections and the alert recipients", async (context) => {
   const roleId = "5b7e2c94-1d38-4f60-a9e5-3c8d0f2b6a17";
-  const selection = (email_template_id) => ({ email_template_id, sending_address_id: "4b6d8f0a-2e3a-4b7d-9f1c-3e5a7b9d1f2a", from_name: "Shop", reply_to: { type: "address", email_address_id: "8e0a2c4e-6b7d-4f9a-b1c3-5d7f9b1d3f5a" } });
+  const selection = (email_template_id) => ({ email_template_id, email_address_id: "4b6d8f0a-2e3a-4b7d-9f1c-3e5a7b9d1f2a", from_name: "Shop", reply_to_address_id: "8e0a2c4e-6b7d-4f9a-b1c3-5d7f9b1d3f5a" });
   const emails = {
     received: selection("3a5c7e9b-1d2f-4a6c-8e0b-2d4f6a8c0e1f"),
     stage_changed: { won: selection("9c1e3a5b-7d2f-4b6a-8c0e-2a4c6e8a0b1d") },
@@ -355,4 +360,16 @@ test("an_emoji_answer_at_the_limit_passes", () => {
     () => buildFormAnswers({ questions: [textQuestion({ min_length: 3 })] }, { name: "🍕🍕" }),
     (error) => error instanceof FormAnswerError && error.code === "too_short",
   );
+});
+
+test("a submission delete that finds no submission, deleted or another store's, rejects with the Server's 404", async (context) => {
+  const calls = recordFetch(context, () => errorResponse(404, "FORM_SUBMISSION.NOT_FOUND", `Form submission ${SUBMISSION_ID} was not found`));
+  const api = admin().forms;
+  await assert.rejects(
+    api.deleteSubmission({ store_id: STORE_ID, form_id: FORM_ID, id: SUBMISSION_ID, expected_updated_at: 7 }),
+    (error) => error.statusCode === 404 && error.code === "FORM_SUBMISSION.NOT_FOUND",
+  );
+  assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
+    ["DELETE", `/v1/stores/${STORE_ID}/forms/${FORM_ID}/submissions/${SUBMISSION_ID}`, { expected_updated_at: "7" }],
+  ]);
 });

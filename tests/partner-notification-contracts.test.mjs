@@ -54,20 +54,20 @@ test("notification history and a template preview send only their own fields, an
   const calls = recordFetch(context, (call) => call.method === "GET" ? { items: [], cursor: "opaque:+/=" } : { id: notificationId });
   const api = admin().notification;
   const signal = new AbortController().signal;
-  await api.outgoingEmail.find({ store_id: storeId, to: "buyer@example.test", type: "receipt_resend", order_id: ids.order, limit: 25, cursor: "opaque:+/=" }, { signal, headers: { "x-request-trace": "delivery-contract" } });
-  await api.outgoingEmail.find({ store_id: storeId, type: "broadcast_email", broadcast_id: ids.form });
-  await api.outgoingEmail.get({ store_id: storeId, id: notificationId });
-  const content = { subject: "Narudžba {{order.number}}", preheader: null, html: "<p>{{order.number}}</p>", text: "{{order.number}}" };
+  await api.outgoingMessage.find({ store_id: storeId, to: "buyer@example.test", type: "receipt_resend_email", order_id: ids.order, limit: 25, cursor: "opaque:+/=" }, { signal, headers: { "x-request-trace": "delivery-contract" } });
+  await api.outgoingMessage.find({ store_id: storeId, type: "broadcast_sms", broadcast_id: ids.form });
+  await api.outgoingMessage.get({ store_id: storeId, id: notificationId });
+  const content = { type: "email", content: { subject: "Narudžba {{order.number}}", preheader: null, html: "<p>{{order.number}}</p>", text: "{{order.number}}" } };
   await api.template.preview({ store_id: storeId, id: templateId, language: "bs", content });
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
-    ["GET", `/v1/stores/${storeId}/outgoing-emails`, { to: "buyer@example.test", type: "receipt_resend", order_id: ids.order, limit: "25", cursor: "opaque:+/=" }, null],
-    ["GET", `/v1/stores/${storeId}/outgoing-emails`, { type: "broadcast_email", broadcast_id: ids.form }, null],
-    ["GET", `/v1/stores/${storeId}/outgoing-emails/${notificationId}`, {}, null],
+    ["GET", `/v1/stores/${storeId}/outgoing-messages`, { to: "buyer@example.test", type: "receipt_resend_email", order_id: ids.order, limit: "25", cursor: "opaque:+/=" }, null],
+    ["GET", `/v1/stores/${storeId}/outgoing-messages`, { type: "broadcast_sms", broadcast_id: ids.form }, null],
+    ["GET", `/v1/stores/${storeId}/outgoing-messages/${notificationId}`, {}, null],
     ["POST", `/v1/stores/${storeId}/email-templates/${templateId}/preview`, {}, { language: "bs", content }],
   ]);
   assert.equal(calls[0].signal, signal);
   assert.equal(calls[0].headers.get("x-request-trace"), "delivery-contract");
-  for (const removed of ["save", "delivery", "preview", "stop", "cancel"]) assert.equal(removed in api, false, removed);
+  for (const removed of ["save", "delivery", "preview", "stop", "cancel", "outgoingEmail"]) assert.equal(removed in api, false, removed);
 });
 
 test("minimum progress is read for exactly one customer, company or company location by staff and by the buyer", async (context) => {
@@ -90,4 +90,17 @@ test("minimum progress is read for exactly one customer, company or company loca
   for (const call of calls.slice(3)) assert.equal(call.headers.get("authorization"), `Bearer ${visitorToken}`);
   assert.equal("minimumProgress" in admin().companies, false);
   assert.equal("minimumProgress" in shop.companies, false);
+});
+
+test("staff send one booking line's reminder at once by naming the reminder notification", async (context) => {
+  const answered = { type: "sent", outgoing_message_ids: [notificationId] };
+  const calls = recordFetch(context, () => answered);
+  const api = admin().notification.notification;
+  assert.deepEqual(
+    await api.sendBookingReminder({ store_id: storeId, order_id: ids.order, order_booking_item_id: "line/one", notification_id: notificationId }),
+    answered,
+  );
+  assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
+    ["POST", `/v1/stores/${storeId}/orders/${ids.order}/booking-items/line%2Fone/reminder`, {}, { notification_id: notificationId }],
+  ]);
 });

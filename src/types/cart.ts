@@ -27,6 +27,7 @@ import type {
   PackageStart,
 } from "./packageMember";
 import type {
+  BookingLineSession,
   LineDiscount,
   LineMoney,
   OrderBookingSnapshot,
@@ -55,7 +56,8 @@ export type CartStatus =
 export type CartOrigin =
   | { type: "storefront"; customer_session_id: string }
   | { type: "reorder"; customer_session_id: string; order_id: string }
-  | { type: "account"; actor: AccountActor };
+  | { type: "account"; actor: AccountActor }
+  | { type: "assistant"; conversation_message_id: string };
 
 export interface CartProductLineItem {
   id: string;
@@ -65,13 +67,17 @@ export interface CartProductLineItem {
   price: PackagePriceRef;
 }
 
+export type CartBookingLineType = { type: "main" } | { type: "extra"; main_line_id: string };
+
 export interface CartBookingLineItem {
   id: string;
+  booking_type: CartBookingLineType;
   booking_offering_id: string;
   requested_interval: TimeRange;
   capacity_units: number;
   form_submission_id: string | null;
   price: PackagePriceRef;
+  session: BookingLineSession | null;
 }
 
 export type CartDeliveryDestination =
@@ -188,7 +194,8 @@ export interface ReorderedCart {
 export type StorefrontCartOrigin =
   | { type: "storefront" }
   | { type: "reorder"; order_id: string }
-  | { type: "account" };
+  | { type: "account" }
+  | { type: "assistant" };
 
 export type StorefrontPackageStart =
   | { type: "on_acceptance" }
@@ -275,11 +282,13 @@ export interface CartProductLineItemInput {
 
 export interface CartBookingLineItemInput {
   id: string;
+  booking_type?: CartBookingLineType;
   booking_offering_id: string;
   requested_interval: TimeRange;
   capacity_units: number;
   form_submission_id?: string | null;
   price: PackagePriceRef;
+  session?: BookingLineSession | null;
 }
 
 export interface CartPackageLineItemInput {
@@ -363,10 +372,12 @@ export interface QuoteProductLine {
 
 export type QuoteBookingAvailability =
   | { type: "available"; spots: number }
+  | { type: "history" }
   | { type: "unavailable"; code: string };
 
 export interface QuoteBookingLine {
   line_item_id: string;
+  booking_type: CartBookingLineType;
   booking_offering_id: string;
   booking_service_id: string;
   booking_resource_id: string;
@@ -374,10 +385,10 @@ export interface QuoteBookingLine {
   capacity_intervals: TimeRange[];
   capacity_units: number;
   form_submission_id: string | null;
-  reminder_offsets_minutes: number[];
   snapshot: OrderBookingSnapshot;
   money: QuoteMoney;
   availability: QuoteBookingAvailability;
+  session: BookingLineSession | null;
 }
 
 export type QuotePackageItemLine =
@@ -480,6 +491,7 @@ export type QuoteBlocker =
   | { type: "billing_address_required" }
   | { type: "shipping_required"; delivery_group_id: string }
   | { type: "booking_unavailable"; line_item_id: string; code: string }
+  | { type: "booking_session"; line_item_id: string; code: string }
   | { type: "tax_unavailable"; line_item_id: string; code: string }
   | { type: "delivery_unavailable"; delivery_group_id: string; code: string }
   | { type: "package_delivery_required"; line_item_id: string; package_item_id: string }

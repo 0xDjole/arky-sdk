@@ -18,6 +18,8 @@ import type { BackorderPolicy } from "./product";
 import type { ShippingDeliveryEstimate } from "./shipping";
 import type { PackagePriceRef } from "./package";
 import type { PackageOccurrence } from "./packageMember";
+import type { Invoice } from "./invoice";
+import type { StorefrontOrderCredit } from "./orderCredit";
 import type { ProductVariantMeasure } from "./product";
 import type { Block } from "./block";
 
@@ -92,7 +94,8 @@ export type OrderCancellationReason =
 
 export type OrderPaymentWait =
   | { type: "checkout"; expires_at: EpochMilliseconds }
-  | { type: "renewal" };
+  | { type: "renewal" }
+  | { type: "manual" };
 
 export type OrderLineItemStatus =
   | { type: "pending"; wait: OrderPaymentWait }
@@ -230,10 +233,34 @@ export interface OrderBookingSnapshot {
   price: OrderLinePrice;
 }
 
+export type BookingResponder =
+  | { type: "link" }
+  | { type: "customer"; customer_session_id: string }
+  | { type: "account"; actor: AccountActor }
+  | { type: "assistant"; conversation_message_id: string };
+
+export type BookingResponse =
+  | { type: "unanswered" }
+  | { type: "coming"; by: BookingResponder; at: EpochMilliseconds }
+  | { type: "change_requested"; by: BookingResponder; at: EpochMilliseconds };
+
+export type BookingAnswer = "coming" | "change_requested";
+
+export interface VisitMark {
+  by: AccountActor;
+  at: EpochMilliseconds;
+}
+
 export type OrderBookingAttendance =
-  | { type: "upcoming" }
-  | { type: "attended"; by: AccountActor; at: EpochMilliseconds }
-  | { type: "no_show"; by: AccountActor; at: EpochMilliseconds };
+  | { type: "upcoming"; response: BookingResponse }
+  | { type: "waiting"; arrived: VisitMark }
+  | { type: "in_progress"; arrived: VisitMark; started: VisitMark }
+  | { type: "attended"; arrived: VisitMark | null; started: VisitMark | null; finished: VisitMark }
+  | { type: "no_show"; marked: VisitMark };
+
+export type VisitStep = "upcoming" | "waiting" | "in_progress" | "attended" | "no_show";
+
+export type OrderBookingLineType = { type: "main" } | { type: "extra"; main_line_id: string };
 
 export type OrderBookingLineStatus =
   | { type: "pending"; wait: OrderPaymentWait }
@@ -248,6 +275,7 @@ export interface OrderBookingReschedule {
 
 export interface OrderBookingLineItem {
   id: string;
+  booking_type: OrderBookingLineType;
   booking_offering_id: string;
   booking_service_id: string;
   booking_resource_id: string;
@@ -259,8 +287,14 @@ export interface OrderBookingLineItem {
   status: OrderBookingLineStatus;
   reschedules: OrderBookingReschedule[];
   money: LineMoney;
+  session: BookingLineSession | null;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
+}
+
+export interface BookingLineSession {
+  package_member_id: string;
+  package_item_id: string;
 }
 
 export interface OrderPackageLineItem {
@@ -360,38 +394,10 @@ export interface OrderTotals {
   delivery_groups: OrderDeliveryTotals[];
 }
 
-export type OrderInvoiceType = "invoice" | "credit_note";
-
-export interface OrderInvoice {
-  id: string;
-  type: OrderInvoiceType;
-  number: string;
-  url: string;
-  created_at: EpochMilliseconds;
-}
-
-export interface AddOrderInvoiceParams {
-  store_id: string;
-  order_id: string;
-  id: string;
-  type: OrderInvoiceType;
-  number: string;
-  url: string;
-  expected_updated_at: EpochMilliseconds;
-}
-
-export interface DeleteOrderInvoiceParams {
-  store_id: string;
-  order_id: string;
-  invoice_id: string;
-  expected_updated_at: EpochMilliseconds;
-}
-
 export interface Order {
   id: string;
   blocks: Block[];
   number: string;
-  invoices: OrderInvoice[];
   store_id: string;
   source: OrderSource;
   customer_id: string;
@@ -478,10 +484,33 @@ export interface StorefrontOrderProductLineItem {
   updated_at: EpochMilliseconds;
 }
 
+export type StorefrontBookingResponse =
+  | { type: "unanswered" }
+  | { type: "coming"; at: EpochMilliseconds }
+  | { type: "change_requested"; at: EpochMilliseconds };
+
+export interface StorefrontVisitMark {
+  at: EpochMilliseconds;
+}
+
 export type StorefrontBookingAttendance =
-  | { type: "upcoming" }
-  | { type: "attended"; at: EpochMilliseconds }
-  | { type: "no_show"; at: EpochMilliseconds };
+  | { type: "upcoming"; response: StorefrontBookingResponse }
+  | { type: "waiting"; arrived: StorefrontVisitMark }
+  | { type: "in_progress"; arrived: StorefrontVisitMark; started: StorefrontVisitMark }
+  | {
+      type: "attended";
+      arrived: StorefrontVisitMark | null;
+      started: StorefrontVisitMark | null;
+      finished: StorefrontVisitMark;
+    }
+  | { type: "no_show"; marked: StorefrontVisitMark };
+
+export interface BookingAnswerResult {
+  order_id: string;
+  order_booking_item_id: string;
+  starts_at: EpochMilliseconds;
+  response: StorefrontBookingResponse;
+}
 
 export type StorefrontOrderBookingLineStatus =
   | { type: "pending"; wait: OrderPaymentWait }
@@ -495,6 +524,7 @@ export interface StorefrontBookingReschedule {
 
 export interface StorefrontOrderBookingLineItem {
   id: string;
+  booking_type: OrderBookingLineType;
   booking_offering_id: string;
   booking_service_id: string;
   booking_resource_id: string;
@@ -506,6 +536,7 @@ export interface StorefrontOrderBookingLineItem {
   status: StorefrontOrderBookingLineStatus;
   reschedules: StorefrontBookingReschedule[];
   money: LineMoney;
+  session: BookingLineSession | null;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
@@ -543,7 +574,8 @@ export interface StorefrontOrder {
   id: string;
   blocks: Block[];
   number: string;
-  invoices: OrderInvoice[];
+  invoices: Invoice[];
+  credits: StorefrontOrderCredit[];
   store_id: string;
   source: StorefrontOrderSource;
   customer_id: string;
@@ -578,7 +610,14 @@ export type OrderSourceFilter = "cart" | "renewal";
 
 export type OrderItemStatusFilter = "pending" | "confirmed" | "cancelled";
 
-export type OrderBookingStatusFilter = "pending" | "confirmed" | "attended" | "no_show" | "cancelled";
+export type OrderBookingStatusFilter =
+  | "pending"
+  | "confirmed"
+  | "waiting"
+  | "in_progress"
+  | "attended"
+  | "no_show"
+  | "cancelled";
 
 export interface FindOrdersParams {
   store_id: string;
@@ -667,6 +706,14 @@ export interface RescheduleOrderBookingItemParams {
   notify_customer: boolean;
 }
 
+export interface ResizeOrderBookingItemParams {
+  store_id: string;
+  order_id: string;
+  line_item_id: string;
+  expected_updated_at: EpochMilliseconds;
+  ends_at: EpochMilliseconds;
+}
+
 export interface CancelOrderProductItemParams {
   store_id: string;
   order_id: string;
@@ -689,6 +736,14 @@ export interface MarkOrderBookingItemParams {
   order_id: string;
   line_item_id: string;
   expected_updated_at: EpochMilliseconds;
+}
+
+export interface AnswerOrderBookingItemParams {
+  store_id: string;
+  order_id: string;
+  line_item_id: string;
+  expected_updated_at: EpochMilliseconds;
+  answer: BookingAnswer;
 }
 
 export interface ResendOrderReceiptParams {
@@ -725,6 +780,16 @@ export interface OrderFinancialSummary {
   concerns: OrderFinancialConcern[];
 }
 
+export interface FindOrderFinancialSummariesParams {
+  store_id: string;
+  order_ids: string[];
+}
+
+export interface OrderFinancialSummaryOfOrder {
+  order_id: string;
+  summary: OrderFinancialSummary;
+}
+
 export interface GetOrderPaymentParams {
   store_id: string;
   order_id: string;
@@ -759,6 +824,18 @@ export type StorefrontRescheduleOrderBookingItemParams = Omit<
   RescheduleOrderBookingItemParams,
   "store_id" | "notify_customer"
 >;
+
+export interface StorefrontAnswerOrderBookingItemParams {
+  order_id: string;
+  line_item_id: string;
+  starts_at: EpochMilliseconds;
+  answer: BookingAnswer;
+}
+
+export interface AnswerBookingByLinkParams {
+  token: string;
+  answer: BookingAnswer;
+}
 
 export interface StorefrontOrderPaymentParams {
   order_id: string;

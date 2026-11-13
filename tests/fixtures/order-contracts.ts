@@ -14,6 +14,7 @@ import type {
   ResendOrderReceiptParams,
   Actor,
   AccountActor,
+  BookingResponse,
   OnAccountApproval,
   OrderPackageLineItem,
   OrderLineItemOrigin,
@@ -74,6 +75,7 @@ export type OrderContracts = [
   Assert<Missing<OrderBookingLineItem, "attendance">>,
   Assert<RequiredField<OrderBookingLineItem, "reschedules">>,
   Assert<Equal<Extract<OrderBookingLineStatus, { type: "pending" }>["wait"], OrderPaymentWait>>,
+  Assert<Equal<OrderPaymentWait["type"], "checkout" | "renewal" | "manual">>,
   Assert<RequiredField<OrderPromotion, "activation">>,
   Assert<Equal<OrderPromotion["activation"], OrderPromotionActivation>>,
   Assert<Equal<OrderPromotionActivation, { type: "code"; promotion_code_id: string; code: string } | { type: "automatic" }>>,
@@ -95,7 +97,7 @@ export type OrderContracts = [
   Assert<Equal<OrderBuyerTax["type"], "standard" | "reverse_charge" | "exempt">>,
   Assert<Equal<Extract<OrderBuyerTax, { type: "standard" }>, { type: "standard"; registrations: OrderTaxRegistration[] }>>,
   Assert<Equal<Extract<OrderBuyerTax, { type: "exempt" }>, { type: "exempt"; reason: string; registrations: OrderTaxRegistration[] }>>,
-  Assert<Equal<Actor, { type: "customer"; customer_id: string; customer_session_id: string } | ({ type: "account" } & AccountActor)>>,
+  Assert<Equal<Actor, { type: "customer"; customer_id: string; customer_session_id: string } | ({ type: "account" } & AccountActor) | { type: "assistant"; conversation_message_id: string }>>,
   Assert<Equal<AccountActor["account_id"], string>>,
   Assert<Equal<Order["collection"], OrderCollection>>,
   Assert<Equal<OrderCollection["type"], "free" | "payment_option" | "package_member" | "on_account">>,
@@ -138,7 +140,21 @@ export type OrderContracts = [
   Assert<Missing<OrderApi, "completeBookingItem">>,
   Assert<Equal<Parameters<OrderApi["attendBookingItem"]>[0], MarkOrderBookingItemParams>>,
   Assert<Equal<Awaited<ReturnType<OrderApi["attendBookingItem"]>>, Order>>,
-  Assert<Equal<OrderBookingAttendance, { type: "upcoming" } | { type: "attended"; by: AccountActor; at: EpochMilliseconds } | { type: "no_show"; by: AccountActor; at: EpochMilliseconds }>>,
+  Assert<
+    Equal<
+      OrderBookingAttendance,
+      | { type: "upcoming"; response: BookingResponse }
+      | { type: "waiting"; arrived: { by: AccountActor; at: EpochMilliseconds } }
+      | { type: "in_progress"; arrived: { by: AccountActor; at: EpochMilliseconds }; started: { by: AccountActor; at: EpochMilliseconds } }
+      | {
+          type: "attended";
+          arrived: { by: AccountActor; at: EpochMilliseconds } | null;
+          started: { by: AccountActor; at: EpochMilliseconds } | null;
+          finished: { by: AccountActor; at: EpochMilliseconds };
+        }
+      | { type: "no_show"; marked: { by: AccountActor; at: EpochMilliseconds } }
+    >
+  >,
   Assert<Equal<OrderBookingReschedule["by"], Actor>>,
   Assert<Equal<OrderDeliveryGroup["timing"], OrderDeliveryTiming>>,
   Assert<Equal<OrderDeliveryTiming, { type: "asap" } | { type: "window"; from: EpochMilliseconds; to: EpochMilliseconds }>>,

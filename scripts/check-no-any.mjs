@@ -8,6 +8,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const sourceRoot = resolve(__dirname, "..", "src");
 const guardedPaths = [
   resolve(sourceRoot, "api"),
+  resolve(sourceRoot, "react"),
   resolve(sourceRoot, "storefrontStore"),
   resolve(sourceRoot, "index.ts"),
   resolve(sourceRoot, "services", "createHttpClient.ts"),

@@ -83,7 +83,6 @@ export type ContractChecks = [
   Assert<Unchecked<Extract<PackageItemPriceChange["compare_at"], { type: "amount" }>["amount"]>>,
   Assert<number extends PackageItemPriceChange["starts_at"] ? false : true>,
   Assert<Unchecked<Money["amount"]>>,
-  Assert<Unchecked<BookingService["reminder_offsets_minutes"][number]>>,
   Assert<NonNullable<DateBlock["value"]> extends CalendarDate ? true : false>,
   Assert<NonNullable<DateBlock["value"]> extends EpochMilliseconds ? false : true>,
   Assert<Extract<FormAnswer, { type: "date" }>["value"] extends CalendarDate ? true : false>,

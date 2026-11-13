@@ -1,15 +1,18 @@
-import type { CustomerCodeResult, CustomerEmailVerification, EmailContact } from "arky-sdk";
+import type { CustomerCode, CustomerCodeResult, CustomerSessionCode } from "arky-sdk";
 
 type Assert<T extends true> = T;
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
 
 export type CustomerIssuanceClockContracts = [
-  Assert<Equal<keyof CustomerCodeResult["email_verification"], "issued_at" | "expires_at">>,
-  Assert<Equal<CustomerEmailVerification["issued_at"], CustomerCodeResult["email_verification"]["issued_at"]>>,
-  Assert<Equal<keyof CustomerEmailVerification, "contact" | "failed_attempts" | "outgoing_email_id" | "issued_at" | "expires_at">>,
-  Assert<Equal<CustomerEmailVerification["contact"], EmailContact>>,
-  Assert<Missing<CustomerEmailVerification, "sent_at">>,
-  Assert<Missing<CustomerEmailVerification, "identity_id">>,
-  Assert<Missing<CustomerCodeResult["email_verification"], "sent_at">>,
+  Assert<Equal<keyof CustomerCodeResult["code"], "issued_at" | "expires_at">>,
+  Assert<Equal<CustomerCode["issued_at"], CustomerCodeResult["code"]["issued_at"]>>,
+  Assert<Equal<keyof CustomerCode, "failed_attempts" | "outgoing_message_id" | "issued_at" | "expires_at">>,
+  Assert<Equal<keyof Extract<CustomerSessionCode, { type: "email" }>, "type" | "email" | "language" | "code">>,
+  Assert<Equal<keyof Extract<CustomerSessionCode, { type: "phone" }>, "type" | "number" | "language" | "code">>,
+  Assert<Missing<CustomerCode, "sent_at">>,
+  Assert<Missing<CustomerCode, "identity_id">>,
+  Assert<Missing<CustomerCode, "code_digest">>,
+  Assert<Missing<CustomerCodeResult["code"], "sent_at">>,
+  Assert<Missing<CustomerCodeResult, "email_verification">>,
 ];

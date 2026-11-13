@@ -44,21 +44,22 @@ test("Admin reads need no Market or Store context and invent none", async (conte
 });
 
 test("email and webhook histories use distinct routes and preserve their public delivery states", async (context) => {
-  const email = { id: ids.payment, type: { type: "receipt_resend", sending_address_id: ids.paymentOption, order_id: ids.order }, to: "buyer@example.test", email_provider_id: null, delivery_report: null, complained_at: null, preview: null, send_before: null, status: { type: "waiting" }, created_at: 1, updated_at: 1 };
+  const email = { id: ids.payment, type: { type: "receipt_resend_email", notification_id: ids.credit, email_address_id: ids.paymentOption, order_id: ids.order }, to: "buyer@example.test", delivery_report: null, complained_at: null, preview: null, send_before: null, status: { type: "waiting" }, created_at: 1, updated_at: 1 };
   const webhook = { id: ids.credit, store_id: storeId, webhook_id: ids.form, event_id: ids.submission, event_type: "order.created", status: { type: "acknowledged", at: 2 }, created_at: 1, updated_at: 2 };
   const responses = [{ items: [email], cursor: null }, email, { items: [webhook], cursor: null }];
   const calls = recordFetch(context, () => responses.shift());
   const client = admin();
-  assert.deepEqual((await client.notification.outgoingEmail.find({ store_id: storeId, to: email.to, type: "receipt_resend", order_id: ids.order, limit: 25 })).items, [email]);
-  assert.deepEqual(await client.notification.outgoingEmail.get({ store_id: storeId, id: email.id }), email);
+  assert.deepEqual((await client.notification.outgoingMessage.find({ store_id: storeId, to: email.to, type: "receipt_resend_email", order_id: ids.order, limit: 25 })).items, [email]);
+  assert.deepEqual(await client.notification.outgoingMessage.get({ store_id: storeId, id: email.id }), email);
   assert.deepEqual((await client.notification.outgoingWebhook.find({ store_id: storeId, webhook_id: ids.form })).items, [webhook]);
   assert.deepEqual(calls.map((call) => [call.method, call.href, call.body]), [
-    ["GET", `${baseUrl}/v1/stores/${storeId}/outgoing-emails?to=buyer%40example.test&type=receipt_resend&order_id=${ids.order}&limit=25`, null],
-    ["GET", `${baseUrl}/v1/stores/${storeId}/outgoing-emails/${email.id}`, null],
+    ["GET", `${baseUrl}/v1/stores/${storeId}/outgoing-messages?to=buyer%40example.test&type=receipt_resend_email&order_id=${ids.order}&limit=25`, null],
+    ["GET", `${baseUrl}/v1/stores/${storeId}/outgoing-messages/${email.id}`, null],
     ["GET", `${baseUrl}/v1/stores/${storeId}/outgoing-webhooks?webhook_id=${ids.form}`, null],
   ]);
   assert.equal("find" in client.notification, false);
-  assert.equal("stop" in client.notification.outgoingEmail, false);
+  assert.equal("outgoingEmail" in client.notification, false);
+  assert.equal("stop" in client.notification.outgoingMessage, false);
 });
 
 test("admin code login activates the same pending Account Session and remembers the email it was asked for", async (context) => {
@@ -66,15 +67,32 @@ test("admin code login activates the same pending Account Session and remembers 
   const calls = recordFetch(context, () => responses.shift());
   const client = createAdmin({ apiUrl: baseUrl });
   const pending = await client.account.auth.requestCode({ session_id: pendingSessionId, email: "operator@example.test", network_id: ids.network });
-  const verified = await client.account.auth.verify({ session_id: pending.session_id, code: "123456" });
+  const verified = await client.account.auth.verify({ session_id: pending.session_id, network_id: ids.network, code: "123456" });
   assert.equal(verified.id, sessionId);
   assert.equal("scope" in verified, false);
   assert.deepEqual(client.session, { id: sessionId, email: "operator@example.test" });
   assert.equal(client.isAuthenticated, true);
   assert.deepEqual(calls.map((call) => [call.method, call.href, call.body]), [
     ["POST", `${baseUrl}/v1/auth/code`, { session_id: pendingSessionId, email: "operator@example.test", network_id: ids.network }],
-    ["POST", `${baseUrl}/v1/auth/verify`, { session_id: pendingSessionId, code: "123456" }],
+    ["POST", `${baseUrl}/v1/auth/verify`, { network_id: ids.network, session_id: pendingSessionId, code: "123456" }],
   ]);
+});
+
+test("platform sign-in sends its own code and verify bodies and keeps the verified Account Session", async (context) => {
+  const responses = [{ session_id: pendingSessionId, verification_expires_at: 900 }, issued()];
+  const calls = recordFetch(context, () => responses.shift());
+  const client = createAdmin({ apiUrl: baseUrl });
+  const pending = await client.account.auth.requestPlatformCode({ session_id: pendingSessionId, email: "platform@example.test" });
+  const verified = await client.account.auth.verifyPlatform({ session_id: pending.session_id, code: "123456" });
+  assert.equal(verified.id, sessionId);
+  assert.deepEqual(client.session, { id: sessionId, email: "platform@example.test" });
+  assert.equal(client.isAuthenticated, true);
+  assert.deepEqual(calls.map((call) => [call.method, call.href, call.body]), [
+    ["POST", `${baseUrl}/v1/platform/auth/code`, { session_id: pendingSessionId, email: "platform@example.test" }],
+    ["POST", `${baseUrl}/v1/platform/auth/verify`, { session_id: pendingSessionId, code: "123456" }],
+  ]);
+  await assert.rejects(async () => client.account.auth.requestPlatformCode({ session_id: "pending", email: "platform@example.test" }), TypeError);
+  assert.equal(calls.length, 2);
 });
 
 test("Store invitation login names its Store and wraps the platform-wide pending Account Session", async (context) => {
@@ -417,7 +435,7 @@ test("storefront money helpers preserve exact zero, need an explicit locale and 
 test("SDK_VERSION equals the package version", async () => {
   const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
   assert.equal(SDK_VERSION, packageJson.version);
-  assert.equal(SDK_VERSION, "0.26.107");
+  assert.equal(SDK_VERSION, "0.26.114");
 });
 
 test("recursive storefront declarations never degrade to any", async () => {

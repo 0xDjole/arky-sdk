@@ -120,7 +120,8 @@ export interface AccountActor {
 
 export type Actor =
   | { type: "customer"; customer_id: string; customer_session_id: string }
-  | ({ type: "account" } & AccountActor);
+  | ({ type: "account" } & AccountActor)
+  | { type: "assistant"; conversation_message_id: string };
 
 export type CommerceParty =
   | { type: "customer"; customer_id: string }
@@ -139,6 +140,10 @@ export type CompanyPartyQuery =
 export type CustomerAuthenticationSnapshot =
   | { type: "visitor" }
   | { type: "email_authenticated"; authenticated_at: EpochMilliseconds };
+
+export type ProviderLogin =
+  | { type: "store"; store_provider_id: string }
+  | { type: "network"; network_provider_id: string };
 
 export interface ProviderOperationClaim {
   id: string;

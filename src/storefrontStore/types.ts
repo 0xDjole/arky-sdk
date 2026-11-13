@@ -17,6 +17,7 @@ import type {
   StorefrontCurrentCartParams,
 } from "../types/cart";
 import type { PackagePriceRef, StorefrontPackageItemPrice, StorefrontPrice } from "../types/package";
+import type { BookingLineSession } from "../types/order";
 import type { Currency, EmailContact, PostalAddress } from "../types/common";
 import type { CheckoutPaymentAction, StorefrontPayment, StorefrontPaymentMethodSetupStart } from "../types/payment";
 import type { PaymentOutcome } from "../utils/paymentOutcome";
@@ -249,4 +250,5 @@ export interface ArkyAddSlotToCartParams {
   id?: string;
   capacity_units?: number;
   form_submission_id?: string | null;
+  session?: BookingLineSession | null;
 }

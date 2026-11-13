@@ -1,6 +1,7 @@
 import type { RequestOptions, TransportOptions } from "../types/httpClient";
 import type {
   CartBookingLineItemInput,
+  CartBookingLineType,
   CartLineItemInput,
   CartPackageLineItemInput,
   CartProductLineItemInput,
@@ -15,6 +16,16 @@ export function copyPackagePriceRef(price: PackagePriceRef): PackagePriceRef {
     throw new TypeError("A cart line names its exact price: { package_id, package_item_id, price_id }");
   }
   return { package_id: price.package_id, package_item_id: price.package_item_id, price_id: price.price_id };
+}
+
+export function copyBookingLineType(bookingType: CartBookingLineType): CartBookingLineType {
+  if (typeof bookingType === "object" && bookingType !== null) {
+    if (bookingType.type === "main") return { type: "main" };
+    if (bookingType.type === "extra") {
+      return { type: "extra", main_line_id: requireId(bookingType.main_line_id, "main booking line") };
+    }
+  }
+  throw new TypeError('A booking line is { type: "main" } or { type: "extra", main_line_id }');
 }
 
 export function refusePerCallMarket(options?: RequestOptions): void {
@@ -68,11 +79,20 @@ export function storefrontCartBooking(item: CartBookingLineItemInput): CartBooki
   requireId(item.id, "cart line");
   return {
     id: item.id,
+    ...(item.booking_type !== undefined ? { booking_type: copyBookingLineType(item.booking_type) } : {}),
     booking_offering_id: item.booking_offering_id,
     requested_interval: { from: item.requested_interval.from, to: item.requested_interval.to },
     capacity_units: item.capacity_units,
     price: copyPackagePriceRef(item.price),
     ...(item.form_submission_id !== undefined ? { form_submission_id: item.form_submission_id } : {}),
+    ...(item.session !== undefined && item.session !== null
+      ? {
+          session: {
+            package_member_id: item.session.package_member_id,
+            package_item_id: item.session.package_item_id,
+          },
+        }
+      : {}),
   };
 }
 

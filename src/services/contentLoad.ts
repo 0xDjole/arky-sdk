@@ -2,8 +2,8 @@ import type { RequestOptions } from "../types/httpClient";
 import type { Block } from "../types/block";
 import type { PaginatedResponse } from "../types/common";
 import type {
-  PublicCollection,
-  PublicEntry,
+  StorefrontCollection,
+  StorefrontEntry,
   Media,
   StorefrontFindEntriesParams,
   StorefrontFindEntryBySlugParams,
@@ -21,10 +21,10 @@ import { collectBlockReferences, selectLocalizedText } from "../utils/blocks";
 import { readAllPages } from "../utils/paginate";
 
 export interface ContentReads {
-  getCollection(params: LoadContentCollectionParams, options?: RequestOptions): Promise<PublicCollection>;
-  getEntry(params: { id: string }, options?: RequestOptions): Promise<PublicEntry>;
-  findEntries(params: StorefrontFindEntriesParams, options?: RequestOptions): Promise<PaginatedResponse<PublicEntry>>;
-  findEntryBySlug(params: StorefrontFindEntryBySlugParams, options?: RequestOptions): Promise<PublicEntry | null>;
+  getCollection(params: LoadContentCollectionParams, options?: RequestOptions): Promise<StorefrontCollection>;
+  getEntry(params: { id: string }, options?: RequestOptions): Promise<StorefrontEntry>;
+  findEntries(params: StorefrontFindEntriesParams, options?: RequestOptions): Promise<PaginatedResponse<StorefrontEntry>>;
+  findEntryBySlug(params: StorefrontFindEntryBySlugParams, options?: RequestOptions): Promise<StorefrontEntry | null>;
   findMedia(params: { ids: string[] }, options?: RequestOptions): Promise<Media[]>;
 }
 
@@ -76,11 +76,11 @@ async function readMedia(
   return media;
 }
 
-function loaded<T extends PublicCollection | PublicEntry>(record: T, locale: string, mediaById: Readonly<Record<string, Media>>): LoadedContent<T> {
+function loaded<T extends StorefrontCollection | StorefrontEntry>(record: T, locale: string, mediaById: Readonly<Record<string, Media>>): LoadedContent<T> {
   return { ...contentBlocks(record.blocks, locale, mediaById), record, media_by_id: mediaById };
 }
 
-async function readEntry(reads: ContentReads, params: LoadContentEntryParams, options?: RequestOptions): Promise<PublicEntry> {
+async function readEntry(reads: ContentReads, params: LoadContentEntryParams, options?: RequestOptions): Promise<StorefrontEntry> {
   if ("id" in params) return reads.getEntry({ id: params.id }, options);
   if ("slug" in params) {
     const found = await reads.findEntryBySlug({ collection_id: params.collection_id, slug: params.slug }, options);
@@ -98,7 +98,7 @@ export async function loadContent(
   params: LoadContentParams,
   locale: string,
   options?: RequestOptions,
-): Promise<LoadedContent<PublicCollection> | LoadedContent<PublicEntry>> {
+): Promise<LoadedContent<StorefrontCollection> | LoadedContent<StorefrontEntry>> {
   if ("collection" in params) {
     const collection = await reads.getCollection(params.collection, options);
     return loaded(collection, locale, await readMedia(reads, [collection], options));
@@ -112,7 +112,7 @@ export async function loadContentEntries(
   params: LoadContentEntriesParams,
   locale: string,
   options?: RequestOptions,
-): Promise<LoadedContent<PublicEntry>[]> {
+): Promise<LoadedContent<StorefrontEntry>[]> {
   const entries = await readAllPages((cursor) => reads.findEntries({ ...params, ...(cursor ? { cursor } : {}) }, options));
   const media = await readMedia(reads, entries, options);
   return entries.map((entry) => loaded(entry, locale, media));

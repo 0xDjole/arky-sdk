@@ -23,6 +23,7 @@ import { CartError } from "../types/cartSelection";
 import { ArkyApiError, ArkyNetworkError, errorInfo } from "../types/apiError";
 import type { CompanyPartyQuery } from "../types/common";
 import type { StorefrontCheckoutCartRequest, StorefrontClient } from "../index";
+import { copyBookingLineType } from "../utils/cartInputs";
 import { DurableRequestError, isDefiniteRefusal } from "../utils/durableRequest";
 import { fingerprint } from "../utils/fingerprint";
 import { epochMillisecondsNow } from "../utils/time";
@@ -111,11 +112,20 @@ function cartLineInput(line: StorefrontCartLineItem): CartLineItemInput {
       return {
         type: "booking",
         id: line.id,
+        booking_type: copyBookingLineType(line.booking_type),
         booking_offering_id: line.booking_offering_id,
         requested_interval: { from: line.requested_interval.from, to: line.requested_interval.to },
         capacity_units: line.capacity_units,
         form_submission_id: line.form_submission_id,
         price: line.price,
+        ...(line.session
+          ? {
+              session: {
+                package_member_id: line.session.package_member_id,
+                package_item_id: line.session.package_item_id,
+              },
+            }
+          : {}),
       };
     case "package":
       return {

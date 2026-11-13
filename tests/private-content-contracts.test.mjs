@@ -82,13 +82,14 @@ test("a_private_entry_file_link_names_its_entry_and_file", async (context) => {
   ]);
 });
 
-test("entry access logs expose only reads with one entry, collection or account target", async (context) => {
+test("entry reads are found in the store's audit log by entry, collection or account", async (context) => {
   const calls = recordFetch(context, () => ({ items: [], cursor: "next" }));
-  const api = admin().content.entryAccess;
+  assert.equal("entryAccess" in admin().content, false);
+  const api = admin().store.auditLog;
   assert.deepEqual(Object.keys(api), ["find"]);
-  for (const target of [{ entry_id: entryId }, { collection_id: collectionId }, { account_id: ids.account }]) {
+  for (const target of [{ subject_type: "entry", subject_id: entryId }, { subject_type: "collection", subject_id: collectionId }, { account_id: ids.account }]) {
     assert.deepEqual(await api.find({ store_id: ids.store, ...target, limit: 100, cursor: "kept" }), { items: [], cursor: "next" });
-    assert.equal(calls.at(-1).path, `/v1/stores/${ids.store}/entry-accesses`);
+    assert.equal(calls.at(-1).path, `/v1/stores/${ids.store}/audit-logs`);
     assert.deepEqual(calls.at(-1).query, { ...target, limit: "100", cursor: "kept" });
   }
 });
@@ -143,4 +144,13 @@ test("private media never produces a preview URL", () => {
   assert.equal(getImageUrl(media), null);
   assert.equal(getImageUrl({ ...media, content: { type: "pdf", original: { ...file, url: "https://stale.example.test/file" } } }), null);
   assert.equal(getImageUrl({ ...media, visibility: "public", content: { type: "pdf", original: { ...file, url: "https://media.example.test/file" } } }), "https://media.example.test/file");
+});
+
+test("a private entry is printed through its own call with no body", async (context) => {
+  const entry = { id: entryId, type: { type: "private_customer", customer_id: ids.customer } };
+  const calls = recordFetch(context, () => entry);
+  assert.deepEqual(await admin().content.privateEntry.print({ store_id: ids.store, collection_id: collectionId, id: entryId }), entry);
+  assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
+    ["POST", `${entriesPath}/${entryId}/print`, {}, null],
+  ]);
 });

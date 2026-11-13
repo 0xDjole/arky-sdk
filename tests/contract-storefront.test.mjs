@@ -72,7 +72,11 @@ test("initialize is the root API and exposes the module facade without store swi
     assert.equal(typeof facade.eshop.packageOffering.get, "function");
     assert.equal(typeof facade.eshop.packageMember.find, "function");
     assert.equal(typeof facade.eshop.minimumProgress.get, "function");
-    assert.equal(typeof facade.customer.changeEmail, "function");
+    assert.equal(typeof facade.customer.verifyNewLogin, "function");
+    assert.equal(typeof facade.customer.addLogin, "function");
+    assert.equal(typeof facade.customer.updateLogin, "function");
+    assert.equal(typeof facade.customer.deleteLogin, "function");
+    assert.equal("changeEmail" in facade.customer, false);
     assert.equal(typeof facade.setContext, "function");
     assert.equal(typeof facade.eshop.checkoutFlow, "function");
     assert.equal(typeof facade.eshop.bookingCalendar, "function");

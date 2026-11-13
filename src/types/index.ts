@@ -6,6 +6,10 @@ export type { RequestSuccessContext, RequestErrorContext } from "./httpClient";
 export type * from "./block";
 export type * from "./content";
 export type * from "./store";
+export type * from "./storeProvider";
+export type * from "./phoneNumber";
+export type * from "./auditLog";
+export type * from "./supportAccess";
 export type * from "./simulator";
 export type * from "./account";
 export type * from "./storeRole";
@@ -53,6 +57,7 @@ export {
   orderRentalUseItems,
 } from "./order";
 export type * from "./orderCredit";
+export type * from "./invoice";
 export type * from "./payment";
 export type * from "./experiment";
 export type * from "./customerAction";

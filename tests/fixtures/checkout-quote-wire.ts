@@ -1,5 +1,6 @@
 import { epochMilliseconds } from "arky-sdk";
 import type {
+  BookingLineSession,
   CartQuote,
   LineMoney,
   OrderBookingSnapshot,
@@ -47,7 +48,6 @@ export type CheckoutQuoteWireContracts = [
   Assert<RequiredField<QuotePackageLine, "line_item_id">>,
   Assert<RequiredField<QuoteBookingLine, "capacity_units">>,
   Assert<RequiredField<QuoteBookingLine, "capacity_intervals">>,
-  Assert<RequiredField<QuoteBookingLine, "reminder_offsets_minutes">>,
   Assert<Equal<QuoteProductLine["money_runs"], ProductMoneyRun[]>>,
   Assert<Equal<ProductMoneyRun["money"], LineMoney>>,
   Assert<Equal<QuoteProductLine["snapshot"], OrderProductSnapshot>>,
@@ -84,7 +84,9 @@ export type CheckoutQuoteWireContracts = [
   Assert<Equal<Extract<QuoteBlocker, { type: "shipping_rate_unavailable" }>, { type: "shipping_rate_unavailable"; delivery_group_id: string; shipping_method_id: string; rate_id: string; code: string }>>,
   Assert<Equal<Extract<QuoteBlocker, { type: "package_shipping_rate_unavailable" }>, { type: "package_shipping_rate_unavailable"; line_item_id: string; delivery_id: string; shipping_method_id: string; rate_id: string; code: string }>>,
   Assert<Equal<Extract<QuoteBlocker, { type: "booking_unavailable" }>, { type: "booking_unavailable"; line_item_id: string; code: string }>>,
-  Assert<Equal<QuoteBlocker["type"], "units_without_delivery" | "billing_address_required" | "shipping_required" | "booking_unavailable" | "tax_unavailable" | "delivery_unavailable" | "package_delivery_required" | "package_shipping_required" | "package_delivery_fee_varies" | "package_minimum_conflict" | "package_change_scheduled" | "package_change_refused" | "payment_unavailable" | "purchase_order_number_required" | "shipping_rate_unavailable" | "package_shipping_rate_unavailable">>,
+  Assert<Equal<QuoteBlocker["type"], "units_without_delivery" | "billing_address_required" | "shipping_required" | "booking_unavailable" | "booking_session" | "tax_unavailable" | "delivery_unavailable" | "package_delivery_required" | "package_shipping_required" | "package_delivery_fee_varies" | "package_minimum_conflict" | "package_change_scheduled" | "package_change_refused" | "payment_unavailable" | "purchase_order_number_required" | "shipping_rate_unavailable" | "package_shipping_rate_unavailable">>,
+  Assert<Equal<Extract<QuoteBlocker, { type: "booking_session" }>, { type: "booking_session"; line_item_id: string; code: string }>>,
+  Assert<Equal<QuoteBookingLine["session"], BookingLineSession | null>>,
   Assert<Equal<Extract<QuoteBlocker, { type: "tax_unavailable" }>, { type: "tax_unavailable"; line_item_id: string; code: string }>>,
   Assert<Equal<Extract<QuoteBlocker, { type: "delivery_unavailable" }>, { type: "delivery_unavailable"; delivery_group_id: string; code: string }>>,
   Assert<Equal<QuoteTaxWait, "no_delivery" | "no_billing_address" | "fixed_above_price">>,
@@ -114,6 +116,7 @@ const to = epochMilliseconds(1_800_003_600_000);
 
 export const awaitingTaxBooking: QuoteBookingLine = {
   line_item_id: "booking-line",
+  booking_type: { type: "main" },
   booking_offering_id: "offering",
   booking_service_id: "service",
   booking_resource_id: "resource",
@@ -121,7 +124,6 @@ export const awaitingTaxBooking: QuoteBookingLine = {
   capacity_intervals: [{ from, to }],
   capacity_units: 1,
   form_submission_id: null,
-  reminder_offsets_minutes: [60],
   snapshot: {
     service_key: "lesson",
     resource_key: "room",
@@ -129,6 +131,7 @@ export const awaitingTaxBooking: QuoteBookingLine = {
     price: { type: "offer", package_id: "package", package_item_id: "item", price_id: "price" },
   },
   money: { type: "awaiting_tax", unit_price: 4000, discounts: [{ promotion_id: "spring", effect_id: "effect", amount: 500 }], waiting_for: "no_billing_address" },
+  session: null,
   availability: { type: "available", spots: 3 },
 };
 

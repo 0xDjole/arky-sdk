@@ -33,15 +33,20 @@ export interface RequestErrorContext {
   aborted?: boolean;
 }
 
-export interface RequestOptions<T = unknown> {
-  order_token?: string | null;
-  locale?: string;
-  market?: string;
+export interface AdminRequestOptions<T = unknown> {
   headers?: Record<string, string>;
   signal?: AbortSignal;
   onSuccess?: (ctx: RequestSuccessContext<T>) => void | Promise<void>;
   onError?: (ctx: RequestErrorContext) => void | Promise<void>;
 }
+
+export interface RequestOptions<T = unknown> extends AdminRequestOptions<T> {
+  order_token?: string | null;
+  locale?: string;
+  market?: string;
+}
+
+export type StorefrontRequestOptions<T = unknown> = RequestOptions<T>;
 
 export type TransportOptions<T = unknown> = RequestOptions<T> & { params?: QueryParams };
 

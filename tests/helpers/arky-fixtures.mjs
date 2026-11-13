@@ -125,11 +125,25 @@ export function customerRecord(id = ids.customer, overrides = {}) {
   return {
     id,
     store_id: ids.store,
-    type: { type: "anonymous" },
+    name: null,
+    addresses: [],
+    default_shipping_address_id: null,
+    default_billing_address_id: null,
     profile: [],
     created_at: 1_700_000_000_000,
     updated_at: 1_700_000_000_000,
     ...overrides,
+  };
+}
+
+export const signedInLoginId = "00000000-0000-4000-8000-0000000000e1";
+
+export function emailLogin(id = signedInLoginId, email = "customer@example.test") {
+  return {
+    id,
+    type: { type: "verified_email", email, language: "en", unsubscribed: false },
+    created_at: 1_700_000_000_000,
+    updated_at: 1_700_000_000_000,
   };
 }
 
@@ -146,9 +160,10 @@ export function visitorSession(customerId = ids.customer, sessionId = ids.sessio
 
 export function emailSession(customerId = ids.customer, sessionId = ids.session, overrides = {}) {
   return {
-    type: "email_authenticated",
+    type: "logged_in",
     id: sessionId,
     customer_id: customerId,
+    login_id: signedInLoginId,
     status: { type: "active" },
     access_token: accessToken,
     refresh_token: refreshToken,
@@ -161,12 +176,12 @@ export function emailSession(customerId = ids.customer, sessionId = ids.session,
 
 export function sessionResult(customerId = ids.customer, session = visitorSession(customerId)) {
   const customer = customerRecord(customerId);
-  if (session.type === "email_authenticated") customer.type = { type: "verified", contact: { email: "customer@example.test", language: "en" }, addresses: [], default_shipping_address_id: null, default_billing_address_id: null };
-  return { customer, session };
+  const login = session.type === "logged_in" ? emailLogin(session.login_id) : null;
+  return { customer, session, login };
 }
 
 export function storedSession(customerId = ids.customer, session = visitorSession(customerId)) {
-  return JSON.stringify({ version: 4, ...sessionResult(customerId, session) });
+  return JSON.stringify({ version: 5, ...sessionResult(customerId, session) });
 }
 
 export class SessionStorage {

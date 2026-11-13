@@ -221,7 +221,7 @@ test("newsletter.requestCode skips a code for the signed-in address and signs ou
     if (call.path === "/v1/storefront/customer/logout") return new Response(null, { status: 204 });
     if (call.path === "/v1/storefront/customer/identify") return sessionResult(ids.otherCustomer, visitorSession(ids.otherCustomer, ids.otherSession));
     if (call.path === "/v1/storefront/customer/request-code") {
-      return { customer: customerRecord(ids.otherCustomer), session: { id: ids.otherSession, store_id: ids.store, customer_id: ids.otherCustomer }, email_verification: { issued_at: 1, expires_at: 2 } };
+      return { customer: customerRecord(ids.otherCustomer), session: { id: ids.otherSession, store_id: ids.store, customer_id: ids.otherCustomer }, code: { issued_at: 1, expires_at: 2 } };
     }
     throw new Error(`Unexpected request ${call.path}`);
   });
@@ -241,7 +241,7 @@ test("newsletter.requestCode skips a code for the signed-in address and signs ou
     "/v1/storefront/customer/identify",
     "/v1/storefront/customer/request-code",
   ]);
-  assert.deepEqual(calls[2].body, { id: factoryId(4), contact: { email: "reader@example.test", language: "en" } });
+  assert.deepEqual(calls[2].body, { id: factoryId(4), contact: { type: "email", email: "reader@example.test", language: "en" } });
 });
 
 test("newsletter.join verifies the code, checks the address and joins in the caller's language, not the verified contact's", async (context) => {
@@ -265,7 +265,7 @@ test("newsletter.join verifies the code, checks the address and joins in the cal
   await assert.rejects(api.newsletter.join({ email: verifiedEmail, key: "newsletter", package_id: ids.package, language: "en" }), (error) => error instanceof PackageJoinError && error.code === "sign_in_required");
   await assert.rejects(api.newsletter.join({ email: "other@example.test", code: "123456", key: "newsletter", package_id: ids.package, language: "en" }), (error) => error instanceof PackageJoinError && error.code === "email_mismatch");
   assert.equal(joined, false);
-  assert.deepEqual(api.session.customer.type.contact, { email: verifiedEmail, language: "en" });
+  assert.deepEqual(api.session.login.type, { type: "verified_email", email: verifiedEmail, language: "en", unsubscribed: false });
   assert.deepEqual(await api.newsletter.join({ email: verifiedEmail, key: "newsletter", package_id: ids.package, language: "bs" }), { type: "joined", order_id: ids.order });
   const accept = calls.find((call) => call.path === "/v1/storefront/carts/accept");
   assert.deepEqual(accept.body.contact_email, { email: verifiedEmail, language: "bs" });
@@ -273,8 +273,8 @@ test("newsletter.join verifies the code, checks the address and joins in the cal
 
 function signedInWithLanguage(language) {
   const signedIn = sessionResult(ids.customer, emailSession());
-  signedIn.customer.type.contact = { email: verifiedEmail, language };
-  return new SessionStorage(JSON.stringify({ version: 4, ...signedIn }));
+  signedIn.login.type = { type: "verified_email", email: verifiedEmail, language, unsubscribed: false };
+  return new SessionStorage(JSON.stringify({ version: 5, ...signedIn }));
 }
 
 test("a free sign-up names the Order contact in the caller's language, not the language the verified contact saved", async (context) => {

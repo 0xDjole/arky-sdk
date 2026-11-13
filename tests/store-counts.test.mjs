@@ -158,7 +158,7 @@ test("conversation counts name the team's waiting segment as the Server does", a
         type: "conversations_by_status",
         segments: [
           { segment: "flow", value: 2 },
-          { segment: "waiting_for_team", value: 5 },
+          { segment: "waiting_for_store", value: 5 },
           { segment: "resolved", value: 9 },
         ],
       },
@@ -181,4 +181,41 @@ test("count reads refuse a store id that is not canonical before sending", async
     TypeError,
   );
   assert.equal(calls.length, 0);
+});
+
+test("a report reads bookings by day and a location's money inside one market", async (context) => {
+  const locationId = "3f9d2c71-6b84-4e05-a1d3-9c7e5b2a0f68";
+  const answer = {
+    from: "2026-10-01",
+    to: "2026-10-31",
+    totals: [
+      { type: "booking_lines_by_status_day", market_id: null, segment: "no_show", value: 3 },
+      { type: "paid_value_by_location_day", market_id: marketId, segment: locationId, value: 42_000 },
+    ],
+    breakdowns: [
+      {
+        type: "paid_value_by_location_day",
+        market_id: marketId,
+        segments: [{ segment: locationId, value: 42_000 }],
+        other_segments: 1,
+        other_value: { type: "money", currencies: [{ currency: "bam", value: 9_000 }] },
+      },
+    ],
+    series: [],
+  };
+  const calls = recordFetch(context, () => answer);
+  const totals = [
+    { type: "booking_lines_by_status_day", segment: "no_show" },
+    { type: "paid_value_by_location_day", market_id: marketId, segment: locationId },
+  ];
+  const breakdowns = [{ type: "paid_value_by_location_day", market_id: marketId, limit: 1 }];
+  const read = await admin().counts.getReport({ store_id: storeId, from: "2026-10-01", to: "2026-10-31", totals, breakdowns });
+  assert.deepEqual(read, answer);
+  assert.equal(calls[0].path, `/v1/stores/${storeId}/counts/report`);
+  assert.deepEqual(calls[0].query, {
+    from: "2026-10-01",
+    to: "2026-10-31",
+    totals: JSON.stringify(totals),
+    breakdowns: JSON.stringify(breakdowns),
+  });
 });
