@@ -112,11 +112,20 @@ export interface FindSimulatedSmsParams {
   cursor?: string | null;
 }
 
+export type SimulatedCallStatus =
+  | "ringing"
+  | "in-progress"
+  | "completed"
+  | "busy"
+  | "no-answer"
+  | "failed"
+  | "canceled";
+
 export interface SimulatedCall {
   id: string;
   from: string | null;
   to: string;
-  status: string;
+  status: SimulatedCallStatus;
   created_at: EpochMilliseconds;
 }
 
@@ -124,6 +133,69 @@ export interface StartSimulatedCallParams {
   store_id: string;
   to: string;
   from: string | null;
+}
+
+export interface SetSimulatedCallStatusParams {
+  store_id: string;
+  call_sid: string;
+  status: SimulatedCallStatus;
+  duration_seconds: number | null;
+}
+
+export interface SimulatedCallConversation {
+  id: string;
+  call_id: string | null;
+  from: string | null;
+  to: string;
+  status: "in-progress" | "done" | "deleted";
+  created_at: EpochMilliseconds;
+}
+
+export interface FindSimulatedCallConversationsParams {
+  store_id: string;
+  call_id?: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export type SimulatedAssistantTool =
+  | "find-slots"
+  | "propose"
+  | "confirm"
+  | "request-callback"
+  | "transfer"
+  | "record-sms-consent";
+
+export interface SimulatedSaidLine {
+  role: string;
+  message: string;
+  time_in_call_secs?: number;
+}
+
+export interface SimulateToolCallParams {
+  store_id: string;
+  conversation_id: string;
+  tool: SimulatedAssistantTool;
+  parameters: Record<string, unknown>;
+  said: SimulatedSaidLine[];
+}
+
+export interface SimulatedToolCall {
+  tool: SimulatedAssistantTool;
+  answered: number | null;
+  answer: unknown;
+}
+
+export interface SimulatedTranscriptLine {
+  role: "agent" | "user";
+  message: string;
+  time_in_call_secs: number;
+}
+
+export interface FinishSimulatedCallConversationParams {
+  store_id: string;
+  conversation_id: string;
+  transcript: SimulatedTranscriptLine[];
 }
 
 export type CreateSimulatorPlannedOutcomeParams = SimulatorPlannedOperation & {

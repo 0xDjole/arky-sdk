@@ -435,7 +435,7 @@ test("storefront money helpers preserve exact zero, need an explicit locale and 
 test("SDK_VERSION equals the package version", async () => {
   const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
   assert.equal(SDK_VERSION, packageJson.version);
-  assert.equal(SDK_VERSION, "0.26.114");
+  assert.equal(SDK_VERSION, "0.26.118");
 });
 
 test("recursive storefront declarations never degrade to any", async () => {

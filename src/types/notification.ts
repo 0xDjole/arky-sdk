@@ -324,6 +324,7 @@ export interface TemplateDefault {
   name: string;
   type: TemplateStarter;
   allowed_fields: string[];
+  list_fields: string[];
 }
 
 export type TemplatePreview =

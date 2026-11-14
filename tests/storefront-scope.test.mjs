@@ -184,6 +184,71 @@ test("the setup is read lazily, once, and without creating a visitor", async (co
   assert.equal(client.hasSession, false);
 });
 
+function abortableSetupFetch(context, setup) {
+  const releases = [];
+  const calls = recordFetch(context, (call) => {
+    if (call.path !== "/v1/storefront") throw new Error(`Unexpected setup request: ${call.path}`);
+    return new Promise((resolve, reject) => {
+      releases.push(() => resolve(setup));
+      call.signal?.addEventListener("abort", () => reject(new DOMException("This operation was aborted", "AbortError")), { once: true });
+    });
+  });
+  return { calls, releases };
+}
+
+function setupClient() {
+  return createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl });
+}
+
+const abortedRead = (error) => error.code === "aborted" && error.aborted === true;
+
+test("a caller that aborts its setup read leaves the shared request running for the callers still waiting", async (context) => {
+  const setup = { name: "Store", timezone: "Europe/Sarajevo", languages: ["en", "bs"], payment_options: [] };
+  const { calls, releases } = abortableSetupFetch(context, setup);
+  const client = setupClient();
+  const first = new AbortController();
+  const second = new AbortController();
+  const firstRead = client.getSetup({ signal: first.signal });
+  const secondRead = client.getSetup({ signal: second.signal });
+  const unsignalledRead = client.getSetup();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(calls.length, 1, "the three callers share one request");
+  first.abort();
+  await assert.rejects(firstRead, abortedRead, "the caller that aborted gets its own rejection");
+  second.abort();
+  await assert.rejects(secondRead, abortedRead);
+  assert.equal(calls[0].signal.aborted, false, "a caller is still waiting, so the shared request goes on");
+  releases[0]();
+  assert.deepEqual(await unsignalledRead, setup);
+  assert.deepEqual(await client.getSetup({ signal: new AbortController().signal }), setup);
+  assert.equal(calls.length, 1);
+});
+
+test("a remount after every caller aborted reads the setup again instead of the cancelled request", async (context) => {
+  const setup = { name: "Store", timezone: "Europe/Sarajevo", languages: ["en"], payment_options: [] };
+  const { calls, releases } = abortableSetupFetch(context, setup);
+  const client = setupClient();
+  const alreadyAborted = new AbortController();
+  alreadyAborted.abort();
+  await assert.rejects(client.getSetup({ signal: alreadyAborted.signal }), abortedRead);
+  assert.equal(calls.length, 0, "an aborted caller starts no request");
+  const firstMount = new AbortController();
+  const firstRead = client.getSetup({ signal: firstMount.signal });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(calls.length, 1);
+  firstMount.abort();
+  await assert.rejects(firstRead, abortedRead);
+  assert.equal(calls[0].signal.aborted, true, "nobody waits any more, so the shared request is cancelled");
+  const secondMount = new AbortController();
+  const secondRead = client.getSetup({ signal: secondMount.signal });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(calls.length, 2, "the remount starts its own request");
+  releases[1]();
+  assert.deepEqual(await secondRead, setup);
+  assert.deepEqual(await client.getSetup(), setup);
+  assert.equal(calls.length, 2);
+});
+
 test("package text search keeps its selection, the price range and the continuation together", async (context) => {
   const calls = recordFetch(context, () => ({ items: [], cursor: "next-search-page" }));
   const client = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "bih", locale: "bs" });

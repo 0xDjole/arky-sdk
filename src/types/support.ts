@@ -161,6 +161,7 @@ export interface Conversation {
   next_message_sequence: number;
   customer_read: ReadPosition;
   store_read: ReadPosition;
+  unread: boolean;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }

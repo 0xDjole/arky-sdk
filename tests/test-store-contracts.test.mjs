@@ -168,6 +168,35 @@ test("calls.start rings one of the store's simulated numbers from a caller or a 
   assert.equal(calls.length, 2);
 });
 
+test("a simulated call's status and its assistant conversation are driven through the store's own call controls", async (context) => {
+  const ended = { id: "CA1", from: "+15550001111", to: "+38761000001", status: "completed", created_at: 5 };
+  const conversation = { id: "conv_1", call_id: ids.order, from: "+15550001111", to: "+38761000001", status: "in-progress", created_at: 6 };
+  const toolCall = { tool: "find-slots", answered: 200, answer: { ok: true, slots: [] } };
+  const finished = { ...conversation, status: "done" };
+  const answers = [ended, { items: [conversation], cursor: null }, toolCall, finished];
+  const calls = recordFetch(context, () => answers.shift());
+  const { calls: simulated } = admin().store.simulator;
+  assert.deepEqual(await simulated.setStatus({ store_id: storeId, call_sid: "CA1", status: "completed", duration_seconds: 42 }), ended);
+  assert.deepEqual(await simulated.findConversations({ store_id: storeId, call_id: ids.order }), { items: [conversation], cursor: null });
+  const said = [{ role: "user", message: "Is Friday free?", time_in_call_secs: 4 }];
+  const parameters = { booking_offering_id: "5d3e9a71-2c84-4f06-b1e7-8a4c2d6f0b93", date_from: "2026-11-14", date_to: "2026-11-20" };
+  const request = { store_id: storeId, conversation_id: "conv_1", tool: "find-slots", parameters, said };
+  const original = structuredClone(request);
+  assert.deepEqual(await simulated.callTool(request), toolCall);
+  assert.deepEqual(request, original);
+  const transcript = [{ role: "agent", message: "Hello.", time_in_call_secs: 0 }];
+  assert.deepEqual(await simulated.finishConversation({ store_id: storeId, conversation_id: "conv_1", transcript }), finished);
+  const base = `/v1/stores/${storeId}/simulator/calls`;
+  assert.deepEqual(requests(calls), [
+    ["POST", `${base}/CA1/status`, {}, { status: "completed", duration_seconds: 42 }],
+    ["GET", `${base}/conversations`, { call_id: ids.order }, null],
+    ["POST", `${base}/conversations/conv_1/tools/find-slots`, {}, { parameters, said }],
+    ["POST", `${base}/conversations/conv_1/finish`, {}, { transcript }],
+  ]);
+  await assert.rejects(async () => simulated.setStatus({ store_id: "shop", call_sid: "CA1", status: "completed", duration_seconds: null }), TypeError);
+  assert.equal(calls.length, 4);
+});
+
 test("planned outcomes are made under the app's id, listed and removed through the store's own path", async (context) => {
   const plan = { id: planId, provider: "resend", operation: "send_email", matching: { type: "to", address: "buyer@example.test" }, outcome: { type: "rate_limited", retry_after_seconds: 2 }, created_at: 7 };
   const calls = recordFetch(context, (call) => (call.method === "POST" ? plan : call.method === "DELETE" ? { deleted: true } : { items: [plan], cursor: null }));

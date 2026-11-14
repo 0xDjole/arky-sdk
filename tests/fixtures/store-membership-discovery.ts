@@ -51,6 +51,7 @@ export type MembershipDiscoveryContracts = [
   Assert<Equal<Parameters<Admin["store"]["member"]["updateRoles"]>[0], UpdateStoreMemberRolesParams>>,
   Assert<Equal<ReturnType<Admin["store"]["member"]["updateRoles"]>, Promise<StoreMembership>>>,
   Assert<Equal<Parameters<Admin["store"]["member"]["invite"]>[0], InviteStoreMemberParams>>,
+  Assert<Equal<ReturnType<Admin["store"]["member"]["invite"]>, Promise<StoreMembership>>>,
   Assert<Equal<StoreMembership["role_ids"], string[]>>,
   Assert<Equal<StoreMembership["store_location_ids"], string[]>>,
   Assert<Equal<Parameters<Admin["store"]["member"]["updateLocations"]>[0], UpdateStoreMemberLocationsParams>>,

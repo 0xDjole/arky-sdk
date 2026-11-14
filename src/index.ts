@@ -6,6 +6,7 @@ import { isDefiniteRefusal } from "./utils/durableRequest";
 import { isOrderToken } from "./utils/orderToken";
 import { createAdminSessionState } from "./services/adminSession";
 import { exclusive } from "./services/sessionLock";
+import { shareRequest, type SharedRequest } from "./services/sharedRequest";
 import { createHttpClient, refusedByArky } from "./services/createHttpClient";
 import { durableCreateKey, runDurableCreate } from "./services/durableCreate";
 import type { AuthStorage, HttpClientConfig, RequestContextOverride } from "./types/httpClient";
@@ -193,7 +194,7 @@ export type { PaymentSimulation, SimulatePaymentOptions, SimulatePaymentParams }
 export { CheckoutFlowError, initialize } from "./storefrontStore";
 export type * from "./storefrontStore";
 
-export const SDK_VERSION = "0.26.114";
+export const SDK_VERSION = "0.26.118";
 
 export interface AdminSession {
   id: string;
@@ -651,7 +652,7 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
   let pendingVisitorIdentity: IdentifyCustomerParams | null = null;
   let visitorIdentityConsumed = false;
   let identityTail: Promise<void> = Promise.resolve();
-  let setupPromise: Promise<StorefrontSetup> | null = null;
+  let setupRequest: SharedRequest<StorefrontSetup> | null = null;
   let setupValue: StorefrontSetup | null = null;
   const explicitSessionStorage = options.sessionStorage;
   const defaultSessionStorage: DefaultSessionStorage = explicitSessionStorage
@@ -827,17 +828,21 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
 
   async function getSetup(requestOptions?: RequestOptions): Promise<StorefrontSetup> {
     if (setupValue) return setupValue;
-    if (setupPromise) return setupPromise;
-    setupPromise = httpClient
-      .get<StorefrontSetup>("/v1/storefront", requestOptions)
-      .then((setup) => {
-        setupValue = setup;
-        return setup;
-      })
-      .finally(() => {
-        setupPromise = null;
-      });
-    return setupPromise;
+    if (!setupRequest || setupRequest.abandoned) {
+      const request = shareRequest({ method: "GET", url: `${apiUrl}/v1/storefront` }, (signal) =>
+        httpClient
+          .get<StorefrontSetup>("/v1/storefront", { ...requestOptions, signal })
+          .then((setup) => {
+            setupValue = setup;
+            return setup;
+          })
+          .finally(() => {
+            if (setupRequest === request) setupRequest = null;
+          }),
+      );
+      setupRequest = request;
+    }
+    return setupRequest.join(requestOptions?.signal);
   }
 
   async function ensureVisitorSession(): Promise<void> {

@@ -27,8 +27,8 @@ function selection(templateId) {
   return { email_template_id: templateId, email_address_id: address, from_name: "Shop", reply_to_address_id: replyAddress };
 }
 
-test("template discovery filters by kind and purpose and the starters carry the fields they may print", async (context) => {
-  const starter = { key: "order_alert", name: "New Order Alert", type: { type: "email", purpose: { type: "order_alert" }, content: content.en }, allowed_fields: ["order.number", "order.line_items.snapshot.variant_blocks.value.*"] };
+test("template discovery filters by kind and purpose and the starters carry the fields they may print and which of them are lists", async (context) => {
+  const starter = { key: "order_alert", name: "New Order Alert", type: { type: "email", purpose: { type: "order_alert" }, content: content.en }, allowed_fields: ["order.line_items", "order.line_items.snapshot.variant_blocks", "order.line_items.snapshot.variant_blocks.value.*", "order.number"], list_fields: ["order.line_items", "order.line_items.snapshot.variant_blocks"] };
   const { client, calls } = setup(context, (call) => call.url.pathname.endsWith("/defaults")
     ? [starter]
     : { items: [], cursor: calls.length === 1 ? "next:+/=" : null });

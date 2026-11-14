@@ -141,6 +141,7 @@ test("conversation history pages its messages with the empty-page continuation, 
     next_message_sequence: 2,
     customer_read: { type: "through", sequence: 1 },
     store_read: { type: "unread" },
+    unread: true,
     created_at: 0,
     updated_at: 2,
   };

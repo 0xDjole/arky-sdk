@@ -3,13 +3,19 @@ import type { RequestOptions } from "../types/api";
 import type { PaginatedResponse } from "../types/common";
 import type {
   CreateSimulatorPlannedOutcomeParams,
+  FindSimulatedCallConversationsParams,
   FindSimulatedEmailsParams,
   FindSimulatedSmsParams,
   FindSimulatorPlannedOutcomesParams,
+  FinishSimulatedCallConversationParams,
   RemoveSimulatorPlannedOutcomeParams,
+  SetSimulatedCallStatusParams,
+  SimulateToolCallParams,
   SimulatedCall,
+  SimulatedCallConversation,
   SimulatedEmail,
   SimulatedSms,
+  SimulatedToolCall,
   SimulatorPaymentControlParams,
   SimulatorPlannedOutcome,
   SimulatorPlannedOutcomeRemoval,
@@ -19,6 +25,7 @@ import { requireId } from "../utils/ids";
 import { segment, storePath, storeRecordPath } from "./paths";
 
 const plannedOutcomes = "simulator/planned-outcomes";
+const callConversations = "simulator/calls/conversations";
 
 export const createStoreSimulatorApi = (apiConfig: ApiConfig) => {
   const paymentControl = (params: SimulatorPaymentControlParams, verb: string, options?: RequestOptions) =>
@@ -68,6 +75,47 @@ export const createStoreSimulatorApi = (apiConfig: ApiConfig) => {
         return apiConfig.httpClient.post<SimulatedCall>(
           storePath(params.store_id, "simulator/calls"),
           { to: params.to, from: params.from },
+          options,
+        );
+      },
+
+      setStatus(params: SetSimulatedCallStatusParams, options?: RequestOptions): Promise<SimulatedCall> {
+        return apiConfig.httpClient.post<SimulatedCall>(
+          storePath(params.store_id, `simulator/calls/${segment(params.call_sid)}/status`),
+          { status: params.status, duration_seconds: params.duration_seconds },
+          options,
+        );
+      },
+
+      findConversations(
+        params: FindSimulatedCallConversationsParams,
+        options?: RequestOptions,
+      ): Promise<PaginatedResponse<SimulatedCallConversation>> {
+        const { store_id, ...query } = params;
+        return apiConfig.httpClient.get<PaginatedResponse<SimulatedCallConversation>>(storePath(store_id, callConversations), {
+          ...options,
+          params: query,
+        });
+      },
+
+      callTool(params: SimulateToolCallParams, options?: RequestOptions): Promise<SimulatedToolCall> {
+        return apiConfig.httpClient.post<SimulatedToolCall>(
+          storePath(
+            params.store_id,
+            `${callConversations}/${segment(params.conversation_id)}/tools/${segment(params.tool)}`,
+          ),
+          { parameters: params.parameters, said: params.said },
+          options,
+        );
+      },
+
+      finishConversation(
+        params: FinishSimulatedCallConversationParams,
+        options?: RequestOptions,
+      ): Promise<SimulatedCallConversation> {
+        return apiConfig.httpClient.post<SimulatedCallConversation>(
+          storePath(params.store_id, `${callConversations}/${segment(params.conversation_id)}/finish`),
+          { transcript: params.transcript },
           options,
         );
       },

@@ -10,9 +10,9 @@ import { createStorefront } from "../dist/storefront.js";
 import { apiUrl, factoryOrderToken, fixedIdFactories, ids, recordFetch, storefrontIdentity, visitorStorage } from "./helpers/arky-fixtures.mjs";
 
 const reviewedWriteVerbs = new Set([
-  "accept", "add", "allocate", "allow", "answer", "archive", "assign", "attend", "batch", "block", "cancel", "change",
+  "accept", "add", "allocate", "allow", "answer", "archive", "assign", "attend", "batch", "block", "call", "cancel", "change",
   "checkout", "clear", "complete", "confirm", "connect", "copy", "correct", "create", "credit", "decline", "delete", "end",
-  "erase", "execute", "expire", "forget", "grant", "identify", "import", "invite", "join", "logout", "make", "mark", "merge",
+  "erase", "execute", "expire", "finish", "forget", "grant", "identify", "import", "invite", "join", "logout", "make", "mark", "merge",
   "move", "new", "on", "open", "pause", "pay", "print", "receive", "record", "recover", "refresh", "release", "remove",
   "reopen", "reorder", "replace", "reply", "request", "reschedule", "resend", "reset", "resize", "resolve", "resubscribe",
   "resume", "retain", "revoke", "save", "schedule", "select", "send", "set", "setup", "skip", "start", "step", "submit",

@@ -242,17 +242,18 @@ test("a nonexpiring email invite is explicitly resent and accepted with its curr
   const contact = { email: "packer@example.test", language: "en" };
   const invited = { id: "member", store_id: storeId, store_name: "Contract Store", store_type: { type: "live", account_id: accountId, network_id: storeId }, role_ids: [roleId], access: { permissions: [] }, status: { type: "invited", contact }, created_at: 1, updated_at: 2 };
   const accepted = { id: "member", store_id: storeId, role_ids: [roleId], status: { type: "active", account_id: accountId }, created_at: 1, updated_at: 3 };
+  const membership = { id: accountId, store_id: storeId, role_ids: [roleId], store_location_ids: [], status: { type: "invited", contact }, created_at: 1, updated_at: 2 };
   const calls = [];
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     const parsed = new URL(url);
     const call = { url: parsed, method: init.method ?? "GET", body: init.body ? JSON.parse(String(init.body)) : null };
     calls.push(call);
-    const body = parsed.pathname.endsWith("/invitation") ? true : parsed.pathname.endsWith("/membership/accept") ? accepted : invited;
+    const body = parsed.pathname === `/v1/stores/${storeId}/invitation` ? membership : parsed.pathname.endsWith("/invitation") ? true : parsed.pathname.endsWith("/membership/accept") ? accepted : invited;
     return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
   });
   const admin = createAdmin({ apiUrl: baseUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   const invite = { store_id: storeId, id: accountId, contact, role_ids: [roleId] };
-  assert.equal(await admin.store.member.invite(invite), true);
+  assert.deepEqual(await admin.store.member.invite(invite), membership, "the invite answers the membership it made");
   assert.equal(await admin.store.member.resendInvite({ store_id: storeId, id: accountId, expected_updated_at: 2 }), true);
   const own = await admin.store.member.getOwn({ store_id: storeId });
   assert.deepEqual(own.status, { type: "invited", contact });

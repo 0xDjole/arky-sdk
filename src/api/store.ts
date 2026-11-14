@@ -179,8 +179,8 @@ export const createStoreApi = (apiConfig: ApiConfig) => ({
   },
 
   member: {
-    invite(params: InviteStoreMemberParams, options?: RequestOptions): Promise<boolean> {
-      return apiConfig.httpClient.post<boolean>(
+    invite(params: InviteStoreMemberParams, options?: RequestOptions): Promise<StoreMembership> {
+      return apiConfig.httpClient.post<StoreMembership>(
         storePath(params.store_id, "invitation"),
         { id: requireId(params.id, "membership"), contact: params.contact, role_ids: params.role_ids },
         options,
