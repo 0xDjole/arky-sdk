@@ -1,4 +1,4 @@
-import type { EpochMilliseconds } from "./time";
+import type { Days, Duration, EpochMilliseconds } from "./time";
 import type { ProviderLogin } from "./common";
 import type { IncomingWebhookResolution, IncomingWebhookStatusName } from "./payment";
 
@@ -237,7 +237,7 @@ export type EmailTemplateTypeName =
   | "customer_invite"
   | "store_admin_sign_in"
   | "customer_email_verification"
-  | "email_changed"
+  | "login_changed"
   | "order_received"
   | "first_order_placed"
   | "order_dispatched"
@@ -274,6 +274,20 @@ export type EmailTemplateTypeName =
   | "booking_moved_alert"
   | "entry_added_alert"
   | "daily_overview_alert"
+  | "invoice_counter_held_alert"
+  | "outside_invoice_waiting_alert"
+  | "invoice_issue_blocked_alert"
+  | "fiscal_receipt_refused_alert"
+  | "fiscal_receipt_unknown_alert"
+  | "fiscal_receipt_deadline_alert"
+  | "fiscal_refund_needs_allocation_alert"
+  | "fiscal_advance_open_alert"
+  | "fiscal_credit_after_receipt_alert"
+  | "fiscal_refund_returned_alert"
+  | "fiscal_dispute_lost_alert"
+  | "fiscal_device_not_ready_alert"
+  | "fiscal_device_daily_report_missed_alert"
+  | "fiscal_certificate_expiring_alert"
   | "support_message"
   | "broadcast";
 
@@ -282,6 +296,7 @@ export type EmailTemplateType = { type: EmailTemplateTypeName };
 export type SmsTemplateTypeName =
   | "customer_sign_in"
   | "customer_invite"
+  | "login_changed"
   | "booking_confirmed"
   | "booking_reminder"
   | "booking_cancelled"
@@ -293,7 +308,7 @@ export type SmsTemplateTypeName =
 
 export type SmsTemplateType = { type: SmsTemplateTypeName };
 
-export type TemplateKind = "email" | "sms";
+export type TemplateTypeName = "email" | "sms";
 
 export type TemplateType =
   | {
@@ -345,13 +360,14 @@ export type TemplateContentChange =
   | { type: "sms"; content: Record<string, string> };
 
 export type NotificationTypeName =
-  | "customer_sign_in"
+  | "customer_sign_in_email"
   | "customer_sign_in_sms"
   | "customer_invite_email"
   | "customer_invite_sms"
   | "store_admin_sign_in"
   | "customer_email_verification"
-  | "email_changed"
+  | "login_changed_email"
+  | "login_changed_sms"
   | "store_admin_invite"
   | "company_invite"
   | "company_access_notice"
@@ -391,20 +407,35 @@ export type NotificationTypeName =
   | "booking_cancelled_alert"
   | "booking_moved_alert"
   | "entry_added_alert"
-  | "daily_overview_alert";
+  | "daily_overview_alert"
+  | "invoice_counter_held_alert"
+  | "outside_invoice_waiting_alert"
+  | "invoice_issue_blocked_alert"
+  | "fiscal_receipt_refused_alert"
+  | "fiscal_receipt_unknown_alert"
+  | "fiscal_receipt_deadline_alert"
+  | "fiscal_refund_needs_allocation_alert"
+  | "fiscal_advance_open_alert"
+  | "fiscal_credit_after_receipt_alert"
+  | "fiscal_refund_returned_alert"
+  | "fiscal_dispute_lost_alert"
+  | "fiscal_device_not_ready_alert"
+  | "fiscal_device_daily_report_missed_alert"
+  | "fiscal_certificate_expiring_alert";
 
 export type NotificationServices =
   | { type: "all" }
-  | { type: "only"; booking_service_ids: string[] };
+  | { type: "ids"; booking_service_ids: string[] };
 
 export type NotificationType =
-  | { type: "customer_sign_in"; email: Email }
+  | { type: "customer_sign_in_email"; email: Email }
   | { type: "customer_sign_in_sms"; sms_template_id: string }
   | { type: "customer_invite_email"; email: Email }
   | { type: "customer_invite_sms"; sms_template_id: string }
   | { type: "store_admin_sign_in"; email: Email }
   | { type: "customer_email_verification"; email: Email }
-  | { type: "email_changed"; email: Email }
+  | { type: "login_changed_email"; email: Email }
+  | { type: "login_changed_sms"; sms_template_id: string }
   | { type: "store_admin_invite"; email: Email }
   | { type: "company_invite"; email: Email }
   | { type: "company_access_notice"; email: Email }
@@ -417,7 +448,7 @@ export type NotificationType =
   | { type: "order_refunded"; email: Email }
   | { type: "offer_sent"; email: Email }
   | { type: "offer_revised"; email: Email }
-  | { type: "offer_reminder"; email: Email; after_days: number }
+  | { type: "offer_reminder"; email: Email; after: Days }
   | { type: "return_requested"; email: Email }
   | { type: "return_approved"; email: Email }
   | { type: "return_declined"; email: Email }
@@ -432,21 +463,35 @@ export type NotificationType =
   | { type: "conversation_message_notice_sms"; sms_template_id: string }
   | { type: "result_shared_email"; email: Email }
   | { type: "result_shared_sms"; sms_template_id: string }
-  | { type: "booking_reminder_email"; email: Email; minutes_before: number; services: NotificationServices }
-  | { type: "booking_reminder_sms"; sms_template_id: string; minutes_before: number; services: NotificationServices }
-  | { type: "booking_recall_email"; email: Email; days_after_visit: number; services: NotificationServices }
-  | { type: "booking_recall_sms"; sms_template_id: string; days_after_visit: number; services: NotificationServices }
-  | { type: "after_visit_email"; email: Email; minutes_after: number; services: NotificationServices }
-  | { type: "after_visit_sms"; sms_template_id: string; minutes_after: number; services: NotificationServices }
+  | { type: "booking_reminder_email"; email: Email; before: Duration; services: NotificationServices }
+  | { type: "booking_reminder_sms"; sms_template_id: string; before: Duration; services: NotificationServices }
+  | { type: "booking_recall_email"; email: Email; after_visit: Days; services: NotificationServices }
+  | { type: "booking_recall_sms"; sms_template_id: string; after_visit: Days; services: NotificationServices }
+  | { type: "after_visit_email"; email: Email; after: Duration; services: NotificationServices }
+  | { type: "after_visit_sms"; sms_template_id: string; after: Duration; services: NotificationServices }
   | { type: "order_alert"; email: Email; recipients: AlertRecipient[] }
   | { type: "return_alert"; email: Email; recipients: AlertRecipient[] }
   | { type: "conversation_message_alert"; email: Email; recipients: AlertRecipient[] }
   | { type: "booking_cancelled_alert"; email: Email; recipients: AlertRecipient[] }
   | { type: "booking_moved_alert"; email: Email; recipients: AlertRecipient[] }
   | { type: "entry_added_alert"; collections: AlertCollections; email: Email; recipients: AlertRecipient[] }
-  | { type: "daily_overview_alert"; at_minute: number; email: Email; recipients: AlertRecipient[] };
+  | { type: "daily_overview_alert"; at: Duration; email: Email; recipients: AlertRecipient[] }
+  | { type: "invoice_counter_held_alert"; email: Email; recipients: AlertRecipient[] }
+  | { type: "outside_invoice_waiting_alert"; email: Email; recipients: AlertRecipient[] }
+  | { type: "invoice_issue_blocked_alert"; email: Email; recipients: AlertRecipient[] }
+  | { type: "fiscal_receipt_refused_alert"; email: Email; recipients: AlertRecipient[] }
+  | { type: "fiscal_receipt_unknown_alert"; email: Email; recipients: AlertRecipient[] }
+  | { type: "fiscal_receipt_deadline_alert"; email: Email; recipients: AlertRecipient[] }
+  | { type: "fiscal_refund_needs_allocation_alert"; email: Email; recipients: AlertRecipient[] }
+  | { type: "fiscal_advance_open_alert"; email: Email; recipients: AlertRecipient[] }
+  | { type: "fiscal_credit_after_receipt_alert"; email: Email; recipients: AlertRecipient[] }
+  | { type: "fiscal_refund_returned_alert"; email: Email; recipients: AlertRecipient[] }
+  | { type: "fiscal_dispute_lost_alert"; email: Email; recipients: AlertRecipient[] }
+  | { type: "fiscal_device_not_ready_alert"; email: Email; recipients: AlertRecipient[] }
+  | { type: "fiscal_device_daily_report_missed_alert"; email: Email; recipients: AlertRecipient[] }
+  | { type: "fiscal_certificate_expiring_alert"; email: Email; recipients: AlertRecipient[] };
 
-export type AlertCollections = { type: "all" } | { type: "only"; collection_ids: string[] };
+export type AlertCollections = { type: "all" } | { type: "ids"; collection_ids: string[] };
 
 export type NotificationStatus = { type: "active"; since: EpochMilliseconds } | { type: "paused" };
 
@@ -561,9 +606,9 @@ interface FindTemplatesPage {
 }
 
 export type FindTemplatesParams =
-  | (FindTemplatesPage & { kind?: never; purpose?: never })
-  | (FindTemplatesPage & { kind: "email"; purpose?: EmailTemplateTypeName })
-  | (FindTemplatesPage & { kind: "sms"; purpose?: SmsTemplateTypeName });
+  | (FindTemplatesPage & { type?: never; purpose?: never })
+  | (FindTemplatesPage & { type: "email"; purpose?: EmailTemplateTypeName })
+  | (FindTemplatesPage & { type: "sms"; purpose?: SmsTemplateTypeName });
 
 export interface GetTemplateParams {
   store_id: string;

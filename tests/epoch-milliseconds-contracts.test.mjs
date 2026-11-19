@@ -60,7 +60,9 @@ function customerSession(instant) {
     customer: {
       id: "customer-time",
       store_id: storeId,
+      links: [],
       name: null,
+      contacts: [],
       addresses: [],
       default_shipping_address_id: null,
       default_billing_address_id: null,
@@ -68,7 +70,6 @@ function customerSession(instant) {
       created_at: instant,
       updated_at: instant,
     },
-    login: null,
     session: {
       id: "session-time",
       customer_id: "customer-time",
@@ -100,7 +101,7 @@ test("auth cutover ignores old-unit namespaces without changing durable effect r
   storage.seed("arky_admin_session", JSON.stringify(adminSession()));
   storage.seed("arky_admin_session:v2", JSON.stringify({ version: 2, session: adminSession() }));
   storage.seed(customerKey().replace(":v5:", ":v4:"), JSON.stringify({ ...customerSession(1_700_000_000), version: 4 }));
-  const durableKey = "arky:cart-checkout:v5:pending-request";
+  const durableKey = "arky:cart-checkout:v6:pending-request";
   storage.seed(durableKey, JSON.stringify({ requestId: "frozen-id", payload: { amount: 200 } }));
   const before = [...storage.values];
   context.mock.method(globalThis, "fetch", () => { throw new Error("No network during initialization"); });

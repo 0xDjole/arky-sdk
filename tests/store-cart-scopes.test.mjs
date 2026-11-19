@@ -265,6 +265,7 @@ test("shipTo groups shipped lines by shipping profile and keeps a group's choice
     [factoryId(1), null, "Side 2"],
   ]);
   assert.equal(updates.length, 2);
+  assert.equal(variantReads.length, 2, "an address edit reads each variant's shipping profile once, not again on every edit");
 });
 
 test("the market changes while a scoped cart has items, each market keeps its own cart store, and a sign-out clears every scope", async (context) => {
@@ -399,7 +400,7 @@ test("after_logout_another_customer_gets_a_new_cart", async (context) => {
   const request = checkoutRequest({ cart_id: ids.cart });
   await arky.client.eshop.cart.retainCheckout({ ...request, scope: cart.scope });
   await assert.rejects(arky.client.eshop.cart.recoverCheckout({ scope: cart.scope }), /Lost response/);
-  const keptKeys = [...durable.values.keys()].filter((key) => key.startsWith("arky:cart-checkout:v5:"));
+  const keptKeys = [...durable.values.keys()].filter((key) => key.startsWith("arky:cart-checkout:v6:"));
   assert.equal(keptKeys.length, 1);
   assert.ok(keptKeys[0].includes(encodeURIComponent(ids.customer)));
   const kept = durable.getItem(keptKeys[0]);
@@ -421,4 +422,36 @@ test("after_logout_another_customer_gets_a_new_cart", async (context) => {
     ["POST", "/v1/storefront/customer/identify"],
     ["POST", "/v1/storefront/carts"],
   ]);
+});
+
+test("item_count counts each package's quantity the way it counts product units", () => {
+  const cart = store().eshop.cart({ buyer: customer, package_id: ids.package });
+  const membership = {
+    type: "package",
+    id: ids.otherLine,
+    package_id: ids.otherPackage,
+    quantity: 3,
+    choices: [],
+    start: { type: "now" },
+    deliveries: [],
+    price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.otherPrice },
+  };
+  cart.cart.set(cartRecord({ line_items: [productLine(ids.line, ids.variant, 2), membership] }));
+  assert.equal(cart.product_item_count.get(), 2);
+  assert.equal(cart.package_items.get().length, 1);
+  assert.equal(cart.item_count.get(), 5);
+});
+
+test("setBuyer keeps the cart in the buyer scope that selects it, and refuses another buyer before any request", async (context) => {
+  const calls = recordFetch(context, (call) => {
+    throw new Error(`Unexpected request ${call.method} ${call.path}`);
+  });
+  const personal = store().eshop.cart({ buyer: customer, package_id: ids.package });
+  personal.cart.set(cartRecord());
+  await assert.rejects(personal.setBuyer({ buyer: { type: "company", company_id: ids.company } }), (error) => error.code === "not_ready");
+  const location = store().eshop.cart({ buyer: { type: "company_location", company_location_id: ids.companyLocation }, package_id: ids.package });
+  location.cart.set(cartRecord({ buyer: { type: "company_location", company_location_id: ids.companyLocation } }));
+  await assert.rejects(location.setBuyer({ buyer: { type: "company_location", company_location_id: ids.otherCompanyLocation } }), (error) => error.code === "not_ready");
+  await assert.rejects(location.setBuyer({ buyer: customer }), (error) => error.code === "not_ready");
+  assert.equal(calls.length, 0);
 });

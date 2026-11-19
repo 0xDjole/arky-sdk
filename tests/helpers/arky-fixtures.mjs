@@ -125,7 +125,9 @@ export function customerRecord(id = ids.customer, overrides = {}) {
   return {
     id,
     store_id: ids.store,
+    links: [],
     name: null,
+    contacts: [],
     addresses: [],
     default_shipping_address_id: null,
     default_billing_address_id: null,
@@ -136,15 +138,14 @@ export function customerRecord(id = ids.customer, overrides = {}) {
   };
 }
 
-export const signedInLoginId = "00000000-0000-4000-8000-0000000000e1";
+export const signedInEmail = "customer@example.test";
 
-export function emailLogin(id = signedInLoginId, email = "customer@example.test") {
-  return {
-    id,
-    type: { type: "verified_email", email, language: "en", unsubscribed: false },
-    created_at: 1_700_000_000_000,
-    updated_at: 1_700_000_000_000,
-  };
+export function confirmedEmail(email = signedInEmail, language = "en") {
+  return { type: "confirmed_email", email, language };
+}
+
+export function signedInCustomer(id = ids.customer, email = signedInEmail, overrides = {}) {
+  return customerRecord(id, { links: [{ type: "own" }], contacts: [confirmedEmail(email)], ...overrides });
 }
 
 export function visitorSession(customerId = ids.customer, sessionId = ids.session, token = visitorToken) {
@@ -160,11 +161,27 @@ export function visitorSession(customerId = ids.customer, sessionId = ids.sessio
 
 export function emailSession(customerId = ids.customer, sessionId = ids.session, overrides = {}) {
   return {
-    type: "logged_in",
+    type: "store_customer_signed_in_by_email",
     id: sessionId,
     customer_id: customerId,
-    login_id: signedInLoginId,
     status: { type: "active" },
+    email: signedInEmail,
+    access_token: accessToken,
+    refresh_token: refreshToken,
+    access_expires_at: 1_900_000_000_000,
+    refresh_expires_at: 1_900_000_600_000,
+    authenticated_at: 1_700_000_000_000,
+    ...overrides,
+  };
+}
+
+export function phoneSession(customerId = ids.customer, sessionId = ids.session, number = "+38761222333", overrides = {}) {
+  return {
+    type: "store_customer_signed_in_by_phone",
+    id: sessionId,
+    customer_id: customerId,
+    status: { type: "active" },
+    number,
     access_token: accessToken,
     refresh_token: refreshToken,
     access_expires_at: 1_900_000_000_000,
@@ -175,9 +192,20 @@ export function emailSession(customerId = ids.customer, sessionId = ids.session,
 }
 
 export function sessionResult(customerId = ids.customer, session = visitorSession(customerId)) {
-  const customer = customerRecord(customerId);
-  const login = session.type === "logged_in" ? emailLogin(session.login_id) : null;
-  return { customer, session, login };
+  switch (session.type) {
+    case "store_customer_signed_in_by_email":
+      return { customer: signedInCustomer(customerId, session.email), session };
+    case "store_customer_signed_in_by_phone":
+      return {
+        customer: customerRecord(customerId, {
+          links: [{ type: "own" }],
+          contacts: [{ type: "confirmed_phone", number: session.number, language: "en", sms: { type: "off" } }],
+        }),
+        session,
+      };
+    default:
+      return { customer: customerRecord(customerId), session };
+  }
 }
 
 export function storedSession(customerId = ids.customer, session = visitorSession(customerId)) {
@@ -255,6 +283,7 @@ export function quoteRecord(overrides = {}) {
     language: "en",
     lines: [],
     deliveries: [],
+    shipping_choices: [],
     promotions: [],
     promotion_codes: [],
     billing_address: null,
@@ -306,8 +335,7 @@ export function checkoutRequest(overrides = {}) {
       type: "payment_option",
       payment_option_id: ids.paymentOption,
       return_url: "https://shop.example.test/return",
-      save_payment_method: false,
-      payment_method_terms: null,
+      save_payment_method: { type: "dont_save" },
     },
     ...overrides,
   };

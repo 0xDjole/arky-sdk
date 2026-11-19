@@ -13,7 +13,7 @@ const imageIds = page.items.flatMap((item) => {
   const image = findBlock(item.content, "image");
   return image?.type === "media" && image.value ? [image.value] : [];
 });
-const { items: images } = await arky.media.find({ ids: imageIds });
+const images = await arky.media.find({ ids: imageIds });
 const imageById = new Map<string, Media>(images.map((image) => [image.id, image]));
 
 function startingPrice(item: StorefrontPackageItem): string {

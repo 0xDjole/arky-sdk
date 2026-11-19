@@ -1,4 +1,4 @@
-import type { EpochMilliseconds } from "./time";
+import type { Days, Duration, EpochMilliseconds } from "./time";
 import type { Block, BlockQuery } from "./block";
 import type { CompanyPartyQuery, Currency, Money, Schedule, SortDirection, TaxMode } from "./common";
 import type { CategoryEntry, CategoryQuery } from "./content";
@@ -23,11 +23,11 @@ export interface PackageRenewalTerms {
 }
 
 export type PackageRenewalReminder =
-  { type: "none" } | { type: "days_before"; days: number };
+  { type: "none" } | { type: "before"; period: Days };
 
 export interface PackageRenewalTiming {
-  retry_offsets_seconds: number[];
-  recovery_window_seconds: number;
+  retry_offsets: Duration[];
+  recovery_window: Duration;
   reminder: PackageRenewalReminder;
 }
 
@@ -63,7 +63,8 @@ export type PackageMinimum =
 
 export type PackageScheduleInput =
   | { type: "always" }
-  | { type: "scheduled"; starts_at: EpochMilliseconds | null; ends_at: EpochMilliseconds | null };
+  | { type: "scheduled"; starts_at: EpochMilliseconds; ends_at: EpochMilliseconds | null }
+  | { type: "until"; ends_at: EpochMilliseconds };
 
 export type PackageStatus =
   | { type: "draft" }
@@ -159,13 +160,13 @@ export type PackageDeliveryCount =
 
 export type PackageDelivery =
   | { type: "none" }
-  | { type: "once_per_period"; offset_days: number; window_days: number }
+  | { type: "once_per_period"; offset: Days; window: Days }
   | {
       type: "repeating_in_period";
       cadence: RecurringCadence;
       count: PackageDeliveryCount;
-      offset_days: number;
-      window_days: number;
+      offset: Days;
+      window: Days;
     };
 
 export type PackagePricedItemType =
@@ -222,7 +223,7 @@ export type PackageAudience =
 
 export type PackageChannels =
   | { type: "all" }
-  | { type: "only"; sales_channel_ids: string[] };
+  | { type: "ids"; sales_channel_ids: string[] };
 
 export type PackageAccessLevel =
   | { type: "browse" }

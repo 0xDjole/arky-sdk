@@ -12,7 +12,6 @@ const removedIdentifiers = [
   "AccountApiToken",
   "StorefrontKey",
   "CustomerEmail",
-  "CustomerStatus",
   "EmailDomain",
   "createStorefrontKeyApi",
   "MessageDelivery",
@@ -269,6 +268,68 @@ const removedIdentifiers = [
   "DeleteOrderInvoiceParams",
   "addInvoice",
   "deleteInvoice",
+  "createManual",
+  "recordCollection",
+  "voidCollection",
+  "RecordedCollection",
+  "CollectionMethod",
+  "ManualPayment",
+  "ManualRequest",
+  "CreateInvoiceParams",
+  "DeleteInvoiceParams",
+  "InvoiceLines",
+  "getLines",
+  "StorefrontInvoice",
+  "makeDue",
+  "MakeDueFiscalReceiptsParams",
+  "status_revision",
+  "SupportAccess",
+  "SupportAccessStatus",
+  "createSupportAccessApi",
+  "OpenSupportAccessParams",
+  "FindOwnSupportAccessesParams",
+  "FindSupportAccessesParams",
+  "GetSupportAccessParams",
+  "EndSupportAccessParams",
+  "AccountAccess",
+  "CustomerLogin",
+  "CustomerLoginType",
+  "CustomerLoginStatus",
+  "CustomerLoginContact",
+  "CustomerLoginAddress",
+  "StorefrontCustomerLogin",
+  "StorefrontCustomerLoginType",
+  "CustomerLoginSummary",
+  "CustomerLoginSummaryAddress",
+  "CreateOwnLoginParams",
+  "UpdateOwnLoginParams",
+  "DeleteOwnLoginParams",
+  "VerifyNewLoginParams",
+  "OwnLoginParams",
+  "FindCustomerLoginsParams",
+  "CreateCustomerLoginParams",
+  "UpdateCustomerLoginParams",
+  "DeleteCustomerLoginParams",
+  "InviteCustomerLoginParams",
+  "CustomerLoginInviteSent",
+  "verifyNewLogin",
+  "createLogin",
+  "inviteLogin",
+  "logged_in",
+  "login_id",
+  "FbihPrinterDocument",
+  "CroatiaDocument",
+  "done_by_hand",
+  "issued_by_hand",
+  "by_hand",
+  "invoice_request",
+  "RecordedRefundReceipt",
+  "StorefrontRefundReceipt",
+  "InventoryUnitWriteOffSource",
+  "alert_recipients",
+  "RentalActor",
+  "PackageMemberRevisionChange",
+  "PackageMemberSelfRevisionChange",
 ];
 
 const removedIdentifierPattern = new RegExp(`\\b(?:${removedIdentifiers.join("|")})\\b`, "g");
@@ -347,7 +408,7 @@ requirePattern("api/platform.ts", /\/v1\/accounts\/me\/platform-admin/, "platfor
 requirePattern("index.ts", /"X-Arky-Store-Id":\s*storeId/, "storefront requests name their store");
 requirePattern("index.ts", /"X-Arky-Sales-Channel-Id":\s*salesChannelId/, "storefront requests name their sales channel");
 requirePattern("index.ts", /"X-Arky-Locale"/, "storefront requests name their language");
-requirePattern("api/storefront.ts", /export interface RequestCustomerCodeRequest\s*\{\s*id:\s*string;\s*contact:\s*CustomerLoginContact;\s*\}/,
+requirePattern("api/storefront.ts", /export interface RequestCustomerCodeRequest\s*\{\s*id:\s*string;\s*contact:\s*LoginContact;\s*\}/,
   "a sign-in code request requires id and the email or phone contact");
 requirePattern("api/storefront.ts", /\/customer\/request-code`,\s*\{\s*id:\s*params\.id,\s*contact:\s*params\.contact\s*\}/,
   "a sign-in code request posts the caller's id and its email or phone contact with its explicit language");
@@ -358,9 +419,11 @@ requirePattern("api/order.ts", /resend-receipt`,\s*\{\s*id:\s*params\.id,\s*expe
 forbidPattern("types/storeRole.ts", /"contact"/, "store permissions use \"email\"");
 requirePattern("api/store.ts", /storePath\(params\.store_id, "usage"\)/, "the owner's billing screen reads the store's usage");
 requirePattern("api/store.ts", /"subscription\/end-grant"/, "platform administrators end a granted plan");
-requirePattern("api/order.ts", /line_item_id, "attend"\)/, "staff mark a booking attended through its attend route");
+requirePattern("api/order.ts", /attended: "attend"/, "staff mark a booking attended through its attend route");
 requirePattern("api/fulfillment.ts", /\/cash-collections`/, "a pickup clerk records collected cash on the fulfillment job");
-requirePattern("api/storefront.ts", /\/customer\/me\/logins\/\$\{segment\(params\.login_id\)\}\/unsubscribe`/, "a signed-in customer unsubscribes one of their own logins on the storefront");
+requirePattern("api/storefront.ts", /\/customer\/me\/contacts\/unsubscribe`,\s*\{\s*address:\s*params\.address\s*\}/, "a customer unsubscribes one of their own contacts on the storefront by its address");
+requirePattern("networkCustomer.ts", /\/v1\/networks\/\$\{segment\(networkId\)\}\/customer`/, "the network customer sign-in lives under its network's customer routes");
+requirePattern("index.ts", /value\.access_token\.startsWith\("customer_store_key_"\)/, "a stored store key carries its customer_store_key_ token");
 requirePattern("api/storefront.ts", /\/promotions\/\$\{segment\(params\.id\)\}`/, "a storefront reads a promotion's key and blocks by id");
 requirePattern("api/storeProvider.ts", /replaceResendKey\(/, "a store replaces its Resend key on the same provider");
 requirePattern("api/support.ts", /\/chat-visibility`/, "staff show or hide a received email in the chat");
@@ -421,7 +484,7 @@ forbidPattern("types/package.ts", /export interface PackageAccess \{[^}]*\bupdat
 forbidPattern("types/package.ts", /export interface DeletePackageAccessParams \{[^}]*\bexpected_updated_at\b/, "an access row's delete names only its id");
 forbidPattern("types/package.ts", /export interface FindPackageAccessesParams \{[^}]*\bsort_field\b/, "access rows list by created_at only");
 forbidPattern("types/package.ts", /type: "(?:once|repeating)"/, "deliveries are once_per_period or repeating_in_period");
-requirePattern("types/package.ts", /type: "once_per_period"; offset_days: number; window_days: number/, "a delivery once per period opens one window");
+requirePattern("types/package.ts", /type: "once_per_period"; offset: Days; window: Days/, "a delivery once per period opens one window");
 requirePattern("types/package.ts", /type: "repeating_in_period";/, "a delivery repeating in a period opens a window per step");
 requirePattern("types/package.ts", /\{ type: "variants"; variant_ids: string\[\] \}/, "a Variants minimum lists variants that count by their measure");
 requirePattern("types/package.ts", /export interface PackageItemPriceSummary \{\s*basis: PackageItemPriceBasis;\s*min_amount: number;\s*max_amount: number;\s*price_count: number;\s*\}/, "an item's prices share one basis, so its price summary has one shape");
@@ -437,15 +500,15 @@ for (const terms of ["PackageMemberAcceptedTerms", "PackageMemberSelfAcceptedTer
 }
 requirePattern("types/packageMember.ts", /export interface PackageMemberRevision \{[^}]*\bterms: PackageMemberAcceptedTerms;/, "a revision holds its accepted terms in full");
 requirePattern("types/packageMember.ts", /export interface PackageMemberRevisionSelf \{[^}]*\bterms: PackageMemberSelfAcceptedTerms;/, "a buyer's revision holds its accepted terms in full");
-for (const change of ["PackageMemberRevisionChange", "PackageMemberSelfRevisionChange"]) {
-  requirePattern("types/packageMember.ts", new RegExp(`export type ${change} =\\s*\\| \\{ type: "own_terms" \\}\\s*\\| \\{ type: "package_change" \\}\\s*\\| \\{ type: "upgrade" \\}\\s*\\| \\{ type: "amend" \\}\\s*\\| \\{ type: "minimum" \\};`), "a revision's change kind says what happened");
-}
+requirePattern("types/packageMember.ts", /export type PackageMemberSelfRevisionOrigin =\s*\| \{ type: "initial" \}\s*\| \{ type: "own_terms"; previous_revision_id: string \}\s*\| \{ type: "package_change"; previous_revision_id: string \}\s*\| \{ type: "upgrade"; previous_revision_id: string \}\s*\| \{ type: "amend"; previous_revision_id: string \}\s*\| \{ type: "minimum"; previous_revision_id: string \};/, "a buyer's revision origin names what happened as its own type, without the team's reason");
+requirePattern("types/packageMember.ts", /export type PackageMemberRevisionOrigin =\s*\| \{ type: "initial" \}\s*\| \{ type: "own_terms"; previous_revision_id: string; reason: string \}\s*\| \{ type: "package_change"; previous_revision_id: string; reason: string \}\s*\| \{ type: "upgrade"; previous_revision_id: string; reason: string \}\s*\| \{ type: "amend"; previous_revision_id: string; reason: string \}\s*\| \{ type: "minimum"; previous_revision_id: string; reason: string \};/, "a staff revision's origin names what happened as its own type");
 requirePattern("api/packageMember.ts", /\/switch-delivery-options\/\$\{segment\(delivery_id\)\}`/, "a storefront lists the rates a switch's new delivery can take");
 requirePattern("types/cart.ts", /\{ type: "package_change_refused"; line_item_id: string; code: string \}/, "a Switch or Amend line's quote names the change's own refusal");
 requirePattern("types/cart.ts", /\{ type: "payment_unavailable"; code: string \}/, "a quote names why no payment option can pay its cart");
 for (const blocker of ["package_change_refused", "payment_unavailable"]) {
-  requirePattern("storefrontStore/checkoutFlow.ts", new RegExp(`const lineBlockers: QuoteBlocker\\["type"\\]\\[\\] = \\[[^\\]]*"${blocker}"`), `${blocker} shows the cart step, where the buyer changes the cart`);
+  requirePattern("storefrontStore/checkoutFlow.ts", new RegExp(`const blockerSteps: Record<QuoteBlocker\\["type"\\], BlockerStep> = \\{[^}]*\\b${blocker}: "cart"`), `${blocker} shows the cart step, where the buyer changes the cart`);
 }
+requirePattern("storefrontStore/checkoutFlow.ts", /place_of_sale_required: "details"/, "a missing place of sale shows the details step, where setPlaceOfSale clears it");
 requirePattern("types/order.ts", /export type OrderBuyerTax =(?:(?!\n\nexport )[\s\S])*\{ type: "exempt"; reason: string; registrations: OrderTaxRegistration\[\] \}/,"an exempt buyer's Order keeps its Verified registrations, as a standard buyer's does");
 forbidPattern("types/forms.ts", /export interface FormSubmissionStageChange \{[^}]*\bnote_id\b/, "a stage change names no note; its reason is a note that names the change");
 requirePattern("types/note.ts", /type: "form_submission_stage_change";\s*form_submission_id: string;\s*changed_at: EpochMilliseconds;/, "a stage change's reason note names the change it explains");

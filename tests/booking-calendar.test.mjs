@@ -11,6 +11,7 @@ import {
   idSequence,
   storefrontIdentity,
   recordFetch,
+  signedInStorage,
   visitorStorage,
 } from "./helpers/arky-fixtures.mjs";
 
@@ -20,6 +21,7 @@ const offeringId = "c5e7a9b1-3d4f-4b8a-8c2e-4a6b8c0e2d3f";
 const laterResourceId = "d6f8b0c2-4e5a-4c9b-9d3f-5b7c9d1f3e4a";
 const laterOfferingId = "e7a9c1d3-5f6b-4dac-8e4a-6c8d0e2a4f5b";
 const otherPackageItemId = "f8b0d2e4-6a7c-4ebd-9f5b-7d9e1f3b5a6c";
+const locationId = "0c2e4a6b-8d1f-4c3e-9a5b-7d9f1b3c5e8b";
 const customer = { type: "customer" };
 const dayMilliseconds = 24 * 60 * 60 * 1_000;
 
@@ -59,11 +61,9 @@ function bookingService() {
     slugs: { en: "apartment" },
     blocks: [],
     categories: [],
-    segments: [{ type: "service", minutes: 1320 }],
-    buffer_before_minutes: 0,
-    buffer_after_minutes: 0,
-    slot_interval_minutes: 1440,
-    booking_window: { opens_before_start_minutes: null, closes_before_start_minutes: 0 },
+    length: 79_200_000,
+    slot_interval: 86_400_000,
+    booking_window: { opens: { type: "any_time" }, closes_before_start: 0 },
     customer_changes: { type: "not_allowed" },
     tax_category_id: ids.paymentOption,
     status: { type: "active" },
@@ -85,6 +85,7 @@ function offeringChoice(bookingOfferingId = offeringId, priceId = ids.price) {
 function availabilityEntry({ bookingOfferingId = offeringId, bookingResourceId = resourceId, timezone = "UTC", days }) {
   return {
     booking_offering_id: bookingOfferingId,
+    store_location_id: locationId,
     booking_resource_id: bookingResourceId,
     resource_key: `resource-${bookingResourceId.slice(0, 8)}`,
     timezone,
@@ -112,7 +113,10 @@ function bookingLine(packageItemId, to) {
     type: "booking",
     id: factoryId(90),
     booking_offering_id: offeringId,
+    store_location_id: locationId,
+    resource: { type: "any" },
     requested_interval: { from: to - 60 * 60 * 1_000, to },
+    add_ons: [],
     capacity_units: 1,
     form_submission_id: null,
     price: { package_id: ids.package, package_item_id: packageItemId, price_id: ids.price },
@@ -139,6 +143,7 @@ function calendarServer(context, { pages = [[stayEntry()]], choices = [offeringC
         booking_resources: pages[index].map((entry) => withinRange(entry, from, to)),
       };
     }
+    if (call.path === "/v1/storefront/customer/logout") return undefined;
     if (call.path === "/v1/storefront/carts") {
       cart = cartRecord({ id: call.body.id, package_id: call.body.package_id, line_items: lines });
       return { type: "created", cart, recovery_token: "token" };
@@ -164,7 +169,7 @@ function monthRange(monthIndex) {
 }
 
 async function pickStay(calendar) {
-  await calendar.select({ booking_service_id: serviceId });
+  await calendar.select({ booking_service_id: serviceId, store_location_id: locationId });
   calendar.setTimezone({ timezone: "UTC" });
   calendar.selectDate({ date: day(10) });
   const [slot] = calendar.state.get().slots;
@@ -204,6 +209,9 @@ test("addToCart creates the cart of the calendar's buyer and package and takes t
   assert.deepEqual(create.body, { id: factoryId(1), buyer: customer, package_id: ids.otherPackage, market_id: ids.market });
   const add = calls.find((call) => call.path.endsWith("/booking-items"));
   assert.equal(add.body.booking.id, factoryId(2));
+  assert.equal(add.body.booking.store_location_id, locationId);
+  assert.deepEqual(add.body.booking.resource, { type: "any" });
+  assert.deepEqual(add.body.booking.add_ons, []);
   assert.deepEqual(add.body.booking.requested_interval, { from: slot.from, to: slot.to });
   assert.deepEqual(add.body.booking.price, { package_id: ids.otherPackage, package_item_id: ids.packageItem, price_id: ids.price });
   assert.equal(calendar.state.get().selected_slot, null);
@@ -228,7 +236,7 @@ test("a month read covers a day on each side and shows a slot of the 1st before 
     pages: [[availabilityEntry({ timezone: "Europe/Sarajevo", days: [{ date: day(1), slots: [{ from, to: from + 60 * 60 * 1_000, spots: 1 }] }] })]],
   });
   const calendar = calendarStore().eshop.bookingCalendar({ buyer: customer, package_id: ids.package });
-  await calendar.select({ booking_service_id: serviceId });
+  await calendar.select({ booking_service_id: serviceId, store_location_id: locationId });
   const [read] = availabilityReads(calls);
   assert.ok(from < Date.UTC(year, month, 1));
   assert.equal(Number(read.query.from), monthRange(month).from);
@@ -256,7 +264,7 @@ test("every offering is read, one a page", async (context) => {
     ],
   });
   const calendar = calendarStore().eshop.bookingCalendar({ buyer: customer, package_id: ids.package });
-  const state = await calendar.select({ booking_service_id: serviceId });
+  const state = await calendar.select({ booking_service_id: serviceId, store_location_id: locationId });
   const reads = availabilityReads(calls);
   assert.deepEqual(reads.map((read) => read.query.limit), ["1", "1"]);
   assert.deepEqual(reads.map((read) => read.query.cursor), [undefined, "page-1"]);
@@ -276,7 +284,7 @@ test("slots show in their resource's timezone, and a chosen zone files them by i
     pages: [[availabilityEntry({ timezone: "Europe/Sarajevo", days: [{ date: day(10), slots: [{ from, to, spots: 1 }] }] })]],
   });
   const calendar = calendarStore().eshop.bookingCalendar({ buyer: customer, package_id: ids.package });
-  const state = await calendar.select({ booking_service_id: serviceId });
+  const state = await calendar.select({ booking_service_id: serviceId, store_location_id: locationId });
   assert.equal(state.timezone, null);
   calendar.selectDate({ date: day(10) });
   const [venue] = calendar.state.get().slots;
@@ -303,7 +311,7 @@ test("month changes read the shown month while the cart holds a booking of anoth
   await store.eshop.cart(scope).create();
   assert.equal(store.eshop.cart(scope).booking_items.get().length, 1);
   const calendar = store.eshop.bookingCalendar(scope);
-  await calendar.select({ booking_service_id: serviceId });
+  await calendar.select({ booking_service_id: serviceId, store_location_id: locationId });
   await calendar.nextMonth();
   const reads = availabilityReads(calls).map((read) => ({ from: Number(read.query.from), to: Number(read.query.to) }));
   assert.deepEqual(reads, [monthRange(month), monthRange(month + 1)]);
@@ -318,10 +326,53 @@ test("a booking of the same service in the cart opens the calendar on the month 
   const scope = { buyer: customer, package_id: ids.package };
   await store.eshop.cart(scope).create();
   const calendar = store.eshop.bookingCalendar(scope);
-  const state = await calendar.select({ booking_service_id: serviceId });
+  const state = await calendar.select({ booking_service_id: serviceId, store_location_id: locationId });
   const shown = new Date(end);
   assert.equal(state.month.getTime(), new Date(shown.getFullYear(), shown.getMonth(), 1).getTime());
   const [read] = availabilityReads(calls);
   assert.equal(Number(read.query.from), Date.UTC(shown.getFullYear(), shown.getMonth(), 1) - dayMilliseconds);
   assert.equal(Number(read.query.to), Date.UTC(shown.getFullYear(), shown.getMonth() + 1, 1) + dayMilliseconds);
+});
+
+test("a chosen resource books that resource, and the read names the branch", async (context) => {
+  const calls = calendarServer(context);
+  const store = calendarStore();
+  const scope = { buyer: customer, package_id: ids.package };
+  const calendar = store.eshop.bookingCalendar(scope);
+  await calendar.select({ booking_service_id: serviceId, store_location_id: locationId });
+  await calendar.selectResource({ booking_resource_id: resourceId });
+  calendar.setTimezone({ timezone: "UTC" });
+  calendar.selectDate({ date: day(10) });
+  const [slot] = calendar.state.get().slots;
+  assert.equal(slot.store_location_id, locationId);
+  await calendar.addToCart({ slot });
+  const add = calls.find((call) => call.path.endsWith("/booking-items"));
+  assert.deepEqual(add.body.booking.resource, { type: "resource", booking_resource_id: resourceId });
+  for (const read of availabilityReads(calls)) assert.equal(read.query.store_location_id, locationId);
+  await assert.rejects(calendar.select({ booking_service_id: serviceId, store_location_id: "branch" }), TypeError);
+  assert.equal(calendar.state.get().store_location_id, locationId);
+});
+
+test("signing out resets the calendar, and a language change writes its slot texts again", async (context) => {
+  const calls = calendarServer(context);
+  const store = initialize(storefrontIdentity, { ...idFactories, apiUrl, locale: "en", market: "bih", sessionStorage: signedInStorage() });
+  const calendar = store.eshop.bookingCalendar({ buyer: customer, package_id: ids.package });
+  await calendar.select({ booking_service_id: serviceId, store_location_id: locationId });
+  calendar.setTimezone({ timezone: "UTC" });
+  calendar.selectDate({ date: day(10) });
+  const [english] = calendar.state.get().slots;
+  assert.equal(english.date_text, new Date(english.from).toLocaleDateString("en", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" }));
+  store.setContext({ locale: "de" });
+  const [german] = calendar.state.get().slots;
+  assert.equal(german.date_text, new Date(german.from).toLocaleDateString("de", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" }));
+  assert.equal(calendar.state.get().booking_choices.length, 1);
+  await store.customer.logout();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const reset = calendar.state.get();
+  assert.equal(reset.booking_service, null);
+  assert.equal(reset.store_location_id, null);
+  assert.deepEqual(reset.booking_choices, []);
+  assert.deepEqual(reset.slots, []);
+  assert.equal(reset.availability, null);
+  assert.ok(calls.some((call) => call.path === "/v1/storefront/customer/logout"));
 });

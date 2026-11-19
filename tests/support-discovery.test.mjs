@@ -31,7 +31,7 @@ function storefrontConversation(state = "flow") {
 
 test("staff starts an email conversation for a contact with a reply selection and retained caller-picked IDs", async (context) => {
   const answer = {
-    conversation: { id: conversationId, subject: "Delivery", state: { type: "waiting_for_store", reason: "message", flow: null }, type: { type: "email", email: { contact, reply } } },
+    conversation: { id: conversationId, subject: "Delivery", state: { type: "waiting_for_store", reason: "message", flow: { type: "none" } }, type: { type: "email", email: { contact, reply } } },
     message: { id: messageId },
   };
   const calls = recordFetch(context, () => answer);
@@ -137,7 +137,7 @@ test("conversation history pages its messages with the empty-page continuation, 
     assigned_account_id: null,
     type: { type: "chat_and_email", chat_language: "bs", email: { contact, reply } },
     subject: "Chat follow-up",
-    state: { type: "waiting_for_store", reason: "message", flow: null },
+    state: { type: "waiting_for_store", reason: "message", flow: { type: "none" } },
     next_message_sequence: 2,
     customer_read: { type: "through", sequence: 1 },
     store_read: { type: "unread" },
@@ -145,7 +145,7 @@ test("conversation history pages its messages with the empty-page continuation, 
     created_at: 0,
     updated_at: 2,
   };
-  const message = { id: messageId, store_id: STORE_ID, conversation_id: conversationId, sequence: 1, type: { type: "customer_chat", text: "Help" }, created_at: 0, updated_at: 2 };
+  const message = { id: messageId, store_id: STORE_ID, conversation_id: conversationId, sequence: 1, type: { type: "customer_chat", text: "Help", assistant: { type: "none" } }, created_at: 0, updated_at: 2 };
   const calls = recordFetch(context, (_call, count) => count === 1
     ? conversation
     : count === 2 ? { items: [], cursor: "older:+/=" }
@@ -186,12 +186,12 @@ test("support writes carry the app-picked id, the conversation version or, for a
   ];
   const assistant = { status: { type: "active" }, login: { type: "store", store_provider_id: ids.picked }, languages: ["bs"], instructions: "Book check-ups only.", actions: ["book", "move", "cancel", "confirm_attendance"], sales_channel_id: ids.channel, market_id: ids.market, package_id: ids.package };
   const phoneSteps = {
-    hours: { type: "open_hours", hours: { weekly_availability: { monday: [{ from_minute: 480, to_minute: 960 }] }, date_overrides: {} }, open_step_key: "menu", closed_step_key: "closed" },
+    hours: { type: "open_hours", hours: { weekly_availability: { monday: [{ from: 28_800_000, to: 57_600_000 }] }, date_overrides: {} }, open_step_key: "menu", closed_step_key: "closed" },
     menu: { type: "phone_menu", prompt: { type: "play", media_id: "6c1e9a47-2b58-4f03-8d6a-1e7c3b9f5a20" }, options: [{ digit: 1, next_step_key: "assistant" }], no_answer_step_key: "ring" },
-    assistant: { type: "phone_assistant", assistant: { ...assistant, actions: [...assistant.actions, "record_sms_consent"] }, greeting: { bs: "Dobar dan." }, recording: { type: "keep", days: 30 }, transfer_step_key: "ring" },
-    ring: { type: "phone_ring", number: "+38733000000", ring_seconds: 30, next_step_key: "closed" },
+    assistant: { type: "phone_assistant", assistant_id: proposalId, greeting: { bs: "Dobar dan." }, recording: { type: "keep", period: 30 }, transfer_step_key: "ring" },
+    ring: { type: "phone_ring", number: "+38733000000", ring: 30_000, next_step_key: "closed" },
     closed: { type: "phone_say", prompt: { type: "speak", text: { bs: "Nazovite kasnije." } }, next_step_key: "team" },
-    chat: { type: "chat_assistant", assistant: { ...assistant, status: { type: "paused" }, login: { type: "network", network_provider_id: ids.account } }, hand_over_step_key: "team" },
+    chat: { type: "chat_assistant", assistant_id: messageId, hand_over_step_key: "team" },
     team: { type: "hand_to_store" },
   };
   const phoneEntries = [{ type: "phone", phone_number_id: phoneNumberId, language: "bs", start_step_key: "hours" }, { type: "chat", start_step_key: "chat" }];
@@ -477,4 +477,51 @@ test("a customer opens a file of the store's reply through their own session", a
     ["GET", `/v1/storefront/conversations/${conversationId}/messages/${messageId}/attachments/${sha256}`, null],
   ]);
   assert.equal(calls[0].headers.get("authorization"), `Bearer ${visitorToken}`);
+});
+
+
+test("reusable assistants keep their caller-picked identity, flat settings and edit version", async (context) => {
+  const calls = recordFetch(context, (call) => call.method === "DELETE" ? { deleted: true } : call.method === "GET" && call.path.endsWith("support-assistants") ? { items: [], cursor: "next:+/=" } : { id: proposalId });
+  const api = support().assistant;
+  const settings = { status: { type: "active" }, login: { type: "store", store_provider_id: ids.picked }, languages: ["bs"], instructions: "Book check-ups only.", actions: ["book"], sales_channel_id: ids.channel, market_id: ids.market, package_id: ids.package };
+  const body = { id: proposalId, key: "reception", ...settings };
+  await api.create({ store_id: STORE_ID, ...body });
+  await api.create({ store_id: STORE_ID, ...body });
+  await api.update({ store_id: STORE_ID, ...body, status: { type: "paused" }, expected_updated_at: 7 });
+  await api.get({ store_id: STORE_ID, id: proposalId });
+  const page = await api.find({ store_id: STORE_ID, limit: 1 });
+  await api.find({ store_id: STORE_ID, limit: 1, cursor: page.cursor });
+  await api.find({ store_id: STORE_ID, key: "reception" });
+  await api.delete({ store_id: STORE_ID, id: proposalId, expected_updated_at: 8 });
+  const base = `/v1/stores/${STORE_ID}/support-assistants`;
+  assert.deepEqual(calls[0].body, body);
+  assert.deepEqual(calls[1].body, body);
+  assert.deepEqual(calls[2].body, { key: "reception", ...settings, status: { type: "paused" }, expected_updated_at: 7 });
+  assert.deepEqual(calls.map(({ method, path }) => [method, path]), [["POST", base], ["POST", base], ["PUT", `${base}/${proposalId}`], ["GET", `${base}/${proposalId}`], ["GET", base], ["GET", base], ["GET", base], ["DELETE", `${base}/${proposalId}`]]);
+  assert.deepEqual(calls[5].query, { limit: "1", cursor: "next:+/=" });
+  assert.deepEqual(calls[6].query, { key: "reception" });
+  assert.deepEqual(calls[7].query, { expected_updated_at: "8" });
+  assert.equal("settings" in calls[0].body, false);
+  assert.equal("store_id" in calls[0].body, false);
+});
+
+test("a call's provider posts are paged for one login and resolved under their version", async (context) => {
+  const post = { id: messageId, updated_at: 3 };
+  const calls = recordFetch(context, (call) => call.method === "GET" ? { items: [post], cursor: null } : post);
+  const api = support();
+  const networkProviderId = "1d3f5b7a-9c2e-4f6a-8b0d-2e4f6a8c0e1b";
+  await api.twilioPost.find({ store_id: STORE_ID, store_provider_id: ids.picked, status: "review", limit: 10 });
+  await api.elevenLabsPost.find({ store_id: STORE_ID, network_provider_id: networkProviderId, status: "unmatched", cursor: "next" });
+  await api.twilioPost.resolve({ store_id: STORE_ID, id: messageId, expected_updated_at: 3, resolution: "apply" });
+  await api.elevenLabsPost.resolve({ store_id: STORE_ID, id: messageId, expected_updated_at: 3, resolution: "ignore", reason: "Test call" });
+  assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
+    ["GET", `/v1/stores/${STORE_ID}/incoming-webhooks/twilio`, { store_provider_id: ids.picked, status: "review", limit: "10" }, null],
+    ["GET", `/v1/stores/${STORE_ID}/incoming-webhooks/elevenlabs`, { network_provider_id: networkProviderId, status: "unmatched", cursor: "next" }, null],
+    ["POST", `/v1/stores/${STORE_ID}/incoming-webhooks/twilio/${messageId}/resolve`, {}, { expected_updated_at: 3, resolution: "apply" }],
+    ["POST", `/v1/stores/${STORE_ID}/incoming-webhooks/elevenlabs/${messageId}/resolve`, {}, { expected_updated_at: 3, resolution: "ignore", reason: "Test call" }],
+  ]);
+  for (const login of [{}, { store_provider_id: ids.picked, network_provider_id: networkProviderId }, { store_provider_id: "twilio" }]) {
+    await assert.rejects(async () => api.twilioPost.find({ store_id: STORE_ID, status: "review", ...login }), TypeError);
+  }
+  assert.equal(calls.length, 4);
 });

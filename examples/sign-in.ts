@@ -2,7 +2,7 @@ import { ArkyApiError } from "arky-sdk/storefront";
 import { arky } from "./setup.js";
 
 arky.session.subscribe((session) => {
-  console.log(session?.type === "logged_in" ? `signed in as ${session.customer.id}` : "visitor");
+  console.log(session && session.type !== "visitor" ? `signed in as ${session.customer.id}` : "visitor");
 });
 
 await arky.customer.requestCode({ contact: { type: "email", email: "ana@example.com", language: "en" } });

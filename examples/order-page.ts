@@ -8,9 +8,9 @@ if (orderId) {
   history.replaceState(history.state, "", opened.url);
 
   const payments = await arky.eshop.order.findPayments({ order_id: opened.order.id }, { order_token: opened.order_token });
-  const latest = latestPayment(payments.items);
+  const latest = latestPayment(payments);
   const outcome = latest ? paymentOutcome(latest) : null;
-  const amounts = paymentAmounts(payments.items);
+  const amounts = paymentAmounts(payments);
   console.log(opened.order.number, outcome, latest ? formatMinor(amounts.net_paid, latest.money.currency, "en") : null);
 
   const checkout = arky.eshop.checkoutFlow({ buyer, package_id: shopPackage.id });

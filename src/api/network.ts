@@ -9,14 +9,16 @@ import type {
   ReplaceNetworkResendKeyParams, UpdateNetworkResendParams, ConnectNetworkStripeParams,
   ReplaceNetworkStripeKeysParams, ConnectNetworkTwilioParams, ReplaceNetworkTwilioAuthTokenParams,
   ConnectNetworkElevenLabsParams, SetUpNetworkElevenLabsAgainParams, FindNetworkStoresParams,
+  ReplaceNetworkEmailCustomerTextsParams, ReplaceNetworkSmsCustomerTextsParams,
   NetworkRole, NetworkMember, NetworkMembership, OwnNetworkMembership, StoreAgreement,
   FindNetworkRolesParams, GetNetworkRoleParams, CreateNetworkRoleParams, UpdateNetworkRoleParams,
   DeleteNetworkRoleParams, FindNetworkMembersParams, InviteNetworkMemberParams,
   UpdateNetworkMemberRolesParams, ChangeNetworkMemberStatusParams, RemoveNetworkMemberParams,
   GetOwnNetworkMembershipParams, AcceptNetworkInviteParams, GetNetworkStoreAgreementParams,
-  ResetNetworkMemberSecondFactorParams, NetworkStore, GetNetworkStoreParams,
+  ResetNetworkMemberSecondFactorParams, NetworkStore, GetNetworkStoreParams, NameNetworkStoreOwnerParams,
 } from "../types/network";
-import type { Account } from "../types/account";
+import type { Store } from "../types/store";
+import type { ListedAccount } from "../types/account";
 import { requireId } from "../utils/ids";
 import { segment } from "./paths";
 
@@ -43,12 +45,16 @@ export const createNetworkApi = (apiConfig: ApiConfig) => ({
   },
   create(params: CreateNetworkParams, options?: RequestOptions): Promise<Network> {
     requireId(params.id, "network");
-    return apiConfig.httpClient.post<Network>("/v1/networks", { id: params.id, name: params.name }, options);
+    return apiConfig.httpClient.post<Network>("/v1/networks", { id: params.id, name: params.name, type: params.type }, options);
   },
   update(params: UpdateNetworkParams, options?: RequestOptions): Promise<Network> {
     return apiConfig.httpClient.patch<Network>(
       networkPath(params.id),
-      { expected_updated_at: params.expected_updated_at, name: params.name },
+      {
+        expected_updated_at: params.expected_updated_at,
+        name: params.name,
+        ...(params.type !== undefined ? { type: params.type } : {}),
+      },
       options,
     );
   },
@@ -87,8 +93,25 @@ export const createNetworkApi = (apiConfig: ApiConfig) => ({
         from_address: params.from_address,
         sign_in_subject: params.sign_in_subject,
         sign_in_body: params.sign_in_body,
+        member_login_changed_subject: params.member_login_changed_subject,
+        member_login_changed_body: params.member_login_changed_body,
         store_addresses: params.store_addresses,
+        customer_texts: params.customer_texts,
       }, options);
+    },
+    replaceEmailCustomerTexts(params: ReplaceNetworkEmailCustomerTextsParams, options?: RequestOptions): Promise<NetworkProvider> {
+      return apiConfig.httpClient.put<NetworkProvider>(
+        `${providerPath(params.network_id, params.id)}/email-customer-texts`,
+        { expected_updated_at: params.expected_updated_at, customer_texts: params.customer_texts },
+        options,
+      );
+    },
+    replaceSmsCustomerTexts(params: ReplaceNetworkSmsCustomerTextsParams, options?: RequestOptions): Promise<NetworkProvider> {
+      return apiConfig.httpClient.put<NetworkProvider>(
+        `${providerPath(params.network_id, params.id)}/sms-customer-texts`,
+        { expected_updated_at: params.expected_updated_at, customer_texts: params.customer_texts },
+        options,
+      );
     },
     replaceResendKey(params: ReplaceNetworkResendKeyParams, options?: RequestOptions): Promise<NetworkProvider> {
       return apiConfig.httpClient.put<NetworkProvider>(
@@ -130,6 +153,7 @@ export const createNetworkApi = (apiConfig: ApiConfig) => ({
         id: params.id,
         account_sid: params.account_sid,
         auth_token: params.auth_token,
+        customer_texts: params.customer_texts,
       }, options);
     },
     replaceTwilioAuthToken(params: ReplaceNetworkTwilioAuthTokenParams, options?: RequestOptions): Promise<NetworkProvider> {
@@ -189,6 +213,13 @@ export const createNetworkApi = (apiConfig: ApiConfig) => ({
     getAgreement(params: GetNetworkStoreAgreementParams, options?: RequestOptions): Promise<StoreAgreement> {
       return apiConfig.httpClient.get<StoreAgreement>(
         `${networkPath(params.network_id)}/stores/${segment(requireId(params.store_id, "store"))}/agreement`,
+        options,
+      );
+    },
+    nameOwner(params: NameNetworkStoreOwnerParams, options?: RequestOptions): Promise<Store> {
+      return apiConfig.httpClient.put<Store>(
+        `${networkPath(params.network_id)}/stores/${segment(requireId(params.store_id, "store"))}/owner`,
+        { email: params.email, language: params.language, expected_updated_at: params.expected_updated_at },
         options,
       );
     },
@@ -254,8 +285,8 @@ export const createNetworkApi = (apiConfig: ApiConfig) => ({
         ...options, params: { expected_updated_at: params.expected_updated_at },
       });
     },
-    resetSecondFactor(params: ResetNetworkMemberSecondFactorParams, options?: RequestOptions): Promise<Account> {
-      return apiConfig.httpClient.post<Account>(`${memberPath(params.network_id, params.id)}/second-factor/reset`, undefined, options);
+    resetSecondFactor(params: ResetNetworkMemberSecondFactorParams, options?: RequestOptions): Promise<ListedAccount> {
+      return apiConfig.httpClient.post<ListedAccount>(`${memberPath(params.network_id, params.id)}/second-factor/reset`, undefined, options);
     },
     getOwn(params: GetOwnNetworkMembershipParams, options?: RequestOptions): Promise<OwnNetworkMembership | null> {
       return apiConfig.httpClient.get<OwnNetworkMembership | null>(`${networkPath(params.network_id)}/membership`, options);

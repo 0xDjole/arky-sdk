@@ -72,7 +72,7 @@ test("submission and conversation notes are Note records, and a stage change car
     { method: "PUT", path: `${submission}/notes/${noteId}`, query: {}, body: { expected_updated_at: 2, body: "Called back twice" } },
     { method: "DELETE", path: `${submission}/notes/${noteId}`, query: { expected_updated_at: "3" }, body: null },
     { method: "POST", path: `${submission}/stage`, query: {}, body: { to_stage_id: "rejected", expected_stage: { type: "at", stage_id: "new", changed_at: 4 }, note: { id: noteId, body: "Outside the delivery area" } } },
-    { method: "GET", path: `/v1/stores/${storeId}/forms/${formId}/submissions`, query: { limit: "5" }, body: null },
+    { method: "GET", path: `/v1/stores/${storeId}/forms/submissions`, query: { form_id: formId, limit: "5" }, body: null },
     { method: "POST", path: `/v1/stores/${storeId}/conversations/${conversationId}/notes`, query: {}, body: { id: noteId, body: "Handed to the team" } },
     { method: "GET", path: `/v1/stores/${storeId}/conversations/${conversationId}/notes`, query: { limit: "5" }, body: null },
   ]);

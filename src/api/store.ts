@@ -29,6 +29,7 @@ import type {
   StoreSubscription,
   StoreUsageSummary,
   UpdateStoreParams,
+  NameStoreDefaultLocationParams,
 } from "../types/store";
 import type {
   AcceptStoreInviteParams,
@@ -69,6 +70,17 @@ export const createStoreApi = (apiConfig: ApiConfig) => ({
 
   get(params: GetStoreParams, options?: RequestOptions): Promise<Store> {
     return apiConfig.httpClient.get<Store>(`/v1/stores/${requireStoreId(params.id)}`, options);
+  },
+
+  nameDefaultLocation(params: NameStoreDefaultLocationParams, options?: RequestOptions): Promise<Store> {
+    return apiConfig.httpClient.put<Store>(
+      `/v1/stores/${requireStoreId(params.id)}/default-location`,
+      {
+        store_location_id: requireId(params.store_location_id, "store location"),
+        expected_updated_at: params.expected_updated_at,
+      },
+      options,
+    );
   },
 
   find(params: FindStoresParams = {}, options?: RequestOptions): Promise<PaginatedResponse<Store>> {

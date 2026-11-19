@@ -20,8 +20,9 @@ const expectedStoreCurrencies = [
 const minorUnitExceptions = { bhd: 3, bif: 0, clp: 0, djf: 0, gnf: 0, isk: 0, jod: 3, jpy: 0, kmf: 0, krw: 0, kwd: 3, mga: 0, omr: 3, pyg: 0, rwf: 0, tnd: 3, ugx: 0, vnd: 0, vuv: 0, xaf: 0, xof: 0, xpf: 0 };
 
 const adminSurface = {
-  "(root)": ["logout", "onAuthStateChanged"],
+  "(root)": ["getAccessToken", "logout", "onAuthStateChanged"],
   account: ["delete", "find", "getMe", "updateProfile"],
+  "account.login": ["remove", "requestCode", "verify"],
   "account.auth": ["confirmPlatformSecondFactor", "confirmSecondFactor", "refresh", "requestCode", "requestPlatformCode", "setUpPlatformSecondFactor", "setUpSecondFactor", "verify", "verifyPlatform", "verifyPlatformSecondFactor", "verifySecondFactor"],
   "account.secondFactor": ["newRecoveryCodes", "setup", "turnOff", "turnOn"],
   "account.session": ["find", "revoke"],
@@ -39,10 +40,10 @@ const adminSurface = {
   "content.entry": ["create", "delete", "find", "get", "update"],
   "content.privateCollection": ["create", "delete", "find", "get", "update"],
   "content.privateEntry": ["create", "delete", "fileLink", "find", "get", "print", "update"],
-  customers: ["create", "createLogin", "deleteLogin", "erase", "export", "find", "findLogins", "findSessions", "get", "import", "inviteLogin", "merge", "previewImport", "revokeAllSessions", "revokeSession", "update", "updateLogin"],
+  customers: ["addContact", "create", "erase", "export", "find", "findInvites", "findSessions", "get", "import", "inviteContact", "merge", "previewImport", "removeContact", "removeLink", "revokeAllSessions", "revokeSession", "update", "updateContact"],
   "customers.suppression": ["blockEmail", "blockSms", "find", "get", "recordResubscribe", "recordUnsubscribe", "releaseSms", "unblockEmail"],
   "customers.notes": ["create", "delete", "find", "update"],
-  "eshop.bookingOffering": ["create", "delete", "find", "get", "getByServiceAndResource", "update"],
+  "eshop.bookingOffering": ["create", "delete", "find", "get", "update"],
   "eshop.bookingResource": ["create", "delete", "find", "get", "getByKey", "update"],
   "eshop.bookingService": ["create", "delete", "find", "get", "getAvailability", "getByKey", "update"],
   "eshop.cart": ["addBooking", "addPackage", "addProduct", "checkout", "checkoutOnAccount", "clear", "create", "find", "get", "getOrder", "quote", "quoteFutureDeliveries", "quotePurchase", "removeItem", "selectShippingMethod", "setFutureDeliveries", "update"],
@@ -53,7 +54,7 @@ const adminSurface = {
   "eshop.packageItemPrice": ["batch", "create", "delete", "find", "get", "getByChoice", "update"],
   "eshop.packageMember": [
     "assign", "cancel", "changeMinimum", "changeTerms", "find", "findOrders", "findRevisions", "get",
-    "getCalendar", "getCurrent", "getMinimum", "getRevision", "pause", "resume", "reviewMinimum",
+    "getCalendar", "getChanges", "getCurrent", "getMinimum", "getRevision", "pause", "resume", "reviewMinimum",
     "reviewSwitch", "reviewTerms", "revoke", "scheduleEnd", "selectPaymentMethod", "skipNext", "switch",
     "transferMinimum", "withdrawRevision",
   ],
@@ -67,11 +68,12 @@ const adminSurface = {
   "eshop.inventoryMovement": ["find", "get", "record"],
   "eshop.inventoryUnit": ["allocate", "find", "get", "makeAvailable", "move", "receive", "setAside", "unassign", "writeOff"],
   "eshop.minimumProgress": ["get"],
-  "eshop.order": ["answerBookingItem", "attendBookingItem", "cancel", "cancelBookingItem", "cancelBookingSeries", "cancelProductItem", "correctDeliveryAddress", "find", "findBookingItems", "findFinancialSummaries", "findPayments", "get", "getFinancialSummary", "getPayment", "markBookingItemNoShow", "markBookingItemWaiting", "rescheduleBookingItem", "rescheduleBookingSeries", "resendReceipt", "resizeBookingItem", "resumePayment", "revokeAccess", "startBookingItem", "stepBookingItem", "update"],
+  "eshop.order": ["answerBookingItem", "cancel", "cancelBookingItem", "cancelBookingSeries", "cancelProductItem", "correctDeliveryAddress", "find", "findBookingItems", "findFinancialSummaries", "findPayments", "get", "getFinancialSummary", "getPayment", "rescheduleBookingItem", "rescheduleBookingSeries", "resendReceipt", "resizeBookingItem", "resumePayment", "revokeAccess", "stepBookingItem", "takeOffBookingAddOn", "update", "updateBookingItem"],
   "eshop.order.credit": ["create", "find", "get", "void"],
-  "eshop.order.invoice": ["create", "delete", "find"],
+  "eshop.order.fiscalReceipt": ["copy", "correct", "find", "get", "issue", "settle"],
+  "eshop.order.invoice": ["attachOutside", "createOutsideCreditNote", "deleteOutsideCreditNote", "detachOutside", "find", "findUnissued", "get", "issue", "reissue"],
   "eshop.order.notes": ["create", "delete", "find", "update"],
-  "eshop.payment": ["cancel", "cancelRefund", "createManual", "createRefund", "find", "get", "recordCollection", "recordMadeRefund", "recordRefundReceipt", "resolveCharge", "resolveHold", "resolveRefund", "voidCollection"],
+  "eshop.payment": ["allocateRefund", "cancelRefund", "createRefund", "find", "get", "record", "recordMadeRefund", "recordRefundReceipt", "resolveCharge", "resolveHold", "resolveRefund", "void"],
   "eshop.paymentMethod": ["cancelSetup", "completeSetup", "find", "get", "requestSetup", "revoke", "startSetup"],
   "eshop.product": ["create", "delete", "find", "get", "getByKey", "update"],
   "eshop.productVariant": ["create", "delete", "find", "get", "update"],
@@ -95,16 +97,20 @@ const adminSurface = {
   "platform.account": ["add", "delete", "find", "getMe", "resetSecondFactor"],
   "platform.resendEvent": ["find", "resolve"],
   "platform.stripeBillingEvent": ["find", "resolve"],
-  store: ["allowEmailSending", "create", "find", "get", "pauseEmailSending", "requestDeletion", "resume", "suspend", "update", "wipe"],
+  store: ["allowEmailSending", "create", "find", "get", "nameDefaultLocation", "pauseEmailSending", "requestDeletion", "resume", "suspend", "update", "wipe"],
   "store.country": ["find", "get"],
-  "store.location": ["create", "delete", "find", "get", "getByKey", "update"],
+  "store.fiscalDevice": ["archive", "create", "find", "get", "release", "rename"],
+  "store.fiscalDevice.token": ["create", "find", "revoke"],
+  "store.invoiceCounter": ["confirm", "find"],
+  "store.invoicing": ["set"],
+  "store.location": ["create", "delete", "find", "get", "getByKey", "setFiscal", "update"],
   "store.market": ["create", "delete", "find", "get", "getByKey", "update"],
   "store.member": ["acceptInvite", "changeStatus", "find", "findDirectory", "findOwn", "findSessions", "getOwn", "invite", "remove", "resendInvite", "revokeSession", "transferOwnership", "updateLocations", "updateRoles"],
   "store.auditLog": ["find"],
-  "store.supportAccess": ["end", "find", "findOwn", "get", "open"],
   "store.paymentOption": ["create", "createArkyMonri", "createArkyStripe", "createMonri", "createStripe", "find", "get", "getByKey", "update"],
   "store.phoneNumber": ["create", "delete", "find", "get", "setUpAgain"],
-  "store.provider": ["checkResendSetup", "checkStripeSetup", "connectArkyElevenLabs", "connectArkyMonri", "connectArkyResend", "connectArkyStripe", "connectArkyTwilio", "connectElevenLabs", "connectMonri", "connectNetworkTwilio", "connectResend", "connectStripe", "connectTwilio", "delete", "find", "findLogins", "findNetworkLogins", "findResendDomains", "get", "refreshStripe", "replaceMonriMerchantKey", "replaceResendKey", "replaceStripeKeys", "replaceTwilioAuthToken", "saveStripeWebhookSecret", "setSmsSender", "setStatus", "setUpElevenLabsAgain"],
+  "store.provider": ["checkResendSetup", "checkStripeSetup", "connectArkyCroatiaCis", "connectArkyElevenLabs", "connectArkyMonri", "connectArkyOfsCloud", "connectArkyResend", "connectArkyStripe", "connectArkyTwilio", "connectCroatiaCis", "connectElevenLabs", "connectMonri", "connectNetworkTwilio", "connectOfsCloud", "connectResend", "connectStripe", "connectTwilio", "delete", "find", "findLogins", "findNetworkLogins", "findResendDomains", "get", "refreshStripe", "replaceCroatiaCisCertificate", "replaceMonriMerchantKey", "replaceResendKey", "replaceStripeKeys", "replaceTwilioAuthToken", "saveStripeWebhookSecret", "setSmsSender", "setStatus", "setUpElevenLabsAgain"],
+  "store.seller": ["create", "delete", "get", "update"],
   "store.role": ["create", "delete", "find", "get", "update"],
   "store.salesChannel": ["create", "delete", "find", "get", "getByKey", "update"],
   "store.shippingMethod": ["create", "delete", "find", "get", "getByKey", "update"],
@@ -121,9 +127,9 @@ const adminSurface = {
   "store.agreement": ["get"],
   "store.testStores": ["find"],
   network: ["create", "delete", "find", "get", "update"],
-  "network.provider": ["connectElevenLabs", "connectResend", "connectStripe", "connectTwilio", "delete", "find", "get", "replaceResendKey", "replaceStripeKeys", "replaceTwilioAuthToken", "setStatus", "setUpElevenLabsAgain", "updateResend"],
+  "network.provider": ["connectElevenLabs", "connectResend", "connectStripe", "connectTwilio", "delete", "find", "get", "replaceEmailCustomerTexts", "replaceResendKey", "replaceSmsCustomerTexts", "replaceStripeKeys", "replaceTwilioAuthToken", "setStatus", "setUpElevenLabsAgain", "updateResend"],
   "network.plan": ["create", "delete", "find", "update"],
-  "network.store": ["find", "get", "getAgreement"],
+  "network.store": ["find", "get", "getAgreement", "nameOwner"],
   "network.role": ["create", "delete", "find", "get", "update"],
   "network.member": ["acceptInvite", "changeStatus", "find", "getOwn", "invite", "remove", "resetSecondFactor", "updateRoles"],
   "store.webhook": ["create", "delete", "find", "test", "update"],
@@ -131,7 +137,10 @@ const adminSurface = {
   "support.call": ["find", "get", "getRecordingLink"],
   "support.conversation": ["assign", "changeChatVisibility", "find", "findMessages", "get", "getAttachmentLink", "getMessage", "markRead", "markUnread", "reopen", "reply", "resolve", "selectReplyEmail", "sendCustomerSms", "sendSms", "startChat", "startEmail"],
   "support.conversation.notes": ["create", "delete", "find", "update"],
+  "support.assistant": ["create", "delete", "find", "get", "update"],
+  "support.elevenLabsPost": ["find", "resolve"],
   "support.flow": ["create", "delete", "find", "get", "update"],
+  "support.twilioPost": ["find", "resolve"],
 };
 
 function surfaceOf(client) {
@@ -212,8 +221,8 @@ test("broadcasts are created under the app-picked id, scheduled, sent and tested
   const api = admin().broadcast;
   const audience = { type: "package_members", include: [{ type: "package", package_id: "package" }], exclude: [], conditions: [] };
   const offeringAudience = { type: "package_members", include: [{ type: "package_offering", package_offering_id: "offering" }], exclude: [{ type: "package", package_id: "package" }], conditions: [{ type: "ordered_within", days: 30 }] };
-  const emailType = { type: "email", email_template_id: "8c1e5a93-2d47-4b06-9f3a-6e0b4d8c2a71", email_address_id: "3f7b0d26-9a41-4c85-b2e6-1d5a8f3c7e09", from_name: "Shop", reply_to_address_id: "3f7b0d26-9a41-4c85-b2e6-1d5a8f3c7e09", audience };
-  const otherType = { ...emailType, from_name: "Shop team", audience: offeringAudience };
+  const emailType = { type: "email", email: { email_template_id: "8c1e5a93-2d47-4b06-9f3a-6e0b4d8c2a71", email_address_id: "3f7b0d26-9a41-4c85-b2e6-1d5a8f3c7e09", from_name: "Shop", reply_to_address_id: "3f7b0d26-9a41-4c85-b2e6-1d5a8f3c7e09" }, audience };
+  const otherType = { ...emailType, email: { ...emailType.email, from_name: "Shop team" }, audience: offeringAudience };
   await api.find({ store_id: STORE_ID, query: "spring", status: "draft", limit: 5 });
   await api.create({ store_id: STORE_ID, id: broadcastId, key: "spring", type: emailType });
   await api.update({ store_id: STORE_ID, id: broadcastId, expected_updated_at: 1, type: otherType });
@@ -276,8 +285,8 @@ test("platform accounts are listed, added and deleted, and network events name t
   const providerId = "7b3e9d15-4c28-4a60-b8f1-3e6d0a9c5b72";
   const calls = recordFetch(context, (call) => call.path === "/v1/platform/currencies" ? ["eur"] : call.path === "/v1/platform/events" ? [] : { items: [], cursor: null });
   const platform = admin().platform;
-  assert.deepEqual(await platform.findCurrencies(), { items: ["eur"], cursor: null });
-  assert.deepEqual(await platform.findWebhookEvents(), { items: [], cursor: null });
+  assert.deepEqual(await platform.findCurrencies(), ["eur"]);
+  assert.deepEqual(await platform.findWebhookEvents(), []);
   await platform.account.find({ cursor: "next" });
   await platform.account.getMe();
   await platform.account.add({ id: accountId, email: "admin@example.test" });

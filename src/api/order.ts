@@ -15,8 +15,8 @@ import type {
   GetOrderFinancialSummaryParams,
   GetOrderParams,
   GetOrderPaymentParams,
-  MarkOrderBookingItemParams,
   Order,
+  OrderDetail,
   OrderBookingItem,
   OrderFinancialSummary,
   OrderFinancialSummaryOfOrder,
@@ -25,6 +25,9 @@ import type {
   ResizeOrderBookingItemParams,
   ResumeOrderPaymentParams,
   RevokeOrderAccessParams,
+  StepOrderBookingItemParams,
+  TakeOffOrderBookingAddOnParams,
+  UpdateOrderBookingItemParams,
   UpdateOrderParams,
   VisitStep,
 } from "../types/order";
@@ -43,8 +46,10 @@ const collection = "orders";
 
 export const createOrderApi = (apiConfig: ApiConfig) => {
   const orderPath = (storeId: string, orderId: string) => storeRecordPath(storeId, collection, orderId);
-  const bookingItemPath = (storeId: string, orderId: string, lineItemId: string, verb: string) =>
-    `${orderPath(storeId, orderId)}/booking-items/${segment(lineItemId)}/${verb}`;
+  const bookingItemRoot = (storeId: string, orderId: string, orderBookingItemId: string) =>
+    `${orderPath(storeId, orderId)}/booking-items/${segment(orderBookingItemId)}`;
+  const bookingItemPath = (storeId: string, orderId: string, orderBookingItemId: string, verb: string) =>
+    `${bookingItemRoot(storeId, orderId, orderBookingItemId)}/${verb}`;
   const creditsPath = (storeId: string, orderId: string) => `${orderPath(storeId, orderId)}/credits`;
 
   return {
@@ -56,8 +61,8 @@ export const createOrderApi = (apiConfig: ApiConfig) => {
       });
     },
 
-    get(params: GetOrderParams, options?: RequestOptions): Promise<Order> {
-      return apiConfig.httpClient.get<Order>(orderPath(params.store_id, params.id), options);
+    get(params: GetOrderParams, options?: RequestOptions): Promise<OrderDetail> {
+      return apiConfig.httpClient.get<OrderDetail>(orderPath(params.store_id, params.id), options);
     },
 
     update(params: UpdateOrderParams, options?: RequestOptions): Promise<Order> {
@@ -120,7 +125,7 @@ export const createOrderApi = (apiConfig: ApiConfig) => {
     cancelBookingItem(params: CancelOrderBookingItemParams, options?: RequestOptions): Promise<Order> {
       requireId(params.credit_id, "credit");
       return apiConfig.httpClient.post<Order>(
-        bookingItemPath(params.store_id, params.order_id, params.line_item_id, "cancel"),
+        bookingItemPath(params.store_id, params.order_id, params.order_booking_item_id, "cancel"),
         {
           credit_id: params.credit_id,
           expected_updated_at: params.expected_updated_at,
@@ -132,7 +137,7 @@ export const createOrderApi = (apiConfig: ApiConfig) => {
 
     rescheduleBookingItem(params: RescheduleOrderBookingItemParams, options?: RequestOptions): Promise<Order> {
       return apiConfig.httpClient.post<Order>(
-        bookingItemPath(params.store_id, params.order_id, params.line_item_id, "reschedule"),
+        bookingItemPath(params.store_id, params.order_id, params.order_booking_item_id, "reschedule"),
         {
           expected_updated_at: params.expected_updated_at,
           starts_at: params.starts_at,
@@ -146,7 +151,7 @@ export const createOrderApi = (apiConfig: ApiConfig) => {
       requireId(params.credit_id, "credit");
       if (typeof params.notify_customer !== "boolean") throw new TypeError("Cancellation requires an explicit customer email choice");
       return apiConfig.httpClient.post<Order>(
-        bookingItemPath(params.store_id, params.order_id, params.line_item_id, "series/cancel"),
+        bookingItemPath(params.store_id, params.order_id, params.order_booking_item_id, "series/cancel"),
         {
           credit_id: params.credit_id,
           expected_updated_at: params.expected_updated_at,
@@ -158,7 +163,7 @@ export const createOrderApi = (apiConfig: ApiConfig) => {
 
     rescheduleBookingSeries(params: RescheduleOrderBookingItemParams, options?: RequestOptions): Promise<Order> {
       return apiConfig.httpClient.post<Order>(
-        bookingItemPath(params.store_id, params.order_id, params.line_item_id, "series/reschedule"),
+        bookingItemPath(params.store_id, params.order_id, params.order_booking_item_id, "series/reschedule"),
         {
           expected_updated_at: params.expected_updated_at,
           starts_at: params.starts_at,
@@ -170,13 +175,31 @@ export const createOrderApi = (apiConfig: ApiConfig) => {
 
     resizeBookingItem(params: ResizeOrderBookingItemParams, options?: RequestOptions): Promise<Order> {
       return apiConfig.httpClient.post<Order>(
-        bookingItemPath(params.store_id, params.order_id, params.line_item_id, "resize"),
+        bookingItemPath(params.store_id, params.order_id, params.order_booking_item_id, "resize"),
         { expected_updated_at: params.expected_updated_at, ends_at: params.ends_at },
         options,
       );
     },
 
-    stepBookingItem(params: MarkOrderBookingItemParams & { step: VisitStep }, options?: RequestOptions): Promise<Order> {
+    updateBookingItem(params: UpdateOrderBookingItemParams, options?: RequestOptions): Promise<Order> {
+      if (typeof params.notify_customer !== "boolean") throw new TypeError("A booking change requires an explicit customer email choice");
+      return apiConfig.httpClient.patch<Order>(
+        bookingItemRoot(params.store_id, params.order_id, params.order_booking_item_id),
+        { expected_updated_at: params.expected_updated_at, update: params.update, notify_customer: params.notify_customer },
+        options,
+      );
+    },
+
+    takeOffBookingAddOn(params: TakeOffOrderBookingAddOnParams, options?: RequestOptions): Promise<Order> {
+      requireId(params.credit_id, "credit");
+      return apiConfig.httpClient.post<Order>(
+        bookingItemPath(params.store_id, params.order_id, params.order_booking_item_id, `add-ons/${segment(params.booked_add_on_id)}/take-off`),
+        { credit_id: params.credit_id, expected_updated_at: params.expected_updated_at },
+        options,
+      );
+    },
+
+    stepBookingItem(params: StepOrderBookingItemParams, options?: RequestOptions): Promise<Order> {
       const verbs: Record<VisitStep, string> = {
         upcoming: "upcoming",
         waiting: "waiting",
@@ -184,48 +207,20 @@ export const createOrderApi = (apiConfig: ApiConfig) => {
         attended: "attend",
         no_show: "no-show",
       };
+      const body =
+        params.step === "attended" || params.step === "no_show"
+          ? { expected_updated_at: params.expected_updated_at, fiscal_device_id: params.fiscal_device_id }
+          : { expected_updated_at: params.expected_updated_at };
       return apiConfig.httpClient.post<Order>(
-        bookingItemPath(params.store_id, params.order_id, params.line_item_id, verbs[params.step]),
-        { expected_updated_at: params.expected_updated_at },
-        options,
-      );
-    },
-
-    markBookingItemWaiting(params: MarkOrderBookingItemParams, options?: RequestOptions): Promise<Order> {
-      return apiConfig.httpClient.post<Order>(
-        bookingItemPath(params.store_id, params.order_id, params.line_item_id, "waiting"),
-        { expected_updated_at: params.expected_updated_at },
-        options,
-      );
-    },
-
-    startBookingItem(params: MarkOrderBookingItemParams, options?: RequestOptions): Promise<Order> {
-      return apiConfig.httpClient.post<Order>(
-        bookingItemPath(params.store_id, params.order_id, params.line_item_id, "in-progress"),
-        { expected_updated_at: params.expected_updated_at },
-        options,
-      );
-    },
-
-    attendBookingItem(params: MarkOrderBookingItemParams, options?: RequestOptions): Promise<Order> {
-      return apiConfig.httpClient.post<Order>(
-        bookingItemPath(params.store_id, params.order_id, params.line_item_id, "attend"),
-        { expected_updated_at: params.expected_updated_at },
-        options,
-      );
-    },
-
-    markBookingItemNoShow(params: MarkOrderBookingItemParams, options?: RequestOptions): Promise<Order> {
-      return apiConfig.httpClient.post<Order>(
-        bookingItemPath(params.store_id, params.order_id, params.line_item_id, "no-show"),
-        { expected_updated_at: params.expected_updated_at },
+        bookingItemPath(params.store_id, params.order_id, params.order_booking_item_id, verbs[params.step]),
+        body,
         options,
       );
     },
 
     answerBookingItem(params: AnswerOrderBookingItemParams, options?: RequestOptions): Promise<Order> {
       return apiConfig.httpClient.post<Order>(
-        bookingItemPath(params.store_id, params.order_id, params.line_item_id, "response"),
+        bookingItemPath(params.store_id, params.order_id, params.order_booking_item_id, "response"),
         { expected_updated_at: params.expected_updated_at, answer: params.answer },
         options,
       );
@@ -246,9 +241,8 @@ export const createOrderApi = (apiConfig: ApiConfig) => {
       });
     },
 
-    async findPayments(params: FindOrderPaymentsParams, options?: RequestOptions): Promise<PaginatedResponse<Payment>> {
-      const items = await apiConfig.httpClient.get<Payment[]>(`${orderPath(params.store_id, params.order_id)}/payments`, options);
-      return { items, cursor: null };
+    findPayments(params: FindOrderPaymentsParams, options?: RequestOptions): Promise<Payment[]> {
+      return apiConfig.httpClient.get<Payment[]>(`${orderPath(params.store_id, params.order_id)}/payments`, options);
     },
 
     getPayment(params: GetOrderPaymentParams, options?: RequestOptions): Promise<Payment> {
@@ -268,11 +262,8 @@ export const createOrderApi = (apiConfig: ApiConfig) => {
 
     credit: {
       find(params: FindOrderCreditsParams, options?: RequestOptions): Promise<PaginatedResponse<OrderCredit>> {
-        const { store_id, order_id, ...query } = params;
-        return apiConfig.httpClient.get<PaginatedResponse<OrderCredit>>(
-          order_id === undefined ? storePath(store_id, "credits") : creditsPath(store_id, order_id),
-          { ...options, params: query },
-        );
+        const { store_id, ...query } = params;
+        return apiConfig.httpClient.get<PaginatedResponse<OrderCredit>>(storePath(store_id, "credits"), { ...options, params: query });
       },
 
       get(params: GetOrderCreditParams, options?: RequestOptions): Promise<OrderCredit> {
@@ -291,7 +282,7 @@ export const createOrderApi = (apiConfig: ApiConfig) => {
       void(params: VoidOrderCreditParams, options?: RequestOptions): Promise<OrderCredit> {
         return apiConfig.httpClient.post<OrderCredit>(
           `${creditsPath(params.store_id, params.order_id)}/${segment(params.credit_id)}/void`,
-          { expected_updated_at: params.expected_updated_at },
+          { expected_updated_at: params.expected_updated_at, reason: params.reason },
           options,
         );
       },

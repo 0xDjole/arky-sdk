@@ -10,7 +10,7 @@ const client = createStorefront({ storeId: "5e9b3d71-c826-4a04-b7f5-0d2a8e6c4f19
   createOrderToken,
 });
 
-const { items: packages } = await client.eshop.package.find();
+const packages = await client.eshop.package.find();
 const package_id = packages[0]?.id;
 if (!package_id) throw new Error("No package is open to this buyer");
 
@@ -47,8 +47,7 @@ if (quote.ready && quote.suggested_payment_option_id) {
       type: "payment_option",
       payment_option_id: quote.suggested_payment_option_id,
       return_url: location.href,
-      save_payment_method: false,
-      payment_method_terms: null,
+      save_payment_method: { type: "dont_save" },
     },
   });
   console.log(accepted.type);

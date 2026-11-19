@@ -9,6 +9,8 @@ const setup = () => ({
   timezone: "UTC",
   languages: ["en"],
   payment_options: [{ id: "provider-retail", key: "manual", type: "manual", blocks: [] }],
+  customer_sign_in: { type: "store" },
+  seller: { type: "none" },
 });
 
 test("the setup carries no market, and the selected market is one exact read by key", async (context) => {
@@ -25,13 +27,15 @@ test("the setup carries no market, and the selected market is one exact read by 
   assert.equal(store.getMarket(), "trade");
   assert.deepEqual(store.market.get(), market("trade", "usd"));
   assert.equal(store.currency.get(), "usd");
-  assert.deepEqual(store.allowed_payment_option_ids.get(), ["provider-trade"]);
+  assert.deepEqual(store.market.get().payment_option_ids, ["provider-trade"]);
+  assert.equal("allowed_payment_option_ids" in store, false);
   assert.deepEqual(calls.map((call) => [call.method, call.path]), [
     ["GET", "/v1/storefront"],
     ["GET", "/v1/storefront/markets/by-key/trade"],
   ]);
   await store.store.load();
-  assert.deepEqual(calls.map((call) => call.path).slice(2), ["/v1/storefront/markets/by-key/trade"]);
+  assert.deepEqual(await store.client.store.market.getCurrent(), market("trade", "usd"));
+  assert.deepEqual(calls.map((call) => call.path).slice(2), [], "the client keeps one read of the selected market");
 });
 
 test("without an explicit market the setup loads without inventing one, and a malformed market key is refused up front", async (context) => {
@@ -40,7 +44,6 @@ test("without an explicit market the setup loads without inventing one, and a ma
   assert.deepEqual(await store.store.load(), setup());
   assert.equal(store.market.get(), null);
   assert.equal(store.currency.get(), null);
-  assert.deepEqual(store.allowed_payment_option_ids.get(), []);
   assert.equal(store.getMarket(), "");
   assert.deepEqual(calls.map((call) => call.path), ["/v1/storefront"]);
   for (const selected of ["Retail", "retail market", "retail\tmarket"]) {
@@ -73,13 +76,12 @@ test("a late market read can't replace a newer market selection or its currency 
   await requested;
   store.setContext({ market: "new" });
   assert.equal(store.market.get(), null);
-  assert.deepEqual(store.allowed_payment_option_ids.get(), []);
   await store.store.load();
   release();
   await rejected;
   assert.equal(store.market.get().key, "new");
   assert.equal(store.currency.get(), "usd");
-  assert.deepEqual(store.allowed_payment_option_ids.get(), ["provider-new"]);
+  assert.deepEqual(store.market.get().payment_option_ids, ["provider-new"]);
 });
 
 test("a failed or mismatched market read never falls back to another market", async (context) => {
@@ -121,6 +123,8 @@ test("terms_changed_rereads_the_setup", async (context) => {
     timezone: "UTC",
     languages: ["en"],
     payment_options: [{ id: ids.paymentOption, key: "card", blocks: [], type: "stripe", saved_card_terms: { en: wording } }],
+    customer_sign_in: { type: "network", network_id: ids.network },
+    seller: { type: "none" },
   });
   const calls = recordFetch(context, (call) => {
     if (call.path === "/v1/storefront") return setupWith();
@@ -155,7 +159,36 @@ test("terms_changed_rereads_the_setup", async (context) => {
     "/v1/storefront/markets/by-key/trade",
     "/v1/storefront/payment-methods/setup",
     "/v1/storefront",
-    "/v1/storefront/markets/by-key/trade",
     "/v1/storefront/payment-methods/setup",
+  ]);
+  assert.deepEqual(store.market.get(), market("trade"), "the client's one market cache still answers the unchanged market");
+});
+
+test("the setup names the store's seller by its legal name and postal address, or none, as Arky answers it", async (context) => {
+  const address = {
+    name: null,
+    company: "Klinika Sinapsa d.o.o.",
+    street1: "Zmaja od Bosne 7",
+    street2: null,
+    city: "Sarajevo",
+    state: null,
+    postal_code: "71000",
+    country: "BA",
+    phone: "+38733000001",
+    email: "racuni@example.test",
+  };
+  const sellers = [{ type: "seller", name: "Klinika Sinapsa d.o.o.", address }, { type: "none" }];
+  const calls = recordFetch(context, (call) => {
+    if (call.path === "/v1/storefront") return { ...setup(), seller: sellers.shift() };
+    throw new Error(`Unexpected request: ${call.path}`);
+  }, { answerMarkets: false });
+  const named = createStorefront(storefrontIdentity, { ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
+  assert.deepEqual((await named.getSetup()).seller, { type: "seller", name: "Klinika Sinapsa d.o.o.", address });
+  assert.deepEqual((await named.getSetup()).seller, { type: "seller", name: "Klinika Sinapsa d.o.o.", address });
+  const unnamed = createStorefront(storefrontIdentity, { ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
+  assert.deepEqual((await unnamed.getSetup()).seller, { type: "none" });
+  assert.deepEqual(calls.map((call) => [call.method, call.path, call.body]), [
+    ["GET", "/v1/storefront", null],
+    ["GET", "/v1/storefront", null],
   ]);
 });

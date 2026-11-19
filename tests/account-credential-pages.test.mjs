@@ -87,9 +87,9 @@ test("an account token is made under the app's id, shown once, revoked and delet
   const storeId = "c7e2a915-4d38-4b60-8f1e-2a5d9c3b7e46";
   const value = `arky_at_${"V".repeat(42)}A`;
   const token = {
-    id: tokenId, account_id: "0f4c7a29-5e13-4d86-b2a7-6c9e1f3d5b80", name: "CI",
-    token_hint: value.slice(0, 16), stores: { type: "only", store_ids: [storeId] },
-    expires_at: null, status: { type: "active" }, created_at: 1, updated_at: 1,
+    id: tokenId, account_id: "0f4c7a29-5e13-4d86-b2a7-6c9e1f3d5b80", email: "operator@example.test", name: "CI",
+    token_hint: value.slice(0, 16), stores: { type: "ids", store_ids: [storeId] },
+    expiry: { type: "never" }, status: { type: "active" }, created_at: 1, updated_at: 1,
   };
   const revoked = { ...token, status: { type: "revoked", revoked_at: 2 }, updated_at: 2 };
   const calls = [];
@@ -102,7 +102,7 @@ test("an account token is made under the app's id, shown once, revoked and delet
     return new Response(JSON.stringify(answer), { status: 200, headers: { "content-type": "application/json" } });
   });
   const api = createAdmin({ apiUrl: "https://credentials.test" }).account.token;
-  const request = { id: tokenId, name: "CI", stores: token.stores, expires_at: null };
+  const request = { id: tokenId, name: "CI", stores: token.stores, expiry: { type: "never" } };
   assert.deepEqual(await api.create(request), { type: "secret_created", token, value });
   assert.deepEqual(await api.create(request), { type: "existing", token });
   assert.deepEqual(await api.revoke({ id: tokenId, expected_updated_at: 1 }), revoked);
@@ -117,6 +117,10 @@ test("an account token is made under the app's id, shown once, revoked and delet
     await assert.rejects(async () => api.create({ ...request, id: invented }), { name: "TypeError", message: /account token id must be a canonical UUID/ });
   }
   assert.equal(calls.length, 4);
+  await api.create({ ...request, expiry: { type: "at", expires_at: 1_900_000_000_000 } });
+  assert.deepEqual(calls[4].body, { id: tokenId, name: "CI", stores: token.stores, expiry: { type: "at", expires_at: 1_900_000_000_000 } });
+  await api.create({ id: tokenId, name: "CI", stores: token.stores, expires_at: null });
+  assert.equal("expires_at" in calls[5].body, false, "a token's end is its expiry, so a bare expires_at is not sent");
   assert.equal("update" in api, false);
   assert.equal("apiToken" in createAdmin({ apiUrl: "https://credentials.test" }).account, false);
 });
@@ -242,10 +246,57 @@ test("a later login survives the completion of an earlier logout", async (contex
 
 test("account deletion returns the accepted deleting account", async (context) => {
   installWindow(context);
-  const account = { id: loginSessionId, email: "operator@example.test", access: { type: "network", network_id: loginNetworkId }, status: { type: "deleting" }, created_at: 1, updated_at: 2 };
+  const account = {
+    id: loginSessionId,
+    type: {
+      type: "network",
+      network_id: loginNetworkId,
+      logins: [{ type: "member_email", email: "operator@example.test", language: "en", since: 1 }],
+      name: null,
+      phone: null,
+      second_factor: { type: "off" },
+    },
+    status: { type: "deleting" },
+    created_at: 1,
+    updated_at: 2,
+  };
   const calls = recordFetch(context, (call) => call.method === "DELETE" ? [202, account] : [200, issuedCredentials()]);
   const admin = createAdmin({ apiUrl: logoutBaseUrl });
   await admin.account.auth.verify({ session_id: loginSessionId, network_id: loginNetworkId, code: "123456" });
   assert.deepEqual(await admin.account.delete(), account);
   assert.deepEqual(calls.at(-1), { url: `${logoutBaseUrl}/v1/accounts`, method: "DELETE", authorization: "Bearer access-current", body: undefined });
+});
+
+test("an account adds a login email by code, confirms a join on purpose and removes a login by its address", async (context) => {
+  const me = {
+    id: loginSessionId,
+    type: {
+      type: "network",
+      network_id: loginNetworkId,
+      logins: [
+        { type: "member_email", email: "operator@example.test", language: "en", since: 1 },
+        { type: "member_email", email: "second@example.test", language: "bs", since: 3 },
+      ],
+      name: { first_name: "Ana", last_name: "Kovač" },
+      phone: null,
+      second_factor: { type: "off" },
+    },
+    status: { type: "active" },
+    session_email: "operator@example.test",
+    created_at: 1,
+    updated_at: 3,
+  };
+  const calls = recordFetch(context, (call) => [200, call.url.endsWith("/logins/code") ? { code_expires_at: 1_900_000_000_000 } : me]);
+  const admin = createAdmin({ apiUrl: "https://credentials.test", accountToken: `arky_at_${"k".repeat(42)}A` });
+  assert.deepEqual(await admin.account.login.requestCode({ email: "second@example.test", language: "bs" }), { code_expires_at: 1_900_000_000_000 });
+  assert.deepEqual(await admin.account.login.verify({ email: "second@example.test", code: "123456", confirm_join: false }), me);
+  assert.deepEqual(await admin.account.login.remove({ address: { type: "email", email: "second@example.test" } }), me);
+  assert.deepEqual(await admin.account.getMe(), me);
+  assert.deepEqual(calls.map(({ url, method, body }) => [method, url, body]), [
+    ["POST", "https://credentials.test/v1/accounts/me/logins/code", { email: "second@example.test", language: "bs" }],
+    ["POST", "https://credentials.test/v1/accounts/me/logins/verify", { email: "second@example.test", code: "123456", confirm_join: false }],
+    ["POST", "https://credentials.test/v1/accounts/me/logins/remove", { address: { type: "email", email: "second@example.test" } }],
+    ["GET", "https://credentials.test/v1/accounts/me", undefined],
+  ]);
+  for (const call of calls) assert.equal(call.authorization, `Bearer arky_at_${"k".repeat(42)}A`);
 });

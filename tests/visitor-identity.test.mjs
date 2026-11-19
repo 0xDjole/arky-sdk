@@ -13,7 +13,9 @@ function customer() {
   return {
     id: customerId,
     store_id: storeId,
+    links: [],
     name: null,
+    contacts: [],
     addresses: [],
     default_shipping_address_id: null,
     default_billing_address_id: null,
@@ -24,7 +26,7 @@ function customer() {
 }
 
 function issued() {
-  return { customer: customer(), session: { type: "visitor", id: sessionId, customer_id: customerId, token: "customer_visitor_domain4", status: { type: "active" }, expires_at: 9000000000000 }, login: null };
+  return { customer: customer(), session: { type: "visitor", id: sessionId, customer_id: customerId, token: "customer_visitor_domain4", status: { type: "active" }, expires_at: 9000000000000 } };
 }
 
 

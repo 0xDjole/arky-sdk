@@ -3,6 +3,7 @@ import type {
   EmbeddedCheckoutMount,
   MountCheckoutActionParams,
   PaymentMethodSetupMount,
+  SimulatorTexts,
   StripeEmbeddedCheckoutAction,
 } from "../types/embeddedCheckout";
 import type { MountPaymentMethodSetupParams } from "../types/embeddedCheckout";
@@ -30,6 +31,17 @@ const panelStyle = "display:grid;gap:8px;padding:16px;border:1px dashed currentC
 const textStyle = "margin:0";
 const choicesStyle = "display:flex;flex-wrap:wrap;gap:8px";
 const buttonStyle = "padding:8px 12px;border:1px solid currentColor;border-radius:6px;background:transparent;color:inherit;font:inherit;cursor:pointer";
+
+export function requireSimulatorTexts(texts: SimulatorTexts | undefined): SimulatorTexts {
+  const fields = ["title", "description", "complete", "decline", "expire", "cancel"] as const;
+  if (!texts || fields.some((field) => typeof texts[field] !== "string" || texts[field].trim().length === 0)) {
+    throw new ArkyError(
+      "not_ready",
+      "A test payment form shows the page's own words; pass simulator_texts with its title, description and outcome labels",
+    );
+  }
+  return texts;
+}
 
 function failureMessage(error: unknown): string {
   return error instanceof Error ? error.message : "The provider simulator didn't confirm this outcome";
@@ -111,7 +123,9 @@ export function mountSimulatedStripeCheckout(
   action: StripeEmbeddedCheckoutAction,
   element: string | HTMLElement,
   onComplete: MountCheckoutActionParams["onComplete"],
+  simulatorTexts: SimulatorTexts | undefined,
 ): Extract<EmbeddedCheckoutMount, { type: "simulator" }> {
+  const texts = requireSimulatorTexts(simulatorTexts);
   let disposed = false;
 
   async function send(outcome: "complete" | "decline" | "expire"): Promise<void> {
@@ -133,12 +147,12 @@ export function mountSimulatedStripeCheckout(
   const panel = createSimulatorPanel(
     panelContainer(element),
     {
-      title: "Test payment",
-      description: "This payment runs on Arky's provider simulator. No real money moves.",
+      title: texts.title,
+      description: texts.description,
       choices: [
-        { outcome: "complete", label: "Pay" },
-        { outcome: "decline", label: "Decline" },
-        { outcome: "expire", label: "Expire" },
+        { outcome: "complete", label: texts.complete },
+        { outcome: "decline", label: texts.decline },
+        { outcome: "expire", label: texts.expire },
       ],
     },
     (outcome) => void send(outcome),
@@ -156,19 +170,21 @@ export function mountSimulatedCardSetup(
   start: MountPaymentMethodSetupParams["setup"],
   setupIntentId: string,
   element: string | HTMLElement,
+  simulatorTexts: SimulatorTexts | undefined,
 ): PaymentMethodSetupMount {
+  const texts = requireSimulatorTexts(simulatorTexts);
   let disposed = false;
   let chosen: "complete" | "decline" | "cancel" = "complete";
 
   const panel = createSimulatorPanel(
     panelContainer(element),
     {
-      title: "Test card",
-      description: "This card setup runs on Arky's provider simulator. No real card is saved and no real money moves. Pick the outcome, then confirm.",
+      title: texts.title,
+      description: texts.description,
       choices: [
-        { outcome: "complete", label: "Save card" },
-        { outcome: "decline", label: "Decline" },
-        { outcome: "cancel", label: "Cancel" },
+        { outcome: "complete", label: texts.complete },
+        { outcome: "decline", label: texts.decline },
+        { outcome: "cancel", label: texts.cancel },
       ],
     },
     (outcome) => {

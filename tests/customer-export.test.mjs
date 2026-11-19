@@ -8,8 +8,7 @@ const CUSTOMER_ID = '4f0c1d2e-8a6b-4c3d-9e5f-6a7b8c9d0e1f';
 test('A patient export is one GET on the customer that answers every part and names what was cut', async context => {
   const calls = [];
   const response = {
-    customer: { id: CUSTOMER_ID },
-    logins: [],
+    customer: { id: CUSTOMER_ID, links: [{ type: 'own' }], contacts: [{ type: 'confirmed_email', email: 'patient@example.test', language: 'bs' }] },
     booking_lines: [],
     entries: [{ entry: { id: 'chart' }, files: [{ media_id: 'scan', link: { url: 'https://files.test/scan', expires_at: 300000 } }] }],
     form_submissions: [],
@@ -22,7 +21,9 @@ test('A patient export is one GET on the customer that answers every part and na
     return new Response(JSON.stringify(response), { headers: { 'content-type': 'application/json' } });
   });
   const api = createAdmin({ apiUrl: 'https://customers.test', accountToken: 'arky_at_ttttttttttttttttttttttttttttttttttttttttttA' }).customers;
-  assert.deepEqual(await api.export({ store_id: STORE_ID, id: CUSTOMER_ID }), response);
+  const exported = await api.export({ store_id: STORE_ID, id: CUSTOMER_ID });
+  assert.deepEqual(exported, response);
+  assert.equal('logins' in exported, false, 'contacts travel on the customer, so the export has no login list');
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url.pathname, `/v1/stores/${STORE_ID}/customers/${CUSTOMER_ID}/export`);
   assert.equal(calls[0].method, 'GET');

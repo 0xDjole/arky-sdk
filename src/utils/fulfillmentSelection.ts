@@ -125,7 +125,7 @@ function assignedUnits(line: FulfillmentJobLine): UnitSpan[] {
     case "order_product":
       return canonical(line.source.order_unit_spans);
     case "rental_issue":
-      return canonical([{ first_unit: 0, quantity: line.quantity }]);
+      return canonical([{ first_unit: 0, quantity: line.source.quantity }]);
     default:
       throw new FulfillmentSelectionError("Work line has an unsupported source.");
   }
@@ -155,10 +155,10 @@ function selectUnits(work: FulfillmentJob, lineId: string, quantity: number, his
   const cancelled = canonical(line.cancelled_units);
   orderUnits(assigned, moved);
   orderUnits(assigned, cancelled);
-  if (count(assigned) !== line.quantity || count(subtract(moved, cancelled)) !== count(moved)) {
+  if (count(subtract(moved, cancelled)) !== count(moved)) {
     throw new FulfillmentSelectionError("Fulfillment ranges disagree with their assignment.");
   }
-  const active = subtract([{ first_unit: 0, quantity: line.quantity }], combinedExclusions(moved, cancelled));
+  const active = subtract([{ first_unit: 0, quantity: count(assigned) }], combinedExclusions(moved, cancelled));
   orderUnits(assigned, active);
   const dispatched: FulfillmentUnitSpan[] = [];
   const prepared: FulfillmentUnitSpan[] = [];

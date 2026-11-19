@@ -2,82 +2,93 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createStorefront } from "../dist/storefront.js";
-import { apiUrl, emailLogin, idFactories, ids, recordFetch, signedInStorage, storefrontIdentity, visitorStorage } from "./helpers/arky-fixtures.mjs";
+import { apiUrl, confirmedEmail, idFactories, ids, recordFetch, signedInEmail, signedInStorage, storefrontIdentity, visitorStorage } from "./helpers/arky-fixtures.mjs";
+
+const signedInAddress = { type: "email", email: signedInEmail };
 
 function client(storage) {
   return createStorefront(storefrontIdentity, { ...idFactories, apiUrl, locale: "bs", sessionStorage: storage });
 }
 
-function meAnswer(storefront, logins) {
+function meAnswer(storefront, contacts, updated_at) {
   const session = storefront.session;
-  return { customer: session.customer, session: { id: session.id, customer_id: session.customer.id, store_id: ids.store }, logins };
+  return {
+    customer: { ...session.customer, contacts, updated_at },
+    session: { id: session.id, customer_id: session.customer.id, store_id: ids.store },
+  };
 }
 
-function withLanguage(login, language, updated_at) {
-  return { ...login, type: { ...login.type, language }, updated_at };
-}
-
-test("a language change on the session's own login reaches the kept session at once, without another request", async (context) => {
+test("a language change on the signed-in contact reaches the kept session's customer at once, without another request", async (context) => {
   const storage = signedInStorage();
   const storefront = client(storage);
   const before = structuredClone(storefront.session);
-  assert.equal(before.login.type.language, "en");
-  const changed = withLanguage(before.login, "bs", 3);
-  const calls = recordFetch(context, () => meAnswer(storefront, [changed]));
+  assert.deepEqual(before.customer.contacts, [confirmedEmail(signedInEmail, "en")]);
+  assert.deepEqual(before.signed_in_with, signedInAddress);
+  const changed = [confirmedEmail(signedInEmail, "bs")];
+  const calls = recordFetch(context, () => meAnswer(storefront, changed, 1_700_000_000_003));
   const heard = [];
-  storefront.onAuthStateChanged((session) => heard.push(session?.login?.type.language));
+  storefront.onAuthStateChanged((session) => heard.push(session?.customer.contacts[0].language));
 
-  await storefront.customer.updateLogin({ login_id: before.login.id, expected_updated_at: 2, language: "bs" });
+  await storefront.customer.updateContact({ expected_updated_at: 2, address: signedInAddress, language: "bs" });
   await Promise.resolve();
 
-  assert.deepEqual(calls.map((call) => [call.method, call.path]), [["PATCH", `/v1/storefront/customer/me/logins/${before.login.id}`]]);
-  assert.deepEqual(storefront.session.login, changed);
+  assert.deepEqual(calls.map((call) => [call.method, call.path, call.body]), [
+    ["PATCH", "/v1/storefront/customer/me/contacts", { expected_updated_at: 2, address: signedInAddress, language: "bs" }],
+  ]);
+  assert.deepEqual(storefront.session.customer.contacts, changed);
+  assert.deepEqual(storefront.session.signed_in_with, signedInAddress);
   assert.equal(storefront.session.id, before.id);
-  assert.deepEqual(client(storage).session.login, changed);
+  assert.deepEqual(client(storage).session.customer.contacts, changed);
   assert.equal(heard.at(-1), "bs");
 });
 
-test("a me read, a new-login verification and an unsubscribe refresh the session's login from their answers", async (context) => {
+test("a me read, a contact confirmation and an unsubscribe refresh the session's customer from their answers", async (context) => {
   const storefront = client(signedInStorage());
-  const before = structuredClone(storefront.session);
-  const read = withLanguage(before.login, "hr", 4);
-  const verified = withLanguage(before.login, "en", 5);
-  const unsubscribed = { ...verified, type: { ...verified.type, unsubscribed: true }, updated_at: 6 };
-  const added = emailLogin(ids.picked, "second@example.test");
-  const answers = [meAnswer(storefront, [read]), meAnswer(storefront, [verified, added]), meAnswer(storefront, [unsubscribed, added])];
+  const read = [confirmedEmail(signedInEmail, "hr")];
+  const confirmed = [confirmedEmail(signedInEmail, "hr"), confirmedEmail("second@example.test")];
+  const answers = [
+    meAnswer(storefront, read, 1_700_000_000_004),
+    meAnswer(storefront, confirmed, 1_700_000_000_005),
+    meAnswer(storefront, confirmed, 1_700_000_000_006),
+  ];
   const calls = recordFetch(context, (_call, count) => answers[count - 1]);
 
   await storefront.customer.getMe();
-  assert.deepEqual(storefront.session.login, read);
-  await storefront.customer.verifyNewLogin({ code: "123456" });
-  assert.deepEqual(storefront.session.login, verified);
-  await storefront.customer.unsubscribe({ login_id: before.login.id });
-  assert.deepEqual(storefront.session.login, unsubscribed);
+  assert.deepEqual(storefront.session.customer, answers[0].customer);
+  await storefront.customer.verifyContact({ address: { type: "email", email: "second@example.test" }, code: "123456" });
+  assert.deepEqual(storefront.session.customer, answers[1].customer);
+  await storefront.customer.unsubscribe({ address: signedInAddress });
+  assert.deepEqual(storefront.session.customer, answers[2].customer);
+  assert.deepEqual(storefront.session.signed_in_with, signedInAddress);
 
-  assert.deepEqual(calls.map((call) => [call.method, call.path]), [
-    ["GET", "/v1/storefront/customer/me"],
-    ["POST", "/v1/storefront/customer/me/logins/verify"],
-    ["POST", `/v1/storefront/customer/me/logins/${before.login.id}/unsubscribe`],
+  assert.deepEqual(calls.map((call) => [call.method, call.path, call.body]), [
+    ["GET", "/v1/storefront/customer/me", null],
+    ["POST", "/v1/storefront/customer/me/contacts/verify", { address: { type: "email", email: "second@example.test" }, code: "123456" }],
+    ["POST", "/v1/storefront/customer/me/contacts/unsubscribe", { address: signedInAddress }],
   ]);
 });
 
-test("a change to another login and an answer without the session's login keep the session's login", async (context) => {
+test("the session's sign-in address comes from the session, so changing another contact or dropping the signed-in one keeps it", async (context) => {
   const storefront = client(signedInStorage());
-  const before = structuredClone(storefront.session);
-  const other = emailLogin(ids.picked, "second@example.test");
-  const answers = [meAnswer(storefront, [before.login, withLanguage(other, "bs", 3)]), meAnswer(storefront, [])];
+  const other = { type: "email", email: "second@example.test" };
+  const answers = [
+    meAnswer(storefront, [confirmedEmail(), confirmedEmail("second@example.test", "bs")], 1_700_000_000_003),
+    meAnswer(storefront, [], 1_700_000_000_004),
+  ];
   recordFetch(context, (_call, count) => answers[count - 1]);
 
-  await storefront.customer.updateLogin({ login_id: other.id, expected_updated_at: 2, language: "bs" });
-  assert.deepEqual(storefront.session.login, before.login);
+  await storefront.customer.updateContact({ expected_updated_at: 2, address: other, language: "bs" });
+  assert.deepEqual(storefront.session.signed_in_with, signedInAddress);
   await storefront.customer.getMe();
-  assert.deepEqual(storefront.session.login, before.login);
+  assert.deepEqual(storefront.session.customer.contacts, []);
+  assert.deepEqual(storefront.session.signed_in_with, signedInAddress);
 });
 
-test("a visitor's me read keeps the visitor session without a login", async (context) => {
+test("a visitor's me read keeps the visitor session with no sign-in address", async (context) => {
   const visitor = client(visitorStorage());
-  recordFetch(context, () => meAnswer(visitor, [emailLogin()]));
+  recordFetch(context, () => meAnswer(visitor, [{ type: "unconfirmed_email", email: "reader@example.test", language: "en" }], 1_700_000_000_002));
   await visitor.customer.getMe();
   assert.equal(visitor.session.type, "visitor");
-  assert.equal(visitor.session.login, null);
+  assert.equal(visitor.session.signed_in_with, null);
+  assert.deepEqual(visitor.session.customer.contacts, [{ type: "unconfirmed_email", email: "reader@example.test", language: "en" }]);
 });

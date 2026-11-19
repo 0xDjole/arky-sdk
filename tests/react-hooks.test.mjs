@@ -6,17 +6,18 @@ import { MutationObserver, QueryClient, useQueryClient } from "@tanstack/react-q
 
 import { ARKY_METHOD_TYPES, ARKY_METHODS_WITHOUT_PARAMS, createArkyReact } from "../dist/react.js";
 import { createAdmin } from "../dist/admin.js";
-import { createStorefront } from "../dist/storefront.js";
+import { createNetworkCustomer, createStorefront } from "../dist/storefront.js";
 import { apiUrl, factoryOrderToken, fixedIdFactories, ids, recordFetch, storefrontIdentity, visitorStorage } from "./helpers/arky-fixtures.mjs";
+import { MemoryStorage } from "./helpers/durable-request-fixtures.mjs";
 
 const reviewedWriteVerbs = new Set([
-  "accept", "add", "allocate", "allow", "answer", "archive", "assign", "attend", "batch", "block", "call", "cancel", "change",
-  "checkout", "clear", "complete", "confirm", "connect", "copy", "correct", "create", "credit", "decline", "delete", "end",
-  "erase", "execute", "expire", "finish", "forget", "grant", "identify", "import", "invite", "join", "logout", "make", "mark", "merge",
-  "move", "new", "on", "open", "pause", "pay", "print", "receive", "record", "recover", "refresh", "release", "remove",
-  "reopen", "reorder", "replace", "reply", "request", "reschedule", "resend", "reset", "resize", "resolve", "resubscribe",
-  "resume", "retain", "revoke", "save", "schedule", "select", "send", "set", "setup", "skip", "start", "step", "submit",
-  "suspend", "switch", "test", "track", "transfer", "turn", "unassign", "unblock", "unschedule", "unsubscribe", "update",
+  "accept", "add", "allocate", "allow", "answer", "archive", "assign", "attach", "attend", "batch", "block", "call", "cancel", "change",
+  "checkout", "clear", "complete", "confirm", "connect", "copy", "correct", "create", "credit", "decline", "delete", "detach", "end",
+  "ensure", "erase", "execute", "expire", "finish", "forget", "grant", "identify", "import", "invite", "issue", "join", "logout", "make", "mark", "merge",
+  "move", "name", "new", "on", "open", "pause", "pay", "print", "receive", "record", "recover", "refresh", "reissue", "release", "remove",
+  "rename", "reopen", "reorder", "replace", "reply", "request", "reschedule", "resend", "reset", "resize", "resolve", "resubscribe",
+  "resume", "retain", "revoke", "save", "schedule", "select", "send", "set", "settle", "setup", "skip", "start", "step", "submit",
+  "suspend", "switch", "take", "test", "track", "transfer", "turn", "unassign", "unblock", "unschedule", "unsubscribe", "update",
   "upload", "use", "verify", "void", "wipe", "withdraw", "write",
 ]);
 
@@ -30,6 +31,10 @@ function storefront() {
 
 function visitorStorefront() {
   return createStorefront(storefrontIdentity, { apiUrl, sessionStorage: visitorStorage(), ...fixedIdFactories });
+}
+
+function networkCustomer(sessionStorage = new MemoryStorage()) {
+  return createNetworkCustomer({ apiUrl, networkId: ids.network, sessionStorage });
 }
 
 function hooksFor(client, queryClient = new QueryClient()) {
@@ -72,9 +77,9 @@ function at(tree, parts) {
   return parts.reduce((node, part) => node[part], tree);
 }
 
-test("every Admin and storefront method is a read or a write, by its get or find name or the explicit table", () => {
+test("every Admin, storefront and network customer method is a read or a write, by its get or find name or the explicit table", () => {
   const classified = new Set();
-  for (const [label, client] of [["admin", admin()], ["storefront", storefront()]]) {
+  for (const [label, client] of [["admin", admin()], ["storefront", storefront()], ["network customer", networkCustomer()]]) {
     const { hooks } = hooksFor(client);
     for (const parts of [[], ...groupPaths(client)]) {
       assert.deepEqual(Object.keys(at(hooks, parts)).sort(), [...mirroredMembers(at(client, parts)), "key"].sort(), `${label} ${parts.join(".")}`);
@@ -96,12 +101,12 @@ test("every Admin and storefront method is a read or a write, by its get or find
   }
   for (const [path, type] of Object.entries(ARKY_METHOD_TYPES)) {
     const name = path.split(".").at(-1);
-    assert.ok(classified.has(path), `${path} names no Admin or storefront method`);
+    assert.ok(classified.has(path), `${path} names no Admin, storefront or network customer method`);
     const repeated = type === "read" ? nameRule(name) === "read" : nameRule(name) === "write" && reviewedWriteVerbs.has(verbOf(name));
     assert.equal(repeated, false, `${path} only repeats what its name says`);
   }
   for (const path of ARKY_METHODS_WITHOUT_PARAMS) {
-    assert.ok(classified.has(path), `${path} in ARKY_METHODS_WITHOUT_PARAMS names no Admin or storefront method`);
+    assert.ok(classified.has(path), `${path} in ARKY_METHODS_WITHOUT_PARAMS names no Admin, storefront or network customer method`);
   }
 });
 
@@ -150,6 +155,21 @@ test("the request options that change the answer join the key, and the others st
 
   const { hooks: arky } = hooksFor(admin());
   assert.equal("request" in arky.customers.update.mutation({ request: { headers: label } }), false);
+});
+
+test("a storefront read's key names the client's language and market, so changing either reads again", () => {
+  const client = createStorefront(storefrontIdentity, { apiUrl, ...fixedIdFactories, locale: "bs", market: "bih" });
+  const { hooks: shop } = hooksFor(client);
+  const order = { id: ids.order };
+  assert.deepEqual(shop.eshop.order.get.key(order), ["arky", "eshop", "order", "get", order, { locale: "bs", market: "bih" }]);
+  assert.deepEqual(shop.eshop.order.get.key(order, { order_token: factoryOrderToken }), [
+    "arky", "eshop", "order", "get", order, { order_token: factoryOrderToken, locale: "bs", market: "bih" },
+  ]);
+  client.setContext({ locale: "hr" });
+  assert.deepEqual(shop.eshop.order.get.key(order), ["arky", "eshop", "order", "get", order, { locale: "hr", market: "bih" }]);
+  assert.deepEqual(shop.store.country.find.key(undefined, { market: "hrv" }), ["arky", "store", "country", "find", undefined, { locale: "hr", market: "hrv" }]);
+  const { hooks: arky } = hooksFor(admin());
+  assert.deepEqual(arky.customers.find.key({ store_id: ids.store }), ["arky", "customers", "find", { store_id: ids.store }]);
 });
 
 test("a read runs its SDK call under its key with TanStack's abort signal, also a read without params and one Arky takes as a POST", async (context) => {
@@ -321,4 +341,32 @@ test("the walk never runs a getter and mirrors only methods and groups", () => {
     name: "TypeError",
     message: "things.key can't get hooks: key() names its group",
   });
+});
+
+test("a network customer's own reads and writes take no params, and the store key it opens is a write", async (context) => {
+  const token = {
+    id: ids.session,
+    access_token: `network_customer_access_${"a".repeat(43)}`,
+    refresh_token: `network_customer_refresh_${"r".repeat(43)}`,
+    access_expires_at: 1_900_000_000_000,
+    refresh_expires_at: 1_900_000_600_000,
+    authenticated_at: 1_700_000_000_000,
+    reach: { type: "network" },
+  };
+  const storage = new MemoryStorage();
+  storage.seed(`arky_network_customer_session:v1:${encodeURIComponent(apiUrl)}:${ids.network}`, JSON.stringify({ version: 1, token }));
+  const me = { account_id: ids.account, logins: [], session: { id: ids.session, reach: { type: "network" }, signed_in_with: { type: "email", email: "ana@example.test" }, authenticated_at: 1, access_expires_at: 2, refresh_expires_at: 3 } };
+  const calls = recordFetch(context, (call) => (call.method === "DELETE" ? { deleted: true } : me));
+  const queryClient = new QueryClient();
+  const { hooks: portal } = hooksFor(networkCustomer(storage), queryClient);
+  assert.deepEqual(portal.getMe.key(), ["arky", "getMe", undefined]);
+  assert.deepEqual(await queryClient.fetchQuery(portal.getMe.query()), me);
+  assert.deepEqual(Object.keys(portal.store.openKey).sort(), ["mutation"]);
+  assert.deepEqual(Object.keys(portal.store.find).sort(), ["key", "query"]);
+  assert.deepEqual(await new MutationObserver(queryClient, portal.deleteAccount.mutation()).mutate(), { deleted: true });
+  assert.deepEqual(calls.map((call) => [call.method, call.path]), [
+    ["GET", `/v1/networks/${ids.network}/customer/me`],
+    ["DELETE", `/v1/networks/${ids.network}/customer/me`],
+  ]);
+  assert.equal(calls[0].headers.get("authorization"), `Bearer ${token.access_token}`);
 });

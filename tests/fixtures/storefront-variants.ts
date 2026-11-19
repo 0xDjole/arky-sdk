@@ -13,6 +13,7 @@ import type {
   UpdateProductParams,
   UpdateProductVariantParams,
   FindProductsParams,
+  DocumentItem,
 } from "arky-sdk";
 import type { GetStorefrontProductVariantParams as PublicGet } from "arky-sdk/types";
 import type { createStorefront } from "arky-sdk/storefront";
@@ -28,6 +29,10 @@ export type StorefrontVariantContracts = [
   Assert<Missing<UpdateProductParams, "options">>,
   Assert<Missing<CreateProductVariantParams, "options">>,
   Assert<Missing<UpdateProductVariantParams, "options">>,
+  Assert<Equal<ProductVariant["document_item"], DocumentItem>>,
+  Assert<Equal<CreateProductVariantParams["document_item"], DocumentItem>>,
+  Assert<Equal<UpdateProductVariantParams["document_item"], DocumentItem>>,
+  Assert<Equal<{} extends Pick<CreateProductVariantParams, "document_item"> ? false : true, true>>,
   Assert<Missing<ProductVariant, "options" | "options_valid">>,
   Assert<Missing<StorefrontProductVariant, "options">>,
   Assert<Missing<StorefrontProduct, "options" | "price">>,

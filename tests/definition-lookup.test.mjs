@@ -39,16 +39,14 @@ test("known commerce definitions use exact key/binding reads without discovery o
     for (const owner of [api.product, api.bookingService, api.bookingResource, api.package]) {
       assert.equal((await owner.getByKey({ store_id: STORE_ID, key: "demo-key" })).id, "retained");
     }
-    await api.bookingOffering.getByServiceAndResource({ store_id: STORE_ID, booking_service_id: "service", booking_resource_id: "resource" });
+    assert.equal("getByServiceAndResource" in api.bookingOffering, false, "an offering names many resources, so no service and resource pair finds one");
     assert.deepEqual(calls.map(({ url }) => url.pathname), [
       `/v1/stores/${STORE_ID}/products/by-key/demo-key`,
       `/v1/stores/${STORE_ID}/booking-services/by-key/demo-key`,
       `/v1/stores/${STORE_ID}/booking-resources/by-key/demo-key`,
       `/v1/stores/${STORE_ID}/packages/by-key/demo-key`,
-      `/v1/stores/${STORE_ID}/booking-offerings/lookup`,
     ]);
     assert.ok(calls.every(({ method }) => method === "GET"));
-    assert.deepEqual(Object.fromEntries(calls[4].url.searchParams), { booking_service_id: "service", booking_resource_id: "resource" });
     for (const status of [403, 404, 409, 503]) {
       let count = 0;
       globalThis.fetch = async () => {
@@ -58,8 +56,7 @@ test("known commerce definitions use exact key/binding reads without discovery o
       for (const owner of [api.product, api.bookingService, api.bookingResource, api.package]) {
         await assert.rejects(owner.getByKey({ store_id: STORE_ID, key: "demo-key" }), (error) => error.statusCode === status);
       }
-      await assert.rejects(api.bookingOffering.getByServiceAndResource({ store_id: STORE_ID, booking_service_id: "service", booking_resource_id: "resource" }), (error) => error.statusCode === status);
-      assert.equal(count, 5);
+      assert.equal(count, 4);
     }
   } finally {
     globalThis.fetch = original;
@@ -69,7 +66,7 @@ test("known commerce definitions use exact key/binding reads without discovery o
 test("a known booking offering is read by its exact id for package price labels", async () => {
   const original = globalThis.fetch;
   const calls = [];
-  const offering = { id: "offering/one", booking_service_id: "service", booking_resource_id: "resource", status: { type: "active" } };
+  const offering = { id: "offering/one", booking_service_id: "service", resources: { type: "ids", booking_resource_ids: ["resource"] }, status: { type: "active" } };
   globalThis.fetch = async (url, init) => {
     calls.push({ url: new URL(url), method: init.method });
     return new Response(JSON.stringify(offering), { headers: { "content-type": "application/json" } });

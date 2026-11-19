@@ -28,6 +28,7 @@ export {
   getOrCreateDurableRequest,
   isDefiniteRefusal,
   readDurableRequest,
+  refusalClearsKeptRequest,
   withDurableRequestLock,
 } from "./durableRequest";
 export type { DurableRequest, DurableRequestErrorCode } from "./durableRequest";
@@ -47,6 +48,8 @@ export {
   missingShippingFields,
 } from "./address";
 export type { ShippingAddressField } from "./address";
+export { toE164 } from "./phone";
+export type { E164Conversion, E164Refusal } from "./phone";
 export type { PaymentAmounts, PaymentRefundView } from "./paymentAmounts";
 
 export {

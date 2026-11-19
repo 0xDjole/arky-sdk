@@ -23,7 +23,7 @@ test("a buyer's return is created under the app-picked id and read through store
   const retained = { id: returnId, status: { type: "requested", destination: { type: "undecided" } } };
   const calls = recordFetch(context, (call) => call.method === "GET" && call.path === "/v1/storefront/returns" ? { items: [], cursor: "next" } : retained);
   const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
-  const request = { id: returnId, type: orderReturn, destination_store_location_id: null };
+  const request = { id: returnId, type: orderReturn, destination: { type: "undecided" } };
   const before = structuredClone(request);
   assert.deepEqual(await store.eshop.return.create(request), retained);
   assert.deepEqual(await store.eshop.return.find({ order_id: ids.order, limit: 10, cursor: "prior" }), { items: [], cursor: "next" });
@@ -63,12 +63,12 @@ test("staff returns are created under the app-picked id, and every action goes t
   const retained = { id: returnId, trackings: [], status: { type: "requested", destination: { type: "undecided" } } };
   const calls = recordFetch(context, () => retained);
   const api = returns();
-  const create = { store_id: STORE_ID, id: returnId, type: orderReturn, destination_store_location_id: "warehouse" };
+  const create = { store_id: STORE_ID, id: returnId, type: orderReturn, destination: { type: "decided", store_location_id: "warehouse" } };
   assert.deepEqual(await api.create(create), retained);
   await api.get({ store_id: OTHER_STORE_ID, return_id: "return/id" });
   const items = [{ line_id: lineId, inventory_item_id: "item", quantity: 1, inventory_unit_ids: [] }];
   const commands = [
-    { type: "approve", destination_store_location_id: null, notify_customer: true },
+    { type: "approve", destination: { type: "undecided" }, notify_customer: true },
     { type: "decide", store_location_id: "warehouse" },
     { type: "decline", reason: "Outside the return window", notify_customer: false },
     { type: "receive", items },
@@ -130,9 +130,9 @@ test("approving or declining a return needs an explicit customer email choice an
   const api = returns();
   const version = { store_id: STORE_ID, return_id: returnId, expected_updated_at: 9 };
   for (const command of [
-    { type: "approve", destination_store_location_id: "warehouse" },
+    { type: "approve", destination: { type: "decided", store_location_id: "warehouse" } },
     { type: "decline", reason: "Outside the return window" },
-    { type: "approve", destination_store_location_id: null, notify_customer: "yes" },
+    { type: "approve", destination: { type: "undecided" }, notify_customer: "yes" },
   ]) {
     await assert.rejects(async () => api.execute({ ...version, command }), {
       name: "TypeError",
@@ -140,10 +140,10 @@ test("approving or declining a return needs an explicit customer email choice an
     });
   }
   assert.equal(calls.length, 0);
-  await api.execute({ ...version, command: { type: "approve", destination_store_location_id: "warehouse", notify_customer: false } });
+  await api.execute({ ...version, command: { type: "approve", destination: { type: "decided", store_location_id: "warehouse" }, notify_customer: false } });
   await api.execute({ ...version, command: { type: "decline", reason: "Seal broken", notify_customer: true } });
   assert.deepEqual(calls.map((call) => call.body.command), [
-    { type: "approve", destination_store_location_id: "warehouse", notify_customer: false },
+    { type: "approve", destination: { type: "decided", store_location_id: "warehouse" }, notify_customer: false },
     { type: "decline", reason: "Seal broken", notify_customer: true },
   ]);
 });

@@ -38,6 +38,7 @@ export type AuditSubjectType =
   | "order_product_line_item"
   | "order_booking_line_item"
   | "payment"
+  | "refund"
   | "fulfillment"
   | "return"
   | "rental"
@@ -57,6 +58,7 @@ export type AuditSubjectType =
   | "email_address"
   | "email_layout"
   | "support_flow"
+  | "support_assistant"
   | "form"
   | "sales_channel"
   | "zone"
@@ -67,16 +69,19 @@ export type AuditSubjectType =
   | "company_role"
   | "order_credit"
   | "invoice"
+  | "invoice_counter"
+  | "store_seller"
+  | "fiscal_device"
+  | "fiscal_device_token"
+  | "fiscal_receipt"
   | "payment_method"
   | "experiment"
   | "experiment_assignment"
   | "customer_session"
-  | "customer_login"
   | "incoming_webhook"
   | "store_subscription"
   | "account"
-  | "account_session"
-  | "support_access";
+  | "account_session";
 
 export type AuditEntryOwner =
   | { type: "store" }
@@ -188,15 +193,12 @@ export type AuditAction =
   | { action: "order_updated"; order_id: string }
   | { action: "order_confirmed"; order_id: string }
   | { action: "order_payment_received"; order_id: string }
-  | { action: "order_refunded"; order_id: string }
+  | { action: "refund_created"; order_id: string; payment_id: string; refund_id: string }
   | { action: "order_cancelled"; order_id: string }
-  | { action: "order_product_line_item_created"; order_id: string; order_product_line_item_id: string }
   | { action: "order_product_line_item_updated"; order_id: string; order_product_line_item_id: string }
-  | { action: "order_product_line_item_confirmed"; order_id: string; order_product_line_item_id: string }
   | { action: "order_product_line_item_cancelled"; order_id: string; order_product_line_item_id: string }
   | { action: "order_booking_line_item_created"; order_id: string; order_booking_line_item_id: string }
   | { action: "order_booking_line_item_updated"; order_id: string; order_booking_line_item_id: string }
-  | { action: "order_booking_line_item_confirmed"; order_id: string; order_booking_line_item_id: string }
   | { action: "order_booking_line_item_upcoming"; order_id: string; order_booking_line_item_id: string }
   | { action: "order_booking_line_item_attended"; order_id: string; order_booking_line_item_id: string }
   | { action: "order_booking_line_item_waiting"; order_id: string; order_booking_line_item_id: string }
@@ -226,7 +228,6 @@ export type AuditAction =
   | { action: "return_missing"; return_id: string }
   | { action: "return_tracking_updated"; return_id: string }
   | { action: "return_closed"; return_id: string }
-  | { action: "rental_created"; rental_id: string }
   | { action: "rental_updated"; rental_id: string }
   | { action: "fulfillment_job_created"; fulfillment_job_id: string }
   | { action: "fulfillment_job_opened"; fulfillment_job_id: string }
@@ -268,6 +269,15 @@ export type AuditAction =
   | { action: "store_provider_created"; store_provider_id: string }
   | { action: "store_provider_updated"; store_provider_id: string }
   | { action: "store_provider_deleted"; store_provider_id: string }
+  | { action: "fiscal_device_created"; fiscal_device_id: string }
+  | { action: "fiscal_device_updated"; fiscal_device_id: string }
+  | { action: "fiscal_device_archived"; fiscal_device_id: string }
+  | { action: "fiscal_device_token_created"; fiscal_device_id: string; fiscal_device_token_id: string }
+  | { action: "fiscal_device_token_revoked"; fiscal_device_id: string; fiscal_device_token_id: string }
+  | { action: "fiscal_receipt_copied"; fiscal_receipt_id: string }
+  | { action: "fiscal_receipt_corrected"; fiscal_receipt_id: string }
+  | { action: "fiscal_receipt_settled"; fiscal_receipt_id: string }
+  | { action: "fiscal_receipts_issued"; order_id: string }
   | { action: "template_created"; template_id: string }
   | { action: "template_updated"; template_id: string }
   | { action: "template_deleted"; template_id: string }
@@ -287,6 +297,9 @@ export type AuditAction =
   | { action: "support_flow_created"; support_flow_id: string }
   | { action: "support_flow_updated"; support_flow_id: string }
   | { action: "support_flow_deleted"; support_flow_id: string }
+  | { action: "support_assistant_created"; support_assistant_id: string }
+  | { action: "support_assistant_updated"; support_assistant_id: string }
+  | { action: "support_assistant_deleted"; support_assistant_id: string }
   | { action: "form_created"; form_id: string }
   | { action: "form_updated"; form_id: string }
   | { action: "form_deleted"; form_id: string }
@@ -310,9 +323,17 @@ export type AuditAction =
   | { action: "company_role_updated"; company_role_id: string }
   | { action: "company_role_deleted"; company_role_id: string }
   | { action: "order_credit_created"; order_id: string; order_credit_id: string }
-  | { action: "order_credit_voided"; order_id: string; order_credit_id: string }
-  | { action: "invoice_created"; order_id: string; invoice_id: string }
-  | { action: "invoice_deleted"; order_id: string; invoice_id: string }
+  | { action: "order_credit_voided"; order_id: string; order_credit_id: string; reason: string }
+  | { action: "invoice_issued"; order_id: string }
+  | { action: "invoice_reissued"; invoice_id: string }
+  | { action: "outside_invoice_attached"; order_id: string }
+  | { action: "outside_invoice_detached"; invoice_id: string }
+  | { action: "outside_credit_note_attached"; invoice_id: string }
+  | { action: "outside_credit_note_detached"; invoice_id: string }
+  | { action: "store_seller_created"; store_seller_id: string }
+  | { action: "store_seller_updated"; store_seller_id: string }
+  | { action: "store_seller_deleted"; store_seller_id: string }
+  | { action: "invoice_counter_confirmed"; invoice_counter_id: string }
   | { action: "payment_method_created"; payment_method_id: string }
   | { action: "payment_method_updated"; payment_method_id: string }
   | { action: "payment_method_revoked"; payment_method_id: string }
@@ -320,19 +341,20 @@ export type AuditAction =
   | { action: "experiment_updated"; experiment_id: string }
   | { action: "experiment_deleted"; experiment_id: string }
   | { action: "experiment_assignment_created"; experiment_id: string; experiment_assignment_id: string }
-  | { action: "customer_login_created"; customer_id: string; customer_login_id: string }
-  | { action: "customer_login_updated"; customer_id: string; customer_login_id: string }
-  | { action: "customer_login_verified"; customer_id: string; customer_login_id: string }
-  | { action: "customer_login_deleted"; customer_id: string; customer_login_id: string }
   | { action: "customer_session_created"; customer_id: string; customer_session_id: string }
   | { action: "customer_session_updated"; customer_id: string; customer_session_id: string }
+  | { action: "customer_contact_added"; customer_id: string }
+  | { action: "customer_contact_changed"; customer_id: string }
+  | { action: "customer_contact_confirmed"; customer_id: string }
+  | { action: "customer_contact_removed"; customer_id: string }
+  | { action: "customer_invite_sent"; customer_id: string; customer_invite_id: string }
+  | { action: "customer_link_added"; customer_id: string }
+  | { action: "customer_link_removed"; customer_id: string }
   | { action: "incoming_webhook_retried"; incoming_webhook_id: string }
   | { action: "incoming_webhook_ignored"; incoming_webhook_id: string }
   | { action: "store_subscription_created"; store_subscription_id: string }
   | { action: "store_subscription_updated"; store_subscription_id: string }
-  | { action: "account_session_revoked"; account_id: string; account_session_id: string }
-  | { action: "support_access_created"; support_access_id: string }
-  | { action: "support_access_ended"; support_access_id: string };
+  | { action: "account_session_revoked"; account_id: string; account_session_id: string };
 
 export type AuditResult = "allowed" | "refused";
 

@@ -77,12 +77,13 @@ function payment(status) {
     id: ids.payment,
     store_id: ids.store,
     order_id: ids.order,
+    invoice_id: ids.credit,
     payment_option_id: ids.paymentOption,
+    payment_option_key: "card",
     money: { amount: 3000, currency: "eur" },
     type: { type: "stripe_checkout", return_url: "https://shop.example.test", expires_at: 1, status: { type: status }, refunds: [], disputes: [] },
     holds: [],
     status,
-    status_revision: "1",
     created_at: 1,
     updated_at: 1,
   };
@@ -182,16 +183,13 @@ test("the headless checkout walks details, shipping and payment, then places wit
   assert.equal(accept.body.order_id, ids.order);
   assert.equal(accept.body.order_token, `arky_ot_${"C".repeat(42)}A`);
   assert.deepEqual(accept.body.contact_email, ana);
-  assert.equal("contact_first_name" in accept.body, false);
-  assert.equal("contact_last_name" in accept.body, false);
-  assert.equal(state.contact_first_name, null);
-  assert.equal(state.contact_last_name, null);
+  assert.equal(accept.body.contact_name, null);
+  assert.equal(state.contact_name, null);
   assert.deepEqual(accept.body.payment, {
     type: "payment_option",
     payment_option_id: ids.paymentOption,
     return_url: `https://shop.example.test/order/${ids.order}`,
-    save_payment_method: false,
-    payment_method_terms: null,
+    save_payment_method: { type: "dont_save" },
   });
   assert.equal(state.placed.payment_method_id, null);
   assert.equal(state.placed.payment_method_setup, null);
@@ -252,7 +250,7 @@ test("a signed-in shopper's token refresh while placing keeps the checkout and r
   assert.equal(state.error, null);
   assert.equal(state.placed.order_id, ids.order);
   assert.equal(arky.client.session.id, ids.otherSession);
-  assert.equal(checkout.cart.last_order.get().order_id, ids.order);
+  assert.equal("last_order" in checkout.cart, false);
   const accepts = calls.filter((call) => call.path === "/v1/storefront/carts/accept");
   assert.equal(accepts.length, 2);
   assert.deepEqual(accepts[0].body, accepts[1].body);
@@ -304,11 +302,10 @@ for (const change of ["shopper", "market"]) {
     browser(context);
     server(context, () => placedAcceptance({ payment_id: ids.payment }));
     const { arky, checkout } = await readyCheckout();
-    checkout.setContact({ contact_email: ana, contact_first_name: "Ana", contact_last_name: "Horvat" });
+    checkout.setContact({ contact_email: ana, contact_name: { first_name: "Ana", last_name: "Horvat" } });
     await checkout.place();
     assert.deepEqual(checkout.state.get().contact_email, ana);
-    assert.equal(checkout.state.get().contact_first_name, "Ana");
-    assert.equal(checkout.state.get().contact_last_name, "Horvat");
+    assert.deepEqual(checkout.state.get().contact_name, { first_name: "Ana", last_name: "Horvat" });
     assert.equal(checkout.state.get().placed.order_id, ids.order);
     if (change === "shopper") {
       await arky.customer.identify({ customer_id: ids.otherCustomer, session_id: ids.otherSession });
@@ -320,8 +317,7 @@ for (const change of ["shopper", "market"]) {
     assert.equal(state.cart, null);
     assert.equal(state.quote, null);
     assert.equal(state.contact_email, null);
-    assert.equal(state.contact_first_name, null);
-    assert.equal(state.contact_last_name, null);
+    assert.equal(state.contact_name, null);
     assert.equal(state.destination, null);
     assert.equal(state.billing_address, null);
     assert.equal(state.payment_option_id, null);
@@ -481,6 +477,25 @@ test("a line whose price can't hold its fixed fee shows on the cart step, and a 
   assert.equal(checkout.state.get().step, "shipping");
 });
 
+test("a company buyer without a tax ID the place's TaxCore receipts take shows on the details step, behind a line the cart step holds", () => {
+  const company = { type: "company", company_id: ids.company, purchase_order_number: null };
+  const arky = initialize(storefrontIdentity, { ...idFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: visitorStorage() });
+  const checkout = arky.eshop.checkoutFlow({ buyer: company, package_id: ids.package });
+  checkout.cart.cart.set(cartRecord({ buyer: company, line_items: [line] }));
+  checkout.setContact({ contact_email: ana });
+  const taxIdRequired = { type: "fiscal_buyer_tax_id_required" };
+  const shippingRequired = { type: "shipping_required", delivery_group_id: ids.otherCart };
+  const taxUnavailable = { type: "tax_unavailable", line_item_id: ids.line, code: "TAX.FIXED_ABOVE_PRICE" };
+  checkout.cart.quote_result.set(quoteRecord({ buyer: company, ready: false, blockers: [taxIdRequired] }));
+  assert.equal(checkout.state.get().step, "details");
+  checkout.cart.quote_result.set(quoteRecord({ buyer: company, ready: false, blockers: [shippingRequired, taxIdRequired] }));
+  assert.equal(checkout.state.get().step, "details");
+  checkout.cart.quote_result.set(quoteRecord({ buyer: company, ready: false, blockers: [taxUnavailable, taxIdRequired] }));
+  assert.equal(checkout.state.get().step, "cart");
+  checkout.cart.quote_result.set(quoteRecord({ buyer: company, ready: false, blockers: [shippingRequired] }));
+  assert.equal(checkout.state.get().step, "shipping");
+});
+
 test("a card payment whose outcome is unknown ends the flow as placed and unconfirmed instead of waiting forever", async (context) => {
   browser(context);
   server(context, () => placedAcceptance({ payment_id: ids.payment }), "unknown");
@@ -505,7 +520,7 @@ test("the flow keeps its checkout in its own cart scope, so the client's shared 
   });
   const { arky, checkout } = await readyCheckout();
   await assert.rejects(checkout.place(), (error) => error instanceof CheckoutFlowError && error.code === "interrupted");
-  const shared = `arky:cart-checkout:v5:${encodeURIComponent(`storefront:${apiUrl}:${storefrontIdentity.storeId}:${storefrontIdentity.salesChannelId}:${ids.customer}`)}`;
+  const shared = `arky:cart-checkout:v6:${encodeURIComponent(`storefront:${apiUrl}:${storefrontIdentity.storeId}:${storefrontIdentity.salesChannelId}:${ids.customer}`)}`;
   assert.equal(storage.getItem(shared), null);
   assert.ok(storage.getItem(`${shared}:${encodeURIComponent(`customer|${ids.package}|hrv`)}`));
   assert.equal(await arky.client.eshop.cart.pendingCheckout(), null);
@@ -514,8 +529,8 @@ test("the flow keeps its checkout in its own cart scope, so the client's shared 
 });
 
 function storageWithContact(contact) {
-  const signedIn = sessionResult(ids.customer, emailSession());
-  signedIn.login.type = { type: "verified_email", email: contact.email, language: contact.language, unsubscribed: false };
+  const signedIn = sessionResult(ids.customer, emailSession(ids.customer, ids.session, { email: contact.email }));
+  signedIn.customer.contacts = [{ type: "confirmed_email", email: contact.email, language: contact.language }];
   return new SessionStorage(JSON.stringify({ version: 5, ...signedIn }));
 }
 
@@ -541,8 +556,7 @@ test("opening the checkout names no contact: a billing email and a signed-in con
   checkout.cart.reset();
   let state = await checkout.open();
   assert.equal(state.contact_email, null);
-  assert.equal(state.contact_first_name, null);
-  assert.equal(state.contact_last_name, null);
+  assert.equal(state.contact_name, null);
   assert.equal(state.step, "details");
   state = await checkout.shipTo({ destination: { type: "delivery", address } });
   state = await checkout.selectShipping({ delivery_group_id: factoryId(1), shipping_method_id: offer.shipping_method_id, rate_id: offer.rate_id });
@@ -587,44 +601,35 @@ test("a signed-in checkout whose saved language the store dropped sends the page
   assert.deepEqual(state.contact_email, pageContact);
 });
 
-test("contact names the page sets reach the acceptance and the state, and a name it leaves out is not sent", async (context) => {
+test("a contact name stays complete and can be cleared as a whole", async (context) => {
   browser(context);
   const calls = server(context, () => placedAcceptance({ payment_id: ids.payment }));
   const { checkout } = await readyCheckout();
-  checkout.setContact({ contact_email: ana, contact_first_name: "Ana", contact_last_name: "Horvat" });
-  let state = checkout.state.get();
-  assert.equal(state.contact_first_name, "Ana");
-  assert.equal(state.contact_last_name, "Horvat");
-  checkout.setContact({ contact_email: ana, contact_first_name: "Ana" });
-  state = checkout.state.get();
-  assert.equal(state.contact_first_name, "Ana");
-  assert.equal(state.contact_last_name, null);
-  assert.equal(state.step, "payment");
-  state = await checkout.place();
+  const name = { first_name: "Ana", last_name: "Horvat" };
+  checkout.setContact({ contact_email: ana, contact_name: name });
+  assert.deepEqual(checkout.state.get().contact_name, name);
+  assert.throws(() => checkout.setContact({ contact_email: ana, contact_name: { first_name: "Ana" } }), /both first and last/);
+  assert.deepEqual(checkout.state.get().contact_name, name);
+  checkout.setContact({ contact_email: ana, contact_name: null });
+  const state = await checkout.place();
   assert.equal(state.step, "placed");
-  assert.equal(state.contact_first_name, "Ana");
+  assert.equal(state.contact_name, null);
   const accept = calls.find((call) => call.path === "/v1/storefront/carts/accept");
-  assert.equal(accept.body.contact_first_name, "Ana");
-  assert.equal("contact_last_name" in accept.body, false);
+  assert.equal(accept.body.contact_name, null);
   assert.deepEqual(accept.body.contact_email, ana);
-  for (const quote of calls.filter((call) => call.path.endsWith("/quote"))) {
-    assert.equal("contact_first_name" in quote.body, false);
-    assert.equal("contact_last_name" in quote.body, false);
-  }
+  for (const quote of calls.filter((call) => call.path.endsWith("/quote"))) assert.equal("contact_name" in quote.body, false);
 });
 
 test("both contact names the page sets are sent with the acceptance", async (context) => {
   browser(context);
   const calls = server(context, () => placedAcceptance({ payment_id: ids.payment }));
   const { checkout } = await readyCheckout();
-  checkout.setContact({ contact_email: ana, contact_first_name: "Ana", contact_last_name: "Horvat" });
+  checkout.setContact({ contact_email: ana, contact_name: { first_name: "Ana", last_name: "Horvat" } });
   const state = await checkout.place();
   assert.equal(state.step, "placed");
-  assert.equal(state.contact_first_name, "Ana");
-  assert.equal(state.contact_last_name, "Horvat");
+  assert.deepEqual(state.contact_name, { first_name: "Ana", last_name: "Horvat" });
   const accept = calls.find((call) => call.path === "/v1/storefront/carts/accept");
-  assert.equal(accept.body.contact_first_name, "Ana");
-  assert.equal(accept.body.contact_last_name, "Horvat");
+  assert.deepEqual(accept.body.contact_name, { first_name: "Ana", last_name: "Horvat" });
 });
 
 const freeTotals = { subtotal: 0, delivery: 0, discount: 0, tax: 0, total: 0 };
@@ -658,8 +663,7 @@ test("a zero total placed with a card to save sends the payment option, and plac
     type: "payment_option",
     payment_option_id: ids.paymentOption,
     return_url: `https://shop.example.test/order/${ids.order}`,
-    save_payment_method: true,
-    payment_method_terms: terms,
+    save_payment_method: { type: "save", terms },
   });
   assert.deepEqual(state.placed, {
     order_id: ids.order,
@@ -702,4 +706,141 @@ test("a zero total placed without a card to save is free", async (context) => {
   assert.deepEqual(accept.body.payment, { type: "free" });
   assert.equal(state.placed.payment_method_id, null);
   assert.equal(state.placed.payment_method_setup, null);
+});
+
+test("a line its place of sale can't supply or whose document Arky can't issue shows on the cart step, and such a delivery on the details step", () => {
+  const arky = initialize(storefrontIdentity, { ...idFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: visitorStorage() });
+  const checkout = arky.eshop.checkoutFlow({ buyer: customer, package_id: ids.package });
+  checkout.cart.cart.set(cartRecord({ line_items: [line] }));
+  checkout.setContact({ contact_email: ana });
+  const shippingRequired = { type: "shipping_required", delivery_group_id: ids.otherCart };
+  for (const blocker of [
+    { type: "document_unavailable", line_item_id: ids.line, code: "DOCUMENT.NO_ITEM" },
+    { type: "package_document_unavailable", line_item_id: ids.line, package_item_id: ids.packageItem, code: "DOCUMENT.RENTAL_UNSUPPORTED" },
+    { type: "place_of_sale_jurisdiction", line_item_id: ids.line },
+  ]) {
+    checkout.cart.quote_result.set(quoteRecord({ ready: false, blockers: [shippingRequired, blocker] }));
+    assert.equal(checkout.state.get().step, "cart", blocker.type);
+  }
+  for (const blocker of [
+    { type: "delivery_document_unavailable", delivery_group_id: ids.otherCart, code: "DOCUMENT.ITEM_CODE_INVALID" },
+    { type: "delivery_place_of_sale_jurisdiction", delivery_group_id: ids.otherCart },
+  ]) {
+    checkout.cart.quote_result.set(quoteRecord({ ready: false, blockers: [shippingRequired, blocker] }));
+    assert.equal(checkout.state.get().step, "details", blocker.type);
+  }
+  checkout.cart.quote_result.set(quoteRecord({ ready: false, blockers: [shippingRequired] }));
+  assert.equal(checkout.state.get().step, "shipping");
+});
+
+test("a fiscal branch shop names its place of sale on the new cart, and a missing one holds the details step until setPlaceOfSale", async (context) => {
+  browser(context);
+  const branch = "3c5e7a9b-1d2f-4a6c-8e0b-2d4f6a8c0e1f";
+  const branchSale = { type: "store_location", store_location_id: branch };
+  const carts = new Map();
+  const calls = recordFetch(context, (call) => {
+    if (call.path === "/v1/storefront") return { name: "Shop", timezone: "Europe/Sarajevo", languages: ["en"], payment_options: [] };
+    if (call.method === "POST" && call.path === "/v1/storefront/carts") {
+      const created = cartRecord({ id: call.body.id, package_id: call.body.package_id, line_items: [line], place_of_sale: call.body.place_of_sale ?? { type: "none" } });
+      carts.set(created.id, created);
+      return { type: "created", cart: created, recovery_token: "token" };
+    }
+    const id = call.path.split("/")[4];
+    const current = carts.get(id);
+    if (call.method === "GET" && call.path === `/v1/storefront/carts/${id}`) return current;
+    if (call.method === "PUT" && call.path === `/v1/storefront/carts/${id}`) {
+      const saved = { ...current, updated_at: current.updated_at + 1, place_of_sale: call.body.place_of_sale ?? current.place_of_sale };
+      carts.set(id, saved);
+      return saved;
+    }
+    if (call.path === `/v1/storefront/carts/${id}/quote`) {
+      return current.place_of_sale.type === "none"
+        ? quoteRecord({ cart_id: id, ready: false, lines: [quoteLine], blockers: [{ type: "place_of_sale_required" }] })
+        : quoteRecord({ cart_id: id, ready: true, lines: [quoteLine], blockers: [] });
+    }
+    throw new Error(`Unexpected request ${call.method} ${call.path}`);
+  });
+  const arky = initialize(storefrontIdentity, { ...idFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: visitorStorage() });
+  const checkout = arky.eshop.checkoutFlow({ buyer: customer, package_id: ids.package });
+  await checkout.cart.create({ id: ids.cart });
+  checkout.setContact({ contact_email: ana });
+  let state = await checkout.open();
+  assert.deepEqual(state.quote.blockers, [{ type: "place_of_sale_required" }]);
+  assert.equal(state.step, "details", "a missing place of sale is the page's details step, not shipping");
+  state = await checkout.setPlaceOfSale({ place_of_sale: branchSale });
+  assert.equal(state.step, "payment");
+  assert.deepEqual(state.cart.place_of_sale, branchSale);
+  const branchCart = arky.eshop.cart({ buyer: customer, package_id: ids.otherPackage });
+  await branchCart.create({ id: ids.otherCart, place_of_sale: branchSale });
+  await branchCart.setPlaceOfSale({ place_of_sale: { type: "none" } });
+  const creates = calls.filter((call) => call.method === "POST" && call.path === "/v1/storefront/carts");
+  assert.equal("place_of_sale" in creates[0].body, false);
+  assert.deepEqual(creates[1].body.place_of_sale, branchSale);
+  const updates = calls.filter((call) => call.method === "PUT");
+  assert.deepEqual(updates.map((call) => [call.path, call.body]), [
+    [`/v1/storefront/carts/${ids.cart}`, { expected_updated_at: 1_700_000_000_001, place_of_sale: branchSale }],
+    [`/v1/storefront/carts/${ids.otherCart}`, { expected_updated_at: 1_700_000_000_001, place_of_sale: { type: "none" } }],
+  ]);
+});
+
+test("a quote that saves the buyer's card places with the card saved under the wording the page passes, and refuses to place without it", async (context) => {
+  browser(context);
+  const calls = server(context, () => placedAcceptance({ payment_id: ids.payment }));
+  const { checkout } = await readyCheckout();
+  const quoted = checkout.cart.quote_result.get();
+  checkout.cart.quote_result.set({ ...quoted, lines: [...quoted.lines, { type: "package", line_item_id: ids.otherLine, saves_card: true }] });
+  await assert.rejects(checkout.place(), (error) => error instanceof CheckoutFlowError && error.code === "not_ready");
+  await assert.rejects(checkout.place({ save_payment_method: false, payment_method_terms: "Save my card" }), (error) => error instanceof CheckoutFlowError && error.code === "not_ready");
+  await assert.rejects(checkout.place({ payment_method_terms: "   " }), (error) => error instanceof CheckoutFlowError && error.code === "not_ready");
+  assert.equal(calls.filter((call) => call.path === "/v1/storefront/carts/accept").length, 0);
+  const terms = "Save my card for the monthly plan";
+  const state = await checkout.place({ payment_method_terms: terms });
+  assert.equal(state.step, "placed");
+  const accept = calls.find((call) => call.path === "/v1/storefront/carts/accept");
+  assert.deepEqual(accept.body.payment.save_payment_method, { type: "save", terms });
+});
+
+test("a placed checkout opens again on the cart, and reset leaves paying while keeping the contact", async (context) => {
+  browser(context);
+  server(context, () => placedAcceptance({ payment_id: ids.payment }));
+  const { checkout } = await readyCheckout();
+  let state = await checkout.place();
+  assert.equal(state.step, "placed");
+  state = await checkout.open();
+  assert.equal(state.placed, null, "a finished order doesn't come back at the next checkout");
+  assert.equal(state.step, "cart");
+  context.mock.restoreAll();
+  server(context, () => placedAcceptance({ payment_id: ids.payment }), "open");
+  const paying = await readyCheckout();
+  state = await paying.checkout.place();
+  assert.equal(state.step, "paying");
+  state = await paying.checkout.open();
+  assert.equal(state.step, "paying", "an order still waiting for its payment stays until the page resets the flow");
+  state = paying.checkout.reset();
+  assert.equal(state.placed, null);
+  assert.equal(state.payment, null);
+  assert.equal(state.pending, null);
+  assert.equal(state.step, "cart");
+  assert.deepEqual(state.contact_email, ana);
+});
+
+test("every quote blocker has its step, and a blocker this SDK doesn't know yet holds the cart step", () => {
+  const arky = initialize(storefrontIdentity, { ...idFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: visitorStorage() });
+  const checkout = arky.eshop.checkoutFlow({ buyer: customer, package_id: ids.package });
+  checkout.cart.cart.set(cartRecord({ line_items: [line] }));
+  checkout.setContact({ contact_email: ana });
+  const shippingRequired = { type: "shipping_required", delivery_group_id: ids.otherCart };
+  for (const [blocker, step] of [
+    [{ type: "documents_unavailable", code: "DOCUMENT.SELLER_MISSING" }, "cart"],
+    [{ type: "payment_unavailable", code: "PAYMENT.NONE" }, "cart"],
+    [{ type: "booking_session", line_item_id: ids.line, code: "BOOKING.SESSION_USED" }, "cart"],
+    [{ type: "a_blocker_added_later", line_item_id: ids.line }, "cart"],
+    [{ type: "place_of_sale_required" }, "details"],
+    [{ type: "place_of_sale_not_active", store_location_id: ids.otherCart }, "details"],
+    [{ type: "purchase_order_number_required" }, "details"],
+    [{ type: "units_without_delivery", line_item: { type: "product", line_item_id: ids.line }, quantity: 1 }, "details"],
+  ]) {
+    checkout.cart.quote_result.set(quoteRecord({ ready: false, blockers: [shippingRequired, blocker] }));
+    assert.equal(checkout.state.get().step, step, blocker.type);
+  }
 });

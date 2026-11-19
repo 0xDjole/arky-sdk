@@ -7,10 +7,10 @@ import type {
   PackageMember,
   PackageMemberAcceptedTerms,
   PackageMemberSelfAcceptedTerms,
-  PackageMemberRevisionChange,
   PackageMemberRevisionOrigin,
-  PackageMemberSelfRevisionChange,
   PackageMemberSelfRevisionOrigin,
+  PackageMemberChangeAccess,
+  PackageMemberChanges,
   PackageMemberCurrent,
   PackageMemberCurrentSelf,
   PackageMemberSelfPricedTerms,
@@ -202,30 +202,33 @@ export type PackageMemberHistoryContracts = [
   Assert<Equal<PackageMemberRevision["terms"], PackageMemberAcceptedTerms>>,
   Assert<Equal<PackageMemberRevisionSelf["terms"], PackageMemberSelfAcceptedTerms>>,
   Assert<Equal<PackageMemberRevisionDetail["terms"], PackageMemberAcceptedTerms>>,
+  Assert<Equal<Awaited<ReturnType<ReturnType<typeof createAdmin>["eshop"]["packageMember"]["getChanges"]>>, PackageMemberChanges>>,
+  Assert<Equal<keyof PackageMemberChanges, "package_member_id" | "change" | "select_payment_method">>,
+  Assert<Equal<PackageMemberChanges["change"], PackageMemberChangeAccess>>,
+  Assert<Equal<PackageMemberChanges["select_payment_method"], PackageMemberChangeAccess>>,
+  Assert<Equal<PackageMemberChangeAccess, { type: "allowed" } | { type: "forbidden" } | { type: "change_scheduled" }>>,
   Assert<
     Equal<
-      PackageMemberRevisionChange["type"],
-      "own_terms" | "package_change" | "upgrade" | "amend" | "minimum"
+      PackageMemberRevisionOrigin["type"],
+      "initial" | "own_terms" | "package_change" | "upgrade" | "amend" | "minimum"
     >
   >,
   Assert<
     Equal<
-      PackageMemberSelfRevisionChange["type"],
-      "own_terms" | "package_change" | "upgrade" | "amend" | "minimum"
+      Extract<PackageMemberRevisionOrigin, { type: "amend" }>,
+      { type: "amend"; previous_revision_id: string; reason: string }
     >
   >,
+  Assert<Missing<Extract<PackageMemberRevisionOrigin, { type: "minimum" }>, "change">>,
+  Assert<Equal<PackageMemberSelfRevisionOrigin["type"], PackageMemberRevisionOrigin["type"]>>,
   Assert<
     Equal<
-      Extract<PackageMemberRevisionOrigin, { type: "change" }>["change"],
-      PackageMemberRevisionChange
+      Extract<PackageMemberSelfRevisionOrigin, { type: "amend" }>,
+      { type: "amend"; previous_revision_id: string }
     >
   >,
-  Assert<
-    Equal<
-      Extract<PackageMemberSelfRevisionOrigin, { type: "change" }>["change"],
-      PackageMemberSelfRevisionChange
-    >
-  >,
+  Assert<Equal<Extract<PackageMemberSelfRevisionOrigin, { type: "initial" }>, { type: "initial" }>>,
+  Assert<Missing<Extract<PackageMemberSelfRevisionOrigin, { type: "minimum" }>, "reason" | "change">>,
   Assert<
     Equal<
       keyof ReturnType<typeof createAdmin>["eshop"]["packageMember"],
@@ -238,6 +241,7 @@ export type PackageMemberHistoryContracts = [
       | "findOrders"
       | "getMinimum"
       | "getCalendar"
+      | "getChanges"
       | "cancel"
       | "scheduleEnd"
       | "pause"

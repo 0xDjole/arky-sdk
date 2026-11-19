@@ -210,13 +210,12 @@ test("a buyer or market change leaves an unresolved checkout request byte for by
   await assert.rejects(store.client.eshop.cart.recoverCheckout({ scope }), /response lost/);
   const pending = await scoped.pendingCheckout();
   assert.deepEqual(pending, request);
-  const key = `arky:cart-checkout:v5:${encodeURIComponent(`storefront:${apiUrl}:${storefrontIdentity.storeId}:${storefrontIdentity.salesChannelId}:${ids.customer}`)}:${encodeURIComponent(`customer|${ids.package}|market-a`)}`;
+  const key = `arky:cart-checkout:v6:${encodeURIComponent(`storefront:${apiUrl}:${storefrontIdentity.storeId}:${storefrontIdentity.salesChannelId}:${ids.customer}`)}:${encodeURIComponent(`customer|${ids.package}|market-a`)}`;
   const retained = durable.getItem(key);
   assert.ok(retained);
   store.setContext({ market: "market-b" });
   await store.customer.identify({ customer_id: ids.otherCustomer, session_id: ids.otherSession });
   assert.equal(scoped.cart.get(), null);
-  assert.equal(scoped.last_order.get(), null);
   assert.equal(durable.getItem(key), retained);
   assert.equal(await store.eshop.cart(scope).pendingCheckout(), null);
   store.setContext({ market: "market-a" });

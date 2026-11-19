@@ -11,10 +11,12 @@ const memberPackageId = "2d8f4b16-9c37-4e05-a1b8-6f3d0c2e7a94";
 const audience = { type: "package_members", include: [{ type: "package", package_id: memberPackageId }], exclude: [], conditions: [{ type: "ordered_within", days: 30 }] };
 const emailType = {
   type: "email",
+  email: {
   email_template_id: "3a5c7e9b-1d2f-4a6c-8e0b-2d4f6a8c0e1f",
   email_address_id: "4b6d8f0a-2e3a-4b7d-9f1c-3e5a7b9d1f2a",
   from_name: "Shop News",
   reply_to_address_id: "4b6d8f0a-2e3a-4b7d-9f1c-3e5a7b9d1f2a",
+  },
   audience,
 };
 
@@ -27,16 +29,18 @@ test("a broadcast names its audience and one email selection, and preview and te
   const calls = recordFetch(context, (call) => call.path.endsWith("/preview") ? preview : { id: broadcastId });
   const api = broadcasts();
   await api.create({ store_id: storeId, id: broadcastId, key: "spring", type: emailType });
-  await api.update({ store_id: storeId, id: broadcastId, expected_updated_at: 1, type: { ...emailType, from_name: "Shop" } });
+  await api.update({ store_id: storeId, id: broadcastId, expected_updated_at: 1, type: { ...emailType, email: { ...emailType.email, from_name: "Shop" } } });
   assert.deepEqual(await api.preview({ store_id: storeId, id: broadcastId, language: "en" }), preview);
   await api.test({ store_id: storeId, id: broadcastId, outgoing_message_id: testId, language: "bs" });
   const base = `/v1/stores/${storeId}/broadcasts`;
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
     ["POST", base, { id: broadcastId, key: "spring", type: emailType }],
-    ["PUT", `${base}/${broadcastId}`, { expected_updated_at: 1, type: { ...emailType, from_name: "Shop" } }],
+    ["PUT", `${base}/${broadcastId}`, { expected_updated_at: 1, type: { ...emailType, email: { ...emailType.email, from_name: "Shop" } } }],
     ["POST", `${base}/${broadcastId}/preview`, { language: "en" }],
     ["POST", `${base}/${broadcastId}/test`, { id: testId, language: "bs" }],
   ]);
+  assert.deepEqual(calls[0].body.type.email, emailType.email);
+  for (const field of ["email_template_id", "email_address_id", "from_name", "reply_to_address_id"]) assert.equal(field in calls[0].body.type, false, field);
   for (const removed of ["email", "audience", "sending_address_id", "content"]) assert.equal(removed in calls[0].body, false, removed);
 });
 

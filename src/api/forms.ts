@@ -98,11 +98,11 @@ export const createFormsApi = (apiConfig: ApiConfig) => {
     },
 
     findSubmissions(params: FindFormSubmissionsParams, options?: RequestOptions): Promise<PaginatedResponse<FormSubmission>> {
-      const { store_id, form_id, ...query } = params;
-      const path = form_id === undefined
-        ? storePath(store_id, "forms/submissions")
-        : `${storeRecordPath(store_id, "forms", form_id)}/submissions`;
-      return apiConfig.httpClient.get<PaginatedResponse<FormSubmission>>(path, { ...options, params: query });
+      const { store_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<FormSubmission>>(storePath(store_id, "forms/submissions"), {
+        ...options,
+        params: query,
+      });
     },
 
     getSubmission(params: GetFormSubmissionParams, options?: RequestOptions): Promise<FormSubmission> {

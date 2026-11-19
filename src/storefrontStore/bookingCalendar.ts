@@ -10,6 +10,7 @@ import type {
 } from "../types/product";
 import { ArkyError } from "../types/apiError";
 import type { StorefrontClient } from "../index";
+import { requireId } from "../utils/ids";
 import { epochMilliseconds, epochMillisecondsToDate } from "../utils/time";
 import { buyerParty, type CartStore } from "./cart";
 import type {
@@ -49,6 +50,7 @@ function firstOfMonth(date: Date): Date {
 function emptyState(): ArkyBookingCalendarState {
   return {
     booking_service: null,
+    store_location_id: null,
     booking_choices: [],
     booking_choices_cursor: null,
     booking_resources: [],
@@ -81,18 +83,33 @@ function choiceFor(current: ArkyBookingCalendarState, bookingOfferingId: string)
   );
 }
 
+function availabilityKey(resource: BookingResourceAvailability): string {
+  return `${resource.booking_offering_id}:${resource.booking_resource_id}`;
+}
+
 function mergeAvailability(
   current: BookingResourceAvailability[],
   added: BookingResourceAvailability[],
 ): BookingResourceAvailability[] {
-  return [...new Map([...current, ...added].map((resource) => [resource.booking_resource_id, resource])).values()];
+  return [...new Map([...current, ...added].map((resource) => [availabilityKey(resource), resource])).values()];
 }
 
-function resourceAvailability(
+function offersResource(current: ArkyBookingCalendarState, bookingResourceId: string): boolean {
+  return current.availability?.booking_resources.some((resource) => resource.booking_resource_id === bookingResourceId) ?? false;
+}
+
+function slotAvailability(
   current: ArkyBookingCalendarState,
-  bookingResourceId: string,
+  slot: ArkyBookingSlot,
 ): BookingResourceAvailability | null {
-  return current.availability?.booking_resources.find((resource) => resource.booking_resource_id === bookingResourceId) ?? null;
+  return (
+    current.availability?.booking_resources.find(
+      (resource) =>
+        resource.booking_resource_id === slot.booking_resource_id &&
+        resource.booking_offering_id === slot.booking_offering_id &&
+        resource.store_location_id === slot.store_location_id,
+    ) ?? null
+  );
 }
 
 export function createBookingCalendar(context: BookingCalendarContext, cart: CartStore) {
@@ -200,8 +217,9 @@ export function createBookingCalendar(context: BookingCalendarContext, cart: Car
       };
       return [
         {
-          id: `${slot.bookingOfferingId}-${slot.from}-${index}`,
+          id: `${slot.bookingOfferingId}-${slot.bookingResourceId}-${slot.from}-${index}`,
           booking_service_id: service.id,
+          store_location_id: slot.storeLocationId,
           booking_resource_id: slot.bookingResourceId,
           booking_offering_id: slot.bookingOfferingId,
           price_ref: priceRef,
@@ -244,7 +262,8 @@ export function createBookingCalendar(context: BookingCalendarContext, cart: Car
   async function loadMonth(): Promise<void> {
     const current = state.get();
     const service = current.booking_service;
-    if (!service) return;
+    const storeLocationId = current.store_location_id;
+    if (!service || !storeLocationId) return;
     const requestRevision = ++availabilityRevision;
     const selection = selectionRevision;
     const stale = () => selection !== selectionRevision || requestRevision !== availabilityRevision;
@@ -258,6 +277,7 @@ export function createBookingCalendar(context: BookingCalendarContext, cart: Car
         const page: AvailabilityResponse = await readAvailability({
           ...shopPackage,
           booking_service_id: service.id,
+          store_location_id: storeLocationId,
           from,
           to,
           limit: offeringsPerRead,
@@ -313,25 +333,36 @@ export function createBookingCalendar(context: BookingCalendarContext, cart: Car
   }
 
   function assertBookable(current: ArkyBookingCalendarState, slot: ArkyBookingSlot): void {
-    const resource = resourceAvailability(current, slot.booking_resource_id);
-    if (!resource || resource.booking_offering_id !== slot.booking_offering_id) {
-      throw new TypeError(`Booking resource ${slot.booking_resource_id} has no matching offering`);
+    if (!slotAvailability(current, slot)) {
+      throw new TypeError(`Booking resource ${slot.booking_resource_id} has no matching offering at this branch`);
     }
     if (choiceFor(current, slot.booking_offering_id)?.price_id !== slot.price_ref.price_id) {
       throw new TypeError(`Booking offering ${slot.booking_offering_id} has no matching price in this package`);
     }
   }
 
-  return {
+  function invalidate(): void {
+    selectionRevision += 1;
+    availabilityRevision += 1;
+    state.set(emptyState());
+  }
+
+  function relabel(): void {
+    if (state.get().booking_service) refresh();
+  }
+
+  const calendar = {
     scope,
     state,
     month_label,
 
     async select(params: ArkySelectBookingServiceParams): Promise<ArkyBookingCalendarState> {
+      const storeLocationId = requireId(params.store_location_id, "store location");
       const selection = ++selectionRevision;
       availabilityRevision += 1;
       patch({
         booking_service: null,
+        store_location_id: storeLocationId,
         booking_choices: [],
         booking_choices_cursor: null,
         booking_resources: [],
@@ -398,7 +429,7 @@ export function createBookingCalendar(context: BookingCalendarContext, cart: Car
 
     async selectResource(params: ArkySelectBookingResourceParams): Promise<ArkyBookingCalendarState> {
       const current = state.get();
-      if (params.booking_resource_id && !resourceAvailability(current, params.booking_resource_id)) {
+      if (params.booking_resource_id && !offersResource(current, params.booking_resource_id)) {
         throw new TypeError(`Booking resource ${params.booking_resource_id} has no offering for the selected booking service`);
       }
       patch({ selected_booking_resource_id: params.booking_resource_id, ...clearSelection() });
@@ -450,7 +481,12 @@ export function createBookingCalendar(context: BookingCalendarContext, cart: Car
       const result = await cart.addBooking({
         ...(params.id !== undefined ? { id: params.id } : {}),
         booking_offering_id: slot.booking_offering_id,
+        store_location_id: slot.store_location_id,
+        resource: current.selected_booking_resource_id
+          ? { type: "resource", booking_resource_id: slot.booking_resource_id }
+          : { type: "any" },
         requested_interval: { from: slot.from, to: slot.to },
+        add_ons: params.add_ons ?? [],
         capacity_units: params.capacity_units ?? 1,
         form_submission_id: params.form_submission_id ?? null,
         price: slot.price_ref,
@@ -461,6 +497,7 @@ export function createBookingCalendar(context: BookingCalendarContext, cart: Car
       return result;
     },
   };
+  return { calendar, invalidate, relabel };
 }
 
-export type BookingCalendar = ReturnType<typeof createBookingCalendar>;
+export type BookingCalendar = ReturnType<typeof createBookingCalendar>["calendar"];

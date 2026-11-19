@@ -9,7 +9,7 @@ export const arky = initialize({ storeId: "5e9b3d71-c826-4a04-b7f5-0d2a8e6c4f19"
   createOrderToken,
 });
 
-const { items: packages } = await arky.eshop.package.find();
+const packages = await arky.eshop.package.find();
 const publicPackage = packages.find((candidate) => candidate.key === "public");
 if (!publicPackage) throw new Error("The public package is missing");
 

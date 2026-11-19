@@ -76,7 +76,7 @@ export const createAuthApi = (
     ): Promise<PendingAccountSession> {
       const sessionId = requireId(params.session_id, "sign-in session");
       const body = params.store_id === undefined
-        ? { session_id: sessionId, email: params.email, network_id: requireId(params.network_id, "network") }
+        ? { session_id: sessionId, email: params.email, network_id: requireId(params.network_id, "network"), language: params.language }
         : { session_id: sessionId, email: params.email, language: params.language };
       const result = await apiConfig.httpClient.post<PendingAccountSession>(authPath(params.store_id, "code"), body, options);
       pendingEmails.set(result.session_id, params.email);
@@ -101,7 +101,7 @@ export const createAuthApi = (
     ): Promise<PendingAccountSession> {
       const result = await apiConfig.httpClient.post<PendingAccountSession>(
         "/v1/platform/auth/code",
-        { session_id: requireId(params.session_id, "sign-in session"), email: params.email },
+        { session_id: requireId(params.session_id, "sign-in session"), email: params.email, language: params.language },
         options,
       );
       pendingEmails.set(result.session_id, params.email);

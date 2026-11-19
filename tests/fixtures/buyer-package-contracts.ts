@@ -41,9 +41,9 @@ export const buyerPackageValues = [customer, company, location, anyone, storefro
 
 export type BuyerPackageContracts = [
   AssertTrue<Same<Parameters<AdminPackageApi["findPurchasable"]>[0], FindPurchasablePackagesParams>>,
-  AssertTrue<Same<Awaited<ReturnType<AdminPackageApi["findPurchasable"]>>, PaginatedResponse<Package>>>,
-  AssertTrue<Same<Awaited<ReturnType<StorefrontPackageApi["find"]>>, PaginatedResponse<StorefrontPackageChoice>>>,
-  AssertTrue<Same<Awaited<ReturnType<FacadePackageApi["find"]>>, PaginatedResponse<StorefrontPackageChoice>>>,
+  AssertTrue<Same<Awaited<ReturnType<AdminPackageApi["findPurchasable"]>>, Package[]>>,
+  AssertTrue<Same<Awaited<ReturnType<StorefrontPackageApi["find"]>>, StorefrontPackageChoice[]>>,
+  AssertTrue<Same<Awaited<ReturnType<FacadePackageApi["find"]>>, StorefrontPackageChoice[]>>,
   AssertTrue<Same<keyof StorefrontPackageApi, "find" | "get" | "getByKey" | "getProductChoices" | "joinFree">>,
   AssertTrue<Same<keyof StorefrontPackageChoice, "id" | "key" | "blocks" | "level">>,
   AssertTrue<Same<StorefrontPackageChoice["blocks"], Block[]>>,

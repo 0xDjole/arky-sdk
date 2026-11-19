@@ -10,10 +10,20 @@ export type StripeEmbeddedCheckoutAction = Extract<
 
 export type EmbeddedCheckoutAction = CheckoutPaymentAction;
 
+export interface SimulatorTexts {
+  title: string;
+  description: string;
+  complete: string;
+  decline: string;
+  expire: string;
+  cancel: string;
+}
+
 export interface MountCheckoutActionParams {
   action: EmbeddedCheckoutAction;
   element: string | HTMLElement;
   payment_id?: string | null;
+  simulator_texts?: SimulatorTexts;
   onComplete?: () => void | Promise<void>;
   onValidationError?: (error: MonriCheckoutError | null) => void;
 }
@@ -40,6 +50,7 @@ export type EmbeddedCheckoutMount =
 export interface MountPaymentMethodSetupParams {
   setup: StorefrontPaymentMethodSetupStart | StoreCardSetup;
   element: string | HTMLElement;
+  simulator_texts?: SimulatorTexts;
 }
 
 export interface ConfirmPaymentMethodSetupParams {

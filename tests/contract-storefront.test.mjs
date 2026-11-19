@@ -40,7 +40,7 @@ function checkoutCart() {
 }
 
 function cardPayment() {
-  return { type: "payment_option", payment_option_id: ids.paymentOption, return_url: "https://shop.example.test/checkout/complete", save_payment_method: false, payment_method_terms: null };
+  return { type: "payment_option", payment_option_id: ids.paymentOption, return_url: "https://shop.example.test/checkout/complete", save_payment_method: { type: "dont_save" } };
 }
 
 test("initialize is the root API and exposes the module facade without store switching", () => {
@@ -72,11 +72,13 @@ test("initialize is the root API and exposes the module facade without store swi
     assert.equal(typeof facade.eshop.packageOffering.get, "function");
     assert.equal(typeof facade.eshop.packageMember.find, "function");
     assert.equal(typeof facade.eshop.minimumProgress.get, "function");
-    assert.equal(typeof facade.customer.verifyNewLogin, "function");
-    assert.equal(typeof facade.customer.addLogin, "function");
-    assert.equal(typeof facade.customer.updateLogin, "function");
-    assert.equal(typeof facade.customer.deleteLogin, "function");
-    assert.equal("changeEmail" in facade.customer, false);
+    assert.equal(typeof facade.customer.verifyContact, "function");
+    assert.equal(typeof facade.customer.addContact, "function");
+    assert.equal(typeof facade.customer.updateContact, "function");
+    assert.equal(typeof facade.customer.removeContact, "function");
+    assert.equal(typeof facade.customer.removeLink, "function");
+    assert.equal(typeof facade.customer.useStoreKey, "function");
+    for (const removed of ["changeEmail", "verifyNewLogin", "addLogin", "updateLogin", "deleteLogin"]) assert.equal(removed in facade.customer, false, removed);
     assert.equal(typeof facade.setContext, "function");
     assert.equal(typeof facade.eshop.checkoutFlow, "function");
     assert.equal(typeof facade.eshop.bookingCalendar, "function");
@@ -112,7 +114,7 @@ test("initialize is the root API and exposes the module facade without store swi
 test("storefront reference batches use their typed endpoints with the ids JSON-encoded", async (context) => {
   const calls = recordFetch(context, (call) => (call.path === "/v1/storefront/media" ? [] : { items: [], cursor: null }));
   const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl });
-  assert.deepEqual(await storefront.media.find({ ids: ["media-1", "media-2"] }), { items: [], cursor: null });
+  assert.deepEqual(await storefront.media.find({ ids: ["media-1", "media-2"] }), []);
   await storefront.content.entry.find({ ids: ["entry-1"] });
   assert.deepEqual(calls.map((call) => [call.method, call.path, JSON.parse(call.query.ids)]), [
     ["GET", "/v1/storefront/media", ["media-1", "media-2"]],
@@ -170,32 +172,22 @@ test("checkout from the store sends the reviewed cart through keyless routes wit
     assert.equal(call.href.includes("store_id"), false);
   }
   assert.equal(cart.cart.get(), null);
-  const lastOrder = cart.last_order.get();
-  assert.deepEqual({ ...lastOrder, created_at: 0 }, {
-    order_id: ids.order,
-    number: "1001",
-    cart_id: ids.cart,
-    payment_id: null,
-    payment_action: { type: "none" },
-    total: 2500,
-    currency: "eur",
-    created_at: 0,
-  });
+  assert.equal("last_order" in cart, false, "the placed order is the checkout's answer, or the checkout flow's placed state");
+  assert.equal(answer.order_id, ids.order);
+  assert.equal(answer.number, "1001");
 });
 
 test("checkout from the store sends the contact names only when the page gives them", async (context) => {
   const calls = recordFetch(context, (call) => call.path === "/v1/storefront/carts/accept" ? placedAcceptance({ order_id: call.body.order_id }) : placedOrder({ id: call.path.split("/").at(-1) }));
   const contact = { email: "buyer@example.test", language: "it" };
   const named = checkoutCart();
-  await named.checkout({ order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), contact_email: contact, contact_first_name: "Ana", contact_last_name: null, payment: cardPayment() });
+  await named.checkout({ order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), contact_email: contact, contact_name: { first_name: "Ana", last_name: "Horvat" }, payment: cardPayment() });
   const unnamed = checkoutCart();
   await unnamed.checkout({ order_id: ids.otherOrder, order_token: "arky_ot_" + "C".repeat(42) + "A", contact_email: contact, payment: cardPayment() });
   const accepts = calls.filter((call) => call.path === "/v1/storefront/carts/accept");
   assert.equal(accepts.length, 2);
-  assert.equal(accepts[0].body.contact_first_name, "Ana");
-  assert.equal(accepts[0].body.contact_last_name, null);
-  assert.equal("contact_first_name" in accepts[1].body, false);
-  assert.equal("contact_last_name" in accepts[1].body, false);
+  assert.deepEqual(accepts[0].body.contact_name, { first_name: "Ana", last_name: "Horvat" });
+  assert.equal("contact_name" in accepts[1].body, false);
   assert.deepEqual(accepts[1].body.contact_email, contact);
 });
 
@@ -207,7 +199,7 @@ test("a free checkout needs no payment option and still clears the stale cart st
   assert.equal(answer.type, "placed");
   assert.equal(cart.cart.get(), null);
   assert.deepEqual(cart.product_items.get(), []);
-  assert.equal(cart.last_order.get().total, 0);
+  assert.equal(answer.number, "1000");
   assert.equal(cart.quote_result.get(), null);
 });
 
@@ -243,7 +235,6 @@ test("outside a browser a lost checkout keeps no recovery state, and the retry s
     ["POST", "/v1/storefront/carts/accept", ids.order],
     ["GET", `/v1/storefront/orders/${ids.order}`, null],
   ]);
-  assert.equal(cart.last_order.get().order_id, ids.order);
 });
 
 test("a refused checkout is propagated once and leaves the cart in place", async (context) => {
@@ -252,7 +243,6 @@ test("a refused checkout is propagated once and leaves the cart in place", async
   await assert.rejects(cart.checkout({ order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), contact_email: null, payment: cardPayment() }), (error) => error.statusCode === 422 && error.code === "CART.NOT_READY");
   assert.equal(calls.length, 1);
   assert.equal(cart.cart.get().id, ids.cart);
-  assert.equal(cart.last_order.get(), null);
   assert.deepEqual(cart.status.get().error, { code: "CART.NOT_READY", message: "Pick shipping first" });
 });
 
@@ -263,8 +253,7 @@ test("a card checkout hands back the embedded Stripe action without navigating",
   const answer = await cart.checkout({ order_id: ids.order, order_token: "arky_ot_" + "A".repeat(43), contact_email: null, payment: cardPayment() });
   assert.deepEqual(answer.payment_action, action);
   assert.equal("account_id" in answer.payment_action, false);
-  assert.deepEqual(cart.last_order.get().payment_action, action);
-  assert.equal(cart.last_order.get().payment_id, ids.payment);
+  assert.equal(answer.payment_id, ids.payment);
 });
 
 test("payment resume asks the placed order for its payment action, and payments are read exactly", async (context) => {
@@ -272,7 +261,7 @@ test("payment resume asks the placed order for its payment action, and payments 
   const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
   assert.deepEqual(await store.eshop.order.resumePayment({ order_id: ids.order }), { type: "none" });
   await store.eshop.order.getPayment({ order_id: ids.order, payment_id: ids.payment });
-  assert.deepEqual(await store.eshop.order.findPayments({ order_id: ids.order }), { items: [], cursor: null });
+  assert.deepEqual(await store.eshop.order.findPayments({ order_id: ids.order }), []);
   assert.deepEqual(calls.map((call) => [call.method, call.path, call.body]), [
     ["POST", `/v1/storefront/orders/${ids.order}/payment-action`, null],
     ["GET", `/v1/storefront/orders/${ids.order}/payments/${ids.payment}`, null],

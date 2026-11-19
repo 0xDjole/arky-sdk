@@ -96,6 +96,26 @@ test("a switch whose price source can't sell the new package is refused as TARGE
   ]);
 });
 
+test("a member whose first Order has no place of sale reads blocked with place_of_sale_required, and resuming it ends with PLACE_OF_SALE_REQUIRED", async (context) => {
+  const blocked = { id: memberId, status: { type: "blocked", cause: { type: "place_of_sale_required" }, blocked_at: 5 } };
+  const answers = [
+    blocked,
+    { ...blocked, status: { ...blocked.status } },
+    errorResponse(409, "PACKAGE_MEMBER.PLACE_OF_SALE_REQUIRED", "The member's first Order has no place of sale, which this store's fiscal location requires; sell the package again at a place"),
+  ];
+  const calls = recordFetch(context, () => answers.shift());
+  const api = members();
+  assert.deepEqual((await api.get({ store_id: store, id: memberId })).status, { type: "blocked", cause: { type: "place_of_sale_required" }, blocked_at: 5 });
+  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: ids.customer, session_id: ids.session }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() }).eshop.packageMember;
+  assert.deepEqual((await storefront.get({ id: memberId })).status.cause, { type: "place_of_sale_required" });
+  await assert.rejects(api.resume({ store_id: store, id: memberId, expected_updated_at: version }), (error) => error.statusCode === 409 && error.code === "PACKAGE_MEMBER.PLACE_OF_SALE_REQUIRED");
+  assert.deepEqual(calls.map((call) => [call.method, call.path, call.body]), [
+    ["GET", `/v1/stores/${store}/package-members/${memberId}`, null],
+    ["GET", `/v1/storefront/package-members/${memberId}`, null],
+    ["POST", `/v1/stores/${store}/package-members/${memberId}/resume`, { expected_updated_at: version }],
+  ]);
+});
+
 test("a renewing switch names a delivery for the new package's shipping profile, and a switch without it is refused as DELIVERY_REQUIRED", async (context) => {
   const address = { name: "Customer", company: null, street1: "2 New Street", street2: null, city: "Sarajevo", state: null, postal_code: "71000", country: "BA", phone: null, email: null };
   const delivery = {
@@ -145,6 +165,18 @@ test("the calendar reads the member's next occurrence and the one after a skip",
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
     ["GET", `${base}/calendar`, {}, null],
   ]);
+});
+
+test("staff read which member changes they may make, so the Admin shows only the controls the change routes allow", async (context) => {
+  const changes = { package_member_id: memberId, change: { type: "forbidden" }, select_payment_method: { type: "change_scheduled" } };
+  const calls = recordFetch(context, () => changes);
+  const read = await members().getChanges({ store_id: store, id: memberId });
+  assert.deepEqual(read, changes);
+  assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
+    ["GET", `/v1/stores/${store}/package-members/${memberId}/changes`, {}, null],
+  ]);
+  await assert.rejects(async () => members().getChanges({ id: memberId }), TypeError);
+  assert.equal(calls.length, 1);
 });
 
 test("a buyer acts on and reads their own member through storefront routes and gets their own view back", async (context) => {

@@ -145,7 +145,7 @@ export type PackageContracts = [
   AssertFalse<RequiredField<CopyPackageParams, "cursor">>,
   AssertTrue<RequiredField<CopyPackageParams, "source_market_id">>,
   AssertTrue<RequiredField<CopyPackageParams, "target_market_id">>,
-  AssertTrue<Same<PackageChannels, { type: "all" } | { type: "only"; sales_channel_ids: string[] }>>,
+  AssertTrue<Same<PackageChannels, { type: "all" } | { type: "ids"; sales_channel_ids: string[] }>>,
   AssertTrue<Same<PackageAccessLevel["type"], "browse" | "see_prices" | "buy">>,
   AssertTrue<RequiredField<PackageAccess, "channels">>,
   AssertTrue<RequiredField<PackageAccess, "level">>,

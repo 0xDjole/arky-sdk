@@ -7,6 +7,7 @@ import type {
   FindStoreLocationsParams,
   GetCountryParams,
   LocationCountry,
+  SetStoreLocationFiscalParams,
   StoreLocation,
   StoreRecordByKeyParams,
   StoreRecordParams,
@@ -55,6 +56,14 @@ export const createLocationApi = (apiConfig: ApiConfig) => ({
   update(params: UpdateStoreLocationParams, options?: RequestOptions): Promise<StoreLocation> {
     const { store_id, id, ...body } = params;
     return apiConfig.httpClient.put<StoreLocation>(storeRecordPath(store_id, "locations", id), body, options);
+  },
+
+  setFiscal(params: SetStoreLocationFiscalParams, options?: RequestOptions): Promise<StoreLocation> {
+    return apiConfig.httpClient.put<StoreLocation>(
+      `${storeRecordPath(params.store_id, "locations", params.id)}/fiscal`,
+      { expected_updated_at: params.expected_updated_at, fiscal: params.fiscal },
+      options,
+    );
   },
 
   delete(params: DeleteStoreLocationParams, options?: RequestOptions): Promise<StoreLocation> {

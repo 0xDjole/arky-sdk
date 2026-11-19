@@ -1,5 +1,5 @@
 import { createAdmin } from '../../dist/index.js';
-import type { CustomerExport, CustomerExportCut, CustomerLoginAddress, CustomerLoginStatus, CustomerLoginSummary, CustomerLoginSummaryAddress, CustomerOrderContact, CustomerSearchSnapshot, EmailContact, ExportCustomerParams, FindCustomersParams, SmsConsentChoice } from '../../dist/index.js';
+import type { CustomerContactStatus, CustomerContactSummary, CustomerContactSummaryAddress, CustomerExport, CustomerExportCut, CustomerOrderContact, CustomerSearchSnapshot, EmailContact, ExportCustomerParams, FindCustomersParams, LoginAddress, SmsConsentChoice } from '../../dist/index.js';
 
 type Assert<T extends true> = T;
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
@@ -19,17 +19,18 @@ export type CustomerDiscoveryContracts = [
   Assert<Equal<FindCustomersParams['verified'], boolean | undefined>>,
   Assert<Missing<FindCustomersParams, 'type'>>,
   Assert<Missing<FindCustomersParams, 'has_verified_email'>>,
-  Assert<Equal<keyof CustomerSearchSnapshot, 'customer' | 'logins' | 'has_cart' | 'has_customer_action' | 'has_order' | 'latest_order_contact'>>,
-  Assert<Equal<CustomerSearchSnapshot['logins'], CustomerLoginSummary[]>>,
-  Assert<Equal<CustomerLoginSummary, { id: string; status: CustomerLoginStatus; address: CustomerLoginSummaryAddress }>>,
-  Assert<Equal<CustomerLoginStatus, 'unverified' | 'invited' | 'verified'>>,
-  Assert<Equal<CustomerLoginAddress, { type: 'email'; email: string } | { type: 'phone'; number: string }>>,
-  Assert<Equal<CustomerLoginSummaryAddress, { type: 'email'; email: string } | { type: 'phone'; number: string; sms: SmsConsentChoice }>>,
+  Assert<Equal<keyof CustomerSearchSnapshot, 'customer' | 'contacts' | 'linked' | 'has_cart' | 'has_customer_action' | 'has_order' | 'latest_order_contact'>>,
+  Assert<Equal<CustomerSearchSnapshot['contacts'], CustomerContactSummary[]>>,
+  Assert<Equal<CustomerSearchSnapshot['linked'], boolean>>,
+  Assert<Equal<CustomerContactSummary, { status: CustomerContactStatus; address: CustomerContactSummaryAddress }>>,
+  Assert<Equal<CustomerContactStatus, 'unconfirmed' | 'confirmed'>>,
+  Assert<Equal<LoginAddress, { type: 'email'; email: string } | { type: 'phone'; number: string }>>,
+  Assert<Equal<CustomerContactSummaryAddress, { type: 'email'; email: string } | { type: 'phone'; number: string; sms: SmsConsentChoice }>>,
   Assert<Equal<SmsConsentChoice, 'off' | 'on'>>,
   Assert<Equal<CustomerSearchSnapshot['latest_order_contact'], CustomerOrderContact | null>>,
   Assert<Equal<CustomerOrderContact, { email: EmailContact | null; first_name: string | null; last_name: string | null; phone: string | null }>>,
   Assert<Equal<Awaited<ReturnType<typeof admin.customers.export>>, CustomerExport>>,
   Assert<Equal<ExportCustomerParams, { store_id: string; id: string }>>,
-  Assert<Equal<keyof CustomerExport, 'customer' | 'logins' | 'booking_lines' | 'entries' | 'form_submissions' | 'conversations' | 'cut' | 'exported_at'>>,
+  Assert<Equal<keyof CustomerExport, 'customer' | 'booking_lines' | 'entries' | 'form_submissions' | 'conversations' | 'cut' | 'exported_at'>>,
   Assert<Equal<CustomerExportCut, { part: 'booking_lines' | 'entries' | 'form_submissions' | 'conversations' | 'calls'; reason: 'grant' | 'size' }>>,
 ];

@@ -1,17 +1,48 @@
 import type { AccountActor, Currency, EmailContact, ProviderEffectError } from "./common";
-import type { EpochMilliseconds } from "./time";
+import type { Days, EpochMilliseconds } from "./time";
 import type { FeatureType, Store } from "./store";
 import type { NetworkStoreAddresses } from "./notification";
-import type { StripeSecretKeyKind } from "./storeProvider";
+import type { StripeSecretKeyType } from "./storeProvider";
 import type { AccountName } from "./account";
 import type { StorePermissionAccess } from "./storeRole";
+
+export type NetworkType = { type: "isolated" } | { type: "connected" };
+
+export type NetworkStatus = { type: "active" } | { type: "deleting" };
 
 export interface Network {
   id: string;
   name: string;
+  type: NetworkType;
+  status: NetworkStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
+
+export interface NetworkCustomerEmailText {
+  language: string;
+  code_subject: string;
+  code_body: string;
+  invite_subject: string;
+  invite_body: string;
+  login_changed_subject: string;
+  login_changed_body: string;
+}
+
+export type NetworkCustomerEmailTexts =
+  | { type: "off" }
+  | { type: "on"; texts: NetworkCustomerEmailText[] };
+
+export interface NetworkCustomerSmsText {
+  language: string;
+  code_body: string;
+  invite_body: string;
+  login_changed_body: string;
+}
+
+export type NetworkCustomerSmsTexts =
+  | { type: "off" }
+  | { type: "on"; sender_name: string; texts: NetworkCustomerSmsText[] };
 
 export type NetworkProviderStatus = "active" | "disabled";
 
@@ -30,10 +61,13 @@ export type NetworkProviderType =
       from_address: string;
       sign_in_subject: string;
       sign_in_body: string;
+      member_login_changed_subject: string;
+      member_login_changed_body: string;
       store_addresses: NetworkStoreAddresses;
+      customer_texts: NetworkCustomerEmailTexts;
     }
-  | { type: "stripe"; account_id: string; publishable_key: string; secret_key: StripeSecretKeyKind }
-  | { type: "twilio"; account_sid: string }
+  | { type: "stripe"; account_id: string; publishable_key: string; secret_key: StripeSecretKeyType }
+  | { type: "twilio"; account_sid: string; customer_texts: NetworkCustomerSmsTexts }
   | { type: "open_ai"; project_id: string }
   | { type: "eleven_labs"; region: NetworkElevenLabsRegion; setup: NetworkElevenLabsSetup };
 
@@ -48,19 +82,28 @@ export interface NetworkProvider {
 
 export type PlanLimit = { type: "unlimited" } | { type: "max"; count: number };
 export type PlanFeatures = Record<FeatureType, PlanLimit>;
-export type PlanPriceUnit = "store" | "staff_calendar";
-export type NetworkPlanPrice =
+export type PlanTrial = { type: "none" } | { type: "days"; period: Days };
+export type NetworkPlanPublicPrice =
   | { type: "free" }
   | { type: "lifetime"; amount: number; currency: Currency }
-  | { type: "monthly"; amount: number; currency: Currency; months: number; per: PlanPriceUnit; trial_days: number | null }
-  | { type: "yearly"; amount: number; currency: Currency; years: number; per: PlanPriceUnit; trial_days: number | null };
+  | { type: "monthly"; amount: number; currency: Currency; months: number; trial: PlanTrial }
+  | { type: "yearly"; amount: number; currency: Currency; years: number; trial: PlanTrial };
+export type NetworkPlanNetworkPrice =
+  | { type: "free" }
+  | { type: "outside" }
+  | { type: "lifetime"; amount: number; currency: Currency }
+  | { type: "monthly"; amount: number; currency: Currency; months: number; trial: PlanTrial }
+  | { type: "yearly"; amount: number; currency: Currency; years: number; trial: PlanTrial };
+export type NetworkPlanAccess =
+  | { type: "public"; price: NetworkPlanPublicPrice }
+  | { type: "network_only"; price: NetworkPlanNetworkPrice };
 
 export interface NetworkPlan {
   id: string;
   network_id: string;
   name: string;
   tier: number;
-  price: NetworkPlanPrice;
+  access: NetworkPlanAccess;
   features: PlanFeatures;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
@@ -68,11 +111,12 @@ export interface NetworkPlan {
 
 export interface FindNetworksParams { limit?: number; cursor?: string | null }
 export interface GetNetworkParams { id: string }
-export interface CreateNetworkParams { id: string; name: string }
+export interface CreateNetworkParams { id: string; name: string; type: NetworkType }
 export interface UpdateNetworkParams {
   id: string;
   expected_updated_at: EpochMilliseconds;
   name?: string;
+  type?: NetworkType;
 }
 export interface DeleteNetworkParams { id: string; expected_updated_at: EpochMilliseconds }
 export interface FindNetworkPlansParams extends FindNetworksParams { network_id: string }
@@ -81,7 +125,7 @@ export interface CreateNetworkPlanParams {
   network_id: string;
   name: string;
   tier: number;
-  price: NetworkPlanPrice;
+  access: NetworkPlanAccess;
   features: PlanFeatures;
 }
 export interface UpdateNetworkPlanParams {
@@ -90,7 +134,7 @@ export interface UpdateNetworkPlanParams {
   expected_updated_at: EpochMilliseconds;
   name?: string;
   tier?: number;
-  price?: NetworkPlanPrice;
+  access?: NetworkPlanAccess;
   features?: PlanFeatures;
 }
 export interface DeleteNetworkPlanParams extends DeleteNetworkParams { network_id: string }
@@ -98,8 +142,15 @@ export interface FindNetworkStoresParams extends FindNetworksParams { network_id
 
 export interface GetNetworkStoreParams { network_id: string; store_id: string }
 
+export interface NameNetworkStoreOwnerParams {
+  network_id: string;
+  store_id: string;
+  email: string;
+  language: string;
+  expected_updated_at: EpochMilliseconds;
+}
+
 export interface NetworkStoreCounts {
-  staff_calendars: number;
   members: number;
   customers: number;
 }
@@ -131,7 +182,22 @@ export interface ConnectNetworkResendParams {
   from_address: string;
   sign_in_subject: string;
   sign_in_body: string;
+  member_login_changed_subject: string;
+  member_login_changed_body: string;
   store_addresses: NetworkStoreAddresses;
+  customer_texts: NetworkCustomerEmailTexts;
+}
+export interface ReplaceNetworkEmailCustomerTextsParams {
+  network_id: string;
+  id: string;
+  expected_updated_at: EpochMilliseconds;
+  customer_texts: NetworkCustomerEmailTexts;
+}
+export interface ReplaceNetworkSmsCustomerTextsParams {
+  network_id: string;
+  id: string;
+  expected_updated_at: EpochMilliseconds;
+  customer_texts: NetworkCustomerSmsTexts;
 }
 export interface ReplaceNetworkResendKeyParams {
   network_id: string;
@@ -169,6 +235,7 @@ export interface ConnectNetworkTwilioParams {
   id: string;
   account_sid: string;
   auth_token: string;
+  customer_texts: NetworkCustomerSmsTexts;
 }
 export interface ReplaceNetworkTwilioAuthTokenParams {
   network_id: string;
@@ -192,8 +259,7 @@ export type NetworkPermission =
   | { type: "admin" }
   | { type: "stores"; access: StorePermissionAccess }
   | { type: "plans"; access: StorePermissionAccess }
-  | { type: "logins" }
-  | { type: "support" };
+  | { type: "logins" };
 
 export type NetworkPermissionType = NetworkPermission["type"];
 

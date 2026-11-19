@@ -8,6 +8,7 @@ export {
   ScheduledResultTimeoutError,
   DurableRequestError,
   isDefiniteRefusal,
+  refusalClearsKeptRequest,
   buildFormAnswers,
   formValuesFromAnswers,
   latestPayment,
@@ -99,3 +100,5 @@ export {
   MonriCheckoutError,
 } from "./types";
 export type * from "./storefrontStore";
+export { createNetworkCustomer } from "./networkCustomer";
+export type { NetworkCustomerClient } from "./networkCustomer";

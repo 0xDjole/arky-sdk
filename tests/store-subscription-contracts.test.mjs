@@ -101,7 +101,7 @@ test("subscription reads, a pending confirmation and ending a grant use the name
 test("the plan read names its store and answers the plan the store is on with its status", async (context) => {
   const summary = {
     store_id: storeId,
-    plan: { id: ids.plan, network_id: ids.network, name: "Medical", tier: 2, price: { type: "monthly", amount: 4_900, currency: "eur", months: 1, per: "staff_calendar", trial_days: 14 }, features: { members: { type: "max", count: 10 }, store_locations: { type: "max", count: 3 }, staff_calendars: { type: "max", count: 12 } }, created_at: 1, updated_at: 2 },
+    plan: { id: ids.plan, network_id: ids.network, name: "Medical", tier: 2, access: { type: "public", price: { type: "monthly", amount: 4_900, currency: "eur", months: 1, trial: { type: "days", period: 14 } } }, features: { members: { type: "max", count: 10 }, store_locations: { type: "max", count: 3 }, booking_resources: { type: "max", count: 12 } }, created_at: 1, updated_at: 2 },
     status: { type: "trialing", trial_ends_at: 1_900_000_000_000 },
   };
   const calls = recordFetch(context, () => summary);

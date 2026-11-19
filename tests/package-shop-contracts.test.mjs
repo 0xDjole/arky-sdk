@@ -98,7 +98,7 @@ test("a package owns its renewal, stay and automatic item operations, and is cre
   const renewal = {
     type: "every",
     agreed: { cadence: { interval: "month", interval_count: 1 }, on_exhaustion: { type: "pause" }, unpaid_order: { type: "retain_debt" } },
-    timing: { retry_offsets_seconds: [86_400], recovery_window_seconds: 604_800, reminder: { type: "none" } },
+    timing: { retry_offsets: [86_400_000], recovery_window: 604_800_000, reminder: { type: "none" } },
   };
   const stay = { type: "at_least", length: { interval: "year", interval_count: 1 }, then: { type: "renew_once" } };
   const create = {

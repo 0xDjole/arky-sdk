@@ -22,6 +22,7 @@ export interface StorefrontFlowContext {
   pendingKey(flow: string, target: string): string;
   locale(options?: { locale?: string }): string;
   verifiedContact(): EmailContact | null;
+  confirmedEmail(email: string): EmailContact | null;
 }
 
 export interface AdminSessionInternal {

@@ -28,6 +28,8 @@ export type InventoryContracts = [
   True<"request_id" extends keyof InventoryMovement ? false : true>,
   True<Same<keyof Extract<InventoryMovementReason, { type: "dispatched" }>, "type" | "fulfillment_id">>,
   True<Same<Extract<InventoryMovementReason, { type: "dispatched" }>, { type: "dispatched"; fulfillment_id: string }>>,
+  True<Same<keyof Extract<InventoryMovementReason, { type: "written_off" }>, "type" | "actor" | "reason">>,
+  True<"written_off" extends ManualInventoryMovementReason["type"] ? false : true>,
   True<Same<NonNullable<FindInventoryMovementsParams["sort_field"]>, "created_at">>,
   True<RequiredField<GetInventoryItemByKeyParams, "key">>,
   True<Same<InventoryTracking["type"], "tracked" | "individual" | "untracked">>,

@@ -1,5 +1,7 @@
 import type { createAdmin } from "arky-sdk/admin";
 import type {
+  BusinessDays,
+  TaxCalculation,
   CreateShippingMethodParams,
   CreateTaxCategoryParams,
   CreateZoneParams,
@@ -21,6 +23,7 @@ import type {
   UpdateTaxCategoryParams,
   Zone,
   ZoneArea,
+  DocumentItem,
 } from "arky-sdk";
 
 type Assert<T extends true> = T;
@@ -32,18 +35,25 @@ type Api = ReturnType<typeof createAdmin>["store"];
 export type ShippingTaxContract = [
   Assert<Missing<Api, "taxRule" | "shippingRate" | "marketZone" | "marketSalesChannel">>,
   Assert<Equal<TaxCategory["rules"], TaxRule[]>>,
-  Assert<Equal<keyof TaxRule, "id" | "areas" | "treatment" | "starts_at" | "ends_at">>,
-  Assert<Equal<TaxRule["starts_at"], EpochMilliseconds | null>>,
+  Assert<Equal<keyof TaxRule, "id" | "areas" | "treatment" | "schedule">>,
+  Assert<Equal<TaxRule["schedule"], { type: "always" } | { type: "scheduled"; starts_at: EpochMilliseconds; ends_at: EpochMilliseconds | null }>>,
+  Assert<Equal<TaxCalculation["type"], "percentage" | "compound_percentage" | "fixed_per_unit">>,
+  Assert<Missing<Extract<TaxCalculation, { type: "percentage" }>, "compound">>,
   Assert<Equal<TaxTreatment["type"], "rates" | "zero_rated" | "exempt" | "not_taxable" | "not_collecting">>,
   Assert<Equal<CreateTaxCategoryParams["rules"], TaxRule[]>>,
   Assert<RequiredField<CreateTaxCategoryParams, "id">>,
   Assert<RequiredField<UpdateTaxCategoryParams, "expected_updated_at">>,
   Assert<Equal<ShippingMethod["rates"], ShippingRate[]>>,
-  Assert<Equal<keyof ShippingRate, "id" | "zone_id" | "shipping_profile_id" | "conditions" | "pricing" | "delivery_estimate" | "starts_at" | "ends_at">>,
+  Assert<Equal<keyof ShippingRate, "id" | "zone_id" | "shipping_profile_id" | "conditions" | "pricing" | "delivery_estimate" | "schedule">>,
+  Assert<Equal<Extract<ShippingRatePricing, { type: "flat" }>["free_above_subtotal"], { type: "never" } | { type: "above"; amount: number }>>,
+  Assert<Equal<NonNullable<ShippingRate["delivery_estimate"]>, { min: BusinessDays; max: BusinessDays }>>,
   Assert<Equal<ShippingRatePricing["type"], "flat" | "weight_tiered">>,
   Assert<Equal<ShippingMethodType, { type: "delivery" } | { type: "pickup"; store_location_id: string }>>,
   Assert<Equal<CreateShippingMethodParams["rates"], ShippingRate[]>>,
   Assert<Missing<UpdateShippingMethodParams, "type">>,
+  Assert<Equal<ShippingMethod["document_item"], DocumentItem>>,
+  Assert<RequiredField<CreateShippingMethodParams, "document_item">>,
+  Assert<Equal<UpdateShippingMethodParams["document_item"], DocumentItem | undefined>>,
   Assert<Equal<keyof Zone, "id" | "store_id" | "market_id" | "key" | "areas" | "created_at" | "updated_at">>,
   Assert<Equal<CreateZoneParams["areas"], ZoneArea[]>>,
   Assert<Equal<ZoneArea["type"], "country" | "state" | "postal_code" | "postal_code_prefix">>,

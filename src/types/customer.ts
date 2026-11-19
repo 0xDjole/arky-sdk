@@ -1,5 +1,6 @@
 import type { EpochMilliseconds } from "./time";
 import type { AccountActor, EmailContact, PostalAddress, PostalAddressInput, SortDirection } from "./common";
+import type { LoginAddress, LoginContact } from "./account";
 import type { Block } from "./block";
 import type { ApiErrorResponse } from "./apiError";
 import type { PrivateEntry, PrivateFileLink } from "./content";
@@ -26,16 +27,6 @@ export type SmsConsentChoice = "off" | "on";
 
 export type StorefrontSmsConsent = { type: "off" } | { type: "on"; at: EpochMilliseconds };
 
-export type CustomerLoginStatus = "unverified" | "invited" | "verified";
-
-export type CustomerLoginContact =
-  | { type: "email"; email: string; language: string }
-  | { type: "phone"; number: string; language: string };
-
-export type CustomerLoginAddress =
-  | { type: "email"; email: string }
-  | { type: "phone"; number: string };
-
 export interface CustomerCode {
   failed_attempts: number;
   outgoing_message_id: string;
@@ -43,65 +34,53 @@ export interface CustomerCode {
   expires_at: EpochMilliseconds;
 }
 
-export type CustomerLoginType =
-  | { type: "unverified_email"; email: string; language: string }
-  | { type: "invited_email"; email: string; language: string; invited_by: AccountActor; code: CustomerCode }
-  | { type: "verified_email"; email: string; language: string }
-  | { type: "unverified_phone"; number: string; language: string; sms: SmsConsent }
-  | {
-      type: "invited_phone";
-      number: string;
-      language: string;
-      sms: SmsConsent;
-      invited_by: AccountActor;
-      code: CustomerCode;
-    }
-  | { type: "verified_phone"; number: string; language: string; sms: SmsConsent };
+export type CustomerContact =
+  | { type: "unconfirmed_email"; email: string; language: string }
+  | { type: "confirmed_email"; email: string; language: string }
+  | { type: "unconfirmed_phone"; number: string; language: string; sms: SmsConsent }
+  | { type: "confirmed_phone"; number: string; language: string; sms: SmsConsent };
 
-export interface CustomerLogin {
+export type StorefrontCustomerContact =
+  | { type: "unconfirmed_email"; email: string; language: string }
+  | { type: "confirmed_email"; email: string; language: string }
+  | { type: "unconfirmed_phone"; number: string; language: string; sms: StorefrontSmsConsent }
+  | { type: "confirmed_phone"; number: string; language: string; sms: StorefrontSmsConsent };
+
+export type CustomerLink = { type: "own" };
+
+export type CustomerInviteStatus =
+  | { type: "active" }
+  | { type: "superseded" }
+  | { type: "revoked"; revoked_at: EpochMilliseconds };
+
+export interface CustomerInvite {
   id: string;
-  store_id: string;
   customer_id: string;
-  type: CustomerLoginType;
+  sent_to: LoginAddress;
+  language: string;
+  code: CustomerCode;
+  status: CustomerInviteStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
-export type StorefrontCustomerLoginType =
-  | { type: "unverified_email"; email: string; language: string }
-  | { type: "invited_email"; email: string; language: string; expires_at: EpochMilliseconds }
-  | { type: "verified_email"; email: string; language: string; unsubscribed: boolean }
-  | { type: "unverified_phone"; number: string; language: string; sms: StorefrontSmsConsent }
-  | {
-      type: "invited_phone";
-      number: string;
-      language: string;
-      sms: StorefrontSmsConsent;
-      expires_at: EpochMilliseconds;
-    }
-  | { type: "verified_phone"; number: string; language: string; sms: StorefrontSmsConsent };
+export type CustomerContactStatus = "unconfirmed" | "confirmed";
 
-export interface StorefrontCustomerLogin {
-  id: string;
-  type: StorefrontCustomerLoginType;
-  created_at: EpochMilliseconds;
-  updated_at: EpochMilliseconds;
-}
-
-export type CustomerLoginSummaryAddress =
+export type CustomerContactSummaryAddress =
   | { type: "email"; email: string }
   | { type: "phone"; number: string; sms: SmsConsentChoice };
 
-export interface CustomerLoginSummary {
-  id: string;
-  status: CustomerLoginStatus;
-  address: CustomerLoginSummaryAddress;
+export interface CustomerContactSummary {
+  status: CustomerContactStatus;
+  address: CustomerContactSummaryAddress;
 }
 
 export interface StorefrontCustomer {
   id: string;
   store_id: string;
+  links: CustomerLink[];
   name: CustomerName | null;
+  contacts: StorefrontCustomerContact[];
   addresses: CustomerAddress[];
   default_shipping_address_id: string | null;
   default_billing_address_id: string | null;
@@ -110,10 +89,15 @@ export interface StorefrontCustomer {
   updated_at: EpochMilliseconds;
 }
 
+export type CustomerStatus = { type: "active" } | { type: "erased"; at: EpochMilliseconds };
+
 export interface Customer {
   id: string;
   store_id: string;
+  status: CustomerStatus;
+  links: CustomerLink[];
   name: CustomerName | null;
+  contacts: CustomerContact[];
   addresses: CustomerAddress[];
   default_shipping_address_id: string | null;
   default_billing_address_id: string | null;
@@ -125,7 +109,8 @@ export interface Customer {
 
 export interface CustomerSearchSnapshot {
   customer: Customer;
-  logins: CustomerLoginSummary[];
+  contacts: CustomerContactSummary[];
+  linked: boolean;
   has_cart: boolean;
   has_customer_action: boolean;
   has_order: boolean;
@@ -150,56 +135,109 @@ export type CustomerSessionType =
       sign_in_codes: CustomerSessionCode[];
     }
   | {
-      type: "logged_in";
-      login_id: string;
+      type: "store_customer_signed_in_by_email";
+      email: string;
       access_expires_at: EpochMilliseconds;
       refresh_expires_at: EpochMilliseconds;
       authenticated_at: EpochMilliseconds;
       new_login_codes: CustomerSessionCode[];
-    };
+    }
+  | {
+      type: "store_customer_signed_in_by_phone";
+      number: string;
+      access_expires_at: EpochMilliseconds;
+      refresh_expires_at: EpochMilliseconds;
+      authenticated_at: EpochMilliseconds;
+      new_login_codes: CustomerSessionCode[];
+    }
+  | { type: "network_customer_store_key" };
+
+export type VisitorStatus =
+  | { type: "active" }
+  | { type: "superseded" }
+  | { type: "revoked"; revoked_at: EpochMilliseconds };
+
+export type StoreCustomerSignedInByEmailStatus =
+  | { type: "active" }
+  | { type: "revoked"; revoked_at: EpochMilliseconds };
+
+export type StoreCustomerSignedInByPhoneStatus =
+  | { type: "active" }
+  | { type: "revoked"; revoked_at: EpochMilliseconds };
+
+export type NetworkCustomerStoreKeyStatus =
+  | { type: "active" }
+  | { type: "revoked"; revoked_at: EpochMilliseconds };
 
 export type CustomerSessionStatus =
   | { type: "active" }
   | { type: "superseded" }
-  | { type: "revoked" };
+  | { type: "revoked"; revoked_at: EpochMilliseconds };
 
-export interface CustomerSession {
+export type CustomerSession = {
   id: string;
   store_id: string;
   customer_id: string;
-  type: CustomerSessionType;
-  status: CustomerSessionStatus;
   last_seen_at: EpochMilliseconds;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
-}
+} & (
+  | { type: Extract<CustomerSessionType, { type: "visitor" }>; status: VisitorStatus }
+  | {
+      type: Extract<CustomerSessionType, { type: "store_customer_signed_in_by_email" }>;
+      status: StoreCustomerSignedInByEmailStatus;
+    }
+  | {
+      type: Extract<CustomerSessionType, { type: "store_customer_signed_in_by_phone" }>;
+      status: StoreCustomerSignedInByPhoneStatus;
+    }
+  | { type: Extract<CustomerSessionType, { type: "network_customer_store_key" }>; status: NetworkCustomerStoreKeyStatus }
+);
 
 export type CustomerSessionIssued =
   | {
       type: "visitor";
       id: string;
       customer_id: string;
-      status: CustomerSessionStatus;
+      status: VisitorStatus;
       token: string;
       expires_at: EpochMilliseconds;
     }
   | {
-      type: "logged_in";
+      type: "store_customer_signed_in_by_email";
       id: string;
       customer_id: string;
-      login_id: string;
-      status: CustomerSessionStatus;
+      status: StoreCustomerSignedInByEmailStatus;
+      email: string;
       access_token: string;
       refresh_token: string;
       access_expires_at: EpochMilliseconds;
       refresh_expires_at: EpochMilliseconds;
       authenticated_at: EpochMilliseconds;
+    }
+  | {
+      type: "store_customer_signed_in_by_phone";
+      id: string;
+      customer_id: string;
+      status: StoreCustomerSignedInByPhoneStatus;
+      number: string;
+      access_token: string;
+      refresh_token: string;
+      access_expires_at: EpochMilliseconds;
+      refresh_expires_at: EpochMilliseconds;
+      authenticated_at: EpochMilliseconds;
+    }
+  | {
+      type: "network_customer_store_key";
+      id: string;
+      customer_id: string;
+      status: NetworkCustomerStoreKeyStatus;
+      access_token: string;
     };
 
 export interface CustomerSessionResult {
   customer: StorefrontCustomer;
   session: CustomerSessionIssued;
-  login: StorefrontCustomerLogin | null;
 }
 
 export interface CustomerCodeResult {
@@ -214,7 +252,6 @@ export interface CustomerCodeResult {
 export interface CustomerMe {
   customer: StorefrontCustomer;
   session: CustomerSession;
-  logins: StorefrontCustomerLogin[];
 }
 
 export type SuppressionTypeName =
@@ -413,74 +450,80 @@ export interface UpdateCustomerMeParams {
   default_billing_address_id?: string | null;
 }
 
-export interface CreateOwnLoginParams {
-  id: string;
-  contact: CustomerLoginContact;
+export interface AddOwnContactParams {
+  expected_updated_at: EpochMilliseconds;
+  contact: LoginContact;
   sms?: SmsConsentChoice | null;
 }
 
-export interface UpdateOwnLoginParams {
-  login_id: string;
+export interface UpdateOwnContactParams {
   expected_updated_at: EpochMilliseconds;
+  address: LoginAddress;
   language?: string;
   sms?: SmsConsentChoice;
 }
 
-export interface DeleteOwnLoginParams {
-  login_id: string;
+export interface RemoveOwnContactParams {
   expected_updated_at: EpochMilliseconds;
+  address: LoginAddress;
 }
 
-export interface VerifyNewLoginParams {
+export interface VerifyOwnContactParams {
+  address: LoginAddress;
   code: string;
 }
 
-export interface OwnLoginParams {
-  login_id: string;
+export interface OwnContactParams {
+  address: LoginAddress;
+}
+
+export interface OwnLinkRemoved {
+  removed: true;
 }
 
 export interface MergeCustomerParams { store_id: string; id: string; target_customer_id: string; expected_updated_at: EpochMilliseconds }
 
-export interface FindCustomerLoginsParams {
+export interface AddCustomerContactParams {
   store_id: string;
   customer_id: string;
-}
-
-export interface CreateCustomerLoginParams {
-  store_id: string;
-  customer_id: string;
-  id: string;
-  contact: CustomerLoginContact;
+  expected_updated_at: EpochMilliseconds;
+  contact: LoginContact;
   sms?: SmsConsentChoice | null;
 }
 
-export interface UpdateCustomerLoginParams {
+export interface UpdateCustomerContactParams {
   store_id: string;
   customer_id: string;
-  id: string;
   expected_updated_at: EpochMilliseconds;
+  address: LoginAddress;
   language?: string;
   sms?: SmsConsentChoice;
 }
 
-export interface DeleteCustomerLoginParams {
+export interface RemoveCustomerContactParams {
   store_id: string;
   customer_id: string;
-  id: string;
+  expected_updated_at: EpochMilliseconds;
+  address: LoginAddress;
+}
+
+export interface RemoveCustomerLinkParams {
+  store_id: string;
+  customer_id: string;
+  position: number;
   expected_updated_at: EpochMilliseconds;
 }
 
-export interface InviteCustomerLoginParams {
+export interface FindCustomerInvitesParams {
   store_id: string;
   customer_id: string;
-  login_id: string;
-  id: string;
 }
 
-export interface CustomerLoginInviteSent {
-  login: CustomerLogin;
-  issued_at: EpochMilliseconds;
-  expires_at: EpochMilliseconds;
+export interface InviteCustomerContactParams {
+  store_id: string;
+  customer_id: string;
+  id: string;
+  address: LoginAddress;
 }
 
 export interface ExportCustomerParams {
@@ -537,7 +580,6 @@ export interface CustomerExportConversation {
 
 export interface CustomerExport {
   customer: Customer;
-  logins: CustomerLogin[];
   booking_lines: OrderBookingItem[];
   entries: CustomerExportEntry[];
   form_submissions: CustomerExportFormSubmission[];

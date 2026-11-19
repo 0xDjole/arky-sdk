@@ -87,7 +87,7 @@ type PlanAction = Extract<StoreSubscriptionPayment, { type: "stripe" }>;
 type SimulatorMount = Extract<EmbeddedCheckoutMount, { type: "simulator" }>;
 
 export type TestStoreContracts = [
-  Assert<Equal<StoreType, { type: "live"; account_id: string; network_id: string } | { type: "test"; store_id: string }>>,
+  Assert<Equal<StoreType, { type: "live"; account_id: string; network_id: string } | { type: "test"; live_store_id: string }>>,
   Assert<Equal<Store["type"], StoreType>>,
   Assert<Equal<CreateStoreParams["type"], CreateStoreType>>,
   Assert<RequiredField<CreateStoreParams, "type">>,

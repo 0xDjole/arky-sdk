@@ -59,7 +59,7 @@ test("the store loads its setup and confirms the selected market before it expos
   assert.deepEqual(await store.store.load(), setupRecord);
   assert.deepEqual(store.market.get(), market);
   assert.equal(store.currency.get(), "eur");
-  assert.deepEqual(store.allowed_payment_option_ids.get(), [ids.paymentOption]);
+  assert.equal("allowed_payment_option_ids" in store, false);
   assert.deepEqual(store.setup.get(), setupRecord);
   assert.deepEqual(calls.map(({ method, path }) => [method, path]), [
     ["GET", "/v1/storefront"],
@@ -250,10 +250,11 @@ test("a raw storefront submission stays stateful and sends only the id, the load
 test("Visitor identify sends only the application-picked IDs and does not claim a contact address", async (context) => {
   const storage = new SessionStorage();
   const store = initialize(storefrontIdentity, { ...idFactories, apiUrl, sessionStorage: storage });
-  const calls = recordFetch(context, () => ({ customer: customerRecord(), session: visitorSession(), login: null }));
+  const calls = recordFetch(context, () => ({ customer: customerRecord(), session: visitorSession() }));
   const identity = { customer_id: ids.customer, session_id: ids.session };
   const result = await store.customer.identify(identity);
-  assert.equal(result.login, null);
+  assert.equal("login" in result, false);
+  assert.deepEqual(result.customer.contacts, []);
   assert.deepEqual(result.customer.addresses, []);
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [["POST", "/v1/storefront/customer/identify", identity]]);
   assert.equal("captureEmail" in store.customer, false);

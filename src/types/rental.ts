@@ -4,20 +4,22 @@ import type { RentalIssueReplacement } from "./fulfillment";
 import type { ProductReference } from "./product";
 import type { ReturnStatus } from "./return";
 
-export type RentalActor =
-  | { type: "account"; actor: AccountActor }
-  | { type: "system" };
+export type RentalEndCause =
+  | { type: "package_changed" }
+  | { type: "purchase_cancelled" }
+  | { type: "member_ended" };
 
 export type RentalStatus =
   | { type: "waiting" }
   | { type: "active" }
   | {
-      type: "ending";
+      type: "ending_by_account";
       requested_at: EpochMilliseconds;
-      actor: RentalActor;
+      actor: AccountActor;
       reason: string;
       return_due_at: EpochMilliseconds | null;
     }
+  | { type: "ending_by_system"; requested_at: EpochMilliseconds; cause: RentalEndCause }
   | { type: "closed"; closed_at: EpochMilliseconds }
   | { type: "withdrawn"; withdrawn_at: EpochMilliseconds };
 
@@ -25,7 +27,7 @@ export interface Rental {
   id: string;
   store_id: string;
   package_member_id: string;
-  revision_id: string;
+  package_member_revision_id: string;
   package_item_id: string;
   status: RentalStatus;
   created_at: EpochMilliseconds;
@@ -72,7 +74,7 @@ export interface GetRentalParams {
 export interface FindRentalsParams {
   store_id: string;
   package_member_id?: string;
-  status?: RentalStatus["type"];
+  status?: "waiting" | "active" | "ending" | "closed" | "withdrawn";
   sort_field?: "created_at" | "updated_at";
   sort_direction?: SortDirection;
   limit?: number;

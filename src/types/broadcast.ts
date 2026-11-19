@@ -1,6 +1,6 @@
-import type { EpochMilliseconds } from "./time";
+import type { Days, EpochMilliseconds } from "./time";
 import type { SortDirection } from "./common";
-import type { EmailContent, EmailLayoutContent } from "./notification";
+import type { Email, EmailContent, EmailLayoutContent } from "./notification";
 
 export type BroadcastMembers =
   | { type: "package"; package_id: string }
@@ -9,8 +9,8 @@ export type BroadcastMembers =
 export type BroadcastCondition =
   | { type: "ordered_product"; product_id: string }
   | { type: "booked_service"; booking_service_id: string }
-  | { type: "ordered_within"; days: number }
-  | { type: "not_ordered_within"; days: number };
+  | { type: "ordered_within"; within: Days }
+  | { type: "not_ordered_within"; within: Days };
 
 export type BroadcastAudience =
   | {
@@ -51,10 +51,7 @@ export type BroadcastTypeName = "email" | "sms";
 export type BroadcastType =
   | {
       type: "email";
-      email_template_id: string;
-      email_address_id: string;
-      from_name: string;
-      reply_to_address_id: string;
+      email: Email;
       audience: BroadcastAudience;
       status: EmailBroadcastStatus;
     }
@@ -63,10 +60,7 @@ export type BroadcastType =
 export type BroadcastTypeRequest =
   | {
       type: "email";
-      email_template_id: string;
-      email_address_id: string;
-      from_name: string;
-      reply_to_address_id: string;
+      email: Email;
       audience: BroadcastAudience;
     }
   | { type: "sms"; sms_template_id: string; audience: BroadcastAudience };

@@ -89,3 +89,18 @@ test("a physical unit is set aside and made available by exact action identity a
   assert.equal(calls.length, 2);
   assert.equal("execution" in api, false);
 });
+
+test("a written-off unit names where it was lost with its ids flat, and staff find all three losses with status written_off", async (context) => {
+  const actor = { account_id: "ca60db1c-68d1-42d5-8b55-8a1e04f2cb2f", snapshot: { email: "desk@example.test", credential_type: { type: "session" } } };
+  const lost = { actor, reason: "Not found at count", written_off_at: 1_700_000_000_000 };
+  const statuses = [
+    { type: "written_off_at_warehouse", store_location_id: "location", ...lost },
+    { type: "written_off_on_rental", rental_id: "rental", fulfillment_id: "fulfillment", ...lost },
+    { type: "written_off_at_return", return_id: "return", store_location_id: "location", ...lost },
+  ];
+  const calls = recordFetch(context, () => ({ items: statuses.map((status, index) => ({ id: `unit-${index}`, status })), cursor: null }));
+  const page = await units().find({ store_id: STORE_ID, status: "written_off" });
+  assert.deepEqual(page.items.map(({ status }) => status), statuses);
+  for (const { status } of page.items) assert.equal("source" in status, false);
+  assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [["GET", `/v1/stores/${STORE_ID}/inventory-units`, { status: "written_off" }]]);
+});

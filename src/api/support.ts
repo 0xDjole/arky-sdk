@@ -4,6 +4,12 @@ import type { HttpClient } from "../types/httpClient";
 import type { RequestOptions } from "../types/api";
 import type { PaginatedResponse } from "../types/common";
 import type {
+  SupportAssistant,
+  CreateSupportAssistantParams,
+  UpdateSupportAssistantParams,
+  DeleteSupportAssistantParams,
+  GetSupportAssistantParams,
+  FindSupportAssistantsParams,
   AssignConversationParams,
   CallListItem,
   CallRecordingLink,
@@ -48,6 +54,8 @@ import type {
   SupportFlow,
   UpdateSupportFlowParams,
 } from "../types/support";
+import type { FindCallPostsParams, ResolveCallPostParams } from "../types/support";
+import type { ElevenLabsCallIncomingWebhook, TwilioCallIncomingWebhook } from "../types/payment";
 import { requireId } from "../utils/ids";
 import { segment, storePath, storeRecordPath } from "./paths";
 import { createConversationNoteApi } from "./note";
@@ -219,6 +227,38 @@ export function createAdminSupportApi(apiConfig: ApiConfig) {
   const conversationPath = (storeId: string, id: string) => storeRecordPath(storeId, "conversations", id);
 
   return {
+    assistant: {
+      find(params: FindSupportAssistantsParams, options?: RequestOptions): Promise<PaginatedResponse<SupportAssistant>> {
+        const { store_id, ...query } = params;
+        return apiConfig.httpClient.get<PaginatedResponse<SupportAssistant>>(storePath(store_id, "support-assistants"), {
+          ...options,
+          params: query,
+        });
+      },
+
+      get(params: GetSupportAssistantParams, options?: RequestOptions): Promise<SupportAssistant> {
+        return apiConfig.httpClient.get<SupportAssistant>(storeRecordPath(params.store_id, "support-assistants", params.id), options);
+      },
+
+      create(params: CreateSupportAssistantParams, options?: RequestOptions): Promise<SupportAssistant> {
+        requireId(params.id, "support assistant");
+        const { store_id, ...body } = params;
+        return apiConfig.httpClient.post<SupportAssistant>(storePath(store_id, "support-assistants"), body, options);
+      },
+
+      update(params: UpdateSupportAssistantParams, options?: RequestOptions): Promise<SupportAssistant> {
+        const { store_id, id, ...body } = params;
+        return apiConfig.httpClient.put<SupportAssistant>(storeRecordPath(store_id, "support-assistants", id), body, options);
+      },
+
+      delete(params: DeleteSupportAssistantParams, options?: RequestOptions): Promise<{ deleted: boolean }> {
+        return apiConfig.httpClient.delete<{ deleted: boolean }>(
+          storeRecordPath(params.store_id, "support-assistants", params.id),
+          { ...options, params: { expected_updated_at: params.expected_updated_at } },
+        );
+      },
+    },
+
     flow: {
       find(params: FindSupportFlowsParams, options?: RequestOptions): Promise<PaginatedResponse<SupportFlow>> {
         const { store_id, ...query } = params;
@@ -431,5 +471,58 @@ export function createAdminSupportApi(apiConfig: ApiConfig) {
         );
       },
     },
+
+    twilioPost: {
+      find(params: FindCallPostsParams, options?: RequestOptions): Promise<PaginatedResponse<TwilioCallIncomingWebhook>> {
+        return apiConfig.httpClient.get<PaginatedResponse<TwilioCallIncomingWebhook>>(
+          storePath(params.store_id, "incoming-webhooks/twilio"),
+          { ...options, params: callPostsQuery(params) },
+        );
+      },
+
+      resolve(params: ResolveCallPostParams, options?: RequestOptions): Promise<TwilioCallIncomingWebhook> {
+        return apiConfig.httpClient.post<TwilioCallIncomingWebhook>(
+          `${storeRecordPath(params.store_id, "incoming-webhooks/twilio", params.id)}/resolve`,
+          callPostResolution(params),
+          options,
+        );
+      },
+    },
+
+    elevenLabsPost: {
+      find(params: FindCallPostsParams, options?: RequestOptions): Promise<PaginatedResponse<ElevenLabsCallIncomingWebhook>> {
+        return apiConfig.httpClient.get<PaginatedResponse<ElevenLabsCallIncomingWebhook>>(
+          storePath(params.store_id, "incoming-webhooks/elevenlabs"),
+          { ...options, params: callPostsQuery(params) },
+        );
+      },
+
+      resolve(params: ResolveCallPostParams, options?: RequestOptions): Promise<ElevenLabsCallIncomingWebhook> {
+        return apiConfig.httpClient.post<ElevenLabsCallIncomingWebhook>(
+          `${storeRecordPath(params.store_id, "incoming-webhooks/elevenlabs", params.id)}/resolve`,
+          callPostResolution(params),
+          options,
+        );
+      },
+    },
+  };
+}
+
+function callPostsQuery(params: FindCallPostsParams) {
+  const login =
+    params.store_provider_id !== undefined && params.network_provider_id === undefined
+      ? { store_provider_id: requireId(params.store_provider_id, "store provider") }
+      : params.network_provider_id !== undefined && params.store_provider_id === undefined
+        ? { network_provider_id: requireId(params.network_provider_id, "network provider") }
+        : null;
+  if (!login) throw new TypeError("Call posts are read for exactly one login: store_provider_id or network_provider_id");
+  return { ...login, status: params.status, limit: params.limit, cursor: params.cursor };
+}
+
+function callPostResolution(params: ResolveCallPostParams) {
+  return {
+    expected_updated_at: params.expected_updated_at,
+    resolution: params.resolution,
+    ...(params.reason !== undefined && params.reason !== null ? { reason: params.reason } : {}),
   };
 }

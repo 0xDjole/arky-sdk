@@ -42,7 +42,7 @@ export async function mountPaymentMethodSetup(params: MountPaymentMethodSetupPar
     throw new TypeError("Card setup requires its exact confirmation secret and publishable key");
   }
   const expectedSetupIntentId = setupIntentId(start);
-  if (isSimulatedPayment(start)) return mountSimulatedCardSetup(start, expectedSetupIntentId, params.element);
+  if (isSimulatedPayment(start)) return mountSimulatedCardSetup(start, expectedSetupIntentId, params.element, params.simulator_texts);
   const stripe = await stripeFor(start.publishable_key);
   const elements = stripe.elements({ clientSecret: start.client_secret });
   const payment = elements.create("payment");
@@ -74,7 +74,7 @@ export async function mountCheckoutAction(params: MountCheckoutActionParams): Pr
     if (!params.payment_id) throw new TypeError("Monri card entry needs the payment_id of the payment it pays");
     return mountMonriCheckoutAction(action, params.payment_id, params.element, params);
   }
-  if (isSimulatedPayment(action)) return mountSimulatedStripeCheckout(action, params.element, params.onComplete);
+  if (isSimulatedPayment(action)) return mountSimulatedStripeCheckout(action, params.element, params.onComplete, params.simulator_texts);
   const stripe = await stripeFor(action.publishable_key);
   const checkout = await stripe.createEmbeddedCheckoutPage({
     clientSecret: action.client_secret,

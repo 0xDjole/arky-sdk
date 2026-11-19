@@ -102,7 +102,7 @@ export type BlockType = Block["type"];
 
 export type CollectionFilter =
   | { type: "all" }
-  | { type: "only"; collection_ids: string[] };
+  | { type: "ids"; collection_ids: string[] };
 
 export interface BlockSchema {
   id: string;

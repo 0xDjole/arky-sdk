@@ -46,10 +46,9 @@ export const createPackageApi = (apiConfig: ApiConfig) => ({
     return apiConfig.httpClient.get<PaginatedResponse<PackageSummary>>(storePath(store_id, "packages"), { ...options, params: query });
   },
 
-  async findPurchasable(params: FindPurchasablePackagesParams, options?: RequestOptions): Promise<PaginatedResponse<Package>> {
+  findPurchasable(params: FindPurchasablePackagesParams, options?: RequestOptions): Promise<Package[]> {
     const { store_id, ...query } = params;
-    const items = await apiConfig.httpClient.get<Package[]>(storePath(store_id, "packages/purchasable"), { ...options, params: query });
-    return { items, cursor: null };
+    return apiConfig.httpClient.get<Package[]>(storePath(store_id, "packages/purchasable"), { ...options, params: query });
   },
 
   get(params: GetPackageParams, options?: RequestOptions): Promise<PackageDetail> {

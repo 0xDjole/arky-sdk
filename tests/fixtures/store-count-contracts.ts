@@ -31,9 +31,10 @@ export type StoreCountContracts = [
   Assert<
     Equal<
       StoreStatusCountSegments["open_payments_by_type"],
-      "stripe_checkout" | "stripe_card" | "monri_checkout" | "monri_card" | "cash_on_delivery" | "manual"
+      "stripe_checkout" | "stripe_card" | "monri_checkout" | "monri_card" | "recorded"
     >
   >,
+  Assert<Equal<StoreStatusCountSegments["customers_by_type"], "anonymous" | "linked">>,
   Assert<Equal<StoreStatusCountSegments["open_shipments_by_type"], "fulfillment_job" | "fulfillment">>,
   Assert<Equal<StoreStatusCountSegments["conversations_by_status"], "flow" | "waiting_for_store" | "resolved">>,
   Assert<Equal<Segment<"conversations_by_status">, StoreStatusCountSegments["conversations_by_status"]>>,
@@ -63,6 +64,13 @@ export type StoreCountContracts = [
   Assert<Accepts<StoreCountBreakdownRead, { type: "paid_value_by_location_day"; market_id: string }>>,
   Assert<Equal<Accepts<StoreCountBreakdownRead, { type: "paid_value_by_location_day" }>, false>>,
   Assert<Accepts<StoreCountSeriesRead, { type: "paid_value_by_location_day"; market_id: string; segment: string }>>,
+  Assert<Accepts<StoreCountTotalRead, { type: "booking_lines_by_location_status_day"; store_location_id: string; segment: string }>>,
+  Assert<Equal<Accepts<StoreCountTotalRead, { type: "booking_lines_by_location_status_day"; segment: string }>, false>>,
+  Assert<Accepts<StoreCountBreakdownRead, { type: "bookings_by_location_sales_channel_day"; store_location_id: string; limit: number }>>,
+  Assert<Equal<Accepts<StoreCountBreakdownRead, { type: "booking_lines_by_status_day"; store_location_id: string }>, false>>,
+  Assert<Equal<StoreCountTotal["store_location_id"], string | null>>,
+  Assert<Equal<StoreCountBreakdown["store_location_id"], string | null>>,
+  Assert<Equal<Accepts<StoreStatusCountSegments["customers_by_type"], "verified">, false>>,
   Assert<Equal<StoreCountTotal["market_id"], string | null>>,
   Assert<Equal<StoreCountBreakdown["market_id"], string | null>>,
   Assert<Equal<Parameters<Admin["counts"]["getStatuses"]>[0], GetStoreStatusCountsParams>>,

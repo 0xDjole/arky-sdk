@@ -27,19 +27,19 @@ function selection(templateId) {
   return { email_template_id: templateId, email_address_id: address, from_name: "Shop", reply_to_address_id: replyAddress };
 }
 
-test("template discovery filters by kind and purpose and the starters carry the fields they may print and which of them are lists", async (context) => {
+test("template discovery filters by type and purpose and the starters carry the fields they may print and which of them are lists", async (context) => {
   const starter = { key: "order_alert", name: "New Order Alert", type: { type: "email", purpose: { type: "order_alert" }, content: content.en }, allowed_fields: ["order.line_items", "order.line_items.snapshot.variant_blocks", "order.line_items.snapshot.variant_blocks.value.*", "order.number"], list_fields: ["order.line_items", "order.line_items.snapshot.variant_blocks"] };
   const { client, calls } = setup(context, (call) => call.url.pathname.endsWith("/defaults")
     ? [starter]
     : { items: [], cursor: calls.length === 1 ? "next:+/=" : null });
-  const first = await client.notification.template.find({ store_id: store, kind: "email", purpose: "order_alert", limit: 1 });
-  await client.notification.template.find({ store_id: store, kind: "email", purpose: "order_alert", limit: 1, cursor: first.cursor });
-  await client.notification.template.find({ store_id: store, kind: "sms" });
+  const first = await client.notification.template.find({ store_id: store, type: "email", purpose: "order_alert", limit: 1 });
+  await client.notification.template.find({ store_id: store, type: "email", purpose: "order_alert", limit: 1, cursor: first.cursor });
+  await client.notification.template.find({ store_id: store, type: "sms" });
   const defaults = await client.notification.template.findDefaults({ store_id: store });
-  assert.deepEqual(defaults, { items: [starter], cursor: null });
-  assert.deepEqual(Object.fromEntries(calls[0].url.searchParams), { kind: "email", purpose: "order_alert", limit: "1" });
+  assert.deepEqual(defaults, [starter]);
+  assert.deepEqual(Object.fromEntries(calls[0].url.searchParams), { type: "email", purpose: "order_alert", limit: "1" });
   assert.equal(calls[1].url.searchParams.get("cursor"), first.cursor);
-  assert.deepEqual(Object.fromEntries(calls[2].url.searchParams), { kind: "sms" });
+  assert.deepEqual(Object.fromEntries(calls[2].url.searchParams), { type: "sms" });
   assert.equal(calls[3].url.pathname, `/v1/stores/${store}/email-templates/defaults`);
 });
 
@@ -105,4 +105,59 @@ test("an automatic message names its email selection and alert recipients, and i
   ]);
   await assert.rejects(async () => api.create({ store_id: store, id: "order-alert", type, status: "active" }), TypeError);
   assert.equal("emails" in client.store, false);
+});
+
+test("a changed login is also told by SMS: a login_changed SMS template, and a login_changed_sms notice that names it", async (context) => {
+  const sms = { id: smsTemplate, key: "login-changed-sms", name: "Login changed", type: { type: "sms", purpose: { type: "login_changed" }, content: { en: "Your sign-in login changed" } } };
+  const type = { type: "login_changed_sms", sms_template_id: smsTemplate };
+  const { client, calls } = setup(context, (call) => (call.url.pathname.endsWith("/email-templates") ? { id: smsTemplate } : { id: notificationId, store_id: store, type, status: { type: "active", since: 1 }, created_at: 1, updated_at: 1 }));
+  await client.notification.template.create({ store_id: store, ...sms });
+  const saved = await client.notification.notification.create({ store_id: store, id: notificationId, type, status: "active" });
+  assert.deepEqual(saved.type, type);
+  assert.deepEqual(calls.map((call) => [call.method, call.url.pathname, call.body]), [
+    ["POST", `/v1/stores/${store}/email-templates`, sms],
+    ["POST", `/v1/stores/${store}/notifications`, { id: notificationId, type, status: "active" }],
+  ]);
+});
+
+test("each invoice and fiscal alert is an email template of its own purpose and a notification with the email selection and the team's recipients", async (context) => {
+  const alerts = [
+    "invoice_counter_held_alert",
+    "outside_invoice_waiting_alert",
+    "invoice_issue_blocked_alert",
+    "fiscal_receipt_refused_alert",
+    "fiscal_receipt_unknown_alert",
+    "fiscal_receipt_deadline_alert",
+    "fiscal_refund_needs_allocation_alert",
+    "fiscal_advance_open_alert",
+    "fiscal_credit_after_receipt_alert",
+    "fiscal_refund_returned_alert",
+    "fiscal_dispute_lost_alert",
+    "fiscal_device_not_ready_alert",
+    "fiscal_device_daily_report_missed_alert",
+    "fiscal_certificate_expiring_alert",
+  ];
+  const recipients = [{ type: "store_role", store_role_id: role, language: "bs" }, { type: "email", email: "books@example.test", language: "en" }];
+  const { client, calls } = setup(context, (call) => (call.method === "GET"
+    ? { items: [], cursor: null }
+    : call.url.pathname.endsWith("/email-templates")
+      ? { id: template }
+      : { id: notificationId, store_id: store, type: call.body.type, status: { type: "active", since: 1 }, created_at: 1, updated_at: 1 }));
+  for (const alert of alerts) {
+    await client.notification.template.create({ store_id: store, id: template, key: alert.replaceAll("_", "-"), name: alert, type: { type: "email", purpose: { type: alert }, default_language: "en", content, layout_id: layout } });
+    const type = { type: alert, email: selection(template), recipients };
+    const saved = await client.notification.notification.create({ store_id: store, id: notificationId, type, status: "active" });
+    assert.deepEqual(saved.type, type, alert);
+  }
+  await client.notification.notification.find({ store_id: store, type: "fiscal_receipt_refused_alert" });
+  await client.notification.template.find({ store_id: store, type: "email", purpose: "fiscal_device_not_ready_alert" });
+  const base = `/v1/stores/${store}`;
+  assert.deepEqual(calls.map((call) => [call.method, call.url.pathname + call.url.search, call.body]), [
+    ...alerts.flatMap((alert) => [
+      ["POST", `${base}/email-templates`, { id: template, key: alert.replaceAll("_", "-"), name: alert, type: { type: "email", purpose: { type: alert }, default_language: "en", content, layout_id: layout } }],
+      ["POST", `${base}/notifications`, { id: notificationId, type: { type: alert, email: selection(template), recipients }, status: "active" }],
+    ]),
+    ["GET", `${base}/notifications?type=fiscal_receipt_refused_alert`, undefined],
+    ["GET", `${base}/email-templates?type=email&purpose=fiscal_device_not_ready_alert`, undefined],
+  ]);
 });

@@ -9,7 +9,6 @@ export type * from "./store";
 export type * from "./storeProvider";
 export type * from "./phoneNumber";
 export type * from "./auditLog";
-export type * from "./supportAccess";
 export type * from "./simulator";
 export type * from "./account";
 export type * from "./storeRole";
@@ -87,3 +86,6 @@ export { FulfillmentSelectionError } from "./fulfillmentSelection";
 
 
 export type * from "./network";
+export type * from "./fiscalDevice";
+export type * from "./fiscalReceipt";
+export type * from "./networkCustomer";

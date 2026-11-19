@@ -1,6 +1,7 @@
-import type { EpochMilliseconds } from "./time";
+import type { BusinessDays, EpochMilliseconds } from "./time";
 import type { Block } from "./block";
-import type { SortDirection } from "./common";
+import type { Schedule, SortDirection } from "./common";
+import type { DocumentItem } from "./invoice";
 
 export interface ShippingProfile {
   id: string;
@@ -30,13 +31,20 @@ export interface ShippingWeightTier {
   amount: number;
 }
 
+export type ShippingFreeAbove = { type: "never" } | { type: "above"; amount: number };
+
 export type ShippingRatePricing =
-  | { type: "flat"; amount: number; free_above_subtotal: number | null }
-  | { type: "weight_tiered"; tiers: ShippingWeightTier[]; free_above_subtotal: number | null };
+  | { type: "flat"; amount: number; free_above_subtotal: ShippingFreeAbove }
+  | { type: "weight_tiered"; tiers: ShippingWeightTier[]; free_above_subtotal: ShippingFreeAbove };
 
 export interface ShippingDeliveryEstimate {
-  min_business_days: number;
-  max_business_days: number;
+  min: BusinessDays;
+  max: BusinessDays;
+}
+
+export interface OrderDeliveryEstimate {
+  min: BusinessDays;
+  max: BusinessDays;
 }
 
 export interface ShippingRate {
@@ -46,8 +54,7 @@ export interface ShippingRate {
   conditions: ShippingRateCondition[];
   pricing: ShippingRatePricing;
   delivery_estimate: ShippingDeliveryEstimate | null;
-  starts_at: EpochMilliseconds | null;
-  ends_at: EpochMilliseconds | null;
+  schedule: Schedule;
 }
 
 export type ShippingTax = { type: "category"; tax_category_id: string } | { type: "follow_goods" };
@@ -61,6 +68,7 @@ export interface ShippingMethod {
   blocks: Block[];
   type: ShippingMethodType;
   tax: ShippingTax;
+  document_item: DocumentItem;
   rates: ShippingRate[];
   status: ShippingMethodStatus;
   created_at: EpochMilliseconds;
@@ -114,6 +122,7 @@ export interface CreateShippingMethodParams {
   blocks: Block[];
   type: ShippingMethodType;
   tax: ShippingTax;
+  document_item: DocumentItem;
   rates: ShippingRate[];
   status: ShippingMethodStatus;
 }
@@ -125,6 +134,7 @@ export interface UpdateShippingMethodParams {
   key?: string;
   blocks?: Block[];
   tax?: ShippingTax;
+  document_item?: DocumentItem;
   rates?: ShippingRate[];
   status?: ShippingMethodStatus;
 }

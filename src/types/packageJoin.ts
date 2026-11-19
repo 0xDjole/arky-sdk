@@ -29,6 +29,7 @@ export class PackageJoinError extends ArkyError {
 export type JoinFreePackageParams = ({ id: string } | { key: string }) & {
   package_id: string;
   language: string;
+  email?: string;
 };
 
 export type JoinFreePackageResult =

@@ -8,7 +8,6 @@ const STORE_ID = "9d3e7b50-1a26-4f8c-b74e-0c5a2d9f6e13";
 
 const shared = {
   company_location_id: ids.companyLocation,
-  package_member_id: ids.packageMember,
   query: "ORD-2026",
   statuses: ["confirmed", "partially_cancelled"],
   sources: ["renewal"],
@@ -67,7 +66,7 @@ test("storefront order reads go through the buyer's own routes and need the buye
   const calls = recordFetch(context, (call) => call.path.endsWith("/fulfillments") ? [] : { id: ids.order });
   const orders = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() }).eshop.order;
   await orders.get({ id: ids.order });
-  assert.deepEqual(await orders.findFulfillments({ order_id: ids.order }), { items: [], cursor: null });
+  assert.deepEqual(await orders.findFulfillments({ order_id: ids.order }), []);
   assert.deepEqual(calls.map(({ method, path }) => [method, path]), [
     ["GET", `/v1/storefront/orders/${ids.order}`],
     ["GET", `/v1/storefront/orders/${ids.order}/fulfillments`],

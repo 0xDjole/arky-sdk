@@ -72,7 +72,7 @@ test("a Resend login's domains are a live read with their DNS records and capabi
     receiving_enabled: index === 2,
   }));
   const calls = recordFetch(context, () => domains);
-  assert.deepEqual(await admin().store.provider.findResendDomains({ store_id: store, id: provider }), { items: domains, cursor: null });
+  assert.deepEqual(await admin().store.provider.findResendDomains({ store_id: store, id: provider }), domains);
   assert.deepEqual(calls.map(({ method, path }) => [method, path]), [["GET", `/v1/stores/${store}/store-providers/resend/${provider}/domains`]]);
 });
 

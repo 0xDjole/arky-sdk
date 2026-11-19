@@ -228,7 +228,7 @@ export interface DisposeReturnItem extends ReceiveReturnItem {
 }
 
 export type ReturnCommand =
-  | { type: "approve"; destination_store_location_id: string | null; notify_customer: boolean }
+  | { type: "approve"; destination: ReturnDestination; notify_customer: boolean }
   | { type: "decide"; store_location_id: string }
   | { type: "decline"; reason: string; notify_customer: boolean }
   | { type: "cancel" }
@@ -250,7 +250,7 @@ export interface CreateReturnParams {
   store_id: string;
   id: string;
   type: ReturnTypeRequest;
-  destination_store_location_id: string;
+  destination: ReturnDestination;
 }
 
 export interface ActOnReturnParams extends GetReturnParams {
@@ -289,7 +289,7 @@ export interface FindRentalReturnOptionsParams {
 export interface StorefrontCreateReturnParams {
   id: string;
   type: ReturnTypeRequest;
-  destination_store_location_id: string | null;
+  destination: ReturnDestination;
 }
 
 export interface StorefrontGetReturnParams {

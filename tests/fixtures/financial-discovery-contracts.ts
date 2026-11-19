@@ -19,7 +19,23 @@ import type {
   StripeRefund,
   MonriRefund,
   RecordedRefund,
-  VoidPaymentCollectionParams,
+  AccountActor,
+  AllocatePaymentRefundParams,
+  CalendarDate,
+  CardReceiptDevice,
+  EpochMilliseconds,
+  Money,
+  RecordedMethod,
+  RecordedPaymentStatus,
+  RecordPaymentPart,
+  RecordPaymentsParams,
+  RecordedPayments,
+  RecordedRefundMethod,
+  FiscalReceipt,
+  RefundAllocation,
+  RefundApplication,
+  StripeRefundSource,
+  VoidPaymentParams,
 } from "arky-sdk";
 
 type Assert<T extends true> = T;
@@ -35,7 +51,6 @@ type Storefront = ReturnType<typeof createStorefront>;
 const store_id = "d2a64f1b-8c37-4e59-b0a1-6f3e9c7d2b84";
 const payments: FindPaymentsParams = {
   store_id,
-  order_id: "order",
   status: "unknown",
   type: "monri_card",
   on_hold: false,
@@ -78,10 +93,23 @@ export type FinancialContracts = [
     >
   >,
   Assert<Equal<NonNullable<FindPaymentsParams["status"]>, PaymentStatusName>>,
+  Assert<Missing<FindPaymentsParams, "order_id">>,
+  Assert<Equal<Awaited<ReturnType<Admin["eshop"]["order"]["findPayments"]>>, Payment[]>>,
   Assert<RequiredField<Payment, "status">>,
-  Assert<RequiredField<Payment, "status_revision">>,
+  Assert<Missing<Payment, "status_revision">>,
   Assert<Equal<Payment["status"], PaymentStatusName>>,
-  Assert<Equal<Payment["status_revision"], string>>,
+  Assert<Equal<Payment["order_id"], string>>,
+  Assert<Equal<Extract<PaymentStatusName, "voided">, "voided">>,
+  Assert<Equal<PaymentType["type"], "stripe_checkout" | "stripe_card" | "monri_checkout" | "monri_card" | "recorded">>,
+  Assert<Equal<Extract<PaymentType, { type: "stripe_checkout" | "stripe_card" | "monri_checkout" | "monri_card" }>["receipt_device"], CardReceiptDevice>>,
+  Assert<Equal<CardReceiptDevice, { type: "no_receipt" } | { type: "device"; fiscal_device_id: string }>>,
+  Assert<Equal<keyof Extract<PaymentType, { type: "recorded" }>, "type" | "method" | "reference" | "recorded_by" | "status" | "refunds">>,
+  Assert<Missing<Extract<PaymentType, { type: "recorded" }>, "collections" | "requested">>,
+  Assert<Equal<RecordedMethod, { type: "cash" } | { type: "card" } | { type: "bank_transfer"; received_on: CalendarDate } | { type: "other" }>>,
+  Assert<Equal<RecordedPaymentStatus, { type: "active" } | { type: "voided"; by: AccountActor; reason: string; at: EpochMilliseconds }>>,
+  Assert<Equal<Extract<StripeRefundSource, { type: "stripe" }>, { type: "stripe"; reason: string | null }>>,
+  Assert<Equal<Extract<StripeRefundSource, { type: "stripe_allocated" }>, { type: "stripe_allocated"; reason: string | null; by: AccountActor; application: RefundApplication }>>,
+  Assert<Equal<RefundApplication, { type: "commercial_credit"; allocations: RefundAllocation[] } | { type: "excess_collection"; reason: string }>>,
   Assert<
     Equal<
       NonNullable<FindPaymentsParams["sort_field"]>,
@@ -108,7 +136,7 @@ export type FinancialContracts = [
   >,
   Assert<
     Equal<
-      Extract<PaymentType, { type: "cash_on_delivery" }>["refunds"],
+      Extract<PaymentType, { type: "recorded" }>["refunds"],
       RecordedRefund[]
     >
   >,
@@ -122,18 +150,21 @@ export type FinancialContracts = [
   Assert<Equal<PaymentHold["status"], PaymentHoldStatus>>,
   Assert<Equal<PaymentHoldStatus["type"], "open" | "resolved">>,
   Assert<RequiredField<PaymentHold, "id">>,
-  Assert<
-    Equal<
-      Parameters<Admin["eshop"]["payment"]["voidCollection"]>[0],
-      VoidPaymentCollectionParams
-    >
-  >,
-  Assert<
-    Equal<
-      Awaited<ReturnType<Admin["eshop"]["payment"]["voidCollection"]>>,
-      Payment
-    >
-  >,
+  Assert<Equal<Parameters<Admin["eshop"]["payment"]["void"]>[0], VoidPaymentParams>>,
+  Assert<Equal<Awaited<ReturnType<Admin["eshop"]["payment"]["void"]>>, Payment>>,
+  Assert<Equal<keyof VoidPaymentParams, "store_id" | "payment_id" | "expected_updated_at" | "reason">>,
+  Assert<Equal<Parameters<Admin["eshop"]["payment"]["record"]>[0], RecordPaymentsParams>>,
+  Assert<Equal<Awaited<ReturnType<Admin["eshop"]["payment"]["record"]>>, RecordedPayments>>,
+  Assert<Equal<RecordedPayments, { payments: Payment[]; fiscal_receipts: FiscalReceipt[] }>>,
+  Assert<Equal<keyof RecordPaymentsParams, "store_id" | "order_id" | "fiscal_device_id" | "payments">>,
+  Assert<Equal<RecordPaymentsParams["fiscal_device_id"], string | null>>,
+  Assert<RequiredField<RecordPaymentsParams, "fiscal_device_id">>,
+  Assert<Equal<RecordPaymentPart, { id: string; payment_option_id: string; money: Money; method: RecordedMethod; reference: string | null }>>,
+  Assert<Equal<Parameters<Admin["eshop"]["payment"]["allocateRefund"]>[0], AllocatePaymentRefundParams>>,
+  Assert<Equal<keyof AllocatePaymentRefundParams, "store_id" | "payment_id" | "refund_id" | "expected_updated_at" | "application">>,
+  Assert<Equal<AllocatePaymentRefundParams["application"], RefundApplication>>,
+  Assert<Missing<AllocatePaymentRefundParams, "allocations">>,
+  Assert<Missing<Admin["eshop"]["payment"], "createManual" | "recordCollection" | "voidCollection" | "cancel">>,
   Assert<RequiredField<CreatePaymentRefundParams, "notify_customer">>,
   Assert<Equal<CreatePaymentRefundParams["notify_customer"], boolean>>,
   Assert<
@@ -154,13 +185,14 @@ export type FinancialContracts = [
   >,
   Assert<Equal<keyof RefundReceiptInput, "type" | "reference">>,
   Assert<Equal<RefundReceiptInput["type"], "sent" | "returned">>,
+  Assert<Equal<RefundReceiptInput, { type: "sent"; reference: string; method: RecordedRefundMethod } | { type: "returned"; reference: string }>>,
   Assert<
     Equal<
       keyof ResolvePaymentHoldParams,
       "store_id" | "payment_id" | "expected_updated_at" | "hold_id" | "note"
     >
   >,
-  Assert<RequiredField<VoidPaymentCollectionParams, "expected_updated_at">>,
+  Assert<RequiredField<VoidPaymentParams, "expected_updated_at">>,
   Assert<
     Equal<
       Awaited<ReturnType<Admin["eshop"]["order"]["getFinancialSummary"]>>,

@@ -9,7 +9,7 @@ const filters: FindMediaParams = { store_id: '3f8b6d21-c7a4-4e09-9d15-7b2e0a4c6f
 declare const admin: ReturnType<typeof createAdmin>;
 declare const storefront: ReturnType<typeof createStorefront>;
 const page: Promise<{ items: Media[]; cursor: string | null }> = admin.media.find(filters);
-const references: Promise<{ items: Media[]; cursor: string | null }> = storefront.media.find({ ids: ['second', 'first'] });
+const references: Promise<Media[]> = storefront.media.find({ ids: ['second', 'first'] });
 void [page, references];
 
 export type MediaDiscoveryContracts = [

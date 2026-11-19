@@ -1,8 +1,6 @@
 import type { EpochMilliseconds } from "./time";
 import type { SortDirection } from "./common";
 
-export type AccountAccess = { type: "network"; network_id: string } | { type: "platform" };
-
 export type AccountStatus = { type: "active" } | { type: "deleting" };
 
 export interface AccountName {
@@ -14,14 +12,67 @@ export type AccountSecondFactor =
   | { type: "off" }
   | { type: "totp"; since: EpochMilliseconds; recovery_codes_left: number };
 
+export type LoginAddress =
+  | { type: "email"; email: string }
+  | { type: "phone"; number: string };
+
+export type LoginContact =
+  | { type: "email"; email: string; language: string }
+  | { type: "phone"; number: string; language: string };
+
+export interface LoginCodeSent {
+  code_expires_at: EpochMilliseconds;
+}
+
+export type PlatformLogin = { type: "email"; email: string; language: string; since: EpochMilliseconds };
+
+export type NetworkLogin =
+  | { type: "member_email"; email: string; language: string; since: EpochMilliseconds }
+  | { type: "customer_email"; email: string; language: string; since: EpochMilliseconds }
+  | { type: "customer_phone"; number: string; language: string; since: EpochMilliseconds };
+
+export type AccountType =
+  | {
+      type: "platform";
+      logins: PlatformLogin[];
+      name: AccountName | null;
+      second_factor: AccountSecondFactor;
+    }
+  | {
+      type: "network";
+      network_id: string;
+      logins: NetworkLogin[];
+      name: AccountName | null;
+      phone: string | null;
+      second_factor: AccountSecondFactor;
+    };
+
 export interface Account {
   id: string;
+  type: AccountType;
+  status: AccountStatus;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+}
+
+export interface AccountMe {
+  id: string;
+  type: AccountType;
+  status: AccountStatus;
+  session_email: string;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+}
+
+export type ListedAccountType = { type: "platform" } | { type: "network"; network_id: string };
+
+export interface ListedAccount {
+  id: string;
+  type: ListedAccountType;
   email: string;
   name: AccountName | null;
-  phone: string | null;
-  status: AccountStatus;
-  access: AccountAccess;
   second_factor: AccountSecondFactor;
+  status: AccountStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
@@ -30,6 +81,21 @@ export interface UpdateAccountProfileParams {
   name?: AccountName | null;
   phone?: string | null;
   expected_updated_at: EpochMilliseconds;
+}
+
+export interface RequestAccountLoginCodeParams {
+  email: string;
+  language: string;
+}
+
+export interface VerifyAccountLoginParams {
+  email: string;
+  code: string;
+  confirm_join: boolean;
+}
+
+export interface RemoveAccountLoginParams {
+  address: LoginAddress;
 }
 
 export interface NewRecoveryCodesParams {
@@ -123,17 +189,20 @@ export interface RevokeAccountSessionParams {
 
 export type AccountTokenStores =
   | { type: "all" }
-  | { type: "only"; store_ids: string[] };
+  | { type: "ids"; store_ids: string[] };
 
 export type AccountTokenStatus = { type: "active" } | { type: "revoked"; revoked_at: EpochMilliseconds };
+
+export type AccountTokenExpiry = { type: "never" } | { type: "at"; expires_at: EpochMilliseconds };
 
 export interface AccountToken {
   id: string;
   account_id: string;
+  email: string;
   name: string;
   token_hint: string;
   stores: AccountTokenStores;
-  expires_at: EpochMilliseconds | null;
+  expiry: AccountTokenExpiry;
   status: AccountTokenStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
@@ -147,7 +216,7 @@ export interface CreateAccountTokenParams {
   id: string;
   name: string;
   stores: AccountTokenStores;
-  expires_at: EpochMilliseconds | null;
+  expiry: AccountTokenExpiry;
 }
 
 export interface FindAccountTokensParams {
@@ -173,6 +242,7 @@ export interface FindPlatformAccountsParams {
 export interface AddPlatformAccountParams {
   id: string;
   email: string;
+  language: string;
 }
 
 export interface DeletePlatformAccountParams {

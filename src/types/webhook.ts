@@ -3,7 +3,7 @@ import type { CollectionFilter } from "./block";
 import type { SortDirection } from "./common";
 import type { Order } from "./order";
 
-export type KeyFilter = { type: "all" } | { type: "only"; keys: string[] };
+export type KeyFilter = { type: "all" } | { type: "keys"; keys: string[] };
 
 export interface FormFilter {
   form_ids: string[];
@@ -18,6 +18,15 @@ export const WEBHOOK_UNIT_EVENT_TYPES = [
   "order.confirmed",
   "order.payment_received",
   "order.payment_failed",
+  "fiscal_receipt.done",
+  "fiscal_receipt.refused",
+  "fiscal_receipt.unknown",
+  "invoice.issued",
+  "invoice.outside_number_removed",
+  "invoice.discarded",
+  "invoice.reversed",
+  "credit_note.issued",
+  "credit_note.outside_number_removed",
   "refund.created",
   "refund.succeeded",
   "refund.failed",
@@ -74,6 +83,7 @@ export const WEBHOOK_UNIT_EVENT_TYPES = [
   "promotion.updated",
   "promotion.deleted",
   "promotion_code.created",
+  "promotion_code.updated",
   "promotion_code.deleted",
   "booking_resource.created",
   "booking_resource.updated",
@@ -134,6 +144,36 @@ export const WEBHOOK_UNIT_EVENT_TYPES = [
 
 export type WebhookUnitEventType = (typeof WEBHOOK_UNIT_EVENT_TYPES)[number];
 
+export interface OrderPaymentReceived {
+  order: Omit<Order, "status" | "totals">;
+  payment_id: string;
+  amount: number;
+}
+
+export interface OrderPaymentFailed {
+  order: Omit<Order, "status" | "totals">;
+  payment_id: string;
+  amount: number;
+}
+
+export type StoreField =
+  | "name"
+  | "timezone"
+  | "languages"
+  | "type"
+  | "status"
+  | "email_sending"
+  | "invoicing"
+  | "default_location";
+
+export interface StoreUpdated {
+  id: string;
+  name: string;
+  timezone: string;
+  languages: string[];
+  changed: StoreField[];
+}
+
 export interface OrderRefundCreated {
   order: Omit<Order, "status" | "totals">;
   payment_id: string;
@@ -150,13 +190,12 @@ export interface OrderRefundSucceeded {
   order: Omit<Order, "status" | "totals">;
   payment_id: string;
   refund_id: string;
-  notify_customer: boolean;
 }
 
 export type WebhookEvent =
   | { type: "collection.created"; collections: KeyFilter }
-  | { type: "collection.updated"; collections: KeyFilter }
-  | { type: "collection.deleted"; collections: KeyFilter }
+  | { type: "collection.updated"; collections: CollectionFilter }
+  | { type: "collection.deleted"; collections: CollectionFilter }
   | { type: "entry.created"; collections: CollectionFilter; entries: KeyFilter }
   | { type: "entry.updated"; collections: CollectionFilter; entries: KeyFilter }
   | { type: "entry.deleted"; collections: CollectionFilter; entries: KeyFilter }

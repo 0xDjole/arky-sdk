@@ -4,7 +4,7 @@ import type { ProviderEffectError, ProviderLogin } from "./common";
 export type PhoneNumberSetup =
   | { type: "waiting" }
   | { type: "ready"; phone_number_sid: string; at: EpochMilliseconds }
-  | { type: "failed"; error: ProviderEffectError; at: EpochMilliseconds };
+  | { type: "failed"; error: ProviderEffectError };
 
 export interface PhoneNumber {
   id: string;

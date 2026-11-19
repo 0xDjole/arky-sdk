@@ -29,9 +29,9 @@ test("order execution reads keep empty continuations, the order filter and exact
   assert.deepEqual(await api.fulfillmentJob.find(scope), { items: [], cursor });
   assert.equal((await api.fulfillmentJob.get({ store_id: STORE_ID, fulfillment_job_id: "work/id" })).type.order_id, "accepted");
   const items = await api.fulfillmentJob.findItems({ store_id: STORE_ID, fulfillment_job_id: "work/id" });
-  assert.equal(items.cursor, null);
-  assert.equal(items.items[0].product_key, "stock-item");
-  assert.equal(items.items[0].order_number, "1042");
+  assert.equal(Array.isArray(items), true);
+  assert.equal(items[0].product_key, "stock-item");
+  assert.equal(items[0].order_number, "1042");
   assert.deepEqual(calls[0].query, { order_id: "accepted", limit: "20" });
   assert.deepEqual(calls[1].query, { order_id: "accepted", limit: "20", cursor });
   assert.deepEqual(calls[3].query, { order_id: "accepted", limit: "20" });
@@ -53,7 +53,6 @@ test("order execution reads keep empty continuations, the order filter and exact
 function productLine() {
   return {
     id: "line",
-    quantity: 10,
     fulfilled_quantity: 2,
     inventory_requirements: [],
     source: { type: "order_product", order_product_line_item_id: "product", order_unit_spans: [{ first_unit: 10, quantity: 10 }] },
@@ -65,10 +64,9 @@ function productLine() {
 function rentalLine(overrides = {}) {
   return {
     id: "rental-line",
-    quantity: 2,
     fulfilled_quantity: 0,
     inventory_requirements: [],
-    source: { type: "rental_issue", rental_id: "rental", revision_id: "revision" },
+    source: { type: "rental_issue", rental_id: "rental", package_member_revision_id: "revision", quantity: 2 },
     moved_units: [],
     cancelled_units: [],
     ...overrides,
@@ -84,7 +82,7 @@ function job(method = "delivery") {
       ? { type: "pickup", store_location_id: "location" }
       : { type: "delivery", destination: address, store_location_id: "location", source: { type: "otherwise" } },
     holds: [],
-    contact: { email: null, first_name: null, last_name: null, phone: null, buyer: { type: "customer", customer_id: "customer" } },
+    contact: { email: null, name: null, phone: null, buyer: { type: "customer", customer_id: "customer" } },
     status: "open",
     created_at: 1,
     updated_at: 1,
@@ -157,7 +155,6 @@ for (const method of ["delivery", "pickup"]) {
     assert.deepEqual({ work, history }, before);
     const [line] = work.type.lines;
     Object.assign(line, {
-      quantity: 3,
       fulfilled_quantity: 0,
       source: { ...line.source, order_unit_spans: [{ first_unit: 5, quantity: 2 }, { first_unit: 11, quantity: 1 }] },
       moved_units: [{ first_unit: 0, quantity: 1 }],
@@ -169,7 +166,6 @@ for (const method of ["delivery", "pickup"]) {
     line.cancelled_units = [{ first_unit: 0, quantity: 1 }];
     assert.throws(() => selectFulfillmentUnits(work, "line", 1, []), /disagree/);
     Object.assign(line, {
-      quantity: 2_000_000_000,
       fulfilled_quantity: 0,
       moved_units: [],
       cancelled_units: [],
@@ -230,7 +226,6 @@ test("job mapping refuses invalid, non-canonical and over-fragmented ranges", ()
   line.source.order_unit_spans.reverse();
   assert.throws(() => selectFulfillmentUnits(work, "line", 1, []), /coalesced/);
   Object.assign(line, {
-    quantity: 3000,
     fulfilled_quantity: 0,
     source: { ...line.source, order_unit_spans: Array.from({ length: 1000 }, (_, index) => ({ first_unit: index * 4, quantity: 3 })) },
     moved_units: Array.from({ length: 999 }, (_, index) => ({ first_unit: index * 3 + 2, quantity: 2 })),

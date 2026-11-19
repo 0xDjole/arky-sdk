@@ -5,8 +5,10 @@ import { createStorefront, initialize } from "../dist/storefront.js";
 import {
   apiUrl,
   cartRecord,
+  confirmedEmail,
   customerRecord,
   emailSession,
+  phoneSession,
   errorResponse,
   fixedIdFactories,
   idFactories,
@@ -25,7 +27,7 @@ const visitorTokenB = `customer_visitor_${"b".repeat(64)}`;
 const customerBuyer = { type: "customer" };
 
 function issued(token = visitorTokenA, customerId = ids.customer, sessionId = ids.session) {
-  return { customer: customerRecord(customerId), session: visitorSession(customerId, sessionId, token), login: null };
+  return { customer: customerRecord(customerId), session: visitorSession(customerId, sessionId, token) };
 }
 
 function storedVisitor(token = visitorTokenA, customerId = ids.customer, sessionId = ids.session) {
@@ -43,34 +45,52 @@ test("a stored customer session needs version 5 and the exact active status tag"
   const good = read(storedVisitor());
   assert.equal(good.hasSession, true);
   assert.deepEqual(good.session.status, { type: "active" });
-  assert.equal(good.session.login, null);
+  assert.equal(good.session.signed_in_with, null);
   for (const status of ["active", null, {}, { type: "revoked" }, { type: "superseded" }, { type: "active", extra: true }]) {
-    const record = JSON.stringify({ version: 5, customer: customerRecord(), session: { ...visitorSession(), status }, login: null });
+    const record = JSON.stringify({ version: 5, customer: customerRecord(), session: { ...visitorSession(), status } });
     const rejected = read(record);
     assert.equal(rejected.hasSession, false);
     assert.equal(rejected.session, null);
   }
   const older = JSON.stringify({ version: 4, customer: customerRecord(), session: visitorSession() });
   assert.equal(read(older).hasSession, false);
-  const signedLogin = {
-    id: emailSession().login_id,
-    type: { type: "verified_email", email: "new@example.test", language: "bs", unsubscribed: false },
-    created_at: 1_700_000_000_000,
-    updated_at: 1_700_000_000_000,
+  const signedInCustomer = customerRecord(ids.customer, { links: [{ type: "own" }], contacts: [confirmedEmail("new@example.test", "bs")] });
+  const byEmail = JSON.stringify({ version: 5, customer: signedInCustomer, session: emailSession(ids.customer, ids.session, { email: "new@example.test" }) });
+  const byPhone = JSON.stringify({ version: 5, customer: signedInCustomer, session: phoneSession(ids.customer, ids.session, "+38761222333") });
+  const storeKey = {
+    type: "network_customer_store_key",
+    id: ids.session,
+    customer_id: ids.customer,
+    status: { type: "active" },
+    access_token: `customer_store_key_${"k".repeat(64)}`,
   };
-  const withoutLogin = JSON.stringify({ version: 5, customer: customerRecord(), session: emailSession(), login: null });
-  const otherLogin = JSON.stringify({ version: 5, customer: customerRecord(), session: emailSession(), login: { ...signedLogin, id: ids.line } });
-  const withLogin = JSON.stringify({ version: 5, customer: customerRecord(), session: emailSession(), login: signedLogin });
-  for (const [stored, kept] of [[withoutLogin, false], [otherLogin, false], [withLogin, true]]) {
+  const withKey = JSON.stringify({ version: 5, customer: signedInCustomer, session: storeKey });
+  for (const [stored, signedInWith] of [
+    [byEmail, { type: "email", email: "new@example.test" }],
+    [byPhone, { type: "phone", number: "+38761222333" }],
+    [withKey, null],
+  ]) {
     const signedIn = read(stored, idFactories);
-    assert.equal(signedIn.hasSession, kept, "a signed-in session keeps the login it signed in with");
-    if (kept) assert.deepEqual(signedIn.session.login, signedLogin);
+    assert.equal(signedIn.hasSession, true);
+    assert.equal(signedIn.isAuthenticated, true);
+    assert.deepEqual(signedIn.session.signed_in_with, signedInWith, "the session names the address it signed in with, and a store key names none");
   }
-  const visitorWithLogin = JSON.stringify({ version: 5, customer: customerRecord(), session: visitorSession(), login: signedLogin });
-  assert.equal(read(visitorWithLogin).hasSession, false, "a Visitor session names no login");
-  const foreign = JSON.stringify({ version: 5, customer: customerRecord(ids.otherCustomer), session: visitorSession(), login: null });
+  const { email: _email, ...noEmail } = emailSession();
+  const { number: _number, ...noNumber } = phoneSession();
+  for (const session of [
+    noEmail,
+    noNumber,
+    { ...emailSession(), type: "logged_in", login_id: ids.line },
+    { ...storeKey, refresh_token: `customer_refresh_${"r".repeat(64)}` },
+    { ...storeKey, access_token: `customer_access_${"a".repeat(64)}` },
+  ]) {
+    assert.equal(read(JSON.stringify({ version: 5, customer: signedInCustomer, session }), idFactories).hasSession, false, session.type);
+  }
+  const foreign = JSON.stringify({ version: 5, customer: customerRecord(ids.otherCustomer), session: visitorSession() });
   assert.equal(read(foreign).hasSession, false);
   const { name: _name, addresses: _addresses, ...beforeNames } = customerRecord();
+  const { links: _links, ...beforeLinks } = customerRecord();
+  const { contacts: _contacts, ...beforeContacts } = customerRecord();
   const named = customerRecord(ids.customer, {
     name: { first_name: "Ana", last_name: "Anić" },
     addresses: [{ id: ids.line, country: "BA", city: "Sarajevo" }],
@@ -78,11 +98,13 @@ test("a stored customer session needs version 5 and the exact active status tag"
   });
   for (const [customer, kept] of [
     [beforeNames, false],
+    [beforeLinks, false],
+    [beforeContacts, false],
     [{ ...customerRecord(), name: { first_name: "Ana" } }, false],
     [{ ...customerRecord(), default_billing_address_id: 7 }, false],
     [named, true],
   ]) {
-    const storage = JSON.stringify({ version: 5, customer, session: visitorSession(), login: null });
+    const storage = JSON.stringify({ version: 5, customer, session: visitorSession() });
     const stored = read(storage);
     assert.equal(stored.hasSession, kept);
     if (kept) {
@@ -93,13 +115,11 @@ test("a stored customer session needs version 5 and the exact active status tag"
 });
 
 test("an issued session with a malformed lifecycle is refused and never stored", async (context) => {
-  for (const type of ["visitor", "logged_in"]) {
+  for (const type of ["visitor", "store_customer_signed_in_by_email"]) {
     for (const status of [{ type: "active" }, "active", null, { type: "revoked" }, { type: "active", extra: true }]) {
       const base = type === "visitor" ? visitorSession() : emailSession();
-      const login = type === "visitor"
-        ? null
-        : { id: base.login_id, type: { type: "verified_email", email: "a@example.test", language: "en", unsubscribed: false }, created_at: 1, updated_at: 1 };
-      recordFetch(context, () => ({ customer: customerRecord(), session: { ...base, status }, login }));
+      const customer = type === "visitor" ? customerRecord() : customerRecord(ids.customer, { links: [{ type: "own" }], contacts: [confirmedEmail()] });
+      recordFetch(context, () => ({ customer, session: { ...base, status } }));
       const storage = new SessionStorage();
       const client = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: storage });
       if (status && typeof status === "object" && Object.keys(status).length === 1 && status.type === "active") {
@@ -107,15 +127,29 @@ test("an issued session with a malformed lifecycle is refused and never stored",
         assert.deepEqual(result.session.status, { type: "active" });
         assert.deepEqual(client.session.status, { type: "active" });
         assert.equal(client.hasSession, true);
-        assert.equal(client.isAuthenticated, type === "logged_in");
+        assert.equal(client.isAuthenticated, type !== "visitor");
         assert.deepEqual(sessionValues(storage)[0].session.status, { type: "active" });
       } else {
-        await assert.rejects(client.customer.identify({ customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }), { name: "RangeError", message: "The customer session must be active and carry epoch-millisecond times" });
+        await assert.rejects(client.customer.identify({ customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }), { name: "RangeError", message: "The customer session must be active, name its customer and carry epoch-millisecond times" });
         assert.equal(client.session, null);
         assert.equal(storage.keys("arky_customer_session:").length, 0);
       }
       context.mock.restoreAll();
     }
+  }
+});
+
+test("an issued answer whose customer lacks its links or contacts is refused and never stored", async (context) => {
+  const { links: _links, ...unlinked } = customerRecord();
+  const { contacts: _contacts, ...noContacts } = customerRecord();
+  for (const customer of [unlinked, noContacts]) {
+    recordFetch(context, () => ({ customer, session: visitorSession() }));
+    const storage = new SessionStorage();
+    const client = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: ids.customer, session_id: ids.session }, ...fixedIdFactories, apiUrl, sessionStorage: storage });
+    await assert.rejects(client.customer.identify({ customer_id: ids.customer, session_id: ids.session }), { name: "RangeError" });
+    assert.equal(client.session, null);
+    assert.equal(storage.keys("arky_customer_session:").length, 0);
+    context.mock.restoreAll();
   }
 });
 
@@ -278,7 +312,7 @@ test("anonymous reads don't identify, and concurrent first stateful calls share 
       return issued();
     }
     if (call.method === "PATCH" && call.path === "/v1/storefront/customer/me") {
-      return { customer: customerRecord(ids.customer), session: { ...visitorSession(ids.customer, ids.session, visitorTokenA), store_id: ids.store }, logins: [] };
+      return { customer: customerRecord(ids.customer), session: { ...visitorSession(ids.customer, ids.session, visitorTokenA), store_id: ids.store } };
     }
     throw new Error(`Unexpected visitor request: ${call.path}`);
   });
@@ -433,9 +467,14 @@ test("visitor storage is kept apart by API URL, store and sales channel", async 
 
 test("a sign-in code and refresh rotate the customer session atomically, and logout forgets it", async (context) => {
   const signInId = "3d8f1a62-7c45-4b09-9e2d-6a1c4f8b0e37";
-  const customer = customerRecord(ids.customer, { profile: [{ id: ids.line, key: "name", type: "text", value: null }] });
-  const authenticated = emailSession(ids.customer, ids.otherSession);
+  const customer = customerRecord(ids.customer, {
+    links: [{ type: "own" }],
+    contacts: [confirmedEmail("person@example.com")],
+    profile: [{ id: ids.line, key: "name", type: "text", value: null }],
+  });
+  const authenticated = emailSession(ids.customer, ids.otherSession, { email: "person@example.com" });
   const rotated = emailSession(ids.customer, "7e2c9b14-5a63-4d80-b1f7-3c8e0a6d2f95", {
+    email: "person@example.com",
     access_token: `customer_access_${"u".repeat(64)}`,
     refresh_token: `customer_refresh_${"v".repeat(64)}`,
   });
@@ -450,11 +489,11 @@ test("a sign-in code and refresh rotate the customer session atomically, and log
           code: { issued_at: 2, expires_at: 62 },
         };
       case "/v1/storefront/customer/verify":
-        return { customer, session: authenticated, login: loginOf(authenticated) };
+        return { customer, session: authenticated };
       case "/v1/storefront/customer/refresh":
-        return { customer, session: rotated, login: loginOf(rotated) };
+        return { customer, session: rotated };
       case "/v1/storefront/customer/me":
-        return { customer: call.method === "PATCH" ? { ...customer, profile: [{ id: ids.line, key: "name", type: "text", value: "Ana" }] } : customer, session: { ...rotated, store_id: ids.store }, logins: [] };
+        return { customer: call.method === "PATCH" ? { ...customer, profile: [{ id: ids.line, key: "name", type: "text", value: "Ana" }] } : customer, session: { ...rotated, store_id: ids.store } };
       case "/v1/storefront/customer/logout":
         return undefined;
       default:
@@ -470,7 +509,7 @@ test("a sign-in code and refresh rotate the customer session atomically, and log
   const verified = await client.customer.verify({ code: "123456" });
   assert.equal(verified.session.id, authenticated.id);
   assert.equal(client.isAuthenticated, true);
-  assert.deepEqual(client.session, { customer, id: authenticated.id, type: "logged_in", status: { type: "active" }, login: loginOf(authenticated) });
+  assert.deepEqual(client.session, { customer, id: authenticated.id, type: "store_customer_signed_in_by_email", status: { type: "active" }, signed_in_with: { type: "email", email: "person@example.com" } });
   const refreshed = await client.customer.refresh({ session_id: rotated.id });
   assert.equal(refreshed.session.id, rotated.id);
   const stored = sessionValues(storage)[0].session;
@@ -509,7 +548,7 @@ test("a refused refresh keeps the signed-in session and is never retried with Au
   const calls = recordFetch(context, () => errorResponse(401, "CUSTOMER_SESSION_REFRESH_REJECTED", "Refresh token rejected"));
   const client = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: storage });
   await assert.rejects(client.customer.refresh({ session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), /Refresh token rejected/);
-  assert.deepEqual(client.session, { customer: JSON.parse(initialRecord).customer, id: session.id, type: "logged_in", status: { type: "active" }, login: JSON.parse(initialRecord).login });
+  assert.deepEqual(client.session, { customer: JSON.parse(initialRecord).customer, id: session.id, type: "store_customer_signed_in_by_email", status: { type: "active" }, signed_in_with: { type: "email", email: session.email } });
   assert.deepEqual(calls.map((call) => [call.href, call.headers.get("authorization"), call.headers.get("x-arky-store-id"), call.headers.get("x-arky-sales-channel-id"), call.body]), [
     [`${apiUrl}/v1/storefront/customer/refresh`, null, storefrontIdentity.storeId, storefrontIdentity.salesChannelId, { session_id: ids.otherSession, refresh_token: session.refresh_token }],
   ]);
@@ -532,15 +571,15 @@ test("a stored record with an invalid visitor credential is dropped at startup",
 });
 
 test("a profile answer that lands after a sign-in leaves the signed-in customer alone, while the caller still gets it", async (context) => {
-  const signedInCustomer = customerRecord(ids.otherCustomer, { profile: [{ id: ids.line, key: "name", type: "text", value: "Signed" }] });
+  const signedInCustomer = customerRecord(ids.otherCustomer, { links: [{ type: "own" }], contacts: [confirmedEmail()], profile: [{ id: ids.line, key: "name", type: "text", value: "Signed" }] });
   const signedIn = emailSession(ids.otherCustomer, ids.otherSession);
   const answers = new Map();
   const calls = recordFetch(context, async (call) => {
-    if (call.path === "/v1/storefront/customer/verify") return { customer: signedInCustomer, session: signedIn, login: loginOf(signedIn) };
+    if (call.path === "/v1/storefront/customer/verify") return { customer: signedInCustomer, session: signedIn };
     if (call.path === "/v1/storefront/customer/me") {
       const gate = answers.get(call.method);
       await gate.waiting;
-      return { customer: customerRecord(ids.customer, { profile: [{ id: ids.line, key: "name", type: "text", value: call.method === "PATCH" ? "Edited" : "Visitor" }] }), session: { ...visitorSession(), store_id: ids.store }, logins: [] };
+      return { customer: customerRecord(ids.customer, { profile: [{ id: ids.line, key: "name", type: "text", value: call.method === "PATCH" ? "Edited" : "Visitor" }] }), session: { ...visitorSession(), store_id: ids.store } };
     }
     throw new Error(`Unexpected request: ${call.method} ${call.path}`);
   });
@@ -576,7 +615,7 @@ test("a profile answer that lands after a sign-in leaves the signed-in customer 
 });
 
 test("a profile answer for the session that asked updates the stored customer", async (context) => {
-  recordFetch(context, (call) => ({ customer: customerRecord(ids.customer, { profile: [{ id: "name", key: "name", type: "text", value: call.method === "PATCH" ? "Ana" : "Visitor" }] }), session: { ...visitorSession(), store_id: ids.store }, logins: [] }));
+  recordFetch(context, (call) => ({ customer: customerRecord(ids.customer, { profile: [{ id: "name", key: "name", type: "text", value: call.method === "PATCH" ? "Ana" : "Visitor" }] }), session: { ...visitorSession(), store_id: ids.store } }));
   const storage = new SessionStorage(storedVisitor());
   const client = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: storage });
   await client.customer.getMe();
@@ -587,20 +626,11 @@ test("a profile answer for the session that asked updates the stored customer", 
   assert.equal(sessionValues(storage)[0].session.token, visitorTokenA);
 });
 
-function loginOf(session) {
-  return {
-    id: session.login_id,
-    type: { type: "verified_email", email: "person@example.com", language: "en", unsubscribed: false },
-    created_at: 1_700_000_000_000,
-    updated_at: 1_700_000_000_000,
-  };
-}
-
 const refreshedAccess = `customer_access_${"u".repeat(64)}`;
 const refreshedRefresh = `customer_refresh_${"w".repeat(64)}`;
 
 function signedInCustomer() {
-  return customerRecord(ids.customer, { name: { first_name: "Ana", last_name: "Anić" } });
+  return customerRecord(ids.customer, { name: { first_name: "Ana", last_name: "Anić" }, links: [{ type: "own" }], contacts: [confirmedEmail()] });
 }
 
 function plainStorefront(options = {}) {
@@ -617,8 +647,8 @@ test("a session another tab refreshed is used, and its old token's refusal never
   const customer = signedInCustomer();
   const first = emailSession(ids.customer, ids.session);
   const second = emailSession(ids.customer, "7e2c9b14-5a63-4d80-b1f7-3c8e0a6d2f95", { access_token: refreshedAccess, refresh_token: refreshedRefresh });
-  const firstRecord = JSON.stringify({ version: 5, customer, session: first, login: loginOf(first) });
-  const secondRecord = JSON.stringify({ version: 5, customer, session: second, login: loginOf(second) });
+  const firstRecord = JSON.stringify({ version: 5, customer, session: first });
+  const secondRecord = JSON.stringify({ version: 5, customer, session: second });
   const storage = new SessionStorage(firstRecord);
   let refreshes = 0;
   let writeOnOldToken = false;
@@ -627,7 +657,7 @@ test("a session another tab refreshed is used, and its old token's refusal never
     if (call.path === "/v1/storefront/customer/refresh") {
       refreshes += 1;
       return refreshes === 1 && call.body.refresh_token === first.refresh_token
-        ? { customer, session: second, login: loginOf(second) }
+        ? { customer, session: second }
         : errorResponse(401, "GENERAL.UNAUTHENTICATED", "Refresh refused");
     }
     if (call.path === "/v1/storefront/customer/me") {
@@ -635,7 +665,7 @@ test("a session another tab refreshed is used, and its old token's refusal never
         if (writeOnOldToken) storage.setItem(storage.keys("arky_customer_session:v5:")[0], secondRecord);
         return errorResponse(401, "GENERAL.UNAUTHENTICATED", "Expired");
       }
-      return { customer, session: { ...second, store_id: ids.store }, logins: [] };
+      return { customer, session: { ...second, store_id: ids.store } };
     }
     throw new Error(`Unexpected request ${call.method} ${call.path}`);
   });
@@ -675,17 +705,17 @@ test("a storage event from another tab reports the stored session", async (conte
   await new Promise((resolve) => setImmediate(resolve));
   const customer = signedInCustomer();
   const other = emailSession(ids.customer, "7e2c9b14-5a63-4d80-b1f7-3c8e0a6d2f95", { access_token: refreshedAccess, refresh_token: refreshedRefresh });
-  localStorage.setItem(key, JSON.stringify({ version: 5, customer, session: other, login: loginOf(other) }));
+  localStorage.setItem(key, JSON.stringify({ version: 5, customer, session: other }));
   browser.dispatchEvent(Object.assign(new Event("storage"), { key }));
   await new Promise((resolve) => setImmediate(resolve));
-  assert.deepEqual(seen.at(-1), { customer, id: other.id, type: "logged_in", status: { type: "active" }, login: loginOf(other) });
+  assert.deepEqual(seen.at(-1), { customer, id: other.id, type: "store_customer_signed_in_by_email", status: { type: "active" }, signed_in_with: { type: "email", email: other.email } });
   unsubscribe();
 });
 
 test("a browser that refuses storage keeps the session in the tab and reports it", async (context) => {
   const calls = recordFetch(context, (call) => call.path === "/v1/storefront/customer/identify"
     ? issued(visitorTokenA)
-    : { customer: customerRecord(ids.customer), session: { id: ids.session, store_id: ids.store, customer_id: ids.customer }, logins: [] });
+    : { customer: customerRecord(ids.customer), session: { id: ids.session, store_id: ids.store, customer_id: ids.customer } });
   const refuse = () => {
     throw new DOMException("Storage is blocked", "SecurityError");
   };

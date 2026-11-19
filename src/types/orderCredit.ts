@@ -5,6 +5,7 @@ export type OrderCreditSource =
   | { type: "cancellation"; by: Actor }
   | { type: "return"; return_id: string; actor: AccountActor }
   | { type: "account"; actor: AccountActor; reason: string }
+  | { type: "add_on_taken_off"; actor: AccountActor; booked_add_on_id: string }
   | { type: "system" };
 
 export type CreditTarget =
@@ -16,6 +17,27 @@ export type CreditTarget =
 export type OrderCreditAmount =
   | { type: "remaining" }
   | { type: "part"; subtotal_reduction: number };
+
+export interface OrderCreditLeft {
+  target: CreditTarget;
+  subtotal: number;
+  total: number;
+}
+
+export interface OrderRefundAllocationMaximum {
+  order_credit_id: string;
+  order_credit_allocation_id: string;
+  target: CreditTarget;
+  maximum: number;
+}
+
+export type OrderMoneyLeft =
+  | {
+      type: "shown";
+      credit_left: OrderCreditLeft[];
+      refund_allocation_maximums: OrderRefundAllocationMaximum[];
+    }
+  | { type: "not_shown" };
 
 export interface OrderCreditRequestTarget {
   target: CreditTarget;
@@ -47,7 +69,7 @@ export interface OrderCreditAllocation {
 
 export type OrderCreditStatus =
   | { type: "active" }
-  | { type: "voided"; voided_at: EpochMilliseconds; actor: AccountActor };
+  | { type: "voided"; voided_at: EpochMilliseconds; actor: AccountActor; reason: string };
 
 export interface OrderCredit {
   id: string;
@@ -66,6 +88,7 @@ export type StorefrontOrderCreditSource =
   | { type: "cancellation" }
   | { type: "return"; return_id: string }
   | { type: "account" }
+  | { type: "add_on_taken_off"; booked_add_on_id: string }
   | { type: "system" };
 
 export type StorefrontOrderCreditStatus =
@@ -90,6 +113,7 @@ export interface CreateOrderCreditParams {
   id: string;
   targets: OrderCreditRequestTarget[];
   reason: string;
+  fiscal_device_id: string | null;
 }
 
 export interface GetOrderCreditParams {
@@ -99,6 +123,7 @@ export interface GetOrderCreditParams {
 }
 
 export interface VoidOrderCreditParams {
+  reason: string;
   store_id: string;
   order_id: string;
   credit_id: string;

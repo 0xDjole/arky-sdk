@@ -32,6 +32,7 @@ import type {
   PackageMemberCalendar,
   PackageMemberCalendarSelf,
   PackageMemberChange,
+  PackageMemberChanges,
   PackageMemberChangeSelf,
   PackageMemberCurrent,
   PackageMemberCurrentSelf,
@@ -261,6 +262,16 @@ export const createPackageMemberApi = (apiConfig: ApiConfig) => {
     ): Promise<PackageMemberCalendar> {
       return apiConfig.httpClient.get<PackageMemberCalendar>(
         `${memberPath(params.store_id, params.id)}/calendar`,
+        options,
+      );
+    },
+
+    getChanges(
+      params: GetPackageMemberParams,
+      options?: RequestOptions,
+    ): Promise<PackageMemberChanges> {
+      return apiConfig.httpClient.get<PackageMemberChanges>(
+        `${memberPath(params.store_id, params.id)}/changes`,
         options,
       );
     },

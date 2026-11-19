@@ -16,11 +16,13 @@ import type {
   FormAnswer,
   FormAnswerInput,
   FormEmails,
+  FormEmailSetting,
   FormOptionSnapshot,
   FormQuestion,
   FormScope,
   FormStage,
   FormStatus,
+  FormSubmissionAlert,
   FormType,
   StorePermission,
   StorePermissionAccess,
@@ -57,7 +59,7 @@ const form_id = "0f6a3c84-2d19-4e75-b8a1-5c9e7d3b2f60";
 const id = "4b9e2d71-8a36-4c05-9f1e-6d3a7b0c5e92";
 const api = createAdmin({ apiUrl: "https://forms.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).forms;
 
-const stages: FormStage[] = [{ id: "new", key: "new" }, { id: "won", key: "won" }];
+const stages: FormStage[] = [{ id: "new", key: "new", changed_email: { type: "off" } }, { id: "won", key: "won", changed_email: { type: "off" } }];
 const questions: FormQuestion[] = [
   { id: "q-answer", key: "answer", type: "text", required: true, label: { type: "shown", text: { en: "Answer" } }, min_length: null, max_length: 200, pattern: null },
   { id: "q-files", key: "files", type: "file", required: false, label: { type: "hidden" }, max_files: 3 },
@@ -98,7 +100,9 @@ const stageChange: ChangeFormSubmissionStageParams = {
   note: { id: "9d1f3b5c-7e8a-4c2e-b4d6-8f0a2c4e6b7d", body: "Out of the delivery area" },
 };
 const alert: Email = { email_template_id: id, email_address_id: form_id, from_name: "Shop", reply_to_address_id: form_id };
-const emails: FormEmails = { received: null, stage_changed: { won: alert }, submission_alert: alert, alert_recipients: [{ type: "email", email: "sales@example.test", language: "en" }] };
+const emails: FormEmails = { received: { type: "off" }, submission_alert: { type: "on", email: alert, recipients: [{ type: "email", email: "sales@example.test", language: "en" }] } };
+const wonStage: FormStage = { id: "won", key: "won", changed_email: { type: "send", email: alert } };
+const silentAlert: FormSubmissionAlert = { type: "off" };
 const withEmails: CreateFormParams = { ...create, emails };
 const remove: DeleteFormSubmissionParams = { store_id, form_id, id, expected_updated_at: epochMilliseconds(3) };
 
@@ -142,10 +146,14 @@ export type FormContracts = [
   Assert<Missing<FormsApi, "findByIds" | "getSubmissions" | "getPresentation" | "permanentlyDelete" | "updateSubmission" | "processSubmission">>,
   Assert<Missing<FormsApi, "createSubmissionNote" | "findSubmissionNotes" | "updateSubmissionNote" | "deleteSubmissionNote">>,
   Assert<Missing<FormsApi, "assignSubmission" | "setSubmissionCompany">>,
-  Assert<Equal<keyof FormEmails, "received" | "stage_changed" | "submission_alert" | "alert_recipients">>,
-  Assert<Equal<FormEmails["submission_alert"], Email | null>>,
-  Assert<Equal<FormEmails["stage_changed"], Record<string, Email>>>,
-  Assert<Equal<FormEmails["alert_recipients"], AlertRecipient[]>>,
+  Assert<Equal<keyof FormEmails, "received" | "submission_alert">>,
+  Assert<Equal<FormEmails["received"], FormEmailSetting>>,
+  Assert<Equal<FormEmails["submission_alert"], FormSubmissionAlert>>,
+  Assert<Equal<FormEmailSetting, { type: "off" } | { type: "send"; email: Email }>>,
+  Assert<Equal<FormSubmissionAlert, { type: "off" } | { type: "on"; email: Email; recipients: AlertRecipient[] }>>,
+  Assert<Equal<keyof FormStage, "id" | "key" | "changed_email">>,
+  Assert<Equal<FormStage["changed_email"], FormEmailSetting>>,
+  Assert<RequiredField<FormStage, "changed_email">>,
   Assert<Equal<Form["emails"], FormEmails>>,
   Assert<Equal<FormSubmission["email_contact"], EmailContact | null>>,
   Assert<Missing<FormSubmission, "company_id" | "assignee_account_id">>,
@@ -212,7 +220,7 @@ export type FormContracts = [
   Assert<RequiredField<CreateFormParams, "type">>,
   Assert<Equal<CreateFormParams["type"], FormType>>,
   Assert<Missing<UpdateFormParams, "type">>,
-  Assert<Equal<FormScope, { type: "all" } | { type: "only"; form_ids: string[] }>>,
+  Assert<Equal<FormScope, { type: "all" } | { type: "ids"; form_ids: string[] }>>,
   Assert<Equal<Extract<StorePermission, { type: "private_forms" }>, { type: "private_forms"; forms: FormScope; customers: CustomerScope; access: StorePermissionAccess }>>,
   Assert<Equal<Extract<AuditAction, { action: "form_submission_read" }>, { action: "form_submission_read"; form_id: string; form_submission_id: string; customer_id: string }>>,
   Assert<Equal<Extract<AuditAction, { action: "form_submission_file_read" }>, { action: "form_submission_file_read"; form_submission_id: string; customer_id: string; sha256: string }>>,

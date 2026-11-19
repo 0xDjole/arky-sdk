@@ -1,7 +1,7 @@
 import type { ApiConfig } from "../services/clientTypes";
 import type { RequestOptions } from "../types/api";
 import type { PaginatedResponse } from "../types/common";
-import type { IncomingWebhook } from "../types/payment";
+import type { StoreResendIncomingWebhook } from "../types/payment";
 import type {
   CreateEmailAddressParams,
   CreateEmailLayoutParams,
@@ -83,9 +83,8 @@ export const createTemplateApi = (apiConfig: ApiConfig) => ({
     return apiConfig.httpClient.get<Template>(storeRecordPath(params.store_id, "email-templates", params.id), options);
   },
 
-  async findDefaults(params: FindTemplateDefaultsParams, options?: RequestOptions): Promise<PaginatedResponse<TemplateDefault>> {
-    const items = await apiConfig.httpClient.get<TemplateDefault[]>(storePath(params.store_id, "email-templates/defaults"), options);
-    return { items, cursor: null };
+  findDefaults(params: FindTemplateDefaultsParams, options?: RequestOptions): Promise<TemplateDefault[]> {
+    return apiConfig.httpClient.get<TemplateDefault[]>(storePath(params.store_id, "email-templates/defaults"), options);
   },
 
   create(params: CreateTemplateParams, options?: RequestOptions): Promise<Template> {
@@ -248,17 +247,17 @@ export const createEmailAddressApi = (apiConfig: ApiConfig) => ({
 });
 
 export const createStoreResendEventApi = (apiConfig: ApiConfig) => ({
-  find(params: FindStoreResendEventsParams, options?: RequestOptions): Promise<PaginatedResponse<IncomingWebhook>> {
+  find(params: FindStoreResendEventsParams, options?: RequestOptions): Promise<PaginatedResponse<StoreResendIncomingWebhook>> {
     const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<PaginatedResponse<IncomingWebhook>>(storePath(store_id, "incoming-webhooks/resend"), {
+    return apiConfig.httpClient.get<PaginatedResponse<StoreResendIncomingWebhook>>(storePath(store_id, "incoming-webhooks/resend"), {
       ...options,
       params: query,
     });
   },
 
-  resolve(params: ResolveStoreResendEventParams, options?: RequestOptions): Promise<IncomingWebhook> {
+  resolve(params: ResolveStoreResendEventParams, options?: RequestOptions): Promise<StoreResendIncomingWebhook> {
     const { store_id, id, ...body } = params;
-    return apiConfig.httpClient.post<IncomingWebhook>(
+    return apiConfig.httpClient.post<StoreResendIncomingWebhook>(
       `${storeRecordPath(store_id, "incoming-webhooks/resend", id)}/resolve`,
       body,
       options,

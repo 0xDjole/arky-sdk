@@ -3,6 +3,7 @@ import type { RequestOptions } from "../types/api";
 import type { DeletedResponse, PaginatedResponse } from "../types/common";
 import type {
   Account,
+  AccountMe,
   AccountSession,
   AccountToken,
   AccountTokenCreated,
@@ -11,8 +12,12 @@ import type {
   FindAccountSessionsParams,
   FindAccountsParams,
   FindAccountTokensParams,
+  ListedAccount,
+  LoginCodeSent,
   NewRecoveryCodesParams,
   RecoveryCodes,
+  RemoveAccountLoginParams,
+  RequestAccountLoginCodeParams,
   RevokeAccountSessionParams,
   RevokeAccountTokenParams,
   SecondFactorSetup,
@@ -20,15 +25,17 @@ import type {
   TurnOffSecondFactorParams,
   TurnOnSecondFactorParams,
   UpdateAccountProfileParams,
+  VerifyAccountLoginParams,
 } from "../types/account";
 import { requireId } from "../utils/ids";
 import { segment } from "./paths";
 
 const tokensPath = "/v1/accounts/me/tokens";
+const loginsPath = "/v1/accounts/me/logins";
 
 export const createAccountApi = (apiConfig: ApiConfig) => ({
-  getMe(options?: RequestOptions): Promise<Account> {
-    return apiConfig.httpClient.get<Account>("/v1/accounts/me", options);
+  getMe(options?: RequestOptions): Promise<AccountMe> {
+    return apiConfig.httpClient.get<AccountMe>("/v1/accounts/me", options);
   },
 
   delete(options?: RequestOptions): Promise<Account> {
@@ -42,6 +49,28 @@ export const createAccountApi = (apiConfig: ApiConfig) => ({
     if (params.name !== undefined) body.name = params.name;
     if (params.phone !== undefined) body.phone = params.phone;
     return apiConfig.httpClient.patch<Account>("/v1/accounts/me", body, options);
+  },
+
+  login: {
+    requestCode(params: RequestAccountLoginCodeParams, options?: RequestOptions): Promise<LoginCodeSent> {
+      return apiConfig.httpClient.post<LoginCodeSent>(
+        `${loginsPath}/code`,
+        { email: params.email, language: params.language },
+        options,
+      );
+    },
+
+    verify(params: VerifyAccountLoginParams, options?: RequestOptions): Promise<AccountMe> {
+      return apiConfig.httpClient.post<AccountMe>(
+        `${loginsPath}/verify`,
+        { email: params.email, code: params.code, confirm_join: params.confirm_join },
+        options,
+      );
+    },
+
+    remove(params: RemoveAccountLoginParams, options?: RequestOptions): Promise<AccountMe> {
+      return apiConfig.httpClient.post<AccountMe>(`${loginsPath}/remove`, { address: params.address }, options);
+    },
   },
 
   secondFactor: {
@@ -74,8 +103,8 @@ export const createAccountApi = (apiConfig: ApiConfig) => ({
     },
   },
 
-  find(params: FindAccountsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<Account>> {
-    return apiConfig.httpClient.get<PaginatedResponse<Account>>("/v1/accounts/search", { ...options, params });
+  find(params: FindAccountsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<ListedAccount>> {
+    return apiConfig.httpClient.get<PaginatedResponse<ListedAccount>>("/v1/accounts/search", { ...options, params });
   },
 
   session: {
@@ -99,7 +128,7 @@ export const createAccountApi = (apiConfig: ApiConfig) => ({
           id: requireId(params.id, "account token"),
           name: params.name,
           stores: params.stores,
-          expires_at: params.expires_at,
+          expiry: params.expiry,
         },
         options,
       );

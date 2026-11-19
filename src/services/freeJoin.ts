@@ -40,6 +40,7 @@ import { isRecord } from "../utils/record";
 
 export interface FreeJoinDeps {
   verifiedContact(): EmailContact | null;
+  confirmedEmail(email: string): EmailContact | null;
   pendingKey(flow: string, target: string): string;
   appId(label: string): string;
   appOrderToken(): string;
@@ -196,7 +197,7 @@ export async function joinFreePackage(
   params: JoinFreePackageParams,
   options?: RequestOptions,
 ): Promise<JoinFreePackageResult> {
-  const verified = deps.verifiedContact();
+  const verified = params.email !== undefined ? deps.confirmedEmail(params.email) : deps.verifiedContact();
   if (!verified) {
     throw new PackageJoinError("sign_in_required", "Joining a free package needs a signed-in customer with a verified email");
   }

@@ -11,7 +11,10 @@ import {
   createStorefront,
   isArkyApiError,
   isDefiniteRefusal,
+  refusalClearsKeptRequest,
 } from "../dist/storefront.js";
+import { refusalClearsKeptRequest as rootRefusalClearsKeptRequest } from "../dist/index.js";
+import { refusalClearsKeptRequest as utilsRefusalClearsKeptRequest } from "../dist/utils.js";
 import {
   apiUrl,
   checkoutRequest,
@@ -112,4 +115,15 @@ test("a changed checkout presentation is an ArkyApiError that carries the new qu
   assert.equal(error.url, `${apiUrl}/v1/storefront/carts/accept`);
   assert.equal(isDefiniteRefusal(error), true);
   assert.equal(new ArkyApiError({ message: "x", code: "GENERAL.CONFLICT", statusCode: 409 }) instanceof CartPresentationChangedError, false);
+});
+
+test("a kept request ends on a definite refusal, but a 401 or 403 keeps it for a fresh sign-in", () => {
+  const refusal = (statusCode) => new ArkyApiError({ message: "refused", code: "GENERAL.REFUSED", statusCode });
+  for (const [entry, clears] of [["storefront", refusalClearsKeptRequest], ["root", rootRefusalClearsKeptRequest], ["utils", utilsRefusalClearsKeptRequest]]) {
+    assert.equal(typeof clears, "function", entry);
+    for (const status of [400, 404, 409, 413, 422]) assert.equal(clears(refusal(status)), true, `${entry} ${status}`);
+    for (const status of [401, 403, 408, 429, 500, 503]) assert.equal(clears(refusal(status)), false, `${entry} ${status}`);
+    assert.equal(clears(new ArkyNetworkError("network", "lost")), false, entry);
+    assert.equal(clears(new TypeError("lost")), false, entry);
+  }
 });

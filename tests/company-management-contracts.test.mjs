@@ -31,8 +31,8 @@ const monthly = {
     unpaid_order: { type: "retain_debt" },
   },
   timing: {
-    retry_offsets_seconds: [86_400],
-    recovery_window_seconds: 604_800,
+    retry_offsets: [86_400_000],
+    recovery_window: 604_800_000,
     reminder: { type: "none" },
   },
 };

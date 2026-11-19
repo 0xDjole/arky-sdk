@@ -2,10 +2,11 @@ import type { EpochMilliseconds } from "./time";
 import type { Currency, PostalAddressInput, SortDirection, TaxMode } from "./common";
 import type { CardDetails, PaymentRunsOn } from "./payment";
 import type { CreateStoreAgreementInput, NetworkPlan } from "./network";
+import type { StoreInvoicing } from "./invoice";
 
 export type StoreType =
   | { type: "live"; account_id: string; network_id: string }
-  | { type: "test"; store_id: string };
+  | { type: "test"; live_store_id: string };
 
 export type StoreStatus =
   | { type: "active" }
@@ -15,6 +16,8 @@ export type StoreStatus =
 
 export type StoreEmailSending = { type: "allowed" } | { type: "paused"; reason: string };
 
+export type StoreDefaultLocation = { type: "none" } | { type: "store_location"; store_location_id: string };
+
 export interface Store {
   id: string;
   name: string;
@@ -23,11 +26,17 @@ export interface Store {
   type: StoreType;
   status: StoreStatus;
   email_sending: StoreEmailSending;
+  invoicing: StoreInvoicing;
+  default_location: StoreDefaultLocation;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
 export type StoreSubscriptionPlanCleanup = { type: "done" } | { type: "pending"; network_provider_id: string };
+
+export type StoreCancellationAccess =
+  | { type: "trial"; trial_ends_at: EpochMilliseconds }
+  | { type: "paid"; paid_until: EpochMilliseconds };
 
 export type StoreSubscriptionPlan =
   | { type: "granted"; plan_id: string; cleanup: StoreSubscriptionPlanCleanup }
@@ -50,6 +59,14 @@ export type StoreSubscriptionPlan =
       card: CardDetails;
     }
   | {
+      type: "paid_lifetime";
+      plan_id: string;
+      network_provider_id: string;
+      stripe_customer_id: string;
+      stripe_payment_method_id: string;
+      card: CardDetails;
+    }
+  | {
       type: "past_due";
       plan_id: string;
       paid_until: EpochMilliseconds;
@@ -61,7 +78,7 @@ export type StoreSubscriptionPlan =
   | {
       type: "cancellation_scheduled";
       plan_id: string;
-      paid_until: EpochMilliseconds;
+      access: StoreCancellationAccess;
       network_provider_id: string;
       stripe_customer_id: string;
       stripe_payment_method_id: string;
@@ -114,8 +131,7 @@ export type FeatureType =
   | "support_flows"
   | "broadcasts"
   | "test_stores"
-  | "store_locations"
-  | "staff_calendars";
+  | "store_locations";
 
 export type StoreUsageAllowance =
   | { type: "limited"; limit: number }
@@ -136,8 +152,9 @@ export type StorePlanStatus =
   | { type: "granted" }
   | { type: "trialing"; trial_ends_at: EpochMilliseconds }
   | { type: "active"; paid_until: EpochMilliseconds }
+  | { type: "paid_lifetime" }
   | { type: "past_due"; paid_until: EpochMilliseconds }
-  | { type: "cancellation_scheduled"; paid_until: EpochMilliseconds }
+  | { type: "cancellation_scheduled"; access: StoreCancellationAccess }
   | { type: "unpaid" }
   | { type: "cancelled" };
 
@@ -157,9 +174,13 @@ export type CreateStorePlan =
   | { type: "card"; plan_id: string; network_provider_id: string; setup_intent_id: string }
   | { type: "grant"; plan_id: string };
 
+export type CreateStoreOwner =
+  | { type: "caller" }
+  | { type: "email"; email: string; language: string };
+
 export type CreateStoreType =
-  | { type: "live"; network_id: string; plan: CreateStorePlan }
-  | { type: "test"; store_id: string };
+  | { type: "live"; network_id: string; plan: CreateStorePlan; owner: CreateStoreOwner }
+  | { type: "test"; live_store_id: string };
 
 export interface CreateStoreMarketInput {
   key: string;
@@ -189,6 +210,12 @@ export interface UpdateStoreParams {
   name?: string;
   timezone?: string;
   languages?: string[];
+}
+
+export interface NameStoreDefaultLocationParams {
+  id: string;
+  store_location_id: string;
+  expected_updated_at: EpochMilliseconds;
 }
 
 export interface GetStoreParams {

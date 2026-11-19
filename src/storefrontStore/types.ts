@@ -1,10 +1,13 @@
+import type { OrderContactName } from "../types/order";
 import type { EpochMilliseconds } from "../types/time";
 import type { StorefrontOptions } from "../index";
 import type { ArkyErrorInfo } from "../types/apiError";
 import type {
   StorefrontCart,
+  CartBookingLineAddOnInput,
   CartBookingLineItemInput,
   CartBuyer,
+  CartPlaceOfSale,
   CartDeliveryDestination,
   CartDeliveryGroup,
   CartPackageDeliveries,
@@ -18,7 +21,7 @@ import type {
 } from "../types/cart";
 import type { PackagePriceRef, StorefrontPackageItemPrice, StorefrontPrice } from "../types/package";
 import type { BookingLineSession } from "../types/order";
-import type { Currency, EmailContact, PostalAddress } from "../types/common";
+import type { EmailContact, PostalAddress } from "../types/common";
 import type { CheckoutPaymentAction, StorefrontPayment, StorefrontPaymentMethodSetupStart } from "../types/payment";
 import type { PaymentOutcome } from "../utils/paymentOutcome";
 import type { AvailabilityResponse, StorefrontBookingResource, StorefrontBookingService } from "../types/product";
@@ -36,19 +39,9 @@ export interface ArkyCartStatus {
   quote_error: ArkyErrorInfo | null;
 }
 
-export interface ArkyLastOrder {
-  order_id: string;
-  number: string;
-  cart_id: string;
-  payment_id: string | null;
-  payment_action: CheckoutPaymentAction;
-  total: number | null;
-  currency: Currency | null;
-  created_at: EpochMilliseconds;
-}
-
 export interface ArkyCartCreateParams {
   id?: string;
+  place_of_sale?: CartPlaceOfSale;
 }
 
 export type ArkyAddProductParams = Omit<CartProductLineItemInput, "id"> & { id?: string };
@@ -83,6 +76,10 @@ export interface ArkySetBuyerParams {
   buyer: CartBuyer;
 }
 
+export interface ArkySetPlaceOfSaleParams {
+  place_of_sale: CartPlaceOfSale;
+}
+
 export interface ArkySetPromotionCodesParams {
   promotion_codes: string[];
 }
@@ -107,8 +104,7 @@ export interface ArkyCartCheckoutParams {
   order_token?: string;
   order_id?: string;
   contact_email: EmailContact | null;
-  contact_first_name?: string | null;
-  contact_last_name?: string | null;
+  contact_name?: OrderContactName | null;
   payment: CheckoutPaymentChoice;
   clear_after_checkout?: boolean;
 }
@@ -140,8 +136,7 @@ export interface ArkyCheckoutState {
   cart: StorefrontCart | null;
   quote: StorefrontCartQuote | null;
   contact_email: EmailContact | null;
-  contact_first_name: string | null;
-  contact_last_name: string | null;
+  contact_name: OrderContactName | null;
   destination: CartDeliveryDestination | null;
   billing_address: PostalAddress | null;
   payment_option_id: string | null;
@@ -154,8 +149,7 @@ export interface ArkyCheckoutState {
 
 export interface ArkySetContactParams {
   contact_email: EmailContact;
-  contact_first_name?: string | null;
-  contact_last_name?: string | null;
+  contact_name?: OrderContactName | null;
 }
 
 export interface ArkyCheckoutShipToParams {
@@ -175,7 +169,7 @@ export interface ArkySelectPaymentOptionParams {
 export interface ArkyCheckoutPlaceParams {
   return_url?: string | ((order_id: string) => string);
   save_payment_method?: boolean;
-  payment_method_terms?: string | null;
+  payment_method_terms?: string;
 }
 
 export interface ArkyOpenOrderParams {
@@ -196,6 +190,7 @@ export interface ArkyCalendarDay {
 export interface ArkyBookingSlot {
   id: string;
   booking_service_id: string;
+  store_location_id: string;
   booking_resource_id: string;
   booking_offering_id: string;
   price_ref: PackagePriceRef;
@@ -210,6 +205,7 @@ export interface ArkyBookingSlot {
 
 export interface ArkyBookingCalendarState {
   booking_service: StorefrontBookingService | null;
+  store_location_id: string | null;
   booking_choices: StorefrontPackageItemPrice[];
   booking_choices_cursor: string | null;
   booking_resources: StorefrontBookingResource[];
@@ -227,6 +223,7 @@ export interface ArkyBookingCalendarState {
 
 export interface ArkySelectBookingServiceParams {
   booking_service_id: string;
+  store_location_id: string;
 }
 
 export interface ArkySelectBookingResourceParams {
@@ -251,4 +248,5 @@ export interface ArkyAddSlotToCartParams {
   capacity_units?: number;
   form_submission_id?: string | null;
   session?: BookingLineSession | null;
+  add_ons?: CartBookingLineAddOnInput[];
 }

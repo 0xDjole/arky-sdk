@@ -24,12 +24,15 @@ test("a_store_create_names_its_network_and_plan", async (context) => {
     { type: "card", plan_id: ids.plan, network_provider_id: ids.picked, setup_intent_id: "seti_confirmed" },
     { type: "grant", plan_id: ids.plan },
   ]) {
-    const input = { ...store, type: { type: "live", network_id: ids.network, plan } };
+    const input = { ...store, type: { type: "live", network_id: ids.network, plan, owner: { type: "caller" } } };
     assert.deepEqual(await client.store.create(input), { id: ids.store, type: input.type });
     assert.deepEqual(calls.at(-1).body, input);
   }
-  await client.store.create({ ...store, id: ids.otherStore, type: { type: "test", store_id: ids.store } });
-  assert.deepEqual(calls.at(-1).body.type, { type: "test", store_id: ids.store });
+  const owned = { ...store, type: { type: "live", network_id: ids.network, plan: { type: "grant", plan_id: ids.plan }, owner: { type: "email", email: "owner@clinic.example.test", language: "bs" } } };
+  await client.store.create(owned);
+  assert.deepEqual(calls.at(-1).body.type.owner, { type: "email", email: "owner@clinic.example.test", language: "bs" });
+  await client.store.create({ ...store, id: ids.otherStore, type: { type: "test", live_store_id: ids.store } });
+  assert.deepEqual(calls.at(-1).body.type, { type: "test", live_store_id: ids.store });
   assert.ok(calls.every((call) => call.path === "/v1/stores" && call.method === "POST" && !("mode" in call.body)));
 });
 
@@ -39,25 +42,34 @@ test("network, login and plan changes keep their target and version", async (con
   const network_id = ids.network;
   const id = ids.picked;
   const sender = { from_name: "Network", from_address: "sign-in@network.example.test", sign_in_subject: "Your code", sign_in_body: "Code {{code}}" };
+  const memberNotice = { member_login_changed_subject: "Your sign-in changed", member_login_changed_body: "{{email}} now signs you in" };
+  const emailTexts = {
+    type: "on",
+    texts: [{ language: "bs", code_subject: "Vaš kod", code_body: "Kod {{code}}", invite_subject: "Poziv", invite_body: "Kod {{code}}", login_changed_subject: "Prijava promijenjena", login_changed_body: "{{email}}" }],
+  };
+  const smsTexts = { type: "on", sender_name: "Klinika", texts: [{ language: "bs", code_body: "Kod {{code}}", invite_body: "Poziv {{code}}", login_changed_body: "{{number}}" }] };
   await network.find({ limit: 20, cursor: "next" });
   await network.get({ id: network_id });
-  await network.create({ id: network_id, name: "Network" });
+  await network.create({ id: network_id, name: "Network", type: { type: "isolated" } });
   await network.update({ id: network_id, expected_updated_at: 3, name: "Network" });
+  await network.update({ id: network_id, expected_updated_at: 14, type: { type: "connected" } });
   await network.provider.find({ network_id, limit: 50 });
   await network.provider.get({ network_id, id });
-  await network.provider.connectResend({ network_id, id, api_key: "re_fixture", ...sender, store_addresses: { type: "domain", domain: "shops.network.example.test" } });
+  await network.provider.connectResend({ network_id, id, api_key: "re_fixture", ...sender, ...memberNotice, store_addresses: { type: "domain", domain: "shops.network.example.test" }, customer_texts: emailTexts });
   await network.provider.replaceResendKey({ network_id, id, expected_updated_at: 4, api_key: "re_next" });
   await network.provider.updateResend({ network_id, id, expected_updated_at: 5, ...sender, store_addresses: { type: "off" } });
+  await network.provider.replaceEmailCustomerTexts({ network_id, id, expected_updated_at: 15, customer_texts: { type: "off" } });
   await network.provider.connectStripe({ network_id, id, publishable_key: "pk_test_fixture", secret_key: "rk_test_fixture", webhook_secret: "whsec_fixture" });
   await network.provider.replaceStripeKeys({ network_id, id, expected_updated_at: 6, publishable_key: "pk_test_next", secret_key: "rk_test_next", webhook_secret: "whsec_next" });
-  await network.provider.connectTwilio({ network_id, id, account_sid: `AC${"0".repeat(32)}`, auth_token: "twilio-token" });
+  await network.provider.connectTwilio({ network_id, id, account_sid: `AC${"0".repeat(32)}`, auth_token: "twilio-token", customer_texts: smsTexts });
   await network.provider.replaceTwilioAuthToken({ network_id, id, expected_updated_at: 7, auth_token: "twilio-next" });
+  await network.provider.replaceSmsCustomerTexts({ network_id, id, expected_updated_at: 16, customer_texts: { type: "off" } });
   await network.provider.connectElevenLabs({ network_id, id, api_key: "el_fixture", region: "eu" });
   await network.provider.setUpElevenLabsAgain({ network_id, id, expected_updated_at: 8 });
   await network.provider.setStatus({ network_id, id, expected_updated_at: 9, status: "disabled" });
   await network.provider.delete({ network_id, id, expected_updated_at: 10 });
   await network.plan.find({ network_id, limit: 10, cursor: "plans" });
-  await network.plan.update({ network_id, id: ids.plan, expected_updated_at: 11, price: { type: "monthly", amount: 1000, currency: "eur", months: 1, per: "staff_calendar", trial_days: 14 } });
+  await network.plan.update({ network_id, id: ids.plan, expected_updated_at: 11, access: { type: "public", price: { type: "monthly", amount: 1000, currency: "eur", months: 1, trial: { type: "days", period: 14 } } } });
   await network.plan.delete({ network_id, id: ids.plan, expected_updated_at: 12 });
   await network.delete({ id: network_id, expected_updated_at: 13 });
   const path = `/v1/networks/${network_id}`;
@@ -65,23 +77,26 @@ test("network, login and plan changes keep their target and version", async (con
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
     ["GET", "/v1/networks", { limit: "20", cursor: "next" }, null],
     ["GET", path, {}, null],
-    ["POST", "/v1/networks", {}, { id: network_id, name: "Network" }],
+    ["POST", "/v1/networks", {}, { id: network_id, name: "Network", type: { type: "isolated" } }],
     ["PATCH", path, {}, { expected_updated_at: 3, name: "Network" }],
+    ["PATCH", path, {}, { expected_updated_at: 14, type: { type: "connected" } }],
     ["GET", providers, { limit: "50" }, null],
     ["GET", `${providers}/${id}`, {}, null],
-    ["POST", `${providers}/resend`, {}, { id, api_key: "re_fixture", ...sender, store_addresses: { type: "domain", domain: "shops.network.example.test" } }],
+    ["POST", `${providers}/resend`, {}, { id, api_key: "re_fixture", ...sender, ...memberNotice, store_addresses: { type: "domain", domain: "shops.network.example.test" }, customer_texts: emailTexts }],
     ["PUT", `${providers}/${id}/resend-key`, {}, { expected_updated_at: 4, api_key: "re_next" }],
     ["PUT", `${providers}/${id}/resend`, {}, { expected_updated_at: 5, ...sender, store_addresses: { type: "off" } }],
+    ["PUT", `${providers}/${id}/email-customer-texts`, {}, { expected_updated_at: 15, customer_texts: { type: "off" } }],
     ["POST", `${providers}/stripe`, {}, { id, publishable_key: "pk_test_fixture", secret_key: "rk_test_fixture", webhook_secret: "whsec_fixture" }],
     ["PUT", `${providers}/${id}/stripe-keys`, {}, { expected_updated_at: 6, publishable_key: "pk_test_next", secret_key: "rk_test_next", webhook_secret: "whsec_next" }],
-    ["POST", `${providers}/twilio`, {}, { id, account_sid: `AC${"0".repeat(32)}`, auth_token: "twilio-token" }],
+    ["POST", `${providers}/twilio`, {}, { id, account_sid: `AC${"0".repeat(32)}`, auth_token: "twilio-token", customer_texts: smsTexts }],
     ["PUT", `${providers}/${id}/twilio-auth-token`, {}, { expected_updated_at: 7, auth_token: "twilio-next" }],
+    ["PUT", `${providers}/${id}/sms-customer-texts`, {}, { expected_updated_at: 16, customer_texts: { type: "off" } }],
     ["POST", `${providers}/elevenlabs`, {}, { id, api_key: "el_fixture", region: "eu" }],
     ["POST", `${providers}/${id}/elevenlabs-setup`, {}, { expected_updated_at: 8 }],
     ["PUT", `${providers}/${id}/status`, {}, { expected_updated_at: 9, status: "disabled" }],
     ["DELETE", `${providers}/${id}`, { expected_updated_at: "10" }, null],
     ["GET", `${path}/plans`, { limit: "10", cursor: "plans" }, null],
-    ["PATCH", `${path}/plans/${ids.plan}`, {}, { expected_updated_at: 11, price: { type: "monthly", amount: 1000, currency: "eur", months: 1, per: "staff_calendar", trial_days: 14 } }],
+    ["PATCH", `${path}/plans/${ids.plan}`, {}, { expected_updated_at: 11, access: { type: "public", price: { type: "monthly", amount: 1000, currency: "eur", months: 1, trial: { type: "days", period: 14 } } } }],
     ["DELETE", `${path}/plans/${ids.plan}`, { expected_updated_at: "12" }, null],
     ["DELETE", path, { expected_updated_at: "13" }, null],
   ]);
@@ -89,8 +104,8 @@ test("network, login and plan changes keep their target and version", async (con
   for (const connect of ["connectResend", "connectStripe", "connectTwilio", "connectElevenLabs"]) {
     await assert.rejects(async () => network.provider[connect]({ network_id, id: "login" }), TypeError);
   }
-  await assert.rejects(async () => network.create({ id: "network", name: "Network" }), TypeError);
-  assert.equal(calls.length, 21);
+  await assert.rejects(async () => network.create({ id: "network", name: "Network", type: { type: "isolated" } }), TypeError);
+  assert.equal(calls.length, 24);
 });
 
 test("store children, wipes and subscription actions send only their own inputs", async (context) => {
@@ -123,12 +138,12 @@ test("network sign-in requires the exact network before sending its code request
   const result = { session_id: ids.session, verification_expires_at: 1_900_000_000_000 };
   const calls = recordFetch(context, () => result);
   const auth = createAdmin({ apiUrl }).account.auth;
-  assert.deepEqual(await auth.requestCode({ session_id: ids.session, network_id: ids.network, email: "owner@example.test" }), result);
+  assert.deepEqual(await auth.requestCode({ session_id: ids.session, network_id: ids.network, email: "owner@example.test", language: "bs" }), result);
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
-    ["POST", "/v1/auth/code", { session_id: ids.session, network_id: ids.network, email: "owner@example.test" }],
+    ["POST", "/v1/auth/code", { session_id: ids.session, email: "owner@example.test", network_id: ids.network, language: "bs" }],
   ]);
   for (const network_id of [undefined, "", "network", ids.network.toUpperCase()]) {
-    await assert.rejects(auth.requestCode({ session_id: ids.session, network_id, email: "owner@example.test" }), TypeError);
+    await assert.rejects(auth.requestCode({ session_id: ids.session, network_id, email: "owner@example.test", language: "bs" }), TypeError);
   }
   assert.equal(calls.length, 1);
 });
@@ -152,7 +167,7 @@ test("billing and network email webhook inspection retains the network and its l
 });
 
 test("a network's stores page by the network with the opaque continuation", async (context) => {
-  const store = { id: ids.store, name: "Shop", timezone: "Europe/Sarajevo", languages: ["en"], type: { type: "live", account_id: ids.account, network_id: ids.network }, status: { type: "active" }, email_sending: { type: "allowed" }, created_at: 2, updated_at: 2 };
+  const store = { id: ids.store, name: "Shop", timezone: "Europe/Sarajevo", languages: ["en"], type: { type: "live", account_id: ids.account, network_id: ids.network }, status: { type: "active" }, email_sending: { type: "allowed" }, invoicing: { type: "arky" }, created_at: 2, updated_at: 2 };
   const calls = recordFetch(context, (_call, count) => count === 1 ? { items: [store], cursor: "next:+/=" } : { items: [], cursor: null });
   const stores = admin().network.store;
   const first = await stores.find({ network_id: ids.network, limit: 1 });
@@ -174,11 +189,11 @@ test("network roles, members and store agreements keep their network, target and
   const network = client.network;
   const network_id = ids.network;
   const id = ids.picked;
-  const permissions = [{ type: "stores", access: "write" }, { type: "support" }];
+  const permissions = [{ type: "stores", access: "write" }, { type: "logins" }];
   await network.role.find({ network_id, limit: 20, cursor: "roles" });
   await network.role.get({ network_id, id });
-  await network.role.create({ network_id, id, key: "support", permissions });
-  await network.role.update({ network_id, id, expected_updated_at: 2, key: "support", permissions: [{ type: "admin" }] });
+  await network.role.create({ network_id, id, key: "desk", permissions });
+  await network.role.update({ network_id, id, expected_updated_at: 2, key: "desk", permissions: [{ type: "admin" }] });
   await network.role.delete({ network_id, id, expected_updated_at: 3 });
   await network.member.find({ network_id, limit: 10, cursor: "members" });
   await network.member.invite({ network_id, id, contact: { email: "team@example.test", language: "bs" }, role_ids: [ids.plan] });
@@ -194,8 +209,8 @@ test("network roles, members and store agreements keep their network, target and
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
     ["GET", `${path}/roles`, { limit: "20", cursor: "roles" }, null],
     ["GET", `${path}/roles/${id}`, {}, null],
-    ["POST", `${path}/roles`, {}, { id, key: "support", permissions }],
-    ["PUT", `${path}/roles/${id}`, {}, { expected_updated_at: 2, key: "support", permissions: [{ type: "admin" }] }],
+    ["POST", `${path}/roles`, {}, { id, key: "desk", permissions }],
+    ["PUT", `${path}/roles/${id}`, {}, { expected_updated_at: 2, key: "desk", permissions: [{ type: "admin" }] }],
     ["DELETE", `${path}/roles/${id}`, { expected_updated_at: "3" }, null],
     ["GET", `${path}/members`, { limit: "10", cursor: "members" }, null],
     ["POST", `${path}/members`, {}, { id, contact: { email: "team@example.test", language: "bs" }, role_ids: [ids.plan] }],
@@ -208,7 +223,7 @@ test("network roles, members and store agreements keep their network, target and
     ["GET", `${path}/stores/${ids.store}/agreement`, {}, null],
     ["GET", `/v1/stores/${ids.store}/agreement`, {}, null],
   ]);
-  await assert.rejects(async () => network.role.create({ network_id, id: "role", key: "support", permissions }), TypeError);
+  await assert.rejects(async () => network.role.create({ network_id, id: "role", key: "desk", permissions }), TypeError);
   await assert.rejects(async () => network.member.invite({ network_id, id: "member", contact: { email: "a@example.test", language: "en" }, role_ids: [] }), TypeError);
   await assert.rejects(async () => network.store.getAgreement({ network_id, store_id: "store" }), TypeError);
   assert.equal(calls.length, 15);
@@ -224,7 +239,7 @@ test("a live store create carries the network's agreement only when it is given"
     market: { key: "ba", currency: "bam", tax_mode: "inclusive" },
     sales_channel: { key: "web" },
     location_address: { country: "BA" },
-    type: { type: "live", network_id: ids.network, plan: { type: "free", plan_id: ids.plan } },
+    type: { type: "live", network_id: ids.network, plan: { type: "free", plan_id: ids.plan }, owner: { type: "caller" } },
   };
   const client = admin();
   await client.store.create({ ...input, agreement: { id: ids.picked, document: "Processing agreement v1" } });
@@ -257,11 +272,13 @@ test("a network's clinic read names its network and clinic and answers the count
     type: { type: "live", account_id: ids.account, network_id: ids.network },
     status: { type: "active" },
     email_sending: { type: "allowed" },
+    invoicing: { type: "outside" },
     created_at: 2,
     updated_at: 2,
     owner_email: "owner@clinic.example.test",
     city: "Sarajevo",
-    counts: { staff_calendars: 3, members: 5, customers: 120 },
+    counts: { members: 5, customers: 120 },
+    default_location: { type: "none" },
   };
   const calls = recordFetch(context, () => clinic);
   const stores = admin().network.store;
@@ -272,4 +289,19 @@ test("a network's clinic read names its network and clinic and answers the count
   await assert.rejects(async () => stores.get({ network_id: ids.network, store_id: "store" }), TypeError);
   await assert.rejects(async () => stores.get({ network_id: "network", store_id: ids.store }), TypeError);
   assert.equal(calls.length, 1);
+});
+
+test("a network names a store's owner by email, and a store names its default branch, each under the version it read", async (context) => {
+  const calls = recordFetch(context, () => ({ id: ids.store }));
+  const api = admin();
+  const branch = "2b4d6f8a-0c1e-4a3b-9d5f-7b9d1f3a5c7e";
+  await api.network.store.nameOwner({ network_id: ids.network, store_id: ids.store, email: "owner@clinic.example.test", language: "bs", expected_updated_at: 5 });
+  await api.store.nameDefaultLocation({ id: ids.store, store_location_id: branch, expected_updated_at: 6 });
+  assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
+    ["PUT", `/v1/networks/${ids.network}/stores/${ids.store}/owner`, {}, { email: "owner@clinic.example.test", language: "bs", expected_updated_at: 5 }],
+    ["PUT", `/v1/stores/${ids.store}/default-location`, {}, { store_location_id: branch, expected_updated_at: 6 }],
+  ]);
+  await assert.rejects(async () => api.network.store.nameOwner({ network_id: ids.network, store_id: "store", email: "owner@clinic.example.test", language: "bs", expected_updated_at: 5 }), TypeError);
+  await assert.rejects(async () => api.store.nameDefaultLocation({ id: ids.store, store_location_id: "branch", expected_updated_at: 6 }), TypeError);
+  assert.equal(calls.length, 2);
 });

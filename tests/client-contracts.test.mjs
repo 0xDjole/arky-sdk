@@ -66,14 +66,14 @@ test("admin code login activates the same pending Account Session and remembers 
   const responses = [{ session_id: pendingSessionId, verification_expires_at: 900 }, issued()];
   const calls = recordFetch(context, () => responses.shift());
   const client = createAdmin({ apiUrl: baseUrl });
-  const pending = await client.account.auth.requestCode({ session_id: pendingSessionId, email: "operator@example.test", network_id: ids.network });
+  const pending = await client.account.auth.requestCode({ session_id: pendingSessionId, email: "operator@example.test", network_id: ids.network, language: "bs" });
   const verified = await client.account.auth.verify({ session_id: pending.session_id, network_id: ids.network, code: "123456" });
   assert.equal(verified.id, sessionId);
   assert.equal("scope" in verified, false);
   assert.deepEqual(client.session, { id: sessionId, email: "operator@example.test" });
   assert.equal(client.isAuthenticated, true);
   assert.deepEqual(calls.map((call) => [call.method, call.href, call.body]), [
-    ["POST", `${baseUrl}/v1/auth/code`, { session_id: pendingSessionId, email: "operator@example.test", network_id: ids.network }],
+    ["POST", `${baseUrl}/v1/auth/code`, { session_id: pendingSessionId, email: "operator@example.test", network_id: ids.network, language: "bs" }],
     ["POST", `${baseUrl}/v1/auth/verify`, { network_id: ids.network, session_id: pendingSessionId, code: "123456" }],
   ]);
 });
@@ -82,16 +82,16 @@ test("platform sign-in sends its own code and verify bodies and keeps the verifi
   const responses = [{ session_id: pendingSessionId, verification_expires_at: 900 }, issued()];
   const calls = recordFetch(context, () => responses.shift());
   const client = createAdmin({ apiUrl: baseUrl });
-  const pending = await client.account.auth.requestPlatformCode({ session_id: pendingSessionId, email: "platform@example.test" });
+  const pending = await client.account.auth.requestPlatformCode({ session_id: pendingSessionId, email: "platform@example.test", language: "en" });
   const verified = await client.account.auth.verifyPlatform({ session_id: pending.session_id, code: "123456" });
   assert.equal(verified.id, sessionId);
   assert.deepEqual(client.session, { id: sessionId, email: "platform@example.test" });
   assert.equal(client.isAuthenticated, true);
   assert.deepEqual(calls.map((call) => [call.method, call.href, call.body]), [
-    ["POST", `${baseUrl}/v1/platform/auth/code`, { session_id: pendingSessionId, email: "platform@example.test" }],
+    ["POST", `${baseUrl}/v1/platform/auth/code`, { session_id: pendingSessionId, email: "platform@example.test", language: "en" }],
     ["POST", `${baseUrl}/v1/platform/auth/verify`, { session_id: pendingSessionId, code: "123456" }],
   ]);
-  await assert.rejects(async () => client.account.auth.requestPlatformCode({ session_id: "pending", email: "platform@example.test" }), TypeError);
+  await assert.rejects(async () => client.account.auth.requestPlatformCode({ session_id: "pending", email: "platform@example.test", language: "en" }), TypeError);
   assert.equal(calls.length, 2);
 });
 
@@ -141,7 +141,7 @@ test("request errors keep the server response and read its snake_case status and
   let errorContext;
   recordFetch(context, () => jsonResponse(response, 400));
   await assert.rejects(
-    admin().account.auth.requestCode({ session_id: pendingSessionId, email: "invalid", network_id: ids.network }, { onError: (failure) => { errorContext = failure; } }),
+    admin().account.auth.requestCode({ session_id: pendingSessionId, email: "invalid", network_id: ids.network, language: "en" }, { onError: (failure) => { errorContext = failure; } }),
     (error) => {
       assert.equal(error.name, "ApiError");
       assert.equal(error.message, response.message);
@@ -165,7 +165,7 @@ test("a field error keeps the Server's own text and the SDK invents no code for 
     validation_errors: [{ field: "email", error: "" }],
   };
   recordFetch(context, () => jsonResponse(response, 400));
-  await assert.rejects(admin().account.auth.requestCode({ session_id: pendingSessionId, email: "invalid", network_id: ids.network }), (error) => {
+  await assert.rejects(admin().account.auth.requestCode({ session_id: pendingSessionId, email: "invalid", network_id: ids.network, language: "en" }), (error) => {
     assert.deepEqual(error.validationErrors, [{ field: "email", error: "" }]);
     assert.equal(JSON.stringify(error.validationErrors).includes("GENERAL."), false);
     return true;
@@ -213,11 +213,11 @@ test("a camelCase error body is not the Server's shape: its field errors are not
 });
 
 test("Store create carries the app-picked id, its languages, first market and channel; update carries the version", async (context) => {
-  const store = { id: storeId, name: "Client Contract", timezone: "Europe/Sarajevo", languages: ["en", "bs"], type: { type: "live", account_id: ids.account, network_id: ids.network }, status: { type: "active" }, email_sending: { type: "allowed" }, created_at: 1, updated_at: 1 };
+  const store = { id: storeId, name: "Client Contract", timezone: "Europe/Sarajevo", languages: ["en", "bs"], type: { type: "live", account_id: ids.account, network_id: ids.network }, status: { type: "active" }, email_sending: { type: "allowed" }, invoicing: { type: "none" }, created_at: 1, updated_at: 1 };
   const calls = recordFetch(context, () => store);
   const create = {
     id: storeId,
-    type: { type: "live", network_id: ids.network, plan: { type: "free", plan_id: ids.plan } },
+    type: { type: "live", network_id: ids.network, plan: { type: "free", plan_id: ids.plan }, owner: { type: "email", email: "owner@example.test", language: "bs" } },
     name: "Client Contract",
     timezone: "Europe/Sarajevo",
     languages: ["en", "bs"],
@@ -435,7 +435,7 @@ test("storefront money helpers preserve exact zero, need an explicit locale and 
 test("SDK_VERSION equals the package version", async () => {
   const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
   assert.equal(SDK_VERSION, packageJson.version);
-  assert.equal(SDK_VERSION, "0.26.118");
+  assert.equal(SDK_VERSION, "0.26.135");
 });
 
 test("recursive storefront declarations never degrade to any", async () => {

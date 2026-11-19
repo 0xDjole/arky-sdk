@@ -1,5 +1,5 @@
 import { createAdmin } from '../../dist/index.js';
-import type { AlertRecipient, CheckResendSetupParams, ConnectResendStoreProviderParams, CreateEmailAddressParams, CreateEmailLayoutParams, CreateTemplateParams, Email, EmailAddress, EmailAddressReadiness, EmailCapabilityReadiness, EmailReadinessReason, EmailContent, EmailLayout, EmailLayoutContent, EmailPreview, EmailPreviewSummary, EmailTemplateTypeName, EpochMilliseconds, FindOutgoingMessagesParams, FindTemplatesParams, IncomingWebhook, Notification, NotificationType, OutgoingMessage, OutgoingMessageSummary, PaginatedResponse, ProviderLogin, ProviderLoginInput, ReplaceResendKeyParams, ResendDnsRecord, ResendDomain, ResendDomainStatus, ResendSetup, ResendSetupProblem, SendEmailTemplateTestParams, SmsTemplateTypeName, StoreProvider, Template, TemplateDefault, TemplateType, UpdateEmailLayoutParams, UpdateTemplateParams } from '../../dist/index.js';
+import type { AlertCollections, AlertRecipient, Days, Duration, NotificationServices, CheckResendSetupParams, ConnectResendStoreProviderParams, CreateEmailAddressParams, CreateEmailLayoutParams, CreateTemplateParams, Email, EmailAddress, EmailAddressReadiness, EmailCapabilityReadiness, EmailReadinessReason, EmailContent, EmailLayout, EmailLayoutContent, EmailPreview, EmailPreviewSummary, EmailTemplateTypeName, EpochMilliseconds, FindOutgoingMessagesParams, FindTemplatesParams, IncomingWebhook, Notification, NotificationType, NotificationTypeName, OutgoingMessage, OutgoingMessageSummary, PaginatedResponse, ProviderLogin, ProviderLoginInput, ReplaceResendKeyParams, ResendDnsRecord, ResendDomain, ResendDomainStatus, ResendSetup, ResendSetupProblem, SendEmailTemplateTestParams, SmsTemplateTypeName, StoreProvider, Template, TemplateDefault, TemplateType, UpdateEmailLayoutParams, UpdateTemplateParams } from '../../dist/index.js';
 type Assert<T extends true> = T;
 type Equal<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
@@ -7,6 +7,12 @@ type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
 type OptionalField<T, K extends keyof T> = {} extends Pick<T, K> ? true : false;
 type EmailTemplateType = Extract<TemplateType, { type: 'email' }>;
 type SmsTemplateType = Extract<TemplateType, { type: 'sms' }>;
+type InvoiceAndFiscalAlert =
+  | 'invoice_counter_held_alert' | 'outside_invoice_waiting_alert' | 'invoice_issue_blocked_alert' | 'fiscal_receipt_refused_alert'
+  | 'fiscal_receipt_unknown_alert' | 'fiscal_receipt_deadline_alert' | 'fiscal_refund_needs_allocation_alert' | 'fiscal_advance_open_alert'
+  | 'fiscal_credit_after_receipt_alert' | 'fiscal_refund_returned_alert' | 'fiscal_dispute_lost_alert' | 'fiscal_device_not_ready_alert'
+  | 'fiscal_device_daily_report_missed_alert' | 'fiscal_certificate_expiring_alert';
+type PlainAlert<T> = T extends string ? { type: T; email: Email; recipients: AlertRecipient[] } : never;
 const store_id = '5f0e7d93-2b46-4c18-9a7d-e1c3b5f82a06';
 const layout_id = '7c9e1b3d-5f2a-4c8e-a0b2-4d6f8a0c2e4b';
 const address_id = '4b6d8f0a-2e3a-4b7d-9f1c-3e5a7b9d1f2a';
@@ -18,6 +24,8 @@ const tested: Promise<OutgoingMessage> = client.notification.template.test({ sto
 const selection: Email = { email_template_id: create.id, email_address_id: address_id, from_name: 'Shop', reply_to_address_id: address_id };
 const recipients: AlertRecipient[] = [{ type: 'email', email: 'owner@example.test', language: 'en' }, { type: 'store_role', store_role_id: '5b7e2c94-1d38-4f60-a9e5-3c8d0f2b6a17', language: 'bs' }];
 const alert: NotificationType = { type: 'order_alert', email: selection, recipients };
+const fiscalAlert: NotificationType = { type: 'fiscal_receipt_refused_alert', email: selection, recipients };
+const fiscalAlertTemplates: Promise<PaginatedResponse<Template>> = client.notification.template.find({ store_id, type: 'email', purpose: 'fiscal_device_not_ready_alert' });
 const layout: CreateEmailLayoutParams = { store_id, id: layout_id, key: 'plain', name: 'Plain', content: { en: { html: '{{{body}}}', text: '{{body}}' } } };
 const connection: ConnectResendStoreProviderParams = { store_id, id: '6d8f0a2c-4e5b-4d9f-b1e3-5a7c9e1b3d4f', api_key: 're_key', webhook_secret: 'whsec_secret' };
 const setup: Promise<ResendSetup> = client.store.provider.checkResendSetup({ store_id, id: connection.id });
@@ -29,7 +37,7 @@ const ready: Promise<EmailAddressReadiness> = client.notification.emailAddress.g
 const inbox: Promise<PaginatedResponse<IncomingWebhook>> = client.notification.resendEvent.find({ store_id, store_provider_id: connection.id, status: 'review' });
 const layouts: Promise<PaginatedResponse<EmailLayout>> = client.notification.layout.find({ store_id, limit: 20 });
 const notifications: Promise<PaginatedResponse<Notification>> = client.notification.notification.find({ store_id, type: 'order_alert' });
-void [create, sms, tested, selection, recipients, alert, layout, connection, setup, receiptResends, address, networkAddress, sent, ready, inbox, layouts, notifications];
+void [create, sms, tested, selection, recipients, alert, fiscalAlert, fiscalAlertTemplates, layout, connection, setup, receiptResends, address, networkAddress, sent, ready, inbox, layouts, notifications];
 export type EmailTemplateContracts = [
   Assert<Equal<keyof Template, 'id' | 'store_id' | 'key' | 'name' | 'type' | 'created_at' | 'updated_at'>>,
   Assert<Equal<Template['type'], TemplateType>>,
@@ -39,14 +47,15 @@ export type EmailTemplateContracts = [
   Assert<Equal<SmsTemplateType['purpose']['type'], SmsTemplateTypeName>>,
   Assert<Equal<SmsTemplateType['content'], Record<string, string>>>,
   Assert<Equal<EmailTemplateTypeName,
-    | 'customer_sign_in' | 'customer_invite' | 'store_admin_sign_in' | 'customer_email_verification' | 'email_changed' | 'order_received' | 'first_order_placed'
+    | 'customer_sign_in' | 'customer_invite' | 'store_admin_sign_in' | 'customer_email_verification' | 'login_changed' | 'order_received' | 'first_order_placed'
     | 'order_dispatched' | 'order_delivered' | 'order_ready_for_pickup' | 'order_cancelled' | 'order_refunded' | 'booking_confirmed'
     | 'booking_reminder' | 'booking_cancelled' | 'booking_recall' | 'offer_sent' | 'offer_revised' | 'offer_reminder' | 'company_invite' | 'company_access_notice'
     | 'store_admin_invite' | 'return_requested' | 'return_approved' | 'return_declined' | 'renewal_upcoming' | 'renewal_payment_failed'
     | 'membership_cancelled' | 'form_received' | 'form_stage_changed' | 'form_submission_alert' | 'order_alert' | 'return_alert'
     | 'conversation_message_alert' | 'conversation_message_notice' | 'support_message' | 'broadcast'
-    | 'after_visit' | 'result_shared' | 'booking_cancelled_alert' | 'booking_moved_alert' | 'entry_added_alert' | 'daily_overview_alert'>>,
-  Assert<Equal<SmsTemplateTypeName, 'customer_sign_in' | 'customer_invite' | 'booking_confirmed' | 'booking_reminder' | 'booking_cancelled' | 'booking_recall' | 'conversation_message_notice' | 'broadcast' | 'after_visit' | 'result_shared'>>,
+    | 'after_visit' | 'result_shared' | 'booking_cancelled_alert' | 'booking_moved_alert' | 'entry_added_alert' | 'daily_overview_alert'
+    | InvoiceAndFiscalAlert>>,
+  Assert<Equal<SmsTemplateTypeName, 'customer_sign_in' | 'customer_invite' | 'login_changed' | 'booking_confirmed' | 'booking_reminder' | 'booking_cancelled' | 'booking_recall' | 'conversation_message_notice' | 'broadcast' | 'after_visit' | 'result_shared'>>,
   Assert<Equal<EmailTemplateType['content'], Record<string, EmailContent>>>,
   Assert<Equal<keyof EmailContent, 'subject' | 'preheader' | 'html' | 'text'>>,
   Assert<Equal<keyof TemplateDefault, 'key' | 'name' | 'type' | 'allowed_fields' | 'list_fields'>>,
@@ -54,9 +63,9 @@ export type EmailTemplateContracts = [
   Assert<Equal<TemplateDefault['list_fields'], string[]>>,
   Assert<Missing<UpdateTemplateParams, 'type'>>,
   Assert<OptionalField<UpdateTemplateParams, 'content'>>,
-  Assert<Missing<FindTemplatesParams, 'email_type' | 'type'>>,
-  Assert<{ store_id: string; kind: 'sms'; purpose: 'booking_reminder' } extends FindTemplatesParams ? true : false>,
-  Assert<{ store_id: string; kind: 'sms'; purpose: 'order_alert' } extends FindTemplatesParams ? false : true>,
+  Assert<Missing<FindTemplatesParams, 'email_type' | 'kind'>>,
+  Assert<{ store_id: string; type: 'sms'; purpose: 'booking_reminder' } extends FindTemplatesParams ? true : false>,
+  Assert<{ store_id: string; type: 'sms'; purpose: 'order_alert' } extends FindTemplatesParams ? false : true>,
   Assert<{ store_id: string; purpose: 'order_alert' } extends FindTemplatesParams ? false : true>,
   Assert<RequiredField<SendEmailTemplateTestParams, 'email_address_id'>>,
   Assert<RequiredField<SendEmailTemplateTestParams, 'from_name'>>,
@@ -64,10 +73,26 @@ export type EmailTemplateContracts = [
   Assert<Equal<keyof Email, 'email_template_id' | 'email_address_id' | 'from_name' | 'reply_to_address_id'>>,
   Assert<Equal<AlertRecipient, { type: 'store_role'; store_role_id: string; language: string } | { type: 'email'; email: string; language: string }>>,
   Assert<Equal<Extract<NotificationType, { type: 'order_alert' }>, { type: 'order_alert'; email: Email; recipients: AlertRecipient[] }>>,
-  Assert<Equal<Extract<NotificationType, { type: 'customer_sign_in' }>, { type: 'customer_sign_in'; email: Email }>>,
+  Assert<Equal<Extract<NotificationType, { type: 'customer_sign_in_email' }>, { type: 'customer_sign_in_email'; email: Email }>>,
+  Assert<Equal<Extract<NotificationTypeName, 'customer_sign_in' | 'email_changed' | 'email_changed_sms'>, never>>,
   Assert<Equal<Extract<NotificationType, { type: 'customer_sign_in_sms' }>, { type: 'customer_sign_in_sms'; sms_template_id: string }>>,
   Assert<Equal<Extract<NotificationType, { type: 'customer_invite_email' }>, { type: 'customer_invite_email'; email: Email }>>,
   Assert<Equal<Extract<NotificationType, { type: 'customer_invite_sms' }>, { type: 'customer_invite_sms'; sms_template_id: string }>>,
+  Assert<Equal<Extract<NotificationType, { type: 'login_changed_email' }>, { type: 'login_changed_email'; email: Email }>>,
+  Assert<Equal<Extract<NotificationType, { type: 'login_changed_sms' }>, { type: 'login_changed_sms'; sms_template_id: string }>>,
+  Assert<Equal<Extract<NotificationType, { type: 'booking_reminder_email' }>, { type: 'booking_reminder_email'; email: Email; before: Duration; services: NotificationServices }>>,
+  Assert<Equal<Extract<NotificationType, { type: 'booking_recall_sms' }>, { type: 'booking_recall_sms'; sms_template_id: string; after_visit: Days; services: NotificationServices }>>,
+  Assert<Equal<Extract<NotificationType, { type: 'after_visit_email' }>['after'], Duration>>,
+  Assert<Equal<Extract<NotificationType, { type: 'offer_reminder' }>['after'], Days>>,
+  Assert<Equal<Extract<NotificationType, { type: 'daily_overview_alert' }>['at'], Duration>>,
+  Assert<Equal<NotificationServices, { type: 'all' } | { type: 'ids'; booking_service_ids: string[] }>>,
+  Assert<Equal<AlertCollections, { type: 'all' } | { type: 'ids'; collection_ids: string[] }>>,
+  Assert<Equal<NotificationType['type'], NotificationTypeName>>,
+  Assert<Equal<Extract<NotificationType, { type: InvoiceAndFiscalAlert }>, PlainAlert<InvoiceAndFiscalAlert>>>,
+  Assert<Equal<keyof Extract<NotificationType, { type: 'fiscal_device_not_ready_alert' }>, 'type' | 'email' | 'recipients'>>,
+  Assert<Equal<Extract<NotificationTypeName, InvoiceAndFiscalAlert>, InvoiceAndFiscalAlert>>,
+  Assert<Equal<Extract<SmsTemplateTypeName, InvoiceAndFiscalAlert>, never>>,
+  Assert<{ store_id: string; type: 'sms'; purpose: 'fiscal_receipt_refused_alert' } extends FindTemplatesParams ? false : true>,
   Assert<Equal<Extract<NotificationType, { type: 'conversation_message_alert' }>['recipients'], AlertRecipient[]>>,
   Assert<Equal<Extract<NotificationType, { type: 'booking_confirmed_sms' }>, { type: 'booking_confirmed_sms'; sms_template_id: string }>>,
   Assert<Missing<Notification, 'creation_templates' | 'staff_new_order' | 'sign_in_code' | 'sending_address_id'>>,

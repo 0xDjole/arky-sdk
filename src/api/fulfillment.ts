@@ -53,12 +53,8 @@ export const createFulfillmentJobApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.get<FulfillmentJob>(jobPath(params.store_id, params.fulfillment_job_id), options);
     },
 
-    async findItems(params: GetFulfillmentJobParams, options?: RequestOptions): Promise<PaginatedResponse<FulfillmentJobItem>> {
-      const items = await apiConfig.httpClient.get<FulfillmentJobItem[]>(
-        `${jobPath(params.store_id, params.fulfillment_job_id)}/items`,
-        options,
-      );
-      return { items, cursor: null };
+    findItems(params: GetFulfillmentJobParams, options?: RequestOptions): Promise<FulfillmentJobItem[]> {
+      return apiConfig.httpClient.get<FulfillmentJobItem[]>(`${jobPath(params.store_id, params.fulfillment_job_id)}/items`, options);
     },
 
     getUnitSlots(params: GetFulfillmentUnitSlotsParams, options?: RequestOptions): Promise<FulfillmentUnitSlots> {
@@ -83,14 +79,13 @@ export const createFulfillmentJobApi = (apiConfig: ApiConfig) => {
     },
 
     recordPickupCash(params: RecordPickupCashParams, options?: RequestOptions): Promise<Payment> {
-      requireId(params.id, "collection");
+      requireId(params.id, "payment");
       return apiConfig.httpClient.post<Payment>(
         `${jobPath(params.store_id, params.fulfillment_job_id)}/cash-collections`,
         {
           id: params.id,
-          payment_id: params.payment_id,
           expected_job_updated_at: params.expected_job_updated_at,
-          expected_payment_updated_at: params.expected_payment_updated_at,
+          fiscal_device_id: params.fiscal_device_id,
           money: params.money,
           reference: params.reference,
         },
@@ -124,7 +119,11 @@ export const createFulfillmentApi = (apiConfig: ApiConfig) => {
     execute(params: ActOnFulfillmentParams, options?: RequestOptions): Promise<Fulfillment> {
       return apiConfig.httpClient.post<Fulfillment>(
         `${fulfillmentPath(params.store_id, params.fulfillment_id)}/execute`,
-        { expected_updated_at: params.expected_updated_at, command: params.command },
+        {
+          expected_updated_at: params.expected_updated_at,
+          command: params.command,
+          fiscal_device_id: params.fiscal_device_id,
+        },
         options,
       );
     },

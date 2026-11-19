@@ -1,6 +1,6 @@
 import { QueryClient, useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type {
-  Account,
+  AccountMe,
   AdminRequestOptions,
   CartQuote,
   Customer,
@@ -13,7 +13,7 @@ import type {
   StorefrontSetup,
 } from "arky-sdk";
 import type { AdminClient } from "arky-sdk/admin";
-import type { StorefrontClient } from "arky-sdk/storefront";
+import type { NetworkCustomerClient, StorefrontClient } from "arky-sdk/storefront";
 import { ARKY_METHOD_TYPES, ARKY_METHODS_WITHOUT_PARAMS, createArkyReact } from "arky-sdk/react";
 import type { ArkyHooks, ArkyKeyRequest, ArkyMethodType, ArkyParams, ArkyProviderProps } from "arky-sdk/react";
 
@@ -90,11 +90,13 @@ export type ReactHookContracts = [
   Assert<Equal<ArkyMethodType, "read" | "write">>,
   Assert<Equal<PathsWithoutParams<AdminClient>, Extract<ListedWithoutParams, MethodPaths<AdminClient>>>>,
   Assert<Equal<PathsWithoutParams<StorefrontClient>, Extract<ListedWithoutParams, MethodPaths<StorefrontClient>>>>,
-  Assert<Equal<ListedWithoutParams, PathsWithoutParams<AdminClient> | PathsWithoutParams<StorefrontClient>>>,
+  Assert<Equal<PathsWithoutParams<NetworkCustomerClient>, Extract<ListedWithoutParams, MethodPaths<NetworkCustomerClient>>>>,
+  Assert<Equal<PathsWithoutParams<NetworkCustomerClient>, "refresh" | "logout" | "getMe" | "deleteAccount">>,
+  Assert<Equal<ListedWithoutParams, PathsWithoutParams<AdminClient> | PathsWithoutParams<StorefrontClient> | PathsWithoutParams<NetworkCustomerClient>>>,
   Assert<Equal<Used["customers"]["data"], PaginatedResponse<CustomerSearchSnapshot> | undefined>>,
   Assert<Equal<Used["count"]["data"], number | undefined>>,
   Assert<Equal<Used["customer"]["data"], Customer>>,
-  Assert<Equal<Used["me"]["data"], Account | undefined>>,
+  Assert<Equal<Used["me"]["data"], AccountMe | undefined>>,
   Assert<Equal<Used["stores"]["data"], PaginatedResponse<Store> | undefined>>,
   Assert<Equal<Used["quote"]["data"], CartQuote | undefined>>,
   Assert<Equal<Used["setup"]["data"], StorefrontSetup | undefined>>,

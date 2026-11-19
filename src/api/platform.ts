@@ -6,6 +6,7 @@ import type {
   AddPlatformAccountParams,
   DeletePlatformAccountParams,
   FindPlatformAccountsParams,
+  ListedAccount,
   ResetAccountSecondFactorParams,
 } from "../types/account";
 import type { WebhookEventMetadata } from "../types/webhook";
@@ -13,61 +14,60 @@ import type {
   FindStripeBillingEventsParams,
   FindResendEventsParams,
   ResolveResendEventParams,
-  IncomingWebhook,
+  NetworkResendIncomingWebhook,
+  StripeBillingIncomingWebhook,
   ResolveStripeBillingEventParams,
 } from "../types/payment";
 import { requireId } from "../utils/ids";
 import { segment } from "./paths";
 
 export const createPlatformApi = (apiConfig: ApiConfig) => ({
-  async findCurrencies(options?: RequestOptions): Promise<PaginatedResponse<string>> {
-    const items = await apiConfig.httpClient.get<string[]>("/v1/platform/currencies", options);
-    return { items, cursor: null };
+  findCurrencies(options?: RequestOptions): Promise<string[]> {
+    return apiConfig.httpClient.get<string[]>("/v1/platform/currencies", options);
   },
 
-  async findWebhookEvents(options?: RequestOptions): Promise<PaginatedResponse<WebhookEventMetadata>> {
-    const items = await apiConfig.httpClient.get<WebhookEventMetadata[]>("/v1/platform/events", options);
-    return { items, cursor: null };
+  findWebhookEvents(options?: RequestOptions): Promise<WebhookEventMetadata[]> {
+    return apiConfig.httpClient.get<WebhookEventMetadata[]>("/v1/platform/events", options);
   },
 
   account: {
-    find(params: FindPlatformAccountsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<Account>> {
-      return apiConfig.httpClient.get<PaginatedResponse<Account>>("/v1/accounts", {
+    find(params: FindPlatformAccountsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<ListedAccount>> {
+      return apiConfig.httpClient.get<PaginatedResponse<ListedAccount>>("/v1/accounts", {
         ...options, params: { ...params, access: "platform" },
       });
     },
     getMe(options?: RequestOptions): Promise<Account> {
       return apiConfig.httpClient.get<Account>("/v1/accounts/me/platform-admin", options);
     },
-    add(params: AddPlatformAccountParams, options?: RequestOptions): Promise<Account> {
-      return apiConfig.httpClient.post<Account>(
+    add(params: AddPlatformAccountParams, options?: RequestOptions): Promise<ListedAccount> {
+      return apiConfig.httpClient.post<ListedAccount>(
         "/v1/accounts",
-        { id: requireId(params.id, "account"), email: params.email },
+        { id: requireId(params.id, "account"), email: params.email, language: params.language },
         options,
       );
     },
-    resetSecondFactor(params: ResetAccountSecondFactorParams, options?: RequestOptions): Promise<Account> {
-      return apiConfig.httpClient.post<Account>(
+    resetSecondFactor(params: ResetAccountSecondFactorParams, options?: RequestOptions): Promise<ListedAccount> {
+      return apiConfig.httpClient.post<ListedAccount>(
         `/v1/accounts/${segment(requireId(params.account_id, "account"))}/second-factor/reset`,
         undefined,
         options,
       );
     },
-    delete(params: DeletePlatformAccountParams, options?: RequestOptions): Promise<Account> {
-      return apiConfig.httpClient.delete<Account>(`/v1/accounts/${segment(requireId(params.account_id, "account"))}`, options);
+    delete(params: DeletePlatformAccountParams, options?: RequestOptions): Promise<ListedAccount> {
+      return apiConfig.httpClient.delete<ListedAccount>(`/v1/accounts/${segment(requireId(params.account_id, "account"))}`, options);
     },
   },
 
   stripeBillingEvent: {
-    find(params: FindStripeBillingEventsParams, options?: RequestOptions): Promise<PaginatedResponse<IncomingWebhook>> {
-      return apiConfig.httpClient.get<PaginatedResponse<IncomingWebhook>>(
+    find(params: FindStripeBillingEventsParams, options?: RequestOptions): Promise<PaginatedResponse<StripeBillingIncomingWebhook>> {
+      return apiConfig.httpClient.get<PaginatedResponse<StripeBillingIncomingWebhook>>(
         "/v1/platform/incoming-webhooks/stripe-billing",
         { ...options, params },
       );
     },
 
-    resolve(params: ResolveStripeBillingEventParams, options?: RequestOptions): Promise<IncomingWebhook> {
-      return apiConfig.httpClient.post<IncomingWebhook>(
+    resolve(params: ResolveStripeBillingEventParams, options?: RequestOptions): Promise<StripeBillingIncomingWebhook> {
+      return apiConfig.httpClient.post<StripeBillingIncomingWebhook>(
         `/v1/platform/incoming-webhooks/stripe-billing/${segment(params.id)}/resolve`,
         {
           network_id: params.network_id,
@@ -80,11 +80,11 @@ export const createPlatformApi = (apiConfig: ApiConfig) => ({
     },
   },
   resendEvent: {
-    find(params: FindResendEventsParams, options?: RequestOptions): Promise<PaginatedResponse<IncomingWebhook>> {
-      return apiConfig.httpClient.get<PaginatedResponse<IncomingWebhook>>("/v1/platform/incoming-webhooks/resend", { ...options, params });
+    find(params: FindResendEventsParams, options?: RequestOptions): Promise<PaginatedResponse<NetworkResendIncomingWebhook>> {
+      return apiConfig.httpClient.get<PaginatedResponse<NetworkResendIncomingWebhook>>("/v1/platform/incoming-webhooks/resend", { ...options, params });
     },
-    resolve(params: ResolveResendEventParams, options?: RequestOptions): Promise<IncomingWebhook> {
-      return apiConfig.httpClient.post<IncomingWebhook>(`/v1/platform/incoming-webhooks/resend/${segment(params.id)}/resolve`, {
+    resolve(params: ResolveResendEventParams, options?: RequestOptions): Promise<NetworkResendIncomingWebhook> {
+      return apiConfig.httpClient.post<NetworkResendIncomingWebhook>(`/v1/platform/incoming-webhooks/resend/${segment(params.id)}/resolve`, {
         network_id: params.network_id,
         network_provider_id: params.network_provider_id,
         expected_updated_at: params.expected_updated_at,

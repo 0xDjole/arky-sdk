@@ -54,29 +54,44 @@ test("paginate reads every page once and refuses cursors that don't advance", as
   assert.deepEqual(first, [1, 2]);
 });
 
+test("a short or empty page that still has a cursor is not the end: paging goes on until the cursor is null", async (context) => {
+  const pages = [page([], "rows-50"), page([], "rows-100"), page([placedOrder({ id: ids.order })], "rows-150"), page([], null)];
+  const calls = recordFetch(context, (call) => pages[Number(call.query.cursor?.split("-")[1] ?? 0) / 50]);
+  const orderApi = storefront().eshop.order;
+  const read = (cursor) => orderApi.find({ updated_at_from: 1_700_000_000_000, limit: 10, ...(cursor ? { cursor } : {}) });
+  const orders = await readAllPages(read);
+  assert.deepEqual(orders.map((order) => order.id), [ids.order]);
+  assert.deepEqual(calls.map((call) => call.query.cursor ?? null), [null, "rows-50", "rows-100", "rows-150"]);
+  assert.ok(calls.every((call) => call.path === "/v1/storefront/orders" && call.query.updated_at_from === "1700000000000"));
+});
+
 function payment(type, status, overrides = {}) {
   const base = {
     id: ids.payment,
     store_id: ids.store,
     order_id: ids.order,
+    invoice_id: ids.cart,
     payment_option_id: ids.paymentOption,
+    payment_option_key: "desk",
     money: { amount: 1000, currency: "eur" },
     holds: [],
     status,
-    status_revision: "1",
     created_at: 1,
     updated_at: 1,
   };
-  const recorded = { status: status === "cancelled" ? "cancelled" : "open", collections: [], refunds: [] };
   const types = {
     stripe_checkout: { type: "stripe_checkout", return_url: "https://shop.example.test", expires_at: 1, status: { type: status }, refunds: [], disputes: [] },
-    cash_on_delivery: { type: "cash_on_delivery", ...recorded },
-    manual: { type: "manual", requested: { type: "at_checkout" }, reference: null, ...recorded },
+    recorded: {
+      type: "recorded",
+      method: { type: "cash" },
+      status: status === "voided" ? { type: "voided", at: 3 } : { type: "active" },
+      refunds: [],
+    },
   };
   return { ...base, type: types[type], ...overrides };
 }
 
-test("paymentOutcome maps every payment status to paid, pay later, awaiting, unconfirmed or failed", () => {
+test("paymentOutcome maps every payment status to paid, awaiting, unconfirmed or failed", () => {
   assert.equal(paymentOutcome(payment("stripe_checkout", "paid")), "paid");
   for (const status of ["pending", "open", "requires_action", "closing"]) {
     assert.equal(paymentOutcome(payment("stripe_checkout", status)), "awaiting", status);
@@ -85,15 +100,8 @@ test("paymentOutcome maps every payment status to paid, pay later, awaiting, unc
   for (const status of ["expired", "cancelled", "declined", "failed"]) {
     assert.equal(paymentOutcome(payment("stripe_checkout", status)), "failed", status);
   }
-  assert.equal(paymentOutcome(payment("cash_on_delivery", "open")), "pay_later");
-  assert.equal(paymentOutcome(payment("manual", "open")), "pay_later");
-  assert.equal(paymentOutcome(payment("cash_on_delivery", "cancelled")), "failed");
-  const collected = payment("cash_on_delivery", "open");
-  const active = { id: ids.credit, money: { amount: 1000, currency: "eur" }, recorded_by: { type: "account", account_id: ids.account }, reference: null, recorded_at: 2, status: { type: "active" } };
-  collected.type.collections = [active];
-  assert.equal(paymentOutcome(collected), "paid");
-  collected.type.collections = [{ ...active, status: { type: "voided", by: { type: "account", account_id: ids.account }, reason: "Wrong", at: 3 } }];
-  assert.equal(paymentOutcome(collected), "pay_later");
+  assert.equal(paymentOutcome(payment("recorded", "paid")), "paid", "money the desk recorded is paid from the start");
+  assert.equal(paymentOutcome(payment("recorded", "voided")), "failed");
   const older = payment("stripe_checkout", "failed", { id: ids.otherOrder, created_at: 1 });
   const newer = payment("stripe_checkout", "paid", { created_at: 5 });
   assert.equal(latestPayment([older, newer]).created_at, 5);

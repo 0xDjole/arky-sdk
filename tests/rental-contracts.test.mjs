@@ -100,7 +100,7 @@ test("rental physical work uses fulfillment and job routes with exact unit selec
 });
 
 test("a rental that waits for its terms or never started reads as stored, and staff list rentals by those statuses", async (context) => {
-  const waiting = { id: rentalId, store_id: STORE_ID, package_member_id: ids.packageMember, revision_id: jobId, package_item_id: jobLineId, status: { type: "waiting" }, created_at: 1_700_000_000_000, updated_at: 1_700_000_000_000 };
+  const waiting = { id: rentalId, store_id: STORE_ID, package_member_id: ids.packageMember, package_member_revision_id: jobId, package_item_id: jobLineId, status: { type: "waiting" }, created_at: 1_700_000_000_000, updated_at: 1_700_000_000_000 };
   const withdrawn = { ...waiting, id: fulfillmentId, status: { type: "withdrawn", withdrawn_at: 1_700_000_100_000 }, updated_at: 1_700_000_100_000 };
   const terms = { product_id: ids.product, variant_id: ids.variant, quantity: 1, inventory_item_id: "unit-item", product_key: "milkpal", variant_sku: null };
   const machine = { id: rentalId, package_member_id: ids.packageMember, product_key: "milkpal", product: null, variant_sku: null, quantity: 1, units: [], created_at: 1_700_000_000_000 };
@@ -207,4 +207,24 @@ test("a package change's quote line states which rental continues with the units
   assert.equal(join.rental_change, null);
   assert.equal("rental_change" in join, true);
   assert.deepEqual(calls.map(({ method, path }) => [method, path]), [["POST", `/v1/storefront/carts/${ids.cart}/quote`]]);
+});
+
+test("the store team reads who ended a rental, an account with its reason or Arky with its cause, and finds both with status ending while the buyer reads one ending", async (context) => {
+  const base = { id: rentalId, store_id: STORE_ID, package_member_id: ids.packageMember, package_member_revision_id: jobId, package_item_id: jobLineId, created_at: 1_700_000_000_000, updated_at: 1_700_000_100_000 };
+  const actor = { account_id: ids.account, snapshot: { email: "desk@example.test", credential_type: { type: "session" } } };
+  const byAccount = { ...base, status: { type: "ending_by_account", requested_at: 1_700_000_100_000, actor, reason: "Customer ended the agreement", return_due_at: 1_700_600_000_000 } };
+  const bySystem = { ...base, id: fulfillmentId, status: { type: "ending_by_system", requested_at: 1_700_000_100_000, cause: { type: "member_ended" } } };
+  const buyerEnding = { id: fulfillmentId, package_member_id: ids.packageMember, product_key: "milkpal", product: null, variant_sku: null, quantity: 1, units: [], status: { type: "ending", requested_at: 1_700_000_100_000, return_due_at: null }, created_at: 1_700_000_000_000, updated_at: 1_700_000_100_000 };
+  const calls = recordFetch(context, (call) => call.path.startsWith("/v1/storefront/") ? buyerEnding : { items: [byAccount, bySystem], cursor: null });
+  const page = await eshop().rental.find({ store_id: STORE_ID, status: "ending" });
+  assert.deepEqual(page.items.map(({ status }) => status.type), ["ending_by_account", "ending_by_system"]);
+  assert.deepEqual(page.items[1].status.cause, { type: "member_ended" });
+  assert.equal("return_due_at" in page.items[1].status, false);
+  assert.equal("revision_id" in page.items[0], false);
+  const store = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
+  assert.deepEqual((await store.eshop.rental.get({ id: fulfillmentId })).status, { type: "ending", requested_at: 1_700_000_100_000, return_due_at: null });
+  assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
+    ["GET", `/v1/stores/${STORE_ID}/rentals`, { status: "ending" }],
+    ["GET", `/v1/storefront/rentals/${fulfillmentId}`, {}],
+  ]);
 });

@@ -3,12 +3,13 @@ import type { EpochMilliseconds } from "./time";
 export type { AdminRequestOptions, RequestOptions, StorefrontRequestOptions } from "./httpClient";
 
 export type RequestPendingAccountSessionParams =
-  | { session_id: string; email: string; network_id: string; store_id?: undefined }
+  | { session_id: string; email: string; network_id: string; language: string; store_id?: undefined }
   | { session_id: string; email: string; store_id: string; language: string };
 
 export interface RequestPlatformAccountSessionParams {
   session_id: string;
   email: string;
+  language: string;
 }
 
 export interface VerifyPlatformAccountSessionParams {

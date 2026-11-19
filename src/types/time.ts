@@ -5,3 +5,11 @@ export type EpochMilliseconds = number & {
 };
 
 export type CalendarDate = string;
+
+export type CalendarMonth = string;
+
+export type Duration = number;
+
+export type Days = number;
+
+export type BusinessDays = number;

@@ -18,7 +18,7 @@ import {
   visitorStorage,
 } from "./helpers/arky-fixtures.mjs";
 
-const storageKey = `arky:cart-checkout:v5:${encodeURIComponent(`storefront:${apiUrl}:${storefrontIdentity.storeId}:${storefrontIdentity.salesChannelId}:${ids.customer}`)}`;
+const storageKey = `arky:cart-checkout:v6:${encodeURIComponent(`storefront:${apiUrl}:${storefrontIdentity.storeId}:${storefrontIdentity.salesChannelId}:${ids.customer}`)}`;
 const request = checkoutRequest();
 const originals = new Map(["fetch", "localStorage", "navigator", "window"].map((name) => [name, Object.getOwnPropertyDescriptor(globalThis, name)]));
 
@@ -157,7 +157,9 @@ test("checkout input the app did not decide explicitly fails before persisting o
     { payment: { ...request.payment, payment_option_id: "card" } },
     { payment: { ...request.payment, return_url: "" } },
     { payment: { ...request.payment, save_payment_method: undefined } },
-    { contact_first_name: 5 }, { contact_last_name: { text: "Horvat" } }, { contact_first_name: ["Ana"] },
+    { payment: { ...request.payment, save_payment_method: false } },
+    { payment: { ...request.payment, payment_method_terms: null } },
+    { contact_name: 5 }, { contact_name: { first_name: "Ana" } }, { contact_name: { last_name: "Horvat" } }, { contact_name: { first_name: "", last_name: "Horvat" } }, { contact_first_name: "Ana", contact_last_name: "Horvat" },
   ];
   for (const change of invalid) {
     const { storage } = browser();
@@ -169,8 +171,8 @@ test("checkout input the app did not decide explicitly fails before persisting o
   }
 });
 
-test("contact names are kept and posted exactly as the app gave them, text or null, and left out when it gave none", async () => {
-  for (const names of [{ contact_first_name: "Ana", contact_last_name: "Horvat" }, { contact_first_name: null, contact_last_name: "Horvat" }, { contact_first_name: "Ana" }, {}]) {
+test("complete contact names are kept and posted, null and omission remain explicit", async () => {
+  for (const names of [{ contact_name: { first_name: "Ana", last_name: "Horvat" } }, { contact_name: null }, {}]) {
     const { storage } = browser();
     const calls = capture(success);
     const input = { ...request, ...names };
@@ -178,7 +180,7 @@ test("contact names are kept and posted exactly as the app gave them, text or nu
     assert.deepEqual(retained(storage), input);
     assert.deepEqual(await storefront().eshop.cart.recoverCheckout(), placedAcceptance());
     assert.deepEqual(calls[0].body, input);
-    for (const key of ["contact_first_name", "contact_last_name"]) assert.equal(key in calls[0].body, key in names, key);
+    assert.equal("contact_name" in calls[0].body, "contact_name" in names);
   }
 });
 
@@ -204,7 +206,7 @@ test("every changed checkout field stays blocked after ambiguity without another
     { contact_email: { email: "buyer@example.test", language: "bs" } },
     { payment: { type: "free" } }, { payment: { ...request.payment, payment_option_id: ids.otherPaymentOption } },
     { payment: { ...request.payment, return_url: null } },
-    { contact_first_name: "Ana" }, { contact_last_name: "Horvat" },
+    { contact_name: { first_name: "Ana", last_name: "Horvat" } }, { contact_name: null },
   ]) {
     await assert.rejects(storefront().eshop.cart.retainCheckout({ ...request, ...change }), /still keeps a different unresolved request/);
   }
@@ -320,7 +322,7 @@ test("a placed answer whose order read fails or does not confirm this cart stays
     () => { throw new TypeError("read lost"); },
     () => Response.json(placedOrder({ id: ids.otherOrder })),
     () => Response.json(placedOrder({ source: { type: "cart", cart_id: ids.otherCart, placed_by: { type: "customer", customer_id: ids.customer, customer_session_id: ids.session } } })),
-    () => Response.json(placedOrder({ source: { type: "renewal", order_package_line_item_id: ids.line, recovery: null } })),
+    () => Response.json(placedOrder({ source: { type: "renewal", recovery: null } })),
     () => Response.json(placedOrder({ source: null })),
   ]) {
     const { storage } = browser();
@@ -423,24 +425,27 @@ test("failed terminal storage clear does not notify success and retains recovery
 
 test("saved-method consent survives lost responses and exact recovery", async () => {
   const { storage } = browser();
-  const consentRequest = { ...request, payment: { ...request.payment, save_payment_method: true, payment_method_terms: "Save this card for later package charges." } };
+  const save = { type: "save", terms: "Save this card for later package charges." };
+  const consentRequest = { ...request, payment: { ...request.payment, save_payment_method: save } };
   await loseResponse(consentRequest);
   assert.deepEqual(await storefront().eshop.cart.pendingCheckout(), consentRequest);
   const calls = capture(success);
-  await assert.rejects(storefront().eshop.cart.retainCheckout({ ...consentRequest, payment: { ...consentRequest.payment, payment_method_terms: "Updated exact card wording." } }), /still keeps a different unresolved request/);
+  await assert.rejects(storefront().eshop.cart.retainCheckout({ ...consentRequest, payment: { ...consentRequest.payment, save_payment_method: { type: "save", terms: "Updated exact card wording." } } }), /still keeps a different unresolved request/);
   assert.equal(calls.length, 0);
   assert.deepEqual(await storefront().eshop.cart.recoverCheckout(), placedAcceptance());
-  assert.equal(calls[0].body.payment.save_payment_method, true);
-  assert.equal(calls[0].body.payment.payment_method_terms, "Save this card for later package charges.");
+  assert.deepEqual(calls[0].body.payment.save_payment_method, save);
+  assert.equal("payment_method_terms" in calls[0].body.payment, false);
   assert.equal(storage.getItem(storageKey), null);
 });
 
 test("saving a payment method requires explicit well-formed consent before transport", async () => {
   for (const payment of [
-    { ...request.payment, save_payment_method: "true" },
+    { ...request.payment, save_payment_method: "save" },
     { ...request.payment, save_payment_method: true },
-    { ...request.payment, save_payment_method: true, payment_method_terms: null },
-    ...["", "   ", "a".repeat(40_001), "ž".repeat(20_001)].map((terms) => ({ ...request.payment, save_payment_method: true, payment_method_terms: terms })),
+    { ...request.payment, save_payment_method: { type: "save" } },
+    { ...request.payment, save_payment_method: { type: "save", terms: null } },
+    { ...request.payment, save_payment_method: { type: "dont_save", terms: "Save" } },
+    ...["", "   ", "a".repeat(40_001), "ž".repeat(20_001)].map((terms) => ({ ...request.payment, save_payment_method: { type: "save", terms } })),
   ]) {
     const { storage } = browser();
     const calls = capture(success);

@@ -124,7 +124,12 @@ export type PackageMemberBlockCause =
   | { type: "company_location_not_active" }
   | { type: "purchase_order_number_required" }
   | { type: "item_unavailable"; package_item_id: string }
-  | { type: "no_tax_rule"; tax_category_id: string };
+  | { type: "no_tax_rule"; tax_category_id: string }
+  | { type: "document_item_missing"; package_item_id: string }
+  | { type: "delivery_document_item_missing"; shipping_method_id: string }
+  | { type: "no_fiscal_label"; tax_category_id: string }
+  | { type: "place_of_sale_required" }
+  | { type: "renewal_refused"; code: string };
 
 export type PackageMemberPauseCause =
   | {
@@ -247,21 +252,13 @@ export interface PackageMemberProductChoices {
   alternatives: PackageProductAlternative[];
 }
 
-export type PackageMemberRevisionChange =
-  | { type: "own_terms" }
-  | { type: "package_change" }
-  | { type: "upgrade" }
-  | { type: "amend" }
-  | { type: "minimum" };
-
 export type PackageMemberRevisionOrigin =
   | { type: "initial" }
-  | {
-      type: "change";
-      previous_revision_id: string;
-      change: PackageMemberRevisionChange;
-      reason: string;
-    };
+  | { type: "own_terms"; previous_revision_id: string; reason: string }
+  | { type: "package_change"; previous_revision_id: string; reason: string }
+  | { type: "upgrade"; previous_revision_id: string; reason: string }
+  | { type: "amend"; previous_revision_id: string; reason: string }
+  | { type: "minimum"; previous_revision_id: string; reason: string };
 
 export type PackageMemberSchedule =
   | { type: "never"; effective_at: EpochMilliseconds; timezone: string }
@@ -361,20 +358,13 @@ export interface PackageMemberCurrentSelf {
   head_revision_id: string | null;
 }
 
-export type PackageMemberSelfRevisionChange =
-  | { type: "own_terms" }
-  | { type: "package_change" }
-  | { type: "upgrade" }
-  | { type: "amend" }
-  | { type: "minimum" };
-
 export type PackageMemberSelfRevisionOrigin =
   | { type: "initial" }
-  | {
-      type: "change";
-      previous_revision_id: string;
-      change: PackageMemberSelfRevisionChange;
-    };
+  | { type: "own_terms"; previous_revision_id: string }
+  | { type: "package_change"; previous_revision_id: string }
+  | { type: "upgrade"; previous_revision_id: string }
+  | { type: "amend"; previous_revision_id: string }
+  | { type: "minimum"; previous_revision_id: string };
 
 export type PackageMemberSelfRevisionStatus =
   { type: "accepted" } | { type: "withdrawn"; withdrawn_at: EpochMilliseconds };
@@ -406,6 +396,17 @@ export interface PackageMemberChange {
   package_member: PackageMember;
   created: PackageMemberRevision | null;
   withdrawn: PackageMemberRevision | null;
+}
+
+export type PackageMemberChangeAccess =
+  | { type: "allowed" }
+  | { type: "forbidden" }
+  | { type: "change_scheduled" };
+
+export interface PackageMemberChanges {
+  package_member_id: string;
+  change: PackageMemberChangeAccess;
+  select_payment_method: PackageMemberChangeAccess;
 }
 
 export interface PackageMemberChangeSelf {

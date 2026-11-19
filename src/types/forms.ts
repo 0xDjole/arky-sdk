@@ -41,9 +41,16 @@ export type FormQuestion =
 
 export type FormQuestionType = FormQuestion["type"];
 
+export type FormEmailSetting = { type: "off" } | { type: "send"; email: Email };
+
+export type FormSubmissionAlert =
+  | { type: "off" }
+  | { type: "on"; email: Email; recipients: AlertRecipient[] };
+
 export interface FormStage {
   id: string;
   key: string;
+  changed_email: FormEmailSetting;
 }
 
 export type FormStatus = { type: "active" } | { type: "draft" } | { type: "closed" };
@@ -51,10 +58,8 @@ export type FormStatus = { type: "active" } | { type: "draft" } | { type: "close
 export type FormType = "public" | "private";
 
 export interface FormEmails {
-  received: Email | null;
-  stage_changed: Record<string, Email>;
-  submission_alert: Email | null;
-  alert_recipients: AlertRecipient[];
+  received: FormEmailSetting;
+  submission_alert: FormSubmissionAlert;
 }
 
 export interface Form {

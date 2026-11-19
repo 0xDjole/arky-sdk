@@ -51,7 +51,7 @@ test("staff own-terms review and acceptance retain quantity, each frozen product
           package_item_id: choices[0].package_item_id,
           variant_id: choices[0].variant_id,
           quantity: 1,
-          delivery: { type: "once_per_period", offset_days: 0, window_days: 7 },
+          delivery: { type: "once_per_period", offset: 0, window: 7 },
           allocation_weight: 1,
         },
       ],

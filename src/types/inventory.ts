@@ -66,6 +66,7 @@ export type InventoryQuantity = { type: "on_hand" } | { type: "unavailable" };
 
 export type InventoryMovementReason =
   | { type: "receiving"; actor: AccountActor; reference: string | null }
+  | { type: "written_off"; actor: AccountActor; reason: string }
   | { type: "adjustment"; actor: AccountActor; quantity: InventoryQuantity; note: string }
   | { type: "damage"; actor: AccountActor; quantity: InventoryQuantity; reference: string | null }
   | { type: "dispatched"; fulfillment_id: string }
@@ -99,11 +100,6 @@ export interface InventoryUnitAllocation {
   fulfillment_unit_index: number;
 }
 
-export type InventoryUnitWriteOffSource =
-  | { type: "warehouse"; store_location_id: string }
-  | { type: "rental"; rental_id: string; fulfillment_id: string }
-  | { type: "return_disposition"; return_id: string; store_location_id: string };
-
 export type InventoryUnitStatus =
   | { type: "available"; store_location_id: string }
   | { type: "set_aside"; store_location_id: string }
@@ -113,8 +109,24 @@ export type InventoryUnitStatus =
   | { type: "returning"; rental_id: string; fulfillment_id: string; return_id: string }
   | { type: "inspection"; store_location_id: string; return_id: string; received_at: EpochMilliseconds }
   | {
-      type: "written_off";
-      source: InventoryUnitWriteOffSource;
+      type: "written_off_at_warehouse";
+      store_location_id: string;
+      actor: AccountActor;
+      reason: string;
+      written_off_at: EpochMilliseconds;
+    }
+  | {
+      type: "written_off_on_rental";
+      rental_id: string;
+      fulfillment_id: string;
+      actor: AccountActor;
+      reason: string;
+      written_off_at: EpochMilliseconds;
+    }
+  | {
+      type: "written_off_at_return";
+      return_id: string;
+      store_location_id: string;
       actor: AccountActor;
       reason: string;
       written_off_at: EpochMilliseconds;
@@ -276,7 +288,7 @@ export interface FindInventoryUnitsParams {
   store_location_id?: string;
   rental_id?: string;
   asset_tag?: string;
-  status?: InventoryUnitStatus["type"];
+  status?: "available" | "set_aside" | "allocated" | "issued" | "rented" | "returning" | "inspection" | "written_off";
   sort_field?: "created_at" | "updated_at";
   sort_direction?: SortDirection;
   limit?: number;

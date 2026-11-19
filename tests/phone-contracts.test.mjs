@@ -17,14 +17,14 @@ test("a store's own and its network's Twilio logins carry the SMS sender, and la
   const calls = recordFetch(context, () => login);
   const api = admin().store.provider;
   await api.connectTwilio({ store_id: storeId, id: loginId, account_sid: `AC${"1".repeat(32)}`, auth_token: "twilio-token", sms_sender: sender });
-  await api.connectNetworkTwilio({ store_id: storeId, id: loginId, sms_sender: { type: "number", number: "+38733000000" } });
+  await api.connectNetworkTwilio({ store_id: storeId, id: loginId, sms_sender: { type: "line", phone_number_id: lineId } });
   await api.replaceTwilioAuthToken({ store_id: storeId, id: loginId, expected_updated_at: 2, auth_token: "twilio-next" });
   await api.setSmsSender({ store_id: storeId, id: loginId, expected_updated_at: 3, sms_sender: sender });
   await api.setStatus({ store_id: storeId, id: loginId, expected_updated_at: 4, status: "disabled" });
   const base = `/v1/stores/${storeId}/store-providers`;
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
     ["POST", `${base}/twilio`, { id: loginId, account_sid: `AC${"1".repeat(32)}`, auth_token: "twilio-token", sms_sender: sender }],
-    ["POST", `${base}/network-twilio`, { id: loginId, sms_sender: { type: "number", number: "+38733000000" } }],
+    ["POST", `${base}/network-twilio`, { id: loginId, sms_sender: { type: "line", phone_number_id: lineId } }],
     ["POST", `${base}/twilio/${loginId}/replace-auth-token`, { expected_updated_at: 2, auth_token: "twilio-next" }],
     ["PUT", `${base}/${loginId}/sms-sender`, { expected_updated_at: 3, sms_sender: sender }],
     ["PUT", `${base}/${loginId}/status`, { expected_updated_at: 4, status: "disabled" }],

@@ -1,4 +1,4 @@
-import type { EpochMilliseconds } from "./time";
+import type { Days, EpochMilliseconds } from "./time";
 import type { Block } from "./block";
 import type { EmailContact, PostalAddress, PostalAddressInput, SortDirection } from "./common";
 
@@ -52,7 +52,7 @@ export interface SetCompanyTaxParams {
 
 export type PaymentTerms =
   | { type: "due_on_receipt" }
-  | { type: "net_days"; days: number };
+  | { type: "net"; term: Days };
 
 export type CompanyPaymentPolicy =
   | { type: "standard_checkout"; billing_address: PostalAddress | null }

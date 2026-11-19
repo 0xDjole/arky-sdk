@@ -408,7 +408,7 @@ test("a_403_keeps_the_kept_request", async (context) => {
   const windowDescriptor = Object.getOwnPropertyDescriptor(globalThis, "window");
   installGlobal("window", globalThis);
   context.after(() => (windowDescriptor ? Object.defineProperty(globalThis, "window", windowDescriptor) : delete globalThis.window));
-  const keptKey = `arky:cart-checkout:v5:${encodeURIComponent(`storefront:${apiUrl}:${storefrontIdentity.storeId}:${storefrontIdentity.salesChannelId}:${ids.customer}`)}`;
+  const keptKey = `arky:cart-checkout:v6:${encodeURIComponent(`storefront:${apiUrl}:${storefrontIdentity.storeId}:${storefrontIdentity.salesChannelId}:${ids.customer}`)}`;
   for (const [status, code, keeps] of [
     [403, "GENERAL.FORBIDDEN", true],
     [401, "CART.TOKEN_REFUSED", true],

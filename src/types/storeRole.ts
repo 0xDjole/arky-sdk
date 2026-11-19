@@ -4,14 +4,14 @@ import type { AccountName, AccountSortField } from "./account";
 import type { StoreType } from "./store";
 
 export type LocationReach =
-  | { type: "everywhere" }
-  | { type: "only"; store_location_ids: string[] };
+  | { type: "all" }
+  | { type: "ids"; store_location_ids: string[] };
 
 export type StorePermissionAccess = "read" | "write";
 
-export type CollectionScope = { type: "all" } | { type: "only"; collection_ids: string[] };
+export type CollectionScope = { type: "all" } | { type: "ids"; collection_ids: string[] };
 
-export type FormScope = { type: "all" } | { type: "only"; form_ids: string[] };
+export type FormScope = { type: "all" } | { type: "ids"; form_ids: string[] };
 
 export type CustomerScope =
   | { type: "all" }
@@ -23,13 +23,12 @@ export type CustomerScope =
 
 export type BookingResourceScope =
   | { type: "all" }
-  | { type: "own" }
   | { type: "own_locations" }
-  | { type: "only"; booking_resource_ids: string[] };
+  | { type: "ids"; booking_resource_ids: string[] };
 
-export type BookingServiceScope = { type: "all" } | { type: "only"; booking_service_ids: string[] };
+export type BookingServiceScope = { type: "all" } | { type: "ids"; booking_service_ids: string[] };
 
-export type PhoneNumberScope = { type: "all" } | { type: "only"; phone_number_ids: string[] };
+export type PhoneNumberScope = { type: "all" } | { type: "ids"; phone_number_ids: string[] };
 
 export type StorePermission =
   | { type: "admin" }
@@ -74,8 +73,13 @@ export interface StoreRole {
   updated_at: EpochMilliseconds;
 }
 
+export type WithheldStorePermission =
+  | { type: "second_factor_off"; permission: StorePermission }
+  | { type: "account_token"; permission: StorePermission };
+
 export interface StoreAccess {
   permissions: StorePermission[];
+  withheld: WithheldStorePermission[];
 }
 
 export type StoreMembershipStatus =

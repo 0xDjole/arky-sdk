@@ -228,7 +228,7 @@ test('a refused account token keeps the native snake_case failure without refres
   const admin = createAdmin({ apiUrl: 'https://api.example.test', accountToken: token });
   const payload = {
     id: STORE_ID,
-    type: { type: 'live', network_id: ids.network, plan: { type: 'free', plan_id: ids.plan } },
+    type: { type: 'live', network_id: ids.network, plan: { type: 'free', plan_id: ids.plan }, owner: { type: 'caller' } },
     name: 'Account-authorized Store',
     timezone: 'Europe/Sarajevo',
     languages: ['bs', 'en'],
@@ -407,4 +407,22 @@ test('a browser without Web Locks refuses to refresh the Account session instead
   await assert.rejects(admin.store.find({ limit: 10 }), (error) => error.name === 'ArkyError' && error.code === 'storage');
   assert.deepEqual(calls, ['/v1/stores']);
   assert.equal(storage.getItem('arky_admin_session:https://api.example.test'), retainedAdminSession);
+});
+
+test('getAccessToken answers the account token, the signed-in session access token, and null signed out', async (t) => {
+  const original = globalThis.fetch;
+  t.after(() => { globalThis.fetch = original; });
+  const now = Date.now();
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+    if (path.endsWith('/code')) return Response.json({ session_id: SESSION_ID, verification_expires_at: now + 60000 });
+    return Response.json(issued(now, 1));
+  };
+  const token = 'arky_at_ttttttttttttttttttttttttttttttttttttttttttA';
+  assert.equal(createAdmin({ apiUrl: 'https://api.example.test', accountToken: token }).getAccessToken(), token);
+  const admin = createAdmin({ apiUrl: 'https://api.example.test' });
+  assert.equal(admin.getAccessToken(), null);
+  const pending = await admin.account.auth.requestCode({ session_id: SESSION_ID, email: 'invited@example.test', store_id: STORE_ID, language: 'en' });
+  await admin.account.auth.verify({ session_id: pending.session_id, code: '123456', store_id: STORE_ID });
+  assert.equal(admin.getAccessToken(), 'access-1');
 });

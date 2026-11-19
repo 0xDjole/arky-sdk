@@ -12,7 +12,10 @@ const serviceId = "a3c5e7f9-1b2d-4f68-8a0c-2e4f6a8c0b1d";
 const resourceId = "b4d6f8a0-2c3e-4a79-9b1d-3f5a7b9d1c2e";
 const offeringId = "c5e7a9b1-3d4f-4b8a-8c2e-4a6b8c0e2d3f";
 const taxCategoryId = "d6f8b0c2-4e5a-4c9b-9d3f-5b7c9d1f3e4a";
-const membershipId = "e7a9c1d3-5f6b-4dac-8e4a-6c8d0e2a4f5b";
+const locationId = "e7a9c1d3-5f6b-4dac-8e4a-6c8d0e2a4f5b";
+const addOnId = "f9b1d3e5-7a2c-4b6d-8e0f-1a3c5e7b9d2f";
+const bookedAddOnId = "10000000-0000-4000-8000-000000000055";
+const addOnOfferingId = "0a2c4e6b-8d1f-4a3c-9e5b-7d9f1b3c5e8a";
 const lineId = ids.line;
 const creditId = ids.credit;
 
@@ -24,13 +27,12 @@ function bookingService(overrides = {}) {
     slugs: { en: "consultation" },
     blocks: [],
     categories: [],
-    segments: [{ type: "service", minutes: 60 }],
-    buffer_before_minutes: 0,
-    buffer_after_minutes: 0,
-    slot_interval_minutes: 30,
-    booking_window: { opens_before_start_minutes: 43_200, closes_before_start_minutes: 120 },
+    length: 3_600_000,
+    slot_interval: 1_800_000,
+    booking_window: { opens: { type: "before_start", period: 2_592_000_000 }, closes_before_start: 7_200_000 },
     customer_changes: { type: "not_allowed" },
     tax_category_id: taxCategoryId,
+    document_item: { type: "named", name: "Consultation", unit: "h" },
     status: { type: "active" },
     created_at: 1,
     updated_at: 1,
@@ -48,12 +50,15 @@ function bookingResource(overrides = {}) {
     store_id: storeId,
     key: "room-one",
     slugs: { en: "room-one" },
-    type: { type: "staff", store_membership_id: membershipId },
     blocks: [],
     categories: [],
     timezone: "Europe/Sarajevo",
     capacity: 3,
-    hours: { weekly_availability: { monday: [{ from_minute: 540, to_minute: 1020 }] }, date_overrides: { "2026-08-24": [] } },
+    hours: {
+      weekly_availability: { monday: [{ store_location_id: locationId, from: 32_400_000, to: 61_200_000 }] },
+      date_overrides: { "2026-08-24": [] },
+    },
+    daily_limits: [{ booking_service_id: serviceId, bookings: 8 }],
     status: { type: "active" },
     created_at: 1,
     updated_at: 1,
@@ -62,7 +67,8 @@ function bookingResource(overrides = {}) {
 }
 
 function storefrontResource(overrides = {}) {
-  return bookingResource({ type: { type: "staff" }, ...overrides });
+  const { daily_limits: _dailyLimits, ...resource } = bookingResource();
+  return { ...resource, ...overrides };
 }
 
 function bookingOffering(overrides = {}) {
@@ -70,9 +76,11 @@ function bookingOffering(overrides = {}) {
     id: offeringId,
     store_id: storeId,
     booking_service_id: serviceId,
-    booking_resource_id: resourceId,
-    hours: { type: "resource" },
-    venue: { type: "store_location", store_location_id: "e7a9c1d3-5f6b-4dac-8e4a-6c8d0e2a4f5b" },
+    resources: { type: "ids", booking_resource_ids: [resourceId] },
+    times: [{ from: 0, to: 3_600_000 }],
+    locations: { type: "ids", store_location_ids: [locationId] },
+    hours: { type: "all" },
+    add_ons: [{ id: addOnId, booking_service_id: serviceId, resources: { type: "all" }, from: 3_600_000 }],
     status: { type: "active" },
     created_at: 1,
     updated_at: 1,
@@ -110,13 +118,31 @@ function bookingLine() {
     booking_offering_id: offeringId,
     booking_service_id: serviceId,
     booking_resource_id: resourceId,
+    store_location_id: locationId,
+    customer_id: ids.customer,
     interval: { from: 1_800_000_000_000, to: 1_800_003_600_000 },
+    total_interval: { from: 1_800_000_000_000, to: 1_800_007_200_000 },
     capacity_intervals: [{ from: 1_800_000_000_000, to: 1_800_003_600_000 }],
+    add_ons: [{
+      booked_add_on_id: bookedAddOnId,
+      add_on_id: addOnId,
+      booking_offering_id: addOnOfferingId,
+      booking_service_id: serviceId,
+      booking_resource_id: resourceId,
+      service_key: "consultation",
+      resource_key: "room-one",
+      interval: { from: 1_800_003_600_000, to: 1_800_007_200_000 },
+      capacity_intervals: [{ from: 1_800_003_600_000, to: 1_800_007_200_000 }],
+      price: { type: "listed", price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.otherPrice }, amount: 900 },
+      form_submission_id: null,
+      add_ons: [],
+      status: { type: "held" },
+    }],
     capacity_units: 1,
     form_submission_id: ids.submission,
-    snapshot: { service_key: "consultation", resource_key: "room-one", timezone: "Europe/Sarajevo", price: { type: "listed", package_id: ids.package, package_item_id: "package-item", price_id: ids.price } },
+    snapshot: { service_key: "consultation", resource_key: "room-one", timezone: "Europe/Sarajevo", price: { type: "listed", package_id: ids.package, package_item_id: "package-item", price_id: ids.price }, document_item: { type: "named", name: "Consultation", unit: "h" } },
     status: { type: "confirmed", attendance: { type: "upcoming" } },
-    reschedules: [],
+    changes: [],
     money: { unit_price: 5000, discounts: [], tax: { type: "own", tax_category_id: taxCategoryId, rule_id: ids.variant, treatment: { type: "rates", lines: [] } } },
     created_at: 1,
     updated_at: 2,
@@ -198,26 +224,37 @@ test("Admin booking runtime creates service, resource and offering under app-pic
   const loadedOrder = await admin.eshop.order.get({ store_id: storeId, id: ids.order });
   const line = orderBookingItems(loadedOrder)[0];
   assert.equal(line.id, lineId);
-  await admin.eshop.order.cancelBookingItem({ store_id: storeId, order_id: loadedOrder.id, line_item_id: line.id, credit_id: creditId, expected_updated_at: 2 });
-  await admin.eshop.order.attendBookingItem({ store_id: storeId, order_id: loadedOrder.id, line_item_id: line.id, expected_updated_at: 3 });
-  await admin.eshop.order.markBookingItemNoShow({ store_id: storeId, order_id: loadedOrder.id, line_item_id: line.id, expected_updated_at: 4 });
-  const { id: _updatedId, ...resourceUpdate } = { ...resource, type: { type: "equipment" }, expected_updated_at: 5 };
+  await admin.eshop.order.cancelBookingItem({ store_id: storeId, order_id: loadedOrder.id, order_booking_item_id: line.id, credit_id: creditId, expected_updated_at: 2 });
+  await admin.eshop.order.stepBookingItem({ store_id: storeId, order_id: loadedOrder.id, order_booking_item_id: line.id, expected_updated_at: 3, step: "attended", fiscal_device_id: ids.picked });
+  await admin.eshop.order.stepBookingItem({ store_id: storeId, order_id: loadedOrder.id, order_booking_item_id: line.id, expected_updated_at: 4, step: "no_show", fiscal_device_id: null });
+  const { id: _updatedId, ...resourceUpdate } = { ...resource, capacity: 2, daily_limits: [], expected_updated_at: 5 };
   await admin.eshop.bookingResource.update({ store_id: storeId, id: resourceId, ...resourceUpdate });
 
   for (const removed of ["service", "provider", "booking"]) assert.equal(removed in admin.eshop, false, removed);
-  for (const removed of ["getBookings", "getBookingAppointment", "completeBookingItem"]) assert.equal(removed in admin.eshop.order, false, removed);
+  for (const removed of ["getBookings", "getBookingAppointment", "completeBookingItem", "markBookingItemWaiting", "startBookingItem", "attendBookingItem", "markBookingItemNoShow"]) {
+    assert.equal(removed in admin.eshop.order, false, removed);
+  }
+  assert.equal("getByServiceAndResource" in admin.eshop.bookingOffering, false);
+  assert.equal(line.store_location_id, locationId);
+  assert.deepEqual(line.total_interval, { from: 1_800_000_000_000, to: 1_800_007_200_000 });
+  assert.deepEqual(line.add_ons.map((addOn) => [addOn.booked_add_on_id, addOn.add_on_id, addOn.price.type, addOn.status.type]), [[bookedAddOnId, addOnId, "listed", "held"]]);
   assert.deepEqual(calls.map((call) => [call.url.pathname, call.method, call.body]), [
     [`/v1/stores/${storeId}/booking-services`, "POST", service],
     [`/v1/stores/${storeId}/booking-resources`, "POST", resource],
     [`/v1/stores/${storeId}/booking-offerings`, "POST", offering],
     [`/v1/stores/${storeId}/orders/${ids.order}`, "GET", null],
     [`/v1/stores/${storeId}/orders/${ids.order}/booking-items/${lineId}/cancel`, "POST", { credit_id: creditId, expected_updated_at: 2 }],
-    [`/v1/stores/${storeId}/orders/${ids.order}/booking-items/${lineId}/attend`, "POST", { expected_updated_at: 3 }],
-    [`/v1/stores/${storeId}/orders/${ids.order}/booking-items/${lineId}/no-show`, "POST", { expected_updated_at: 4 }],
+    [`/v1/stores/${storeId}/orders/${ids.order}/booking-items/${lineId}/attend`, "POST", { expected_updated_at: 3, fiscal_device_id: ids.picked }],
+    [`/v1/stores/${storeId}/orders/${ids.order}/booking-items/${lineId}/no-show`, "POST", { expected_updated_at: 4, fiscal_device_id: null }],
     [`/v1/stores/${storeId}/booking-resources/${resourceId}`, "PUT", resourceUpdate],
   ]);
-  assert.deepEqual(calls[1].body.type, { type: "staff", store_membership_id: membershipId });
-  assert.deepEqual(calls[7].body.type, { type: "equipment" });
+  assert.equal("type" in calls[1].body, false);
+  assert.deepEqual(calls[1].body.hours.weekly_availability.monday, [{ store_location_id: locationId, from: 32_400_000, to: 61_200_000 }]);
+  assert.deepEqual(calls[1].body.daily_limits, [{ booking_service_id: serviceId, bookings: 8 }]);
+  assert.deepEqual(calls[7].body.daily_limits, []);
+  assert.equal(calls[0].body.length, 3_600_000);
+  assert.equal(calls[0].body.slot_interval, 1_800_000);
+  for (const removed of ["segments", "buffer_before_minutes", "buffer_after_minutes", "slot_interval_minutes"]) assert.equal(removed in calls[0].body, false, removed);
   for (const [create, record] of [
     [admin.eshop.bookingService.create, service],
     [admin.eshop.bookingResource.create, resource],
@@ -241,7 +278,7 @@ test("storefront booking runtime reads one offering and its resource in the pack
     if (path.endsWith("/booking-services/availability")) {
       return jsonResponse({
         from: 1_800_000_000_000, to: 1_800_086_400_000, cursor: null,
-        booking_resources: [{ booking_offering_id: offeringId, booking_resource_id: resourceId, resource_key: "room-one", timezone: "Europe/Sarajevo", days: [] }],
+        booking_resources: [{ booking_offering_id: offeringId, store_location_id: locationId, booking_resource_id: resourceId, resource_key: "room-one", timezone: "Europe/Sarajevo", days: [] }],
       });
     }
     if (path.endsWith(`/carts/${ids.cart}/booking-items`)) return jsonResponse(cartRecord({ line_items: [{ type: "booking", ...call.body.booking }] }));
@@ -254,12 +291,15 @@ test("storefront booking runtime reads one offering and its resource in the pack
   const resource = await client.eshop.bookingResource.get({ id: resourceId, offering_id: offeringId, package_id: ids.package });
   assert.equal(resource.id, resourceId);
   await client.eshop.bookingService.getAvailability({
-    booking_service_id: serviceId, booking_resource_id: resourceId, from: 1_800_000_000_000, to: 1_800_086_400_000, package_id: ids.package,
+    booking_service_id: serviceId, store_location_id: locationId, booking_resource_id: resourceId, from: 1_800_000_000_000, to: 1_800_086_400_000, package_id: ids.package,
   });
   const booking = {
     id: lineId,
     booking_offering_id: offeringId,
+    store_location_id: locationId,
+    resource: { type: "resource", booking_resource_id: resourceId },
     requested_interval: { from: 1_800_000_000_000, to: 1_800_003_600_000 },
+    add_ons: [{ add_on_id: addOnId, resource: { type: "any" }, add_ons: [] }],
     capacity_units: 1,
     price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price },
     form_submission_id: ids.submission,
@@ -272,7 +312,8 @@ test("storefront booking runtime reads one offering and its resource in the pack
   await assert.rejects(async () => client.eshop.cart.addBooking({ id: ids.cart, expected_updated_at: 7, booking: { ...booking, id: "slot-one" } }), TypeError);
   const loadedOrder = await client.eshop.order.get({ id: ids.order });
   assert.equal(orderBookingItems(loadedOrder)[0].booking_resource_id, resourceId);
-  await client.eshop.order.cancelBookingItem({ order_id: loadedOrder.id, line_item_id: lineId, credit_id: creditId, expected_updated_at: 2 });
+  assert.equal(orderBookingItems(loadedOrder)[0].store_location_id, locationId);
+  await client.eshop.order.cancelBookingItem({ order_id: loadedOrder.id, order_booking_item_id: lineId, credit_id: creditId, expected_updated_at: 2 });
 
   assert.equal("service" in client.eshop, false);
   assert.equal("provider" in client.eshop, false);
@@ -280,7 +321,7 @@ test("storefront booking runtime reads one offering and its resource in the pack
     ["GET", `/v1/storefront/booking-offerings/${offeringId}`, { package_id: ids.package, company_location_id: ids.companyLocation, include_price: "true" }],
     ["GET", `/v1/storefront/booking-resources/${resourceId}`, { package_id: ids.package, offering_id: offeringId }],
     ["GET", "/v1/storefront/booking-services/availability", {
-      package_id: ids.package, booking_service_id: serviceId, booking_resource_id: resourceId, from: "1800000000000", to: "1800086400000",
+      package_id: ids.package, booking_service_id: serviceId, store_location_id: locationId, booking_resource_id: resourceId, from: "1800000000000", to: "1800086400000",
     }],
   ]);
   const addition = calls.find((call) => call.url.pathname.endsWith("/booking-items"));
@@ -306,7 +347,7 @@ test("booking cancellation resends the caller's credit id after an uncertain res
   const admin = createAdmin({ apiUrl: apiUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "bih", sessionStorage: visitorStorage() });
   for (const [client, target] of [[admin, { store_id: storeId }], [storefront, {}]]) {
-    const request = { ...target, order_id: "order/booking", line_item_id: "item/booking", credit_id: creditId, expected_updated_at: 9 };
+    const request = { ...target, order_id: "order/booking", order_booking_item_id: "item/booking", credit_id: creditId, expected_updated_at: 9 };
     await assert.rejects(client.eshop.order.cancelBookingItem(request), (error) => error.statusCode === 503);
     assert.equal((await client.eshop.order.cancelBookingItem(request)).id, ids.order);
     await assert.rejects(async () => client.eshop.order.cancelBookingItem({ ...request, credit_id: "booking-cancel" }), TypeError);
@@ -367,6 +408,7 @@ test("the booking calendar prices each slot from its item and adds one cart line
         cursor: null,
         booking_resources: [{
           booking_offering_id: offeringId,
+          store_location_id: locationId,
           booking_resource_id: resourceId,
           resource_key: "room-one",
           timezone: "Europe/Sarajevo",
@@ -394,8 +436,9 @@ test("the booking calendar prices each slot from its item and adds one cart line
   const scope = { buyer: { type: "customer" }, package_id: ids.package };
   await facade.eshop.cart(scope).create({ id: ids.cart });
   const calendar = facade.eshop.bookingCalendar(scope);
-  const selected = await calendar.select({ booking_service_id: serviceId });
+  const selected = await calendar.select({ booking_service_id: serviceId, store_location_id: locationId });
   assert.equal(selected.booking_service.id, serviceId);
+  assert.equal(selected.store_location_id, locationId);
   assert.deepEqual(selected.booking_choices.map((choice) => choice.price_id), [ids.price]);
   assert.deepEqual(selected.booking_resources.map((resource) => resource.id), [resourceId]);
   const availableDay = calendar.state.get().days.find((day) => day.iso === availableLocalDate);
@@ -409,6 +452,7 @@ test("the booking calendar prices each slot from its item and adds one cart line
   assert.equal(slot.from, 1_800_000_000_000);
   assert.equal(slot.booking_offering_id, offeringId);
   assert.equal(slot.booking_resource_id, resourceId);
+  assert.equal(slot.store_location_id, locationId);
   assert.deepEqual(slot.price_ref, { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price });
   assert.equal(slot.price.unit_price.amount, 5000);
   assert.equal(slot.date_text, new Date(slot.from).toLocaleDateString("en", { weekday: "short", month: "short", day: "numeric", timeZone: timezone }));
@@ -432,6 +476,7 @@ test("the booking calendar prices each slot from its item and adds one cart line
   const dayMilliseconds = 24 * 60 * 60 * 1_000;
   const firstBounds = availabilityCalls[0].url.searchParams;
   assert.equal(firstBounds.get("limit"), "1");
+  assert.equal(firstBounds.get("store_location_id"), locationId);
   assert.equal(Number(firstBounds.get("from")), Date.UTC(calendarDate.getFullYear(), calendarDate.getMonth(), 1) - dayMilliseconds);
   assert.equal(Number(firstBounds.get("to")), Date.UTC(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1) + dayMilliseconds);
   const nextBounds = availabilityCalls.at(-1).url.searchParams;
@@ -445,7 +490,10 @@ test("the booking calendar prices each slot from its item and adds one cart line
     booking: {
       id: lineId,
       booking_offering_id: offeringId,
+      store_location_id: locationId,
+      resource: { type: "any" },
       requested_interval: { from: slot.from, to: slot.to },
+      add_ons: [],
       capacity_units: 1,
       price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price },
       form_submission_id: ids.submission,
@@ -494,6 +542,7 @@ test("the booking calendar keeps the company location context of its cart, reads
         from: Number(request.searchParams.get("from")), to: Number(request.searchParams.get("to")),
         booking_resources: [{
           booking_offering_id: request.searchParams.has("cursor") ? laterOfferingId : offeringId,
+          store_location_id: locationId,
           booking_resource_id: request.searchParams.has("cursor") ? laterResourceId : resourceId,
           resource_key: "room", timezone: "Europe/Sarajevo", days: [],
         }],
@@ -506,7 +555,7 @@ test("the booking calendar keeps the company location context of its cart, reads
     buyer: { type: "company_location", company_location_id: ids.companyLocation, purchase_order_number: null },
     package_id: ids.package,
   });
-  await calendar.select({ booking_service_id: serviceId });
+  await calendar.select({ booking_service_id: serviceId, store_location_id: locationId });
   assert.equal(choiceCalls.length, 1);
   assert.equal(availabilityCalls.length, 2, "a month read follows every availability page");
   assert.equal(availabilityCalls[1].searchParams.get("cursor"), "availability-next");
@@ -548,7 +597,7 @@ test("late availability cannot replace a newer booking service selection in the 
         from: Number(request.searchParams.get("from")),
         to: Number(request.searchParams.get("to")),
         cursor: null,
-        booking_resources: [{ booking_offering_id: offeringId, booking_resource_id: requestedService, resource_key: requestedService, timezone: "Europe/Sarajevo", days: [] }],
+        booking_resources: [{ booking_offering_id: offeringId, store_location_id: locationId, booking_resource_id: requestedService, resource_key: requestedService, timezone: "Europe/Sarajevo", days: [] }],
       };
       if (requestedService === serviceId) {
         announcePending();
@@ -567,9 +616,9 @@ test("late availability cannot replace a newer booking service selection in the 
   const facade = store();
   const calendar = facade.eshop.bookingCalendar({ buyer: { type: "customer" }, package_id: ids.package });
   try {
-    const first = calendar.select({ booking_service_id: serviceId });
+    const first = calendar.select({ booking_service_id: serviceId, store_location_id: locationId });
     await pending;
-    await calendar.select({ booking_service_id: newServiceId });
+    await calendar.select({ booking_service_id: newServiceId, store_location_id: locationId });
     releaseOld();
     await first;
     const state = calendar.state.get();
@@ -584,24 +633,75 @@ test("late availability cannot replace a newer booking service selection in the 
   }
 });
 
-test("a booking offering sends its daily cap on create and update and leaves it out unless named", async (context) => {
+test("a booking offering sends its resources, times, branches, hours and add-ons, and an update sends only what it names", async (context) => {
   const calls = [];
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     calls.push({ url: new URL(url), method: init.method || "GET", body: init.body ? JSON.parse(String(init.body)) : null });
-    return jsonResponse(bookingOffering({ max_per_day: 12 }));
+    return jsonResponse(bookingOffering());
   });
   const admin = createAdmin({ apiUrl: apiUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   const { id: _id, store_id: _store, status: _status, created_at: _created, updated_at: _updated, ...fields } = bookingOffering();
-  const created = await admin.eshop.bookingOffering.create({ store_id: storeId, id: offeringId, ...fields, status: { type: "active" }, max_per_day: 12 });
-  assert.equal(created.max_per_day, 12);
-  await admin.eshop.bookingOffering.update({ store_id: storeId, id: offeringId, expected_updated_at: 2, max_per_day: 3 });
-  await admin.eshop.bookingOffering.update({ store_id: storeId, id: offeringId, expected_updated_at: 3, max_per_day: null });
+  const created = await admin.eshop.bookingOffering.create({ store_id: storeId, id: offeringId, ...fields, status: { type: "active" } });
+  assert.deepEqual(created.locations, { type: "ids", store_location_ids: [locationId] });
+  const elsewhere = { type: "elsewhere", store_location_id: locationId };
+  const onlyHours = { type: "only", hours: { weekly_availability: { friday: [{ from: 32_400_000, to: 43_200_000 }] }, date_overrides: {} } };
+  await admin.eshop.bookingOffering.update({ store_id: storeId, id: offeringId, expected_updated_at: 2, locations: elsewhere, hours: onlyHours });
+  await admin.eshop.bookingOffering.update({ store_id: storeId, id: offeringId, expected_updated_at: 3, resources: { type: "category", category_id: ids.picked }, add_ons: [] });
   await admin.eshop.bookingOffering.update({ store_id: storeId, id: offeringId, expected_updated_at: 4, status: { type: "archived" } });
+  await admin.eshop.bookingOffering.create({ store_id: storeId, id: offeringId, ...fields, add_ons: undefined, status: { type: "draft" } });
   assert.deepEqual(calls.map((call) => [call.url.pathname, call.method, call.body]), [
-    [`/v1/stores/${storeId}/booking-offerings`, "POST", { id: offeringId, ...fields, max_per_day: 12, status: { type: "active" } }],
-    [`/v1/stores/${storeId}/booking-offerings/${offeringId}`, "PUT", { max_per_day: 3, expected_updated_at: 2 }],
-    [`/v1/stores/${storeId}/booking-offerings/${offeringId}`, "PUT", { max_per_day: null, expected_updated_at: 3 }],
+    [`/v1/stores/${storeId}/booking-offerings`, "POST", { id: offeringId, ...fields, status: { type: "active" } }],
+    [`/v1/stores/${storeId}/booking-offerings/${offeringId}`, "PUT", { locations: elsewhere, hours: onlyHours, expected_updated_at: 2 }],
+    [`/v1/stores/${storeId}/booking-offerings/${offeringId}`, "PUT", { resources: { type: "category", category_id: ids.picked }, add_ons: [], expected_updated_at: 3 }],
     [`/v1/stores/${storeId}/booking-offerings/${offeringId}`, "PUT", { status: { type: "archived" }, expected_updated_at: 4 }],
+    [`/v1/stores/${storeId}/booking-offerings`, "POST", { id: offeringId, ...fields, add_ons: [], status: { type: "draft" } }],
   ]);
-  assert.equal("max_per_day" in calls[3].body, false, "an update that names no cap keeps it");
+  for (const removed of ["booking_resource_id", "venue", "max_per_day"]) assert.equal(removed in calls[0].body, false, removed);
+  assert.equal("times" in calls[3].body, false, "an update that names no times keeps them");
+});
+
+test("staff change a booking line through one update route and take an add-on off with a credit", async (context) => {
+  const calls = [];
+  context.mock.method(globalThis, "fetch", async (url, init = {}) => {
+    calls.push({ url: new URL(url), method: init.method || "GET", body: init.body ? JSON.parse(String(init.body)) : null });
+    return jsonResponse(order());
+  });
+  const admin = createAdmin({ apiUrl: apiUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
+  const target = { store_id: storeId, order_id: ids.order, order_booking_item_id: lineId };
+  const updates = [
+    { type: "start", starts_at: 1_800_000_000_000 },
+    { type: "branch", store_location_id: locationId },
+    { type: "resource", booking_resource_id: resourceId },
+    { type: "add_on", booked_add_on_id: bookedAddOnId, starts_at: 1_800_003_600_000, booking_resource_id: resourceId },
+    { type: "add_add_on", add_on_id: addOnId, offering: { type: "any" }, resource: { type: "any" } },
+  ];
+  for (const [index, update] of updates.entries()) {
+    await admin.eshop.order.updateBookingItem({ ...target, expected_updated_at: index + 1, update, notify_customer: index === 0 });
+  }
+  await assert.rejects(async () => admin.eshop.order.updateBookingItem({ ...target, expected_updated_at: 9, update: updates[0] }), TypeError);
+  await admin.eshop.order.takeOffBookingAddOn({ ...target, booked_add_on_id: bookedAddOnId, credit_id: creditId, expected_updated_at: 6 });
+  await assert.rejects(async () => admin.eshop.order.takeOffBookingAddOn({ ...target, booked_add_on_id: bookedAddOnId, credit_id: "take-off", expected_updated_at: 6 }), TypeError);
+  assert.deepEqual(calls.map((call) => [call.method, call.url.pathname, call.body]), [
+    ...updates.map((update, index) => [
+      "PATCH",
+      `/v1/stores/${storeId}/orders/${ids.order}/booking-items/${lineId}`,
+      { expected_updated_at: index + 1, update, notify_customer: index === 0 },
+    ]),
+    ["POST", `/v1/stores/${storeId}/orders/${ids.order}/booking-items/${lineId}/add-ons/${bookedAddOnId}/take-off`, { credit_id: creditId, expected_updated_at: 6 }],
+  ]);
+});
+
+test("a storefront resource slug keeps the locale and offering visibility context", async (context) => {
+  const calls = [];
+  context.mock.method(globalThis, "fetch", async (url, init = {}) => {
+    calls.push({ url: new URL(url), headers: new Headers(init.headers) });
+    return jsonResponse(storefrontResource());
+  });
+  const client = storefront({ locale: "bs-BA" });
+  const resource = await client.eshop.bookingResource.get({ id: "ordinacija", offering_id: offeringId, package_id: ids.package });
+  assert.equal(resource.id, resourceId);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url.pathname, "/v1/storefront/booking-resources/ordinacija");
+  assert.equal(calls[0].headers.get("x-arky-locale"), "bs-BA");
+  assert.deepEqual(Object.fromEntries(calls[0].url.searchParams), { package_id: ids.package, offering_id: offeringId });
 });

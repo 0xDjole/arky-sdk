@@ -6,16 +6,18 @@ import { createStorefront, initialize } from "../dist/storefront.js";
 import {
   accessToken,
   apiUrl as baseUrl,
+  confirmedEmail,
   customerRecord,
-  emailSession,
   idFactories,
   ids,
   storefrontIdentity,
   recordFetch,
   SessionStorage,
   sessionResult,
+  signedInCustomer,
+  signedInEmail,
   signedInStorage,
-  visitorSession,
+  storedSession,
   visitorToken,
 } from "./helpers/arky-fixtures.mjs";
 
@@ -35,7 +37,7 @@ test("same caller-picked visitor identities share a request without sending cont
   await Promise.all([storefront.customer.identify(identity), storefront.customer.identify(identity)]);
   assert.equal(calls.length, 1);
   assert.deepEqual(calls[0].body, identity);
-  assert.equal(storefront.session.login, null);
+  assert.equal(storefront.session.signed_in_with, null);
   assert.equal("captureEmail" in storefront.customer, false);
 });
 
@@ -62,28 +64,56 @@ test("Admin Customer commands send profile blocks, address changes and explicit 
   await assert.rejects(async () => admin.customers.create({ store_id: storeId, id: "customer", profile, blocks: [] }), TypeError);
 });
 
-test("Admin login commands list, add, change with PUT, invite and delete a customer's logins", async (context) => {
-  const calls = recordFetch(context, (call) => call.method === "GET" ? [] : { success: true });
+test("Admin contact commands add, change with PUT and remove a contact by its address, drop a link by its position and invite a contact", async (context) => {
+  const address = { type: "phone", number: "+38761222333" };
+  const invite = {
+    id: ids.form,
+    customer_id: customerId,
+    sent_to: address,
+    language: "bs",
+    code: { failed_attempts: 0, outgoing_message_id: ids.submission, issued_at: 1, expires_at: 2 },
+    status: { type: "active" },
+    created_at: 1,
+    updated_at: 1,
+  };
+  const calls = recordFetch(context, (call) => {
+    if (call.method === "GET") return [invite];
+    if (call.path.endsWith("/invites")) return invite;
+    return customerRecord(customerId, { contacts: [{ type: "unconfirmed_phone", number: address.number, language: "bs", sms: { type: "off" } }] });
+  });
   const admin = createAdmin({ apiUrl: baseUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
-  const base = `/v1/stores/${storeId}/customers/${customerId}/logins`;
+  const base = `/v1/stores/${storeId}/customers/${customerId}`;
   const contact = { type: "phone", number: "+38761222333", language: "bs" };
-  await admin.customers.findLogins({ store_id: storeId, customer_id: customerId });
-  await admin.customers.createLogin({ store_id: storeId, customer_id: customerId, id: ids.line, contact, sms: "on" });
-  await admin.customers.updateLogin({ store_id: storeId, customer_id: customerId, id: ids.line, expected_updated_at: 5, language: "en" });
-  await admin.customers.inviteLogin({ store_id: storeId, customer_id: customerId, login_id: ids.line, id: ids.form });
-  await admin.customers.deleteLogin({ store_id: storeId, customer_id: customerId, id: ids.line, expected_updated_at: 6 });
+  const added = await admin.customers.addContact({ store_id: storeId, customer_id: customerId, expected_updated_at: 4, contact, sms: "on" });
+  assert.equal(added.contacts[0].type, "unconfirmed_phone");
+  await admin.customers.addContact({ store_id: storeId, customer_id: customerId, expected_updated_at: 5, contact: { type: "email", email: "ana@example.test", language: "bs" } });
+  await admin.customers.updateContact({ store_id: storeId, customer_id: customerId, expected_updated_at: 6, address, language: "en" });
+  await admin.customers.removeContact({ store_id: storeId, customer_id: customerId, expected_updated_at: 7, address });
+  await admin.customers.removeLink({ store_id: storeId, customer_id: customerId, position: 0, expected_updated_at: 8 });
+  assert.deepEqual(await admin.customers.findInvites({ store_id: storeId, customer_id: customerId }), [invite]);
+  assert.deepEqual(await admin.customers.inviteContact({ store_id: storeId, customer_id: customerId, id: ids.form, address }), invite);
   assert.deepEqual(calls.map((call) => [call.method, call.path, call.body]), [
-    ["GET", base, null],
-    ["POST", base, { id: ids.line, contact, sms: "on" }],
-    ["PUT", `${base}/${ids.line}`, { expected_updated_at: 5, language: "en" }],
-    ["POST", `${base}/${ids.line}/invite`, { id: ids.form }],
-    ["DELETE", `${base}/${ids.line}`, null],
+    ["POST", `${base}/contacts`, { expected_updated_at: 4, contact, sms: "on" }],
+    ["POST", `${base}/contacts`, { expected_updated_at: 5, contact: { type: "email", email: "ana@example.test", language: "bs" }, sms: null }],
+    ["PUT", `${base}/contacts`, { expected_updated_at: 6, address, language: "en" }],
+    ["POST", `${base}/contacts/remove`, { expected_updated_at: 7, address }],
+    ["DELETE", `${base}/links/0`, null],
+    ["GET", `${base}/invites`, null],
+    ["POST", `${base}/invites`, { id: ids.form, address }],
   ]);
-  assert.equal(calls[4].url.search, "?expected_updated_at=6");
-  await assert.rejects(
-    async () => admin.customers.inviteLogin({ store_id: storeId, customer_id: customerId, login_id: ids.line, id: "invite" }),
-    TypeError,
-  );
+  assert.equal(calls[4].url.search, "?expected_updated_at=8");
+  for (const position of [-1, 1.5]) {
+    assert.throws(() => admin.customers.removeLink({ store_id: storeId, customer_id: customerId, position, expected_updated_at: 8 }), {
+      name: "TypeError",
+      message: "A link's position is its index in the customer's links list",
+    });
+  }
+  await assert.rejects(async () => admin.customers.inviteContact({ store_id: storeId, customer_id: customerId, id: "invite", address }), {
+    name: "TypeError",
+    message: "The customer invite id must be a canonical UUID v4 picked by the app",
+  });
+  assert.equal(calls.length, 7);
+  for (const removed of ["findLogins", "createLogin", "updateLogin", "deleteLogin", "inviteLogin"]) assert.equal(removed in admin.customers, false, removed);
 });
 
 test("code requests retain caller ID, language and bot proof without claiming an address", async (context) => {
@@ -95,7 +125,7 @@ test("code requests retain caller ID, language and bot proof without claiming an
   assert.deepEqual(calls[1].body, { id: ids.form, contact: { type: "email", email: "reader@example.test", language: "en" } });
   assert.deepEqual(calls[2].body, { id: ids.line, contact: { type: "phone", number: "+38761222333", language: "bs" } });
   assert.equal(calls[1].headers.get("x-arky-locale"), "bs");
-  assert.equal(storefront.session.login, null);
+  assert.equal(storefront.session.signed_in_with, null);
   await assert.rejects(storefront.customer.requestCode({ id: "bad", contact: { type: "email", email: "reader@example.test", language: "en" } }), TypeError);
 });
 
@@ -122,7 +152,7 @@ test("retrying a lost code response keeps the same exact request and active Visi
     ["POST", { id: ids.form, contact: { type: "email", email: "reader@example.test", language: "en" } }, `Bearer ${visitorToken}`, "bs"],
   ]);
   assert.equal(storefront.session.id, ids.session);
-  assert.equal(storefront.session.login, null);
+  assert.equal(storefront.session.signed_in_with, null);
 });
 
 test("a code answer for another session is refused without changing stored identity", async (context) => {
@@ -135,50 +165,51 @@ test("a code answer for another session is refused without changing stored ident
   assert.deepEqual([...storage.values], retained);
 });
 
-test("an unconfigured email-change notice surfaces the server refusal and retains the signed-in session", async (context) => {
+test("an unconfigured contact notice surfaces the server refusal and retains the signed-in session", async (context) => {
   const calls = recordFetch(context, () => new Response(JSON.stringify({ status_code: 409, message: "This store can't send sign-in change notices yet", error: "CUSTOMER_SIGN_IN.UNAVAILABLE" }), { status: 409, headers: { "content-type": "application/json" } }));
   const storefront = client(signedInStorage());
-  const before = storefront.session.id;
-  await assert.rejects(storefront.customer.verifyNewLogin({ code: "123456" }), /sign-in change notices/);
+  const before = structuredClone(storefront.session);
+  const address = { type: "email", email: "added@example.test" };
+  await assert.rejects(storefront.customer.verifyContact({ address, code: "123456" }), /sign-in change notices/);
   assert.deepEqual(calls.map((call) => [call.method, call.path, call.body]), [
-    ["POST", "/v1/storefront/customer/me/logins/verify", { code: "123456" }],
+    ["POST", "/v1/storefront/customer/me/contacts/verify", { address, code: "123456" }],
   ]);
-  assert.equal(storefront.session.id, before);
+  assert.deepEqual(storefront.session, before);
 });
 
-
-test("a proven new email keeps current credentials and persists the returned customer", async (context) => {
-  const customer = customerRecord(customerId, { name: { first_name: "Ana", last_name: "Kovač" } });
-  const added = {
-    id: ids.line,
-    type: { type: "verified_email", email: "added@example.test", language: "en", unsubscribed: false },
-    created_at: 2,
-    updated_at: 2,
-  };
+test("a confirmed new email keeps current credentials and persists the returned customer", async (context) => {
+  const address = { type: "email", email: "added@example.test" };
+  const customer = signedInCustomer(customerId, signedInEmail, {
+    name: { first_name: "Ana", last_name: "Kovač" },
+    contacts: [confirmedEmail(), confirmedEmail("added@example.test")],
+    updated_at: 1_700_000_000_002,
+  });
   const storage = signedInStorage();
   const storefront = client(storage);
   const before = structuredClone(storefront.session);
+  assert.deepEqual(before.signed_in_with, { type: "email", email: signedInEmail });
   const retainedCredentials = JSON.parse(storage.initial).session;
   const calls = recordFetch(context, () => ({
     customer,
     session: { id: before.id, customer_id: before.customer.id, store_id: storeId },
-    logins: [before.login, added],
   }));
-  const result = await storefront.customer.verifyNewLogin({ code: "123456" });
+  const result = await storefront.customer.verifyContact({ address, code: "123456" });
   assert.deepEqual(result.customer, customer);
-  assert.deepEqual(result.logins.map((login) => login.id), [before.login.id, added.id]);
-  assert.deepEqual(calls[0].body, { code: "123456" });
+  assert.equal("logins" in result, false);
+  assert.deepEqual(calls[0].body, { address, code: "123456" });
+  assert.equal(calls[0].headers.get("authorization"), `Bearer ${accessToken}`);
   assert.equal(storefront.session.id, before.id);
   assert.deepEqual(storefront.session.customer, customer);
-  assert.deepEqual(storefront.session.login, before.login, "the session keeps the login it signed in with");
+  assert.deepEqual(storefront.session.signed_in_with, before.signed_in_with, "the session keeps the address it signed in with");
   const after = JSON.parse([...storage.values.values()][0]);
   assert.deepEqual(after.session, retainedCredentials);
+  assert.equal("login" in after, false);
   const reloaded = client(storage);
   assert.deepEqual(reloaded.session.customer, customer);
   assert.equal(reloaded.session.id, before.id);
 });
 
-test("a new-login answer cannot replace a different current customer session", async (context) => {
+test("a contact answer for another session cannot replace the current customer session", async (context) => {
   const storage = signedInStorage();
   const storefront = client(storage);
   const before = structuredClone(storefront.session);
@@ -186,9 +217,11 @@ test("a new-login answer cannot replace a different current customer session", a
   recordFetch(context, () => ({
     customer: customerRecord(customerId, { name: { first_name: "Ana", last_name: "Kovač" } }),
     session: { id: ids.otherSession, customer_id: customerId, store_id: storeId },
-    logins: [],
   }));
-  await assert.rejects(storefront.customer.verifyNewLogin({ code: "123456" }), /does not match the active customer session/);
+  await assert.rejects(
+    storefront.customer.verifyContact({ address: { type: "email", email: "added@example.test" }, code: "123456" }),
+    /does not match the active customer session/,
+  );
   assert.deepEqual(storefront.session, before);
   assert.equal(storage.initial, retained);
   assert.equal(storage.values.size, 0);
@@ -200,8 +233,8 @@ for (const method of ["getMe", "updateMe"]) {
     const storefront = client(storage);
     const before = structuredClone(storefront.session);
     const credentials = JSON.parse(storage.initial).session;
-    const customer = customerRecord(customerId, { profile });
-    const response = { customer, session: { id: before.id, customer_id: customerId, store_id: storeId }, logins: [before.login] };
+    const customer = signedInCustomer(customerId, signedInEmail, { profile });
+    const response = { customer, session: { id: before.id, customer_id: customerId, store_id: storeId } };
     const calls = recordFetch(context, () => response);
     const result = method === "getMe"
       ? await storefront.customer.getMe()
@@ -222,7 +255,6 @@ for (const method of ["getMe", "updateMe"]) {
     recordFetch(context, () => ({
       customer: customerRecord(customerId, { profile }),
       session: { id: ids.otherSession, customer_id: customerId, store_id: storeId },
-      logins: [],
     }));
     const result = await (method === "getMe" ? storefront.customer.getMe() : storefront.customer.updateMe({ profile, expected_updated_at: 2 }));
     assert.deepEqual(result.customer.profile, profile);
@@ -232,63 +264,69 @@ for (const method of ["getMe", "updateMe"]) {
   });
 }
 
-test("a signed-in customer changes the language of a login with the version they read", async (context) => {
+test("a signed-in customer changes the language of a contact by its address with the version they read", async (context) => {
   const storage = signedInStorage();
   const storefront = client(storage);
   const before = structuredClone(storefront.session);
-  const changed = { ...before.login, type: { ...before.login.type, language: "bs" }, updated_at: 3 };
-  const response = { customer: before.customer, session: { id: before.id, customer_id: customerId, store_id: storeId }, logins: [changed] };
+  const address = { type: "email", email: signedInEmail };
+  const changed = { ...before.customer, contacts: [confirmedEmail(signedInEmail, "bs")], updated_at: 1_700_000_000_003 };
+  const response = { customer: changed, session: { id: before.id, customer_id: customerId, store_id: storeId } };
   const calls = recordFetch(context, () => response);
-  assert.deepEqual(
-    await storefront.customer.updateLogin({ login_id: before.login.id, expected_updated_at: 2, language: "bs" }),
-    response,
-  );
+  assert.deepEqual(await storefront.customer.updateContact({ expected_updated_at: 2, address, language: "bs" }), response);
   assert.deepEqual(calls.map((call) => [call.method, call.path, call.body]), [
-    ["PATCH", `/v1/storefront/customer/me/logins/${before.login.id}`, { expected_updated_at: 2, language: "bs" }],
+    ["PATCH", "/v1/storefront/customer/me/contacts", { expected_updated_at: 2, address, language: "bs" }],
   ]);
   assert.equal(calls[0].headers.get("authorization"), `Bearer ${accessToken}`);
+  assert.deepEqual(storefront.session.customer.contacts, [confirmedEmail(signedInEmail, "bs")]);
   await storefront.customer.updateMe({ expected_updated_at: 3, profile });
-  assert.equal("language" in calls[1].body, false, "a language lives on its login, not on the profile");
+  assert.equal("language" in calls[1].body, false, "a language lives on its contact, not on the profile");
 });
 
-test("a signed-in customer adds and deletes logins of their own and a deleted sign-in login ends the session", async (context) => {
+test("a signed-in customer adds and removes contacts of their own, and removing the store link ends this browser's session", async (context) => {
   const storage = signedInStorage();
   const storefront = client(storage);
   const before = structuredClone(storefront.session);
   const contact = { type: "phone", number: "+38761222333", language: "bs" };
-  const calls = recordFetch(context, (call) => {
-    if (call.method === "POST") return { customer: before.customer, session: { id: before.id, customer_id: customerId, store_id: storeId }, logins: [before.login] };
-    if (call.path.endsWith(ids.line)) return { customer: before.customer, session: { id: before.id, customer_id: customerId, store_id: storeId }, logins: [before.login] };
-    return new Response(null, { status: 204 });
-  });
-  await storefront.customer.addLogin({ id: ids.line, contact, sms: "on" });
-  await storefront.customer.deleteLogin({ login_id: ids.line, expected_updated_at: 4 });
+  const address = { type: "phone", number: "+38761222333" };
+  const answer = { customer: before.customer, session: { id: before.id, customer_id: customerId, store_id: storeId } };
+  const calls = recordFetch(context, (call) => call.method === "DELETE" ? { removed: true } : answer);
+  await storefront.customer.addContact({ expected_updated_at: 3, contact, sms: "on" });
+  await storefront.customer.addContact({ expected_updated_at: 4, contact: { type: "email", email: "second@example.test", language: "bs" } });
+  await storefront.customer.removeContact({ expected_updated_at: 5, address });
   assert.equal(storefront.session.id, before.id);
-  assert.equal(await storefront.customer.deleteLogin({ login_id: before.login.id, expected_updated_at: 5 }), null);
+  assert.deepEqual(await storefront.customer.removeLink(), { removed: true });
   assert.deepEqual(calls.map((call) => [call.method, call.path, call.body]), [
-    ["POST", "/v1/storefront/customer/me/logins", { id: ids.line, contact, sms: "on" }],
-    ["DELETE", `/v1/storefront/customer/me/logins/${ids.line}`, null],
-    ["DELETE", `/v1/storefront/customer/me/logins/${before.login.id}`, null],
+    ["POST", "/v1/storefront/customer/me/contacts", { expected_updated_at: 3, contact, sms: "on" }],
+    ["POST", "/v1/storefront/customer/me/contacts", { expected_updated_at: 4, contact: { type: "email", email: "second@example.test", language: "bs" }, sms: null }],
+    ["POST", "/v1/storefront/customer/me/contacts/remove", { expected_updated_at: 5, address }],
+    ["DELETE", "/v1/storefront/customer/me/link", null],
   ]);
-  assert.equal(calls[1].url.search, "?expected_updated_at=4");
-  assert.equal(storefront.session, null, "deleting the login a session signed in with ends that session");
+  for (const call of calls) assert.equal(call.headers.get("authorization"), `Bearer ${accessToken}`);
+  assert.equal(storefront.session, null, "removing the store link ends the session that removed it");
+  assert.equal(storage.values.size, 0);
+  for (const removed of ["addLogin", "updateLogin", "deleteLogin", "verifyNewLogin"]) assert.equal(removed in storefront.customer, false, removed);
 });
 
-test("a signed-in customer unsubscribes and resubscribes on the storefront with no body and keeps the session", async (context) => {
+test("a visitor has no store link to remove, so removeLink refuses before any request", async (context) => {
+  const calls = recordFetch(context, () => ({ removed: true }));
+  const storefront = client(new SessionStorage(storedSession()));
+  await assert.rejects(storefront.customer.removeLink(), (error) => error.code === "no_session");
+  assert.equal(calls.length, 0);
+  assert.equal(storefront.session.type, "visitor");
+});
+
+test("a signed-in customer unsubscribes and resubscribes a contact by its address and keeps the session", async (context) => {
   const storage = signedInStorage();
   const storefront = client(storage);
   const before = structuredClone(storefront.session);
-  const answers = [true, false].map((unsubscribed) => ({
-    customer: before.customer,
-    session: { id: before.id, customer_id: customerId, store_id: storeId },
-    logins: [{ ...before.login, type: { ...before.login.type, unsubscribed } }],
-  }));
-  const calls = recordFetch(context, (_call, count) => answers[count - 1]);
-  assert.deepEqual(await storefront.customer.unsubscribe({ login_id: before.login.id }), answers[0]);
-  assert.deepEqual(await storefront.customer.resubscribe({ login_id: before.login.id }), answers[1]);
+  const address = { type: "email", email: signedInEmail };
+  const answer = { customer: before.customer, session: { id: before.id, customer_id: customerId, store_id: storeId } };
+  const calls = recordFetch(context, () => answer);
+  assert.deepEqual(await storefront.customer.unsubscribe({ address }), answer);
+  assert.deepEqual(await storefront.customer.resubscribe({ address }), answer);
   assert.deepEqual(calls.map((call) => [call.method, call.path, call.body]), [
-    ["POST", `/v1/storefront/customer/me/logins/${before.login.id}/unsubscribe`, null],
-    ["POST", `/v1/storefront/customer/me/logins/${before.login.id}/resubscribe`, null],
+    ["POST", "/v1/storefront/customer/me/contacts/unsubscribe", { address }],
+    ["POST", "/v1/storefront/customer/me/contacts/resubscribe", { address }],
   ]);
   for (const call of calls) {
     assert.equal(call.headers.get("authorization"), `Bearer ${accessToken}`);

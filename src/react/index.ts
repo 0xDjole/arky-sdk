@@ -186,6 +186,24 @@ interface MutationInput {
   request?: RequestOptions;
 }
 
+interface ClientContext {
+  locale(): string;
+  market(): string;
+}
+
+function contextValue(client: object, name: "getLocale" | "getMarket"): () => string {
+  const read: unknown = Reflect.get(client, name);
+  return () => {
+    if (typeof read !== "function") return "";
+    const value: unknown = read.call(client);
+    return typeof value === "string" ? value : "";
+  };
+}
+
+function clientContext(client: object): ClientContext {
+  return { locale: contextValue(client, "getLocale"), market: contextValue(client, "getMarket") };
+}
+
 const declaredMethodTypes: Readonly<Partial<Record<string, ArkyMethodType>>> = ARKY_METHOD_TYPES;
 
 const methodsWithoutParams: ReadonlySet<string> = new Set<string>(ARKY_METHODS_WITHOUT_PARAMS);
@@ -199,17 +217,19 @@ function methodType(dotted: string, name: string): ArkyMethodType {
   return declared ?? (name.startsWith("get") || name.startsWith("find") ? "read" : "write");
 }
 
-function keyRequest(request: RequestOptions | undefined): ArkyKeyRequest | null {
+function keyRequest(request: RequestOptions | undefined, context: ClientContext): ArkyKeyRequest | null {
   const keyed: ArkyKeyRequest = {};
   if (typeof request?.order_token === "string") keyed.order_token = request.order_token;
-  if (request?.locale !== undefined) keyed.locale = request.locale;
-  if (request?.market !== undefined) keyed.market = request.market;
+  const locale = request?.locale ?? context.locale();
+  if (locale) keyed.locale = locale;
+  const market = request?.market ?? context.market();
+  if (market) keyed.market = market;
   return Object.keys(keyed).length > 0 ? keyed : null;
 }
 
-function readHooks(send: Send, path: readonly string[], name: string): Hooks {
+function readHooks(send: Send, path: readonly string[], name: string, context: ClientContext): Hooks {
   const key = (params?: unknown, request?: RequestOptions): QueryKey => {
-    const keyed = keyRequest(request);
+    const keyed = keyRequest(request, context);
     return keyed ? ["arky", ...path, name, params, keyed] : ["arky", ...path, name, params];
   };
   return {
@@ -244,12 +264,19 @@ function writeHooks(send: Send, path: readonly string[], name: string, queryClie
   };
 }
 
-function methodHooks(group: object, method: Callable, path: readonly string[], name: string, queryClient: QueryClient): Hooks {
+function methodHooks(
+  group: object,
+  method: Callable,
+  path: readonly string[],
+  name: string,
+  queryClient: QueryClient,
+  context: ClientContext,
+): Hooks {
   const dotted = [...path, name].join(".");
   const send: Send = methodsWithoutParams.has(dotted)
     ? (_params, request) => method.call(group, request)
     : (params, request) => method.call(group, params, request);
-  return methodType(dotted, name) === "read" ? readHooks(send, path, name) : writeHooks(send, path, name, queryClient);
+  return methodType(dotted, name) === "read" ? readHooks(send, path, name, context) : writeHooks(send, path, name, queryClient);
 }
 
 function hookName(path: readonly string[], name: string): string {
@@ -257,15 +284,15 @@ function hookName(path: readonly string[], name: string): string {
   return name;
 }
 
-function mirror(group: object, path: readonly string[], queryClient: QueryClient): Hooks {
+function mirror(group: object, path: readonly string[], queryClient: QueryClient, context: ClientContext): Hooks {
   const hooks: Hooks = { key: (): QueryKey => ["arky", ...path] };
   for (const [name, property] of Object.entries(Object.getOwnPropertyDescriptors(group))) {
     if (!("value" in property)) continue;
     const value: unknown = property.value;
     if (isCallable(value)) {
-      hooks[hookName(path, name)] = methodHooks(group, value, path, name, queryClient);
+      hooks[hookName(path, name)] = methodHooks(group, value, path, name, queryClient, context);
     } else if (typeof value === "object" && value !== null) {
-      hooks[hookName(path, name)] = mirror(value, [...path, name], queryClient);
+      hooks[hookName(path, name)] = mirror(value, [...path, name], queryClient, context);
     }
   }
   return hooks;
@@ -275,7 +302,10 @@ export function createArkyReact<Client extends object>(): ArkyReact<Client> {
   const ArkyContext = createContext<ArkyHooks<Client> | null>(null);
 
   function ArkyProvider({ client, queryClient, children }: ArkyProviderProps<Client>): ReactElement {
-    const hooks = useMemo(() => mirror(client, [], queryClient) as unknown as ArkyHooks<Client>, [client, queryClient]);
+    const hooks = useMemo(
+      () => mirror(client, [], queryClient, clientContext(client)) as unknown as ArkyHooks<Client>,
+      [client, queryClient],
+    );
     return createElement(QueryClientProvider, { client: queryClient }, createElement(ArkyContext, { value: hooks }, children));
   }
 

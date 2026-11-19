@@ -1,4 +1,4 @@
-import type { EpochMilliseconds } from "./time";
+import type { Duration, EpochMilliseconds } from "./time";
 
 export type ExperimentStatus =
   | { type: "draft" }
@@ -12,7 +12,7 @@ export interface Experiment {
   key: string;
   status: ExperimentStatus;
   goal_action_key: string;
-  attribution_window_days: number;
+  attribution_window: Duration;
   variants: Record<string, number>;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
@@ -44,7 +44,7 @@ export interface CreateExperimentParams {
   id: string;
   key: string;
   goal_action_key: string;
-  attribution_window_days: number;
+  attribution_window: Duration;
   variants: Record<string, number>;
 }
 
@@ -54,7 +54,7 @@ export interface UpdateExperimentParams {
   expected_updated_at: EpochMilliseconds;
   key: string;
   goal_action_key: string;
-  attribution_window_days: number;
+  attribution_window: Duration;
   variants: Record<string, number>;
 }
 

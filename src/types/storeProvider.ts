@@ -6,13 +6,20 @@ export type StoreProviderStatus = "active" | "disabled";
 
 export type SmsSender = { type: "name"; name: string } | { type: "number"; number: string };
 
-export type StripeSecretKeyKind = "standard" | "restricted";
+export type NetworkTwilioSmsSender = { type: "name"; name: string } | { type: "line"; phone_number_id: string };
+
+export type StoreSmsSender =
+  | { type: "name"; name: string }
+  | { type: "number"; number: string }
+  | { type: "line"; phone_number_id: string };
+
+export type StripeSecretKeyType = "standard" | "restricted";
 
 export interface StoreStripeLogin {
   account_id: string;
   livemode: boolean;
   publishable_key: string;
-  secret_key: StripeSecretKeyKind;
+  secret_key: StripeSecretKeyType;
   charges_enabled: boolean;
   account_checked_at: EpochMilliseconds;
   webhook: StripeWebhook;
@@ -25,6 +32,10 @@ export type ElevenLabsSetup =
   | { type: "ready"; agent_id: string; tool_ids: string[]; at: EpochMilliseconds }
   | { type: "failed"; error: ProviderEffectError; at: EpochMilliseconds };
 
+export type CroatiaCertificate =
+  | { type: "readable"; oib: string; expires_at: EpochMilliseconds }
+  | { type: "unreadable" };
+
 export type StoreProviderType =
   | { type: "resend"; webhook_id: string }
   | ({ type: "stripe" } & StoreStripeLogin)
@@ -34,9 +45,13 @@ export type StoreProviderType =
   | { type: "arky_monri"; environment: MonriEnvironment }
   | { type: "twilio"; account_sid: string; sms_sender: SmsSender }
   | { type: "arky_twilio"; account_sid: string; sms_sender: SmsSender }
-  | { type: "network_twilio"; network_provider_id: string; sms_sender: SmsSender }
+  | { type: "network_twilio"; network_provider_id: string; sms_sender: NetworkTwilioSmsSender }
   | { type: "eleven_labs"; region: ElevenLabsRegion; setup: ElevenLabsSetup }
-  | { type: "arky_eleven_labs"; region: ElevenLabsRegion; setup: ElevenLabsSetup };
+  | { type: "arky_eleven_labs"; region: ElevenLabsRegion; setup: ElevenLabsSetup }
+  | { type: "croatia_cis"; certificate: CroatiaCertificate }
+  | { type: "arky_croatia_cis"; certificate: CroatiaCertificate }
+  | { type: "ofs_cloud" }
+  | { type: "arky_ofs_cloud" };
 
 export interface StoreProvider {
   id: string;
@@ -173,7 +188,7 @@ export interface ConnectTwilioStoreProviderParams {
 export interface ConnectNetworkTwilioStoreProviderParams {
   store_id: string;
   id: string;
-  sms_sender: SmsSender;
+  sms_sender: NetworkTwilioSmsSender;
 }
 
 export interface ConnectArkyTwilioStoreProviderParams {
@@ -211,7 +226,7 @@ export interface SetStoreSmsSenderParams {
   store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
-  sms_sender: SmsSender;
+  sms_sender: StoreSmsSender;
 }
 
 export interface ConnectStripeStoreProviderParams {
@@ -271,6 +286,37 @@ export interface ReplaceMonriMerchantKeyParams {
   id: string;
   expected_updated_at: EpochMilliseconds;
   merchant_key: string;
+}
+
+export interface ConnectCroatiaCisStoreProviderParams {
+  store_id: string;
+  id: string;
+  certificate_p12: string;
+  password: string;
+}
+
+export interface ReplaceCroatiaCisCertificateParams {
+  store_id: string;
+  id: string;
+  expected_updated_at: EpochMilliseconds;
+  certificate_p12: string;
+  password: string;
+}
+
+export interface ConnectArkyCroatiaCisStoreProviderParams {
+  store_id: string;
+  id: string;
+}
+
+export interface ConnectOfsCloudStoreProviderParams {
+  store_id: string;
+  id: string;
+  api_key: string;
+}
+
+export interface ConnectArkyOfsCloudStoreProviderParams {
+  store_id: string;
+  id: string;
 }
 
 export interface FindResendDomainsParams {

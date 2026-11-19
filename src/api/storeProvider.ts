@@ -5,14 +5,18 @@ import type { StripeSetup } from "../types/payment";
 import type {
   CheckResendSetupParams,
   CheckStripeSetupParams,
+  ConnectArkyCroatiaCisStoreProviderParams,
   ConnectArkyElevenLabsStoreProviderParams,
   ConnectArkyMonriStoreProviderParams,
+  ConnectArkyOfsCloudStoreProviderParams,
   ConnectArkyResendStoreProviderParams,
   ConnectArkyStripeStoreProviderParams,
   ConnectArkyTwilioStoreProviderParams,
+  ConnectCroatiaCisStoreProviderParams,
   ConnectElevenLabsStoreProviderParams,
   ConnectMonriStoreProviderParams,
   ConnectNetworkTwilioStoreProviderParams,
+  ConnectOfsCloudStoreProviderParams,
   ConnectResendStoreProviderParams,
   ConnectStripeStoreProviderParams,
   ConnectTwilioStoreProviderParams,
@@ -23,6 +27,7 @@ import type {
   FindStoreProvidersParams,
   GetStoreProviderParams,
   RefreshStripeStoreProviderParams,
+  ReplaceCroatiaCisCertificateParams,
   ReplaceMonriMerchantKeyParams,
   ReplaceResendKeyParams,
   ReplaceStripeKeysParams,
@@ -115,9 +120,8 @@ export const createStoreProviderApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    async findResendDomains(params: FindResendDomainsParams, options?: RequestOptions): Promise<PaginatedResponse<ResendDomain>> {
-      const items = await apiConfig.httpClient.get<ResendDomain[]>(resendPath(params.store_id, params.id, "domains"), options);
-      return { items, cursor: null };
+    findResendDomains(params: FindResendDomainsParams, options?: RequestOptions): Promise<ResendDomain[]> {
+      return apiConfig.httpClient.get<ResendDomain[]>(resendPath(params.store_id, params.id, "domains"), options);
     },
 
     checkResendSetup(params: CheckResendSetupParams, options?: RequestOptions): Promise<ResendSetup> {
@@ -274,6 +278,54 @@ export const createStoreProviderApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.post<StoreProvider>(
         storePath(params.store_id, `${collection}/monri/${segment(params.id)}/replace-merchant-key`),
         { expected_updated_at: params.expected_updated_at, merchant_key: params.merchant_key },
+        options,
+      );
+    },
+
+    connectCroatiaCis(params: ConnectCroatiaCisStoreProviderParams, options?: RequestOptions): Promise<StoreProvider> {
+      requireId(params.id, "store provider");
+      return apiConfig.httpClient.post<StoreProvider>(
+        storePath(params.store_id, `${collection}/croatia-cis`),
+        { id: params.id, certificate_p12: params.certificate_p12, password: params.password },
+        options,
+      );
+    },
+
+    replaceCroatiaCisCertificate(params: ReplaceCroatiaCisCertificateParams, options?: RequestOptions): Promise<StoreProvider> {
+      return apiConfig.httpClient.post<StoreProvider>(
+        storePath(params.store_id, `${collection}/croatia-cis/${segment(params.id)}/replace-certificate`),
+        {
+          expected_updated_at: params.expected_updated_at,
+          certificate_p12: params.certificate_p12,
+          password: params.password,
+        },
+        options,
+      );
+    },
+
+    connectArkyCroatiaCis(params: ConnectArkyCroatiaCisStoreProviderParams, options?: RequestOptions): Promise<StoreProvider> {
+      requireId(params.id, "store provider");
+      return apiConfig.httpClient.post<StoreProvider>(
+        storePath(params.store_id, `${collection}/arky-croatia-cis`),
+        { id: params.id },
+        options,
+      );
+    },
+
+    connectOfsCloud(params: ConnectOfsCloudStoreProviderParams, options?: RequestOptions): Promise<StoreProvider> {
+      requireId(params.id, "store provider");
+      return apiConfig.httpClient.post<StoreProvider>(
+        storePath(params.store_id, `${collection}/ofs-cloud`),
+        { id: params.id, api_key: params.api_key },
+        options,
+      );
+    },
+
+    connectArkyOfsCloud(params: ConnectArkyOfsCloudStoreProviderParams, options?: RequestOptions): Promise<StoreProvider> {
+      requireId(params.id, "store provider");
+      return apiConfig.httpClient.post<StoreProvider>(
+        storePath(params.store_id, `${collection}/arky-ofs-cloud`),
+        { id: params.id },
         options,
       );
     },

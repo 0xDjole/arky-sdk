@@ -27,7 +27,7 @@ const intake = {
     { id: "q-answer", key: "answer", type: "text", required: true, label: { type: "shown", text: { en: "Answer" } }, min_length: null, max_length: null, pattern: null },
     { id: "q-topic", key: "topic", type: "select_one", required: false, label: { type: "hidden" }, options: [{ key: "sales", label: { en: "Sales" } }] },
   ],
-  stages: [{ id: "new", key: "new" }],
+  stages: [{ id: "new", key: "new", changed_email: { type: "off" } }],
   status: { type: "active" },
   created_at: 1,
   updated_at: 1,
@@ -92,11 +92,11 @@ test("submission discovery reads every form or one form and sends the select fil
   assert.equal(calls[0].query.created_at_from, "0");
   assert.equal(calls[0].query.stage, "new");
   assert.equal("stage_id" in calls[0].query, false);
-  assert.deepEqual(calls[2].query, { stage: "none" });
+  assert.deepEqual(calls[2].query, { form_id: FORM_ID, stage: "none" });
   for (const removed of ["company_id", "assignee_account_id"]) assert.equal(removed in calls[0].query, false, removed);
-  assert.equal(calls[1].path, `/v1/stores/${STORE_ID}/forms/${FORM_ID}/submissions`);
-  assert.deepEqual(Object.keys(calls[1].query), ["select"]);
-  assert.equal("form_id" in calls[1].query, false);
+  assert.ok(calls.every((call) => call.path === `/v1/stores/${STORE_ID}/forms/submissions`), "every submission list reads the one store route");
+  assert.deepEqual(Object.keys(calls[1].query).sort(), ["form_id", "select"]);
+  assert.equal(calls[1].query.form_id, FORM_ID);
 });
 
 test("storefront submit with the loaded form keeps the caller's id and answers across response loss", async (context) => {
@@ -200,26 +200,34 @@ test("staff submission work uses exact stage, file, note and deletion routes and
   assert.equal(calls.length, 6);
 });
 
-test("form emails name the received, stage and new-submission alert selections and the alert recipients", async (context) => {
+test("form emails are typed settings: the received email and each stage's email are off or send, and the new-submission alert is off or on with its recipients", async (context) => {
   const roleId = "5b7e2c94-1d38-4f60-a9e5-3c8d0f2b6a17";
   const selection = (email_template_id) => ({ email_template_id, email_address_id: "4b6d8f0a-2e3a-4b7d-9f1c-3e5a7b9d1f2a", from_name: "Shop", reply_to_address_id: "8e0a2c4e-6b7d-4f9a-b1c3-5d7f9b1d3f5a" });
   const emails = {
-    received: selection("3a5c7e9b-1d2f-4a6c-8e0b-2d4f6a8c0e1f"),
-    stage_changed: { won: selection("9c1e3a5b-7d2f-4b6a-8c0e-2a4c6e8a0b1d") },
-    submission_alert: selection("1b3d5f7a-9c2e-4a6b-8d0f-2b4d6f8a0c1e"),
-    alert_recipients: [{ type: "store_role", store_role_id: roleId, language: "en" }, { type: "email", email: "sales@example.test", language: "bs" }],
+    received: { type: "send", email: selection("3a5c7e9b-1d2f-4a6c-8e0b-2d4f6a8c0e1f") },
+    submission_alert: {
+      type: "on",
+      email: selection("1b3d5f7a-9c2e-4a6b-8d0f-2b4d6f8a0c1e"),
+      recipients: [{ type: "store_role", store_role_id: roleId, language: "en" }, { type: "email", email: "sales@example.test", language: "bs" }],
+    },
   };
-  const calls = recordFetch(context, () => ({ ...intake, emails }));
+  const stages = [
+    { id: "new", key: "new", changed_email: { type: "off" } },
+    { id: "won", key: "won", changed_email: { type: "send", email: selection("9c1e3a5b-7d2f-4b6a-8c0e-2a4c6e8a0b1d") } },
+  ];
+  const calls = recordFetch(context, () => ({ ...intake, stages, emails }));
   const api = admin().forms;
-  const create = { id: FORM_ID, key: "intake", questions: intake.questions, stages: intake.stages, emails };
-  assert.deepEqual((await api.create({ store_id: STORE_ID, ...create })).emails, emails);
-  const silent = { received: null, stage_changed: {}, submission_alert: null, alert_recipients: [] };
+  const create = { id: FORM_ID, key: "intake", questions: intake.questions, stages, emails };
+  const created = await api.create({ store_id: STORE_ID, ...create });
+  assert.deepEqual(created.emails, emails);
+  assert.deepEqual(created.stages, stages);
+  const silent = { received: { type: "off" }, submission_alert: { type: "off" } };
   await api.update({ store_id: STORE_ID, id: FORM_ID, expected_updated_at: 1, emails: silent });
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
     ["POST", `/v1/stores/${STORE_ID}/forms`, create],
     ["PUT", `/v1/stores/${STORE_ID}/forms/${FORM_ID}`, { expected_updated_at: 1, emails: silent }],
   ]);
-  for (const removed of ["alert", "staff_new_submission", "staff_recipients"]) assert.equal(removed in calls[0].body.emails, false, removed);
+  for (const removed of ["stage_changed", "alert_recipients", "alert", "staff_new_submission", "staff_recipients"]) assert.equal(removed in calls[0].body.emails, false, removed);
 });
 
 test("a staff submission read carries the email contact the Server derived from its email answer", async (context) => {

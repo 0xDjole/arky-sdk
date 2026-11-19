@@ -35,3 +35,5 @@ export { DurableRequestError, isDefiniteRefusal } from "./utils/durableRequest";
 export { mountCheckoutAction, mountPaymentMethodSetup } from "./checkout";
 export { isSimulatedPayment, simulatePayment } from "./paymentSimulator";
 export type { PaymentSimulation, SimulatePaymentOptions, SimulatePaymentParams } from "./paymentSimulator";
+export { createFiscalDeviceAgent } from "./api/fiscalDevice";
+export type { FiscalDeviceAgent, FiscalDeviceAgentConfig } from "./api/fiscalDevice";

@@ -203,3 +203,29 @@ test("a_market_change_during_identify_reuses_it", async (context) => {
   assert.equal(api.getMarket(), "at");
   assert.deepEqual(calls.map((call) => [call.path, call.headers.get("authorization")]), [["/v1/storefront/customer/identify", null]]);
 });
+
+test("a storefront cart names its place of sale only when the page names one, on create, reorder and update", async (context) => {
+  const place = { type: "store_location", store_location_id: "9b3e1d57-2c84-4a06-8f1e-6d2a7c0b3e95" };
+  const calls = marketServer(context, (call) => {
+    if (call.path === "/v1/storefront/carts/reorder") {
+      return { cart: { type: "created", cart: cartRecord({ id: call.body.id, market_id: call.body.market_id }), recovery_token: "token" }, left_out: [] };
+    }
+    return cartRecord({ updated_at: 1_700_000_000_002, place_of_sale: call.body.place_of_sale ?? { type: "none" } });
+  });
+  const api = storefront(visitorStorage());
+  await api.eshop.cart.create({ id: ids.cart, buyer: customer, package_id: ids.package, place_of_sale: place });
+  await api.eshop.cart.create({ id: ids.otherCart, buyer: customer, package_id: ids.otherPackage });
+  await api.eshop.cart.reorder({ id: ids.thirdCart, order_id: ids.order, buyer: customer, package_id: ids.package, place_of_sale: { type: "none" } });
+  await api.eshop.cart.update({ id: ids.cart, expected_updated_at: 1_700_000_000_001, place_of_sale: place });
+  const writes = calls.filter((call) => call.method !== "GET");
+  assert.deepEqual(writes.map((call) => [call.method, call.path]), [
+    ["POST", "/v1/storefront/carts"],
+    ["POST", "/v1/storefront/carts"],
+    ["POST", "/v1/storefront/carts/reorder"],
+    ["PUT", `/v1/storefront/carts/${ids.cart}`],
+  ]);
+  assert.deepEqual(writes[0].body, { id: ids.cart, buyer: customer, package_id: ids.package, market_id: germany, place_of_sale: place });
+  assert.equal("place_of_sale" in writes[1].body, false, "a cart that names no place takes the Server's default");
+  assert.deepEqual(writes[2].body, { id: ids.thirdCart, order_id: ids.order, buyer: customer, package_id: ids.package, market_id: germany, place_of_sale: { type: "none" } });
+  assert.deepEqual(writes[3].body, { expected_updated_at: 1_700_000_000_001, place_of_sale: place });
+});

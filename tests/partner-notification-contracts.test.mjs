@@ -71,12 +71,17 @@ test("notification history and a template preview send only their own fields, an
 });
 
 test("minimum progress is read for exactly one customer, company or company location by staff and by the buyer", async (context) => {
+  const month = (value) => ({ month: value, timezone: "Europe/Sarajevo", starts_at: 1, ends_at: 2, package_member_id: null, progress: { type: "unavailable", reason: "no_minimum" } });
+  const customerProgress = { party: { type: "customer", customer_id: ids.customer }, state: { type: "available", current: month("2026-11"), history: [month("2026-10")] } };
   const locationProgress = { party: { type: "company_location", company_location_id: ids.companyLocation }, state: { type: "unavailable", reason: "no_minimum" } };
   const companyProgress = { party: { type: "company", company_id: ids.company }, state: { type: "unavailable", reason: "per_location" } };
-  const calls = recordFetch(context, (call) => "company_id" in call.query ? companyProgress : locationProgress);
+  const calls = recordFetch(context, (call) => "company_id" in call.query ? companyProgress : "customer_id" in call.query ? customerProgress : locationProgress);
   assert.deepEqual(await admin().eshop.minimumProgress.get({ store_id: storeId, company_location_id: ids.companyLocation }), locationProgress);
   assert.deepEqual(await admin().eshop.minimumProgress.get({ store_id: storeId, company_id: ids.company }), companyProgress);
-  await admin().eshop.minimumProgress.get({ store_id: storeId, customer_id: ids.customer });
+  const read = await admin().eshop.minimumProgress.get({ store_id: storeId, customer_id: ids.customer });
+  assert.equal(read.state.current.month, "2026-11");
+  assert.deepEqual(read.state.history.map((entry) => entry.month), ["2026-10"]);
+  assert.equal("year" in read.state.current, false);
   const shop = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
   assert.deepEqual(await shop.eshop.minimumProgress.get({ company_id: ids.company }), companyProgress);
   assert.deepEqual(await shop.eshop.minimumProgress.get({ company_location_id: ids.companyLocation }), locationProgress);

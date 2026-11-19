@@ -22,7 +22,7 @@ test("status counts read the named counts by status in one call", async (context
           { segment: "cancelled", value: 0 },
         ],
       },
-      { type: "customers_by_type", segments: [{ segment: "anonymous", value: 4 }, { segment: "verified", value: 1 }] },
+      { type: "customers_by_type", segments: [{ segment: "anonymous", value: 4 }, { segment: "linked", value: 1 }] },
     ],
   };
   const calls = recordFetch(context, () => answer);
@@ -104,8 +104,7 @@ test("status counts read what a store still has open, with every segment the Ser
           { segment: "stripe_card", value: 1 },
           { segment: "monri_checkout", value: 2 },
           { segment: "monri_card", value: 0 },
-          { segment: "cash_on_delivery", value: 0 },
-          { segment: "manual", value: 0 },
+          { segment: "recorded", value: 0 },
         ],
       },
       {
@@ -217,5 +216,39 @@ test("a report reads bookings by day and a location's money inside one market", 
     to: "2026-10-31",
     totals: JSON.stringify(totals),
     breakdowns: JSON.stringify(breakdowns),
+  });
+});
+
+test("a report reads one branch's bookings by outcome and by sales channel under the branch id", async (context) => {
+  const locationId = "3f9d2c71-6b84-4e05-a1d3-9c7e5b2a0f68";
+  const channelId = "5a7c9e1b-3d4f-4a6b-8c0d-2e4f6a8b0c1d";
+  const answer = {
+    from: "2026-11-01",
+    to: "2026-11-30",
+    totals: [{ type: "booking_lines_by_location_status_day", market_id: null, store_location_id: locationId, segment: "attended", value: 14 }],
+    breakdowns: [
+      {
+        type: "bookings_by_location_sales_channel_day",
+        market_id: null,
+        store_location_id: locationId,
+        segments: [{ segment: channelId, value: 9 }],
+        other_segments: 0,
+        other_value: { type: "count", value: 0 },
+      },
+    ],
+    series: [{ type: "booking_lines_by_location_status_day", market_id: null, store_location_id: locationId, segment: "no_show", points: [] }],
+  };
+  const calls = recordFetch(context, () => answer);
+  const totals = [{ type: "booking_lines_by_location_status_day", store_location_id: locationId, segment: "attended" }];
+  const breakdowns = [{ type: "bookings_by_location_sales_channel_day", store_location_id: locationId, limit: 5 }];
+  const series = [{ type: "booking_lines_by_location_status_day", store_location_id: locationId, segment: "no_show" }];
+  const read = await admin().counts.getReport({ store_id: storeId, from: "2026-11-01", to: "2026-11-30", totals, breakdowns, series });
+  assert.deepEqual(read, answer);
+  assert.deepEqual(calls[0].query, {
+    from: "2026-11-01",
+    to: "2026-11-30",
+    totals: JSON.stringify(totals),
+    breakdowns: JSON.stringify(breakdowns),
+    series: JSON.stringify(series),
   });
 });

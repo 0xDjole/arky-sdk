@@ -101,7 +101,6 @@ test("a signed-in session that Arky refuses to refresh is cleared and reported a
       return {
         customer: customerRecord(replacementCustomerId),
         session: { ...visitorSession(replacementCustomerId, replacementSessionId, replacementVisitorToken), store_id: ids.store },
-        logins: [],
       };
     }
     throw new Error(`Unexpected request: ${call.path}`);
@@ -281,7 +280,6 @@ test("a 401 that Arky did not send keeps the visitor, and only Arky's own 401 re
     return {
       customer: customerRecord(replacementCustomerId),
       session: { ...visitorSession(replacementCustomerId, replacementSessionId, replacementVisitorToken), store_id: ids.store },
-      logins: [],
     };
   });
   for (const proxyAnswer of proxyAnswers) {

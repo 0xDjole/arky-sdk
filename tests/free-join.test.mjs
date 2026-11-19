@@ -6,9 +6,11 @@ import { ExclusiveLockManager, MemoryStorage } from "./helpers/durable-request-f
 import {
   apiUrl,
   cartRecord,
+  confirmedEmail,
   customerRecord,
   emailSession,
   factoryId,
+  phoneSession,
   ids,
   idFactories,
   idSequence,
@@ -244,6 +246,19 @@ test("newsletter.requestCode skips a code for the signed-in address and signs ou
   assert.deepEqual(calls[2].body, { id: factoryId(4), contact: { type: "email", email: "reader@example.test", language: "en" } });
 });
 
+test("newsletter.requestCode skips the code for a phone sign-in's own confirmed email and keeps that sign-in", async (context) => {
+  browser(context);
+  const calls = recordFetch(context, (call) => {
+    throw new Error(`Unexpected request ${call.path}`);
+  });
+  const signedIn = sessionResult(ids.customer, phoneSession());
+  signedIn.customer.contacts = [...signedIn.customer.contacts, confirmedEmail("reader@example.test", "bs")];
+  const api = client(new SessionStorage(JSON.stringify({ version: 5, ...signedIn })));
+  assert.deepEqual(await api.newsletter.requestCode({ contact: { email: " Reader@Example.test ", language: "en" } }), { type: "verified" });
+  assert.equal(calls.length, 0);
+  assert.deepEqual(api.session.signed_in_with, { type: "phone", number: "+38761222333" });
+});
+
 test("newsletter.join verifies the code, checks the address and joins in the caller's language, not the verified contact's", async (context) => {
   browser(context);
   const signedIn = sessionResult(ids.customer, emailSession(ids.customer, ids.otherSession));
@@ -265,7 +280,8 @@ test("newsletter.join verifies the code, checks the address and joins in the cal
   await assert.rejects(api.newsletter.join({ email: verifiedEmail, key: "newsletter", package_id: ids.package, language: "en" }), (error) => error instanceof PackageJoinError && error.code === "sign_in_required");
   await assert.rejects(api.newsletter.join({ email: "other@example.test", code: "123456", key: "newsletter", package_id: ids.package, language: "en" }), (error) => error instanceof PackageJoinError && error.code === "email_mismatch");
   assert.equal(joined, false);
-  assert.deepEqual(api.session.login.type, { type: "verified_email", email: verifiedEmail, language: "en", unsubscribed: false });
+  assert.deepEqual(api.session.signed_in_with, { type: "email", email: verifiedEmail });
+  assert.deepEqual(api.session.customer.contacts, [confirmedEmail(verifiedEmail, "en")]);
   assert.deepEqual(await api.newsletter.join({ email: verifiedEmail, key: "newsletter", package_id: ids.package, language: "bs" }), { type: "joined", order_id: ids.order });
   const accept = calls.find((call) => call.path === "/v1/storefront/carts/accept");
   assert.deepEqual(accept.body.contact_email, { email: verifiedEmail, language: "bs" });
@@ -273,7 +289,7 @@ test("newsletter.join verifies the code, checks the address and joins in the cal
 
 function signedInWithLanguage(language) {
   const signedIn = sessionResult(ids.customer, emailSession());
-  signedIn.login.type = { type: "verified_email", email: verifiedEmail, language, unsubscribed: false };
+  signedIn.customer.contacts = [confirmedEmail(verifiedEmail, language)];
   return new SessionStorage(JSON.stringify({ version: 5, ...signedIn }));
 }
 
@@ -284,4 +300,21 @@ test("a free sign-up names the Order contact in the caller's language, not the l
   assert.deepEqual(result, { type: "joined", order_id: ids.order });
   const accept = calls.find((call) => call.path === "/v1/storefront/carts/accept");
   assert.deepEqual(accept.body.contact_email, { email: verifiedEmail, language: "bs" });
+});
+
+test("a free join needs a sign-in by an email the customer confirmed, so a phone sign-in or an unconfirmed email joins nothing", async (context) => {
+  browser(context);
+  const calls = joinServer(context);
+  const byPhone = new SessionStorage(storedSession(ids.customer, phoneSession()));
+  const unconfirmed = sessionResult(ids.customer, emailSession());
+  unconfirmed.customer.contacts = [{ type: "unconfirmed_email", email: verifiedEmail, language: "en" }];
+  const notConfirmed = new SessionStorage(JSON.stringify({ version: 5, ...unconfirmed }));
+  for (const storage of [byPhone, notConfirmed]) {
+    await assert.rejects(client(storage).eshop.package.joinFree({ key: "newsletter", package_id: ids.package, language: "en" }), (error) => {
+      assert.ok(error instanceof PackageJoinError);
+      assert.equal(error.code, "sign_in_required");
+      return true;
+    });
+  }
+  assert.equal(calls.length, 0);
 });
