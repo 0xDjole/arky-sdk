@@ -106,7 +106,7 @@ function offeringChoice(bookingOfferingId = offeringId, packageItemPriceId = ids
   return {
     price_id: packageItemPriceId,
     sellable: { type: "booking_offering", booking_offering_id: bookingOfferingId },
-    content: { sku: null, blocks: [], basis: { type: "booking_option" } },
+    content: { sku: null, blocks: [], basis: { type: "booking_option" }, placement: { type: "booking", locations: { type: "all" }, resources: { type: "ids", booking_resource_ids: [resourceId] } } },
     price: { ...offeringPrice, price_id: packageItemPriceId },
   };
 }
@@ -392,6 +392,7 @@ test("the booking calendar prices each slot from its item and adds one cart line
   const calls = [];
   const calendarDate = new Date();
   const availableLocalDate = `${calendarDate.getFullYear()}-${String(calendarDate.getMonth() + 1).padStart(2, "0")}-01`;
+  const roomName = { id: "c7e9b1d3-5f2a-4c6e-9b8d-1f3a5c7e9b2d", key: "name", type: "text", value: "Room one" };
   let current = cartRecord();
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     const call = { url: new URL(url), method: init.method || "GET", body: init.body ? JSON.parse(String(init.body)) : null, headers: new Headers(init.headers) };
@@ -411,6 +412,7 @@ test("the booking calendar prices each slot from its item and adds one cart line
           store_location_id: locationId,
           booking_resource_id: resourceId,
           resource_key: "room-one",
+          resource_blocks: [roomName],
           timezone: "Europe/Sarajevo",
           days: [{
             date: availableLocalDate,
@@ -440,7 +442,7 @@ test("the booking calendar prices each slot from its item and adds one cart line
   assert.equal(selected.booking_service.id, serviceId);
   assert.equal(selected.store_location_id, locationId);
   assert.deepEqual(selected.booking_choices.map((choice) => choice.price_id), [ids.price]);
-  assert.deepEqual(selected.booking_resources.map((resource) => resource.id), [resourceId]);
+  assert.deepEqual(selected.booking_resources, [{ id: resourceId, key: "room-one", blocks: [roomName], timezone: "Europe/Sarajevo" }]);
   const availableDay = calendar.state.get().days.find((day) => day.iso === availableLocalDate);
   assert.equal(availableDay?.available, true);
   calendar.selectDate({ date: availableDay.iso });
@@ -469,13 +471,12 @@ test("the booking calendar prices each slot from its item and adds one cart line
   assert.deepEqual(Object.fromEntries(serviceRead.url.searchParams), { package_id: ids.package });
   const priceRead = calls.find((call) => call.url.pathname.endsWith("/prices"));
   assert.deepEqual(Object.fromEntries(priceRead.url.searchParams), { package_id: ids.package, include_price: "true", limit: "100" });
-  const resourceReads = calls.filter((call) => call.url.pathname.endsWith(`/booking-resources/${resourceId}`));
-  assert.equal(resourceReads.length, 1, "a known resource is read once");
-  assert.deepEqual(Object.fromEntries(resourceReads[0].url.searchParams), { package_id: ids.package, offering_id: offeringId });
+  const resourceReads = calls.filter((call) => call.url.pathname.includes("/booking-resources"));
+  assert.equal(resourceReads.length, 0, "the availability rows carry each resource's key and blocks, so no resource is read");
   const availabilityCalls = calls.filter((call) => call.url.pathname.endsWith("/booking-services/availability"));
   const dayMilliseconds = 24 * 60 * 60 * 1_000;
   const firstBounds = availabilityCalls[0].url.searchParams;
-  assert.equal(firstBounds.get("limit"), "1");
+  assert.equal(firstBounds.get("limit"), "20");
   assert.equal(firstBounds.get("store_location_id"), locationId);
   assert.equal(Number(firstBounds.get("from")), Date.UTC(calendarDate.getFullYear(), calendarDate.getMonth(), 1) - dayMilliseconds);
   assert.equal(Number(firstBounds.get("to")), Date.UTC(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1) + dayMilliseconds);
@@ -536,7 +537,7 @@ test("the booking calendar keeps the company location context of its cart, reads
     }
     if (request.pathname.endsWith("/booking-services/availability")) {
       availabilityCalls.push(request);
-      assert.equal(request.searchParams.get("limit"), "1");
+      assert.equal(request.searchParams.get("limit"), "20");
       assert.equal(request.searchParams.has("include_price"), false);
       return jsonResponse({
         from: Number(request.searchParams.get("from")), to: Number(request.searchParams.get("to")),
@@ -544,7 +545,7 @@ test("the booking calendar keeps the company location context of its cart, reads
           booking_offering_id: request.searchParams.has("cursor") ? laterOfferingId : offeringId,
           store_location_id: locationId,
           booking_resource_id: request.searchParams.has("cursor") ? laterResourceId : resourceId,
-          resource_key: "room", timezone: "Europe/Sarajevo", days: [],
+          resource_key: "room", resource_blocks: [], timezone: "Europe/Sarajevo", days: [],
         }],
         cursor: request.searchParams.has("cursor") && !repeatAvailabilityCursor ? null : "availability-next",
       });
@@ -562,7 +563,7 @@ test("the booking calendar keeps the company location context of its cart, reads
   assert.equal(availabilityCalls[1].searchParams.get("from"), availabilityCalls[0].searchParams.get("from"));
   assert.deepEqual(calendar.state.get().availability.booking_resources.map((row) => row.booking_resource_id), [resourceId, laterResourceId]);
   assert.deepEqual(calendar.state.get().booking_resources.map((row) => row.id), [resourceId, laterResourceId]);
-  assert.equal(resourceCalls.length, 2);
+  assert.equal(resourceCalls.length, 0, "the availability rows carry each resource, so no resource is read");
   assert.equal(calendar.state.get().availability.cursor, null);
   assert.equal(calendar.state.get().booking_choices_cursor, "price-next");
   const state = await calendar.loadMoreChoices();
@@ -578,7 +579,7 @@ test("the booking calendar keeps the company location context of its cart, reads
   assert.equal(availabilityCalls.length, 4);
   assert.equal(calendar.state.get().availability, null);
   assert.equal(calendar.state.get().loading, false);
-  assert.equal(resourceCalls.length, 2);
+  assert.equal(resourceCalls.length, 0);
   assert.equal("loadMoreAvailability" in calendar, false);
   await assert.rejects(calendar.selectResource({ booking_resource_id: ids.variant }), TypeError);
 });
@@ -597,7 +598,7 @@ test("late availability cannot replace a newer booking service selection in the 
         from: Number(request.searchParams.get("from")),
         to: Number(request.searchParams.get("to")),
         cursor: null,
-        booking_resources: [{ booking_offering_id: offeringId, store_location_id: locationId, booking_resource_id: requestedService, resource_key: requestedService, timezone: "Europe/Sarajevo", days: [] }],
+        booking_resources: [{ booking_offering_id: offeringId, store_location_id: locationId, booking_resource_id: requestedService, resource_key: requestedService, resource_blocks: [], timezone: "Europe/Sarajevo", days: [] }],
       };
       if (requestedService === serviceId) {
         announcePending();
@@ -624,8 +625,8 @@ test("late availability cannot replace a newer booking service selection in the 
     const state = calendar.state.get();
     assert.equal(state.booking_service.id, newServiceId);
     assert.equal(state.availability.booking_resources[0].booking_resource_id, newServiceId);
-    assert.deepEqual(state.booking_resources.map((resource) => resource.id), [newServiceId]);
-    assert.deepEqual(resourceReads, [newServiceId]);
+    assert.deepEqual(state.booking_resources, [{ id: newServiceId, key: newServiceId, blocks: [], timezone: "Europe/Sarajevo" }]);
+    assert.deepEqual(resourceReads, []);
     assert.equal(state.loading, false);
     assert.equal("state" in facade.eshop, false);
   } finally {
@@ -704,4 +705,53 @@ test("a storefront resource slug keeps the locale and offering visibility contex
   assert.equal(calls[0].url.pathname, "/v1/storefront/booking-resources/ordinacija");
   assert.equal(calls[0].headers.get("x-arky-locale"), "bs-BA");
   assert.deepEqual(Object.fromEntries(calls[0].url.searchParams), { package_id: ids.package, offering_id: offeringId });
+});
+
+test("staff read booking offerings by ids and Tito pages of a service's or a resource's offerings, and the store's or a category's services and resources", async (context) => {
+  const calls = [];
+  context.mock.method(globalThis, "fetch", async (url, init = {}) => {
+    calls.push({ url: new URL(url), method: init.method ?? "GET" });
+    return jsonResponse({ items: [], cursor: null });
+  });
+  const admin = createAdmin({ apiUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).eshop;
+  const categoryId = "11a3c5e7-9b2d-4f68-8a0c-2e4f6a8c0b1d";
+  await admin.bookingOffering.find({ store_id: storeId, ids: [offeringId, addOnOfferingId] });
+  await admin.bookingOffering.findByService({ store_id: storeId, booking_service_id: serviceId, limit: 100 });
+  await admin.bookingOffering.findByResource({ store_id: storeId, booking_resource_id: resourceId, cursor: "offerings:2" });
+  await admin.bookingService.findAll({ store_id: storeId, limit: 50 });
+  await admin.bookingService.findByBlockTarget({ store_id: storeId, block_target_id: taxCategoryId });
+  await admin.bookingResource.findAll({ store_id: storeId });
+  await admin.bookingResource.findByCategory({ store_id: storeId, category_id: categoryId, limit: 10, cursor: "resources:1" });
+  await admin.bookingOffering.findAll({ store_id: storeId, limit: 100, cursor: "offerings:3" });
+  await admin.bookingOffering.findAll({ store_id: storeId });
+  assert.deepEqual(calls.map(({ method, url }) => [method, url.pathname, Object.fromEntries(url.searchParams)]), [
+    ["GET", `/v1/stores/${storeId}/booking-offerings`, { ids: JSON.stringify([offeringId, addOnOfferingId]) }],
+    ["GET", `/v1/stores/${storeId}/booking-offerings/by-service/${serviceId}`, { limit: "100" }],
+    ["GET", `/v1/stores/${storeId}/booking-offerings/by-resource/${resourceId}`, { cursor: "offerings:2" }],
+    ["GET", `/v1/stores/${storeId}/booking-services/all`, { limit: "50" }],
+    ["GET", `/v1/stores/${storeId}/booking-services/by-block-target/${taxCategoryId}`, {}],
+    ["GET", `/v1/stores/${storeId}/booking-resources/all`, {}],
+    ["GET", `/v1/stores/${storeId}/booking-resources/by-category/${categoryId}`, { limit: "10", cursor: "resources:1" }],
+    ["GET", `/v1/stores/${storeId}/booking-offerings/all`, { limit: "100", cursor: "offerings:3" }],
+    ["GET", `/v1/stores/${storeId}/booking-offerings/all`, {}],
+  ]);
+  await assert.rejects(async () => admin.bookingOffering.findByService({ store_id: storeId, booking_service_id: "service" }), TypeError);
+  assert.equal(calls.length, 9);
+});
+
+test("a storefront reads several booking offerings, or several resources beside one offering, in one request under its package", async (context) => {
+  const calls = [];
+  context.mock.method(globalThis, "fetch", async (url, init = {}) => {
+    calls.push({ url: new URL(url), method: init.method ?? "GET" });
+    return jsonResponse({ items: [], cursor: null });
+  });
+  const shop = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: ids.customer, session_id: ids.session }, ...fixedIdFactories, apiUrl });
+  assert.deepEqual(await shop.eshop.bookingOffering.findByIds({ ids: [offeringId], package_id: ids.package, include_price: true }), { items: [], cursor: null });
+  await shop.eshop.bookingResource.findByIds({ ids: [resourceId], offering_id: offeringId, package_id: ids.package, company_id: ids.company });
+  assert.deepEqual(calls.map(({ method, url }) => [method, url.pathname, Object.fromEntries(url.searchParams)]), [
+    ["GET", "/v1/storefront/booking-offerings", { ids: JSON.stringify([offeringId]), package_id: ids.package, include_price: "true" }],
+    ["GET", "/v1/storefront/booking-resources", { ids: JSON.stringify([resourceId]), offering_id: offeringId, package_id: ids.package, company_id: ids.company }],
+  ]);
+  assert.equal("find" in shop.eshop.bookingOffering, false);
+  assert.equal("find" in shop.eshop.bookingResource, false);
 });

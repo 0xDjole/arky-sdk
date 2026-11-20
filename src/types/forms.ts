@@ -207,6 +207,7 @@ export interface FindFormsParams {
   ids?: string[];
   key?: string;
   query?: string;
+  type?: FormType;
   status?: FormStatus["type"];
   sort_field?: "key" | "status" | "created_at" | "updated_at";
   sort_direction?: SortDirection;

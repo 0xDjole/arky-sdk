@@ -6,7 +6,9 @@ import type { Order, StorefrontOrder } from "../types/order";
 import type {
   GetStorefrontPackageByKeyParams,
   GetStorefrontPackageParams,
+  GetStorefrontPackageItemsProductChoicesParams,
   GetStorefrontPackageProductChoicesParams,
+  PackageItemsProductChoices,
   PackageProductChoices,
   StorefrontPackage,
 } from "../types/package";
@@ -17,7 +19,9 @@ import type {
   ChangePackageMemberTermsParams,
   CreatePackageOfferingParams,
   DeletePackageOfferingParams,
+  FindPackageMemberOrdersParams,
   FindPackageMemberPageParams,
+  FindPackageMembersCurrentParams,
   FindPackageMembersParams,
   FindPackageOfferingsParams,
   GetPackageMemberMinimumParams,
@@ -35,6 +39,9 @@ import type {
   PackageMemberChanges,
   PackageMemberChangeSelf,
   PackageMemberCurrent,
+  PackageMemberDetail,
+  PackageMemberDetailSelf,
+  PackageMemberListItem,
   PackageMemberCurrentSelf,
   PackageMemberDeliveryOptions,
   PackageMemberMinimum,
@@ -44,6 +51,7 @@ import type {
   PackageMemberRevisionDetail,
   PackageMemberRevisionDetailSelf,
   PackageMemberSelf,
+  PackageMemberSelfListItem,
   PackageOffering,
   PausePackageMemberParams,
   RevokePackageMemberParams,
@@ -167,19 +175,29 @@ export const createPackageMemberApi = (apiConfig: ApiConfig) => {
     find(
       params: FindPackageMembersParams,
       options?: RequestOptions,
-    ): Promise<PaginatedResponse<PackageMember>> {
+    ): Promise<PaginatedResponse<PackageMemberListItem>> {
       const { store_id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<PackageMember>>(
+      return apiConfig.httpClient.get<PaginatedResponse<PackageMemberListItem>>(
         storePath(store_id, "package-members"),
         { ...options, params: query },
+      );
+    },
+
+    findCurrent(
+      params: FindPackageMembersCurrentParams,
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<PackageMemberCurrent>> {
+      return apiConfig.httpClient.get<PaginatedResponse<PackageMemberCurrent>>(
+        storePath(params.store_id, "package-members/current"),
+        { ...options, params: { ids: params.ids } },
       );
     },
 
     get(
       params: GetPackageMemberParams,
       options?: RequestOptions,
-    ): Promise<PackageMember> {
-      return apiConfig.httpClient.get<PackageMember>(
+    ): Promise<PackageMemberDetail> {
+      return apiConfig.httpClient.get<PackageMemberDetail>(
         memberPath(params.store_id, params.id),
         options,
       );
@@ -232,7 +250,7 @@ export const createPackageMemberApi = (apiConfig: ApiConfig) => {
     },
 
     findOrders(
-      params: FindPackageMemberPageParams,
+      params: FindPackageMemberOrdersParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<Order>> {
       const { store_id, id, ...query } = params;
@@ -457,6 +475,24 @@ export function createStorefrontPackageApi(
         );
       },
 
+      getItemsProductChoices(
+        params: GetStorefrontPackageItemsProductChoicesParams,
+        options?: RequestOptions,
+      ): Promise<PackageItemsProductChoices> {
+        const identifier = "id" in params ? params.id : params.key;
+        if (!identifier) throw new TypeError("Product choices name their package by id or by key");
+        const query = {
+          package_id: params.package_id,
+          company_id: params.company_id,
+          company_location_id: params.company_location_id,
+          quantity: params.quantity,
+        };
+        return httpClient.get<PackageItemsProductChoices>(
+          `${storefrontBase}/packages/${segment(identifier)}/product-choices`,
+          { ...options, params: query },
+        );
+      },
+
       getProductChoices(
         params: GetStorefrontPackageProductChoicesParams,
         options?: RequestOptions,
@@ -504,9 +540,9 @@ export function createStorefrontPackageApi(
       async find(
         params: StorefrontFindPackageMembersParams = {},
         options?: RequestOptions,
-      ): Promise<PaginatedResponse<PackageMemberSelf>> {
+      ): Promise<PaginatedResponse<PackageMemberSelfListItem>> {
         await ensureVisitorSession();
-        return httpClient.get<PaginatedResponse<PackageMemberSelf>>(
+        return httpClient.get<PaginatedResponse<PackageMemberSelfListItem>>(
           `${storefrontBase}/package-members`,
           {
             ...options,
@@ -518,9 +554,9 @@ export function createStorefrontPackageApi(
       async get(
         params: StorefrontGetPackageMemberParams,
         options?: RequestOptions,
-      ): Promise<PackageMemberSelf> {
+      ): Promise<PackageMemberDetailSelf> {
         await ensureVisitorSession();
-        return httpClient.get<PackageMemberSelf>(
+        return httpClient.get<PackageMemberDetailSelf>(
           memberPath(params.id),
           options,
         );

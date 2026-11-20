@@ -48,9 +48,18 @@ export type NetworkProviderStatus = "active" | "disabled";
 
 export type NetworkElevenLabsRegion = "global" | "us" | "eu" | "in" | "sg";
 
+export interface NetworkElevenLabsTools {
+  find_slots: string;
+  propose: string;
+  confirm: string;
+  request_callback: string;
+  transfer: string;
+  record_sms_consent: string;
+}
+
 export type NetworkElevenLabsSetup =
   | { type: "waiting" }
-  | { type: "ready"; agent_id: string; tool_ids: string[]; at: EpochMilliseconds }
+  | { type: "ready"; agent_id: string; tools: NetworkElevenLabsTools; at: EpochMilliseconds }
   | { type: "failed"; error: ProviderEffectError; at: EpochMilliseconds };
 
 export type NetworkProviderType =
@@ -68,7 +77,6 @@ export type NetworkProviderType =
     }
   | { type: "stripe"; account_id: string; publishable_key: string; secret_key: StripeSecretKeyType }
   | { type: "twilio"; account_sid: string; customer_texts: NetworkCustomerSmsTexts }
-  | { type: "open_ai"; project_id: string }
   | { type: "eleven_labs"; region: NetworkElevenLabsRegion; setup: NetworkElevenLabsSetup };
 
 export interface NetworkProvider {
@@ -366,3 +374,4 @@ export interface GetOwnNetworkMembershipParams { network_id: string }
 export interface ResetNetworkMemberSecondFactorParams { network_id: string; id: string }
 export interface AcceptNetworkInviteParams { network_id: string; expected_updated_at: EpochMilliseconds }
 export interface GetNetworkStoreAgreementParams { network_id: string; store_id: string }
+export interface FindNetworkStoreSubscriptionsParams { network_id: string; ids: string[] }

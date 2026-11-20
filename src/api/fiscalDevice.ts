@@ -112,6 +112,7 @@ export interface FiscalDeviceAgentConfig {
   apiUrl: string;
   storeId: string;
   token: string;
+  redirect?: RequestRedirect;
 }
 
 export const createFiscalDeviceAgent = (config: FiscalDeviceAgentConfig) => {
@@ -128,6 +129,7 @@ export const createFiscalDeviceAgent = (config: FiscalDeviceAgentConfig) => {
     baseUrl: config.apiUrl.replace(/\/+$/, ""),
     authStorage: { getTokens: () => ({ access_token: token }) },
     onUnauthorized: () => false,
+    redirect: config.redirect,
   });
   const agentPath = (path: string) => storePath(storeId, `fiscal-device/${path}`);
 

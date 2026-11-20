@@ -10,16 +10,17 @@ const rentalId = "0b5e3a7c-2d48-4d1f-9a2e-6c8b4f0d3e57";
 const jobId = "7f3c1a85-4e29-4b60-a1d7-9c2e5b8f0a36";
 const jobLineId = "2d8e4b61-9a37-4c05-8f1e-6b3d0a7c5e92";
 const fulfillmentId = "9a1c5e37-6b28-4d40-b3f9-1e7d2c8a4b65";
+const otherMemberId = "4e6a8c0d-2f1b-4d3e-9a5c-7b9d1f3e5a6c";
 
 function eshop() {
   return createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).eshop;
 }
 
 test("rental discovery forwards its filters, keeps the empty continuation and reads the rented terms", async (context) => {
-  const detail = { rental: { id: rentalId, status: { type: "active" } }, terms: { product_id: ids.product, variant_id: ids.variant, quantity: 1, inventory_item_id: "unit-item", product_key: "classic", variant_sku: null } };
+  const detail = { rental: { id: rentalId, status: { type: "active" } }, terms: { product_id: ids.product, variant_id: ids.variant, quantity: 1, inventory_item_id: "unit-item", product_key: "classic", variant_sku: null }, product: null, units: [] };
   const calls = recordFetch(context, (_call, count) => count <= 2 ? { items: [], cursor: count === 1 ? "next:/+=" : null } : detail);
   const api = eshop().rental;
-  const query = { store_id: STORE_ID, package_member_id: ids.packageMember, status: "ending", limit: 20, sort_field: "updated_at", sort_direction: "desc" };
+  const query = { store_id: STORE_ID, package_member_ids: [ids.packageMember, otherMemberId], status: "ending", limit: 20, sort_field: "updated_at", sort_direction: "desc" };
   assert.deepEqual(await api.find(query), { items: [], cursor: "next:/+=" });
   assert.deepEqual(await api.find({ ...query, cursor: "next:/+=" }), { items: [], cursor: null });
   assert.deepEqual(await api.get({ store_id: OTHER_STORE_ID, id: "rental/id" }), detail);
@@ -28,7 +29,7 @@ test("rental discovery forwards its filters, keeps the empty continuation and re
     ["GET", `/v1/stores/${STORE_ID}/rentals`],
     ["GET", `/v1/stores/${OTHER_STORE_ID}/rentals/rental%2Fid`],
   ]);
-  assert.deepEqual(calls[0].query, { package_member_id: ids.packageMember, status: "ending", limit: "20", sort_field: "updated_at", sort_direction: "desc" });
+  assert.deepEqual(calls[0].query, { package_member_ids: JSON.stringify([ids.packageMember, otherMemberId]), status: "ending", limit: "20", sort_field: "updated_at", sort_direction: "desc" });
   assert.equal(calls[1].query.cursor, "next:/+=");
   assert.equal(calls[2].url.search, "");
   assert.deepEqual(Object.keys(api).sort(), ["execute", "find", "get"]);
@@ -108,23 +109,23 @@ test("a rental that waits for its terms or never started reads as stored, and st
   const buyerWithdrawn = { ...machine, id: fulfillmentId, status: { type: "withdrawn", withdrawn_at: 1_700_000_100_000 }, updated_at: 1_700_000_100_000 };
   const calls = recordFetch(context, (call) => {
     if (call.path === `/v1/stores/${STORE_ID}/rentals`) return { items: call.query.status === "waiting" ? [waiting] : [withdrawn], cursor: null };
-    if (call.path === `/v1/stores/${STORE_ID}/rentals/${rentalId}`) return { rental: waiting, terms };
+    if (call.path === `/v1/stores/${STORE_ID}/rentals/${rentalId}`) return { rental: waiting, terms, product: null, units: [] };
     if (call.path === "/v1/storefront/rentals") return { items: [buyerWaiting, buyerWithdrawn], cursor: null };
     return buyerWithdrawn;
   });
   const api = eshop().rental;
   assert.deepEqual(await api.find({ store_id: STORE_ID, status: "waiting" }), { items: [waiting], cursor: null });
   assert.deepEqual(await api.find({ store_id: STORE_ID, status: "withdrawn" }), { items: [withdrawn], cursor: null });
-  assert.deepEqual(await api.get({ store_id: STORE_ID, id: rentalId }), { rental: waiting, terms });
+  assert.deepEqual(await api.get({ store_id: STORE_ID, id: rentalId }), { rental: waiting, terms, product: null, units: [] });
   const store = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
-  const listed = await store.eshop.rental.find({ package_member_id: ids.packageMember, limit: 10 });
+  const listed = await store.eshop.rental.find({ package_member_ids: [ids.packageMember], limit: 10 });
   assert.deepEqual(listed.items.map((item) => item.status), [{ type: "waiting" }, { type: "withdrawn", withdrawn_at: 1_700_000_100_000 }]);
   assert.deepEqual(await store.eshop.rental.get({ id: fulfillmentId }), buyerWithdrawn);
   assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
     ["GET", `/v1/stores/${STORE_ID}/rentals`, { status: "waiting" }],
     ["GET", `/v1/stores/${STORE_ID}/rentals`, { status: "withdrawn" }],
     ["GET", `/v1/stores/${STORE_ID}/rentals/${rentalId}`, {}],
-    ["GET", "/v1/storefront/rentals", { package_member_id: ids.packageMember, limit: "10" }],
+    ["GET", "/v1/storefront/rentals", { package_member_ids: JSON.stringify([ids.packageMember]), limit: "10" }],
     ["GET", `/v1/storefront/rentals/${fulfillmentId}`, {}],
   ]);
 });
@@ -132,10 +133,10 @@ test("a rental that waits for its terms or never started reads as stored, and st
 test("a buyer reads their own rentals of one package member through storefront routes", async (context) => {
   const calls = recordFetch(context, (call) => call.path === "/v1/storefront/rentals" ? { items: [], cursor: null } : { id: rentalId });
   const rentals = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() }).eshop.rental;
-  await rentals.find({ package_member_id: ids.packageMember, limit: 10 });
+  await rentals.find({ package_member_ids: [ids.packageMember], limit: 10 });
   await rentals.get({ id: rentalId });
   assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
-    ["GET", "/v1/storefront/rentals", { package_member_id: ids.packageMember, limit: "10" }],
+    ["GET", "/v1/storefront/rentals", { package_member_ids: JSON.stringify([ids.packageMember]), limit: "10" }],
     ["GET", `/v1/storefront/rentals/${rentalId}`, {}],
   ]);
   for (const call of calls) assert.equal(call.headers.get("authorization"), `Bearer ${visitorToken}`);
@@ -149,7 +150,7 @@ test("a buyer's rentals and a quote's rental line answer the rented machine's cu
   const quote = { cart_id: ids.cart, lines: [{ type: "package", line_item_id: ids.line, items: [rentalLine] }] };
   const calls = recordFetch(context, (call) => call.path === "/v1/storefront/rentals" ? { items: [rental, gone], cursor: null } : call.path.endsWith("/quote") ? quote : rental);
   const store = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
-  const listed = await store.eshop.rental.find({ package_member_id: ids.packageMember, limit: 10 });
+  const listed = await store.eshop.rental.find({ package_member_ids: [ids.packageMember], limit: 10 });
   assert.deepEqual(listed.items.map((item) => item.product), [machine, null]);
   const read = await store.eshop.rental.get({ id: rentalId });
   assert.deepEqual(read, rental);
@@ -226,5 +227,30 @@ test("the store team reads who ended a rental, an account with its reason or Ark
   assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
     ["GET", `/v1/stores/${STORE_ID}/rentals`, { status: "ending" }],
     ["GET", `/v1/storefront/rentals/${fulfillmentId}`, {}],
+  ]);
+});
+
+test("staff read rentals by ids with each rental's product, quantity and units, and a closed rental keeps the ending it closed", async (context) => {
+  const base = { id: rentalId, store_id: STORE_ID, package_member_id: ids.packageMember, package_member_revision_id: jobId, package_item_id: jobLineId, product: null, quantity: 1, units: [], created_at: 1_700_000_000_000, updated_at: 1_700_000_200_000 };
+  const actor = { account_id: ids.account, snapshot: { email: "desk@example.test", credential_type: { type: "session" } } };
+  const afterAccount = { ...base, status: { type: "closed_after_account_ending", requested_at: 1_700_000_100_000, actor, reason: "Customer ended the agreement", return_due_at: null, closed_at: 1_700_000_200_000 } };
+  const afterSystem = { ...base, id: fulfillmentId, quantity: 3, status: { type: "closed_after_system_ending", requested_at: 1_700_000_100_000, cause: { type: "package_changed" }, closed_at: 1_700_000_200_000 } };
+  const calls = recordFetch(context, () => ({ items: [afterAccount, afterSystem], cursor: null }));
+  const page = await eshop().rental.find({ store_id: STORE_ID, ids: [rentalId, fulfillmentId] });
+  assert.deepEqual(page.items.map(({ status }) => [status.type, status.closed_at]), [["closed_after_account_ending", 1_700_000_200_000], ["closed_after_system_ending", 1_700_000_200_000]]);
+  assert.deepEqual(page.items.map(({ product, quantity, units }) => [product, quantity, units]), [[null, 1, []], [null, 3, []]]);
+  assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
+    ["GET", `/v1/stores/${STORE_ID}/rentals`, { ids: JSON.stringify([rentalId, fulfillmentId]) }],
+  ]);
+});
+
+test("staff and buyers list a company's or a branch's rentals by its id", async (context) => {
+  const calls = recordFetch(context, () => ({ items: [], cursor: null }));
+  await eshop().rental.find({ store_id: STORE_ID, company_location_id: ids.companyLocation, status: "active" });
+  const store = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
+  await store.eshop.rental.find({ company_id: ids.company, limit: 10 });
+  assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
+    ["GET", `/v1/stores/${STORE_ID}/rentals`, { company_location_id: ids.companyLocation, status: "active" }],
+    ["GET", "/v1/storefront/rentals", { company_id: ids.company, limit: "10" }],
   ]);
 });

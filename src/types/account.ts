@@ -24,7 +24,7 @@ export interface LoginCodeSent {
   code_expires_at: EpochMilliseconds;
 }
 
-export type PlatformLogin = { type: "email"; email: string; language: string; since: EpochMilliseconds };
+export type PlatformLogin = { type: "email"; email: string; since: EpochMilliseconds };
 
 export type NetworkLogin =
   | { type: "member_email"; email: string; language: string; since: EpochMilliseconds }
@@ -242,7 +242,6 @@ export interface FindPlatformAccountsParams {
 export interface AddPlatformAccountParams {
   id: string;
   email: string;
-  language: string;
 }
 
 export interface DeletePlatformAccountParams {

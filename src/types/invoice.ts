@@ -135,7 +135,7 @@ export interface InvoiceDocument {
 
 export type InvoicePaymentReference =
   | { type: "plain"; reference: string }
-  | { type: "model"; model: string; reference: string }
+  | { type: "model97"; reference: string }
   | { type: "creditor"; reference: string };
 
 export type InvoicePaymentDetails =
@@ -248,12 +248,55 @@ export type InvoiceBuyerInput =
       purchase_order: InvoicePurchaseOrder;
     };
 
-export interface FindInvoicesParams {
+export interface FindStoreInvoicesParams {
   store_id: string;
-  order_id?: string;
+  order_id?: never;
+  order_ids?: never;
+  number?: never;
+  document_at_from?: EpochMilliseconds;
+  document_at_to?: EpochMilliseconds;
   limit?: number;
   cursor?: string | null;
 }
+
+export interface FindOrderInvoicesParams {
+  store_id: string;
+  order_id: string;
+  order_ids?: never;
+  number?: never;
+  document_at_from?: never;
+  document_at_to?: never;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface FindInvoicesByOrdersParams {
+  store_id: string;
+  order_id?: never;
+  order_ids: string[];
+  number?: never;
+  document_at_from?: never;
+  document_at_to?: never;
+  limit?: never;
+  cursor?: never;
+}
+
+export interface FindInvoicesByNumberParams {
+  store_id: string;
+  order_id?: never;
+  order_ids?: never;
+  number: string;
+  document_at_from?: never;
+  document_at_to?: never;
+  limit?: never;
+  cursor?: never;
+}
+
+export type FindInvoicesParams =
+  | FindStoreInvoicesParams
+  | FindOrderInvoicesParams
+  | FindInvoicesByOrdersParams
+  | FindInvoicesByNumberParams;
 
 export interface GetInvoiceParams {
   store_id: string;
@@ -360,7 +403,7 @@ export type StoreSellerTax =
 
 export type StoreSellerPaymentReference =
   | { type: "plain" }
-  | { type: "model"; model: "97" }
+  | { type: "model97" }
   | { type: "creditor" };
 
 export type StoreSellerBankAccount =

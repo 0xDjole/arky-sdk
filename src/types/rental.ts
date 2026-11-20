@@ -20,7 +20,15 @@ export type RentalStatus =
       return_due_at: EpochMilliseconds | null;
     }
   | { type: "ending_by_system"; requested_at: EpochMilliseconds; cause: RentalEndCause }
-  | { type: "closed"; closed_at: EpochMilliseconds }
+  | {
+      type: "closed_after_account_ending";
+      requested_at: EpochMilliseconds;
+      actor: AccountActor;
+      reason: string;
+      return_due_at: EpochMilliseconds | null;
+      closed_at: EpochMilliseconds;
+    }
+  | { type: "closed_after_system_ending"; requested_at: EpochMilliseconds; cause: RentalEndCause; closed_at: EpochMilliseconds }
   | { type: "withdrawn"; withdrawn_at: EpochMilliseconds };
 
 export interface Rental {
@@ -46,7 +54,11 @@ export interface RentalTerms {
 export interface RentalDetail {
   rental: Rental;
   terms: RentalTerms;
+  product: ProductReference | null;
+  units: CustomerRentalUnit[];
 }
+
+export type RentalListItem = Rental & { product: ProductReference | null; quantity: number; units: CustomerRentalUnit[] };
 
 export type RentalReplacementMethod =
   | { type: "delivery"; destination: PostalAddress }
@@ -71,15 +83,33 @@ export interface GetRentalParams {
   id: string;
 }
 
-export interface FindRentalsParams {
+export interface FindRentalsBySearchParams {
   store_id: string;
-  package_member_id?: string;
+  ids?: never;
+  package_member_ids?: string[];
+  company_id?: string;
+  company_location_id?: string;
   status?: "waiting" | "active" | "ending" | "closed" | "withdrawn";
   sort_field?: "created_at" | "updated_at";
   sort_direction?: SortDirection;
   limit?: number;
   cursor?: string | null;
 }
+
+export interface FindRentalsByIdsParams {
+  store_id: string;
+  ids: string[];
+  package_member_ids?: never;
+  company_id?: never;
+  company_location_id?: never;
+  status?: never;
+  sort_field?: never;
+  sort_direction?: never;
+  limit?: never;
+  cursor?: never;
+}
+
+export type FindRentalsParams = FindRentalsBySearchParams | FindRentalsByIdsParams;
 
 export interface ActOnRentalParams extends GetRentalParams {
   expected_updated_at: EpochMilliseconds;
@@ -155,11 +185,17 @@ export interface CustomerRental {
   updated_at: EpochMilliseconds;
 }
 
-export interface FindCustomerRentalsParams {
-  package_member_id: string;
+interface FindCustomerRentalsPage {
   limit?: number;
   cursor?: string | null;
 }
+
+export type FindCustomerRentalsParams = FindCustomerRentalsPage &
+  (
+    | { package_member_ids: string[]; company_id?: string; company_location_id?: string }
+    | { package_member_ids?: string[]; company_id: string; company_location_id?: string }
+    | { package_member_ids?: string[]; company_id?: string; company_location_id: string }
+  );
 
 export interface GetCustomerRentalParams {
   id: string;

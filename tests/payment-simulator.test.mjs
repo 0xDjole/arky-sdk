@@ -17,7 +17,7 @@ const setup = {
   publishable_key: "pk_test_arky_store",
   runs_on: simulated,
 };
-const plan = { type: "stripe", payment_intent_id: "pi_store", publishable_key: "pk_test_arky", client_secret: "pi_store_secret_exact", runs_on: simulated };
+const plan = { type: "stripe", payment_intent_id: "pi_store", publishable_key: "pk_test_arky", client_secret: "pi_store_secret_exact", payment_method_id: "pm_store_card", runs_on: simulated };
 const billing = { full_name: "Test Buyer", address: "Test Street 1", city: "Sarajevo", zip: "71000", phone: "+38761123456", country: "BA", email: "buyer@example.test" };
 const simulatorPayments = `${api_url}/v1/simulator/payments`;
 const simulator_texts = { title: "Pagamento di prova", description: "Nessun denaro reale si muove", complete: "Paga", decline: "Rifiuta", expire: "Scade", cancel: "Annulla" };
@@ -125,8 +125,8 @@ test("simulatePayment posts the client secret and outcome to the address the pay
     [simulatorPayments, "POST", { type: "stripe_checkout", client_secret: stripe.client_secret, outcome: "complete" }],
     [simulatorPayments, "POST", { type: "stripe_checkout", client_secret: stripe.client_secret, outcome: "decline" }],
     [simulatorPayments, "POST", { type: "stripe_checkout", client_secret: stripe.client_secret, outcome: "expire" }],
-    [simulatorPayments, "POST", { type: "stripe_payment_intent", client_secret: plan.client_secret, outcome: "complete" }],
-    [simulatorPayments, "POST", { type: "stripe_payment_intent", client_secret: plan.client_secret, outcome: "decline" }],
+    [simulatorPayments, "POST", { type: "stripe_payment_intent", client_secret: plan.client_secret, outcome: "complete", payment_method: "pm_store_card" }],
+    [simulatorPayments, "POST", { type: "stripe_payment_intent", client_secret: plan.client_secret, outcome: "decline", payment_method: "pm_store_card" }],
     [simulatorPayments, "POST", { type: "monri", client_secret: monri.client_secret, outcome: "decline" }],
     [simulatorPayments, "POST", { type: "card_setup", client_secret: setup.client_secret, outcome: "cancel" }],
   ]);

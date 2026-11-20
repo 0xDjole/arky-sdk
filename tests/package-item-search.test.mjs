@@ -19,7 +19,7 @@ const packageItem = {
 const choice = {
   price_id: ids.price,
   sellable: { type: "product_variant", variant_id: ids.variant },
-  content: { sku: "CL-1", blocks: [], basis: { type: "product_unit" } },
+  content: { sku: "CL-1", blocks: [], basis: { type: "product_unit" }, placement: { type: "none" } },
   price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price, tax_mode: "inclusive", unit_price: { amount: 900, currency: "eur" }, compare_at: null, priced_at: 1 },
 };
 

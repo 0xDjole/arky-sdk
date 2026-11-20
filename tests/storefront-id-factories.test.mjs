@@ -206,7 +206,7 @@ test("a 401 or 403 that Arky did not send on the automatic refresh keeps the sig
     const client = createStorefront(storefrontIdentity, { ...idFactories, apiUrl, sessionStorage: storage });
     const reported = [];
     const unsubscribe = client.onAuthStateChanged((session) => reported.push(session));
-    await assert.rejects(client.customer.getMe(), (error) => error instanceof ArkyApiError && error.code === "REQUEST_FAILED" && error.statusCode === status);
+    await assert.rejects(client.customer.getMe(), (error) => error instanceof ArkyNetworkError && !(error instanceof ArkyApiError) && error.code === "unreadable_answer" && error.statusCode === status);
     await new Promise((resolve) => setImmediate(resolve));
     assert.equal(client.isAuthenticated, true);
     assert.equal(client.session.id, ids.session);
@@ -263,6 +263,25 @@ test("a refused automatic refresh can't sign out the session the shopper got whi
   ]);
 });
 
+test("an archived sales channel answers 409 SALES_CHANNEL.NOT_ACTIVE, which keeps the signed-in session and the visitor", async (context) => {
+  const calls = recordFetch(context, () => errorResponse(409, "SALES_CHANNEL.NOT_ACTIVE", "The sales channel is archived"));
+  for (const storage of [signedInStorage(), visitorStorage()]) {
+    const retained = storage.initial;
+    const client = createStorefront(storefrontIdentity, { ...idFactories, apiUrl, sessionStorage: storage });
+    const reported = [];
+    const unsubscribe = client.onAuthStateChanged((session) => reported.push(session));
+    const sent = calls.length;
+    await assert.rejects(client.customer.getMe(), (error) => error instanceof ArkyApiError && error.statusCode === 409 && error.code === "SALES_CHANNEL.NOT_ACTIVE");
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(calls.slice(sent).map((call) => call.path), ["/v1/storefront/customer/me"]);
+    assert.equal(client.hasSession, true);
+    assert.equal(client.session.id, ids.session);
+    assert.equal(storage.initial, retained);
+    assert.equal(reported.some((session) => session === null), false);
+    unsubscribe();
+  }
+});
+
 test("a 401 that Arky did not send keeps the visitor, and only Arky's own 401 replaces it", async (context) => {
   const proxyAnswers = [
     () => new Response("Unauthorized", { status: 401, headers: { "content-type": "text/plain" } }),
@@ -296,7 +315,7 @@ test("a 401 that Arky did not send keeps the visitor, and only Arky's own 401 re
     const sent = calls.length;
 
     answer = proxyAnswer;
-    await assert.rejects(client.customer.getMe(), (error) => error instanceof ArkyApiError && error.code === "REQUEST_FAILED" && error.statusCode === 401);
+    await assert.rejects(client.customer.getMe(), (error) => error instanceof ArkyNetworkError && !(error instanceof ArkyApiError) && error.code === "unreadable_answer" && error.statusCode === 401);
     await new Promise((resolve) => setImmediate(resolve));
     assert.equal(client.hasSession, true);
     assert.equal(client.session.id, ids.session);

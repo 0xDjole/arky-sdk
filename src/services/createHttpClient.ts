@@ -29,20 +29,13 @@ function isValidationError(
   );
 }
 
-function toServerError(value: unknown, statusCode: number): ServerError {
-  const payload = isRecord(value) ? value : {};
+function arkyRefusal(payload: unknown, statusCode: number): ServerError | null {
+  if (!isRecord(payload) || payload.status_code !== statusCode) return null;
+  if (typeof payload.error !== "string" || typeof payload.message !== "string") return null;
   const validationErrors = Array.isArray(payload.validation_errors)
     ? payload.validation_errors.filter(isValidationError).map(({ field, error }) => ({ field, error }))
     : [];
-
-  return {
-    message:
-      typeof payload.message === "string" ? payload.message : "Request failed",
-    error: typeof payload.error === "string" ? payload.error : "REQUEST_FAILED",
-    statusCode:
-      typeof payload.status_code === "number" ? payload.status_code : statusCode,
-    validationErrors,
-  };
+  return { message: payload.message, error: payload.error, statusCode, validationErrors };
 }
 
 export function reportHookFailure(error: unknown): void {
@@ -125,6 +118,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
       method,
       headers,
       signal: options?.signal,
+      redirect: cfg.redirect ?? "follow",
     };
     if (method !== "GET" && method !== "DELETE" && body !== undefined) {
       fetchOptions.body = multipart
@@ -226,18 +220,33 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
     }
 
     if (!res.ok) {
-      const serverErr = toServerError(data, res.status);
-      const requestId =
-        res.headers.get("x-request-id") || res.headers.get("request-id");
+      const refusal = arkyRefusal(data, res.status);
+      if (!refusal) {
+        const err = new ArkyNetworkError("unreadable_answer", "The refused answer carries no Arky refusal", {
+          method,
+          url: fullUrl,
+          statusCode: res.status,
+        });
+        if (options?.onError && method !== "GET") {
+          Promise.resolve(
+            options.onError({
+              error: err,
+              method,
+              url: fullUrl,
+              status: res.status,
+            }),
+          ).catch(reportHookFailure);
+        }
+        throw err;
+      }
       const err = new ArkyApiError({
-        message: serverErr.message,
-        code: serverErr.error,
+        message: refusal.message,
+        code: refusal.error,
         response: data,
-        statusCode: serverErr.statusCode,
-        validationErrors: serverErr.validationErrors,
+        statusCode: refusal.statusCode,
+        validationErrors: refusal.validationErrors,
         method,
         url: fullUrl,
-        requestId: requestId || undefined,
       });
       if (options?.onError && method !== "GET") {
         Promise.resolve(
@@ -246,8 +255,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
             method,
             url: fullUrl,
             status: res.status,
-            response: serverErr,
-            request_id: requestId || null,
+            response: refusal,
             duration_ms: performance.now() - startedAt,
           }),
         ).catch(reportHookFailure);
@@ -257,15 +265,12 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
     }
 
     if (options?.onSuccess && method !== "GET") {
-      const requestId =
-        res.headers.get("x-request-id") || res.headers.get("request-id");
       Promise.resolve(
         options.onSuccess({
           data: data as T,
           method,
           url: fullUrl,
           status: res.status,
-          request_id: requestId || null,
           duration_ms: performance.now() - startedAt,
         }),
       ).catch(reportHookFailure);

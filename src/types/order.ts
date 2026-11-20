@@ -18,7 +18,8 @@ import type { BackorderPolicy } from "./product";
 import type { OrderDeliveryEstimate } from "./shipping";
 import type { PackagePriceRef } from "./package";
 import type { PackageOccurrence } from "./packageMember";
-import type { DocumentItem, OutsideCreditNoteDocument, OutsideInvoiceDocument } from "./invoice";
+import type { DocumentItem, Invoice, OutsideCreditNoteDocument, OutsideInvoiceDocument } from "./invoice";
+import type { ReminderResult } from "./notification";
 import type { OrderMoneyLeft, StorefrontOrderCredit } from "./orderCredit";
 import type { ProductVariantMeasure } from "./product";
 import type { Block } from "./block";
@@ -194,13 +195,36 @@ export interface DeliveryTaxPart {
 export type LineTax =
   | { type: "own"; tax_category_id: string; rule_id: string; treatment: LineTaxTreatment }
   | { type: "reverse_charge"; tax_category_id: string }
-  | { type: "buyer_exempt"; tax_category_id: string }
-  | { type: "follow_goods"; parts: DeliveryTaxPart[] };
+  | { type: "buyer_exempt"; tax_category_id: string };
 
 export interface LineMoney {
   unit_price: number;
   discounts: LineDiscount[];
   tax: LineTax;
+}
+
+export interface RentalUseMoney {
+  line_price: number;
+  discounts: LineDiscount[];
+  tax: LineTax;
+}
+
+export interface DeliveryDiscount {
+  promotion_id: string;
+  effect_id: string;
+  amount: number;
+}
+
+export type DeliveryTax =
+  | { type: "own"; tax_category_id: string; rule_id: string; treatment: LineTaxTreatment }
+  | { type: "reverse_charge"; tax_category_id: string }
+  | { type: "buyer_exempt"; tax_category_id: string }
+  | { type: "follow_goods"; parts: DeliveryTaxPart[] };
+
+export interface DeliveryMoney {
+  price: number;
+  discounts: DeliveryDiscount[];
+  tax: DeliveryTax;
 }
 
 export type TaxPlace =
@@ -226,6 +250,7 @@ export interface OrderProductLineItem {
   money_runs: ProductMoneyRun[];
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
+  product_id: string | null;
 }
 
 export type OrderBookingLinePrice = ({ type: "listed" } & PackagePriceRef) | ({ type: "offer" } & PackagePriceRef);
@@ -305,7 +330,7 @@ export type OrderBookingAttendance =
 export type VisitStep = "upcoming" | "waiting" | "in_progress" | "attended" | "no_show";
 
 export type OrderBookingLineStatus =
-  | { type: "pending"; wait: OrderPaymentWait }
+  | { type: "pending"; expires_at: EpochMilliseconds }
   | { type: "confirmed"; attendance: OrderBookingAttendance }
   | { type: "cancelled"; reason: OrderCancellationReason };
 
@@ -336,6 +361,12 @@ export interface BookingLineSession {
   package_item_id: string;
 }
 
+export interface OrderLinePackage {
+  id: string;
+  key: string;
+  blocks: Block[];
+}
+
 export interface OrderPackageLineItem {
   id: string;
   package_member_id: string;
@@ -345,6 +376,7 @@ export interface OrderPackageLineItem {
   status: OrderLineItemStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
+  package: OrderLinePackage;
 }
 
 export interface OrderRentalUseLineItem {
@@ -354,9 +386,10 @@ export interface OrderRentalUseLineItem {
   snapshot: OrderProductSnapshot;
   quantity: number;
   status: OrderLineItemStatus;
-  money: LineMoney;
+  money: RentalUseMoney;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
+  product_id: string;
 }
 
 export type OrderLineItem =
@@ -393,7 +426,7 @@ export interface OrderDeliveryGroup {
   timing: OrderDeliveryTiming;
   delivery_estimate: OrderDeliveryEstimate | null;
   rentals: OrderDeliveryRental[];
-  money: LineMoney;
+  money: DeliveryMoney;
   document_item: DocumentItem;
 }
 
@@ -519,6 +552,7 @@ export interface StorefrontOrderProductLineItem {
   id: string;
   origin: OrderLineItemOrigin;
   variant_id: string;
+  product_id: string | null;
   quantity: number;
   cancelled_units: UnitSpan[];
   form_submission_id: string | null;
@@ -559,7 +593,7 @@ export interface BookingAnswerResult {
 }
 
 export type StorefrontOrderBookingLineStatus =
-  | { type: "pending"; wait: OrderPaymentWait }
+  | { type: "pending"; expires_at: EpochMilliseconds }
   | { type: "confirmed"; attendance: StorefrontBookingAttendance }
   | { type: "cancelled"; reason: OrderCancellationReason };
 
@@ -610,6 +644,7 @@ export interface StorefrontOrderPackageLineItem {
   id: string;
   package_member_id: string;
   package_member_revision_id: string;
+  package: OrderLinePackage;
   occurrence: PackageOccurrence;
   revocation: StorefrontAccessRevocation | null;
   status: OrderLineItemStatus;
@@ -620,11 +655,12 @@ export interface StorefrontOrderPackageLineItem {
 export interface StorefrontOrderRentalUseLineItem {
   id: string;
   rental_id: string;
+  product_id: string;
   origin: OrderLineItemOrigin;
   snapshot: StorefrontOrderProductSnapshot;
   quantity: number;
   status: OrderLineItemStatus;
-  money: LineMoney;
+  money: RentalUseMoney;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
@@ -742,6 +778,41 @@ export interface OrderBookingItem {
   line: OrderBookingLineItem;
 }
 
+export interface OrderBookingItemRow extends OrderBookingItem {
+  order_blocks: Block[];
+  source: OrderSource;
+  sales_channel_id: string;
+  booking_line_count: number;
+  live_invoice: Invoice | null;
+}
+
+export interface OrderBookingLineReminder {
+  notification_id: string;
+  result: ReminderResult | null;
+  sent_at: EpochMilliseconds | null;
+}
+
+export interface FindOrderBookingRemindersParams {
+  store_id: string;
+  order_id: string;
+  order_booking_item_id: string;
+}
+
+export type OrderProduct =
+  | { type: "found"; id: string; key: string; blocks: Block[] }
+  | { type: "gone"; id: string };
+
+export interface FindOrderProductsParams {
+  store_id: string;
+  order_id: string;
+  ids: string[];
+}
+
+export interface StorefrontFindOrderProductsParams {
+  order_id: string;
+  ids: string[];
+}
+
 export type OrderSourceFilter = "cart" | "renewal";
 
 export type OrderItemStatusFilter = "pending" | "confirmed" | "cancelled";
@@ -755,8 +826,9 @@ export type OrderBookingStatusFilter =
   | "no_show"
   | "cancelled";
 
-export interface FindOrdersParams {
+export interface FindOrdersBySearchParams {
   store_id: string;
+  ids?: never;
   customer_id?: string;
   company_id?: string;
   company_location_id?: string;
@@ -775,9 +847,38 @@ export interface FindOrdersParams {
   created_at_from?: EpochMilliseconds;
   created_at_to?: EpochMilliseconds;
   updated_at_from?: EpochMilliseconds;
+  package_member_ids?: string[];
   limit?: number;
   cursor?: string | null;
 }
+
+export interface FindOrdersByIdsParams {
+  store_id: string;
+  ids: string[];
+  customer_id?: never;
+  company_id?: never;
+  company_location_id?: never;
+  statuses?: never;
+  sources?: never;
+  product_statuses?: never;
+  booking_statuses?: never;
+  product_ids?: never;
+  booking_service_ids?: never;
+  booking_resource_ids?: never;
+  from?: never;
+  to?: never;
+  query?: never;
+  sort_field?: never;
+  sort_direction?: never;
+  created_at_from?: never;
+  created_at_to?: never;
+  updated_at_from?: never;
+  package_member_ids?: never;
+  limit?: never;
+  cursor?: never;
+}
+
+export type FindOrdersParams = FindOrdersBySearchParams | FindOrdersByIdsParams;
 
 export interface GetOrderParams {
   store_id: string;
@@ -803,6 +904,8 @@ export interface CorrectOrderDeliveryAddressParams {
 export interface FindOrderBookingItemsParams {
   store_id: string;
   customer_id?: string;
+  store_location_id?: string;
+  not_invoiced?: boolean;
   booking_service_ids?: string[];
   booking_resource_ids?: string[];
   statuses?: OrderBookingStatusFilter[];
@@ -981,7 +1084,7 @@ export interface ResumeOrderPaymentParams {
 }
 
 export type StorefrontFindOrdersParams = CompanyPartyQuery &
-  Omit<FindOrdersParams, "store_id" | "customer_id" | "company_id" | "company_location_id">;
+  Omit<FindOrdersBySearchParams, "store_id" | "ids" | "customer_id" | "company_id" | "company_location_id" | "package_member_ids">;
 
 export interface StorefrontGetOrderParams {
   id: string;
@@ -1023,6 +1126,10 @@ export interface StorefrontOrderInvoiceParams {
 
 export interface StorefrontFindOrderPaymentsParams {
   order_id: string;
+}
+
+export interface StorefrontFindOrdersPaymentsParams {
+  order_ids: string[];
 }
 
 export interface StorefrontResumeOrderPaymentParams {

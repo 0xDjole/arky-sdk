@@ -27,15 +27,12 @@ if (line) {
 }
 
 const quote = await cart.quote();
-const productIds = [...new Set(quote.lines.flatMap((quoted) => (quoted.type === "product" ? [quoted.product_id] : [])))];
-const products = await Promise.all(productIds.map((id) => arky.eshop.product.get({ id, package_id: shopPackage.id })));
 const rows = quote.lines.flatMap((quoted) => {
   if (quoted.type !== "product") return [];
-  const named = products.find((candidate) => candidate.id === quoted.product_id);
   return [
     {
       line_item_id: quoted.line_item_id,
-      name: getBlockTextValue(findBlock(named, "name"), "en"),
+      name: getBlockTextValue(findBlock(quoted.product, "name"), "en"),
       sku: quoted.snapshot.variant_sku,
       quantity: quoted.quantity,
     },

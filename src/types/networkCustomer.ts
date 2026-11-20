@@ -116,6 +116,7 @@ export interface OpenNetworkCustomerStoreKeyParams {
 
 export interface AcceptNetworkCustomerInviteParams {
   store_id: string;
+  id: string;
   code: string;
   sent_to: LoginAddress;
 }

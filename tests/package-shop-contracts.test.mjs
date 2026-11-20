@@ -175,3 +175,15 @@ test("package offerings are read by id or by key on the named store, and never f
     `/v1/stores/${STORE_ID}/packages/${memberPackageId}`,
   ]);
 });
+
+test("a storefront reads every automatic item's product choices of one package in one request", async (context) => {
+  const answer = { package_id: memberPackageId, package_updated_at: 7, items: [{ package_item_id: automaticItemId, alternatives: [] }] };
+  const calls = recordFetch(context, () => answer);
+  const client = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl });
+  assert.deepEqual(await client.eshop.package.getItemsProductChoices({ id: memberPackageId, quantity: 1, package_id: ids.package, company_id: ids.company }), answer);
+  await client.eshop.package.getItemsProductChoices({ key: "monthly", quantity: 3, package_id: ids.package });
+  assert.deepEqual(calls.map((call) => [call.method, call.path, call.query]), [
+    ["GET", `/v1/storefront/packages/${memberPackageId}/product-choices`, { package_id: ids.package, company_id: ids.company, quantity: "1" }],
+    ["GET", "/v1/storefront/packages/monthly/product-choices", { package_id: ids.package, quantity: "3" }],
+  ]);
+});

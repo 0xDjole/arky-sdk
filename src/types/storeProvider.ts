@@ -27,9 +27,32 @@ export interface StoreStripeLogin {
 
 export type ElevenLabsRegion = "global" | "us" | "eu" | "in" | "sg";
 
+export interface ElevenLabsTools {
+  find_slots: string;
+  propose: string;
+  confirm: string;
+  request_callback: string;
+  transfer: string;
+  record_sms_consent: string;
+}
+
 export type ElevenLabsSetup =
   | { type: "waiting" }
-  | { type: "ready"; agent_id: string; tool_ids: string[]; at: EpochMilliseconds }
+  | { type: "ready"; agent_id: string; tools: ElevenLabsTools; at: EpochMilliseconds }
+  | { type: "failed"; error: ProviderEffectError; at: EpochMilliseconds };
+
+export interface ArkyElevenLabsTools {
+  find_slots: string;
+  propose: string;
+  confirm: string;
+  request_callback: string;
+  transfer: string;
+  record_sms_consent: string;
+}
+
+export type ArkyElevenLabsSetup =
+  | { type: "waiting" }
+  | { type: "ready"; agent_id: string; tools: ArkyElevenLabsTools; at: EpochMilliseconds }
   | { type: "failed"; error: ProviderEffectError; at: EpochMilliseconds };
 
 export type CroatiaCertificate =
@@ -47,7 +70,7 @@ export type StoreProviderType =
   | { type: "arky_twilio"; account_sid: string; sms_sender: SmsSender }
   | { type: "network_twilio"; network_provider_id: string; sms_sender: NetworkTwilioSmsSender }
   | { type: "eleven_labs"; region: ElevenLabsRegion; setup: ElevenLabsSetup }
-  | { type: "arky_eleven_labs"; region: ElevenLabsRegion; setup: ElevenLabsSetup }
+  | { type: "arky_eleven_labs"; setup: ArkyElevenLabsSetup }
   | { type: "croatia_cis"; certificate: CroatiaCertificate }
   | { type: "arky_croatia_cis"; certificate: CroatiaCertificate }
   | { type: "ofs_cloud" }

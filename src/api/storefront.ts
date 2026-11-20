@@ -103,6 +103,9 @@ import type {
   StorefrontDownloadOrderAssetParams,
   StorefrontFindOrderPaymentsParams,
   StorefrontFindOrdersParams,
+  StorefrontFindOrderProductsParams,
+  StorefrontFindOrdersPaymentsParams,
+  OrderProduct,
   StorefrontGetOrderParams,
   StorefrontOrderInvoiceParams,
   StorefrontOrderPaymentParams,
@@ -113,6 +116,7 @@ import type {
 import type {
   CheckoutPaymentAction,
   StorefrontPayment,
+  StorefrontOrderPayments,
   StorefrontPaymentMethod,
   StorefrontPaymentMethodSetupStart,
   StorefrontCancelPaymentMethodSetupParams,
@@ -129,6 +133,9 @@ import type {
   DownloadLibraryAssetParams,
   FindLibraryAssetsParams,
   FindLibraryParams,
+  FindStorefrontBookingOfferingsByIdsParams,
+  FindStorefrontBookingResourcesByIdsParams,
+  FindStorefrontProductsByIdsParams,
   GetLibraryProductParams,
   GetStorefrontAvailabilityParams,
   GetStorefrontBookingOfferingParams,
@@ -783,7 +790,7 @@ export const createStorefrontApi = (
         const loaded = await loadContent(contentReads, params, flows.locale(options), options);
         return loaded as LoadedContentFor<P>;
       },
-      loadEntries(params: LoadContentEntriesParams, options?: RequestOptions): Promise<LoadedContent<StorefrontEntry>[]> {
+      loadEntries(params: LoadContentEntriesParams, options?: RequestOptions): Promise<PaginatedResponse<LoadedContent<StorefrontEntry>>> {
         return loadContentEntries(contentReads, params, flows.locale(options), options);
       },
     },
@@ -853,6 +860,12 @@ export const createStorefrontApi = (
             params: packageContextQuery(params),
           });
         },
+        findByIds(params: FindStorefrontProductsByIdsParams, options?: RequestOptions): Promise<PaginatedResponse<StorefrontProduct>> {
+          return httpClient.get<PaginatedResponse<StorefrontProduct>>(`${storefrontBase}/products`, {
+            ...options,
+            params: { ids: params.ids, ...packageContextQuery(params) },
+          });
+        },
       },
 
       productVariant: {
@@ -909,6 +922,12 @@ export const createStorefrontApi = (
             params: packageQuery(params),
           });
         },
+        findByIds(params: FindStorefrontBookingOfferingsByIdsParams, options?: RequestOptions): Promise<PaginatedResponse<StorefrontBookingOffering>> {
+          return httpClient.get<PaginatedResponse<StorefrontBookingOffering>>(`${storefrontBase}/booking-offerings`, {
+            ...options,
+            params: { ids: params.ids, ...packageQuery(params) },
+          });
+        },
       },
 
       bookingResource: {
@@ -916,6 +935,12 @@ export const createStorefrontApi = (
           return httpClient.get<StorefrontBookingResource>(`${storefrontBase}/booking-resources/${segment(params.id)}`, {
             ...options,
             params: { ...packageContextQuery(params), offering_id: params.offering_id },
+          });
+        },
+        findByIds(params: FindStorefrontBookingResourcesByIdsParams, options?: RequestOptions): Promise<PaginatedResponse<StorefrontBookingResource>> {
+          return httpClient.get<PaginatedResponse<StorefrontBookingResource>>(`${storefrontBase}/booking-resources`, {
+            ...options,
+            params: { ids: params.ids, offering_id: params.offering_id, ...packageContextQuery(params) },
           });
         },
       },
@@ -1108,17 +1133,33 @@ export const createStorefrontApi = (
         async findFulfillments(
           params: FindCustomerOrderFulfillmentsParams,
           options?: RequestOptions,
-        ): Promise<CustomerOrderFulfillment[]> {
+        ): Promise<PaginatedResponse<CustomerOrderFulfillment>> {
           await lifecycle.ensureVisitorSession();
-          return httpClient.get<CustomerOrderFulfillment[]>(
+          return httpClient.get<PaginatedResponse<CustomerOrderFulfillment>>(
             `${storefrontBase}/orders/${segment(params.order_id)}/fulfillments`,
-            orderTokenOptions(options),
+            { ...orderTokenOptions(options), params: { limit: params.limit, cursor: params.cursor } },
           );
         },
 
         async findPayments(params: StorefrontFindOrderPaymentsParams, options?: RequestOptions): Promise<StorefrontPayment[]> {
           await lifecycle.ensureVisitorSession();
           return httpClient.get<StorefrontPayment[]>(`${storefrontBase}/orders/${segment(params.order_id)}/payments`, orderTokenOptions(options));
+        },
+
+        async findOrdersPayments(params: StorefrontFindOrdersPaymentsParams, options?: RequestOptions): Promise<StorefrontOrderPayments[]> {
+          await lifecycle.ensureVisitorSession();
+          return httpClient.get<StorefrontOrderPayments[]>(`${storefrontBase}/order-payments`, {
+            ...options,
+            params: { order_ids: params.order_ids },
+          });
+        },
+
+        async findProducts(params: StorefrontFindOrderProductsParams, options?: RequestOptions): Promise<OrderProduct[]> {
+          await lifecycle.ensureVisitorSession();
+          return httpClient.get<OrderProduct[]>(`${storefrontBase}/orders/${segment(params.order_id)}/products`, {
+            ...orderTokenOptions(options),
+            params: { ids: params.ids },
+          });
         },
 
         async getPayment(params: StorefrontOrderPaymentParams, options?: RequestOptions): Promise<StorefrontPayment> {

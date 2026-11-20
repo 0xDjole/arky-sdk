@@ -37,7 +37,7 @@ const intake = {
 test("Form discovery keeps native filters, nullable continuations and exact id batches", async (context) => {
   const calls = recordFetch(context, (_call, count) => ({ items: [], cursor: count === 1 ? "form:+/=" : null }));
   const api = admin().forms;
-  const filters = { key: "intake", query: "intake", status: "closed", limit: 0, sort_field: "key", sort_direction: "asc", created_at_from: 0, created_at_to: 3 };
+  const filters = { key: "intake", query: "intake", type: "public", status: "closed", limit: 0, sort_field: "key", sort_direction: "asc", created_at_from: 0, created_at_to: 3 };
   const page = await api.find({ store_id: STORE_ID, ...filters });
   assert.equal(page.cursor, "form:+/=");
   await api.find({ store_id: STORE_ID, ...filters, cursor: page.cursor });

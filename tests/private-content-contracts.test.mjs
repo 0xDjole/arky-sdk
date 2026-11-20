@@ -154,3 +154,27 @@ test("a private entry is printed through its own call with no body", async (cont
     ["POST", `${entriesPath}/${entryId}/print`, {}, null],
   ]);
 });
+
+test("staff read a category, a private collection and a public entry by key, a public collection's entries page and private entries by status", async (context) => {
+  const storeId = "4b6e2a91-0c5d-4f37-8a2e-1d9c7b3f5e08";
+  const collectionId = "1f3b5d7e-9a2c-4e6b-8d0f-2a4c6e8b0d1f";
+  const calls = [];
+  context.mock.method(globalThis, "fetch", async (url, init = {}) => {
+    const parsed = new URL(url);
+    calls.push([init.method ?? "GET", parsed.pathname, Object.fromEntries(parsed.searchParams)]);
+    return new Response(JSON.stringify({ items: [], cursor: null }), { headers: { "content-type": "application/json" } });
+  });
+  const admin = createAdmin({ apiUrl: "https://content.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
+  await admin.category.getByKey({ store_id: storeId, key: "kitchen/tools" });
+  await admin.content.privateCollection.getByKey({ store_id: storeId, key: "patients" });
+  await admin.content.entry.getByKey({ store_id: storeId, collection_id: collectionId, key: "about" });
+  await admin.content.collection.findEntries({ store_id: storeId, id: collectionId, limit: 100, cursor: "entries:2" });
+  await admin.content.privateEntry.find({ store_id: storeId, collection_id: collectionId, status: "archived", limit: 10 });
+  assert.deepEqual(calls, [
+    ["GET", `/v1/stores/${storeId}/categories/by-key/kitchen%2Ftools`, {}],
+    ["GET", `/v1/stores/${storeId}/private-collections/by-key/patients`, {}],
+    ["GET", `/v1/stores/${storeId}/entries/by-key/about`, { collection_id: collectionId }],
+    ["GET", `/v1/stores/${storeId}/collections/${collectionId}/entries`, { limit: "100", cursor: "entries:2" }],
+    ["GET", `/v1/stores/${storeId}/private-collections/${collectionId}/entries`, { status: "archived", limit: "10" }],
+  ]);
+});

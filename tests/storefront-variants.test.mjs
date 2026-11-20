@@ -11,7 +11,7 @@ test("a product's prices page through its item and an exact variant read keeps t
   const choice = {
     price_id: ids.price,
     sellable: { type: "product_variant", variant_id: "variant/one" },
-    content: { sku: "S-1", blocks: [], basis: { type: "product_unit" } },
+    content: { sku: "S-1", blocks: [], basis: { type: "product_unit" }, placement: { type: "none" } },
     price: null,
   };
   const responses = [
@@ -93,4 +93,18 @@ test("every storefront browse read sends the one named package, and only priced 
   assert.ok(unscoped.every((call) => call.searchParams.get("package_id") === ids.package));
   assert.throws(() => client.eshop.product.get({}), /needs its id or its slug/);
   assert.throws(() => client.eshop.bookingService.get({ key: "service" }), /needs its id or its slug/);
+});
+
+test("a storefront reads the products of several ids in one request under its package, and a page names no cursor", async (context) => {
+  const product = { id: ids.product, key: "classic", package_item_id: ids.packageItem };
+  const calls = recordFetch(context, () => ({ items: [product], cursor: null }));
+  const client = storefront();
+  assert.deepEqual(await client.eshop.product.findByIds({ ids: [ids.product, ids.otherPackage], package_id: ids.package, company_id: ids.company }), { items: [product], cursor: null });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].path, "/v1/storefront/products");
+  assert.deepEqual(JSON.parse(calls[0].query.ids), [ids.product, ids.otherPackage]);
+  assert.equal(calls[0].query.package_id, ids.package);
+  assert.equal(calls[0].query.company_id, ids.company);
+  assert.equal("store_id" in calls[0].query, false);
+  assert.equal("find" in client.eshop.product, false);
 });

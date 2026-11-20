@@ -202,13 +202,13 @@ test("a job read gives the Order contact and buyer as the Server derives them, w
 test("warehouse discovery sends the complete job filter and leaves the continuation to the caller", async (context) => {
   const response = { items: [], cursor: "next:/+=" };
   const calls = recordFetch(context, (call) => call.path.endsWith("/items") ? [] : response);
-  const query = { store_id: storeId, order_id: "order", rental_id: "rental", store_location_id: "warehouse", hold: "out_of_stock", inventory_item_id: "stock-item", status: "scheduled", scheduled_from: revision, scheduled_to: revision + 86_400_000, sort_field: "scheduled_at", sort_direction: "asc", limit: 20, cursor: "" };
+  const query = { store_id: storeId, order_ids: ["order"], rental_id: "rental", store_location_id: "warehouse", hold: "out_of_stock", inventory_item_id: "stock-item", status: "scheduled", scheduled_from: revision, scheduled_to: revision + 86_400_000, sort_field: "scheduled_at", sort_direction: "asc", limit: 20, cursor: "" };
   assert.deepEqual(await eshop().fulfillmentJob.find(query), response);
   await eshop().fulfillmentJob.get({ store_id: storeId, fulfillment_job_id: "work/id" });
   assert.deepEqual(await eshop().fulfillmentJob.findItems({ store_id: storeId, fulfillment_job_id: "work/id" }), []);
   const { store_id: _store, ...filters } = query;
   assert.equal(calls[0].path, `/v1/stores/${storeId}/fulfillment-jobs`);
-  assert.deepEqual(calls[0].query, Object.fromEntries(Object.entries(filters).map(([key, value]) => [key, String(value)])));
+  assert.deepEqual(calls[0].query, Object.fromEntries(Object.entries(filters).map(([key, value]) => [key, Array.isArray(value) ? JSON.stringify(value) : String(value)])));
   assert.deepEqual(calls.slice(1).map((call) => [call.method, call.path]), [
     ["GET", `/v1/stores/${storeId}/fulfillment-jobs/work%2Fid`],
     ["GET", `/v1/stores/${storeId}/fulfillment-jobs/work%2Fid/items`],

@@ -5,6 +5,7 @@ import type { DeletedResponse, PaginatedResponse } from "../types/common";
 import type {
   Broadcast,
   BroadcastPreview,
+  BroadcastSummary,
   BroadcastUnsubscribeResponse,
   CreateBroadcastParams,
   DeleteBroadcastParams,
@@ -26,9 +27,9 @@ export const createBroadcastApi = (apiConfig: ApiConfig) => {
   const broadcastPath = (storeId: string, id: string) => storeRecordPath(storeId, "broadcasts", id);
 
   return {
-    find(params: FindBroadcastsParams, options?: RequestOptions): Promise<PaginatedResponse<Broadcast>> {
+    find(params: FindBroadcastsParams, options?: RequestOptions): Promise<PaginatedResponse<BroadcastSummary>> {
       const { store_id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<Broadcast>>(storePath(store_id, "broadcasts"), {
+      return apiConfig.httpClient.get<PaginatedResponse<BroadcastSummary>>(storePath(store_id, "broadcasts"), {
         ...options,
         params: query,
       });

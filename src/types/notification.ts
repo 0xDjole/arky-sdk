@@ -123,6 +123,7 @@ export type SmsNotSentReason =
   | { type: "sender_unavailable" }
   | { type: "store_unavailable" }
   | { type: "expired" }
+  | { type: "order_history_limit" }
   | { type: "provider_rejected"; code: string };
 
 export type OutgoingMessageStatus =
@@ -138,12 +139,19 @@ export type OutgoingMessageStatus =
   | { type: "sms_not_sent"; reason: SmsNotSentReason; at: EpochMilliseconds }
   | { type: "sms_unknown"; login: ProviderLogin; at: EpochMilliseconds };
 
+export type WebhookUnacknowledgedReason =
+  | { type: "webhook_unavailable" }
+  | { type: "store_closing" }
+  | { type: "store_unavailable" }
+  | { type: "refused"; message: string }
+  | { type: "no_acknowledgement"; last_reason: string };
+
 export type OutgoingWebhookStatus =
   | { type: "waiting" }
   | { type: "sending"; attempt: number; until: EpochMilliseconds }
   | { type: "retrying"; attempt: number; next_at: EpochMilliseconds; reason: string }
   | { type: "acknowledged"; at: EpochMilliseconds }
-  | { type: "unacknowledged"; reason: string; at: EpochMilliseconds };
+  | { type: "unacknowledged"; reason: WebhookUnacknowledgedReason; at: EpochMilliseconds };
 
 export type EmailFailureType = "hard_bounce" | "soft_bounce" | "rejected" | "other";
 
@@ -269,7 +277,7 @@ export type EmailTemplateTypeName =
   | "return_alert"
   | "conversation_message_alert"
   | "conversation_message_notice"
-  | "result_shared"
+  | "entry_shared"
   | "booking_cancelled_alert"
   | "booking_moved_alert"
   | "entry_added_alert"
@@ -286,7 +294,6 @@ export type EmailTemplateTypeName =
   | "fiscal_refund_returned_alert"
   | "fiscal_dispute_lost_alert"
   | "fiscal_device_not_ready_alert"
-  | "fiscal_device_daily_report_missed_alert"
   | "fiscal_certificate_expiring_alert"
   | "support_message"
   | "broadcast";
@@ -303,7 +310,7 @@ export type SmsTemplateTypeName =
   | "booking_recall"
   | "after_visit"
   | "conversation_message_notice"
-  | "result_shared"
+  | "entry_shared"
   | "broadcast";
 
 export type SmsTemplateType = { type: SmsTemplateTypeName };
@@ -326,6 +333,20 @@ export interface Template {
   key: string;
   name: string;
   type: TemplateType;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+}
+
+export type TemplateSummaryType =
+  | { type: "email"; purpose: EmailTemplateType; default_language: string; languages: string[]; layout_id: string }
+  | { type: "sms"; purpose: SmsTemplateType; languages: string[] };
+
+export interface TemplateSummary {
+  id: string;
+  store_id: string;
+  key: string;
+  name: string;
+  type: TemplateSummaryType;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
@@ -393,8 +414,8 @@ export type NotificationTypeName =
   | "booking_cancelled_sms"
   | "conversation_message_notice_email"
   | "conversation_message_notice_sms"
-  | "result_shared_email"
-  | "result_shared_sms"
+  | "entry_shared_email"
+  | "entry_shared_sms"
   | "booking_reminder_email"
   | "booking_reminder_sms"
   | "booking_recall_email"
@@ -420,7 +441,6 @@ export type NotificationTypeName =
   | "fiscal_refund_returned_alert"
   | "fiscal_dispute_lost_alert"
   | "fiscal_device_not_ready_alert"
-  | "fiscal_device_daily_report_missed_alert"
   | "fiscal_certificate_expiring_alert";
 
 export type NotificationServices =
@@ -461,8 +481,8 @@ export type NotificationType =
   | { type: "booking_cancelled_sms"; sms_template_id: string }
   | { type: "conversation_message_notice_email"; email: Email }
   | { type: "conversation_message_notice_sms"; sms_template_id: string }
-  | { type: "result_shared_email"; email: Email }
-  | { type: "result_shared_sms"; sms_template_id: string }
+  | { type: "entry_shared_email"; email: Email }
+  | { type: "entry_shared_sms"; sms_template_id: string }
   | { type: "booking_reminder_email"; email: Email; before: Duration; services: NotificationServices }
   | { type: "booking_reminder_sms"; sms_template_id: string; before: Duration; services: NotificationServices }
   | { type: "booking_recall_email"; email: Email; after_visit: Days; services: NotificationServices }
@@ -488,7 +508,6 @@ export type NotificationType =
   | { type: "fiscal_refund_returned_alert"; email: Email; recipients: AlertRecipient[] }
   | { type: "fiscal_dispute_lost_alert"; email: Email; recipients: AlertRecipient[] }
   | { type: "fiscal_device_not_ready_alert"; email: Email; recipients: AlertRecipient[] }
-  | { type: "fiscal_device_daily_report_missed_alert"; email: Email; recipients: AlertRecipient[] }
   | { type: "fiscal_certificate_expiring_alert"; email: Email; recipients: AlertRecipient[] };
 
 export type AlertCollections = { type: "all" } | { type: "ids"; collection_ids: string[] };
@@ -526,6 +545,17 @@ export interface EmailLayout {
   name: string;
   logo_media_id: string | null;
   content: Record<string, EmailLayoutContent>;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+}
+
+export interface EmailLayoutSummary {
+  id: string;
+  store_id: string;
+  key: string;
+  name: string;
+  logo_media_id: string | null;
+  languages: string[];
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
@@ -601,14 +631,25 @@ export interface GetOutgoingWebhookParams {
 
 interface FindTemplatesPage {
   store_id: string;
+  ids?: never;
   limit?: number;
   cursor?: string | null;
+}
+
+export interface FindTemplatesByIdsParams {
+  store_id: string;
+  ids: string[];
+  type?: never;
+  purpose?: never;
+  limit?: never;
+  cursor?: never;
 }
 
 export type FindTemplatesParams =
   | (FindTemplatesPage & { type?: never; purpose?: never })
   | (FindTemplatesPage & { type: "email"; purpose?: EmailTemplateTypeName })
-  | (FindTemplatesPage & { type: "sms"; purpose?: SmsTemplateTypeName });
+  | (FindTemplatesPage & { type: "sms"; purpose?: SmsTemplateTypeName })
+  | FindTemplatesByIdsParams;
 
 export interface GetTemplateParams {
   store_id: string;

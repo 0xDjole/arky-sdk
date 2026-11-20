@@ -77,7 +77,7 @@ function offeringChoice(bookingOfferingId = offeringId, priceId = ids.price) {
   return {
     price_id: priceId,
     sellable: { type: "booking_offering", booking_offering_id: bookingOfferingId },
-    content: { sku: null, blocks: [], basis: { type: "booking_option" } },
+    content: { sku: null, blocks: [], basis: { type: "booking_option" }, placement: { type: "booking", locations: { type: "ids", store_location_ids: [locationId] }, resources: { type: "ids", booking_resource_ids: [resourceId] } } },
     price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: priceId, tax_mode: "inclusive", unit_price: { amount: 5000, currency: "eur" }, compare_at: null, priced_at: 1 },
   };
 }
@@ -88,6 +88,7 @@ function availabilityEntry({ bookingOfferingId = offeringId, bookingResourceId =
     store_location_id: locationId,
     booking_resource_id: bookingResourceId,
     resource_key: `resource-${bookingResourceId.slice(0, 8)}`,
+    resource_blocks: [{ id: `${bookingResourceId.slice(0, 8)}-name`, key: "name", type: "text", value: `Room ${bookingResourceId.slice(0, 4)}` }],
     timezone,
     days,
   };
@@ -128,10 +129,6 @@ function calendarServer(context, { pages = [[stayEntry()]], choices = [offeringC
   return recordFetch(context, (call) => {
     if (call.path === `/v1/storefront/booking-services/${serviceId}`) return bookingService();
     if (call.path === `/v1/storefront/package-items/${ids.packageItem}/prices`) return { items: choices, cursor: null };
-    if (call.path.startsWith("/v1/storefront/booking-resources/")) {
-      const id = call.path.split("/").at(-1);
-      return { id, key: `resource-${id.slice(0, 8)}`, blocks: [] };
-    }
     if (call.path === "/v1/storefront/booking-services/availability") {
       const from = Number(call.query.from);
       const to = Number(call.query.to);
@@ -249,7 +246,7 @@ test("a month read covers a day on each side and shows a slot of the 1st before 
   assert.equal(slot.time_text, slotTimes(slot.from, slot.to, "Europe/Sarajevo"));
 });
 
-test("every offering is read, one a page", async (context) => {
+test("every offering is read, up to 20 a page, following the cursor while a page ends before the slot budget", async (context) => {
   const first = Date.UTC(year, month, 12, 9);
   const later = Date.UTC(year, month, 14, 9);
   const calls = calendarServer(context, {
@@ -266,11 +263,18 @@ test("every offering is read, one a page", async (context) => {
   const calendar = calendarStore().eshop.bookingCalendar({ buyer: customer, package_id: ids.package });
   const state = await calendar.select({ booking_service_id: serviceId, store_location_id: locationId });
   const reads = availabilityReads(calls);
-  assert.deepEqual(reads.map((read) => read.query.limit), ["1", "1"]);
+  assert.deepEqual(reads.map((read) => read.query.limit), ["20", "20"]);
   assert.deepEqual(reads.map((read) => read.query.cursor), [undefined, "page-1"]);
   assert.equal(reads[1].query.from, reads[0].query.from);
   assert.equal(state.availability.cursor, null);
   assert.deepEqual(state.booking_resources.map((resource) => resource.id), [resourceId, laterResourceId]);
+  assert.deepEqual(state.booking_resources[1], {
+    id: laterResourceId,
+    key: `resource-${laterResourceId.slice(0, 8)}`,
+    blocks: [{ id: `${laterResourceId.slice(0, 8)}-name`, key: "name", type: "text", value: `Room ${laterResourceId.slice(0, 4)}` }],
+    timezone: "UTC",
+  });
+  assert.equal(calls.some((call) => call.path.startsWith("/v1/storefront/booking-resources")), false, "the rows carry each resource's key and blocks, so no resource is read");
   assert.deepEqual(state.days.filter((cell) => cell.available).map((cell) => cell.iso), [day(12), day(14)]);
   calendar.selectDate({ date: day(14) });
   assert.deepEqual(calendar.state.get().slots.map((slot) => slot.booking_offering_id), [laterOfferingId]);

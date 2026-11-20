@@ -17,6 +17,7 @@ import type {
   BookingCustomerChanges,
   BookingOfferingEditableStatus,
   BookingResourceAvailability,
+  Block,
   CreateBookingServiceParams,
   UpdateBookingServiceParams,
   DocumentItem,
@@ -29,8 +30,14 @@ import type {
   GetStorefrontAvailabilityParams,
   GetAvailabilityParams,
   WorkingWindow,
+  FindBookingOfferingsParams,
+  FindStorefrontBookingOfferingsByIdsParams,
+  FindStorefrontBookingResourcesByIdsParams,
+  PaginatedResponse,
+  StorefrontBookingOffering,
 } from "arky-sdk/types";
 import type { createAdmin } from "arky-sdk/admin";
+import type { createStorefront } from "arky-sdk/storefront";
 
 type Assert<T extends true> = T;
 type Equal<A, B> = [A] extends [B] ? [B] extends [A] ? true : false : false;
@@ -55,6 +62,7 @@ export type BookingDefinitionContracts = [
   Assert<Missing<GetStorefrontAvailabilityParams, "moving_order_id" | "moving_order_booking_line_item_id">>,
   Assert<Required<GetStorefrontAvailabilityParams, "store_location_id">>,
   Assert<Equal<BookingResourceAvailability["store_location_id"], string>>,
+  Assert<Equal<BookingResourceAvailability["resource_blocks"], Block[]>>,
   Assert<Equal<Duration, number>>,
   Assert<Required<CreateBookingServiceParams, "length">>,
   Assert<Required<CreateBookingServiceParams, "slot_interval">>,
@@ -102,4 +110,23 @@ export type BookingDefinitionContracts = [
   Assert<Missing<UpdateBookingOfferingParams, "booking_service_id" | "booking_resource_id">>,
   Assert<Missing<Admin["eshop"]["bookingOffering"], "getByServiceAndResource">>,
   Assert<Required<GetStorefrontAvailabilityParams, "package_id">>,
+  Assert<Equal<{ store_id: string; ids: string[]; booking_service_id: string } extends FindBookingOfferingsParams ? true : false, false>>,
+  Assert<Equal<{ store_id: string; ids: string[]; cursor: string } extends FindBookingOfferingsParams ? true : false, false>>,
+  Assert<Equal<{ store_id: string; ids: string[]; limit: number } extends FindBookingOfferingsParams ? true : false, true>>,
+  Assert<Equal<{ store_id: string } extends FindBookingOfferingsParams ? true : false, true>>,
+  Assert<Equal<Awaited<ReturnType<Admin["eshop"]["bookingOffering"]["findByService"]>>, PaginatedResponse<BookingOffering>>>,
+  Assert<Equal<Awaited<ReturnType<Admin["eshop"]["bookingOffering"]["findByResource"]>>, PaginatedResponse<BookingOffering>>>,
+  Assert<Equal<Awaited<ReturnType<Admin["eshop"]["bookingOffering"]["findAll"]>>, PaginatedResponse<BookingOffering>>>,
+  Assert<Equal<Parameters<Admin["eshop"]["bookingOffering"]["findAll"]>[0], { store_id: string; limit?: number; cursor?: string | null }>>,
+  Assert<Equal<Awaited<ReturnType<Admin["eshop"]["bookingService"]["findAll"]>>, PaginatedResponse<BookingService>>>,
+  Assert<Equal<Awaited<ReturnType<Admin["eshop"]["bookingService"]["findByBlockTarget"]>>, PaginatedResponse<BookingService>>>,
+  Assert<Equal<Awaited<ReturnType<Admin["eshop"]["bookingResource"]["findAll"]>>, PaginatedResponse<BookingResource>>>,
+  Assert<Equal<Awaited<ReturnType<Admin["eshop"]["bookingResource"]["findByCategory"]>>, PaginatedResponse<BookingResource>>>,
+  Assert<Equal<Parameters<Shop["eshop"]["bookingOffering"]["findByIds"]>[0], FindStorefrontBookingOfferingsByIdsParams>>,
+  Assert<Equal<Awaited<ReturnType<Shop["eshop"]["bookingOffering"]["findByIds"]>>, PaginatedResponse<StorefrontBookingOffering>>>,
+  Assert<Equal<Parameters<Shop["eshop"]["bookingResource"]["findByIds"]>[0], FindStorefrontBookingResourcesByIdsParams>>,
+  Assert<Equal<Awaited<ReturnType<Shop["eshop"]["bookingResource"]["findByIds"]>>, PaginatedResponse<StorefrontBookingResource>>>,
+  Assert<Required<FindStorefrontBookingResourcesByIdsParams, "offering_id">>,
 ];
+
+type Shop = ReturnType<typeof createStorefront>;

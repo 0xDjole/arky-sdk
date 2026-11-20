@@ -132,7 +132,7 @@ test("a refund Stripe started is allocated with the payment version, to the orde
     id: ids.payment,
     type: {
       type: "stripe_checkout",
-      refunds: [{ id: refundId, money: { amount: 500, currency: "eur" }, source: { type: "stripe_allocated", reason: "requested_by_customer", by, application }, status: { type: "succeeded", stripe_refund_id: "re_1", balance_transaction_id: "txn_1" }, created_at: 2 }],
+      refunds: [{ type: "stripe_dashboard", id: refundId, money: { amount: 500, currency: "eur" }, source: { type: "allocated", reason: "requested_by_customer", by, application }, status: { type: "succeeded", stripe_refund_id: "re_1", balance_transaction_id: "txn_1" }, created_at: 2 }],
     },
   });
   const answers = [allocated(credit), allocated(excess)];

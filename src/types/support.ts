@@ -191,9 +191,9 @@ export interface ConversationEmail {
 }
 
 export type ConversationType =
-  | { type: "chat"; language: string }
-  | { type: "email"; email: ConversationEmail }
-  | { type: "chat_and_email"; chat_language: string; email: ConversationEmail }
+  | { type: "chat"; language: string; subject: string }
+  | { type: "email"; email: ConversationEmail; subject: string }
+  | { type: "chat_and_email"; chat_language: string; email: ConversationEmail; subject: string }
   | { type: "phone" };
 
 export type ReadPosition = { type: "unread" } | { type: "through"; sequence: number };
@@ -204,7 +204,6 @@ export interface Conversation {
   customer_id: string;
   assigned_account_id: string | null;
   type: ConversationType;
-  subject: string;
   state: ConversationState;
   next_message_sequence: number;
   customer_read: ReadPosition;
@@ -287,7 +286,7 @@ export type ConversationReplyAuthor =
   | { type: "flow"; step_key: string };
 
 export type ConversationReplyDelivery =
-  | { type: "chat" }
+  | { type: "chat"; attachments: EmailAttachment[] }
   | { type: "email"; email: ReplyEmail }
   | { type: "chat_and_email"; email: ReplyEmail };
 
@@ -417,6 +416,8 @@ export type CallRecording =
   | { type: "waiting"; recording_sid: string; delete_at: EpochMilliseconds }
   | { type: "stored"; mime_type: string; size_bytes: number; sha256: string; delete_at: EpochMilliseconds }
   | { type: "deleted"; at: EpochMilliseconds }
+  | { type: "not_received"; at: EpochMilliseconds }
+  | { type: "delete_failed"; recording_sid: string; error: ProviderEffectError }
   | { type: "failed"; error: ProviderEffectError };
 
 export interface Call {
@@ -452,7 +453,6 @@ export type ConversationMessageType =
       text: string;
       author: ConversationReplyAuthor;
       delivery: ConversationReplyDelivery;
-      attachments: EmailAttachment[];
     }
   | { type: "sms"; author: AccountActor; text: string; outgoing_message_ids: string[] }
   | {
@@ -515,21 +515,27 @@ export interface CallListItem {
   waiting_callback: boolean;
 }
 
-export type StorefrontConversationType = { type: "chat"; language: string } | { type: "phone" };
+export type StorefrontConversationType = { type: "chat"; language: string; subject: string } | { type: "phone" };
 
 export interface StorefrontConversation {
   id: string;
   type: StorefrontConversationType;
-  subject: string;
   state: ConversationStateName;
+  next_message_sequence: number;
   customer_read: ReadPosition;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
-export interface StorefrontConversationListItem extends StorefrontConversation {
+export interface StorefrontConversationListItem {
+  id: string;
+  type: StorefrontConversationType;
+  state: ConversationStateName;
+  customer_read: ReadPosition;
   newest_message_at: EpochMilliseconds;
   unread: boolean;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export type StorefrontCallDirection = "incoming";
@@ -603,6 +609,7 @@ export interface StorefrontFindConversationsParams {
 
 export interface StorefrontFindConversationMessagesParams {
   conversation_id: string;
+  after_sequence?: number;
   limit?: number;
   cursor?: string | null;
 }
@@ -702,6 +709,8 @@ export interface FindConversationsParams {
   contact?: ConversationContactName;
   customer_id?: string;
   assigned_account_id?: string;
+  unassigned?: boolean;
+  unread?: boolean;
   query?: string;
   sort_field?: "newest_message_at" | "created_at" | "updated_at";
   sort_direction?: SortDirection;
@@ -717,6 +726,7 @@ export interface GetConversationParams {
 export interface FindConversationMessagesParams {
   store_id: string;
   conversation_id: string;
+  after_sequence?: number;
   limit?: number;
   cursor?: string | null;
 }

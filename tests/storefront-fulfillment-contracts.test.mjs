@@ -14,10 +14,14 @@ test("a buyer reads their order's fulfillment timeline from one exact route", as
     timing: { type: "asap" },
     shipments: [{ fulfillment_id: "shipment", status: { type: "dispatched", dispatched_at: 5 }, preparation_started_at: 4, updated_at: 5 }],
   }];
-  const calls = recordFetch(context, () => timeline);
+  const calls = recordFetch(context, (_call, count) => ({ items: timeline, cursor: count === 1 ? "jobs:1" : null }));
   const client = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
-  assert.deepEqual(await client.eshop.order.findFulfillments({ order_id: "order/one" }), timeline);
-  assert.deepEqual(calls.map((call) => [call.method, call.path, call.url.search]), [["GET", "/v1/storefront/orders/order%2Fone/fulfillments", ""]]);
+  assert.deepEqual(await client.eshop.order.findFulfillments({ order_id: "order/one" }), { items: timeline, cursor: "jobs:1" });
+  assert.deepEqual(await client.eshop.order.findFulfillments({ order_id: "order/one", limit: 1, cursor: "jobs:1" }), { items: timeline, cursor: null });
+  assert.deepEqual(calls.map((call) => [call.method, call.path, call.url.search]), [
+    ["GET", "/v1/storefront/orders/order%2Fone/fulfillments", ""],
+    ["GET", "/v1/storefront/orders/order%2Fone/fulfillments", "?limit=1&cursor=jobs%3A1"],
+  ]);
   assert.equal(calls[0].headers.get("authorization"), `Bearer ${visitorToken}`);
 });
 
@@ -36,9 +40,9 @@ test("a_customer_shipment_carries_trackings", async (context) => {
     created_at: 1,
     updated_at: 5,
   }];
-  recordFetch(context, () => timeline);
+  recordFetch(context, () => ({ items: timeline, cursor: null }));
   const client = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
-  const [fulfillment] = await client.eshop.order.findFulfillments({ order_id: ids.order });
+  const { items: [fulfillment] } = await client.eshop.order.findFulfillments({ order_id: ids.order });
   assert.deepEqual(fulfillment.shipments[0].trackings, trackings);
 });
 

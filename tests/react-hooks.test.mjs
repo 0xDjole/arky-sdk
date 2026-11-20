@@ -12,10 +12,10 @@ import { MemoryStorage } from "./helpers/durable-request-fixtures.mjs";
 
 const reviewedWriteVerbs = new Set([
   "accept", "add", "allocate", "allow", "answer", "archive", "assign", "attach", "attend", "batch", "block", "call", "cancel", "change",
-  "checkout", "clear", "complete", "confirm", "connect", "copy", "correct", "create", "credit", "decline", "delete", "detach", "end",
+  "checkout", "clear", "complete", "confirm", "connect", "copy", "correct", "create", "credit", "decline", "delete", "deliver", "detach", "end",
   "ensure", "erase", "execute", "expire", "finish", "forget", "grant", "identify", "import", "invite", "issue", "join", "logout", "make", "mark", "merge",
   "move", "name", "new", "on", "open", "pause", "pay", "print", "receive", "record", "recover", "refresh", "reissue", "release", "remove",
-  "rename", "reopen", "reorder", "replace", "reply", "request", "reschedule", "resend", "reset", "resize", "resolve", "resubscribe",
+  "rename", "reopen", "reorder", "replace", "reply", "report", "request", "reschedule", "resend", "reset", "resize", "resolve", "resubscribe",
   "resume", "retain", "revoke", "save", "schedule", "select", "send", "set", "settle", "setup", "skip", "start", "step", "submit",
   "suspend", "switch", "take", "test", "track", "transfer", "turn", "unassign", "unblock", "unschedule", "unsubscribe", "update",
   "upload", "use", "verify", "void", "wipe", "withdraw", "write",

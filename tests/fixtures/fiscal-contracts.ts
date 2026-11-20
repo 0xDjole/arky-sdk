@@ -19,11 +19,16 @@ import type {
   FiscalDocument,
   FiscalPaymentPart,
   FiscalReceipt,
+  FiscalReceiptDetail,
   FiscalReceiptPrint,
   FiscalReceiptSettlement,
   FiscalReceiptType,
   FiscalTarget,
   FindFiscalDevicesParams,
+  FindFiscalReceiptsByOrdersParams,
+  FindFiscalReceiptsParams,
+  FindStoreFiscalReceiptsParams,
+  RecordedPayments,
   FiscalAgentOutcome,
   PostalAddress,
   ProviderEffectError,
@@ -148,6 +153,34 @@ export type FiscalReceiptWireContracts = [
   Assert<Equal<Extract<FiscalAgentClaim["request"], { type: "tax_core" }>, { type: "tax_core"; body: TaxCoreInvoiceBody }>>,
   Assert<Equal<Extract<FiscalAgentClaim["request"], { type: "fbih_printer" }>["printer_request"]["reference"], FbihPrinterReference>>,
   Assert<Equal<FiscalAgentClaim["buyer_present"], boolean>>,
+];
+
+type ReceiptApi = Admin["eshop"]["order"]["fiscalReceipt"];
+
+export type FiscalReceiptListContracts = [
+  Assert<Equal<FindFiscalReceiptsParams, FindStoreFiscalReceiptsParams | FindFiscalReceiptsByOrdersParams>>,
+  Assert<Equal<Parameters<ReceiptApi["find"]>[0], FindFiscalReceiptsParams>>,
+  Assert<Equal<keyof FindStoreFiscalReceiptsParams, "store_id" | "order_ids" | "open" | "created_at_from" | "created_at_to" | "limit" | "cursor">>,
+  Assert<Equal<keyof FindFiscalReceiptsByOrdersParams, "store_id" | "order_ids" | "open" | "created_at_from" | "created_at_to" | "limit" | "cursor">>,
+  Assert<Equal<FindStoreFiscalReceiptsParams["created_at_from"], EpochMilliseconds | undefined>>,
+  Assert<Equal<FindStoreFiscalReceiptsParams["created_at_to"], EpochMilliseconds | undefined>>,
+  Assert<Equal<FindFiscalReceiptsByOrdersParams["order_ids"], string[]>>,
+  Assert<Accepts<FindFiscalReceiptsParams, { store_id: string; order_ids: string[] }>>,
+  Assert<Accepts<FindFiscalReceiptsParams, { store_id: string; open: true; created_at_from: EpochMilliseconds; created_at_to: EpochMilliseconds }>>,
+  Assert<Accepts<FindFiscalReceiptsParams, { store_id: string; order_ids: string[]; open: true }> extends false ? true : false>,
+  Assert<Accepts<FindFiscalReceiptsParams, { store_id: string; order_ids: string[]; created_at_from: EpochMilliseconds }> extends false ? true : false>,
+  Assert<Equal<keyof FiscalReceiptDetail, keyof FiscalReceipt | "deliverable">>,
+  Assert<Equal<FiscalReceiptDetail["deliverable"], boolean>>,
+  Assert<Equal<Awaited<ReturnType<ReceiptApi["find"]>>["items"], FiscalReceiptDetail[]>>,
+  Assert<Equal<Awaited<ReturnType<ReceiptApi["get"]>>, FiscalReceiptDetail>>,
+  Assert<Equal<Awaited<ReturnType<ReceiptApi["copy"]>>, FiscalReceiptDetail>>,
+  Assert<Equal<Awaited<ReturnType<ReceiptApi["correct"]>>, FiscalReceiptDetail[]>>,
+  Assert<Equal<Awaited<ReturnType<ReceiptApi["settle"]>>, FiscalReceiptDetail>>,
+  Assert<Equal<Awaited<ReturnType<ReceiptApi["deliver"]>>, FiscalReceiptDetail>>,
+  Assert<Equal<Awaited<ReturnType<ReceiptApi["issue"]>>, FiscalReceiptDetail[]>>,
+  Assert<Equal<FiscalAgentClaim["receipt"], FiscalReceipt>>,
+  Assert<Equal<RecordedPayments["fiscal_receipts"], FiscalReceipt[]>>,
+  Assert<Equal<"deliverable" extends keyof FiscalReceipt ? true : false, false>>,
 ];
 
 export type FiscalDeviceHoldContracts = [

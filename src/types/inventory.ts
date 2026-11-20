@@ -69,7 +69,7 @@ export type InventoryMovementReason =
   | { type: "written_off"; actor: AccountActor; reason: string }
   | { type: "adjustment"; actor: AccountActor; quantity: InventoryQuantity; note: string }
   | { type: "damage"; actor: AccountActor; quantity: InventoryQuantity; reference: string | null }
-  | { type: "dispatched"; fulfillment_id: string }
+  | { type: "dispatched" }
   | { type: "return_restock"; return_id: string }
   | { type: "set_aside"; actor: AccountActor; note: string }
   | { type: "made_available"; actor: AccountActor; note: string }
@@ -177,8 +177,9 @@ export interface GetInventoryItemByKeyParams {
   key: string;
 }
 
-export interface FindInventoryItemsParams {
+export interface FindInventoryItemsBySearchParams {
   store_id: string;
+  ids?: never;
   query?: string;
   status?: InventoryItemStatus["type"];
   tracking?: InventoryTracking["type"];
@@ -187,6 +188,20 @@ export interface FindInventoryItemsParams {
   limit?: number;
   cursor?: string | null;
 }
+
+export interface FindInventoryItemsByIdsParams {
+  store_id: string;
+  ids: string[];
+  query?: never;
+  status?: never;
+  tracking?: never;
+  sort_field?: never;
+  sort_direction?: never;
+  limit?: never;
+  cursor?: never;
+}
+
+export type FindInventoryItemsParams = FindInventoryItemsBySearchParams | FindInventoryItemsByIdsParams;
 
 export interface DeleteInventoryItemParams {
   store_id: string;
@@ -214,7 +229,7 @@ export interface RemoveInventoryLevelParams {
 
 export interface FindInventoryLevelsParams {
   store_id: string;
-  inventory_item_id?: string;
+  inventory_item_ids?: string[];
   store_location_id?: string;
   sort_field?: "created_at" | "updated_at";
   sort_direction?: SortDirection;
@@ -282,8 +297,9 @@ export interface GetInventoryUnitParams {
   id: string;
 }
 
-export interface FindInventoryUnitsParams {
+export interface FindInventoryUnitsBySearchParams {
   store_id: string;
+  ids?: never;
   inventory_item_id?: string;
   store_location_id?: string;
   rental_id?: string;
@@ -294,6 +310,22 @@ export interface FindInventoryUnitsParams {
   limit?: number;
   cursor?: string | null;
 }
+
+export interface FindInventoryUnitsByIdsParams {
+  store_id: string;
+  ids: string[];
+  inventory_item_id?: never;
+  store_location_id?: never;
+  rental_id?: never;
+  asset_tag?: never;
+  status?: never;
+  sort_field?: never;
+  sort_direction?: never;
+  limit?: never;
+  cursor?: never;
+}
+
+export type FindInventoryUnitsParams = FindInventoryUnitsBySearchParams | FindInventoryUnitsByIdsParams;
 
 export interface ReceiveInventoryUnitParams {
   store_id: string;

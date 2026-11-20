@@ -113,7 +113,7 @@ test("store children, wipes and subscription actions send only their own inputs"
   const store = admin().store;
   await store.testStores.find({ store_id: ids.store, limit: 10, cursor: "children" });
   await store.wipe({ id: ids.store, confirmation: "Shop", expected_updated_at: 1 });
-  await store.subscription.createCardSetup({ network_id: ids.network, id: ids.picked });
+  await store.subscription.createCardSetup({ network_id: ids.network, id: ids.picked, store_id: ids.store });
   await store.subscription.setCard({ store_id: ids.store, expected_updated_at: 2, network_provider_id: ids.picked, setup_intent_id: "seti_confirmed" });
   await store.subscription.changePlan({ store_id: ids.store, expected_updated_at: 3, plan_id: ids.plan });
   await store.subscription.pendingPayment({ store_id: ids.store });
@@ -124,13 +124,29 @@ test("store children, wipes and subscription actions send only their own inputs"
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
     ["GET", `${path}/test-stores`, { limit: "10", cursor: "children" }, null],
     ["POST", `${path}/wipe`, {}, { confirmation: "Shop", expected_updated_at: 1 }],
-    ["POST", `/v1/networks/${ids.network}/card-setups`, {}, { id: ids.picked }],
+    ["POST", `/v1/networks/${ids.network}/card-setups`, {}, { id: ids.picked, store_id: ids.store }],
     ["PUT", `${path}/subscription/card`, {}, { expected_updated_at: 2, network_provider_id: ids.picked, setup_intent_id: "seti_confirmed" }],
     ["PUT", `${path}/subscription/plan`, {}, { expected_updated_at: 3, plan_id: ids.plan }],
     ["GET", `${path}/subscription/payment`, {}, null],
     ["POST", `${path}/subscription/cancel`, {}, { expected_updated_at: 4 }],
     ["POST", `${path}/subscription/grant`, {}, { expected_updated_at: 5, plan_id: ids.plan }],
     ["POST", `${path}/subscription/end-grant`, {}, { expected_updated_at: 6, plan_id: ids.plan }],
+  ]);
+});
+
+test("the store list filters by type and status, and the test stores of a page's live stores come in one read", async (context) => {
+  const testStore = { id: ids.otherStore, type: { type: "test", live_store_id: ids.store } };
+  const calls = recordFetch(context, (call) => (call.path === "/v1/stores/test-stores" ? { items: [testStore], cursor: "more" } : { items: [], cursor: null }));
+  const store = admin().store;
+  await store.find({ type: "live", status: "active", limit: 20 });
+  await store.find({ status: "wiping_suspended" });
+  assert.deepEqual(await store.testStores.findByLiveStores({ live_store_ids: [ids.store, ids.otherStore], limit: 50 }), { items: [testStore], cursor: "more" });
+  await store.testStores.findByLiveStores({ live_store_ids: [ids.store, ids.otherStore], cursor: "more" });
+  assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
+    ["GET", "/v1/stores", { type: "live", status: "active", limit: "20" }, null],
+    ["GET", "/v1/stores", { status: "wiping_suspended" }, null],
+    ["GET", "/v1/stores/test-stores", { live_store_ids: JSON.stringify([ids.store, ids.otherStore]), limit: "50" }, null],
+    ["GET", "/v1/stores/test-stores", { live_store_ids: JSON.stringify([ids.store, ids.otherStore]), cursor: "more" }, null],
   ]);
 });
 
@@ -163,6 +179,28 @@ test("billing and network email webhook inspection retains the network and its l
     ["GET", "/v1/platform/incoming-webhooks/resend", { network_id: ids.network, network_provider_id, status: "unmatched", limit: "10", cursor: "email" }, null],
     ["POST", `/v1/platform/incoming-webhooks/resend/${ids.picked}/resolve`, {}, { network_id: ids.network, network_provider_id, expected_updated_at: 3, resolution: "ignore", reason: "Reviewed" }],
     ["POST", `/v1/platform/incoming-webhooks/resend/${ids.picked}/resolve`, {}, { network_id: ids.network, network_provider_id, expected_updated_at: 4, resolution: "apply" }],
+  ]);
+});
+
+test("a network's SMS reports are posts a platform Admin lists by the network's Twilio login and resolves by version", async (context) => {
+  const post = {
+    id: ids.picked,
+    provider_event_id: "SM1:delivered",
+    type: { type: "network_twilio_sms", network_id: ids.network, network_provider_id: ids.plan, outgoing_message_id: ids.submission, event: { type: "delivered", message_sid: "SM1" } },
+    status: { type: "review", reason: "A different final report", to: { type: "outgoing_message", outgoing_message_id: ids.submission } },
+    created_at: 1,
+    updated_at: 2,
+  };
+  const calls = recordFetch(context, (call) => (call.method === "GET" ? { items: [post], cursor: null } : post));
+  const platform = admin().platform;
+  const network_provider_id = ids.plan;
+  assert.deepEqual(await platform.networkSmsPost.find({ network_id: ids.network, network_provider_id, status: "review", limit: 25, cursor: "sms" }), { items: [post], cursor: null });
+  assert.deepEqual(await platform.networkSmsPost.resolve({ network_id: ids.network, network_provider_id, id: ids.picked, expected_updated_at: 2, resolution: "ignore", reason: "Reviewed" }), post);
+  await platform.networkSmsPost.resolve({ network_id: ids.network, network_provider_id, id: ids.picked, expected_updated_at: 3, resolution: "apply" });
+  assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
+    ["GET", "/v1/platform/incoming-webhooks/twilio", { network_id: ids.network, network_provider_id, status: "review", limit: "25", cursor: "sms" }, null],
+    ["POST", `/v1/platform/incoming-webhooks/twilio/${ids.picked}/resolve`, {}, { network_id: ids.network, network_provider_id, expected_updated_at: 2, resolution: "ignore", reason: "Reviewed" }],
+    ["POST", `/v1/platform/incoming-webhooks/twilio/${ids.picked}/resolve`, {}, { network_id: ids.network, network_provider_id, expected_updated_at: 3, resolution: "apply" }],
   ]);
 });
 
@@ -278,7 +316,7 @@ test("a network's clinic read names its network and clinic and answers the count
     owner_email: "owner@clinic.example.test",
     city: "Sarajevo",
     counts: { members: 5, customers: 120 },
-    default_location: { type: "none" },
+    default_location_id: ids.otherCompanyLocation,
   };
   const calls = recordFetch(context, () => clinic);
   const stores = admin().network.store;
@@ -304,4 +342,13 @@ test("a network names a store's owner by email, and a store names its default br
   await assert.rejects(async () => api.network.store.nameOwner({ network_id: ids.network, store_id: "store", email: "owner@clinic.example.test", language: "bs", expected_updated_at: 5 }), TypeError);
   await assert.rejects(async () => api.store.nameDefaultLocation({ id: ids.store, store_location_id: "branch", expected_updated_at: 6 }), TypeError);
   assert.equal(calls.length, 2);
+});
+
+test("the network's team reads several stores' subscriptions by store ids in one request", async (context) => {
+  const network_id = "2a4c6e8b-0d1f-4a3c-9e5b-7d9f1b3c5e8a";
+  const calls = recordFetch(context, () => []);
+  assert.deepEqual(await admin().network.store.findSubscriptions({ network_id, ids: [ids.store, ids.otherStore] }), []);
+  assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
+    ["GET", `/v1/networks/${network_id}/store-subscriptions`, { ids: JSON.stringify([ids.store, ids.otherStore]) }],
+  ]);
 });

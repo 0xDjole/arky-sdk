@@ -18,9 +18,9 @@ const stripe = payment(ids.payment, 5000, {
   expires_at: 1,
   status: { type: "paid", payment_intent_id: "pi_1", charge_id: "ch_1", amount: 5000 },
   refunds: [
-    { id: "r1", money: eur(1000), source: { type: "stripe", reason: "requested" }, status: { type: "succeeded", stripe_refund_id: "re_1", balance_transaction_id: "txn_1" }, created_at: 1 },
-    { id: "r2", money: eur(500), source: { type: "stripe", reason: "requested" }, status: { type: "pending", stripe_refund_id: "re_2" }, created_at: 1 },
-    { id: "r3", money: eur(300), source: { type: "stripe", reason: "requested" }, status: { type: "failed", stripe_refund_id: "re_3" }, created_at: 1 },
+    { type: "stripe_dashboard", id: "r1", money: eur(1000), source: { type: "unallocated", reason: "requested" }, status: { type: "succeeded", stripe_refund_id: "re_1", balance_transaction_id: "txn_1" }, created_at: 1 },
+    { type: "stripe_dashboard", id: "r2", money: eur(500), source: { type: "unallocated", reason: "requested" }, status: { type: "pending", stripe_refund_id: "re_2" }, created_at: 1 },
+    { type: "stripe_dashboard", id: "r3", money: eur(300), source: { type: "unallocated", reason: "requested" }, status: { type: "failed", stripe_refund_id: "re_3" }, created_at: 1 },
   ],
   disputes: [
     {
@@ -159,4 +159,23 @@ test("a staff payment adds up the same way, and a refund paid out in cash agains
     staffCash.type.refunds.map((refund) => refundAmounts({ type: "recorded", refund })),
     [{ refunded: 700, pending: 0 }, { refunded: 0, pending: 300 }, { refunded: 0, pending: 0 }],
   );
+});
+
+test("a card charge or a Monri page a person confirmed as made counts as paid, the way Arky counts it", () => {
+  const card = payment(ids.payment, 1200, {
+    type: "stripe_card",
+    payment_method: {},
+    purpose: "renewal",
+    status: { type: "confirmed_made", payment_intent_id: "pi_7", by: actor },
+    refunds: [],
+    disputes: [],
+  });
+  const page = payment(ids.payment, 800, {
+    type: "monri_checkout",
+    status: { type: "confirmed_made", transaction_id: "77", by: actor },
+    refunds: [],
+  });
+  assert.deepEqual(paymentAmounts([card, page]), { paid: 2000, refunded: 0, refund_pending: 0, disputed: 0, net_paid: 2000 });
+  const cancelled = payment(ids.payment, 800, { type: "monri_checkout", status: { type: "cancelled" }, refunds: [] });
+  assert.equal(paymentAmounts([cancelled]).paid, 0);
 });

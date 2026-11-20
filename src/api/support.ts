@@ -120,6 +120,14 @@ export function createStorefrontSupportApi(
         return httpClient.get<PaginatedResponse<StorefrontConversationListItem>>(base, { ...options, params });
       },
 
+      async findAll(
+        params: StorefrontFindConversationsParams = {},
+        options?: RequestOptions,
+      ): Promise<PaginatedResponse<StorefrontConversationListItem>> {
+        await ensureSession();
+        return httpClient.get<PaginatedResponse<StorefrontConversationListItem>>(`${base}/all`, { ...options, params });
+      },
+
       async get(params: StorefrontGetConversationParams, options?: RequestOptions): Promise<StorefrontConversation> {
         await ensureSession();
         return httpClient.get<StorefrontConversation>(conversationPath(params.id), options);

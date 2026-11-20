@@ -27,7 +27,7 @@ export type LoadContentParams =
   | { collection: LoadContentCollectionParams }
   | { entry: LoadContentEntryParams };
 
-export type LoadContentEntriesParams = Omit<StorefrontFindCollectionEntriesParams, "cursor">;
+export type LoadContentEntriesParams = StorefrontFindCollectionEntriesParams;
 
 export type LoadedContentFor<P extends LoadContentParams> = P extends { collection: LoadContentCollectionParams }
   ? LoadedContent<StorefrontCollection>

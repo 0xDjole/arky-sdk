@@ -18,7 +18,6 @@ export interface RequestSuccessContext<T = unknown> {
   status: number;
   request?: unknown;
   duration_ms?: number;
-  request_id?: string | null;
 }
 
 export interface RequestErrorContext {
@@ -29,7 +28,6 @@ export interface RequestErrorContext {
   request?: unknown;
   response?: unknown;
   duration_ms?: number;
-  request_id?: string | null;
   aborted?: boolean;
 }
 
@@ -73,6 +71,7 @@ export interface HttpClientConfig {
   }) => boolean | Promise<boolean>;
   refreshCredentials?: (expected: TokenSet | null) => Promise<void>;
   onRefused?: (error: ArkyApiError) => void;
+  redirect?: RequestRedirect;
 }
 
 export interface ServerError {

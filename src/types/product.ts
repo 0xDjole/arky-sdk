@@ -45,6 +45,7 @@ export type ProductFulfillment =
       shipping_profile_id: string;
       inventory_requirements: InventoryRequirement[];
       backorder: BackorderPolicy;
+      measure: ProductVariantMeasure;
     }
   | { type: "digital"; asset_ids: string[] };
 
@@ -68,7 +69,6 @@ export interface ProductVariant {
   fulfillment: ProductFulfillment;
   tax_category_id: string;
   document_item: DocumentItem;
-  measure: ProductVariantMeasure;
   status: ProductVariantStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
@@ -248,7 +248,6 @@ export interface StorefrontProductVariant {
   blocks: Block[];
   fulfillment: ProductFulfillment;
   tax_category_id: string;
-  measure: ProductVariantMeasure;
   status: ProductVariantStatus;
   package_item_id: string;
   price: StorefrontPrice | null;
@@ -289,6 +288,7 @@ export interface BookingResourceAvailability {
   store_location_id: string;
   booking_resource_id: string;
   resource_key: string;
+  resource_blocks: Block[];
   timezone: string;
   days: DaySlots[];
 }
@@ -387,7 +387,6 @@ export interface CreateProductVariantParams {
   fulfillment: ProductFulfillment;
   tax_category_id: string;
   document_item: DocumentItem;
-  measure: ProductVariantMeasure;
 }
 
 export interface UpdateProductVariantParams {
@@ -399,7 +398,6 @@ export interface UpdateProductVariantParams {
   fulfillment: ProductFulfillment;
   tax_category_id: string;
   document_item: DocumentItem;
-  measure: ProductVariantMeasure;
   status: ProductVariantEditableStatus;
 }
 
@@ -408,8 +406,9 @@ export interface GetProductVariantParams {
   id: string;
 }
 
-export interface FindProductVariantsParams {
+export interface FindProductVariantsBySearchParams {
   store_id: string;
+  ids?: never;
   product_id?: string;
   sku?: string;
   status?: ProductVariantStatus["type"];
@@ -418,6 +417,20 @@ export interface FindProductVariantsParams {
   limit?: number;
   cursor?: string | null;
 }
+
+export interface FindProductVariantsByIdsParams {
+  store_id: string;
+  ids: string[];
+  product_id?: never;
+  sku?: never;
+  status?: never;
+  sort_field?: never;
+  sort_direction?: never;
+  limit?: never;
+  cursor?: never;
+}
+
+export type FindProductVariantsParams = FindProductVariantsBySearchParams | FindProductVariantsByIdsParams;
 
 export interface DeleteProductVariantParams {
   store_id: string;
@@ -582,13 +595,74 @@ export interface DeleteBookingOfferingParams {
   expected_updated_at: EpochMilliseconds;
 }
 
-export interface FindBookingOfferingsParams {
+export interface FindBookingOfferingsBySearchParams {
   store_id: string;
+  ids?: never;
   booking_service_id?: string;
   booking_resource_id?: string;
   status?: BookingOfferingStatus["type"];
   sort_field?: "created_at" | "updated_at";
   sort_direction?: SortDirection;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface FindBookingOfferingsByIdsParams {
+  store_id: string;
+  ids: string[];
+  booking_service_id?: never;
+  booking_resource_id?: never;
+  status?: never;
+  sort_field?: never;
+  sort_direction?: never;
+  limit?: number;
+  cursor?: never;
+}
+
+export type FindBookingOfferingsParams = FindBookingOfferingsBySearchParams | FindBookingOfferingsByIdsParams;
+
+export interface FindAllBookingOfferingsParams {
+  store_id: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface FindServiceBookingOfferingsParams {
+  store_id: string;
+  booking_service_id: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface FindResourceBookingOfferingsParams {
+  store_id: string;
+  booking_resource_id: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface FindAllBookingServicesParams {
+  store_id: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface FindBlockTargetBookingServicesParams {
+  store_id: string;
+  block_target_id: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface FindAllBookingResourcesParams {
+  store_id: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface FindCategoryBookingResourcesParams {
+  store_id: string;
+  category_id: string;
   limit?: number;
   cursor?: string | null;
 }
@@ -637,6 +711,10 @@ export type GetStorefrontProductByKeyParams = PackageContext & {
   key: string;
 };
 
+export type FindStorefrontProductsByIdsParams = PackageContext & {
+  ids: string[];
+};
+
 export type GetStorefrontProductVariantParams = PackageReadOptions & {
   product_id: string;
   id: string;
@@ -652,6 +730,10 @@ export type GetStorefrontBookingOfferingParams = PackageReadOptions & {
   id: string;
 };
 
+export type FindStorefrontBookingOfferingsByIdsParams = PackageReadOptions & {
+  ids: string[];
+};
+
 export type GetStorefrontAvailabilityParams = PackageContext & {
   booking_service_id: string;
   store_location_id: string;
@@ -664,6 +746,11 @@ export type GetStorefrontAvailabilityParams = PackageContext & {
 
 export type GetStorefrontBookingResourceParams = PackageContext & {
   id: string;
+  offering_id: string;
+};
+
+export type FindStorefrontBookingResourcesByIdsParams = PackageContext & {
+  ids: string[];
   offering_id: string;
 };
 

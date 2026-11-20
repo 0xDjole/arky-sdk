@@ -18,7 +18,6 @@ import type {
 } from "../types/contentView";
 import { ArkyError } from "../types/apiError";
 import { collectBlockReferences, selectLocalizedText } from "../utils/blocks";
-import { readAllPages } from "../utils/paginate";
 
 export interface ContentReads {
   getCollection(params: LoadContentCollectionParams, options?: RequestOptions): Promise<StorefrontCollection>;
@@ -112,8 +111,10 @@ export async function loadContentEntries(
   params: LoadContentEntriesParams,
   locale: string,
   options?: RequestOptions,
-): Promise<LoadedContent<StorefrontEntry>[]> {
-  const entries = await readAllPages((cursor) => reads.findEntries({ ...params, ...(cursor ? { cursor } : {}) }, options));
-  const media = await readMedia(reads, entries, options);
-  return entries.map((entry) => loaded(entry, locale, media));
+): Promise<PaginatedResponse<LoadedContent<StorefrontEntry>>> {
+  const page = await reads.findEntries(params, options);
+  if (!page || !Array.isArray(page.items)) throw new ArkyError("answer_mismatch", "The entry read did not answer a page");
+  if (params.cursor && page.cursor === params.cursor) throw new ArkyError("answer_mismatch", "The entry page cursor did not advance");
+  const media = await readMedia(reads, page.items, options);
+  return { items: page.items.map((entry) => loaded(entry, locale, media)), cursor: page.cursor };
 }

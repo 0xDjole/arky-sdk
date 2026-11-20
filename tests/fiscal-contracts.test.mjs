@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ArkyApiError, createAdmin, createFiscalDeviceAgent } from "../dist/admin.js";
+import { ArkyApiError, ArkyNetworkError, createAdmin, createFiscalDeviceAgent } from "../dist/admin.js";
 import { createStorefront } from "../dist/storefront.js";
 import { apiUrl as storefrontApiUrl, errorResponse, factoryOrderToken, fixedIdFactories, ids, recordFetch, storefrontIdentity, visitorStorage } from "./helpers/arky-fixtures.mjs";
 
@@ -121,14 +121,14 @@ test("a device's desk keys are listed as the plain array Arky answers, made unde
   assert.equal(calls.length, 4);
 });
 
-test("fiscal receipts are listed for an order or the open ones, read, copied and corrected under app-picked ids, and settled by hand", async (context) => {
+test("fiscal receipts are listed for several Orders or the open ones, read, copied and corrected under app-picked ids, and settled by hand", async (context) => {
   const calls = recordFetch(context, (call) => {
     if (call.method === "GET" && call.path.endsWith("/fiscal-receipts")) return { items: [receipt()], cursor: null };
     if (call.path.endsWith("/correction")) return [receipt(), receipt()];
     return receipt();
   });
   const api = admin().eshop.order.fiscalReceipt;
-  assert.deepEqual(await api.find({ store_id: storeId, order_id: ids.order }), { items: [receipt()], cursor: null });
+  assert.deepEqual(await api.find({ store_id: storeId, order_ids: [ids.order, ids.otherOrder] }), { items: [receipt()], cursor: null });
   await api.find({ store_id: storeId, open: true, limit: 50, cursor: "next" });
   assert.deepEqual(await api.get({ store_id: storeId, fiscal_receipt_id: receiptId }), receipt());
   await api.copy({ store_id: storeId, fiscal_receipt_id: receiptId, id: copyId });
@@ -139,7 +139,7 @@ test("fiscal receipts are listed for an order or the open ones, read, copied and
   await api.settle({ store_id: storeId, fiscal_receipt_id: receiptId, outcome: { type: "not_issued" } });
   const base = `/v1/stores/${storeId}/fiscal-receipts`;
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
-    ["GET", base, { order_id: ids.order }, null],
+    ["GET", base, { order_ids: JSON.stringify([ids.order, ids.otherOrder]) }, null],
     ["GET", base, { open: "true", limit: "50", cursor: "next" }, null],
     ["GET", `${base}/${receiptId}`, {}, null],
     ["POST", `${base}/${receiptId}/copy`, {}, { id: copyId }],
@@ -291,7 +291,7 @@ test("a Croatian receipt is read with what it froze when it was made: the seller
   const read = await api.get({ store_id: storeId, fiscal_receipt_id: receiptId });
   assert.deepEqual(read, business);
   assert.deepEqual([read.document.seller, read.document.cashier, read.document.payment_method, read.document.buyer], [seller, "Ana Kovač", "card", { type: "business", oib: "98765432106" }]);
-  assert.deepEqual((await api.find({ store_id: storeId, order_id: ids.order })).items.map((item) => [item.document.buyer, item.document.cashier, item.document.payment_method, item.document.seller.oib]), [
+  assert.deepEqual((await api.find({ store_id: storeId, order_ids: [ids.order] })).items.map((item) => [item.document.buyer, item.document.cashier, item.document.payment_method, item.document.seller.oib]), [
     [{ type: "consumer" }, "Online", "other", "12345678903"],
     [{ type: "business", oib: "98765432106" }, "Ana Kovač", "card", "12345678903"],
   ]);
@@ -380,7 +380,7 @@ test("an advance receipt is read with the chain its first advance recorded: the 
   const calls = recordFetch(context, (call) => (call.method === "GET" && call.path.endsWith("/fiscal-receipts") ? { items: [visit, goods], cursor: null } : visit));
   const api = admin().eshop.order.fiscalReceipt;
   assert.deepEqual((await api.get({ store_id: storeId, fiscal_receipt_id: receiptId })).type.chain, { type: "target", target: { type: "booking", line_item_id: ids.line } });
-  const page = await api.find({ store_id: storeId, order_id: ids.order });
+  const page = await api.find({ store_id: storeId, order_ids: [ids.order] });
   assert.deepEqual(page.items.map((item) => [item.type.type, item.type.chain, item.print]), [
     ["advance", { type: "target", target: { type: "booking", line_item_id: ids.line } }, "not_printed"],
     ["advance", { type: "goods" }, "not_printed"],
@@ -515,3 +515,61 @@ test("a buyer's order carries the hand-path receipt copies a printer and TaxCore
   assert.deepEqual(read.receipts.map((copy) => copy.document.state.type), ["written_by_hand", "done_after_hand", "done_on_other_device", "done_on_other_device"]);
 });
 
+
+test("a Croatian receipt past its clearance deadline is delivered once more by hand with an empty body", async (context) => {
+  const receiptId = "3e5a7c9b-1d2f-4b6a-8c0e-2f4a6c8e0b1d";
+  const receipt = { id: receiptId, status: { type: "done" } };
+  const calls = recordFetch(context, () => receipt);
+  assert.deepEqual(await admin().eshop.order.fiscalReceipt.deliver({ store_id: storeId, fiscal_receipt_id: receiptId }), receipt);
+  assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
+    ["POST", `/v1/stores/${storeId}/fiscal-receipts/${receiptId}/deliver`, {}],
+  ]);
+});
+
+test("the store's receipts are listed within a creation-time range, never by the old order_id, and every staff answer says whether deliver takes the receipt now", async (context) => {
+  const triesEnded = { ...receipt(), deliverable: true };
+  const done = { ...receipt({ type: "done", invoice_number: "AB12CD34-AB12CD34-17", verification_url: "https://tap.suf.purs.gov.rs/v/?vl=1", signed_at: 4, sdc_date_time: "2027-01-15T09:00:00.000+01:00" }), deliverable: false };
+  const calls = recordFetch(context, (call) => {
+    if (call.method === "GET" && call.path.endsWith("/fiscal-receipts")) return { items: [triesEnded, done], cursor: "receipts" };
+    if (call.path.endsWith("/issue")) return [done];
+    return triesEnded;
+  });
+  const api = admin().eshop.order.fiscalReceipt;
+  const page = await api.find({ store_id: storeId, created_at_from: 1, created_at_to: 5, limit: 2 });
+  assert.deepEqual(page.items.map((item) => item.deliverable), [true, false]);
+  await api.find({ store_id: storeId, open: true, created_at_from: 1 });
+  assert.equal((await api.get({ store_id: storeId, fiscal_receipt_id: receiptId })).deliverable, true);
+  assert.equal((await api.deliver({ store_id: storeId, fiscal_receipt_id: receiptId })).deliverable, true);
+  assert.deepEqual((await api.issue({ store_id: storeId, order_id: ids.order, fiscal_device_id: deviceId })).map((item) => item.deliverable), [false]);
+  const base = `/v1/stores/${storeId}/fiscal-receipts`;
+  assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
+    ["GET", base, { created_at_from: "1", created_at_to: "5", limit: "2" }],
+    ["GET", base, { open: "true", created_at_from: "1" }],
+    ["GET", `${base}/${receiptId}`, {}],
+    ["POST", `${base}/${receiptId}/deliver`, {}],
+    ["POST", `/v1/stores/${storeId}/orders/${ids.order}/fiscal-receipts/issue`, {}],
+  ]);
+  for (const call of calls) assert.equal("order_id" in call.query, false, "the Server refuses the old order_id");
+});
+
+test("the desk agent passes its redirect choice to every request, a refused redirect ends as a network error, and with no choice the clients follow redirects as before", async (context) => {
+  const seen = [];
+  context.mock.method(globalThis, "fetch", async (input, init = {}) => {
+    seen.push([new URL(String(input)).pathname, init.redirect]);
+    if (seen.length === 3) throw new TypeError("fetch failed: redirect mode is set to error");
+    return new Response(JSON.stringify(device()), { status: 200, headers: { "content-type": "application/json" } });
+  });
+  const refusing = createFiscalDeviceAgent({ apiUrl, storeId, token: deviceToken, redirect: "error" });
+  await refusing.getDevice();
+  await refusing.heartbeat({ readiness: "ready" });
+  await assert.rejects(refusing.getDevice(), (error) => error instanceof ArkyNetworkError && error.code === "network" && !(error instanceof ArkyApiError));
+  await createFiscalDeviceAgent({ apiUrl, storeId, token: deviceToken }).getDevice();
+  await admin().store.fiscalDevice.get({ store_id: storeId, id: deviceId });
+  assert.deepEqual(seen, [
+    [`/v1/stores/${storeId}/fiscal-device`, "error"],
+    [`/v1/stores/${storeId}/fiscal-device/heartbeat`, "error"],
+    [`/v1/stores/${storeId}/fiscal-device`, "error"],
+    [`/v1/stores/${storeId}/fiscal-device`, "follow"],
+    [`/v1/stores/${storeId}/fiscal-devices/${deviceId}`, "follow"],
+  ]);
+});

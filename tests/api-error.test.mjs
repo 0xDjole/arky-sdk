@@ -31,7 +31,7 @@ function storefront() {
   return createStorefront(storefrontIdentity, { ...idFactories, apiUrl, locale: "en", sessionStorage: visitorStorage() });
 }
 
-test("a refused request throws an ArkyApiError with the Server's code, status, message and request id", async (context) => {
+test("a refused request throws an ArkyApiError with the Server's code, status and message, and carries no request id", async (context) => {
   recordFetch(context, () => {
     const response = errorResponse(422, "GENERAL.VALIDATION_FAILED", "The email is invalid", {
       validation_errors: [{ field: "email", error: "GENERAL.INVALID_EMAIL" }],
@@ -51,7 +51,7 @@ test("a refused request throws an ArkyApiError with the Server's code, status, m
   assert.equal(error.statusCode, 422);
   assert.equal(error.message, "The email is invalid");
   assert.deepEqual(error.validationErrors, [{ field: "email", error: "GENERAL.INVALID_EMAIL" }]);
-  assert.equal(error.requestId, "request-7");
+  assert.equal("requestId" in error, false);
   assert.equal(error.method, "GET");
   assert.equal(error.url, `${apiUrl}/v1/storefront/customer/me`);
   assert.equal(error.response.error, "GENERAL.VALIDATION_FAILED");

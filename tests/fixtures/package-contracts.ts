@@ -133,7 +133,7 @@ export type PackageContracts = [
   AssertTrue<Same<Awaited<ReturnType<Eshop["packageItemPrice"]["find"]>>, PackageItemPricePage>>,
   AssertTrue<Same<PackageItemPricePage["items"], PackageItemPrice[]>>,
   AssertTrue<Same<keyof PackageItemPricePage, "items" | "cursor">>,
-  AssertTrue<Same<keyof Eshop["package"], "find" | "findPurchasable" | "get" | "getByKey" | "create" | "update" | "copy" | "delete">>,
+  AssertTrue<Same<keyof Eshop["package"], "find" | "findByIds" | "findPurchasable" | "get" | "getByKey" | "create" | "update" | "copy" | "delete">>,
   AssertTrue<Same<Awaited<ReturnType<Eshop["packageItem"]["batch"]>>, PackageItem[]>>,
   AssertTrue<Same<PackageItemBatchOperation["type"], "create" | "update" | "delete">>,
   AssertTrue<RequiredField<Extract<PackageItemBatchOperation, { type: "create" }>, "id">>,

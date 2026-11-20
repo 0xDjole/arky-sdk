@@ -16,11 +16,11 @@ export type ShippingMethodType =
   | { type: "pickup"; store_location_id: string };
 
 export type ShippingRateCondition =
-  | { type: "sales_channel"; ids: string[] }
-  | { type: "package"; ids: string[] }
-  | { type: "package_offering"; ids: string[] }
-  | { type: "company"; ids: string[] }
-  | { type: "company_location"; ids: string[] }
+  | { type: "sales_channel"; sales_channel_ids: string[] }
+  | { type: "package"; package_ids: string[] }
+  | { type: "package_offering"; package_offering_ids: string[] }
+  | { type: "company"; company_ids: string[] }
+  | { type: "company_location"; company_location_ids: string[] }
   | { type: "minimum_subtotal"; amount: number }
   | { type: "maximum_subtotal"; amount: number }
   | { type: "minimum_weight_grams"; grams: number }

@@ -134,7 +134,6 @@ test("each invoice and fiscal alert is an email template of its own purpose and 
     "fiscal_refund_returned_alert",
     "fiscal_dispute_lost_alert",
     "fiscal_device_not_ready_alert",
-    "fiscal_device_daily_report_missed_alert",
     "fiscal_certificate_expiring_alert",
   ];
   const recipients = [{ type: "store_role", store_role_id: role, language: "bs" }, { type: "email", email: "books@example.test", language: "en" }];

@@ -308,11 +308,6 @@ export interface RefundRequest {
   notify_customer: boolean;
 }
 
-export type StripeRefundSource =
-  | ({ type: "account" } & RefundRequest)
-  | { type: "stripe"; reason: string | null }
-  | { type: "stripe_allocated"; reason: string | null; by: AccountActor; application: RefundApplication };
-
 export type StripeRefundStatus =
   | { type: "requested" }
   | { type: "creating"; claim: ProviderOperationClaim }
@@ -340,12 +335,50 @@ export type StripeRefundStatus =
   | { type: "not_sent"; error: ProviderEffectError };
 
 export interface StripeRefund {
+  type: "stripe";
   id: string;
   money: Money;
-  source: StripeRefundSource;
+  request: RefundRequest;
   status: StripeRefundStatus;
   created_at: EpochMilliseconds;
 }
+
+export type StripeDashboardRefundSource =
+  | { type: "unallocated"; reason: string | null }
+  | { type: "allocated"; reason: string | null; by: AccountActor; application: RefundApplication };
+
+export type StripeDashboardRefundStatus =
+  | {
+      type: "unknown";
+      stripe_refund_id: string | null;
+      error: ProviderEffectError;
+      retry_at: EpochMilliseconds;
+    }
+  | { type: "pending"; stripe_refund_id: string }
+  | {
+      type: "succeeded";
+      stripe_refund_id: string;
+      balance_transaction_id: string;
+    }
+  | {
+      type: "returned";
+      stripe_refund_id: string;
+      balance_transaction_id: string;
+      failure_balance_transaction_id: string;
+    }
+  | { type: "failed"; stripe_refund_id: string }
+  | { type: "cancelled"; stripe_refund_id: string };
+
+export interface StripeDashboardRefund {
+  type: "stripe_dashboard";
+  id: string;
+  money: Money;
+  source: StripeDashboardRefundSource;
+  status: StripeDashboardRefundStatus;
+  created_at: EpochMilliseconds;
+}
+
+export type StripePaymentRefund = StripeRefund | StripeDashboardRefund;
 
 export interface MonriTransaction {
   transaction_id: string;
@@ -365,6 +398,7 @@ export type MonriRefundStatus =
   | { type: "confirmed_not_made"; by: AccountActor };
 
 export interface MonriRefund {
+  type: "monri";
   id: string;
   money: Money;
   request: RefundRequest;
@@ -419,6 +453,7 @@ export type RecordedRefundStatus =
   | { type: "cancelled"; by: AccountActor };
 
 export interface RecordedRefund {
+  type: "recorded";
   id: string;
   money: Money;
   request: RefundRequest;
@@ -473,7 +508,7 @@ export interface StripeCheckoutPayment {
   return_url: string;
   expires_at: EpochMilliseconds;
   status: StripeCheckoutStatus;
-  refunds: StripeRefund[];
+  refunds: StripePaymentRefund[];
   disputes: StripeDispute[];
   receipt_device: CardReceiptDevice;
 }
@@ -494,13 +529,14 @@ export type StripeCardPaymentStatus =
     }
   | { type: "cancelled"; payment_intent_id: string }
   | { type: "failed"; error: ProviderEffectError }
+  | { type: "confirmed_made"; payment_intent_id: string; by: AccountActor }
   | { type: "confirmed_not_made"; by: AccountActor };
 
 export interface StripeCardPayment {
   payment_method: PackageMemberCard;
   purpose: CardPaymentPurpose;
   status: StripeCardPaymentStatus;
-  refunds: StripeRefund[];
+  refunds: StripePaymentRefund[];
   disputes: StripeDispute[];
   receipt_device: CardReceiptDevice;
 }
@@ -512,7 +548,8 @@ export type MonriCheckoutStatus =
   | { type: "open" }
   | { type: "paid"; transaction: MonriTransaction }
   | { type: "failed"; error: ProviderEffectError }
-  | { type: "cancelled" };
+  | { type: "cancelled" }
+  | { type: "confirmed_made"; transaction_id: string; by: AccountActor };
 
 export interface MonriCheckoutPayment {
   status: MonriCheckoutStatus;
@@ -555,17 +592,20 @@ export type PaymentType =
 
 export type PaymentTypeName = PaymentType["type"];
 
+export type AccountPaymentOperation = "charge" | "refund" | "void" | "refund_not_made";
+
 export type PaymentHoldReason =
   | { type: "money_after_end" }
-  | { type: "amount_mismatch"; collected: Money; expected: Money }
+  | { type: "amount_mismatch" }
   | { type: "second_charge" }
   | { type: "unknown_provider_state"; object_id: string; state: string }
   | { type: "dispute_currency" }
-  | { type: "staff_outcome_disagrees"; operation: "charge" | "refund" | "void" | "refund_not_made" }
-  | { type: "refund_amount_mismatch"; refund_id: string; recorded: Money; reported: Money }
+  | { type: "account_outcome_disagrees"; operation: AccountPaymentOperation }
+  | { type: "refund_amount_mismatch"; refund_id: string; reported: Money }
   | { type: "binding_mismatch"; intent_id: string }
   | { type: "refusal_disagrees"; http_status: number; intent_id: string; state: string }
-  | { type: "unproven_card_attempt" };
+  | { type: "unproven_card_attempt" }
+  | { type: "unproven_refund"; refund_id: string };
 
 export interface PaymentHold {
   id: string;
@@ -666,6 +706,7 @@ export type StorefrontStripeCardPaymentStatus =
     }
   | { type: "cancelled"; payment_intent_id: string }
   | { type: "failed" }
+  | { type: "confirmed_made"; payment_intent_id: string }
   | { type: "confirmed_not_made" };
 
 export interface StorefrontMonriCheckoutPayment {
@@ -680,7 +721,13 @@ export type StorefrontMonriCheckoutStatus =
   | { type: "open" }
   | { type: "paid"; transaction: StorefrontMonriTransaction }
   | { type: "failed" }
-  | { type: "cancelled" };
+  | { type: "cancelled" }
+  | { type: "confirmed_made"; transaction_id: string };
+
+export interface StorefrontOrderPayments {
+  order_id: string;
+  payments: StorefrontPayment[];
+}
 
 export interface StorefrontMonriTransaction {
   transaction_id: string;
@@ -842,6 +889,7 @@ export interface ResendEvent {
   occurred_at: EpochMilliseconds;
   outgoing_message_id: string | null;
   message_id: string | null;
+  from: string | null;
   recipients: string[];
   failure: EmailFailure | null;
 }
@@ -896,11 +944,47 @@ export type NetworkResendIncomingWebhookType = {
   event: ResendEvent;
 };
 
-export type StripeBillingIncomingWebhookType = {
-  type: "stripe_billing";
+export type StripeBillingPaymentSucceededIncomingWebhookType = {
+  type: "stripe_billing_payment_succeeded";
   network_id: string;
   network_provider_id: string;
-  event: StripeEvent;
+  store_plan_charge_id: string;
+  stripe_payment_intent_id: string;
+  amount_received: number;
+  currency: string;
+};
+
+export type StripeBillingPaymentCancelledIncomingWebhookType = {
+  type: "stripe_billing_payment_cancelled";
+  network_id: string;
+  network_provider_id: string;
+  store_plan_charge_id: string;
+  stripe_payment_intent_id: string;
+};
+
+export type StripeBillingIncomingWebhookType =
+  | StripeBillingPaymentSucceededIncomingWebhookType
+  | StripeBillingPaymentCancelledIncomingWebhookType;
+
+export type TwilioSmsEvent =
+  | { type: "sent"; message_sid: string }
+  | { type: "delivered"; message_sid: string }
+  | { type: "failed"; message_sid: string; code: string };
+
+export type TwilioSmsIncomingWebhookType = {
+  type: "twilio_sms";
+  store_id: string;
+  login: ProviderLogin;
+  outgoing_message_id: string;
+  event: TwilioSmsEvent;
+};
+
+export type NetworkTwilioSmsIncomingWebhookType = {
+  type: "network_twilio_sms";
+  network_id: string;
+  network_provider_id: string;
+  outgoing_message_id: string;
+  event: TwilioSmsEvent;
 };
 
 export type TwilioCallIncomingWebhookType = {
@@ -923,7 +1007,10 @@ export type IncomingWebhookType =
   | NetworkResendIncomingWebhookType
   | StoreResendIncomingWebhookType
   | PaymentIncomingWebhookType
-  | StripeBillingIncomingWebhookType
+  | StripeBillingPaymentSucceededIncomingWebhookType
+  | StripeBillingPaymentCancelledIncomingWebhookType
+  | TwilioSmsIncomingWebhookType
+  | NetworkTwilioSmsIncomingWebhookType
   | TwilioCallIncomingWebhookType
   | ElevenLabsCallIncomingWebhookType;
 
@@ -933,7 +1020,7 @@ export type IncomingWebhookTarget =
   | { type: "suppression"; suppression_id: string }
   | { type: "payment"; payment_id: string }
   | { type: "payment_method"; payment_method_id: string }
-  | { type: "store_subscription"; store_subscription_id: string };
+  | { type: "store_plan_charge"; store_plan_charge_id: string };
 
 export type IncomingWebhookWaitReason =
   | { type: "received" }
@@ -973,6 +1060,8 @@ export type StoreResendIncomingWebhook = IncomingWebhookOf<StoreResendIncomingWe
 export type NetworkResendIncomingWebhook = IncomingWebhookOf<NetworkResendIncomingWebhookType>;
 
 export type StripeBillingIncomingWebhook = IncomingWebhookOf<StripeBillingIncomingWebhookType>;
+
+export type NetworkTwilioSmsIncomingWebhook = IncomingWebhookOf<NetworkTwilioSmsIncomingWebhookType>;
 
 export type TwilioCallIncomingWebhook = IncomingWebhookOf<TwilioCallIncomingWebhookType>;
 
@@ -1100,9 +1189,15 @@ export interface StorefrontRevokePaymentMethodParams {
 
 export interface FindPaymentsParams {
   store_id: string;
+  order_ids?: string[];
   status?: PaymentStatusName;
   type?: PaymentTypeName;
   on_hold?: boolean;
+  created_at_from?: EpochMilliseconds;
+  created_at_to?: EpochMilliseconds;
+  method?: RecordedMethod["type"];
+  cashier_account_id?: string;
+  store_location_id?: string;
   updated_at_from?: EpochMilliseconds;
   sort_field?: "created_at" | "updated_at";
   sort_direction?: SortDirection;
@@ -1266,6 +1361,23 @@ export interface FindResendEventsParams {
 }
 
 export interface ResolveResendEventParams {
+  network_id: string;
+  network_provider_id: string;
+  id: string;
+  expected_updated_at: EpochMilliseconds;
+  resolution: IncomingWebhookResolution;
+  reason?: string | null;
+}
+
+export interface FindNetworkSmsPostsParams {
+  network_id: string;
+  network_provider_id: string;
+  status: IncomingWebhookStatusName;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface ResolveNetworkSmsPostParams {
   network_id: string;
   network_provider_id: string;
   id: string;

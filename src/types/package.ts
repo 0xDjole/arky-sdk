@@ -304,6 +304,17 @@ export interface PackageProductChoices {
   alternatives: PackageProductAlternative[];
 }
 
+export interface PackageItemProductChoices {
+  package_item_id: string;
+  alternatives: PackageProductAlternative[];
+}
+
+export interface PackageItemsProductChoices {
+  package_id: string;
+  package_updated_at: EpochMilliseconds;
+  items: PackageItemProductChoices[];
+}
+
 export interface PackageCopyResult {
   items_created: number;
   items_kept: number;
@@ -364,10 +375,24 @@ export interface PackageParentDefinition {
   categories: CategoryEntry[];
 }
 
+export type PackageChoiceLocations =
+  | { type: "all" }
+  | { type: "ids"; store_location_ids: string[] }
+  | { type: "elsewhere"; store_location_id: string };
+
+export type PackageChoiceResources =
+  | { type: "category"; category_id: string }
+  | { type: "ids"; booking_resource_ids: string[] };
+
+export type PackageChoicePlacement =
+  | { type: "none" }
+  | { type: "booking"; locations: PackageChoiceLocations; resources: PackageChoiceResources };
+
 export interface PackageChoiceDefinition {
   sku: string | null;
   blocks: Block[];
   basis: PackageItemPriceBasis;
+  placement: PackageChoicePlacement;
 }
 
 export interface PackageItemPriceSummary {
@@ -438,6 +463,16 @@ export type GetStorefrontPackageProductChoicesParams = PackageContext &
     package_item_id: string;
     quantity: number;
   };
+
+export type GetStorefrontPackageItemsProductChoicesParams = PackageContext &
+  ({ id: string } | { key: string }) & {
+    quantity: number;
+  };
+
+export interface FindPackagesByIdsParams {
+  store_id: string;
+  ids: string[];
+}
 
 interface PackageItemPriceListFilters {
   store_id: string;

@@ -42,9 +42,15 @@ export const createPaymentApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.get<PaginatedResponse<Payment>>(storePath(params.store_id, collection), {
         ...options,
         params: {
+          order_ids: params.order_ids,
           status: params.status,
           type: params.type,
           on_hold: params.on_hold,
+          created_at_from: params.created_at_from,
+          created_at_to: params.created_at_to,
+          method: params.method,
+          cashier_account_id: params.cashier_account_id,
+          store_location_id: params.store_location_id,
           updated_at_from: params.updated_at_from,
           sort_field: params.sort_field,
           sort_direction: params.sort_direction,

@@ -24,7 +24,9 @@ import type {
   StripeCardPaymentStatus,
   StripeDispute,
   StripeRefund,
-  StripeRefundSource,
+  StripeDashboardRefund,
+  StripeDashboardRefundSource,
+  StripeDashboardRefundStatus,
   StripeRefundStatus,
   PaymentStatusName,
   PaymentVoid,
@@ -53,6 +55,7 @@ const transaction: MonriTransaction = {
   created_at: at,
 };
 const refund: MonriRefund = {
+  type: "monri",
   id: "550e8400-e29b-41d4-a716-446655440000",
   money: { amount: 4000, currency: "bam" },
   request: {
@@ -112,6 +115,7 @@ export const recordedPayment: Payment = {
     },
     refunds: [
       {
+        type: "recorded",
         id: "6e2a9d47-1b85-4c30-9f7e-2d4c8a1b5e93",
         money: { amount: 4000, currency: "bam" },
         request: {
@@ -173,7 +177,7 @@ export type PaymentRecordContracts = [
   Assert<Equal<"invoice_id" extends keyof Payment ? true : false, false>>,
   Assert<Equal<Of<"monri_checkout">["refunds"], MonriRefund[]>>,
   Assert<Equal<Of<"monri_card">["refunds"], MonriRefund[]>>,
-  Assert<Equal<Of<"stripe_checkout">["refunds"], StripeRefund[]>>,
+  Assert<Equal<Of<"stripe_checkout">["refunds"], (StripeRefund | StripeDashboardRefund)[]>>,
   Assert<Equal<Of<"stripe_checkout">["disputes"], StripeDispute[]>>,
   Assert<Equal<Of<"recorded">["refunds"], RecordedRefund[]>>,
   Assert<Equal<Of<"recorded">["method"], RecordedMethod>>,
@@ -198,6 +202,7 @@ export type PaymentRecordContracts = [
       | "paid"
       | "failed"
       | "cancelled"
+      | "confirmed_made"
     >
   >,
   Assert<
@@ -221,7 +226,10 @@ export type PaymentRecordContracts = [
   Assert<
     Equal<RefundApplication["type"], "commercial_credit" | "excess_collection">
   >,
-  Assert<Equal<StripeRefundSource["type"], "account" | "stripe" | "stripe_allocated">>,
+  Assert<Equal<StripeDashboardRefundSource["type"], "unallocated" | "allocated">>,
+  Assert<Equal<StripeDashboardRefundStatus["type"], "unknown" | "pending" | "succeeded" | "returned" | "failed" | "cancelled">>,
+  Assert<Equal<Extract<StripeCardPaymentStatus, { type: "confirmed_made" }>, { type: "confirmed_made"; payment_intent_id: string; by: AccountActor }>>,
+  Assert<Equal<Extract<MonriCheckoutStatus, { type: "confirmed_made" }>, { type: "confirmed_made"; transaction_id: string; by: AccountActor }>>,
   Assert<Equal<RecordedPaymentStatus["type"], "active" | "voided">>,
   Assert<Equal<RecordedRefund["status"], RecordedRefundStatus>>,
   Assert<Equal<RecordedMethod["type"], "cash" | "card" | "bank_transfer" | "other">>,
@@ -286,6 +294,7 @@ export type PaymentRecordContracts = [
       | "paid"
       | "cancelled"
       | "failed"
+      | "confirmed_made"
       | "confirmed_not_made"
     >
   >,

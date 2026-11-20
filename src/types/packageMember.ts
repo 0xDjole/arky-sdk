@@ -232,8 +232,41 @@ export interface PackageDeliveryTerms {
   base_fee: number;
 }
 
+export type PackageMemberPackageItem =
+  | {
+      type: "get_product";
+      package_item_id: string;
+      variant_id: string;
+      quantity: number;
+      delivery: PackageDelivery;
+      allocation_weight: number;
+    }
+  | {
+      type: "rent_product";
+      package_item_id: string;
+      variant_id: string;
+      quantity: number;
+      allocation_weight: number;
+    }
+  | {
+      type: "booking_sessions";
+      package_item_id: string;
+      booking_service_ids: string[];
+      sessions: number;
+    };
+
+export interface PackageMemberPackage {
+  package_id: string;
+  renewal: PackageAcceptedRenewal;
+  stay: PackageStay;
+  minimum: PackageMinimum;
+  unit_price: number;
+  price: PackagePrice;
+  items: PackageMemberPackageItem[];
+}
+
 export interface PackageMemberAcceptedTerms {
-  package: PackageSnapshot;
+  package: PackageMemberPackage;
   quantity: number;
   deliveries: PackageDeliveryTerms[];
   billing_address: PostalAddress | null;
@@ -339,8 +372,39 @@ export interface PackageSelfSnapshot {
   items: PackageSelfSnapshotItem[];
 }
 
+export type PackageMemberSelfPackageItem =
+  | {
+      type: "get_product";
+      package_item_id: string;
+      variant_id: string;
+      quantity: number;
+      delivery: PackageDelivery;
+    }
+  | {
+      type: "rent_product";
+      package_item_id: string;
+      variant_id: string;
+      quantity: number;
+    }
+  | {
+      type: "booking_sessions";
+      package_item_id: string;
+      booking_service_ids: string[];
+      sessions: number;
+    };
+
+export interface PackageMemberSelfPackage {
+  package_id: string;
+  renewal: PackageAcceptedRenewal;
+  stay: PackageStay;
+  minimum: PackageMinimum;
+  unit_price: number;
+  price: PackageSelfPrice;
+  items: PackageMemberSelfPackageItem[];
+}
+
 export interface PackageMemberSelfAcceptedTerms {
-  package: PackageSelfSnapshot;
+  package: PackageMemberSelfPackage;
   quantity: number;
   deliveries: PackageDeliveryTerms[];
   billing_address: PostalAddress | null;
@@ -488,14 +552,51 @@ export interface FindPackageOfferingsParams {
   cursor?: string | null;
 }
 
-export type FindPackageMembersParams = CommercePartyQuery & {
+export type PackageMemberRenewalType = "never" | "every";
+
+export type FindPackageMembersBySearchParams = CommercePartyQuery & {
   store_id: string;
+  ids?: never;
   package_id?: string;
   package_offering_id?: string;
   status?: PackageMemberStatusName;
+  renewal_type?: PackageMemberRenewalType;
   limit?: number;
   cursor?: string | null;
 };
+
+export interface FindPackageMembersByIdsParams {
+  store_id: string;
+  ids: string[];
+  customer_id?: never;
+  company_id?: never;
+  company_location_id?: never;
+  package_id?: never;
+  package_offering_id?: never;
+  status?: never;
+  renewal_type?: never;
+  limit?: never;
+  cursor?: never;
+}
+
+export type FindPackageMembersParams = FindPackageMembersBySearchParams | FindPackageMembersByIdsParams;
+
+export type PackageMemberDetail = PackageMember & { end: When };
+
+export type PackageMemberListItem = PackageMember & { first_order_id: string | null; end: When };
+
+export type PackageMemberDetailSelf = PackageMemberSelf & { end: When };
+
+export type PackageMemberSelfListItem = PackageMemberSelf & { package: PackageMemberPackageSelf; end: When };
+
+export interface FindPackageMembersCurrentParams {
+  store_id: string;
+  ids: string[];
+}
+
+export interface FindPackageMemberOrdersParams extends FindPackageMemberPageParams {
+  sort_direction?: SortDirection;
+}
 
 export interface GetPackageMemberParams {
   store_id: string;

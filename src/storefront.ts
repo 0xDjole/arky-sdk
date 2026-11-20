@@ -102,3 +102,5 @@ export {
 export type * from "./storefrontStore";
 export { createNetworkCustomer } from "./networkCustomer";
 export type { NetworkCustomerClient } from "./networkCustomer";
+export { toE164 } from "./utils/phone";
+export type { E164Conversion, E164Refusal } from "./utils/phone";

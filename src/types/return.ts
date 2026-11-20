@@ -94,6 +94,10 @@ export interface ReturnDetail extends Return {
   products: ReturnLineProduct[];
 }
 
+export interface ReturnListItem extends Return {
+  order_number: string | null;
+}
+
 export type StorefrontReturnDisposition = { type: "restocked" } | { type: "not_restocked" };
 
 export interface StorefrontReturnItemDecision {

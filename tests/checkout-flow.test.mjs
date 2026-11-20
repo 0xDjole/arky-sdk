@@ -40,7 +40,7 @@ const offer = {
 const line = { type: "product", id: ids.line, variant_id: ids.variant, quantity: 1, form_submission_id: null, price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price } };
 const ana = { email: "ana@example.test", language: "en" };
 const refreshedAccess = `customer_access_${"n".repeat(64)}`;
-const quoteLine = { type: "product", line_item_id: ids.line, product_id: ids.product, variant_id: ids.variant, quantity: 1, snapshot: { fulfillment: { type: "physical" } } };
+const quoteLine = { type: "product", line_item_id: ids.line, product_id: ids.product, product: { id: ids.product, key: "product", blocks: [] }, variant_id: ids.variant, shipping_profile_id: profile, quantity: 1, snapshot: { fulfillment: { type: "physical" } } };
 
 function browser(context) {
   installGlobal(context, "window", globalThis);
@@ -118,19 +118,6 @@ function server(context, accept, paymentStatus = "paid", readPayment = () => pay
         return errorResponse(409, "CART.PROMOTION_EMAIL_REQUIRED", "An email is required for this promotion's per-buyer limit");
       }
       return quoteFor(current);
-    }
-    if (call.path.includes("/variants/")) {
-      return {
-        id: ids.variant,
-        product_id: ids.product,
-        sku: null,
-        blocks: [],
-        fulfillment: { type: "physical", shipping_profile_id: profile, inventory_requirements: [], backorder: { type: "disallow" } },
-        tax_category_id: ids.paymentOption,
-        status: { type: "active" },
-        package_item_id: ids.packageItem,
-        price: null,
-      };
     }
     if (call.path === "/v1/storefront/carts/accept") return accept(call);
     if (call.path === `/v1/storefront/orders/${ids.order}`) return placedOrder();

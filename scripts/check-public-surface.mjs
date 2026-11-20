@@ -330,6 +330,22 @@ const removedIdentifiers = [
   "RentalActor",
   "PackageMemberRevisionChange",
   "PackageMemberSelfRevisionChange",
+  "REQUEST_FAILED",
+  "requestId",
+  "transferOwnership",
+  "TransferStoreOwnershipParams",
+  "StoreDefaultLocation",
+  "email_authenticated",
+  "tool_ids",
+  "open_ai",
+  "email_templates",
+  "customers_by_type",
+  "fiscal_device_daily_report_missed_alert",
+  "result_shared",
+  "result_shared_email",
+  "result_shared_sms",
+  "staff_outcome_disagrees",
+  "PackageMemberAcceptedTermsInput",
 ];
 
 const removedIdentifierPattern = new RegExp(`\\b(?:${removedIdentifiers.join("|")})\\b`, "g");
@@ -513,6 +529,17 @@ requirePattern("types/order.ts", /export type OrderBuyerTax =(?:(?!\n\nexport )[
 forbidPattern("types/forms.ts", /export interface FormSubmissionStageChange \{[^}]*\bnote_id\b/, "a stage change names no note; its reason is a note that names the change");
 requirePattern("types/note.ts", /type: "form_submission_stage_change";\s*form_submission_id: string;\s*changed_at: EpochMilliseconds;/, "a stage change's reason note names the change it explains");
 forbidPattern("types/payment.ts", /export interface ResendEvent \{[^}]*\bstore_id\b/, "a store's Resend post keeps its store once, on the post");
+forbidPattern("types/fiscalReceipt.ts", /export interface Find[A-Za-z]*FiscalReceipts[A-Za-z]*Params \{[^}]*\border_id\?/, "the receipt list names its Orders as order_ids; the Server refuses order_id");
+requirePattern("types/fiscalReceipt.ts", /export interface FiscalReceiptDetail extends FiscalReceipt \{\s*deliverable: boolean;\s*\}/, "every staff receipt answer says whether deliver takes the receipt now");
+forbidPattern("types/fiscalReceipt.ts", /export interface FiscalReceipt \{[^}]*\bdeliverable\b/, "the desk agent's claim and recorded payments answer the plain receipt, with no deliverable");
+forbidPattern("api/fiscalReceipt.ts", /Promise<(?:PaginatedResponse<)?FiscalReceipt(?:\[\])?>/, "the staff receipt routes answer FiscalReceiptDetail");
+requirePattern("types/order.ts", /export interface OrderProductLineItem \{[^}]*\bproduct_id: string \| null;/, "a staff product line names its product, null only for a cancelled line whose variant is gone");
+requirePattern("types/order.ts", /export interface OrderRentalUseLineItem \{[^}]*\bproduct_id: string;/, "a staff rental-use line names the product it rents");
+requirePattern("types/order.ts", /export interface OrderPackageLineItem \{[^}]*\bpackage: OrderLinePackage;/, "a staff package line carries its package's id, key and blocks");
+requirePattern("types/order.ts", /export interface StorefrontOrderPackageLineItem \{[^}]*\bpackage: OrderLinePackage;/, "a buyer's package line carries its package's id, key and blocks");
+forbidPattern("types/webhook.ts", /order: Omit<Order\b/, "an Order webhook carries the stored Order, whose lines name no product_id or package");
+requirePattern("services/createHttpClient.ts", /redirect: cfg\.redirect \?\? "follow",/, "every request passes the client's redirect choice to fetch, following redirects as before when none is named");
+requirePattern("api/fiscalDevice.ts", /redirect: config\.redirect,/, "the desk agent's redirect choice reaches its HTTP client");
 
 for (const route of ["categories", "products", "booking-services"]) {
   requirePattern("api/storefront.ts", new RegExp(`\\$\\{storefrontBase\\}/${route}/by-key/`), `storefront ${route} are read by key through their by-key route`);

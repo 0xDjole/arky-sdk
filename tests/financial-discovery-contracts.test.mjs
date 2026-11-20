@@ -73,9 +73,15 @@ test("payment discovery keeps combined scope, status, ordering and opaque contin
     accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA",
   });
   const filter = {
+    order_ids: [ids.order],
     status: "unknown",
-    type: "stripe_checkout",
+    type: "recorded",
     on_hold: true,
+    created_at_from: 1,
+    created_at_to: 9,
+    method: "cash",
+    cashier_account_id: ids.account,
+    store_location_id: ids.companyLocation,
     updated_at_from: 5,
     sort_field: "updated_at",
     sort_direction: "asc",
@@ -89,7 +95,8 @@ test("payment discovery keeps combined scope, status, ordering and opaque contin
   assert.equal(calls[0].method, "GET");
   assert.equal(calls[0].url.pathname, `/v1/stores/${STORE_ID}/payments`);
   for (const [key, value] of Object.entries(filter))
-    assert.equal(calls[0].url.searchParams.get(key), String(value));
+    assert.equal(calls[0].url.searchParams.get(key), Array.isArray(value) ? JSON.stringify(value) : String(value));
+  assert.equal(calls[0].url.searchParams.has("order_id"), false);
   assert.equal(calls[0].url.searchParams.has("store_id"), false);
   await client.eshop.order.findPayments({
     store_id: STORE_ID,
@@ -497,4 +504,15 @@ test("hold resolution names the retained hold and leaves recorded history intact
     reference: "Return 1",
     recorded_at: 4,
   });
+});
+
+test("a buyer reads the payments of several of her Orders in one request, with no Order token", async (context) => {
+  const answer = [{ order_id: ids.order, payments: [] }];
+  const calls = recordFetch(context, () => answer);
+  const store = createStorefront({ storeId: STORE_ID, salesChannelId: "e5a8c2d7-3b91-4f06-9d4e-1c7b6a0f3e28" }, { visitorIdentity: { customer_id: ids.customer, session_id: ids.session }, ...fixedIdFactories, apiUrl: "https://financial.example.test", sessionStorage: visitorStorage() });
+  assert.deepEqual(await store.eshop.order.findOrdersPayments({ order_ids: [ids.order, ids.otherOrder] }), answer);
+  assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
+    ["GET", "/v1/storefront/order-payments", { order_ids: JSON.stringify([ids.order, ids.otherOrder]) }],
+  ]);
+  assert.equal(calls[0].headers.get("x-arky-order-token"), null);
 });

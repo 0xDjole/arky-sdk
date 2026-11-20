@@ -121,7 +121,7 @@ test("a signed-in network customer reads itself and changes its logins and linke
   await client.store.find();
   assert.deepEqual(await client.store.openKey({ store_id: ids.store, id: keyId, visitor_token: visitorToken }), key);
   await client.store.openKey({ store_id: ids.store, id: keyId, visitor_token: null });
-  await client.store.acceptInvite({ store_id: ids.store, code: "778899", sent_to: { type: "phone", number: "+38761222333" } });
+  await client.store.acceptInvite({ store_id: ids.store, id: keyId, code: "778899", sent_to: { type: "phone", number: "+38761222333" } });
   assert.deepEqual(await client.store.removeLink({ store_id: ids.store }), { removed: true });
   assert.deepEqual(await client.deleteAccount(), { deleted: true });
   assert.equal(client.session, null);
@@ -136,12 +136,13 @@ test("a signed-in network customer reads itself and changes its logins and linke
     ["GET", `${base}/stores`, {}, null],
     ["POST", `${base}/stores/${ids.store}/keys`, {}, { id: keyId, visitor_token: visitorToken }],
     ["POST", `${base}/stores/${ids.store}/keys`, {}, { id: keyId, visitor_token: null }],
-    ["POST", `${base}/stores/${ids.store}/invites/accept`, {}, { code: "778899", sent_to: { type: "phone", number: "+38761222333" } }],
+    ["POST", `${base}/stores/${ids.store}/invites/accept`, {}, { id: keyId, code: "778899", sent_to: { type: "phone", number: "+38761222333" } }],
     ["DELETE", `${base}/stores/${ids.store}/link`, {}, null],
     ["DELETE", `${base}/me`, {}, null],
   ]);
   for (const call of calls) assert.equal(call.headers.get("authorization"), `Bearer ${authToken().access_token}`);
   assert.throws(() => client.store.openKey({ store_id: ids.store, id: "key", visitor_token: null }), TypeError);
+  assert.throws(() => client.store.acceptInvite({ store_id: ids.store, id: "key", code: "778899", sent_to: { type: "phone", number: "+38761222333" } }), TypeError);
 });
 
 test("an expired access token is refreshed once without credentials and the call goes on with the new one", async (context) => {

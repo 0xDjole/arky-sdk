@@ -233,6 +233,7 @@ export type PackageMemberHistoryContracts = [
     Equal<
       keyof ReturnType<typeof createAdmin>["eshop"]["packageMember"],
       | "find"
+      | "findCurrent"
       | "get"
       | "assign"
       | "getCurrent"

@@ -28,9 +28,12 @@ import type {
   LoadedContent,
   Media,
   OrderFromLink,
+  PaginatedResponse,
   PaymentOutcome,
+  RequestErrorContext,
   RequestOptions,
   RequestNewsletterCodeResult,
+  RequestSuccessContext,
 } from "arky-sdk";
 
 type Assert<T extends true> = T;
@@ -50,7 +53,9 @@ const joinError = new PackageJoinError("not_free", "Not free");
 export type StorefrontFlowContracts = [
   Assert<Equal<typeof sameClass.code, string>>,
   Assert<Equal<typeof apiError.statusCode, number>>,
-  Assert<Equal<typeof apiError.requestId, string | undefined>>,
+  Assert<Missing<ArkyApiError, "requestId">>,
+  Assert<Missing<RequestErrorContext, "request_id">>,
+  Assert<Missing<RequestSuccessContext, "request_id">>,
   Assert<Equal<CartPresentationChangedError extends ArkyApiError ? true : false, true>>,
   Assert<Equal<typeof flowError.code, ArkyCheckoutErrorCode>>,
   Assert<Equal<NonNullable<ArkyCheckoutState["error"]>["code"], ArkyCheckoutErrorCode>>,
@@ -91,6 +96,8 @@ export type StorefrontFlowContracts = [
   Assert<Equal<Answer<Storefront["newsletter"]["join"]>, JoinFreePackageResult>>,
   Assert<Equal<Store["newsletter"], Storefront["newsletter"]>>,
   Assert<Equal<Answer<Store["content"]["load"]>, LoadedContent<StorefrontCollection> | LoadedContent<StorefrontEntry>>>,
+  Assert<Equal<Answer<Store["content"]["loadEntries"]>, PaginatedResponse<LoadedContent<StorefrontEntry>>>>,
+  Assert<Equal<Parameters<Store["content"]["loadEntries"]>[0]["cursor"], string | null | undefined>>,
   Assert<Equal<ReturnType<LoadedContent<StorefrontEntry>["media"]>, Media | null>>,
   Assert<Equal<ReturnType<ContentBlocks["object"]>, ContentBlocks | null>>,
   Assert<Equal<ReturnType<Store["eshop"]["cart"]>, ArkyCartStore>>,

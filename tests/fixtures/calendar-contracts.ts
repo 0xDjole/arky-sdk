@@ -1,5 +1,6 @@
 import type {
   AuditAction,
+  AuditSubjectType,
   BookingOffering,
   BookingResource,
   CartBookingLineAddOn,
@@ -102,4 +103,20 @@ export type CalendarContracts = [
   Assert<RequiredField<TakeOffOrderBookingAddOnParams, "credit_id">>,
   Assert<Equal<keyof Pick<OrderApi, "resizeBookingItem" | "cancelBookingSeries" | "rescheduleBookingSeries" | "stepBookingItem">, "resizeBookingItem" | "cancelBookingSeries" | "rescheduleBookingSeries" | "stepBookingItem">>,
   Assert<Missing<OrderApi, "markBookingItemWaiting" | "startBookingItem" | "attendBookingItem" | "markBookingItemNoShow">>,
+  Assert<
+    Equal<
+      Extract<AuditAction, { action: "order_booking_line_item_reminder_requested" }>,
+      { action: "order_booking_line_item_reminder_requested"; order_id: string; order_booking_line_item_id: string; notification_id: string }
+    >
+  >,
+  Assert<Equal<Extract<AuditAction, { action: "store_plan_charge_settled" }>, { action: "store_plan_charge_settled"; store_plan_charge_id: string }>>,
+  Assert<Equal<Extract<AuditAction, { action: "fiscal_receipt_delivery_requested" }>, { action: "fiscal_receipt_delivery_requested"; fiscal_receipt_id: string }>>,
+  Assert<Equal<Extract<AuditAction, { action: "order_receipt_resend_requested" }>, { action: "order_receipt_resend_requested"; order_id: string }>>,
+  Assert<
+    Equal<
+      Extract<AuditAction, { action: "invoice_reissued" }>,
+      { action: "invoice_reissued"; order_id: string; invoice_id: string; reversal_id: string; new_invoice_id: string }
+    >
+  >,
+  Assert<Equal<Extract<AuditSubjectType, "store_plan_charge">, "store_plan_charge">>,
 ];

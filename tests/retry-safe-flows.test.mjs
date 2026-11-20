@@ -153,7 +153,7 @@ test("support start and send reuse their factory ids after a lost answer", async
       lose = false;
       throw new TypeError("Lost response");
     }
-    const conversation = { id: conversationId, type: { type: "chat", language: "en" }, subject: "", state: "waiting_for_store", customer_read: { type: "unread" }, created_at: 1, updated_at: 1 };
+    const conversation = { id: conversationId, type: { type: "chat", language: "en", subject: "" }, state: "waiting_for_store", next_message_sequence: 2, customer_read: { type: "unread" }, created_at: 1, updated_at: 1 };
     if (call.path === "/v1/storefront/conversations") return { conversation, messages: [] };
     return {
       conversation,

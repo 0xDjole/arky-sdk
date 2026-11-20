@@ -26,3 +26,18 @@ test("a product and its variants describe themselves with blocks only and send e
     assert.equal("options_valid" in call.body, false);
   }
 });
+
+test("staff read product variants by ids in one request, and a physical variant's measure sits in its fulfillment", async (context) => {
+  const physical = { type: "physical", shipping_profile_id: "1b3d5f7a-9c2e-4a6b-8d0f-2e4a6c8e0b1d", inventory_requirements: [{ inventory_item_id: "5a8d2f61-3b7e-4c09-9f14-6d2b8e0a4c73", quantity: 1 }], backorder: { type: "disallow" }, measure: { type: "counts", amount: 250 } };
+  const calls = recordFetch(context, (call) => (call.method === "GET" ? { items: [{ id: variant, fulfillment: physical }], cursor: null } : { id: variant }));
+  const api = createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).eshop;
+  const page = await api.productVariant.find({ store_id: store, ids: [variant] });
+  assert.deepEqual(page.items[0].fulfillment.measure, { type: "counts", amount: 250 });
+  const create = { id: variant, product_id: product, sku: null, blocks: [], fulfillment: physical, tax_category_id: taxCategory };
+  await api.productVariant.create({ store_id: store, ...create });
+  assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
+    ["GET", `/v1/stores/${store}/product-variants`, { ids: JSON.stringify([variant]) }, null],
+    ["POST", `/v1/stores/${store}/product-variants`, {}, create],
+  ]);
+  assert.equal("measure" in calls[1].body, false);
+});

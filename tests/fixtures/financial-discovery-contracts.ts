@@ -34,7 +34,10 @@ import type {
   FiscalReceipt,
   RefundAllocation,
   RefundApplication,
-  StripeRefundSource,
+  StripeDashboardRefundSource,
+  StripeDashboardRefund,
+  StripePaymentRefund,
+  RefundRequest,
   VoidPaymentParams,
 } from "arky-sdk";
 
@@ -51,6 +54,7 @@ type Storefront = ReturnType<typeof createStorefront>;
 const store_id = "d2a64f1b-8c37-4e59-b0a1-6f3e9c7d2b84";
 const payments: FindPaymentsParams = {
   store_id,
+  order_ids: ["b17a2c94-5d3e-4f61-8a07-9c2e4b6d1f38"],
   status: "unknown",
   type: "monri_card",
   on_hold: false,
@@ -93,7 +97,9 @@ export type FinancialContracts = [
     >
   >,
   Assert<Equal<NonNullable<FindPaymentsParams["status"]>, PaymentStatusName>>,
+  Assert<Equal<FindPaymentsParams["order_ids"], string[] | undefined>>,
   Assert<Missing<FindPaymentsParams, "order_id">>,
+  Assert<Equal<FindPaymentsParams["method"], "cash" | "card" | "bank_transfer" | "other" | undefined>>,
   Assert<Equal<Awaited<ReturnType<Admin["eshop"]["order"]["findPayments"]>>, Payment[]>>,
   Assert<RequiredField<Payment, "status">>,
   Assert<Missing<Payment, "status_revision">>,
@@ -107,8 +113,13 @@ export type FinancialContracts = [
   Assert<Missing<Extract<PaymentType, { type: "recorded" }>, "collections" | "requested">>,
   Assert<Equal<RecordedMethod, { type: "cash" } | { type: "card" } | { type: "bank_transfer"; received_on: CalendarDate } | { type: "other" }>>,
   Assert<Equal<RecordedPaymentStatus, { type: "active" } | { type: "voided"; by: AccountActor; reason: string; at: EpochMilliseconds }>>,
-  Assert<Equal<Extract<StripeRefundSource, { type: "stripe" }>, { type: "stripe"; reason: string | null }>>,
-  Assert<Equal<Extract<StripeRefundSource, { type: "stripe_allocated" }>, { type: "stripe_allocated"; reason: string | null; by: AccountActor; application: RefundApplication }>>,
+  Assert<Equal<Extract<StripeDashboardRefundSource, { type: "unallocated" }>, { type: "unallocated"; reason: string | null }>>,
+  Assert<Equal<Extract<StripeDashboardRefundSource, { type: "allocated" }>, { type: "allocated"; reason: string | null; by: AccountActor; application: RefundApplication }>>,
+  Assert<Equal<StripePaymentRefund, StripeRefund | StripeDashboardRefund>>,
+  Assert<Equal<StripeRefund["request"], RefundRequest>>,
+  Assert<Equal<StripeRefund["type"], "stripe">>,
+  Assert<Equal<StripeDashboardRefund["type"], "stripe_dashboard">>,
+  Assert<Equal<Extract<PaymentType, { type: "stripe_checkout" }>["refunds"], StripePaymentRefund[]>>,
   Assert<Equal<RefundApplication, { type: "commercial_credit"; allocations: RefundAllocation[] } | { type: "excess_collection"; reason: string }>>,
   Assert<
     Equal<
@@ -118,8 +129,8 @@ export type FinancialContracts = [
   >,
   Assert<
     Equal<
-      Extract<PaymentType, { type: "stripe_checkout" }>["refunds"],
-      StripeRefund[]
+      Extract<PaymentType, { type: "stripe_card" }>["refunds"],
+      StripePaymentRefund[]
     >
   >,
   Assert<
@@ -142,10 +153,11 @@ export type FinancialContracts = [
   >,
   Assert<Equal<Payment["holds"][number]["reason"], PaymentHoldReason>>,
   Assert<Missing<PaymentHold, "message">>,
-  Assert<Equal<PaymentHoldReason["type"], "money_after_end" | "amount_mismatch" | "second_charge" | "unknown_provider_state" | "dispute_currency" | "staff_outcome_disagrees" | "refund_amount_mismatch" | "binding_mismatch" | "refusal_disagrees" | "unproven_card_attempt">>,
-  Assert<Equal<Extract<PaymentHoldReason, { type: "staff_outcome_disagrees" }>["operation"], "charge" | "refund" | "void" | "refund_not_made">>,
-  Assert<Equal<keyof Extract<PaymentHoldReason, { type: "amount_mismatch" }>, "type" | "collected" | "expected">>,
-  Assert<Equal<keyof Extract<PaymentHoldReason, { type: "refund_amount_mismatch" }>, "type" | "refund_id" | "recorded" | "reported">>,
+  Assert<Equal<PaymentHoldReason["type"], "money_after_end" | "amount_mismatch" | "second_charge" | "unknown_provider_state" | "dispute_currency" | "account_outcome_disagrees" | "refund_amount_mismatch" | "binding_mismatch" | "refusal_disagrees" | "unproven_card_attempt" | "unproven_refund">>,
+  Assert<Equal<Extract<PaymentHoldReason, { type: "account_outcome_disagrees" }>["operation"], "charge" | "refund" | "void" | "refund_not_made">>,
+  Assert<Equal<keyof Extract<PaymentHoldReason, { type: "amount_mismatch" }>, "type">>,
+  Assert<Equal<keyof Extract<PaymentHoldReason, { type: "refund_amount_mismatch" }>, "type" | "refund_id" | "reported">>,
+  Assert<Equal<Extract<PaymentHoldReason, { type: "unproven_refund" }>, { type: "unproven_refund"; refund_id: string }>>,
   Assert<Equal<keyof Extract<PaymentHoldReason, { type: "refusal_disagrees" }>, "type" | "http_status" | "intent_id" | "state">>,
   Assert<Equal<PaymentHold["status"], PaymentHoldStatus>>,
   Assert<Equal<PaymentHoldStatus["type"], "open" | "resolved">>,

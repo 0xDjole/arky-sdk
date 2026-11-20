@@ -1,7 +1,15 @@
 import type { EpochMilliseconds } from "./time";
 import type { CollectionFilter } from "./block";
 import type { SortDirection } from "./common";
-import type { Order } from "./order";
+import type { Order, OrderBookingLineItem, OrderPackageLineItem, OrderProductLineItem, OrderRentalUseLineItem } from "./order";
+
+export type WebhookOrderLineItem =
+  | ({ type: "product" } & Omit<OrderProductLineItem, "product_id">)
+  | ({ type: "booking" } & OrderBookingLineItem)
+  | ({ type: "package" } & Omit<OrderPackageLineItem, "package">)
+  | ({ type: "rental_use" } & Omit<OrderRentalUseLineItem, "product_id">);
+
+export type WebhookOrder = Omit<Order, "status" | "totals" | "line_items"> & { line_items: WebhookOrderLineItem[] };
 
 export type KeyFilter = { type: "all" } | { type: "keys"; keys: string[] };
 
@@ -145,13 +153,13 @@ export const WEBHOOK_UNIT_EVENT_TYPES = [
 export type WebhookUnitEventType = (typeof WEBHOOK_UNIT_EVENT_TYPES)[number];
 
 export interface OrderPaymentReceived {
-  order: Omit<Order, "status" | "totals">;
+  order: WebhookOrder;
   payment_id: string;
   amount: number;
 }
 
 export interface OrderPaymentFailed {
-  order: Omit<Order, "status" | "totals">;
+  order: WebhookOrder;
   payment_id: string;
   amount: number;
 }
@@ -164,7 +172,7 @@ export type StoreField =
   | "status"
   | "email_sending"
   | "invoicing"
-  | "default_location";
+  | "default_location_id";
 
 export interface StoreUpdated {
   id: string;
@@ -175,19 +183,19 @@ export interface StoreUpdated {
 }
 
 export interface OrderRefundCreated {
-  order: Omit<Order, "status" | "totals">;
+  order: WebhookOrder;
   payment_id: string;
   refund_id: string;
 }
 
 export interface OrderRefundFailed {
-  order: Omit<Order, "status" | "totals">;
+  order: WebhookOrder;
   payment_id: string;
   refund_id: string;
 }
 
 export interface OrderRefundSucceeded {
-  order: Omit<Order, "status" | "totals">;
+  order: WebhookOrder;
   payment_id: string;
   refund_id: string;
 }

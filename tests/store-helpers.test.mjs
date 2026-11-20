@@ -226,8 +226,31 @@ test("content.load and loadEntries never swallow a failed read", async (context)
   await assert.rejects(client.content.load({ collection: { key: "broken" } }), /Boom/);
   await assert.rejects(client.content.loadEntries({ collection_id: ids.form }), /Media is down/);
   failMedia = false;
-  const entries = await client.content.loadEntries({ collection_id: ids.form, limit: 1 });
-  assert.deepEqual(entries.map((entry) => entry.record.type.key), ["one", "two"]);
-  assert.equal(entries[0].media("cover").id, mediaId(1));
+  const first = await client.content.loadEntries({ collection_id: ids.form, limit: 1 });
+  assert.deepEqual(first.items.map((entry) => entry.record.type.key), ["one"]);
+  assert.equal(first.items[0].media("cover").id, mediaId(1));
+  assert.equal(first.cursor, "next");
+  const second = await client.content.loadEntries({ collection_id: ids.form, limit: 1, cursor: first.cursor });
+  assert.deepEqual(second.items.map((entry) => entry.record.type.key), ["two"]);
+  assert.equal(second.cursor, null);
   await assert.rejects(client.content.load({ entry: { collection_id: ids.form, key: "absent" } }), /No entry has the key 'absent'/);
+});
+
+test("content.loadEntries reads one page of entries and their media, never the whole collection", async (context) => {
+  const calls = recordFetch(context, (call) => {
+    if (call.path === "/v1/storefront/entries") {
+      const item = (index) => ({ id: `00000000-0000-4000-a000-${String(index).padStart(12, "0")}`, type: { type: "public", key: `entry-${index}`, slugs: {} }, blocks: [{ id: mediaId(index), key: "cover", type: "media", value: mediaId(index) }], collection_id: ids.form, store_id: ids.store, status: { type: "active" }, created_at: 1, updated_at: 1, validation_errors: [] });
+      return { items: [item(1), item(2)], cursor: "page-2" };
+    }
+    if (call.path === "/v1/storefront/media") return JSON.parse(call.query.ids).map(media);
+    throw new Error(`Unexpected request ${call.path}`);
+  });
+  const page = await storefront().content.loadEntries({ collection_id: ids.form, limit: 2 });
+  assert.deepEqual(page.items.map((entry) => entry.record.type.key), ["entry-1", "entry-2"]);
+  assert.equal(page.cursor, "page-2");
+  assert.deepEqual(calls.map((call) => [call.path, call.query.limit ?? null, call.query.cursor ?? null]), [
+    ["/v1/storefront/entries", "2", null],
+    ["/v1/storefront/media", null, null],
+  ]);
+  await assert.rejects(storefront().content.loadEntries({ collection_id: ids.form, cursor: "page-2" }), (error) => error.code === "answer_mismatch");
 });

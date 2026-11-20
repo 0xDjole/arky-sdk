@@ -64,6 +64,7 @@ test("the storefront reads packages, offerings and the shopper's own members und
       "find",
       "get",
       "getByKey",
+      "getItemsProductChoices",
       "getProductChoices",
       "joinFree",
     ]);

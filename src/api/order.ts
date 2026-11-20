@@ -17,7 +17,11 @@ import type {
   GetOrderPaymentParams,
   Order,
   OrderDetail,
-  OrderBookingItem,
+  OrderBookingItemRow,
+  OrderBookingLineReminder,
+  FindOrderBookingRemindersParams,
+  FindOrderProductsParams,
+  OrderProduct,
   OrderFinancialSummary,
   OrderFinancialSummaryOfOrder,
   ResendOrderReceiptParams,
@@ -81,11 +85,25 @@ export const createOrderApi = (apiConfig: ApiConfig) => {
     findBookingItems(
       params: FindOrderBookingItemsParams,
       options?: RequestOptions,
-    ): Promise<PaginatedResponse<OrderBookingItem>> {
+    ): Promise<PaginatedResponse<OrderBookingItemRow>> {
       const { store_id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<OrderBookingItem>>(storePath(store_id, `${collection}/booking-items`), {
+      return apiConfig.httpClient.get<PaginatedResponse<OrderBookingItemRow>>(storePath(store_id, `${collection}/booking-items`), {
         ...options,
         params: query,
+      });
+    },
+
+    findBookingReminders(params: FindOrderBookingRemindersParams, options?: RequestOptions): Promise<OrderBookingLineReminder[]> {
+      return apiConfig.httpClient.get<OrderBookingLineReminder[]>(
+        `${orderPath(params.store_id, params.order_id)}/booking-items/${segment(params.order_booking_item_id)}/reminders`,
+        options,
+      );
+    },
+
+    findProducts(params: FindOrderProductsParams, options?: RequestOptions): Promise<OrderProduct[]> {
+      return apiConfig.httpClient.get<OrderProduct[]>(`${orderPath(params.store_id, params.order_id)}/products`, {
+        ...options,
+        params: { ids: params.ids },
       });
     },
 

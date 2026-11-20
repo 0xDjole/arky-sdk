@@ -19,7 +19,7 @@ export interface SimulatePaymentOptions {
 
 interface SimulatorRequest {
   url: string;
-  body: { type: PaymentSimulation["type"]; client_secret: string; outcome: string };
+  body: { type: PaymentSimulation["type"]; client_secret: string; outcome: string; payment_method?: string };
 }
 
 const notSimulated = "This payment isn't run by Arky's provider simulator";
@@ -55,6 +55,15 @@ function simulatorRequest(simulation: PaymentSimulation): SimulatorRequest {
         },
       };
     case "stripe_payment_intent":
+      return {
+        url: simulatorPaymentsUrl(simulation.action.runs_on),
+        body: {
+          type: simulation.type,
+          client_secret: requireSecret(simulation.action.client_secret),
+          outcome: requireOutcome(simulation.outcome, ["complete", "decline"]),
+          payment_method: simulation.action.payment_method_id,
+        },
+      };
     case "monri":
       return {
         url: simulatorPaymentsUrl(simulation.action.runs_on),

@@ -66,8 +66,6 @@ export interface CartStoreContext {
   appOrderToken(): string;
 }
 
-const variantReadsAtOnce = 10;
-
 const idleStatus: ArkyCartStatus = {
   loading: false,
   syncing: false,
@@ -237,7 +235,6 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
   let cartRevision = 0;
   let writing = false;
   let pendingCartId: string | null = null;
-  const profileByVariant = new Map<string, string>();
 
   function reset(): void {
     cartRevision += 1;
@@ -248,7 +245,6 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
 
   function invalidate(): void {
     pendingCartId = null;
-    profileByVariant.clear();
     reset();
   }
 
@@ -423,33 +419,12 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
     return runCartWrite((current) => client.eshop.cart.update({ ...version(current), delivery_groups: params.delivery_groups }));
   }
 
-  async function shippingProfiles(current: StorefrontCart, lines: StorefrontQuoteLine[]): Promise<Map<string, string>> {
-    const physical = lines.filter(
-      (line): line is Extract<StorefrontQuoteLine, { type: "product" }> => line.type === "product" && line.snapshot.fulfillment.type === "physical",
-    );
-    const variants = [...new Map(physical.map((line) => [line.variant_id, line.product_id])).entries()].filter(
-      ([variantId]) => !profileByVariant.has(variantId),
-    );
-    for (let start = 0; start < variants.length; start += variantReadsAtOnce) {
-      const read = await Promise.all(
-        variants
-          .slice(start, start + variantReadsAtOnce)
-          .map(([variantId, productId]) =>
-            client.eshop.productVariant.get({ ...buyerParty(current.buyer), product_id: productId, id: variantId, package_id: current.package_id }),
-          ),
-      );
-      for (const variant of read) {
-        if (variant.fulfillment.type !== "physical") {
-          throw new CartError("not_ready", "A shipped variant no longer ships; reload the cart");
-        }
-        profileByVariant.set(variant.id, variant.fulfillment.shipping_profile_id);
-      }
-    }
+  function shippingProfiles(lines: StorefrontQuoteLine[]): Map<string, string> {
     const profileByLine = new Map<string, string>();
-    for (const line of physical) {
-      const profile = profileByVariant.get(line.variant_id);
-      if (!profile) throw new CartError("not_ready", "A shipped variant couldn't be read; reload the cart");
-      profileByLine.set(line.line_item_id, profile);
+    for (const line of lines) {
+      if (line.type !== "product" || line.snapshot.fulfillment.type !== "physical") continue;
+      if (line.shipping_profile_id === null) throw new CartError("not_ready", "A shipped variant no longer ships; reload the cart");
+      profileByLine.set(line.line_item_id, line.shipping_profile_id);
     }
     return profileByLine;
   }
@@ -462,20 +437,14 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
     const quoted = await client.eshop.cart.quote(quoteBody(current.id, quoteParams), storeContextOnly(options));
     started.assertCurrent();
     if (quoted.cart_id !== current.id) throw new CartError("answer_mismatch", "The quote answered another cart");
-    const profileByLine = await shippingProfiles(current, quoted.lines);
-    started.assertCurrent();
+    const profileByLine = shippingProfiles(quoted.lines);
     const groups = deliveryGroupsFor(current, profileByLine, destination, () => context.appId("delivery group"));
-    try {
-      return await runCartWrite((latest) => {
-        if (latest.id !== current.id || latest.updated_at !== current.updated_at) {
-          throw new CartError("context_changed", "The cart changed while its deliveries were prepared; ship it again");
-        }
-        return client.eshop.cart.update({ ...version(latest), delivery_groups: groups });
-      });
-    } catch (error) {
-      profileByVariant.clear();
-      throw error;
-    }
+    return runCartWrite((latest) => {
+      if (latest.id !== current.id || latest.updated_at !== current.updated_at) {
+        throw new CartError("context_changed", "The cart changed while its deliveries were prepared; ship it again");
+      }
+      return client.eshop.cart.update({ ...version(latest), delivery_groups: groups });
+    });
   }
 
   function setBillingAddress(params: ArkySetBillingAddressParams): Promise<StorefrontCart> {

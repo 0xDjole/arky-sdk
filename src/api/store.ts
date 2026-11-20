@@ -6,10 +6,15 @@ import type {
   CreateStoreCardSetupParams,
   StoreCardSetup,
   StoreSubscriptionPayment,
+  StoreRead,
+  StorePlanCharge,
+  ReportStorePlanPaymentParams,
+  FindStorePlanChargesParams,
   SetStoreSubscriptionCardParams,
   CancelStoreSubscriptionParams,
   GrantStorePlanParams,
   FindTestStoresParams,
+  FindTestStoresByLiveStoresParams,
   WipeStoreParams,
   CreateStoreParams,
   EndStoreGrantParams,
@@ -47,7 +52,6 @@ import type {
   StoreMemberProfile,
   StoreMembership,
   StoreMembershipWithStoreName,
-  TransferStoreOwnershipParams,
   UpdateStoreMemberLocationsParams,
   UpdateStoreMemberRolesParams,
 } from "../types/storeRole";
@@ -68,8 +72,8 @@ export const createStoreApi = (apiConfig: ApiConfig) => ({
     return apiConfig.httpClient.put<Store>(`/v1/stores/${requireStoreId(id)}`, body, options);
   },
 
-  get(params: GetStoreParams, options?: RequestOptions): Promise<Store> {
-    return apiConfig.httpClient.get<Store>(`/v1/stores/${requireStoreId(params.id)}`, options);
+  get(params: GetStoreParams, options?: RequestOptions): Promise<StoreRead> {
+    return apiConfig.httpClient.get<StoreRead>(`/v1/stores/${requireStoreId(params.id)}`, options);
   },
 
   nameDefaultLocation(params: NameStoreDefaultLocationParams, options?: RequestOptions): Promise<Store> {
@@ -138,7 +142,7 @@ export const createStoreApi = (apiConfig: ApiConfig) => ({
     },
     createCardSetup(params: CreateStoreCardSetupParams, options?: RequestOptions): Promise<StoreCardSetup> {
       return apiConfig.httpClient.post<StoreCardSetup>(`/v1/networks/${segment(requireId(params.network_id, "network"))}/card-setups`,
-        { id: requireId(params.id, "card setup") }, options);
+        { id: requireId(params.id, "card setup"), store_id: requireStoreId(params.store_id) }, options);
     },
     setCard(params: SetStoreSubscriptionCardParams, options?: RequestOptions): Promise<StoreSubscription> {
       const { store_id, ...body } = params;
@@ -146,6 +150,19 @@ export const createStoreApi = (apiConfig: ApiConfig) => ({
     },
     pendingPayment(params: GetStoreSubscriptionParams, options?: RequestOptions): Promise<StoreSubscriptionPayment> {
       return apiConfig.httpClient.get<StoreSubscriptionPayment>(storePath(params.store_id, "subscription/payment"), options);
+    },
+    reportPayment(params: ReportStorePlanPaymentParams, options?: RequestOptions): Promise<StorePlanCharge> {
+      return apiConfig.httpClient.post<StorePlanCharge>(
+        storePath(params.store_id, "subscription/payment/report"),
+        { payment_intent_id: params.payment_intent_id },
+        options,
+      );
+    },
+    findCharges(params: FindStorePlanChargesParams, options?: RequestOptions): Promise<PaginatedResponse<StorePlanCharge>> {
+      return apiConfig.httpClient.get<PaginatedResponse<StorePlanCharge>>(storePath(params.store_id, "subscription/charges"), {
+        ...options,
+        params: { limit: params.limit, cursor: params.cursor },
+      });
     },
     cancel(params: CancelStoreSubscriptionParams, options?: RequestOptions): Promise<StoreSubscription> {
       const { store_id, ...body } = params;
@@ -165,6 +182,13 @@ export const createStoreApi = (apiConfig: ApiConfig) => ({
     find(params: FindTestStoresParams, options?: RequestOptions): Promise<PaginatedResponse<Store>> {
       const { store_id, ...query } = params;
       return apiConfig.httpClient.get<PaginatedResponse<Store>>(storePath(store_id, "test-stores"), { ...options, params: query });
+    },
+
+    findByLiveStores(params: FindTestStoresByLiveStoresParams, options?: RequestOptions): Promise<PaginatedResponse<Store>> {
+      return apiConfig.httpClient.get<PaginatedResponse<Store>>("/v1/stores/test-stores", {
+        ...options,
+        params: { live_store_ids: params.live_store_ids, limit: params.limit, cursor: params.cursor },
+      });
     },
   },
   wipe(params: WipeStoreParams, options?: RequestOptions): Promise<Store> {
@@ -241,11 +265,8 @@ export const createStoreApi = (apiConfig: ApiConfig) => ({
     },
 
     acceptInvite(params: AcceptStoreInviteParams, options?: RequestOptions): Promise<StoreMembership> {
-      return apiConfig.httpClient.post<StoreMembership>(
-        storePath(params.store_id, "membership/accept"),
-        { expected_updated_at: params.expected_updated_at },
-        options,
-      );
+      const { store_id, ...body } = params;
+      return apiConfig.httpClient.post<StoreMembership>(storePath(store_id, "membership/accept"), body, options);
     },
 
     remove(params: RemoveStoreMemberParams, options?: RequestOptions): Promise<true> {
@@ -299,14 +320,6 @@ export const createStoreApi = (apiConfig: ApiConfig) => ({
           params.store_id,
           `members/${segment(requireId(params.id, "membership"))}/sessions/${segment(requireId(params.session_id, "session"))}`,
         ),
-        options,
-      );
-    },
-
-    transferOwnership(params: TransferStoreOwnershipParams, options?: RequestOptions): Promise<Store> {
-      return apiConfig.httpClient.post<Store>(
-        storePath(params.store_id, "ownership/transfer"),
-        { account_id: requireId(params.account_id, "account"), expected_updated_at: params.expected_updated_at },
         options,
       );
     },

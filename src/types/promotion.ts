@@ -35,13 +35,13 @@ export type PromotionEffect =
 
 export type PromotionCondition =
   | { type: "signed_in" }
-  | { type: "customer"; ids: string[] }
-  | { type: "package"; ids: string[] }
-  | { type: "package_offering"; ids: string[] }
-  | { type: "company"; ids: string[] }
-  | { type: "company_location"; ids: string[] }
-  | { type: "market"; ids: string[] }
-  | { type: "sales_channel"; ids: string[] }
+  | { type: "customer"; customer_ids: string[] }
+  | { type: "package"; package_ids: string[] }
+  | { type: "package_offering"; package_offering_ids: string[] }
+  | { type: "company"; company_ids: string[] }
+  | { type: "company_location"; company_location_ids: string[] }
+  | { type: "market"; market_ids: string[] }
+  | { type: "sales_channel"; sales_channel_ids: string[] }
   | { type: "minimum_subtotal"; amounts: Money[] }
   | { type: "item_quantity"; target: PromotionTarget; min_quantity: number; max_quantity: number | null };
 
@@ -155,13 +155,25 @@ export interface GetPromotionByKeyParams {
   key: string;
 }
 
-export interface FindPromotionsParams {
+export interface FindPromotionsBySearchParams {
   store_id: string;
+  ids?: never;
   key?: string;
   status?: PromotionStatus["type"];
   limit?: number;
   cursor?: string | null;
 }
+
+export interface FindPromotionsByIdsParams {
+  store_id: string;
+  ids: string[];
+  key?: never;
+  status?: never;
+  limit?: never;
+  cursor?: never;
+}
+
+export type FindPromotionsParams = FindPromotionsBySearchParams | FindPromotionsByIdsParams;
 
 export interface DeletePromotionParams {
   store_id: string;
@@ -197,14 +209,27 @@ export interface GetPromotionCodeByCodeParams {
   code: string;
 }
 
-export interface FindPromotionCodesParams {
+export interface FindPromotionCodesBySearchParams {
   store_id: string;
+  ids?: never;
   promotion_id?: string;
   code?: string;
   status?: PromotionCodeStatus["type"];
   limit?: number;
   cursor?: string | null;
 }
+
+export interface FindPromotionCodesByIdsParams {
+  store_id: string;
+  ids: string[];
+  promotion_id?: never;
+  code?: never;
+  status?: never;
+  limit?: never;
+  cursor?: never;
+}
+
+export type FindPromotionCodesParams = FindPromotionCodesBySearchParams | FindPromotionCodesByIdsParams;
 
 export interface DeletePromotionCodeParams {
   store_id: string;

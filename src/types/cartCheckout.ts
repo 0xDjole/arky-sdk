@@ -27,7 +27,7 @@ export class CartPresentationChangedError extends ArkyApiError {
 
   constructor(
     readonly quote: StorefrontCartQuote,
-    answer: Pick<ArkyApiErrorDetails, "response" | "method" | "url" | "requestId"> = {},
+    answer: Pick<ArkyApiErrorDetails, "response" | "method" | "url"> = {},
   ) {
     super({
       message: "The checkout presentation changed. Review the refreshed quote before ordering.",
@@ -36,7 +36,6 @@ export class CartPresentationChangedError extends ArkyApiError {
       response: answer.response,
       method: answer.method,
       url: answer.url,
-      requestId: answer.requestId,
     });
   }
 }

@@ -9,11 +9,13 @@ import type {
   DeleteCollectionParams,
   DeleteEntryParams,
   PublicEntry,
+  FindCollectionEntryPageParams,
   FindCollectionsParams,
   FindEntriesParams,
   GetCollectionByKeyParams,
   GetCollectionCleanupParams,
   GetCollectionParams,
+  GetEntryByKeyParams,
   GetEntryParams,
   UpdateCollectionParams,
   UpdateEntryParams,
@@ -36,6 +38,13 @@ export const createCollectionApi = (apiConfig: ApiConfig) => ({
 
   getByKey(params: GetCollectionByKeyParams, options?: RequestOptions): Promise<PublicCollection> {
     return apiConfig.httpClient.get<PublicCollection>(storePath(params.store_id, `collections/by-key/${segment(params.key)}`), options);
+  },
+
+  findEntries(params: FindCollectionEntryPageParams, options?: RequestOptions): Promise<PaginatedResponse<PublicEntry>> {
+    return apiConfig.httpClient.get<PaginatedResponse<PublicEntry>>(`${storeRecordPath(params.store_id, "collections", params.id)}/entries`, {
+      ...options,
+      params: { limit: params.limit, cursor: params.cursor },
+    });
   },
 
   create(params: CreateCollectionParams, options?: RequestOptions): Promise<PublicCollection> {
@@ -72,6 +81,13 @@ export const createEntryApi = (apiConfig: ApiConfig) => ({
 
   get(params: GetEntryParams, options?: RequestOptions): Promise<PublicEntry> {
     return apiConfig.httpClient.get<PublicEntry>(storeRecordPath(params.store_id, "entries", params.id), options);
+  },
+
+  getByKey(params: GetEntryByKeyParams, options?: RequestOptions): Promise<PublicEntry> {
+    return apiConfig.httpClient.get<PublicEntry>(storePath(params.store_id, `entries/by-key/${segment(params.key)}`), {
+      ...options,
+      params: { collection_id: params.collection_id },
+    });
   },
 
   create(params: CreateEntryParams, options?: RequestOptions): Promise<PublicEntry> {

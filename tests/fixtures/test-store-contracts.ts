@@ -18,8 +18,11 @@ import type {
   ConnectArkyStripeStoreProviderParams,
   ConnectArkyTwilioStoreProviderParams,
   ConnectElevenLabsStoreProviderParams,
+  ArkyElevenLabsSetup,
+  ArkyElevenLabsTools,
   ElevenLabsRegion,
   ElevenLabsSetup,
+  ElevenLabsTools,
   CreateCardPaymentOptionParams,
   CreateSimulatorPlannedOutcomeParams,
   CreateStoreParams,
@@ -149,9 +152,14 @@ export type TestStoreContracts = [
 
   Assert<Equal<Extract<StoreProvider["type"], { type: "arky_twilio" }>, { type: "arky_twilio"; account_sid: string; sms_sender: SmsSender }>>,
   Assert<Equal<Extract<StoreProvider["type"], { type: "eleven_labs" }>, { type: "eleven_labs"; region: ElevenLabsRegion; setup: ElevenLabsSetup }>>,
-  Assert<Equal<Extract<StoreProvider["type"], { type: "arky_eleven_labs" }>, { type: "arky_eleven_labs"; region: ElevenLabsRegion; setup: ElevenLabsSetup }>>,
+  Assert<Equal<Extract<StoreProvider["type"], { type: "arky_eleven_labs" }>, { type: "arky_eleven_labs"; setup: ArkyElevenLabsSetup }>>,
   Assert<Equal<ElevenLabsRegion, "global" | "us" | "eu" | "in" | "sg">>,
   Assert<Equal<ElevenLabsSetup["type"], "waiting" | "ready" | "failed">>,
+  Assert<Equal<ArkyElevenLabsSetup["type"], "waiting" | "ready" | "failed">>,
+  Assert<Equal<Extract<ElevenLabsSetup, { type: "ready" }>, { type: "ready"; agent_id: string; tools: ElevenLabsTools; at: EpochMilliseconds }>>,
+  Assert<Equal<Extract<ArkyElevenLabsSetup, { type: "ready" }>, { type: "ready"; agent_id: string; tools: ArkyElevenLabsTools; at: EpochMilliseconds }>>,
+  Assert<Equal<keyof ElevenLabsTools, "find_slots" | "propose" | "confirm" | "request_callback" | "transfer" | "record_sms_consent">>,
+  Assert<Equal<keyof ArkyElevenLabsTools, keyof ElevenLabsTools>>,
   Assert<Equal<Parameters<Providers["connectArkyTwilio"]>[0], ConnectArkyTwilioStoreProviderParams>>,
   Assert<Equal<ConnectArkyTwilioStoreProviderParams, { store_id: string; id: string; sms_sender: SmsSender }>>,
   Assert<Equal<Parameters<Providers["connectElevenLabs"]>[0], ConnectElevenLabsStoreProviderParams>>,
@@ -234,7 +242,7 @@ export const stripeSimulation: PaymentSimulation = {
 export const storePaymentSimulation: SimulatePaymentParams = {
   simulation: {
     type: "stripe_payment_intent",
-    action: { type: "stripe", payment_intent_id: "pi_store", publishable_key: "pk_test_network", client_secret: "pi_store_secret_exact", runs_on: { type: "simulator", api_url: "https://api.arky.io" } },
+    action: { type: "stripe", payment_intent_id: "pi_store", publishable_key: "pk_test_network", client_secret: "pi_store_secret_exact", payment_method_id: "pm_store_card", runs_on: { type: "simulator", api_url: "https://api.arky.io" } },
     outcome: "complete",
   },
 };

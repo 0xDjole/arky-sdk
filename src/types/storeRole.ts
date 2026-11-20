@@ -2,6 +2,7 @@ import type { EpochMilliseconds } from "./time";
 import type { EmailContact, SortDirection } from "./common";
 import type { AccountName, AccountSortField } from "./account";
 import type { StoreType } from "./store";
+import type { CreateStoreAgreementInput } from "./network";
 
 export type LocationReach =
   | { type: "all" }
@@ -84,6 +85,7 @@ export interface StoreAccess {
 
 export type StoreMembershipStatus =
   | { type: "invited"; contact: EmailContact }
+  | { type: "owner_invited"; contact: EmailContact }
   | { type: "active"; account_id: string }
   | { type: "disabled"; account_id: string };
 
@@ -220,17 +222,17 @@ export interface ChangeStoreMemberStatusParams {
 export interface AcceptStoreInviteParams {
   store_id: string;
   expected_updated_at: EpochMilliseconds;
+  agreement?: CreateStoreAgreementInput;
 }
 
-export interface TransferStoreOwnershipParams {
-  store_id: string;
-  expected_updated_at: EpochMilliseconds;
-  account_id: string;
-}
+export type StoreMemberSearchStatus = "active" | "disabled" | "invited";
 
 export interface FindStoreMembersParams {
   store_id: string;
   query?: string;
+  role_id?: string;
+  status?: StoreMemberSearchStatus;
+  account_id?: string;
   sort_field?: AccountSortField;
   sort_direction?: SortDirection;
   limit?: number;

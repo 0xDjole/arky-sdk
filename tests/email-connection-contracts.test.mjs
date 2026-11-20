@@ -135,7 +135,7 @@ test("sent history lists summaries and reads one message with its rendered previ
 });
 
 test("Resend events a store login received are listed per login and status and resolved with their version", async (context) => {
-  const record = { id: event, provider_event_id: "evt_1", type: { type: "store_resend", store_id: store, login: { type: "store", store_provider_id: provider }, event: { event_type: "email.received", email_id: "re_1", occurred_at: 1, outgoing_message_id: null, message_id: null, recipients: ["help@example.test"], failure: null } }, status: { type: "review", reason: "No entry", to: null }, created_at: 1, updated_at: 2 };
+  const record = { id: event, provider_event_id: "evt_1", type: { type: "store_resend", store_id: store, login: { type: "store", store_provider_id: provider }, event: { event_type: "email.received", email_id: "re_1", occurred_at: 1, outgoing_message_id: null, message_id: null, from: "buyer@example.test", recipients: ["help@example.test"], failure: null } }, status: { type: "review", reason: "No entry", to: null }, created_at: 1, updated_at: 2 };
   const calls = recordFetch(context, (call) => call.method === "GET" ? { items: [record], cursor: null } : record);
   const api = notification().resendEvent;
   assert.deepEqual(await api.find({ store_id: store, store_provider_id: provider, status: "review", limit: 20, cursor: "next" }), { items: [record], cursor: null });

@@ -14,10 +14,10 @@ import type {
   FindNetworkRolesParams, GetNetworkRoleParams, CreateNetworkRoleParams, UpdateNetworkRoleParams,
   DeleteNetworkRoleParams, FindNetworkMembersParams, InviteNetworkMemberParams,
   UpdateNetworkMemberRolesParams, ChangeNetworkMemberStatusParams, RemoveNetworkMemberParams,
-  GetOwnNetworkMembershipParams, AcceptNetworkInviteParams, GetNetworkStoreAgreementParams,
+  GetOwnNetworkMembershipParams, AcceptNetworkInviteParams, GetNetworkStoreAgreementParams, FindNetworkStoreSubscriptionsParams,
   ResetNetworkMemberSecondFactorParams, NetworkStore, GetNetworkStoreParams, NameNetworkStoreOwnerParams,
 } from "../types/network";
-import type { Store } from "../types/store";
+import type { Store, StoreSubscription } from "../types/store";
 import type { ListedAccount } from "../types/account";
 import { requireId } from "../utils/ids";
 import { segment } from "./paths";
@@ -209,6 +209,12 @@ export const createNetworkApi = (apiConfig: ApiConfig) => ({
         `${networkPath(params.network_id)}/stores/${segment(requireId(params.store_id, "store"))}`,
         options,
       );
+    },
+    findSubscriptions(params: FindNetworkStoreSubscriptionsParams, options?: RequestOptions): Promise<StoreSubscription[]> {
+      return apiConfig.httpClient.get<StoreSubscription[]>(`${networkPath(params.network_id)}/store-subscriptions`, {
+        ...options,
+        params: { ids: params.ids },
+      });
     },
     getAgreement(params: GetNetworkStoreAgreementParams, options?: RequestOptions): Promise<StoreAgreement> {
       return apiConfig.httpClient.get<StoreAgreement>(

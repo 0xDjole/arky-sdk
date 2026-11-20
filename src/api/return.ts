@@ -16,6 +16,7 @@ import type {
   ReturnDestinationOptions,
   ReturnDetail,
   ReturnInspectionUnit,
+  ReturnListItem,
 } from "../types/return";
 import { requireId } from "../utils/ids";
 import { segment, storePath, storeRecordPath } from "./paths";
@@ -30,9 +31,9 @@ export interface FindAdminRentalReturnOptionsParams {
 export const createReturnApi = (apiConfig: ApiConfig) => {
   const returnPath = (storeId: string, id: string) => storeRecordPath(storeId, "returns", id);
   return {
-    find(params: FindReturnsParams, options?: RequestOptions): Promise<PaginatedResponse<Return>> {
+    find(params: FindReturnsParams, options?: RequestOptions): Promise<PaginatedResponse<ReturnListItem>> {
       const { store_id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<Return>>(storePath(store_id, "returns"), { ...options, params: query });
+      return apiConfig.httpClient.get<PaginatedResponse<ReturnListItem>>(storePath(store_id, "returns"), { ...options, params: query });
     },
 
     get(params: GetReturnParams, options?: RequestOptions): Promise<ReturnDetail> {

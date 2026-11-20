@@ -7,11 +7,12 @@ import type {
   DeleteCategoryParams,
   FindCategoriesParams,
   FindCategoryChildrenParams,
+  GetCategoryByKeyParams,
   GetCategoryParams,
   UpdateCategoryParams,
 } from "../types/content";
 import { requireId } from "../utils/ids";
-import { storePath, storeRecordPath } from "./paths";
+import { segment, storePath, storeRecordPath } from "./paths";
 
 export const createCategoryApi = (apiConfig: ApiConfig) => ({
   find(params: FindCategoriesParams, options?: RequestOptions): Promise<PaginatedResponse<Category>> {
@@ -24,6 +25,10 @@ export const createCategoryApi = (apiConfig: ApiConfig) => ({
 
   get(params: GetCategoryParams, options?: RequestOptions): Promise<Category> {
     return apiConfig.httpClient.get<Category>(storeRecordPath(params.store_id, "categories", params.id), options);
+  },
+
+  getByKey(params: GetCategoryByKeyParams, options?: RequestOptions): Promise<Category> {
+    return apiConfig.httpClient.get<Category>(storePath(params.store_id, `categories/by-key/${segment(params.key)}`), options);
   },
 
   findChildren(params: FindCategoryChildrenParams, options?: RequestOptions): Promise<PaginatedResponse<Category>> {

@@ -97,3 +97,16 @@ test("an unsubscribe with a token the Server can't read comes back as its refusa
   await assert.rejects(storefront.broadcast.unsubscribe({ token: "unreadable" }), (error) => error.statusCode === 404 && error.code === "GENERAL.NOT_FOUND");
   assert.equal(calls.length, 1);
 });
+
+test("the broadcast list answers summary rows without the copied content and reads up to 100 broadcasts by ids alone", async (context) => {
+  const row = { id: broadcastId, store_id: storeId, key: "spring", type: { ...emailType, status: { type: "sent", started_at: 1_700_000_000_000, recipient_count: 42 } }, created_at: 1, updated_at: 2 };
+  const calls = recordFetch(context, () => ({ items: [row], cursor: null }));
+  const page = await broadcasts().find({ store_id: storeId, ids: [broadcastId, testId] });
+  assert.deepEqual(page.items[0].type.status, { type: "sent", started_at: 1_700_000_000_000, recipient_count: 42 });
+  assert.equal("content" in page.items[0].type.status, false);
+  await broadcasts().find({ store_id: storeId, type: "email", status: "draft", limit: 5 });
+  assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
+    ["GET", `/v1/stores/${storeId}/broadcasts`, { ids: JSON.stringify([broadcastId, testId]) }],
+    ["GET", `/v1/stores/${storeId}/broadcasts`, { type: "email", status: "draft", limit: "5" }],
+  ]);
+});

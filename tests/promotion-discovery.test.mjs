@@ -164,3 +164,17 @@ test("a storefront reads a promotion's key and blocks by id with one request and
   }
   assert.deepEqual(Object.keys(storefront.eshop.promotion), ["get"]);
 });
+
+test("promotion conditions name their lists as customer_ids, market_ids and the like, and promotions and codes are read by ids alone", async (context) => {
+  const calls = recordFetch(context, () => ({ items: [], cursor: null }));
+  const customers = { type: "customer", customer_ids: ["0e2a4c6e-8b1d-4f3a-9c5e-7d9b1f3a5c7e"] };
+  const markets = { type: "market", market_ids: ["1f3b5d7f-9c2e-4a4b-8d6f-8e0a2c4e6a8b"] };
+  await eshop().promotion.update({ store_id: store, id, expected_updated_at: 4, conditions: [customers, markets] });
+  await eshop().promotion.find({ store_id: store, ids: [id] });
+  await eshop().promotionCode.find({ store_id: store, ids: [codeId] });
+  assert.deepEqual(calls[0].body.conditions, [customers, markets]);
+  assert.deepEqual(calls.slice(1).map(({ method, path, query }) => [method, path, query]), [
+    ["GET", `/v1/stores/${store}/promotions`, { ids: JSON.stringify([id]) }],
+    ["GET", `/v1/stores/${store}/promotion-codes`, { ids: JSON.stringify([codeId]) }],
+  ]);
+});

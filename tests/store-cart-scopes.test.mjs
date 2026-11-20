@@ -35,21 +35,16 @@ function productLine(id, variantId, quantity = 1) {
   return { type: "product", id, variant_id: variantId, quantity, form_submission_id: null, price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price } };
 }
 
-function quoteLine(lineId, productId, variantId) {
-  return { type: "product", line_item_id: lineId, product_id: productId, variant_id: variantId, quantity: 1, snapshot: { fulfillment: { type: "physical" } } };
-}
-
-function variant(id, productId, profile) {
+function quoteLine(lineId, productId, variantId, profile) {
   return {
-    id,
+    type: "product",
+    line_item_id: lineId,
     product_id: productId,
-    sku: null,
-    blocks: [],
-    fulfillment: { type: "physical", shipping_profile_id: profile, inventory_requirements: [], backorder: { type: "disallow" } },
-    tax_category_id: ids.paymentOption,
-    status: { type: "active" },
-    package_item_id: ids.packageItem,
-    price: null,
+    product: { id: productId, key: `product-${productId.slice(0, 4)}`, blocks: [] },
+    variant_id: variantId,
+    shipping_profile_id: profile,
+    quantity: 1,
+    snapshot: { fulfillment: { type: profile === null ? "digital" : "physical" } },
   };
 }
 
@@ -214,17 +209,13 @@ test("shipTo groups shipped lines by shipping profile and keeps a group's choice
       },
     ],
   });
-  const variantReads = [];
+  const quotes = [];
   const updates = [];
-  recordFetch(context, (call) => {
+  const calls = recordFetch(context, (call) => {
     if (call.path === "/v1/storefront/carts") return { type: "created", cart: current, recovery_token: "token" };
     if (call.path === `/v1/storefront/carts/${ids.cart}/quote`) {
-      return quoteRecord({ ready: false, lines: [quoteLine(lineA, ids.product, ids.variant), quoteLine(lineB, otherProduct, otherVariant)] });
-    }
-    if (call.path.includes("/variants/")) {
-      variantReads.push(call.path);
-      assert.equal(call.query.package_id, ids.package);
-      return call.path.endsWith(ids.variant) ? variant(ids.variant, ids.product, profileA) : variant(otherVariant, otherProduct, profileB);
+      quotes.push(call.path);
+      return quoteRecord({ ready: false, lines: [quoteLine(lineA, ids.product, ids.variant, profileA), quoteLine(lineB, otherProduct, otherVariant, profileB)] });
     }
     if (call.method === "PUT" && call.path === `/v1/storefront/carts/${ids.cart}`) {
       updates.push(call.body);
@@ -238,10 +229,7 @@ test("shipTo groups shipped lines by shipping profile and keeps a group's choice
   await cart.create({ id: ids.cart });
 
   await cart.shipTo({ destination: { type: "delivery", address: addressA } });
-  assert.deepEqual(variantReads, [
-    `/v1/storefront/products/${ids.product}/variants/${ids.variant}`,
-    `/v1/storefront/products/${otherProduct}/variants/${otherVariant}`,
-  ]);
+  assert.equal(calls.some((call) => call.path.includes("/variants/")), false, "the quote names each line's shipping profile, so no variant is read");
   assert.deepEqual(updates[0].delivery_groups, [
     {
       id: ids.thirdCart,
@@ -265,7 +253,34 @@ test("shipTo groups shipped lines by shipping profile and keeps a group's choice
     [factoryId(1), null, "Side 2"],
   ]);
   assert.equal(updates.length, 2);
-  assert.equal(variantReads.length, 2, "an address edit reads each variant's shipping profile once, not again on every edit");
+  assert.equal(quotes.length, 2);
+  assert.equal(calls.some((call) => call.path.includes("/variants/")), false);
+});
+
+test("shipTo leaves a line the quote doesn't ship out of the deliveries and refuses a shipped line that names no shipping profile", async (context) => {
+  const lineA = ids.line;
+  const lineB = ids.otherLine;
+  let lines = [quoteLine(lineA, ids.product, ids.variant, profileA), quoteLine(lineB, otherProduct, otherVariant, null)];
+  let current = cartRecord({ line_items: [productLine(lineA, ids.variant), productLine(lineB, otherVariant)], delivery_groups: [] });
+  const updates = [];
+  const calls = recordFetch(context, (call) => {
+    if (call.path === "/v1/storefront/carts") return { type: "created", cart: current, recovery_token: "token" };
+    if (call.path === `/v1/storefront/carts/${ids.cart}/quote`) return quoteRecord({ ready: false, lines });
+    if (call.method === "PUT" && call.path === `/v1/storefront/carts/${ids.cart}`) {
+      updates.push(call.body);
+      current = { ...current, updated_at: current.updated_at + 1, delivery_groups: call.body.delivery_groups };
+      return current;
+    }
+    throw new Error(`Unexpected request ${call.method} ${call.path}`);
+  });
+  const cart = store(idSequence(factoryId(1), factoryId(2))).eshop.cart({ buyer: customer, package_id: ids.package });
+  await cart.create({ id: ids.cart });
+  await cart.shipTo({ destination: { type: "delivery", address: addressA } });
+  assert.deepEqual(updates[0].delivery_groups.map((group) => group.items.map((item) => item.line_item.line_item_id)), [[lineA]]);
+  lines = [quoteLine(lineA, ids.product, ids.variant, profileA), { ...quoteLine(lineB, otherProduct, otherVariant, null), snapshot: { fulfillment: { type: "physical" } } }];
+  await assert.rejects(cart.shipTo({ destination: { type: "delivery", address: addressA } }), (error) => error.code === "not_ready");
+  assert.equal(updates.length, 1);
+  assert.equal(calls.some((call) => call.path.includes("/variants/")), false);
 });
 
 test("the market changes while a scoped cart has items, each market keeps its own cart store, and a sign-out clears every scope", async (context) => {

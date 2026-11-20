@@ -59,7 +59,7 @@ function packagePrice(overrides = {}, amount = 0) {
   return {
     price_id: ids.price,
     sellable: { type: "package", package_id: joinedId },
-    content: { sku: null, blocks: [], basis: { type: "package_never" } },
+    content: { sku: null, blocks: [], basis: { type: "package_never" }, placement: { type: "none" } },
     price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price, tax_mode: "inclusive", unit_price: { amount, currency: "eur" }, compare_at: null, priced_at: 1 },
     ...overrides,
   };

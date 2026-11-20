@@ -1,8 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { toE164 } from "../dist/utils.js";
+import { toE164 as storefrontToE164 } from "../dist/storefront.js";
 
 const number = (value) => ({ type: "number", number: value });
+
+test("toE164 comes from arky-sdk/storefront, where storefront helpers are imported, as well as from arky-sdk/utils", () => {
+  assert.equal(typeof storefrontToE164, "function");
+  assert.deepEqual(storefrontToE164("BA", "061 123 456"), number("+38761123456"));
+  assert.deepEqual(storefrontToE164("BA", "61 123 456"), toE164("BA", "61 123 456"));
+});
 
 test("a national number in a trunk-prefix country drops its trunk prefix and gains the country code", () => {
   assert.deepEqual(toE164("BA", "061 123 456"), number("+38761123456"));

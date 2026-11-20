@@ -170,7 +170,7 @@ test("a reissue reverses the invoice and issues a new one under two app-picked i
           due_on: "2026-09-22",
           bank: "Raiffeisen Bank",
           account: "1610000000000000",
-          reference: { type: "model", model: "97", reference: "592026000019" },
+          reference: { type: "model97", reference: "592026000019" },
         },
         fiscal_receipt_ids: [],
         memo: { type: "text", text: "Zamjena za 2026-000017" },
@@ -276,7 +276,7 @@ test("invoices are their own records with their lines inside, so there is no sep
 
 test("the seller record with its payment reference format and invoice footer is read, created under the app's id, changed and deleted by version", async (context) => {
   const tax = { type: "vat_registered", tax_id: "4200000000000", vat_id: "200000000000" };
-  const bank_account = { type: "account", bank: "Raiffeisen Bank", account: "1610000000000000", reference: { type: "model", model: "97" } };
+  const bank_account = { type: "account", bank: "Raiffeisen Bank", account: "1610000000000000", reference: { type: "model97" } };
   const invoice_footer = { type: "text", text: "Hvala na povjerenju" };
   const seller = { id: sellerId, store_id: storeId, name: "Klinika d.o.o.", address: sellerAddress, tax, bank_account, invoice_footer, created_at: 1, updated_at: 1 };
   const calls = recordFetch(context, (call) => (call.method === "DELETE" ? { deleted: true } : seller));

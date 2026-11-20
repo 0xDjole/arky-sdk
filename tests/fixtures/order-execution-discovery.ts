@@ -89,7 +89,8 @@ export type FulfillmentHistoryContract = [
   Assert<Equal<ReturnType<typeof selectFulfillmentMoveUnits>, FulfillmentJobMoveLine>>,
   Assert<Equal<keyof FulfillmentLine, "fulfillment_job_line_id" | "unit_spans" | "selected_units" | "lot_reference">>,
   Assert<Equal<FulfillmentLine["lot_reference"], string | null>>,
-  Assert<Equal<keyof FindFulfillmentsParams, "store_id" | "order_id" | "fulfillment_job_id" | "rental_id" | "limit" | "cursor">>,
+  Assert<Equal<keyof FindFulfillmentsParams, "store_id" | "order_ids" | "fulfillment_job_id" | "rental_id" | "limit" | "cursor">>,
+  Assert<Equal<FindFulfillmentsParams["order_ids"], string[] | undefined>>,
   Assert<Missing<Api, "shipment" | "pickup" | "invoice" | "shippingLabel" | "shippingLabelRefund" | "merchantDebit" | "merchantDebitReversal">>,
 ];
 
@@ -99,7 +100,8 @@ export type FulfillmentJobContract = [
   Assert<Equal<Extract<FulfillmentJobMethod, { type: "delivery" }>["source"], FulfillmentAssignmentSource>>,
   Assert<Equal<FulfillmentAssignmentSource["type"], "served_from" | "routing_rule" | "otherwise" | "account">>,
   Assert<Equal<FulfillmentJobStatus, "scheduled" | "on_hold" | "open" | "in_progress" | "completed" | "cancelled">>,
-  Assert<Equal<keyof FulfillmentJob, "id" | "store_id" | "type" | "method" | "holds" | "contact" | "place_of_sale" | "status" | "created_at" | "updated_at">>,
+  Assert<Equal<keyof FulfillmentJob, "id" | "store_id" | "type" | "method" | "holds" | "order_number" | "contact" | "place_of_sale" | "status" | "created_at" | "updated_at">>,
+  Assert<Equal<FulfillmentJob["order_number"], string | null>>,
   Assert<Missing<FulfillmentJob, "recipient">>,
   Assert<Equal<FulfillmentJob["contact"], FulfillmentJobContact>>,
   Assert<Equal<FulfillmentJob["place_of_sale"], { type: "none" } | { type: "store_location"; store_location_id: string; jurisdiction: import("arky-sdk").FiscalJurisdiction | null }>>,
@@ -133,7 +135,7 @@ export type FulfillmentJobContract = [
   Assert<Equal<ActOnFulfillmentParams["fiscal_device_id"], string | null>>,
   Assert<Missing<Api, "fulfillmentOrder" | "fulfillmentPartner" | "fulfillmentRoutingPolicy">>,
   Assert<Equal<Parameters<Api["fulfillmentJob"]["find"]>[0], FindFulfillmentJobsParams>>,
-  Assert<Equal<keyof FindFulfillmentJobsParams, "store_id" | "order_id" | "rental_id" | "store_location_id" | "hold" | "inventory_item_id" | "status" | "scheduled_from" | "scheduled_to" | "sort_field" | "sort_direction" | "limit" | "cursor">>,
+  Assert<Equal<keyof FindFulfillmentJobsParams, "store_id" | "order_ids" | "rental_id" | "store_location_id" | "hold" | "inventory_item_id" | "status" | "scheduled_from" | "scheduled_to" | "sort_field" | "sort_direction" | "limit" | "cursor">>,
   Assert<Equal<Parameters<Api["fulfillmentJob"]["get"]>[0], GetFulfillmentJobParams>>,
   Assert<Equal<Awaited<ReturnType<Api["fulfillmentJob"]["findItems"]>>, FulfillmentJobItem[]>>,
   Assert<Equal<keyof FulfillmentJobItem, "fulfillment_job_line_id" | "order_number" | "product_key" | "product_blocks" | "variant_sku" | "variant_blocks" | "image" | "quantity" | "source">>,

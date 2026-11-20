@@ -24,7 +24,8 @@ import type { BookingLineSession } from "../types/order";
 import type { EmailContact, PostalAddress } from "../types/common";
 import type { CheckoutPaymentAction, StorefrontPayment, StorefrontPaymentMethodSetupStart } from "../types/payment";
 import type { PaymentOutcome } from "../utils/paymentOutcome";
-import type { AvailabilityResponse, StorefrontBookingResource, StorefrontBookingService } from "../types/product";
+import type { AvailabilityResponse, StorefrontBookingService } from "../types/product";
+import type { Block } from "../types/block";
 
 export type ArkyStoreConfig = StorefrontOptions;
 
@@ -203,12 +204,19 @@ export interface ArkyBookingSlot {
   is_multi_day: boolean;
 }
 
+export interface ArkyBookingCalendarResource {
+  id: string;
+  key: string;
+  blocks: Block[];
+  timezone: string;
+}
+
 export interface ArkyBookingCalendarState {
   booking_service: StorefrontBookingService | null;
   store_location_id: string | null;
   booking_choices: StorefrontPackageItemPrice[];
   booking_choices_cursor: string | null;
-  booking_resources: StorefrontBookingResource[];
+  booking_resources: ArkyBookingCalendarResource[];
   selected_booking_resource_id: string | null;
   availability: AvailabilityResponse | null;
   month: Date;

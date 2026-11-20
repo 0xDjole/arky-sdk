@@ -139,7 +139,7 @@ export type CompanyPartyQuery =
 
 export type CustomerAuthenticationSnapshot =
   | { type: "visitor" }
-  | { type: "email_authenticated"; authenticated_at: EpochMilliseconds };
+  | { type: "signed_in"; authenticated_at: EpochMilliseconds };
 
 export type ProviderLogin =
   | { type: "store"; store_provider_id: string }

@@ -44,7 +44,7 @@ export type BuyerPackageContracts = [
   AssertTrue<Same<Awaited<ReturnType<AdminPackageApi["findPurchasable"]>>, Package[]>>,
   AssertTrue<Same<Awaited<ReturnType<StorefrontPackageApi["find"]>>, StorefrontPackageChoice[]>>,
   AssertTrue<Same<Awaited<ReturnType<FacadePackageApi["find"]>>, StorefrontPackageChoice[]>>,
-  AssertTrue<Same<keyof StorefrontPackageApi, "find" | "get" | "getByKey" | "getProductChoices" | "joinFree">>,
+  AssertTrue<Same<keyof StorefrontPackageApi, "find" | "get" | "getByKey" | "getItemsProductChoices" | "getProductChoices" | "joinFree">>,
   AssertTrue<Same<keyof StorefrontPackageChoice, "id" | "key" | "blocks" | "level">>,
   AssertTrue<Same<StorefrontPackageChoice["blocks"], Block[]>>,
   AssertTrue<Same<StorefrontPackageChoice["level"], PackageAccessLevel>>,

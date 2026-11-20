@@ -16,6 +16,7 @@ import type {
   FindPackageAccessesParams,
   FindPackageItemPricesParams,
   FindPackageItemsParams,
+  FindPackagesByIdsParams,
   FindPackagesParams,
   FindPurchasablePackagesParams,
   GetPackageAccessParams,
@@ -49,6 +50,13 @@ export const createPackageApi = (apiConfig: ApiConfig) => ({
   findPurchasable(params: FindPurchasablePackagesParams, options?: RequestOptions): Promise<Package[]> {
     const { store_id, ...query } = params;
     return apiConfig.httpClient.get<Package[]>(storePath(store_id, "packages/purchasable"), { ...options, params: query });
+  },
+
+  findByIds(params: FindPackagesByIdsParams, options?: RequestOptions): Promise<PaginatedResponse<PackageDetail>> {
+    return apiConfig.httpClient.get<PaginatedResponse<PackageDetail>>(storePath(params.store_id, "packages/by-ids"), {
+      ...options,
+      params: { ids: params.ids },
+    });
   },
 
   get(params: GetPackageParams, options?: RequestOptions): Promise<PackageDetail> {

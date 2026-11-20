@@ -14,6 +14,7 @@ import type {
   EmailAddress,
   EmailAddressReadiness,
   EmailLayout,
+  EmailLayoutSummary,
   FindEmailAddressesParams,
   FindEmailLayoutsParams,
   FindNotificationsParams,
@@ -43,6 +44,7 @@ import type {
   Template,
   TemplateDefault,
   TemplatePreview,
+  TemplateSummary,
   UpdateEmailLayoutParams,
   UpdateNotificationParams,
   UpdateTemplateParams,
@@ -71,9 +73,9 @@ export const createOutgoingWebhookApi = (apiConfig: ApiConfig) => ({
 });
 
 export const createTemplateApi = (apiConfig: ApiConfig) => ({
-  find(params: FindTemplatesParams, options?: RequestOptions): Promise<PaginatedResponse<Template>> {
+  find(params: FindTemplatesParams, options?: RequestOptions): Promise<PaginatedResponse<TemplateSummary>> {
     const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<PaginatedResponse<Template>>(storePath(store_id, "email-templates"), {
+    return apiConfig.httpClient.get<PaginatedResponse<TemplateSummary>>(storePath(store_id, "email-templates"), {
       ...options,
       params: query,
     });
@@ -180,9 +182,9 @@ export const createNotificationApi = (apiConfig: ApiConfig) => ({
 });
 
 export const createEmailLayoutApi = (apiConfig: ApiConfig) => ({
-  find(params: FindEmailLayoutsParams, options?: RequestOptions): Promise<PaginatedResponse<EmailLayout>> {
+  find(params: FindEmailLayoutsParams, options?: RequestOptions): Promise<PaginatedResponse<EmailLayoutSummary>> {
     const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<PaginatedResponse<EmailLayout>>(storePath(store_id, "email-layouts"), {
+    return apiConfig.httpClient.get<PaginatedResponse<EmailLayoutSummary>>(storePath(store_id, "email-layouts"), {
       ...options,
       params: query,
     });

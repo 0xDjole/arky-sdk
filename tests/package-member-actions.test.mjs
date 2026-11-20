@@ -231,3 +231,20 @@ test("a buyer acts on and reads their own member through storefront routes and g
     assert.equal("sales_channel_id" in call.query, false);
   }
 });
+
+test("staff read package members by ids or by renewal type, their current terms by ids, a member's Orders oldest first, and packages by ids", async (context) => {
+  const calls = recordFetch(context, () => ({ items: [], cursor: null }));
+  const admin = createAdmin({ apiUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).eshop;
+  await admin.packageMember.find({ store_id: ids.store, ids: [ids.packageMember] });
+  await admin.packageMember.find({ store_id: ids.store, renewal_type: "every", limit: 20 });
+  await admin.packageMember.findCurrent({ store_id: ids.store, ids: [ids.packageMember] });
+  await admin.packageMember.findOrders({ store_id: ids.store, id: ids.packageMember, sort_direction: "asc", limit: 1 });
+  await admin.package.findByIds({ store_id: ids.store, ids: [ids.package, ids.otherPackage] });
+  assert.deepEqual(calls.map((call) => [call.method, call.path, call.query]), [
+    ["GET", `/v1/stores/${ids.store}/package-members`, { ids: JSON.stringify([ids.packageMember]) }],
+    ["GET", `/v1/stores/${ids.store}/package-members`, { renewal_type: "every", limit: "20" }],
+    ["GET", `/v1/stores/${ids.store}/package-members/current`, { ids: JSON.stringify([ids.packageMember]) }],
+    ["GET", `/v1/stores/${ids.store}/package-members/${ids.packageMember}/orders`, { sort_direction: "asc", limit: "1" }],
+    ["GET", `/v1/stores/${ids.store}/packages/by-ids`, { ids: JSON.stringify([ids.package, ids.otherPackage]) }],
+  ]);
+});

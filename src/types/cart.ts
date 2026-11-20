@@ -29,6 +29,7 @@ import type {
 } from "./packageMember";
 import type {
   BookingLineSession,
+  DeliveryMoney,
   LineDiscount,
   LineMoney,
   OrderBookingLineAddOnPrice,
@@ -68,6 +69,7 @@ export type CartOrigin =
 
 export interface CartProductLineItem {
   id: string;
+  product_id: string;
   variant_id: string;
   quantity: number;
   form_submission_id: string | null;
@@ -403,10 +405,13 @@ export interface QuoteShippingChoice {
 export interface QuoteProductLine {
   line_item_id: string;
   product_id: string;
+  product: ProductReference;
   variant_id: string;
+  shipping_profile_id: string | null;
   quantity: number;
   form_submission_id: string | null;
   price: PackagePriceRef;
+  compare_at: number | null;
   snapshot: OrderProductSnapshot;
   money_runs: ProductMoneyRun[];
   awaiting_tax: QuoteUntaxedRun[];
@@ -563,7 +568,7 @@ export interface QuoteDelivery {
   unavailable: UnavailableShippingRate[];
   shipping: CartShipping | null;
   delivery_estimate: OrderDeliveryEstimate | null;
-  money: LineMoney | null;
+  money: DeliveryMoney | null;
   totals: QuoteLineTotals | null;
 }
 

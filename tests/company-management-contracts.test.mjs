@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { createStorefront, initialize } from "../dist/storefront.js";
-import { apiUrl, fixedIdFactories, storefrontIdentity, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
+import { apiUrl, fixedIdFactories, ids, recordFetch, storefrontIdentity, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
 
 const storeId = "3b21b61d-7162-414c-a73a-888ccbc57c3e";
 const selectedStoreId = "7f3a7a66-3403-4112-b5e5-d004a62d00b0";
@@ -489,4 +489,21 @@ test("the store's companies has the client's getAccess, update, location, member
     assert.equal(call.headers.get("x-arky-store-id"), storefrontIdentity.storeId);
     assert.equal(call.headers.get("x-arky-sales-channel-id"), storefrontIdentity.salesChannelId);
   }
+});
+
+test("staff read companies and company locations by ids, companies by one tax registration, and one company membership by email or customer from Tito", async (context) => {
+  const calls = recordFetch(context, () => ({ items: [], cursor: null }));
+  const admin = createAdmin({ apiUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).companies;
+  await admin.find({ store_id: ids.store, ids: [ids.company] });
+  await admin.location.find({ store_id: ids.store, ids: [ids.companyLocation, ids.otherCompanyLocation] });
+  await admin.membership.find({ store_id: ids.store, company_id: ids.company, email: "buyer@example.test" });
+  await admin.membership.find({ store_id: ids.store, company_id: ids.company, customer_id: ids.customer });
+  await admin.find({ store_id: ids.store, tax_registration_country: "HR", tax_registration_identifier: "HR12345678901", limit: 2 });
+  assert.deepEqual(calls.map((call) => [call.method, call.path, call.query]), [
+    ["GET", `/v1/stores/${ids.store}/companies`, { ids: JSON.stringify([ids.company]) }],
+    ["GET", `/v1/stores/${ids.store}/company-locations`, { ids: JSON.stringify([ids.companyLocation, ids.otherCompanyLocation]) }],
+    ["GET", `/v1/stores/${ids.store}/company-memberships`, { company_id: ids.company, email: "buyer@example.test" }],
+    ["GET", `/v1/stores/${ids.store}/company-memberships`, { company_id: ids.company, customer_id: ids.customer }],
+    ["GET", `/v1/stores/${ids.store}/companies`, { tax_registration_country: "HR", tax_registration_identifier: "HR12345678901", limit: "2" }],
+  ]);
 });

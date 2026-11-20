@@ -11,6 +11,8 @@ import type {
   StorefrontPayment,
   StorefrontRecordedRefund,
   StorefrontStripeRefund,
+  StripeDashboardRefund,
+  StripePaymentRefund,
   StripeRefund,
 } from "arky-sdk";
 
@@ -19,6 +21,7 @@ type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ?
 
 type StaffRefundView =
   | { type: "stripe"; refund: StripeRefund }
+  | { type: "stripe"; refund: StripeDashboardRefund }
   | { type: "monri"; refund: MonriRefund }
   | { type: "recorded"; refund: RecordedRefund };
 
@@ -42,7 +45,7 @@ export type PaymentAmountContracts = [
   Assert<
     Equal<
       PaymentRefundView,
-      | { type: "stripe"; refund: StripeRefund | StorefrontStripeRefund }
+      | { type: "stripe"; refund: StripePaymentRefund | StorefrontStripeRefund }
       | { type: "monri"; refund: MonriRefund | StorefrontMonriRefund }
       | { type: "recorded"; refund: RecordedRefund | StorefrontRecordedRefund }
     >

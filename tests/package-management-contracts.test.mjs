@@ -193,7 +193,7 @@ test("package management is not attached to the storefront acquisition API", () 
     assert.equal(owner in storefront, false);
     if (owner !== "package" && owner !== "packageItem") assert.equal(owner in storefront.eshop, false);
   }
-  assert.deepEqual(Object.keys(storefront.eshop.package), ["find", "get", "getByKey", "getProductChoices", "joinFree"]);
+  assert.deepEqual(Object.keys(storefront.eshop.package), ["find", "get", "getByKey", "getItemsProductChoices", "getProductChoices", "joinFree"]);
   assert.deepEqual(Object.keys(storefront.eshop.packageItem), ["find", "getByParent", "findPrices"]);
 });
 

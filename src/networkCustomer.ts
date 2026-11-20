@@ -387,7 +387,7 @@ export function createNetworkCustomer(config: NetworkCustomerConfig) {
       acceptInvite(params: AcceptNetworkCustomerInviteParams, options?: RequestOptions): Promise<NetworkCustomerStoreKey> {
         return httpClient.post<NetworkCustomerStoreKey>(
           storePath(params.store_id, "invites/accept"),
-          { code: params.code, sent_to: params.sent_to },
+          { id: requireId(params.id, "store key"), code: params.code, sent_to: params.sent_to },
           options,
         );
       },

@@ -167,7 +167,6 @@ export function cartCheckoutPresentationChanged(error: unknown): unknown {
     response: error.response,
     method: typeof error.method === "string" ? error.method : undefined,
     url: typeof error.url === "string" ? error.url : undefined,
-    requestId: typeof error.requestId === "string" ? error.requestId : undefined,
   });
 }
 

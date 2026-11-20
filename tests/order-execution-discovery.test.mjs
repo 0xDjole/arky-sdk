@@ -21,7 +21,7 @@ test("order execution reads keep empty continuations, the order filter and exact
   ];
   const calls = recordFetch(context, () => replies.shift());
   const api = createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).eshop;
-  const scope = { store_id: STORE_ID, order_id: "accepted", limit: 20 };
+  const scope = { store_id: STORE_ID, order_ids: ["accepted", "settled"], limit: 20 };
   assert.deepEqual(await api.fulfillment.find(scope), { items: [], cursor });
   assert.equal(calls.length, 1);
   assert.deepEqual(await api.fulfillment.find({ ...scope, cursor }), { items: [], cursor: null });
@@ -32,9 +32,10 @@ test("order execution reads keep empty continuations, the order filter and exact
   assert.equal(Array.isArray(items), true);
   assert.equal(items[0].product_key, "stock-item");
   assert.equal(items[0].order_number, "1042");
-  assert.deepEqual(calls[0].query, { order_id: "accepted", limit: "20" });
-  assert.deepEqual(calls[1].query, { order_id: "accepted", limit: "20", cursor });
-  assert.deepEqual(calls[3].query, { order_id: "accepted", limit: "20" });
+  const orders = JSON.stringify(["accepted", "settled"]);
+  assert.deepEqual(calls[0].query, { order_ids: orders, limit: "20" });
+  assert.deepEqual(calls[1].query, { order_ids: orders, limit: "20", cursor });
+  assert.deepEqual(calls[3].query, { order_ids: orders, limit: "20" });
   assert.deepEqual(calls.map((call) => call.path), [
     `/v1/stores/${STORE_ID}/fulfillments`,
     `/v1/stores/${STORE_ID}/fulfillments`,

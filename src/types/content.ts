@@ -289,6 +289,13 @@ export interface GetCollectionByKeyParams {
   key: string;
 }
 
+export interface FindCollectionEntryPageParams {
+  store_id: string;
+  id: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
 export interface GetCollectionCleanupParams {
   store_id: string;
   id: string;
@@ -393,6 +400,12 @@ export interface GetEntryParams {
   id: string;
 }
 
+export interface GetEntryByKeyParams {
+  store_id: string;
+  collection_id: string;
+  key: string;
+}
+
 export interface CreateEntryParams {
   store_id: string;
   id: string;
@@ -429,6 +442,8 @@ export interface CreatePrivateCollectionParams extends CreateCollectionParams {
 
 export interface GetPrivateCollectionParams extends GetCollectionParams {}
 
+export interface GetPrivateCollectionByKeyParams extends GetCollectionByKeyParams {}
+
 export interface UpdatePrivateCollectionParams extends UpdateCollectionParams {}
 
 export interface DeletePrivateCollectionParams extends DeleteCollectionParams {}
@@ -437,6 +452,7 @@ export interface FindPrivateEntriesParams {
   store_id: string;
   collection_id: string;
   owner?: EntryOwner;
+  status?: PrivateEntryStatus["type"];
   limit?: number;
   cursor?: string | null;
 }
@@ -506,6 +522,11 @@ export interface FindCategoriesParams {
 export interface GetCategoryParams {
   store_id: string;
   id: string;
+}
+
+export interface GetCategoryByKeyParams {
+  store_id: string;
+  key: string;
 }
 
 export type StorefrontGetCategoryParams = { id: string } | { slug: string };

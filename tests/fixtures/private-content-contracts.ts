@@ -71,7 +71,7 @@ export type PrivateContentContracts = [
   Assert<Equal<PrivateEntryEditableStatus, { type: "active" } | { type: "draft" } | { type: "archived" }>>,
   Assert<Missing<CreateEntryParams, "type">>,
   Assert<Equal<FindPrivateEntriesParams["owner"], EntryOwner | undefined>>,
-  Assert<Equal<keyof FindPrivateEntriesParams, "store_id" | "collection_id" | "owner" | "limit" | "cursor">>,
+  Assert<Equal<keyof FindPrivateEntriesParams, "store_id" | "collection_id" | "owner" | "status" | "limit" | "cursor">>,
   Assert<Equal<keyof FindSharedEntriesParams, "collection_id" | "limit" | "cursor">>,
   Assert<Equal<Extract<AuditAction, { action: "entry_read" }>, { action: "entry_read"; collection_id: string; entry_id: string; owner: AuditEntryOwner }>>,
   Assert<Equal<Extract<AuditAction, { action: "entry_file_read" }>, { action: "entry_file_read"; collection_id: string; entry_id: string; media_id: string; owner: AuditEntryOwner }>>,

@@ -1,14 +1,14 @@
 import type { ApiConfig } from "../services/clientTypes";
 import type { RequestOptions } from "../types/api";
 import type { PaginatedResponse } from "../types/common";
-import type { ActOnRentalParams, FindRentalsParams, GetRentalParams, Rental, RentalDetail } from "../types/rental";
+import type { ActOnRentalParams, FindRentalsParams, GetRentalParams, Rental, RentalDetail, RentalListItem } from "../types/rental";
 import { requireId } from "../utils/ids";
 import { storePath, storeRecordPath } from "./paths";
 
 export const createRentalApi = (apiConfig: ApiConfig) => ({
-  find(params: FindRentalsParams, options?: RequestOptions): Promise<PaginatedResponse<Rental>> {
+  find(params: FindRentalsParams, options?: RequestOptions): Promise<PaginatedResponse<RentalListItem>> {
     const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<PaginatedResponse<Rental>>(storePath(store_id, "rentals"), { ...options, params: query });
+    return apiConfig.httpClient.get<PaginatedResponse<RentalListItem>>(storePath(store_id, "rentals"), { ...options, params: query });
   },
 
   get(params: GetRentalParams, options?: RequestOptions): Promise<RentalDetail> {

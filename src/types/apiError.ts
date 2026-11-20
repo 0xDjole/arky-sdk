@@ -34,7 +34,6 @@ export interface ArkyApiErrorDetails {
   response?: unknown;
   method?: string;
   url?: string;
-  requestId?: string;
 }
 
 export class ArkyApiError extends ArkyError {
@@ -44,7 +43,6 @@ export class ArkyApiError extends ArkyError {
   readonly response: unknown;
   readonly method: string | undefined;
   readonly url: string | undefined;
-  readonly requestId: string | undefined;
   readonly [apiErrorBrand] = true;
 
   static [Symbol.hasInstance](value: unknown): boolean {
@@ -58,7 +56,6 @@ export class ArkyApiError extends ArkyError {
     this.response = details.response;
     this.method = details.method;
     this.url = details.url;
-    this.requestId = details.requestId;
   }
 }
 

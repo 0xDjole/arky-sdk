@@ -12,9 +12,16 @@ import type {
   DeleteBookingOfferingParams,
   DeleteBookingResourceParams,
   DeleteBookingServiceParams,
+  FindAllBookingOfferingsParams,
+  FindAllBookingResourcesParams,
+  FindAllBookingServicesParams,
+  FindBlockTargetBookingServicesParams,
   FindBookingOfferingsParams,
   FindBookingResourcesParams,
   FindBookingServicesParams,
+  FindCategoryBookingResourcesParams,
+  FindResourceBookingOfferingsParams,
+  FindServiceBookingOfferingsParams,
   GetAvailabilityParams,
   GetBookingOfferingParams,
   GetBookingResourceByKeyParams,
@@ -35,6 +42,20 @@ export const createBookingServiceApi = (apiConfig: ApiConfig) => ({
       ...options,
       params: query,
     });
+  },
+
+  findAll(params: FindAllBookingServicesParams, options?: RequestOptions): Promise<PaginatedResponse<BookingService>> {
+    return apiConfig.httpClient.get<PaginatedResponse<BookingService>>(storePath(params.store_id, "booking-services/all"), {
+      ...options,
+      params: { limit: params.limit, cursor: params.cursor },
+    });
+  },
+
+  findByBlockTarget(params: FindBlockTargetBookingServicesParams, options?: RequestOptions): Promise<PaginatedResponse<BookingService>> {
+    return apiConfig.httpClient.get<PaginatedResponse<BookingService>>(
+      storePath(params.store_id, `booking-services/by-block-target/${segment(requireId(params.block_target_id, "block target"))}`),
+      { ...options, params: { limit: params.limit, cursor: params.cursor } },
+    );
   },
 
   get(params: GetBookingServiceParams, options?: RequestOptions): Promise<BookingService> {
@@ -89,6 +110,20 @@ export const createBookingResourceApi = (apiConfig: ApiConfig) => ({
     });
   },
 
+  findAll(params: FindAllBookingResourcesParams, options?: RequestOptions): Promise<PaginatedResponse<BookingResource>> {
+    return apiConfig.httpClient.get<PaginatedResponse<BookingResource>>(storePath(params.store_id, "booking-resources/all"), {
+      ...options,
+      params: { limit: params.limit, cursor: params.cursor },
+    });
+  },
+
+  findByCategory(params: FindCategoryBookingResourcesParams, options?: RequestOptions): Promise<PaginatedResponse<BookingResource>> {
+    return apiConfig.httpClient.get<PaginatedResponse<BookingResource>>(
+      storePath(params.store_id, `booking-resources/by-category/${segment(requireId(params.category_id, "category"))}`),
+      { ...options, params: { limit: params.limit, cursor: params.cursor } },
+    );
+  },
+
   get(params: GetBookingResourceParams, options?: RequestOptions): Promise<BookingResource> {
     return apiConfig.httpClient.get<BookingResource>(
       storeRecordPath(params.store_id, "booking-resources", params.id),
@@ -131,6 +166,27 @@ export const createBookingOfferingApi = (apiConfig: ApiConfig) => ({
       ...options,
       params: query,
     });
+  },
+
+  findAll(params: FindAllBookingOfferingsParams, options?: RequestOptions): Promise<PaginatedResponse<BookingOffering>> {
+    return apiConfig.httpClient.get<PaginatedResponse<BookingOffering>>(storePath(params.store_id, "booking-offerings/all"), {
+      ...options,
+      params: { limit: params.limit, cursor: params.cursor },
+    });
+  },
+
+  findByService(params: FindServiceBookingOfferingsParams, options?: RequestOptions): Promise<PaginatedResponse<BookingOffering>> {
+    return apiConfig.httpClient.get<PaginatedResponse<BookingOffering>>(
+      storePath(params.store_id, `booking-offerings/by-service/${segment(requireId(params.booking_service_id, "booking service"))}`),
+      { ...options, params: { limit: params.limit, cursor: params.cursor } },
+    );
+  },
+
+  findByResource(params: FindResourceBookingOfferingsParams, options?: RequestOptions): Promise<PaginatedResponse<BookingOffering>> {
+    return apiConfig.httpClient.get<PaginatedResponse<BookingOffering>>(
+      storePath(params.store_id, `booking-offerings/by-resource/${segment(requireId(params.booking_resource_id, "booking resource"))}`),
+      { ...options, params: { limit: params.limit, cursor: params.cursor } },
+    );
   },
 
   get(params: GetBookingOfferingParams, options?: RequestOptions): Promise<BookingOffering> {

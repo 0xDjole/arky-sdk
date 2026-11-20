@@ -2,6 +2,7 @@ import { createAdmin, epochMilliseconds, initialize } from "arky-sdk";
 import type {
   AlertRecipient,
   AuditAction,
+  CustomerAuthenticationSnapshot,
   CustomerScope,
   EmailContact,
   EpochMilliseconds,
@@ -200,6 +201,7 @@ export type FormContracts = [
   Assert<RequiredField<ChangeFormSubmissionStageParams, "note">>,
   Assert<Equal<FormStatus["type"], "active" | "draft" | "closed">>,
   Assert<Equal<NonNullable<FindFormsParams["status"]>, FormStatus["type"]>>,
+  Assert<Equal<NonNullable<FindFormsParams["type"]>, FormType>>,
   Assert<Equal<NonNullable<UpdateFormParams["status"]>, FormStatus>>,
   Assert<Equal<NonNullable<FindFormSubmissionsParams["sort_field"]>, "created_at">>,
   Assert<Equal<NonNullable<FindFormSubmissionsParams["select"]>[number], { question_id: string; option_keys: string[] }>>,
@@ -225,6 +227,8 @@ export type FormContracts = [
   Assert<Equal<Extract<AuditAction, { action: "form_submission_read" }>, { action: "form_submission_read"; form_id: string; form_submission_id: string; customer_id: string }>>,
   Assert<Equal<Extract<AuditAction, { action: "form_submission_file_read" }>, { action: "form_submission_file_read"; form_submission_id: string; customer_id: string; sha256: string }>>,
   Assert<Equal<Extract<AuditAction, { action: "form_submission_list_read" }>, { action: "form_submission_list_read" }>>,
+  Assert<Equal<CustomerAuthenticationSnapshot, { type: "visitor" } | { type: "signed_in"; authenticated_at: EpochMilliseconds }>>,
+  Assert<Equal<Extract<FormSubmissionSource, { type: "storefront" }>["authentication"], CustomerAuthenticationSnapshot>>,
 ];
 
 void [page, read, readById, created, edited, submissions, staffCreated, staged, deleted, noted, notes, noteEdit, withEmails,

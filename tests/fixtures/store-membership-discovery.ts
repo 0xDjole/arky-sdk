@@ -26,7 +26,6 @@ import type {
   StoreMemberAccount,
   StoreMemberProfile,
   FindStoreMemberDirectoryParams,
-  TransferStoreOwnershipParams,
   UpdateStoreMemberLocationsParams,
   UpdateStoreMemberRolesParams,
   WithheldStorePermission,
@@ -34,7 +33,7 @@ import type {
   BookingResource,
 } from "arky-sdk";
 import type { createAdmin } from "arky-sdk/admin";
-import type { EmailContact, EpochMilliseconds } from "arky-sdk";
+import type { CreateStoreAgreementInput, EmailContact, EpochMilliseconds } from "arky-sdk";
 
 type Assert<T extends true> = T;
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
@@ -80,7 +79,6 @@ export type MembershipDiscoveryContracts = [
   Assert<RequiredField<InviteStoreMemberParams, "id">>,
   Assert<Equal<Parameters<Admin["store"]["member"]["resendInvite"]>[0], ResendStoreInviteParams>>,
   Assert<RequiredField<RemoveStoreMemberParams, "expected_updated_at">>,
-  Assert<RequiredField<TransferStoreOwnershipParams, "expected_updated_at">>,
   Assert<Missing<InviteStoreMemberParams, "access" | "role" | "email">>,
   Assert<Equal<InviteStoreMemberParams["contact"], EmailContact>>,
   Assert<Equal<StorePermission["type"], "admin" | "payments" | "packages" | "orders" | "customers" | "fulfillment" | "inventory" | "marketing" | "public_collections" | "private_collections" | "customer_entries" | "private_forms" | "bookings" | "booking_resources" | "booking_services" | "conversations" | "support" | "email" | "analytics" | "calls">>,
@@ -96,16 +94,19 @@ export type MembershipDiscoveryContracts = [
   Assert<Equal<LocationReach, { type: "all" } | { type: "ids"; store_location_ids: string[] }>>,
   Assert<Missing<StoreRole, "status">>,
   Assert<Equal<keyof Admin["store"]["role"], "create" | "update" | "get" | "find" | "delete">>,
-  Assert<Equal<Parameters<Admin["store"]["member"]["transferOwnership"]>[0], TransferStoreOwnershipParams>>,
-  Assert<Equal<ReturnType<Admin["store"]["member"]["transferOwnership"]>, Promise<Store>>>,
   Assert<Equal<Parameters<Admin["store"]["member"]["changeStatus"]>[0], ChangeStoreMemberStatusParams>>,
   Assert<Equal<ReturnType<Admin["store"]["member"]["changeStatus"]>, Promise<StoreMembership>>>,
   Assert<Equal<ChangeStoreMemberStatusParams["status"], StoreMembershipEditableStatus>>,
   Assert<Equal<StoreMembershipEditableStatus, { type: "active" } | { type: "disabled" }>>,
-  Assert<Equal<StoreMembershipStatus, { type: "invited"; contact: EmailContact } | { type: "active"; account_id: string } | { type: "disabled"; account_id: string }>>,
+  Assert<Equal<StoreMembershipStatus, { type: "invited"; contact: EmailContact } | { type: "owner_invited"; contact: EmailContact } | { type: "active"; account_id: string } | { type: "disabled"; account_id: string }>>,
+  Assert<Missing<Admin["store"]["member"], "transferOwnership">>,
   Assert<Equal<Parameters<Admin["store"]["member"]["acceptInvite"]>[0], AcceptStoreInviteParams>>,
+  Assert<Equal<AcceptStoreInviteParams["agreement"], CreateStoreAgreementInput | undefined>>,
   Assert<Equal<ReturnType<Admin["store"]["member"]["acceptInvite"]>, Promise<StoreMembership>>>,
-  Assert<Equal<keyof AcceptStoreInviteParams, "store_id" | "expected_updated_at">>,
+  Assert<Equal<keyof AcceptStoreInviteParams, "store_id" | "expected_updated_at" | "agreement">>,
+  Assert<Equal<Parameters<Admin["store"]["member"]["find"]>[0]["status"], "active" | "disabled" | "invited" | undefined>>,
+  Assert<Equal<Parameters<Admin["store"]["member"]["find"]>[0]["role_id"], string | undefined>>,
+  Assert<Equal<Parameters<Admin["store"]["member"]["find"]>[0]["account_id"], string | undefined>>,
   Assert<Equal<Parameters<Admin["store"]["pauseEmailSending"]>[0], PauseStoreEmailSendingParams>>,
   Assert<Equal<keyof PauseStoreEmailSendingParams, "store_id" | "expected_updated_at" | "reason">>,
   Assert<Equal<Parameters<Admin["store"]["allowEmailSending"]>[0], AllowStoreEmailSendingParams>>,

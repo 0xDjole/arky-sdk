@@ -5,7 +5,6 @@ import type {
   AvailabilityResponse,
   BookingResourceAvailability,
   GetStorefrontAvailabilityParams,
-  StorefrontBookingResource,
   StorefrontBookingService,
 } from "../types/product";
 import { ArkyError } from "../types/apiError";
@@ -15,6 +14,7 @@ import { epochMilliseconds, epochMillisecondsToDate } from "../utils/time";
 import { buyerParty, type CartStore } from "./cart";
 import type {
   ArkyAddSlotToCartParams,
+  ArkyBookingCalendarResource,
   ArkyBookingCalendarState,
   ArkyBookingSlot,
   ArkyCalendarDay,
@@ -40,7 +40,7 @@ export interface BookingCalendarContext {
 }
 
 const choicesPerRead = 100;
-const offeringsPerRead = 1;
+const offeringsPerRead = 20;
 const dayMilliseconds = 24 * 60 * 60 * 1_000;
 
 function firstOfMonth(date: Date): Date {
@@ -67,8 +67,17 @@ function emptyState(): ArkyBookingCalendarState {
   };
 }
 
-function mergeResources(current: StorefrontBookingResource[], added: StorefrontBookingResource[]): StorefrontBookingResource[] {
+function mergeResources(current: ArkyBookingCalendarResource[], added: ArkyBookingCalendarResource[]): ArkyBookingCalendarResource[] {
   return [...new Map([...current, ...added].map((resource) => [resource.id, resource])).values()];
+}
+
+function resourcesOf(availability: AvailabilityResponse): ArkyBookingCalendarResource[] {
+  return availability.booking_resources.map((row) => ({
+    id: row.booking_resource_id,
+    key: row.resource_key,
+    blocks: row.resource_blocks,
+    timezone: row.timezone,
+  }));
 }
 
 function mergeChoices(current: StorefrontPackageItemPrice[], added: StorefrontPackageItemPrice[]): StorefrontPackageItemPrice[] {
@@ -285,9 +294,7 @@ export function createBookingCalendar(context: BookingCalendarContext, cart: Car
           ...(current.selected_booking_resource_id ? { booking_resource_id: current.selected_booking_resource_id } : {}),
         });
         if (stale()) return;
-        const resources = await readResources(page);
-        if (stale()) return;
-        patch({ booking_resources: mergeResources(state.get().booking_resources, resources) });
+        patch({ booking_resources: mergeResources(state.get().booking_resources, resourcesOf(page)) });
         availability =
           availability === null
             ? page
@@ -299,21 +306,6 @@ export function createBookingCalendar(context: BookingCalendarContext, cart: Car
     } finally {
       if (!stale()) patch({ loading: false });
     }
-  }
-
-  async function readResources(availability: AvailabilityResponse): Promise<StorefrontBookingResource[]> {
-    const known = new Set(state.get().booking_resources.map((resource) => resource.id));
-    const missing = new Map<string, string>();
-    for (const resource of availability.booking_resources) {
-      if (!known.has(resource.booking_resource_id)) missing.set(resource.booking_resource_id, resource.booking_offering_id);
-    }
-    const read = await Promise.all(
-      [...missing].map(([id, offeringId]) => client.eshop.bookingResource.get({ ...shopPackage, id, offering_id: offeringId })),
-    );
-    for (const resource of read) {
-      if (!missing.has(resource.id)) throw new ArkyError("answer_mismatch", "A booking resource read answered another resource");
-    }
-    return read;
   }
 
   async function readChoices(packageItemId: string, cursor: string | null) {

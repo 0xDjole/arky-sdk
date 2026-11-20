@@ -80,6 +80,7 @@ export type AuditSubjectType =
   | "customer_session"
   | "incoming_webhook"
   | "store_subscription"
+  | "store_plan_charge"
   | "account"
   | "account_session";
 
@@ -195,6 +196,7 @@ export type AuditAction =
   | { action: "order_payment_received"; order_id: string }
   | { action: "refund_created"; order_id: string; payment_id: string; refund_id: string }
   | { action: "order_cancelled"; order_id: string }
+  | { action: "order_receipt_resend_requested"; order_id: string }
   | { action: "order_product_line_item_updated"; order_id: string; order_product_line_item_id: string }
   | { action: "order_product_line_item_cancelled"; order_id: string; order_product_line_item_id: string }
   | { action: "order_booking_line_item_created"; order_id: string; order_booking_line_item_id: string }
@@ -205,6 +207,7 @@ export type AuditAction =
   | { action: "order_booking_line_item_in_progress"; order_id: string; order_booking_line_item_id: string }
   | { action: "order_booking_line_item_no_show"; order_id: string; order_booking_line_item_id: string }
   | { action: "order_booking_line_item_cancelled"; order_id: string; order_booking_line_item_id: string }
+  | { action: "order_booking_line_item_reminder_requested"; order_id: string; order_booking_line_item_id: string; notification_id: string }
   | { action: "payment_created"; payment_id: string }
   | { action: "payment_updated"; payment_id: string }
   | { action: "payment_paid"; payment_id: string }
@@ -276,6 +279,7 @@ export type AuditAction =
   | { action: "fiscal_device_token_revoked"; fiscal_device_id: string; fiscal_device_token_id: string }
   | { action: "fiscal_receipt_copied"; fiscal_receipt_id: string }
   | { action: "fiscal_receipt_corrected"; fiscal_receipt_id: string }
+  | { action: "fiscal_receipt_delivery_requested"; fiscal_receipt_id: string }
   | { action: "fiscal_receipt_settled"; fiscal_receipt_id: string }
   | { action: "fiscal_receipts_issued"; order_id: string }
   | { action: "template_created"; template_id: string }
@@ -325,7 +329,7 @@ export type AuditAction =
   | { action: "order_credit_created"; order_id: string; order_credit_id: string }
   | { action: "order_credit_voided"; order_id: string; order_credit_id: string; reason: string }
   | { action: "invoice_issued"; order_id: string }
-  | { action: "invoice_reissued"; invoice_id: string }
+  | { action: "invoice_reissued"; order_id: string; invoice_id: string; reversal_id: string; new_invoice_id: string }
   | { action: "outside_invoice_attached"; order_id: string }
   | { action: "outside_invoice_detached"; invoice_id: string }
   | { action: "outside_credit_note_attached"; invoice_id: string }
@@ -354,6 +358,7 @@ export type AuditAction =
   | { action: "incoming_webhook_ignored"; incoming_webhook_id: string }
   | { action: "store_subscription_created"; store_subscription_id: string }
   | { action: "store_subscription_updated"; store_subscription_id: string }
+  | { action: "store_plan_charge_settled"; store_plan_charge_id: string }
   | { action: "account_session_revoked"; account_id: string; account_session_id: string };
 
 export type AuditResult = "allowed" | "refused";

@@ -41,6 +41,42 @@ test("same caller-picked visitor identities share a request without sending cont
   assert.equal("captureEmail" in storefront.customer, false);
 });
 
+test("the Admin customer list reads the holders of one contact email or number as a Tito page with its cursor", async (context) => {
+  const calls = recordFetch(context, (_call, count) => ({ items: [], cursor: count === 1 ? "holders:2" : null }));
+  const admin = createAdmin({ apiUrl: baseUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
+  assert.deepEqual(await admin.customers.find({ store_id: storeId, contact_email: "buyer@example.test", limit: 2 }), { items: [], cursor: "holders:2" });
+  await admin.customers.find({ store_id: storeId, contact_email: "buyer@example.test", limit: 2, cursor: "holders:2" });
+  await admin.customers.find({ store_id: storeId, contact_number: "+38761123456" });
+  assert.deepEqual(calls.map((call) => [call.method, call.path, call.query]), [
+    ["GET", `/v1/stores/${storeId}/customers`, { contact_email: "buyer@example.test", limit: "2" }],
+    ["GET", `/v1/stores/${storeId}/customers`, { contact_email: "buyer@example.test", limit: "2", cursor: "holders:2" }],
+    ["GET", `/v1/stores/${storeId}/customers`, { contact_number: "+38761123456" }],
+  ]);
+});
+
+test("the Admin customer list sorts by name, filters on the customers' blocks and on dates in their profile", async (context) => {
+  const calls = recordFetch(context, () => ({ items: [], cursor: null }));
+  const admin = createAdmin({ apiUrl: baseUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
+  const filters = [
+    { type: "date", key: "visit", operation: "greater_than_or_equal", value: "2026-01-01" },
+    { type: "boolean", key: "vip", value: true },
+  ];
+  const born = [
+    { type: "date", key: "birth_date", operation: "greater_than_or_equal", value: "1980-01-01" },
+    { type: "date", key: "birth_date", operation: "less_than", value: "1990-01-01" },
+  ];
+  await admin.customers.find({ store_id: storeId, filters, sort_field: "name", sort_direction: "asc", limit: 20 });
+  await admin.customers.find({ store_id: storeId, profile_filters: born });
+  const archived = [{ type: "absent", key: "archived_at" }, { type: "text", key: "doctor", values: ["ana"] }];
+  const unborn = [{ type: "absent", key: "birth_date" }];
+  await admin.customers.find({ store_id: storeId, filters: archived, profile_filters: unborn });
+  assert.deepEqual(calls.map((call) => [call.method, call.path, call.query]), [
+    ["GET", `/v1/stores/${storeId}/customers`, { filters: JSON.stringify(filters), sort_field: "name", sort_direction: "asc", limit: "20" }],
+    ["GET", `/v1/stores/${storeId}/customers`, { profile_filters: JSON.stringify(born) }],
+    ["GET", `/v1/stores/${storeId}/customers`, { filters: JSON.stringify(archived), profile_filters: JSON.stringify(unborn) }],
+  ]);
+});
+
 test("Admin Customer commands send profile blocks, address changes and explicit staff merge versions", async (context) => {
   const calls = recordFetch(context, (call) => call.method === "GET" && call.path.endsWith("/customers") ? { items: [], cursor: null } : customerRecord());
   const admin = createAdmin({ apiUrl: baseUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
@@ -79,7 +115,7 @@ test("Admin contact commands add, change with PUT and remove a contact by its ad
   const calls = recordFetch(context, (call) => {
     if (call.method === "GET") return [invite];
     if (call.path.endsWith("/invites")) return invite;
-    return customerRecord(customerId, { contacts: [{ type: "unconfirmed_phone", number: address.number, language: "bs", sms: { type: "off" } }] });
+    return customerRecord(customerId, { contacts: [{ type: "unconfirmed_phone", number: address.number, language: "bs", sms: { type: "off", at: 3 } }] });
   });
   const admin = createAdmin({ apiUrl: baseUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   const base = `/v1/stores/${storeId}/customers/${customerId}`;

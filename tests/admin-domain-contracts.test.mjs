@@ -243,7 +243,7 @@ test('a refused account token keeps the native snake_case failure without refres
       assert.equal(error.message, response.message);
       assert.equal(error.statusCode, 401);
       assert.equal(error.code, 'GENERAL.UNAUTHENTICATED');
-      assert.equal(error.requestId, 'native-auth-rejection');
+      assert.equal('requestId' in error, false);
       assert.deepEqual(error.validationErrors, []);
       assert.deepEqual(error.response, response);
       return true;
@@ -359,7 +359,7 @@ test('a 401 that Arky did not send on a request never rotates the Account sessio
     return new Response('<html><title>401 Authorization Required</title></html>', { status: 401, headers: { 'content-type': 'text/html' } });
   });
   const admin = createAdmin({ apiUrl: 'https://api.example.test' });
-  await assert.rejects(admin.store.find({ limit: 10 }), (error) => error.statusCode === 401 && error.code === 'REQUEST_FAILED');
+  await assert.rejects(admin.store.find({ limit: 10 }), (error) => error.name === 'ParseError' && error.statusCode === 401 && error.code === 'unreadable_answer');
   assert.deepEqual(calls, ['/v1/stores']);
   assert.equal(storage.getItem('arky_admin_session:https://api.example.test'), retainedAdminSession);
 });

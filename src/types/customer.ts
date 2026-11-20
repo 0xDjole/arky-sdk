@@ -1,7 +1,7 @@
 import type { EpochMilliseconds } from "./time";
 import type { AccountActor, EmailContact, PostalAddress, PostalAddressInput, SortDirection } from "./common";
 import type { LoginAddress, LoginContact } from "./account";
-import type { Block } from "./block";
+import type { Block, BlockQuery } from "./block";
 import type { ApiErrorResponse } from "./apiError";
 import type { PrivateEntry, PrivateFileLink } from "./content";
 import type { FormSubmission, FormSubmissionFileLink } from "./forms";
@@ -21,7 +21,7 @@ export type ConsentGiver =
   | { type: "account"; actor: AccountActor }
   | { type: "assistant"; conversation_message_id: string };
 
-export type SmsConsent = { type: "off" } | { type: "on"; at: EpochMilliseconds; by: ConsentGiver };
+export type SmsConsent = { type: "off"; at: EpochMilliseconds } | { type: "on"; at: EpochMilliseconds; by: ConsentGiver };
 
 export type SmsConsentChoice = "off" | "on";
 
@@ -50,8 +50,7 @@ export type CustomerLink = { type: "own" };
 
 export type CustomerInviteStatus =
   | { type: "active" }
-  | { type: "superseded" }
-  | { type: "revoked"; revoked_at: EpochMilliseconds };
+  | { type: "superseded" };
 
 export interface CustomerInvite {
   id: string;
@@ -328,18 +327,65 @@ export interface GetCustomerParams {
 
 export interface EraseCustomerParams { store_id: string; id: string; expected_updated_at: EpochMilliseconds }
 
-export interface FindCustomersParams {
+export type CustomerBlockAbsence = { type: "absent"; key: string };
+
+export type CustomerBlockFilter = CustomerBlockAbsence | BlockQuery;
+
+export interface FindCustomersBySearchParams {
   store_id: string;
   ids?: string[];
   query?: string;
+  filters?: CustomerBlockFilter[];
+  profile_filters?: (CustomerBlockAbsence | Extract<BlockQuery, { type: "date" }>)[];
   verified?: boolean;
   has_customer_action?: boolean;
   has_cart?: boolean;
-  sort_field?: "id" | "email" | "created_at" | "updated_at";
+  sort_field?: "id" | "email" | "name" | "created_at" | "updated_at";
   sort_direction?: SortDirection;
+  contact_email?: never;
+  contact_number?: never;
   limit?: number;
   cursor?: string | null;
 }
+
+export interface FindCustomersByContactEmailParams {
+  store_id: string;
+  contact_email: string;
+  contact_number?: never;
+  ids?: never;
+  query?: never;
+  filters?: never;
+  profile_filters?: never;
+  verified?: never;
+  has_customer_action?: never;
+  has_cart?: never;
+  sort_field?: never;
+  sort_direction?: never;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface FindCustomersByContactNumberParams {
+  store_id: string;
+  contact_number: string;
+  contact_email?: never;
+  ids?: never;
+  query?: never;
+  filters?: never;
+  profile_filters?: never;
+  verified?: never;
+  has_customer_action?: never;
+  has_cart?: never;
+  sort_field?: never;
+  sort_direction?: never;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export type FindCustomersParams =
+  | FindCustomersBySearchParams
+  | FindCustomersByContactEmailParams
+  | FindCustomersByContactNumberParams;
 
 export interface ImportCustomerRow { customer_id: string; profile: Block[]; blocks: Block[] }
 

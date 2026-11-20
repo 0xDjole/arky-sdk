@@ -138,6 +138,7 @@ export interface FulfillmentJob {
   type: FulfillmentJobType;
   method: FulfillmentJobMethod;
   holds: FulfillmentHold[];
+  order_number: string | null;
   contact: FulfillmentJobContact;
   place_of_sale: FulfillmentJobPlaceOfSale;
   status: FulfillmentJobStatus;
@@ -278,7 +279,7 @@ export interface PickupCash {
 
 export interface FindFulfillmentJobsParams {
   store_id: string;
-  order_id?: string;
+  order_ids?: string[];
   rental_id?: string;
   store_location_id?: string;
   hold?: FulfillmentHoldReason["type"];
@@ -299,7 +300,7 @@ export interface GetFulfillmentParams {
 
 export interface FindFulfillmentsParams {
   store_id: string;
-  order_id?: string;
+  order_ids?: string[];
   fulfillment_job_id?: string;
   rental_id?: string;
   limit?: number;
@@ -386,6 +387,8 @@ export interface CustomerOrderFulfillment {
 
 export interface FindCustomerOrderFulfillmentsParams {
   order_id: string;
+  limit?: number;
+  cursor?: string | null;
 }
 
 export type MinimumProgressUnavailableReason =

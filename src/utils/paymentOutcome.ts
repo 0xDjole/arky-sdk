@@ -1,8 +1,8 @@
-import type { StorefrontPayment } from "../types/payment";
+import type { Payment, StorefrontPayment } from "../types/payment";
 
 export type PaymentOutcome = "paid" | "awaiting" | "unconfirmed" | "failed";
 
-export function paymentOutcome(payment: StorefrontPayment): PaymentOutcome {
+export function paymentOutcome(payment: Payment | StorefrontPayment): PaymentOutcome {
   switch (payment.status) {
     case "paid":
       return "paid";
@@ -22,7 +22,7 @@ export function paymentOutcome(payment: StorefrontPayment): PaymentOutcome {
   }
 }
 
-export function latestPayment<P extends StorefrontPayment>(payments: readonly P[]): P | null {
+export function latestPayment<P extends Payment | StorefrontPayment>(payments: readonly P[]): P | null {
   return payments.reduce<P | null>(
     (latest, payment) => (latest === null || payment.created_at > latest.created_at ? payment : latest),
     null,

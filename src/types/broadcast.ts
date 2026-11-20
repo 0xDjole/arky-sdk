@@ -74,12 +74,32 @@ export interface Broadcast {
   updated_at: EpochMilliseconds;
 }
 
+export type BroadcastSummaryStatus =
+  | { type: "draft" }
+  | { type: "scheduled"; send_at: EpochMilliseconds }
+  | { type: "sending"; started_at: EpochMilliseconds }
+  | { type: "sent"; started_at: EpochMilliseconds; recipient_count: number };
+
+export type BroadcastSummaryType =
+  | { type: "email"; email: Email; audience: BroadcastAudience; status: BroadcastSummaryStatus }
+  | { type: "sms"; sms_template_id: string; audience: BroadcastAudience; status: BroadcastSummaryStatus };
+
+export interface BroadcastSummary {
+  id: string;
+  store_id: string;
+  key: string;
+  type: BroadcastSummaryType;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+}
+
 export type BroadcastPreview =
   | { type: "email"; language: string; subject: string; html: string; text: string }
   | { type: "sms"; language: string; text: string };
 
-export interface FindBroadcastsParams {
+export interface FindBroadcastsBySearchParams {
   store_id: string;
+  ids?: never;
   type?: BroadcastTypeName;
   query?: string;
   status?: BroadcastStatusName;
@@ -88,6 +108,20 @@ export interface FindBroadcastsParams {
   limit?: number;
   cursor?: string | null;
 }
+
+export interface FindBroadcastsByIdsParams {
+  store_id: string;
+  ids: string[];
+  type?: never;
+  query?: never;
+  status?: never;
+  sort_field?: never;
+  sort_direction?: never;
+  limit?: never;
+  cursor?: never;
+}
+
+export type FindBroadcastsParams = FindBroadcastsBySearchParams | FindBroadcastsByIdsParams;
 
 export interface GetBroadcastParams {
   store_id: string;

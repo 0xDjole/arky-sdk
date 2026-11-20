@@ -7,7 +7,7 @@ import type {
   StorefrontRecordedRefund,
   StorefrontStripeRefund,
   StripeDispute,
-  StripeRefund,
+  StripePaymentRefund,
 } from "../types/payment";
 
 export interface PaymentAmounts {
@@ -22,10 +22,13 @@ function paid(payment: Payment | StorefrontPayment): number {
   const type = payment.type;
   switch (type.type) {
     case "stripe_checkout":
-    case "stripe_card":
       return type.status.type === "paid" ? type.status.amount : 0;
+    case "stripe_card":
+      if (type.status.type === "paid") return type.status.amount;
+      return type.status.type === "confirmed_made" ? payment.money.amount : 0;
     case "monri_checkout":
-      return type.status.type === "paid" ? type.status.transaction.amount : 0;
+      if (type.status.type === "paid") return type.status.transaction.amount;
+      return type.status.type === "confirmed_made" ? payment.money.amount : 0;
     case "monri_card":
       if (type.status.type === "paid") return type.status.transaction.amount;
       return type.status.type === "confirmed_made" ? payment.money.amount : 0;
@@ -35,7 +38,7 @@ function paid(payment: Payment | StorefrontPayment): number {
 }
 
 export type PaymentRefundView =
-  | { type: "stripe"; refund: StripeRefund | StorefrontStripeRefund }
+  | { type: "stripe"; refund: StripePaymentRefund | StorefrontStripeRefund }
   | { type: "monri"; refund: MonriRefund | StorefrontMonriRefund }
   | { type: "recorded"; refund: RecordedRefund | StorefrontRecordedRefund };
 

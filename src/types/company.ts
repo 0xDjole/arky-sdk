@@ -204,8 +204,11 @@ export interface DeleteCompanyParams {
   expected_updated_at: EpochMilliseconds;
 }
 
-export interface FindCompaniesParams {
+export interface FindCompaniesBySearchParams {
   store_id: string;
+  ids?: never;
+  tax_registration_country?: never;
+  tax_registration_identifier?: never;
   query?: string;
   status?: CompanyStatus["type"];
   sort_field?: "created_at" | "updated_at";
@@ -213,6 +216,34 @@ export interface FindCompaniesParams {
   limit?: number;
   cursor?: string | null;
 }
+
+export interface FindCompaniesByIdsParams {
+  store_id: string;
+  ids: string[];
+  tax_registration_country?: never;
+  tax_registration_identifier?: never;
+  query?: never;
+  status?: never;
+  sort_field?: never;
+  sort_direction?: never;
+  limit?: never;
+  cursor?: never;
+}
+
+export interface FindCompaniesByTaxRegistrationParams {
+  store_id: string;
+  ids?: never;
+  tax_registration_country: string;
+  tax_registration_identifier: string;
+  query?: never;
+  status?: never;
+  sort_field?: never;
+  sort_direction?: never;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export type FindCompaniesParams = FindCompaniesBySearchParams | FindCompaniesByIdsParams | FindCompaniesByTaxRegistrationParams;
 
 export interface CreateCompanyLocationParams {
   store_id: string;
@@ -287,12 +318,23 @@ export interface DeleteCompanyLocationParams {
   expected_updated_at: EpochMilliseconds;
 }
 
-export interface FindCompanyLocationsParams {
+export interface FindCompanyLocationsByCompanyParams {
   store_id: string;
+  ids?: never;
   company_id?: string;
   limit?: number;
   cursor?: string | null;
 }
+
+export interface FindCompanyLocationsByIdsParams {
+  store_id: string;
+  ids: string[];
+  company_id?: never;
+  limit?: never;
+  cursor?: never;
+}
+
+export type FindCompanyLocationsParams = FindCompanyLocationsByCompanyParams | FindCompanyLocationsByIdsParams;
 
 export interface StorefrontFindCompanyLocationsParams {
   company_id?: string;
@@ -399,14 +441,38 @@ export interface DeleteCompanyMembershipParams {
   expected_updated_at: EpochMilliseconds;
 }
 
-export interface FindCompanyMembershipsParams {
+export type FindCompanyMembershipsBySearchParams = {
   store_id: string;
-  company_id?: string;
-  customer_id?: string;
+  email?: never;
   role_id?: string;
   limit?: number;
   cursor?: string | null;
+} & ({ company_id?: string; customer_id?: never } | { company_id?: never; customer_id?: string });
+
+export interface FindCompanyMembershipByCustomerParams {
+  store_id: string;
+  company_id: string;
+  customer_id: string;
+  email?: never;
+  role_id?: never;
+  limit?: never;
+  cursor?: never;
 }
+
+export interface FindCompanyMembershipByEmailParams {
+  store_id: string;
+  company_id: string;
+  email: string;
+  customer_id?: never;
+  role_id?: never;
+  limit?: never;
+  cursor?: never;
+}
+
+export type FindCompanyMembershipsParams =
+  | FindCompanyMembershipsBySearchParams
+  | FindCompanyMembershipByCustomerParams
+  | FindCompanyMembershipByEmailParams;
 
 export interface StorefrontFindCompanyMembershipsParams {
   company_id?: string;

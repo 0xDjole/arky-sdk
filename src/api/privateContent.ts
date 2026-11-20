@@ -9,6 +9,7 @@ import type {
   FindPrivateCollectionsParams,
   FindPrivateEntriesParams,
   FindSharedEntriesParams,
+  GetPrivateCollectionByKeyParams,
   GetPrivateCollectionParams,
   GetPrivateEntryParams,
   GetSharedEntryParams,
@@ -41,6 +42,10 @@ export const createPrivateCollectionApi = (apiConfig: ApiConfig) => ({
 
   get(params: GetPrivateCollectionParams, options?: RequestOptions): Promise<PrivateCollection> {
     return apiConfig.httpClient.get<PrivateCollection>(storeRecordPath(params.store_id, "private-collections", params.id), options);
+  },
+
+  getByKey(params: GetPrivateCollectionByKeyParams, options?: RequestOptions): Promise<PrivateCollection> {
+    return apiConfig.httpClient.get<PrivateCollection>(storePath(params.store_id, `private-collections/by-key/${segment(params.key)}`), options);
   },
 
   create(params: CreatePrivateCollectionParams, options?: RequestOptions): Promise<PrivateCollection> {

@@ -26,12 +26,12 @@ function storefront() {
 }
 
 function storefrontConversation(state = "flow") {
-  return { id: conversationId, type: { type: "chat", language: "bs" }, subject: "", state, customer_read: { type: "unread" }, created_at: 1, updated_at: 1 };
+  return { id: conversationId, type: { type: "chat", language: "bs", subject: "" }, state, next_message_sequence: 1, customer_read: { type: "unread" }, created_at: 1, updated_at: 1 };
 }
 
 test("staff starts an email conversation for a contact with a reply selection and retained caller-picked IDs", async (context) => {
   const answer = {
-    conversation: { id: conversationId, subject: "Delivery", state: { type: "waiting_for_store", reason: "message", flow: { type: "none" } }, type: { type: "email", email: { contact, reply } } },
+    conversation: { id: conversationId, state: { type: "waiting_for_store", reason: "message", flow: { type: "none" } }, type: { type: "email", email: { contact, reply }, subject: "Delivery" } },
     message: { id: messageId },
   };
   const calls = recordFetch(context, () => answer);
@@ -135,8 +135,7 @@ test("conversation history pages its messages with the empty-page continuation, 
     store_id: STORE_ID,
     customer_id: ids.customer,
     assigned_account_id: null,
-    type: { type: "chat_and_email", chat_language: "bs", email: { contact, reply } },
-    subject: "Chat follow-up",
+    type: { type: "chat_and_email", chat_language: "bs", email: { contact, reply }, subject: "Chat follow-up" },
     state: { type: "waiting_for_store", reason: "message", flow: { type: "none" } },
     next_message_sequence: 2,
     customer_read: { type: "through", sequence: 1 },
@@ -524,4 +523,26 @@ test("a call's provider posts are paged for one login and resolved under their v
     await assert.rejects(async () => api.twilioPost.find({ store_id: STORE_ID, status: "review", ...login }), TypeError);
   }
   assert.equal(calls.length, 4);
+});
+
+test("the inbox lists unread or unassigned threads, and a history reads the messages after a sequence oldest first", async (context) => {
+  const calls = recordFetch(context, () => ({ items: [], cursor: null }));
+  await support().conversation.find({ store_id: STORE_ID, unread: true, unassigned: true, limit: 20 });
+  await support().conversation.find({ store_id: STORE_ID, unread: false, assigned_account_id: ids.account });
+  await support().conversation.findMessages({ store_id: STORE_ID, conversation_id: conversationId, after_sequence: 41, limit: 50 });
+  assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
+    ["GET", `/v1/stores/${STORE_ID}/conversations`, { unread: "true", unassigned: "true", limit: "20" }],
+    ["GET", `/v1/stores/${STORE_ID}/conversations`, { unread: "false", assigned_account_id: ids.account }],
+    ["GET", `/v1/stores/${STORE_ID}/conversations/${conversationId}/messages`, { after_sequence: "41", limit: "50" }],
+  ]);
+});
+
+test("a signed-in customer pages her chats and phone thread from Arky's own records, newest created first", async (context) => {
+  const calls = recordFetch(context, () => ({ items: [], cursor: null }));
+  assert.deepEqual(await storefront().support.conversation.findAll({ limit: 20, cursor: "threads:2" }), { items: [], cursor: null });
+  assert.deepEqual(await storefront().support.conversation.findMessages({ conversation_id: conversationId, after_sequence: 7 }), { items: [], cursor: null });
+  assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
+    ["GET", "/v1/storefront/conversations/all", { limit: "20", cursor: "threads:2" }],
+    ["GET", `/v1/storefront/conversations/${conversationId}/messages`, { after_sequence: "7" }],
+  ]);
 });

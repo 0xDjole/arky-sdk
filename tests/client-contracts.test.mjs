@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { createAdmin, SDK_VERSION } from "../dist/index.js";
+import { ArkyApiError, ArkyNetworkError, createAdmin, SDK_VERSION } from "../dist/index.js";
 import { createStorefront, formatMinor, formatMoney, formatPrice, getPriceAmount } from "../dist/storefront.js";
 import { apiUrl as baseUrl, fixedIdFactories, ids, jsonResponse, storefrontIdentity, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
 
@@ -194,20 +194,36 @@ test("the Server's configured limits decide a query's field count and length, an
   assert.equal(calls.length, 2);
 });
 
-test("a camelCase error body is not the Server's shape: its field errors are not read and the HTTP status stands", async (context) => {
-  recordFetch(context, () => jsonResponse({ message: "Conflict", error: "GENERAL.CONFLICT", statusCode: 400, validationErrors: [{ field: "email", error: "bad" }] }, 409));
+test("a refusal without Arky's error body is no Arky refusal: the SDK invents no code and fails it as unreadable_answer with the HTTP status", async (context) => {
+  const foreignAnswers = [
+    () => new Response("upstream failure", { status: 502, headers: { "content-type": "text/plain" } }),
+    () => new Response("<html><title>413 Request Entity Too Large</title></html>", { status: 413, headers: { "content-type": "text/html" } }),
+    () => new Response(null, { status: 404 }),
+    () => jsonResponse({ message: "Conflict", error: "GENERAL.CONFLICT", statusCode: 409, validationErrors: [{ field: "email", error: "bad" }] }, 409),
+    () => jsonResponse({ message: "Bad gateway", error: "UPSTREAM", status_code: 400, validation_errors: [] }, 502),
+    () => jsonResponse({ message: "Unavailable", status_code: 503, validation_errors: [] }, 503),
+  ];
+  const statuses = [502, 413, 404, 409, 502, 503];
+  for (const [index, answer] of foreignAnswers.entries()) {
+    const contexts = [];
+    recordFetch(context, answer);
+    await assert.rejects(admin().store.update({ id: storeId, expected_updated_at: 1, name: "Proxy" }, { onError: (failure) => contexts.push(failure) }), (error) => {
+      assert.equal(error instanceof ArkyNetworkError, true);
+      assert.equal(error instanceof ArkyApiError, false);
+      assert.equal(error.code, "unreadable_answer");
+      assert.equal(error.statusCode, statuses[index]);
+      assert.equal("validationErrors" in error, false);
+      return true;
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(contexts.map((failure) => [failure.status, failure.error.code]), [[statuses[index], "unreadable_answer"]]);
+  }
+  recordFetch(context, () => jsonResponse({ message: "The store changed", error: "GENERAL.CONFLICT", status_code: 409, validation_errors: [] }, 409));
   await assert.rejects(admin().account.getMe(), (error) => {
-    assert.equal(error.statusCode, 409);
-    assert.deepEqual(error.validationErrors, []);
+    assert.equal(error instanceof ArkyApiError, true);
     assert.equal(error.code, "GENERAL.CONFLICT");
-    return true;
-  });
-  recordFetch(context, () => new Response("upstream failure", { status: 502, headers: { "content-type": "text/plain" } }));
-  await assert.rejects(admin().account.getMe(), (error) => {
-    assert.equal(error.statusCode, 502);
-    assert.equal(error.code, "REQUEST_FAILED");
-    assert.equal(error.message, "Request failed");
-    assert.deepEqual(error.validationErrors, []);
+    assert.equal(error.message, "The store changed");
+    assert.equal(error.statusCode, 409);
     return true;
   });
 });
@@ -379,11 +395,11 @@ test("admin Product writes carry the app-picked id and version and InventoryLeve
   const client = admin();
   assert.deepEqual(await client.eshop.product.create({ store_id: storeId, ...create }), product);
   await client.eshop.product.update({ store_id: storeId, ...update });
-  assert.deepEqual(await client.eshop.inventoryLevel.find({ store_id: storeId, inventory_item_id: ids.order, store_location_id: ids.companyLocation }), { items: inventory, cursor: null });
+  assert.deepEqual(await client.eshop.inventoryLevel.find({ store_id: storeId, inventory_item_ids: [ids.order], store_location_id: ids.companyLocation }), { items: inventory, cursor: null });
   assert.deepEqual(calls.map((call) => [call.method, call.href, call.body]), [
     ["POST", `${baseUrl}/v1/stores/${storeId}/products`, create],
     ["PUT", `${baseUrl}/v1/stores/${storeId}/products/${ids.product}`, { expected_updated_at: 1, slugs: update.slugs, status: update.status }],
-    ["GET", `${baseUrl}/v1/stores/${storeId}/inventory-levels?inventory_item_id=${ids.order}&store_location_id=${ids.companyLocation}`, null],
+    ["GET", `${baseUrl}/v1/stores/${storeId}/inventory-levels?inventory_item_ids=${encodeURIComponent(JSON.stringify([ids.order]))}&store_location_id=${ids.companyLocation}`, null],
   ]);
 });
 
@@ -435,7 +451,7 @@ test("storefront money helpers preserve exact zero, need an explicit locale and 
 test("SDK_VERSION equals the package version", async () => {
   const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
   assert.equal(SDK_VERSION, packageJson.version);
-  assert.equal(SDK_VERSION, "0.26.135");
+  assert.equal(SDK_VERSION, "0.26.136");
 });
 
 test("recursive storefront declarations never degrade to any", async () => {

@@ -71,6 +71,7 @@ export const typedRetainedOrder: Order = {
       money_runs: [{ span: { first_unit: 0, quantity: 1 }, taxed_at: { type: "billing" }, money: productMoney }],
       created_at: placedAt,
       updated_at: placedAt,
+      product_id: "0b3e9c17-5a2d-4f86-9e01-7c4b6d2a8f35",
     },
     {
       type: "booking",
@@ -110,6 +111,7 @@ export const typedRetainedOrder: Order = {
       status: { type: "confirmed" },
       created_at: placedAt,
       updated_at: placedAt,
+      package: { id: "e4c8a2f6-1b73-4d95-a0e7-5f2c9b6d3a18", key: "consultation-plan", blocks: [] },
     },
   ],
   delivery_groups: [],

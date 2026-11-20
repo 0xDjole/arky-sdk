@@ -183,13 +183,31 @@ export interface FiscalReceipt {
   updated_at: EpochMilliseconds;
 }
 
-export interface FindFiscalReceiptsParams {
+export interface FiscalReceiptDetail extends FiscalReceipt {
+  deliverable: boolean;
+}
+
+export interface FindStoreFiscalReceiptsParams {
   store_id: string;
-  order_id?: string;
+  order_ids?: never;
   open?: boolean;
+  created_at_from?: EpochMilliseconds;
+  created_at_to?: EpochMilliseconds;
   limit?: number;
   cursor?: string | null;
 }
+
+export interface FindFiscalReceiptsByOrdersParams {
+  store_id: string;
+  order_ids: string[];
+  open?: never;
+  created_at_from?: never;
+  created_at_to?: never;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export type FindFiscalReceiptsParams = FindStoreFiscalReceiptsParams | FindFiscalReceiptsByOrdersParams;
 
 export interface GetFiscalReceiptParams {
   store_id: string;
@@ -221,6 +239,11 @@ export interface SettleFiscalReceiptParams {
   store_id: string;
   fiscal_receipt_id: string;
   outcome: FiscalReceiptSettlement;
+}
+
+export interface DeliverFiscalReceiptParams {
+  store_id: string;
+  fiscal_receipt_id: string;
 }
 
 export interface IssueFiscalReceiptsParams {
