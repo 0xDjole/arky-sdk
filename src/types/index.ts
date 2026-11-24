@@ -5,6 +5,8 @@ export type * from "./api";
 export type { RequestSuccessContext, RequestErrorContext } from "./httpClient";
 export type * from "./block";
 export type * from "./content";
+export type * from "./layout";
+export { LAYOUT_FLOORS, LAYOUT_MODELS, LAYOUT_ROOM_STYLES, LAYOUT_WALL_FINISHES } from "./layout";
 export type * from "./store";
 export type * from "./storeProvider";
 export type * from "./phoneNumber";

@@ -81,7 +81,7 @@ export type MembershipDiscoveryContracts = [
   Assert<RequiredField<RemoveStoreMemberParams, "expected_updated_at">>,
   Assert<Missing<InviteStoreMemberParams, "access" | "role" | "email">>,
   Assert<Equal<InviteStoreMemberParams["contact"], EmailContact>>,
-  Assert<Equal<StorePermission["type"], "admin" | "payments" | "packages" | "orders" | "customers" | "fulfillment" | "inventory" | "marketing" | "public_collections" | "private_collections" | "customer_entries" | "private_forms" | "bookings" | "booking_resources" | "booking_services" | "conversations" | "support" | "email" | "analytics" | "calls">>,
+  Assert<Equal<StorePermission["type"], "admin" | "payments" | "packages" | "orders" | "customers" | "fulfillment" | "inventory" | "marketing" | "public_collections" | "private_collections" | "customer_entries" | "private_forms" | "bookings" | "booking_resources" | "booking_services" | "conversations" | "support" | "email" | "analytics" | "calls" | "layouts">>,
   Assert<Equal<Extract<StorePermission, { type: "fulfillment" }>["locations"], LocationReach>>,
   Assert<Equal<Extract<StorePermission, { type: "inventory" }>["locations"], LocationReach>>,
   Assert<Missing<Extract<StorePermission, { type: "orders" }>, "locations">>,

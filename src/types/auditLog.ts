@@ -82,7 +82,9 @@ export type AuditSubjectType =
   | "store_subscription"
   | "store_plan_charge"
   | "account"
-  | "account_session";
+  | "account_session"
+  | "layout"
+  | "layout_element";
 
 export type AuditEntryOwner =
   | { type: "store" }
@@ -359,7 +361,13 @@ export type AuditAction =
   | { action: "store_subscription_created"; store_subscription_id: string }
   | { action: "store_subscription_updated"; store_subscription_id: string }
   | { action: "store_plan_charge_settled"; store_plan_charge_id: string }
-  | { action: "account_session_revoked"; account_id: string; account_session_id: string };
+  | { action: "account_session_revoked"; account_id: string; account_session_id: string }
+  | { action: "layout_created"; layout_id: string }
+  | { action: "layout_updated"; layout_id: string }
+  | { action: "layout_deleted"; layout_id: string }
+  | { action: "layout_element_created"; layout_element_id: string }
+  | { action: "layout_element_updated"; layout_element_id: string }
+  | { action: "layout_element_deleted"; layout_element_id: string };
 
 export type AuditResult = "allowed" | "refused";
 

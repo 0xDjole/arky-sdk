@@ -53,7 +53,7 @@ export type RentalContract = [
   Assert<Equal<keyof FindRentalsParams, "store_id" | "ids" | "package_member_ids" | "company_id" | "company_location_id" | "status" | "sort_field" | "sort_direction" | "limit" | "cursor">>,
   Assert<Equal<FindRentalsParams["package_member_ids"], string[] | undefined>>,
   Assert<Equal<{ store_id: string; ids: string[]; status: "active" } extends FindRentalsParams ? true : false, false>>,
-  Assert<Equal<RentalListItem, Rental & { product: ProductReference | null; quantity: number; units: CustomerRentalUnit[] }>>,
+  Assert<Equal<RentalListItem, Rental & { product: ProductReference | null; variant_sku: string | null; quantity: number; units: CustomerRentalUnit[] }>>,
   Assert<Equal<CustomerRental["package_member_id"], string>>,
   Assert<Equal<CustomerRental, PublicCustomerRental>>,
   Assert<Equal<CustomerRental["product"], ProductReference | null>>,

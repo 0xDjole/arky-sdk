@@ -27,6 +27,7 @@ import type {
   GetPackageMemberMinimumParams,
   GetPackageMemberParams,
   GetPackageMemberRevisionParams,
+  FindPackageMemberRevisionPurchaseOrdersParams,
   GetPackageOfferingByKeyParams,
   GetPackageOfferingParams,
   GetStorefrontPackageOfferingByKeyParams,
@@ -246,6 +247,17 @@ export const createPackageMemberApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.get<PackageMemberRevisionDetail>(
         `${memberPath(params.store_id, params.package_member_id)}/revisions/${segment(params.revision_id)}`,
         options,
+      );
+    },
+
+    findRevisionPurchaseOrders(
+      params: FindPackageMemberRevisionPurchaseOrdersParams,
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<Order>> {
+      const { store_id, package_member_id, revision_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<Order>>(
+        `${memberPath(store_id, package_member_id)}/revisions/${segment(revision_id)}/purchase-orders`,
+        { ...options, params: query },
       );
     },
 

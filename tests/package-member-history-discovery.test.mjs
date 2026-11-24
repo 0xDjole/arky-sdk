@@ -14,7 +14,7 @@ test("member transport keeps combined filters, empty pages and explicit history 
   const member = { id: memberId, status: { type: "blocked", cause: { type: "period_missed" }, blocked_at: 1 } };
   const current = { package_member: member, revision: { id: revisionId }, terms: {}, head_revision_id: revisionId };
   const detail = { revision: { id: revisionId }, terms: {} };
-  const replies = [{ items: [], cursor }, { items: [{ id: memberId }], cursor: null }, { items: [], cursor }, current, { items: [], cursor: null }, detail];
+  const replies = [{ items: [], cursor }, { items: [{ id: memberId }], cursor: null }, { items: [], cursor }, current, { items: [], cursor: null }, detail, { items: [], cursor }];
   const calls = [];
   context.mock.method(globalThis, "fetch", async (input, init = {}) => {
     calls.push({ url: new URL(input), method: init.method ?? "GET", body: init.body ? JSON.parse(init.body) : null });
@@ -29,6 +29,7 @@ test("member transport keeps combined filters, empty pages and explicit history 
   assert.deepEqual(await api.packageMember.getCurrent({ store_id: store, id: memberId }), current);
   assert.deepEqual(await api.packageMember.findRevisions({ store_id: store, id: memberId, limit: 5 }), { items: [], cursor: null });
   assert.deepEqual(await api.packageMember.getRevision({ store_id: store, package_member_id: memberId, revision_id: revisionId }), detail);
+  assert.deepEqual(await api.packageMember.findRevisionPurchaseOrders({ store_id: store, package_member_id: memberId, revision_id: revisionId, limit: 2, cursor }), { items: [], cursor });
   const { store_id: _store, ...query } = members;
   const base = `/v1/stores/${store}/package-members`;
   assert.equal(calls[0].url.pathname, base);
@@ -40,7 +41,9 @@ test("member transport keeps combined filters, empty pages and explicit history 
   assert.deepEqual(Object.fromEntries(calls[4].url.searchParams), { limit: "5" });
   assert.equal(calls[5].url.pathname, `${base}/${memberId}/revisions/${revisionId}`);
   assert.equal(calls[5].url.search, "");
-  assert.equal(calls.length, 6);
+  assert.equal(calls[6].url.pathname, `${base}/${memberId}/revisions/${revisionId}/purchase-orders`);
+  assert.deepEqual(Object.fromEntries(calls[6].url.searchParams), { limit: "2", cursor });
+  assert.equal(calls.length, 7);
   assert.ok(calls.every((call) => call.method === "GET" && call.body === null && call.url.pathname.startsWith(`/v1/stores/${store}/`)));
   for (const removed of ["subscription"]) assert.equal(removed in api, false, removed);
 });

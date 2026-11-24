@@ -58,7 +58,7 @@ export interface RentalDetail {
   units: CustomerRentalUnit[];
 }
 
-export type RentalListItem = Rental & { product: ProductReference | null; quantity: number; units: CustomerRentalUnit[] };
+export type RentalListItem = Rental & { product: ProductReference | null; variant_sku: string | null; quantity: number; units: CustomerRentalUnit[] };
 
 export type RentalReplacementMethod =
   | { type: "delivery"; destination: PostalAddress }

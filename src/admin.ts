@@ -3,6 +3,10 @@ export type { AdminClient, AdminSession, AuthStateListener, CreateAdminConfig } 
 export type * from "./types";
 export {
   CURRENCY_MINOR_UNITS,
+  LAYOUT_FLOORS,
+  LAYOUT_MODELS,
+  LAYOUT_ROOM_STYLES,
+  LAYOUT_WALL_FINISHES,
   WEBHOOK_UNIT_EVENT_TYPES,
   MONRI_WEBHOOK_PATH,
   RESEND_WEBHOOK_EVENTS,

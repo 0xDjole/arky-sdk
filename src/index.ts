@@ -79,6 +79,7 @@ import { createInventoryItemApi } from "./api/inventoryItem";
 import { createInventoryLevelApi } from "./api/inventoryLevel";
 import { createInventoryMovementApi } from "./api/inventoryMovement";
 import { createInventoryUnitApi } from "./api/inventoryUnit";
+import { createLayoutApi } from "./api/layout";
 import { createCountryApi, createLocationApi } from "./api/location";
 import { createMarketApi } from "./api/market";
 import { createMediaApi } from "./api/media";
@@ -202,7 +203,7 @@ export type * from "./storefrontStore";
 export { createNetworkCustomer } from "./networkCustomer";
 export type { NetworkCustomerClient } from "./networkCustomer";
 
-export const SDK_VERSION = "0.26.136";
+export const SDK_VERSION = "0.26.142";
 
 export interface AdminSession {
   id: string;
@@ -349,6 +350,7 @@ function createAdminClient(config: CreateAdminConfig) {
     support: supportApi,
     media: createMediaApi(apiConfig),
     category: createCategoryApi(apiConfig),
+    layout: createLayoutApi(apiConfig),
     content: {
       collection: createCollectionApi(apiConfig),
       entry: createEntryApi(apiConfig),

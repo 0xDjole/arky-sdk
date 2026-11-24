@@ -61,7 +61,8 @@ export type StorePermission =
   | { type: "support" }
   | { type: "email" }
   | { type: "analytics" }
-  | { type: "calls"; phone_numbers: PhoneNumberScope; customers: CustomerScope };
+  | { type: "calls"; phone_numbers: PhoneNumberScope; customers: CustomerScope }
+  | { type: "layouts"; access: StorePermissionAccess };
 
 export type StorePermissionType = StorePermission["type"];
 

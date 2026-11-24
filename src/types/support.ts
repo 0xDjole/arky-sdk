@@ -481,12 +481,19 @@ export type ConversationMessageType =
     }
   | { type: "assistant_reply"; request_message_id: string; text: string; proposal: AssistantProposal | null };
 
+export type CallTranscriptState =
+  | { type: "not_expected" }
+  | { type: "waiting"; until: EpochMilliseconds }
+  | { type: "received" }
+  | { type: "not_received"; at: EpochMilliseconds };
+
 export interface ConversationMessage {
   id: string;
   store_id: string;
   conversation_id: string;
   sequence: number;
   type: ConversationMessageType;
+  transcript_state?: CallTranscriptState;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }

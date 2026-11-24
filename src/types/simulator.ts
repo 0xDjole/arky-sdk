@@ -52,10 +52,30 @@ export type SimulatorResendOperation =
   | "delete_suppression"
   | "deliver_webhook";
 
+export type SimulatorTwilioOperation =
+  | "read_account"
+  | "send_sms"
+  | "find_phone_number"
+  | "update_phone_number"
+  | "update_call"
+  | "fetch_recording"
+  | "delete_recording"
+  | "deliver_webhook";
+
+export type SimulatorElevenLabsOperation = "register_call" | "delete_conversation" | "deliver_webhook";
+
+export type SimulatorCroatiaCisOperation = "submit_fiscal_receipt" | "deliver_webhook";
+
+export type SimulatorOfsCloudOperation = "issue_fiscal_invoice" | "look_up_fiscal_invoice" | "deliver_webhook";
+
 export type SimulatorPlannedOperation =
   | { provider: "stripe"; operation: SimulatorStripeOperation }
   | { provider: "monri"; operation: SimulatorMonriOperation }
-  | { provider: "resend"; operation: SimulatorResendOperation };
+  | { provider: "resend"; operation: SimulatorResendOperation }
+  | { provider: "twilio"; operation: SimulatorTwilioOperation }
+  | { provider: "eleven_labs"; operation: SimulatorElevenLabsOperation }
+  | { provider: "croatia_cis"; operation: SimulatorCroatiaCisOperation }
+  | { provider: "ofs_cloud"; operation: SimulatorOfsCloudOperation };
 
 export type SimulatorProvider = SimulatorPlannedOperation["provider"];
 
@@ -74,7 +94,11 @@ export type SimulatorPlannedResult =
   | { type: "missing_link" }
   | { type: "expired_link" }
   | { type: "daily_quota_exceeded" }
-  | { type: "monthly_quota_exceeded" };
+  | { type: "monthly_quota_exceeded" }
+  | { type: "stopped" }
+  | { type: "number_missing" }
+  | { type: "answer_for_another_message" }
+  | { type: "temporary_error" };
 
 export type SimulatorPlannedOutcome = SimulatorPlannedOperation & {
   id: string;

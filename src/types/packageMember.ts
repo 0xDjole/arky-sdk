@@ -624,6 +624,11 @@ export interface GetPackageMemberRevisionParams {
   revision_id: string;
 }
 
+export interface FindPackageMemberRevisionPurchaseOrdersParams extends GetPackageMemberRevisionParams {
+  limit?: number;
+  cursor?: string | null;
+}
+
 export interface GetPackageMemberMinimumParams {
   store_id: string;
   id: string;

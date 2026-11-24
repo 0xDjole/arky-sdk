@@ -471,6 +471,8 @@ export interface OrderTotals {
   delivery_groups: OrderDeliveryTotals[];
 }
 
+export type OrderDeliveryStep = "on_hold" | "scheduled" | "waiting" | "preparing" | "ready" | "sent" | "delivered" | "none";
+
 export interface Order {
   id: string;
   blocks: Block[];
@@ -487,6 +489,7 @@ export interface Order {
   collection: OrderCollection;
   line_items: OrderLineItem[];
   delivery_groups: OrderDeliveryGroup[];
+  delivery_step: OrderDeliveryStep;
   currency: Currency;
   promotions: OrderPromotion[];
   billing_address: PostalAddress | null;
@@ -833,6 +836,7 @@ export interface FindOrdersBySearchParams {
   company_id?: string;
   company_location_id?: string;
   statuses?: OrderStatus[];
+  delivery_steps?: OrderDeliveryStep[];
   sources?: OrderSourceFilter[];
   product_statuses?: OrderItemStatusFilter[];
   booking_statuses?: OrderBookingStatusFilter[];
@@ -859,6 +863,7 @@ export interface FindOrdersByIdsParams {
   company_id?: never;
   company_location_id?: never;
   statuses?: never;
+  delivery_steps?: never;
   sources?: never;
   product_statuses?: never;
   booking_statuses?: never;
@@ -1084,7 +1089,7 @@ export interface ResumeOrderPaymentParams {
 }
 
 export type StorefrontFindOrdersParams = CompanyPartyQuery &
-  Omit<FindOrdersBySearchParams, "store_id" | "ids" | "customer_id" | "company_id" | "company_location_id" | "package_member_ids">;
+  Omit<FindOrdersBySearchParams, "store_id" | "ids" | "customer_id" | "company_id" | "company_location_id" | "package_member_ids" | "delivery_steps">;
 
 export interface StorefrontGetOrderParams {
   id: string;

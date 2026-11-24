@@ -69,7 +69,15 @@ const revision: Promise<PackageMemberRevisionDetail> =
     package_member_id: "member",
     revision_id: "revision",
   });
-void [current, orders, revisions, revision];
+const revisionPurchases: Promise<PaginatedResponse<Order>> =
+  admin.eshop.packageMember.findRevisionPurchaseOrders({
+    store_id,
+    package_member_id: "member",
+    revision_id: "revision",
+    limit: 2,
+    cursor: "next",
+  });
+void [current, orders, revisions, revision, revisionPurchases];
 
 export type PackageMemberHistoryContracts = [
   Assert<Equal<PackageMemberCurrentSelf["terms"], PackageMemberSelfPricedTerms | null>>,
@@ -239,6 +247,7 @@ export type PackageMemberHistoryContracts = [
       | "getCurrent"
       | "findRevisions"
       | "getRevision"
+      | "findRevisionPurchaseOrders"
       | "findOrders"
       | "getMinimum"
       | "getCalendar"

@@ -32,7 +32,7 @@ for (const scope of ["admin", "storefront"]) {
     const api = scope === "admin"
       ? createAdmin({ apiUrl: apiUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).eshop.order
       : createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() }).eshop.order;
-    const filters = scope === "admin" ? { store_id: STORE_ID, customer_id: ids.customer, company_id: ids.company, package_member_ids: [ids.packageMember], ...shared } : shared;
+    const filters = scope === "admin" ? { store_id: STORE_ID, customer_id: ids.customer, company_id: ids.company, package_member_ids: [ids.packageMember], delivery_steps: ["ready", "sent"], ...shared } : shared;
     const first = await api.find(filters);
     assert.deepEqual(first, { items: [], cursor: "order:+/=" });
     assert.deepEqual(await api.find({ ...filters, cursor: first.cursor }), { items: [], cursor: null });

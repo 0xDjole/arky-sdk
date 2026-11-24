@@ -31,6 +31,7 @@ const bookingMoney: LineMoney = {
 };
 
 export const typedRetainedOrder: Order = {
+  delivery_step: "none",
   blocks: [],
   id: "4a2c7c0d-4389-4aae-b3d7-02ff834a024d",
   number: "1001",

@@ -53,7 +53,7 @@ const adminSurface = {
   "eshop.packageItem": ["batch", "create", "delete", "find", "get", "setAllPrices", "update"],
   "eshop.packageItemPrice": ["batch", "create", "delete", "find", "get", "getByChoice", "update"],
   "eshop.packageMember": [
-    "assign", "cancel", "changeMinimum", "changeTerms", "find", "findCurrent", "findOrders", "findRevisions", "get",
+    "assign", "cancel", "changeMinimum", "changeTerms", "find", "findCurrent", "findOrders", "findRevisionPurchaseOrders", "findRevisions", "get",
     "getCalendar", "getChanges", "getCurrent", "getMinimum", "getRevision", "pause", "resume", "reviewMinimum",
     "reviewSwitch", "reviewTerms", "revoke", "scheduleEnd", "selectPaymentMethod", "skipNext", "switch",
     "transferMinimum", "withdrawRevision",
@@ -85,6 +85,8 @@ const adminSurface = {
   experiments: ["complete", "create", "delete", "find", "get", "getResults", "pause", "resume", "start", "update"],
   forms: ["changeSubmissionStage", "create", "createSubmission", "delete", "deleteSubmission", "find", "findSubmissions", "get", "getByKey", "getSubmission", "getSubmissionFile", "update"],
   "forms.notes": ["create", "delete", "find", "update"],
+  layout: ["create", "delete", "find", "get", "getByKey", "update"],
+  "layout.element": ["find", "save"],
   media: ["create", "delete", "find", "get", "replaceContent", "update"],
   "notification.notification": ["create", "delete", "find", "get", "sendBookingReminder", "update"],
   "notification.outgoingMessage": ["find", "get"],
