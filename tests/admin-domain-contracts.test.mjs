@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createAdmin } from '../dist/admin.js';
-import { MemoryStorage } from './helpers/durable-request-fixtures.mjs';
+import { ids } from './helpers/arky-fixtures.mjs';
+import { MemoryStorage, QueuedLockManager } from './helpers/durable-request-fixtures.mjs';
 
 const STORE_ID = 'a4219f3b-50b1-4a78-902b-d7264ae027a9';
 const SESSION_ID = '5d0c8a3e-7b21-4f64-9a1e-3c2b8d7e6f50';
 const OTHER_SESSION_ID = '0b8e4d27-5f13-4a69-9c2e-7d1a6f3b8e40';
+const NETWORK_ID = '6a2d9f41-3c87-4b15-8e60-2f9b4d7c1a53';
 
 function issued(now, issuedCount, id = SESSION_ID) {
   return {
@@ -46,7 +48,7 @@ test('removed Store feature APIs are absent and Store code login names its Store
 
 test('retained Sessions keep their exact credentials through refresh and a malformed record reads as signed out', async (t) => {
   const storage = new MemoryStorage();
-  for (const [key, value] of [['window', new EventTarget()], ['localStorage', storage]]) {
+  for (const [key, value] of [['window', new EventTarget()], ['localStorage', storage], ['navigator', { locks: new QueuedLockManager() }]]) {
     const descriptor = Object.getOwnPropertyDescriptor(globalThis, key);
     Object.defineProperty(globalThis, key, { configurable: true, value });
     t.after(() => descriptor ? Object.defineProperty(globalThis, key, descriptor) : delete globalThis[key]);
@@ -94,6 +96,9 @@ test('rejected Account refresh clears retained credentials and notifies consumer
   const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
   Object.defineProperty(globalThis, 'window', { configurable: true, value: browser });
   t.after(() => descriptor ? Object.defineProperty(globalThis, 'window', descriptor) : delete globalThis.window);
+  const navigatorDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { locks: new QueuedLockManager() } });
+  t.after(() => navigatorDescriptor ? Object.defineProperty(globalThis, 'navigator', navigatorDescriptor) : delete globalThis.navigator);
   const storageKey = 'arky_admin_session:https://api.example.test';
   const retained = JSON.stringify({
     id: SESSION_ID, access_token: 'expired-access', refresh_token: 'rejected-refresh', email: 'operator@example.test',
@@ -135,6 +140,9 @@ test('a 401 or 403 that Arky did not send keeps the retained Account session for
   const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
   Object.defineProperty(globalThis, 'window', { configurable: true, value: browser });
   t.after(() => descriptor ? Object.defineProperty(globalThis, 'window', descriptor) : delete globalThis.window);
+  const navigatorDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { locks: new QueuedLockManager() } });
+  t.after(() => navigatorDescriptor ? Object.defineProperty(globalThis, 'navigator', navigatorDescriptor) : delete globalThis.navigator);
   const storageKey = 'arky_admin_session:https://api.example.test';
   const retained = JSON.stringify({
     id: SESSION_ID, access_token: 'expired-access', refresh_token: 'kept-refresh', email: 'operator@example.test',
@@ -187,10 +195,10 @@ test('a rejected refresh cannot clear a different Account login completed while 
     return Response.json(issued(now, verifies, verifies === 1 ? SESSION_ID : OTHER_SESSION_ID));
   });
   const admin = createAdmin({ apiUrl: 'https://api.refresh-race.test' });
-  await admin.account.auth.verify({ session_id: SESSION_ID, code: '123456' });
+  await admin.account.auth.verify({ session_id: SESSION_ID, network_id: NETWORK_ID, code: '123456' });
   const refresh = assert.rejects(admin.account.auth.refresh({ refresh_token: 'refresh-1' }));
   await started;
-  await admin.account.auth.verify({ session_id: OTHER_SESSION_ID, code: '654321' });
+  await admin.account.auth.verify({ session_id: OTHER_SESSION_ID, network_id: NETWORK_ID, code: '654321' });
   refuseRefresh(Response.json({ message: 'Unauthorized', error: 'GENERAL.UNAUTHORIZED', status_code: 403 }, { status: 403 }));
   await refresh;
   assert.equal(admin.session.id, OTHER_SESSION_ID);
@@ -220,7 +228,7 @@ test('a refused account token keeps the native snake_case failure without refres
   const admin = createAdmin({ apiUrl: 'https://api.example.test', accountToken: token });
   const payload = {
     id: STORE_ID,
-    mode: 'live',
+    type: { type: 'live', network_id: ids.network, plan: { type: 'free', plan_id: ids.plan }, owner: { type: 'caller' } },
     name: 'Account-authorized Store',
     timezone: 'Europe/Sarajevo',
     languages: ['bs', 'en'],
@@ -235,7 +243,7 @@ test('a refused account token keeps the native snake_case failure without refres
       assert.equal(error.message, response.message);
       assert.equal(error.statusCode, 401);
       assert.equal(error.code, 'GENERAL.UNAUTHENTICATED');
-      assert.equal(error.requestId, 'native-auth-rejection');
+      assert.equal('requestId' in error, false);
       assert.deepEqual(error.validationErrors, []);
       assert.deepEqual(error.response, response);
       return true;
@@ -290,6 +298,9 @@ function storedAdminBrowser(t, value) {
   const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
   Object.defineProperty(globalThis, 'window', { configurable: true, value: browser });
   t.after(() => descriptor ? Object.defineProperty(globalThis, 'window', descriptor) : delete globalThis.window);
+  const navigatorDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { locks: new QueuedLockManager() } });
+  t.after(() => navigatorDescriptor ? Object.defineProperty(globalThis, 'navigator', navigatorDescriptor) : delete globalThis.navigator);
   storage.setItem('arky_admin_session:https://api.example.test', JSON.stringify(value));
   const calls = [];
   t.mock.method(globalThis, 'fetch', async (url, init) => {
@@ -324,4 +335,94 @@ test('a stored Admin session with any other field is no session', async (t) => {
   assert.equal(calls.length, 1);
   assert.equal(calls[0].authorization, null);
   assert.equal(calls.some(call => call.path === '/v1/auth/refresh'), false);
+});
+
+function adminBrowser(t, storage) {
+  const browser = Object.assign(new EventTarget(), { localStorage: storage });
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: browser });
+  t.after(() => descriptor ? Object.defineProperty(globalThis, 'window', descriptor) : delete globalThis.window);
+  const navigatorDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { locks: new QueuedLockManager() } });
+  t.after(() => navigatorDescriptor ? Object.defineProperty(globalThis, 'navigator', navigatorDescriptor) : delete globalThis.navigator);
+}
+
+const retainedAdminSession = JSON.stringify({ id: SESSION_ID, access_token: 'expired-access', refresh_token: 'kept-refresh', email: 'operator@example.test' });
+
+test('a 401 that Arky did not send on a request never rotates the Account session', async (t) => {
+  const storage = new MemoryStorage();
+  adminBrowser(t, storage);
+  storage.setItem('arky_admin_session:https://api.example.test', retainedAdminSession);
+  const calls = [];
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    calls.push(new URL(url).pathname);
+    return new Response('<html><title>401 Authorization Required</title></html>', { status: 401, headers: { 'content-type': 'text/html' } });
+  });
+  const admin = createAdmin({ apiUrl: 'https://api.example.test' });
+  await assert.rejects(admin.store.find({ limit: 10 }), (error) => error.name === 'ParseError' && error.statusCode === 401 && error.code === 'unreadable_answer');
+  assert.deepEqual(calls, ['/v1/stores']);
+  assert.equal(storage.getItem('arky_admin_session:https://api.example.test'), retainedAdminSession);
+});
+
+test('a refresh answered without readable JSON fails with unreadable_answer and keeps the Account session', async (t) => {
+  const storage = new MemoryStorage();
+  adminBrowser(t, storage);
+  storage.setItem('arky_admin_session:https://api.example.test', retainedAdminSession);
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    if (new URL(url).pathname === '/v1/auth/refresh') return new Response('<html>Signed in</html>', { status: 200, headers: { 'content-type': 'text/html' } });
+    return Response.json({ message: 'Expired', status_code: 401, error: 'GENERAL.UNAUTHENTICATED' }, { status: 401 });
+  });
+  const admin = createAdmin({ apiUrl: 'https://api.example.test' });
+  await assert.rejects(admin.store.find({ limit: 10 }), (error) => error.name === 'ParseError' && error.code === 'unreadable_answer');
+  assert.equal(storage.getItem('arky_admin_session:https://api.example.test'), retainedAdminSession);
+  assert.equal(admin.isAuthenticated, true);
+});
+
+test('an Admin API address with trailing slashes sends each call to its exact path', async (t) => {
+  const calls = [];
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    calls.push(String(url));
+    return Response.json({ items: [], cursor: null });
+  });
+  const admin = createAdmin({ apiUrl: 'https://api.example.test//', accountToken: 'arky_at_ttttttttttttttttttttttttttttttttttttttttttA' });
+  await admin.store.find({ limit: 10 });
+  assert.deepEqual(calls, ['https://api.example.test/v1/stores?limit=10']);
+});
+
+test('a browser without Web Locks refuses to refresh the Account session instead of racing other tabs', async (t) => {
+  const storage = new MemoryStorage();
+  const browser = Object.assign(new EventTarget(), { localStorage: storage });
+  for (const [key, value] of [['window', browser], ['navigator', {}]]) {
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, key);
+    Object.defineProperty(globalThis, key, { configurable: true, value });
+    t.after(() => descriptor ? Object.defineProperty(globalThis, key, descriptor) : delete globalThis[key]);
+  }
+  storage.setItem('arky_admin_session:https://api.example.test', retainedAdminSession);
+  const calls = [];
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    calls.push(new URL(url).pathname);
+    return Response.json({ message: 'Expired', status_code: 401, error: 'GENERAL.UNAUTHENTICATED' }, { status: 401 });
+  });
+  const admin = createAdmin({ apiUrl: 'https://api.example.test' });
+  await assert.rejects(admin.store.find({ limit: 10 }), (error) => error.name === 'ArkyError' && error.code === 'storage');
+  assert.deepEqual(calls, ['/v1/stores']);
+  assert.equal(storage.getItem('arky_admin_session:https://api.example.test'), retainedAdminSession);
+});
+
+test('getAccessToken answers the account token, the signed-in session access token, and null signed out', async (t) => {
+  const original = globalThis.fetch;
+  t.after(() => { globalThis.fetch = original; });
+  const now = Date.now();
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+    if (path.endsWith('/code')) return Response.json({ session_id: SESSION_ID, verification_expires_at: now + 60000 });
+    return Response.json(issued(now, 1));
+  };
+  const token = 'arky_at_ttttttttttttttttttttttttttttttttttttttttttA';
+  assert.equal(createAdmin({ apiUrl: 'https://api.example.test', accountToken: token }).getAccessToken(), token);
+  const admin = createAdmin({ apiUrl: 'https://api.example.test' });
+  assert.equal(admin.getAccessToken(), null);
+  const pending = await admin.account.auth.requestCode({ session_id: SESSION_ID, email: 'invited@example.test', store_id: STORE_ID, language: 'en' });
+  await admin.account.auth.verify({ session_id: pending.session_id, code: '123456', store_id: STORE_ID });
+  assert.equal(admin.getAccessToken(), 'access-1');
 });

@@ -1,5 +1,5 @@
 import { MonriCheckoutError, mountCheckoutAction } from "arky-sdk";
-import type { CheckoutPaymentAction, EmbeddedCheckoutMount, MonriBuyerDetails, MonriComponentsAction, MountCheckoutActionParams } from "arky-sdk";
+import type { CardDetails, CheckoutPaymentAction, EmbeddedCheckoutMount, MonriBuyerDetails, MonriCardStatus, MonriCardToken, MonriComponentsAction, MountCheckoutActionParams, MountPaymentMethodSetupParams, SimulatorTexts, StorefrontMonriCardStatus } from "arky-sdk";
 import { mountCheckoutAction as mountStorefront } from "arky-sdk/storefront";
 
 type Assert<T extends true> = T;
@@ -23,6 +23,12 @@ export type MonriCheckoutContracts = [
   Assert<Equal<MountCheckoutActionParams["element"], string | HTMLElement>>,
   Assert<Equal<NonNullable<MountCheckoutActionParams["onValidationError"]>, (error: MonriCheckoutError | null) => void>>,
   Assert<Equal<MonriCheckoutError["code"], "invalid_action" | "unavailable" | "invalid_card" | "invalid_details" | "already_submitted" | "unknown_result">>,
+  Assert<Missing<Extract<StorefrontMonriCardStatus, { type: "ready" }>, "token">>,
+  Assert<Equal<Extract<StorefrontMonriCardStatus, { type: "ready" }>, { type: "ready"; details: CardDetails }>>,
+  Assert<Equal<Extract<MonriCardStatus, { type: "ready" }>["token"], MonriCardToken>>,
+  Assert<Equal<MountCheckoutActionParams["simulator_texts"], SimulatorTexts | undefined>>,
+  Assert<Equal<MountPaymentMethodSetupParams["simulator_texts"], SimulatorTexts | undefined>>,
+  Assert<Equal<keyof SimulatorTexts, "title" | "description" | "complete" | "decline" | "expire" | "cancel">>,
 ];
 
 export function inspectMount(mount: EmbeddedCheckoutMount): void {

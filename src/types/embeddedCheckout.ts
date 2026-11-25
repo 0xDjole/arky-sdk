@@ -1,19 +1,29 @@
 import type { StripeEmbeddedCheckout } from "@stripe/stripe-js";
 import type { CheckoutPaymentAction, StorefrontPaymentMethodSetupStart } from "./payment";
-import type { StoreSubscriptionPaymentAction } from "./store";
+import type { StoreCardSetup } from "./store";
 import type { MonriBuyerDetails, MonriCheckoutError } from "./monriCheckout";
 
 export type StripeEmbeddedCheckoutAction = Extract<
-  CheckoutPaymentAction | StoreSubscriptionPaymentAction,
+  CheckoutPaymentAction,
   { type: "stripe_embedded_checkout" }
 >;
 
-export type EmbeddedCheckoutAction = CheckoutPaymentAction | StoreSubscriptionPaymentAction;
+export type EmbeddedCheckoutAction = CheckoutPaymentAction;
+
+export interface SimulatorTexts {
+  title: string;
+  description: string;
+  complete: string;
+  decline: string;
+  expire: string;
+  cancel: string;
+}
 
 export interface MountCheckoutActionParams {
   action: EmbeddedCheckoutAction;
   element: string | HTMLElement;
   payment_id?: string | null;
+  simulator_texts?: SimulatorTexts;
   onComplete?: () => void | Promise<void>;
   onValidationError?: (error: MonriCheckoutError | null) => void;
 }
@@ -38,8 +48,9 @@ export type EmbeddedCheckoutMount =
     };
 
 export interface MountPaymentMethodSetupParams {
-  setup: StorefrontPaymentMethodSetupStart;
+  setup: StorefrontPaymentMethodSetupStart | StoreCardSetup;
   element: string | HTMLElement;
+  simulator_texts?: SimulatorTexts;
 }
 
 export interface ConfirmPaymentMethodSetupParams {

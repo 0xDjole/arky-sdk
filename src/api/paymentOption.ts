@@ -2,21 +2,12 @@ import type { ApiConfig } from "../services/clientTypes";
 import type { RequestOptions } from "../types/api";
 import type { PaginatedResponse } from "../types/common";
 import type {
-  CheckStripeSetupParams,
-  ConnectArkyMonriPaymentOptionParams,
-  ConnectArkyStripePaymentOptionParams,
-  ConnectStripePaymentOptionParams,
-  CreateMonriPaymentOptionParams,
+  CreateCardPaymentOptionParams,
   CreatePaymentOptionParams,
   FindPaymentOptionsParams,
   GetPaymentOptionByKeyParams,
   GetPaymentOptionParams,
   PaymentOption,
-  RefreshStripePaymentOptionParams,
-  ReplaceMonriMerchantKeyParams,
-  ReplaceStripeKeysParams,
-  SaveStripeWebhookSecretParams,
-  StripeSetup,
   UpdatePaymentOptionParams,
 } from "../types/payment";
 import { requireId } from "../utils/ids";
@@ -25,11 +16,17 @@ import { segment, storePath, storeRecordPath } from "./paths";
 const collection = "payment-options";
 
 export const createPaymentOptionApi = (apiConfig: ApiConfig) => {
-  const stripePath = (storeId: string, id: string, verb: string) =>
-    storePath(storeId, `${collection}/stripe/${segment(id)}/${verb}`);
-
-  const stripeAction = (storeId: string, id: string, verb: string, body: object, options?: RequestOptions) =>
-    apiConfig.httpClient.post<PaymentOption>(stripePath(storeId, id, verb), body, options);
+  const createCard = (route: string, params: CreateCardPaymentOptionParams, options?: RequestOptions) => {
+    requireId(params.id, "payment option");
+    return apiConfig.httpClient.post<PaymentOption>(storePath(params.store_id, `${collection}/${route}`), {
+      provider_id: params.provider_id,
+      id: params.id,
+      key: params.key,
+      blocks: params.blocks,
+      status: params.status,
+      saved_card_terms: params.saved_card_terms,
+    }, options);
+  };
 
   return {
     find(params: FindPaymentOptionsParams, options?: RequestOptions): Promise<PaginatedResponse<PaymentOption>> {
@@ -69,6 +66,22 @@ export const createPaymentOptionApi = (apiConfig: ApiConfig) => {
       }, options);
     },
 
+    createStripe(params: CreateCardPaymentOptionParams, options?: RequestOptions): Promise<PaymentOption> {
+      return createCard("stripe", params, options);
+    },
+
+    createMonri(params: CreateCardPaymentOptionParams, options?: RequestOptions): Promise<PaymentOption> {
+      return createCard("monri", params, options);
+    },
+
+    createArkyStripe(params: CreateCardPaymentOptionParams, options?: RequestOptions): Promise<PaymentOption> {
+      return createCard("arky-stripe", params, options);
+    },
+
+    createArkyMonri(params: CreateCardPaymentOptionParams, options?: RequestOptions): Promise<PaymentOption> {
+      return createCard("arky-monri", params, options);
+    },
+
     update(params: UpdatePaymentOptionParams, options?: RequestOptions): Promise<PaymentOption> {
       return apiConfig.httpClient.put<PaymentOption>(storeRecordPath(params.store_id, collection, params.id), {
         expected_updated_at: params.expected_updated_at,
@@ -76,97 +89,6 @@ export const createPaymentOptionApi = (apiConfig: ApiConfig) => {
         status: params.status,
         saved_card_terms: params.saved_card_terms,
       }, options);
-    },
-
-    monri: {
-      create(params: CreateMonriPaymentOptionParams, options?: RequestOptions): Promise<PaymentOption> {
-        requireId(params.id, "payment option");
-        return apiConfig.httpClient.post<PaymentOption>(storePath(params.store_id, `${collection}/monri`), {
-          id: params.id,
-          key: params.key,
-          blocks: params.blocks,
-          status: params.status,
-          environment: params.environment,
-          merchant_key: params.merchant_key,
-          authenticity_token: params.authenticity_token,
-          saved_card_terms: params.saved_card_terms,
-        }, options);
-      },
-
-      replaceMerchantKey(params: ReplaceMonriMerchantKeyParams, options?: RequestOptions): Promise<PaymentOption> {
-        return apiConfig.httpClient.post<PaymentOption>(
-          storePath(params.store_id, `${collection}/monri/${segment(params.id)}/replace-merchant-key`),
-          { expected_updated_at: params.expected_updated_at, merchant_key: params.merchant_key },
-          options,
-        );
-      },
-    },
-
-    stripe: {
-      connect(params: ConnectStripePaymentOptionParams, options?: RequestOptions): Promise<PaymentOption> {
-        requireId(params.id, "payment option");
-        return apiConfig.httpClient.post<PaymentOption>(storePath(params.store_id, `${collection}/stripe`), {
-          id: params.id,
-          key: params.key,
-          blocks: params.blocks,
-          status: params.status,
-          restricted_key: params.restricted_key,
-          publishable_key: params.publishable_key,
-          saved_card_terms: params.saved_card_terms,
-        }, options);
-      },
-
-      saveWebhookSecret(params: SaveStripeWebhookSecretParams, options?: RequestOptions): Promise<PaymentOption> {
-        return stripeAction(params.store_id, params.id, "webhook-secret", {
-          expected_updated_at: params.expected_updated_at,
-          signing_secret: params.signing_secret,
-          previous_secret_expires_at: params.previous_secret_expires_at,
-        }, options);
-      },
-
-      checkSetup(params: CheckStripeSetupParams, options?: RequestOptions): Promise<StripeSetup> {
-        return apiConfig.httpClient.get<StripeSetup>(stripePath(params.store_id, params.id, "setup"), options);
-      },
-
-      replaceKeys(params: ReplaceStripeKeysParams, options?: RequestOptions): Promise<PaymentOption> {
-        return stripeAction(params.store_id, params.id, "replace-keys", {
-          expected_updated_at: params.expected_updated_at,
-          restricted_key: params.restricted_key,
-          publishable_key: params.publishable_key,
-        }, options);
-      },
-
-      refresh(params: RefreshStripePaymentOptionParams, options?: RequestOptions): Promise<PaymentOption> {
-        return stripeAction(params.store_id, params.id, "refresh", {
-          expected_updated_at: params.expected_updated_at,
-        }, options);
-      },
-    },
-
-    arkyStripe: {
-      connect(params: ConnectArkyStripePaymentOptionParams, options?: RequestOptions): Promise<PaymentOption> {
-        requireId(params.id, "payment option");
-        return apiConfig.httpClient.post<PaymentOption>(storePath(params.store_id, `${collection}/arky-stripe`), {
-          id: params.id,
-          key: params.key,
-          blocks: params.blocks,
-          status: params.status,
-          saved_card_terms: params.saved_card_terms,
-        }, options);
-      },
-    },
-
-    arkyMonri: {
-      connect(params: ConnectArkyMonriPaymentOptionParams, options?: RequestOptions): Promise<PaymentOption> {
-        requireId(params.id, "payment option");
-        return apiConfig.httpClient.post<PaymentOption>(storePath(params.store_id, `${collection}/arky-monri`), {
-          id: params.id,
-          key: params.key,
-          blocks: params.blocks,
-          status: params.status,
-          saved_card_terms: params.saved_card_terms,
-        }, options);
-      },
     },
   };
 };

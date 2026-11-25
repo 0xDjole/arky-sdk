@@ -40,41 +40,45 @@ function sameBuyer(cart: StorefrontCart, buyer: CartBuyer | undefined): boolean 
   return cartBuyerKey(cart.buyer) === cartBuyerKey(buyer);
 }
 
+function parsedStoredValue(value: string): unknown {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
 function readSelection(value: string | null): SelectedCart | null {
   if (value === null) return null;
-  try {
-    const parsed: unknown = JSON.parse(value);
-    if (
-      parsed !== null &&
-      typeof parsed === "object" &&
-      !Array.isArray(parsed) &&
-      "version" in parsed &&
-      parsed.version === 3 &&
-      "id" in parsed &&
-      isCanonicalId(parsed.id)
-    ) {
-      return { version: 3, id: parsed.id };
-    }
-  } catch {}
+  const parsed = parsedStoredValue(value);
+  if (
+    parsed !== null &&
+    typeof parsed === "object" &&
+    !Array.isArray(parsed) &&
+    "version" in parsed &&
+    parsed.version === 3 &&
+    "id" in parsed &&
+    isCanonicalId(parsed.id)
+  ) {
+    return { version: 3, id: parsed.id };
+  }
   return null;
 }
 
 function readSignIn(value: string | null): string | null {
   if (value === null) return null;
-  try {
-    const parsed: unknown = JSON.parse(value);
-    if (
-      parsed !== null &&
-      typeof parsed === "object" &&
-      !Array.isArray(parsed) &&
-      "version" in parsed &&
-      parsed.version === 1 &&
-      "from_customer_id" in parsed &&
-      isCanonicalId(parsed.from_customer_id)
-    ) {
-      return parsed.from_customer_id;
-    }
-  } catch {}
+  const parsed = parsedStoredValue(value);
+  if (
+    parsed !== null &&
+    typeof parsed === "object" &&
+    !Array.isArray(parsed) &&
+    "version" in parsed &&
+    parsed.version === 1 &&
+    "from_customer_id" in parsed &&
+    isCanonicalId(parsed.from_customer_id)
+  ) {
+    return parsed.from_customer_id;
+  }
   return null;
 }
 
@@ -85,7 +89,7 @@ function isGone(error: unknown): boolean {
 
 export function createCartSelection(
   context: CartSelectionContext,
-  checkoutScope: string,
+  checkoutScopes: () => readonly string[],
   transport: CartSelectionTransport,
 ) {
   function requireStorage(): SelectionStorage {
@@ -129,17 +133,24 @@ export function createCartSelection(
       const value = context.storage.getItem(tokenKey(cartId));
       return value && value.length > 0 ? value : null;
     } catch {
+      context.storageRefused();
       return null;
     }
   }
 
-  function assertCart(cart: StorefrontCart, customerId: string | null, params: StorefrontCurrentCartParams): void {
+  function otherCart(cart: StorefrontCart, customerId: string | null, params: StorefrontCurrentCartParams): CartError | null {
     if (!cart || typeof cart.id !== "string" || cart.customer_id !== customerId || !sameBuyer(cart, params.buyer)) {
-      throw new CartError("other_cart", "The cart does not belong to this customer and buyer");
+      return new CartError("other_cart", "The cart does not belong to this customer and buyer");
     }
     if (cart.package_id !== params.package_id) {
-      throw new CartError("other_cart", "The selected cart uses a different package");
+      return new CartError("other_cart", "The selected cart uses a different package");
     }
+    return null;
+  }
+
+  function assertCart(cart: StorefrontCart, customerId: string | null, params: StorefrontCurrentCartParams): void {
+    const refusal = otherCart(cart, customerId, params);
+    if (refusal) throw refusal;
   }
 
   function assertMarket(cart: StorefrontCart, marketId: string): void {
@@ -163,6 +174,7 @@ export function createCartSelection(
       storage.setItem(key, JSON.stringify({ version: 3, id: cartId }));
       return true;
     } catch {
+      context.storageRefused();
       return false;
     }
   }
@@ -171,7 +183,9 @@ export function createCartSelection(
     try {
       if (key !== null) storage.removeItem(key);
       for (const id of cartIds) storage.removeItem(tokenKey(id));
-    } catch {}
+    } catch {
+      context.storageRefused();
+    }
   }
 
   function releaseSignIn(storage: SelectionStorage, customerId: string, params: StorefrontCurrentCartParams): void {
@@ -181,7 +195,22 @@ export function createCartSelection(
       const guestKey = selectionKey(signedInFrom, params);
       const guest = readSelection(storage.getItem(guestKey));
       release(storage, guestKey, guest ? [guest.id] : []);
-    } catch {}
+    } catch {
+      context.storageRefused();
+    }
+  }
+
+  function signedInFrom(customerId: string): string | null {
+    if (!context.storage) return null;
+    let value: string | null;
+    try {
+      value = context.storage.getItem(signInKey(customerId));
+    } catch {
+      context.storageRefused();
+      return null;
+    }
+    const from = readSignIn(value);
+    return from !== null && from !== customerId ? from : null;
   }
 
   async function read(id: string, options?: RequestOptions): Promise<StorefrontCart | null> {
@@ -228,7 +257,7 @@ export function createCartSelection(
     const start = await read(guest.id, options);
     const followed: FollowedCart = start ? await follow(start, options) : { cart: null, chain: [guest.id] };
     const cart = followed.cart;
-    if (cart && start && usable(cart, customerId, params, start.market_id)) {
+    if (cart && usable(cart, customerId, params, await context.marketId())) {
       const cartId = cart.id;
       if (select(storage, key, cartId)) {
         release(
@@ -256,10 +285,14 @@ export function createCartSelection(
       release(storage, key, [selection.id]);
       return null;
     }
-    assertCart(start, customerId, params);
+    const refusal = otherCart(start, customerId, params);
+    if (refusal) {
+      release(storage, key, [selection.id]);
+      throw refusal;
+    }
     const followed = await follow(start, options);
     const cart = followed.cart;
-    if (cart && usable(cart, customerId, params, start.market_id)) {
+    if (cart && usable(cart, customerId, params, await context.marketId())) {
       const cartId = cart.id;
       if (cartId !== selection.id && select(storage, key, cartId)) {
         release(
@@ -300,7 +333,7 @@ export function createCartSelection(
     const customerId = requireCustomerId();
     const selected = { buyer: params.buyer, package_id: params.package_id };
     const key = selectionKey(customerId, selected);
-    return withCartMutation(checkoutScope, { type: "new_cart", slot: cartScopeKey(selected, context.market()) }, async () => {
+    return withCartMutation(checkoutScopes(), { type: "new_cart", slot: cartScopeKey(selected, context.market()) }, async () => {
       const marketId = await context.marketId();
       const created = await transport.create({ ...params, market_id: marketId }, options);
       if (!created || !created.cart || created.cart.id !== params.id) {
@@ -320,7 +353,7 @@ export function createCartSelection(
     const customerId = requireCustomerId();
     const selected = { buyer: params.buyer, package_id: params.package_id };
     const key = selectionKey(customerId, selected);
-    return withCartMutation(checkoutScope, { type: "new_cart", slot: cartScopeKey(selected, context.market()) }, async () => {
+    return withCartMutation(checkoutScopes(), { type: "new_cart", slot: cartScopeKey(selected, context.market()) }, async () => {
       const marketId = await context.marketId();
       const reordered = await transport.reorder({ ...params, market_id: marketId }, options);
       const created = reordered?.cart;
@@ -342,7 +375,9 @@ export function createCartSelection(
     try {
       const selection = readSelection(storage.getItem(key));
       release(storage, key, selection ? [selection.id] : []);
-    } catch {}
+    } catch {
+      context.storageRefused();
+    }
     releaseSignIn(storage, customerId, params);
   }
 
@@ -358,8 +393,10 @@ export function createCartSelection(
     }
     try {
       storage.setItem(signInKey(toCustomerId), JSON.stringify({ version: 1, from_customer_id: fromCustomerId }));
-    } catch {}
+    } catch {
+      context.storageRefused();
+    }
   }
 
-  return { current, create, reorder, forget, token, signedIn };
+  return { current, create, reorder, forget, token, signedIn, signedInFrom };
 }

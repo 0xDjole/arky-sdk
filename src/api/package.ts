@@ -1,6 +1,6 @@
 import type { ApiConfig } from "../services/clientTypes";
 import type { RequestOptions } from "../types/api";
-import type { PaginatedResponse } from "../types/common";
+import type { DeletedResponse, PaginatedResponse } from "../types/common";
 import type {
   BatchPackageItemPricesParams,
   BatchPackageItemsParams,
@@ -16,6 +16,7 @@ import type {
   FindPackageAccessesParams,
   FindPackageItemPricesParams,
   FindPackageItemsParams,
+  FindPackagesByIdsParams,
   FindPackagesParams,
   FindPurchasablePackagesParams,
   GetPackageAccessParams,
@@ -46,10 +47,16 @@ export const createPackageApi = (apiConfig: ApiConfig) => ({
     return apiConfig.httpClient.get<PaginatedResponse<PackageSummary>>(storePath(store_id, "packages"), { ...options, params: query });
   },
 
-  async findPurchasable(params: FindPurchasablePackagesParams, options?: RequestOptions): Promise<PaginatedResponse<Package>> {
+  findPurchasable(params: FindPurchasablePackagesParams, options?: RequestOptions): Promise<Package[]> {
     const { store_id, ...query } = params;
-    const items = await apiConfig.httpClient.get<Package[]>(storePath(store_id, "packages/purchasable"), { ...options, params: query });
-    return { items, cursor: null };
+    return apiConfig.httpClient.get<Package[]>(storePath(store_id, "packages/purchasable"), { ...options, params: query });
+  },
+
+  findByIds(params: FindPackagesByIdsParams, options?: RequestOptions): Promise<PaginatedResponse<PackageDetail>> {
+    return apiConfig.httpClient.get<PaginatedResponse<PackageDetail>>(storePath(params.store_id, "packages/by-ids"), {
+      ...options,
+      params: { ids: params.ids },
+    });
   },
 
   get(params: GetPackageParams, options?: RequestOptions): Promise<PackageDetail> {
@@ -144,8 +151,8 @@ export const createPackageItemPriceApi = (apiConfig: ApiConfig) => ({
     );
   },
 
-  delete(params: DeletePackageItemPriceParams, options?: RequestOptions): Promise<void> {
-    return apiConfig.httpClient.delete<void>(storeRecordPath(params.store_id, "package-item-prices", params.id), {
+  delete(params: DeletePackageItemPriceParams, options?: RequestOptions): Promise<DeletedResponse> {
+    return apiConfig.httpClient.delete<DeletedResponse>(storeRecordPath(params.store_id, "package-item-prices", params.id), {
       ...options,
       params: { expected_updated_at: params.expected_updated_at },
     });
@@ -195,8 +202,8 @@ export const createPackageItemApi = (apiConfig: ApiConfig) => ({
     );
   },
 
-  delete(params: DeletePackageItemParams, options?: RequestOptions): Promise<void> {
-    return apiConfig.httpClient.delete<void>(storeRecordPath(params.store_id, "package-items", params.id), {
+  delete(params: DeletePackageItemParams, options?: RequestOptions): Promise<DeletedResponse> {
+    return apiConfig.httpClient.delete<DeletedResponse>(storeRecordPath(params.store_id, "package-items", params.id), {
       ...options,
       params: { expected_updated_at: params.expected_updated_at },
     });
@@ -222,7 +229,7 @@ export const createPackageAccessApi = (apiConfig: ApiConfig) => ({
     return apiConfig.httpClient.post<PackageAccess>(storePath(store_id, "package-accesses"), body, options);
   },
 
-  delete(params: DeletePackageAccessParams, options?: RequestOptions): Promise<void> {
-    return apiConfig.httpClient.delete<void>(storeRecordPath(params.store_id, "package-accesses", params.id), options);
+  delete(params: DeletePackageAccessParams, options?: RequestOptions): Promise<DeletedResponse> {
+    return apiConfig.httpClient.delete<DeletedResponse>(storeRecordPath(params.store_id, "package-accesses", params.id), options);
   },
 });

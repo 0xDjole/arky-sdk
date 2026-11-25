@@ -3,7 +3,7 @@ import type { MonriComponentsAction, MonriEnvironment, PaymentRunsOn } from "../
 import type { MonriBrowserBuyerDetails, MonriBrowserFactory, MonriBuyerDetails } from "../types/monriCheckout";
 import { MonriCheckoutError } from "../types/monriCheckout";
 import { simulatePayment } from "../paymentSimulator";
-import { createSimulatorPanel } from "./simulatorPanel";
+import { createSimulatorPanel, requireSimulatorTexts } from "./simulatorPanel";
 import { isRecord } from "../utils/record";
 
 let loaded: { environment: MonriEnvironment; factory: Promise<MonriBrowserFactory> } | undefined;
@@ -106,20 +106,21 @@ function monriContainer(element: string | HTMLElement): HTMLElement {
 function mountSimulatedMonri(
   action: MonriComponentsAction,
   element: string | HTMLElement,
-  callbacks: Pick<MountCheckoutActionParams, "onComplete">,
+  callbacks: Pick<MountCheckoutActionParams, "onComplete" | "simulator_texts">,
 ): Extract<EmbeddedCheckoutMount, { type: "monri_components" }> {
   if (typeof document === "undefined") throw new MonriCheckoutError("unavailable", "The test payment form needs a browser page.");
+  const texts = requireSimulatorTexts(callbacks.simulator_texts);
   let disposed = false;
   let submitted = false;
   let chosen: "complete" | "decline" = "complete";
   const panel = createSimulatorPanel(
     monriContainer(element),
     {
-      title: "Test payment",
-      description: "This payment runs on Arky's provider simulator. No real money moves. Pick the outcome, then submit the payment.",
+      title: texts.title,
+      description: texts.description,
       choices: [
-        { outcome: "complete", label: "Approve" },
-        { outcome: "decline", label: "Decline" },
+        { outcome: "complete", label: texts.complete },
+        { outcome: "decline", label: texts.decline },
       ],
     },
     (outcome) => {
@@ -153,7 +154,7 @@ export async function mountMonriCheckoutAction(
   action: MonriComponentsAction,
   paymentId: string,
   element: string | HTMLElement,
-  callbacks: Pick<MountCheckoutActionParams, "onComplete" | "onValidationError">,
+  callbacks: Pick<MountCheckoutActionParams, "onComplete" | "onValidationError" | "simulator_texts">,
 ): Promise<Extract<EmbeddedCheckoutMount, { type: "monri_components" }>> {
   if (!isMonriComponentsAction(action) || typeof paymentId !== "string" || !paymentId.length) {
     throw new MonriCheckoutError("invalid_action", "The Monri payment action is invalid.");

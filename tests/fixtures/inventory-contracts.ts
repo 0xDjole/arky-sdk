@@ -4,7 +4,8 @@ import type {
   InventoryItem, InventoryItemStatus, InventoryTracking, InventoryLevel, InventoryStockLevel, InventoryMovement,
   InventoryMovementReason, InventoryQuantity, ChangeSetAsideParams, MoveInventoryParams,
   ReceiveStockMoveParams, IncomingStock, RecordInventoryMovementParams, ManualInventoryMovementReason,
-  CreateInventoryItemParams, UpdateInventoryItemParams, CreateInventoryLevelParams,
+  CreateInventoryItemParams, UpdateInventoryItemParams, CreateInventoryLevelParams, DeletedResponse,
+  FindInventoryLevelsParams, FindInventoryUnitsParams,
 } from "arky-sdk";
 import type {
   InventoryLevel as PublicLevel, InventoryMovement as PublicMovement,
@@ -26,8 +27,10 @@ export type InventoryContracts = [
   True<Same<InventoryQuantity["type"], "on_hand" | "unavailable">>,
   True<Same<keyof InventoryMovement, "id" | "store_id" | "inventory_item_id" | "tracking" | "store_location_id" | "delta" | "after" | "reason" | "action_id" | "created_at">>,
   True<"request_id" extends keyof InventoryMovement ? false : true>,
-  True<Same<keyof Extract<InventoryMovementReason, { type: "dispatched" }>, "type" | "fulfillment_id">>,
-  True<Same<Extract<InventoryMovementReason, { type: "dispatched" }>, { type: "dispatched"; fulfillment_id: string }>>,
+  True<Same<keyof Extract<InventoryMovementReason, { type: "dispatched" }>, "type">>,
+  True<Same<Extract<InventoryMovementReason, { type: "dispatched" }>, { type: "dispatched" }>>,
+  True<Same<keyof Extract<InventoryMovementReason, { type: "written_off" }>, "type" | "actor" | "reason">>,
+  True<"written_off" extends ManualInventoryMovementReason["type"] ? false : true>,
   True<Same<NonNullable<FindInventoryMovementsParams["sort_field"]>, "created_at">>,
   True<RequiredField<GetInventoryItemByKeyParams, "key">>,
   True<Same<InventoryTracking["type"], "tracked" | "individual" | "untracked">>,
@@ -70,8 +73,16 @@ export type InventoryContracts = [
   True<RequiredField<FindInventoryMovementsParams, "store_id">>,
   True<RequiredField<CreateInventoryItemParams, "id">>,
   True<RequiredField<CreateInventoryLevelParams, "id">>,
-  True<Same<Awaited<ReturnType<Api["inventoryItem"]["delete"]>>, void>>,
+  True<Same<Awaited<ReturnType<Api["inventoryItem"]["delete"]>>, DeletedResponse>>,
+  True<Same<Awaited<ReturnType<Api["inventoryLevel"]["remove"]>>, DeletedResponse>>,
   True<"inventoryReservation" extends keyof Api ? false : true>,
+  True<Same<FindInventoryItemsParams["ids"], string[] | undefined>>,
+  True<Same<{ store_id: string; ids: string[]; query: string } extends FindInventoryItemsParams ? true : false, false>>,
+  True<Same<FindInventoryUnitsParams["ids"], string[] | undefined>>,
+  True<Same<{ store_id: string; ids: string[]; status: "available" } extends FindInventoryUnitsParams ? true : false, false>>,
+  True<Same<FindInventoryLevelsParams["inventory_item_ids"], string[] | undefined>>,
+  True<"inventory_item_id" extends keyof FindInventoryLevelsParams ? false : true>,
+  True<Same<Parameters<Api["inventoryLevel"]["findStock"]>[0], FindInventoryLevelsParams>>,
 ];
 
 export const combinedMovementQuery: FindInventoryMovementsParams = {

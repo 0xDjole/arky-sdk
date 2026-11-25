@@ -51,6 +51,31 @@ export type StoreLocationStatus =
 
 export type StoreLocationEditableStatus = Exclude<StoreLocationStatus, { type: "deleting" }>;
 
+export type FiscalJurisdiction =
+  | "croatia"
+  | "fbih2009"
+  | "fbih2026"
+  | "republika_srpska"
+  | "brcko"
+  | "serbia";
+
+export type CroatiaOnlineFiscalDevice =
+  | { type: "none" }
+  | { type: "device"; fiscal_device_id: string };
+
+export type RepublikaSrpskaOnlineFiscalDevice =
+  | { type: "none" }
+  | { type: "device"; fiscal_device_id: string };
+
+export type StoreLocationFiscal =
+  | { type: "not_fiscal" }
+  | { type: "croatia"; online_fiscal_device: CroatiaOnlineFiscalDevice }
+  | { type: "republika_srpska"; online_fiscal_device: RepublikaSrpskaOnlineFiscalDevice }
+  | { type: "serbia" }
+  | { type: "fbih2009" }
+  | { type: "fbih2026" }
+  | { type: "brcko" };
+
 export interface StoreLocation {
   id: string;
   store_id: string;
@@ -58,6 +83,7 @@ export interface StoreLocation {
   address: PostalAddress;
   timezone: string;
   blocks: Block[];
+  fiscal: StoreLocationFiscal;
   status: StoreLocationStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
@@ -198,6 +224,13 @@ export interface UpdateStoreLocationParams {
   timezone?: string;
   blocks?: Block[];
   status?: StoreLocationEditableStatus;
+}
+
+export interface SetStoreLocationFiscalParams {
+  store_id: string;
+  id: string;
+  expected_updated_at: EpochMilliseconds;
+  fiscal: StoreLocationFiscal;
 }
 
 export interface DeleteStoreLocationParams {

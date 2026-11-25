@@ -2,16 +2,17 @@ import { atom, computed, map, type ReadableAtom } from "nanostores";
 import type { RequestOptions } from "../types/api";
 import type {
   StorefrontCart,
+  CartBookingLineAddOn,
+  CartBookingLineAddOnInput,
   CartBuyer,
   CartDeliveryDestination,
   CartDeliveryGroup,
-  CartLineItem,
   CartLineItemInput,
   CartProductLineItem,
-  CartQuote,
+  StorefrontCartQuote,
   StorefrontCheckoutAcceptance,
   PackageDeliveryOffers,
-  QuoteLine,
+  StorefrontQuoteLine,
   QuotePromotionCode,
   StorefrontCheckoutCartInput,
   StorefrontCartLineItem,
@@ -23,9 +24,10 @@ import { CartError } from "../types/cartSelection";
 import { ArkyApiError, ArkyNetworkError, errorInfo } from "../types/apiError";
 import type { CompanyPartyQuery } from "../types/common";
 import type { StorefrontCheckoutCartRequest, StorefrontClient } from "../index";
-import { isDefiniteRefusal } from "../utils/durableRequest";
+import { cartBuyerKey } from "../services/cartSelection";
+import { copyBookingLineResource } from "../utils/cartInputs";
+import { DurableRequestError, isDefiniteRefusal } from "../utils/durableRequest";
 import { fingerprint } from "../utils/fingerprint";
-import { epochMillisecondsNow } from "../utils/time";
 import type {
   ArkyAddBookingParams,
   ArkyAddPackageParams,
@@ -35,7 +37,6 @@ import type {
   ArkyCartQuoteParams,
   ArkyCartScope,
   ArkyCartStatus,
-  ArkyLastOrder,
   ArkyQuoteFutureDeliveriesParams,
   ArkyRemoveItemParams,
   ArkySelectShippingMethodParams,
@@ -43,6 +44,7 @@ import type {
   ArkySetBuyerParams,
   ArkySetDeliveryGroupsParams,
   ArkySetFutureDeliveriesParams,
+  ArkySetPlaceOfSaleParams,
   ArkySetProductQuantityParams,
   ArkySetPromotionCodesParams,
   ArkyShipToParams,
@@ -63,8 +65,6 @@ export interface CartStoreContext {
   appId(label: string): string;
   appOrderToken(): string;
 }
-
-const variantReadsAtOnce = 10;
 
 const idleStatus: ArkyCartStatus = {
   loading: false,
@@ -96,6 +96,23 @@ function packageStartInput(start: StorefrontPackageStart): PackageStart {
   return start;
 }
 
+function addOnInputs(addOns: readonly CartBookingLineAddOn[]): CartBookingLineAddOnInput[] {
+  return addOns.map((addOn) => ({
+    add_on_id: addOn.add_on_id,
+    resource: addOn.resource.type === "resource" ? { type: "resource", booking_resource_id: addOn.resource.booking_resource_id } : { type: "any" },
+    form_submission_id: addOn.form_submission_id,
+    add_ons: addOnInputs(addOn.add_ons),
+  }));
+}
+
+function buyerFitsScope(buyer: CartBuyer, scope: CartBuyer | undefined): boolean {
+  if (!scope || scope.type === "customer") return buyer.type === "customer";
+  if (scope.type === "company_location_selection") {
+    return buyer.type === "company_location" || cartBuyerKey(buyer) === cartBuyerKey(scope);
+  }
+  return cartBuyerKey(buyer) === cartBuyerKey(scope);
+}
+
 function cartLineInput(line: StorefrontCartLineItem): CartLineItemInput {
   switch (line.type) {
     case "product":
@@ -112,10 +129,21 @@ function cartLineInput(line: StorefrontCartLineItem): CartLineItemInput {
         type: "booking",
         id: line.id,
         booking_offering_id: line.booking_offering_id,
+        store_location_id: line.store_location_id,
+        resource: copyBookingLineResource(line.resource),
         requested_interval: { from: line.requested_interval.from, to: line.requested_interval.to },
+        add_ons: addOnInputs(line.add_ons),
         capacity_units: line.capacity_units,
         form_submission_id: line.form_submission_id,
         price: line.price,
+        ...(line.session
+          ? {
+              session: {
+                package_member_id: line.session.package_member_id,
+                package_item_id: line.session.package_item_id,
+              },
+            }
+          : {}),
       };
     case "package":
       return {
@@ -192,8 +220,7 @@ export function deliveryGroupsFor(
 export function createCartStore(context: CartStoreContext, scope: ArkyCartScope) {
   const { client } = context;
   const cart = atom<StorefrontCart | null>(null);
-  const quote = atom<CartQuote | null>(null);
-  const last_order = atom<ArkyLastOrder | null>(null);
+  const quote = atom<StorefrontCartQuote | null>(null);
   const cart_status = map<ArkyCartStatus>({ ...idleStatus });
   const product_items = computed(cart, (value) => cartProductItems(value));
   const booking_items = computed(cart, (value) => cartBookingItems(value));
@@ -201,11 +228,12 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
   const product_item_count = computed(product_items, (items) => items.reduce((total, item) => total + item.quantity, 0));
   const item_count = computed(
     [product_item_count, booking_items, package_items],
-    (products, bookings, packages) => products + bookings.length + packages.length,
+    (products, bookings, packages) => products + bookings.length + packages.reduce((total, item) => total + item.quantity, 0),
   );
   const promotion_codes = computed(quote, (value): QuotePromotionCode[] => value?.promotion_codes ?? []);
 
   let cartRevision = 0;
+  let writing = false;
   let pendingCartId: string | null = null;
 
   function reset(): void {
@@ -218,7 +246,6 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
   function invalidate(): void {
     pendingCartId = null;
     reset();
-    last_order.set(null);
   }
 
   function applyCart(operation: CartScope, value: StorefrontCart, revision: number): StorefrontCart {
@@ -237,15 +264,27 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
     return value;
   }
 
+  function refuseWhileWriting(): void {
+    if (writing) throw new CartError("busy", "A change to this cart is still being sent");
+  }
+
+  function forgetRefusedRevision(error: unknown, revision: number): void {
+    if (error instanceof DurableRequestError && revision === cartRevision) cartRevision = revision - 1;
+  }
+
   async function runCartWrite(operation: (current: StorefrontCart) => Promise<StorefrontCart>): Promise<StorefrontCart> {
     const started = await context.beginCartOperation();
+    refuseWhileWriting();
+    const current = requireCart();
+    writing = true;
     const revision = ++cartRevision;
     cart_status.setKey("syncing", true);
     cart_status.setKey("error", null);
     try {
-      const value = await operation(requireCart());
+      const value = await operation(current);
       return applyCart(started, value, revision);
     } catch (error) {
+      forgetRefusedRevision(error, revision);
       if (started.isCurrent()) {
         cart_status.setKey("error", errorInfo(error));
         if (revision === cartRevision && cartMayHaveChanged(error)) {
@@ -255,11 +294,14 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
       }
       throw error;
     } finally {
+      writing = false;
       if (started.isCurrent()) cart_status.setKey("syncing", false);
     }
   }
 
   async function load(): Promise<StorefrontCart | null> {
+    context.assertMarket();
+    if (!client.hasSession) return null;
     const started = await context.beginCartOperation();
     const revision = ++cartRevision;
     cart_status.setKey("loading", true);
@@ -284,15 +326,25 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
 
   async function create(params: ArkyCartCreateParams = {}): Promise<StorefrontCart> {
     const started = await context.beginCartOperation();
+    refuseWhileWriting();
     const id = params.id ?? (pendingCartId ??= context.appId("cart"));
+    writing = true;
     const revision = ++cartRevision;
     try {
-      const created = await client.eshop.cart.create({ id, buyer: scope.buyer ?? { type: "customer" }, package_id: scope.package_id });
+      const created = await client.eshop.cart.create({
+        id,
+        buyer: scope.buyer ?? { type: "customer" },
+        package_id: scope.package_id,
+        ...(params.place_of_sale !== undefined ? { place_of_sale: params.place_of_sale } : {}),
+      });
       if (pendingCartId === id) pendingCartId = null;
       return applyCart(started, created.cart, revision);
     } catch (error) {
+      forgetRefusedRevision(error, revision);
       if (pendingCartId === id && isDefiniteRefusal(error)) pendingCartId = null;
       throw error;
+    } finally {
+      writing = false;
     }
   }
 
@@ -367,32 +419,12 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
     return runCartWrite((current) => client.eshop.cart.update({ ...version(current), delivery_groups: params.delivery_groups }));
   }
 
-  async function shippingProfiles(current: StorefrontCart, lines: QuoteLine[]): Promise<Map<string, string>> {
-    const physical = lines.filter(
-      (line): line is Extract<QuoteLine, { type: "product" }> => line.type === "product" && line.snapshot.fulfillment.type === "physical",
-    );
-    const variants = [...new Map(physical.map((line) => [line.variant_id, line.product_id])).entries()];
-    const profileByVariant = new Map<string, string>();
-    for (let start = 0; start < variants.length; start += variantReadsAtOnce) {
-      const read = await Promise.all(
-        variants
-          .slice(start, start + variantReadsAtOnce)
-          .map(([variantId, productId]) =>
-            client.eshop.productVariant.get({ ...buyerParty(current.buyer), product_id: productId, id: variantId, package_id: current.package_id }),
-          ),
-      );
-      for (const variant of read) {
-        if (variant.fulfillment.type !== "physical") {
-          throw new CartError("not_ready", "A shipped variant no longer ships; reload the cart");
-        }
-        profileByVariant.set(variant.id, variant.fulfillment.shipping_profile_id);
-      }
-    }
+  function shippingProfiles(lines: StorefrontQuoteLine[]): Map<string, string> {
     const profileByLine = new Map<string, string>();
-    for (const line of physical) {
-      const profile = profileByVariant.get(line.variant_id);
-      if (!profile) throw new CartError("not_ready", "A shipped variant couldn't be read; reload the cart");
-      profileByLine.set(line.line_item_id, profile);
+    for (const line of lines) {
+      if (line.type !== "product" || line.snapshot.fulfillment.type !== "physical") continue;
+      if (line.shipping_profile_id === null) throw new CartError("not_ready", "A shipped variant no longer ships; reload the cart");
+      profileByLine.set(line.line_item_id, line.shipping_profile_id);
     }
     return profileByLine;
   }
@@ -405,8 +437,7 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
     const quoted = await client.eshop.cart.quote(quoteBody(current.id, quoteParams), storeContextOnly(options));
     started.assertCurrent();
     if (quoted.cart_id !== current.id) throw new CartError("answer_mismatch", "The quote answered another cart");
-    const profileByLine = await shippingProfiles(current, quoted.lines);
-    started.assertCurrent();
+    const profileByLine = shippingProfiles(quoted.lines);
     const groups = deliveryGroupsFor(current, profileByLine, destination, () => context.appId("delivery group"));
     return runCartWrite((latest) => {
       if (latest.id !== current.id || latest.updated_at !== current.updated_at) {
@@ -420,8 +451,15 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
     return runCartWrite((current) => client.eshop.cart.update({ ...version(current), billing_address: params.billing_address }));
   }
 
-  function setBuyer(params: ArkySetBuyerParams): Promise<StorefrontCart> {
+  async function setBuyer(params: ArkySetBuyerParams): Promise<StorefrontCart> {
+    if (!buyerFitsScope(params.buyer, scope.buyer)) {
+      throw new CartError("not_ready", "This cart store keeps its own buyer's cart; take another buyer's cart from eshop.cart({ buyer })");
+    }
     return runCartWrite((current) => client.eshop.cart.update({ ...version(current), buyer: params.buyer }));
+  }
+
+  function setPlaceOfSale(params: ArkySetPlaceOfSaleParams): Promise<StorefrontCart> {
+    return runCartWrite((current) => client.eshop.cart.update({ ...version(current), place_of_sale: params.place_of_sale }));
   }
 
   function setPromotionCodes(params: ArkySetPromotionCodesParams): Promise<StorefrontCart> {
@@ -459,7 +497,7 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
     return runCartWrite((current) => client.eshop.cart.clear(version(current)));
   }
 
-  async function fetchQuote(params: ArkyCartQuoteParams = {}, options?: RequestOptions): Promise<CartQuote> {
+  async function fetchQuote(params: ArkyCartQuoteParams = {}, options?: RequestOptions): Promise<StorefrontCartQuote> {
     const started = await context.beginCartOperation();
     const current = requireCart();
     const language = context.requireLocale();
@@ -499,29 +537,13 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
       expected_updated_at: current.updated_at,
       presentation_digest: reviewed.presentation_digest,
       contact_email: params.contact_email,
-      ...(params.contact_first_name !== undefined ? { contact_first_name: params.contact_first_name } : {}),
-      ...(params.contact_last_name !== undefined ? { contact_last_name: params.contact_last_name } : {}),
+      ...(params.contact_name !== undefined ? { contact_name: params.contact_name } : {}),
       payment: params.payment,
       scope,
     };
   }
 
   function finishCheckout(cartId: string, result: StorefrontCheckoutAcceptance, clearAfter: boolean): StorefrontCheckoutAcceptance {
-    const reviewed = quote.get();
-    if (result.type === "placed") {
-      last_order.set({
-        order_id: result.order_id,
-        number: result.number,
-        cart_id: cartId,
-        payment_id: result.payment_id,
-        payment_action: result.payment_action,
-        total: reviewed && reviewed.cart_id === cartId ? reviewed.totals.total : null,
-        currency: reviewed && reviewed.cart_id === cartId ? reviewed.currency : null,
-        created_at: epochMillisecondsNow(),
-      });
-    } else {
-      last_order.set(null);
-    }
     if (clearAfter && cart.get()?.id === cartId) {
       client.eshop.cart.forget(scope);
       reset();
@@ -587,7 +609,6 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
     package_items,
     quote_result: quote,
     promotion_codes,
-    last_order,
     status: cart_status,
     product_item_count,
     item_count,
@@ -604,6 +625,7 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
     shipTo,
     setBillingAddress,
     setBuyer,
+    setPlaceOfSale,
     setPromotionCodes,
     selectShippingMethod,
     setFutureDeliveries,

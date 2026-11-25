@@ -1,13 +1,17 @@
 import type { Currency, PostalAddress, SortDirection, TaxMode } from "./common";
-import type { BotCheck } from "./apiKey";
 import type { StorefrontPaymentOption } from "./payment";
+
+export type StorefrontCustomerSignIn = { type: "store" } | { type: "network"; network_id: string };
+
+export type StorefrontSeller = { type: "none" } | { type: "seller"; name: string; address: PostalAddress };
 
 export interface StorefrontSetup {
   name: string;
   timezone: string;
   languages: string[];
   payment_options: StorefrontPaymentOption[];
-  bot_check: BotCheck;
+  customer_sign_in: StorefrontCustomerSignIn;
+  seller: StorefrontSeller;
 }
 
 export interface StorefrontMarket {

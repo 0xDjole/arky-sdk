@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { createStorefront } from "../dist/storefront.js";
-import { apiUrl, errorResponse, fixedIdFactories, ids, publishableKey, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
+import { apiUrl, errorResponse, fixedIdFactories, ids, storefrontIdentity, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
 
 const store = "56c82765-4f5a-47e9-bd6d-dba7c6354919";
 const otherStore = "e5f1a9c3-7b24-4d68-a0e2-9c4b7d1f3e85";
@@ -96,6 +96,26 @@ test("a switch whose price source can't sell the new package is refused as TARGE
   ]);
 });
 
+test("a member whose first Order has no place of sale reads blocked with place_of_sale_required, and resuming it ends with PLACE_OF_SALE_REQUIRED", async (context) => {
+  const blocked = { id: memberId, status: { type: "blocked", cause: { type: "place_of_sale_required" }, blocked_at: 5 } };
+  const answers = [
+    blocked,
+    { ...blocked, status: { ...blocked.status } },
+    errorResponse(409, "PACKAGE_MEMBER.PLACE_OF_SALE_REQUIRED", "The member's first Order has no place of sale, which this store's fiscal location requires; sell the package again at a place"),
+  ];
+  const calls = recordFetch(context, () => answers.shift());
+  const api = members();
+  assert.deepEqual((await api.get({ store_id: store, id: memberId })).status, { type: "blocked", cause: { type: "place_of_sale_required" }, blocked_at: 5 });
+  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: ids.customer, session_id: ids.session }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() }).eshop.packageMember;
+  assert.deepEqual((await storefront.get({ id: memberId })).status.cause, { type: "place_of_sale_required" });
+  await assert.rejects(api.resume({ store_id: store, id: memberId, expected_updated_at: version }), (error) => error.statusCode === 409 && error.code === "PACKAGE_MEMBER.PLACE_OF_SALE_REQUIRED");
+  assert.deepEqual(calls.map((call) => [call.method, call.path, call.body]), [
+    ["GET", `/v1/stores/${store}/package-members/${memberId}`, null],
+    ["GET", `/v1/storefront/package-members/${memberId}`, null],
+    ["POST", `/v1/stores/${store}/package-members/${memberId}/resume`, { expected_updated_at: version }],
+  ]);
+});
+
 test("a renewing switch names a delivery for the new package's shipping profile, and a switch without it is refused as DELIVERY_REQUIRED", async (context) => {
   const address = { name: "Customer", company: null, street1: "2 New Street", street2: null, city: "Sarajevo", state: null, postal_code: "71000", country: "BA", phone: null, email: null };
   const delivery = {
@@ -147,6 +167,18 @@ test("the calendar reads the member's next occurrence and the one after a skip",
   ]);
 });
 
+test("staff read which member changes they may make, so the Admin shows only the controls the change routes allow", async (context) => {
+  const changes = { package_member_id: memberId, change: { type: "forbidden" }, select_payment_method: { type: "change_scheduled" } };
+  const calls = recordFetch(context, () => changes);
+  const read = await members().getChanges({ store_id: store, id: memberId });
+  assert.deepEqual(read, changes);
+  assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
+    ["GET", `/v1/stores/${store}/package-members/${memberId}/changes`, {}, null],
+  ]);
+  await assert.rejects(async () => members().getChanges({ id: memberId }), TypeError);
+  assert.equal(calls.length, 1);
+});
+
 test("a buyer acts on and reads their own member through storefront routes and gets their own view back", async (context) => {
   const self = { id: memberId, status: { type: "paused", cause: { type: "requested", resumes: { type: "never" } }, paused_at: 5 } };
   const revision = {
@@ -161,7 +193,7 @@ test("a buyer acts on and reads their own member through storefront routes and g
     if (call.path.includes("/revisions/")) return revision;
     return self;
   });
-  const api = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() }).eshop.packageMember;
+  const api = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() }).eshop.packageMember;
   const switchTo = { id: memberId, expected_updated_at: version, to_package_id: memberPackageId, choices, price: { package_id: packageId, package_item_id: ids.packageItem, price_id: ids.price }, deliveries: [], reason: "Upgrade" };
   assert.deepEqual(await api.pause({ id: memberId, expected_updated_at: 5, reason: "Travel", resumes: { type: "never" } }), self);
   await api.resume({ id: memberId, expected_updated_at: 6 });
@@ -198,4 +230,21 @@ test("a buyer acts on and reads their own member through storefront routes and g
     assert.equal(call.body !== null && "store_id" in call.body, false);
     assert.equal("sales_channel_id" in call.query, false);
   }
+});
+
+test("staff read package members by ids or by renewal type, their current terms by ids, a member's Orders oldest first, and packages by ids", async (context) => {
+  const calls = recordFetch(context, () => ({ items: [], cursor: null }));
+  const admin = createAdmin({ apiUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).eshop;
+  await admin.packageMember.find({ store_id: ids.store, ids: [ids.packageMember] });
+  await admin.packageMember.find({ store_id: ids.store, renewal_type: "every", limit: 20 });
+  await admin.packageMember.findCurrent({ store_id: ids.store, ids: [ids.packageMember] });
+  await admin.packageMember.findOrders({ store_id: ids.store, id: ids.packageMember, sort_direction: "asc", limit: 1 });
+  await admin.package.findByIds({ store_id: ids.store, ids: [ids.package, ids.otherPackage] });
+  assert.deepEqual(calls.map((call) => [call.method, call.path, call.query]), [
+    ["GET", `/v1/stores/${ids.store}/package-members`, { ids: JSON.stringify([ids.packageMember]) }],
+    ["GET", `/v1/stores/${ids.store}/package-members`, { renewal_type: "every", limit: "20" }],
+    ["GET", `/v1/stores/${ids.store}/package-members/current`, { ids: JSON.stringify([ids.packageMember]) }],
+    ["GET", `/v1/stores/${ids.store}/package-members/${ids.packageMember}/orders`, { sort_direction: "asc", limit: "1" }],
+    ["GET", `/v1/stores/${ids.store}/packages/by-ids`, { ids: JSON.stringify([ids.package, ids.otherPackage]) }],
+  ]);
 });

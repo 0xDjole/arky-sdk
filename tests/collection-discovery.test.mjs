@@ -7,7 +7,7 @@ import { fixedIdFactories, SessionStorage } from "./helpers/arky-fixtures.mjs";
 const STORE_ID = "7a3f9e21-5c84-4d06-b2e9-0f1d6c8a4b73";
 const COLLECTION_ID = "2c4e6a8b-0d1f-4a3c-9e5b-7d9f1b3d5e6a";
 const ENTRY_ID = "3d5f7b9c-1e2a-4b4d-8f6c-8e0a2c4e6f7b";
-const publishableKey = `arky_pk_${"s".repeat(43)}`;
+const storefrontIdentity = { storeId: "5e9b3d71-c826-4a04-b7f5-0d2a8e6c4f19", salesChannelId: "e5a8c2d7-3b91-4f06-9d4e-1c7b6a0f3e28" };
 
 function admin() {
   return createAdmin({ apiUrl: "https://content-contract.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
@@ -103,7 +103,7 @@ test("Entry discovery preserves Block predicates, native ordering and opaque con
   };
   for (const [client, target] of [
     [admin(), { store_id: STORE_ID, status: "active" }],
-    [createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: "https://entry.test", locale: "en", market: "market-contract", sessionStorage: new SessionStorage() }), {}],
+    [createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: "https://entry.test", locale: "en", market: "market-contract", sessionStorage: new SessionStorage() }), {}],
   ]) {
     const page = await client.content.entry.find({ ...target, ...filters });
     assert.deepEqual(page, { items: [], cursor: "entry:+/=" });
@@ -136,7 +136,7 @@ test("entry slug lookups name their collection; Admin names the language and the
     return new Response(JSON.stringify({ items, cursor: null }), { headers: { "content-type": "application/json" } });
   });
   assert.deepEqual(await admin().content.entry.find({ store_id: STORE_ID, collection_id: COLLECTION_ID, slug: "vodic", language: "bs" }), { items: [entry], cursor: null });
-  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: "https://entry.test", locale: "bs", sessionStorage: new SessionStorage() });
+  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: "https://entry.test", locale: "bs", sessionStorage: new SessionStorage() });
   assert.deepEqual(await storefront.content.entry.find({ collection_id: COLLECTION_ID, slug: "vodic" }), { items: [entry], cursor: null });
   items = [];
   assert.deepEqual(await storefront.content.entry.find({ collection_id: COLLECTION_ID, slug: "missing" }), { items: [], cursor: null });

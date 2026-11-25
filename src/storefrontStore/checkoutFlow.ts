@@ -1,10 +1,13 @@
+import { isCheckoutContactName } from "../services/cartCheckout";
+import type { OrderContactName } from "../types/order";
 import { atom, computed } from "nanostores";
 import type {
   StorefrontCart,
   CartDeliveryDestination,
-  CartQuote,
+  StorefrontCartQuote,
   StorefrontCheckoutAcceptance,
   CheckoutPaymentChoice,
+  CheckoutSavePaymentMethod,
   QuoteBlocker,
 } from "../types/cart";
 import { ArkyApiError, ArkyError, ArkyNetworkError } from "../types/apiError";
@@ -29,6 +32,7 @@ import type {
   ArkySelectShippingParams,
   ArkySetBillingAddressParams,
   ArkySetContactParams,
+  ArkySetPlaceOfSaleParams,
   ArkySetPromotionCodesParams,
 } from "./types";
 
@@ -62,9 +66,7 @@ export interface CheckoutFlowContext {
 interface CheckoutLocal {
   busy: boolean;
   contact_email: EmailContact | null;
-  contact_first_name: string | null;
-  contact_last_name: string | null;
-  destination: CartDeliveryDestination | null;
+  contact_name: OrderContactName | null;
   payment_option_id: string | null;
   pending: ArkyCheckoutState["pending"];
   placed: ArkyPlacedCheckout | null;
@@ -72,31 +74,47 @@ interface CheckoutLocal {
   error: ArkyCheckoutState["error"];
 }
 
-const lineBlockers: QuoteBlocker["type"][] = [
-  "booking_unavailable",
-  "tax_unavailable",
-  "package_minimum_conflict",
-  "package_change_scheduled",
-  "package_change_refused",
-  "payment_unavailable",
-];
+type BlockerStep = Extract<ArkyCheckoutStep, "cart" | "details" | "shipping">;
 
-const detailBlockers: QuoteBlocker["type"][] = [
-  "units_without_delivery",
-  "delivery_unavailable",
-  "billing_address_required",
-  "purchase_order_number_required",
-  "package_delivery_required",
-];
+const blockerSteps: Record<QuoteBlocker["type"], BlockerStep> = {
+  units_without_delivery: "details",
+  billing_address_required: "details",
+  shipping_required: "shipping",
+  booking_unavailable: "cart",
+  booking_session: "cart",
+  tax_unavailable: "cart",
+  delivery_unavailable: "details",
+  package_delivery_required: "details",
+  package_shipping_required: "shipping",
+  package_delivery_fee_varies: "shipping",
+  package_minimum_conflict: "cart",
+  package_change_scheduled: "cart",
+  package_change_refused: "cart",
+  payment_unavailable: "cart",
+  purchase_order_number_required: "details",
+  shipping_rate_unavailable: "shipping",
+  package_shipping_rate_unavailable: "shipping",
+  place_of_sale_required: "details",
+  place_of_sale_not_active: "details",
+  place_of_sale_jurisdiction: "cart",
+  delivery_place_of_sale_jurisdiction: "details",
+  document_unavailable: "cart",
+  package_document_unavailable: "cart",
+  delivery_document_unavailable: "details",
+  documents_unavailable: "cart",
+  fiscal_buyer_tax_id_required: "details",
+};
 
-const placedOutcomes = ["paid", "pay_later", "unconfirmed"];
+function blockerStep(blocker: QuoteBlocker): BlockerStep {
+  return Object.prototype.hasOwnProperty.call(blockerSteps, blocker.type) ? blockerSteps[blocker.type] : "cart";
+}
+
+const placedOutcomes = ["paid", "unconfirmed"];
 
 const initialLocal: CheckoutLocal = {
   busy: false,
   contact_email: null,
-  contact_first_name: null,
-  contact_last_name: null,
-  destination: null,
+  contact_name: null,
   payment_option_id: null,
   pending: null,
   placed: null,
@@ -104,20 +122,27 @@ const initialLocal: CheckoutLocal = {
   error: null,
 };
 
-function stepOf(cart: StorefrontCart | null, quote: CartQuote | null, local: CheckoutLocal): ArkyCheckoutStep {
-  if (local.placed) {
-    if (local.placed.payment_id === null) return "placed";
-    const outcome = local.payment ? paymentOutcome(local.payment) : null;
-    return outcome !== null && placedOutcomes.includes(outcome) ? "placed" : "paying";
-  }
+function stepOf(cart: StorefrontCart | null, quote: StorefrontCartQuote | null, local: CheckoutLocal): ArkyCheckoutStep {
+  if (local.placed) return finished(local) ? "placed" : "paying";
   if (local.pending) return "paying";
   if (!cart || cart.line_items.length === 0) return "cart";
   const reviewed = quote !== null && quote.cart_id === cart.id ? quote : null;
-  if (reviewed?.blockers.some((blocker) => lineBlockers.includes(blocker.type))) return "cart";
+  if (reviewed?.blockers.some((blocker) => blockerStep(blocker) === "cart")) return "cart";
   if (!reviewed || local.contact_email === null) return "details";
-  if (reviewed.blockers.some((blocker) => detailBlockers.includes(blocker.type))) return "details";
+  if (reviewed.blockers.some((blocker) => blockerStep(blocker) === "details")) return "details";
   if (!reviewed.ready) return "shipping";
   return "payment";
+}
+
+function finished(local: CheckoutLocal): boolean {
+  if (!local.placed) return false;
+  if (local.placed.payment_id === null) return true;
+  const outcome = local.payment ? paymentOutcome(local.payment) : null;
+  return outcome !== null && placedOutcomes.includes(outcome);
+}
+
+function quoteSavesCard(quote: StorefrontCartQuote): boolean {
+  return quote.lines.some((line) => line.type === "package" && line.saves_card);
 }
 
 const durableFailures: Record<DurableRequestError["code"], ArkyCheckoutErrorCode> = {
@@ -157,9 +182,8 @@ export function createCheckoutFlow(context: CheckoutFlowContext, cart: CartStore
     cart: currentCart,
     quote: currentQuote,
     contact_email: current.contact_email,
-    contact_first_name: current.contact_first_name,
-    contact_last_name: current.contact_last_name,
-    destination: current.destination,
+    contact_name: current.contact_name,
+    destination: currentCart ? destinationOf(currentCart) : null,
     billing_address: currentCart?.billing_address ?? null,
     payment_option_id: current.payment_option_id,
     pending: current.pending,
@@ -220,15 +244,11 @@ export function createCheckoutFlow(context: CheckoutFlowContext, cart: CartStore
     return current === null ? {} : { contact_email: current.email };
   }
 
-  function contactNames(): { contact_first_name?: string; contact_last_name?: string } {
-    const { contact_first_name: firstName, contact_last_name: lastName } = local.get();
-    return {
-      ...(firstName !== null ? { contact_first_name: firstName } : {}),
-      ...(lastName !== null ? { contact_last_name: lastName } : {}),
-    };
+  function contactNames(): { contact_name: OrderContactName | null } {
+    return { contact_name: local.get().contact_name };
   }
 
-  async function quote(operation: CartScope): Promise<CartQuote | null> {
+  async function quote(operation: CartScope): Promise<StorefrontCartQuote | null> {
     operation.assertCurrent();
     const current = cart.cart.get();
     if (!current || current.line_items.length === 0) {
@@ -307,21 +327,33 @@ export function createCheckoutFlow(context: CheckoutFlowContext, cart: CartStore
     }
   }
 
-  function paymentChoice(current: CartQuote, orderId: string, params: ArkyCheckoutPlaceParams): CheckoutPaymentChoice {
-    const saveCard = params.save_payment_method === true;
-    if (current.totals.total === 0 && !saveCard) return { type: "free" };
+  function savedCard(current: StorefrontCartQuote, params: ArkyCheckoutPlaceParams): CheckoutSavePaymentMethod {
+    const required = quoteSavesCard(current);
+    if (required && params.save_payment_method === false) {
+      throw new CheckoutFlowError("not_ready", "This order saves the buyer's card, as the quote's saves_card says; it can't be placed without it");
+    }
+    if (!required && params.save_payment_method !== true) return { type: "dont_save" };
+    const terms = params.payment_method_terms?.trim();
+    if (!terms) {
+      throw new CheckoutFlowError("not_ready", "Saving the card needs payment_method_terms: the card wording the buyer accepted");
+    }
+    return { type: "save", terms: params.payment_method_terms as string };
+  }
+
+  function paymentChoice(current: StorefrontCartQuote, params: ArkyCheckoutPlaceParams): CheckoutPaymentChoice {
+    const save = savedCard(current, params);
+    if (current.totals.total === 0 && save.type === "dont_save") return { type: "free" };
     const paymentOptionId = local.get().payment_option_id;
     if (paymentOptionId === null || !current.payment_option_ids.includes(paymentOptionId)) {
       throw new CheckoutFlowError("not_ready", "Choose one of the quote's payment options first");
     }
+    return { type: "payment_option", payment_option_id: paymentOptionId, return_url: null, save_payment_method: save };
+  }
+
+  function withReturnUrl(payment: CheckoutPaymentChoice, orderId: string, params: ArkyCheckoutPlaceParams): CheckoutPaymentChoice {
+    if (payment.type !== "payment_option") return payment;
     const returnUrl = typeof params.return_url === "function" ? params.return_url(orderId) : (params.return_url ?? null);
-    return {
-      type: "payment_option",
-      payment_option_id: paymentOptionId,
-      return_url: returnUrl,
-      save_payment_method: saveCard,
-      payment_method_terms: saveCard ? (params.payment_method_terms ?? null) : null,
-    };
+    return { ...payment, return_url: returnUrl };
   }
 
   const flow = {
@@ -330,16 +362,21 @@ export function createCheckoutFlow(context: CheckoutFlowContext, cart: CartStore
 
     open(): Promise<ArkyCheckoutState> {
       return step(async (operation) => {
+        if (finished(local.get())) patch({ placed: null, payment: null });
         await context.loadSetup();
         if (await pendingRequest(operation)) return state.get();
         const current = await cart.load();
         operation.assertCurrent();
-        if (current) {
-          patch({ destination: destinationOf(current) });
-          await quote(operation);
-        }
+        if (current) await quote(operation);
         return state.get();
       });
+    },
+
+    reset(): ArkyCheckoutState {
+      const current = local.get();
+      if (current.busy) throw new CheckoutFlowError("busy", "A checkout step is still running");
+      local.set({ ...initialLocal, contact_email: current.contact_email, contact_name: current.contact_name });
+      return state.get();
     },
 
     setContact(params: ArkySetContactParams): void {
@@ -347,10 +384,10 @@ export function createCheckoutFlow(context: CheckoutFlowContext, cart: CartStore
       const language = params.contact_email.language.trim();
       if (!email) throw new CheckoutFlowError("not_ready", "The contact email is empty");
       if (!language) throw new CheckoutFlowError("not_ready", "The contact language is empty");
+      if (!isCheckoutContactName(params.contact_name)) throw new CheckoutFlowError("not_ready", "A contact name needs both first and last name");
       patch({
         contact_email: { email, language },
-        contact_first_name: params.contact_first_name ?? null,
-        contact_last_name: params.contact_last_name ?? null,
+        contact_name: params.contact_name ? { ...params.contact_name } : null,
         error: null,
       });
     },
@@ -359,7 +396,14 @@ export function createCheckoutFlow(context: CheckoutFlowContext, cart: CartStore
       return step(async (operation) => {
         await cart.shipTo({ destination: params.destination, ...contact() });
         operation.assertCurrent();
-        patch({ destination: params.destination });
+        await quote(operation);
+        return state.get();
+      });
+    },
+
+    setPlaceOfSale(params: ArkySetPlaceOfSaleParams): Promise<ArkyCheckoutState> {
+      return step(async (operation) => {
+        await cart.setPlaceOfSale(params);
         await quote(operation);
         return state.get();
       });
@@ -434,14 +478,14 @@ export function createCheckoutFlow(context: CheckoutFlowContext, cart: CartStore
         }
         const contactEmail = local.get().contact_email;
         if (contactEmail === null) throw new CheckoutFlowError("not_ready", "Add the contact email first");
+        const chosen = paymentChoice(reviewed, params);
         const orderId = context.appId("order");
-        const payment = paymentChoice(reviewed, orderId, params);
         await cart.retainCheckout({
           order_id: orderId,
           order_token: context.appOrderToken(),
           contact_email: contactEmail,
           ...contactNames(),
-          payment,
+          payment: withReturnUrl(chosen, orderId, params),
         });
         const result = await recoverKept(operation);
         if (!result) throw new CheckoutFlowError("interrupted", "The kept checkout was settled elsewhere; read the order");
@@ -495,10 +539,10 @@ export function createCheckoutFlow(context: CheckoutFlowContext, cart: CartStore
         operation.assertCurrent();
         const payments = await client.eshop.order.findPayments({ order_id: opened.order.id }, { order_token: opened.order_token });
         operation.assertCurrent();
-        if (payments.items.some((payment) => payment.order_id !== opened.order.id)) {
+        if (payments.some((payment) => payment.order_id !== opened.order.id)) {
           throw new CheckoutFlowError("interrupted", "The payment list answered another order");
         }
-        const payment = latestPayment(payments.items);
+        const payment = latestPayment(payments);
         patch({
           pending: null,
           placed: {

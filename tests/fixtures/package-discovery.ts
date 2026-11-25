@@ -2,6 +2,7 @@ import { createAdmin } from "arky-sdk/admin";
 import type {
   AssignPackageMemberParams,
   CommerceParty,
+  DeletedResponse,
   Package,
   PackageDetail,
   PackageMember,
@@ -11,7 +12,15 @@ import type {
   FindPackageOfferingsParams,
   FindPackagesParams,
   GetPackageByKeyParams,
+  PackageChoicePlacement,
+  PackageItemsProductChoices,
+  PackageMemberCurrent,
+  PackageMemberListItem,
+  PackageMemberPackageSelf,
+  PackageMemberSelfListItem,
+  StorefrontPackageItemPrice,
 } from "arky-sdk/types";
+import type { createStorefront } from "arky-sdk/storefront";
 
 type Assert<T extends true> = T;
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
@@ -42,13 +51,26 @@ export type PackageDiscoveryContracts = [
   Assert<Equal<FindPackagesParams["cursor"], string | null | undefined>>,
   Assert<Equal<FindPackagesParams["status"], PackageStatus | undefined>>,
   Assert<Equal<keyof FindPackageOfferingsParams, "store_id" | "key" | "sort_field" | "sort_direction" | "limit" | "cursor">>,
-  Assert<Equal<keyof FindPackageMembersParams, "store_id" | "customer_id" | "company_id" | "company_location_id" | "package_id" | "package_offering_id" | "status" | "limit" | "cursor">>,
+  Assert<Equal<keyof FindPackageMembersParams, "store_id" | "ids" | "customer_id" | "company_id" | "company_location_id" | "package_id" | "package_offering_id" | "status" | "renewal_type" | "limit" | "cursor">>,
+  Assert<Equal<{ store_id: string; ids: string[]; status: "active" } extends FindPackageMembersParams ? true : false, false>>,
   Assert<Equal<keyof AssignPackageMemberParams, "store_id" | "id" | "package_id" | "subject" | "access_end">>,
   Assert<RequiredField<AssignPackageMemberParams, "id">>,
   Assert<RequiredField<AssignPackageMemberParams, "access_end">>,
   Assert<Equal<AssignPackageMemberParams["subject"], CommerceParty>>,
   Assert<Equal<CommerceParty, { type: "customer"; customer_id: string } | { type: "company"; company_id: string } | { type: "company_location"; company_location_id: string }>>,
   Assert<Equal<Awaited<ReturnType<typeof admin.eshop.package.delete>>, Package>>,
-  Assert<Equal<Awaited<ReturnType<typeof admin.eshop.packageOffering.delete>>, void>>,
+  Assert<Equal<Awaited<ReturnType<typeof admin.eshop.packageOffering.delete>>, DeletedResponse>>,
   Assert<Equal<Awaited<ReturnType<typeof admin.eshop.packageMember.assign>>, PackageMember>>,
+  Assert<Equal<Awaited<ReturnType<typeof admin.eshop.packageMember.find>>["items"][number], PackageMemberListItem>>,
+  Assert<Equal<PackageMemberListItem["first_order_id"], string | null>>,
+  Assert<Equal<Awaited<ReturnType<typeof admin.eshop.packageMember.findCurrent>>["items"][number], PackageMemberCurrent>>,
+  Assert<Equal<Parameters<typeof admin.eshop.packageMember.findOrders>[0]["sort_direction"], "asc" | "desc" | undefined>>,
+  Assert<Equal<Awaited<ReturnType<typeof admin.eshop.package.findByIds>>["items"][number], PackageDetail>>,
+  Assert<Equal<Awaited<ReturnType<Shop["eshop"]["packageMember"]["find"]>>["items"][number], PackageMemberSelfListItem>>,
+  Assert<Equal<PackageMemberSelfListItem["package"], PackageMemberPackageSelf>>,
+  Assert<Equal<Awaited<ReturnType<Shop["eshop"]["package"]["getItemsProductChoices"]>>, PackageItemsProductChoices>>,
+  Assert<Equal<StorefrontPackageItemPrice["content"]["placement"], PackageChoicePlacement>>,
+  Assert<Equal<Extract<PackageChoicePlacement, { type: "booking" }>["resources"], { type: "category"; category_id: string } | { type: "ids"; booking_resource_ids: string[] }>>,
 ];
+
+type Shop = ReturnType<typeof createStorefront>;

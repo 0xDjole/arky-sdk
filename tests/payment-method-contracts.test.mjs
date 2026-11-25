@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { createStorefront, initialize } from "../dist/storefront.js";
-import { apiUrl, errorResponse, idFactories, ids, publishableKey, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
+import { apiUrl, errorResponse, idFactories, ids, storefrontIdentity, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
 
 const STORE_ID = "9e4c7a21-3b58-4f06-8d1a-6c2e0b9f5a37";
 const methodId = "3c7e1a95-4d28-4b60-9f13-8e2a5d0c7b46";
@@ -17,7 +17,7 @@ const owners = [
 function surfaceApi(surface) {
   if (surface === "admin") return createAdmin({ apiUrl: apiUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).eshop.paymentMethod;
   const make = surface === "initialized" ? initialize : createStorefront;
-  return make(publishableKey, { ...idFactories, apiUrl, sessionStorage: visitorStorage() }).eshop.paymentMethod;
+  return make(storefrontIdentity, { ...idFactories, apiUrl, sessionStorage: visitorStorage() }).eshop.paymentMethod;
 }
 
 function base(surface) {
@@ -45,7 +45,8 @@ for (const surface of ["admin", "storefront", "initialized"]) {
       assert.deepEqual(call.body, { id: methodId, owner: owners[index], payment_option_id: ids.paymentOption, language, terms, accept_storage_and_off_session_use: true });
       if (surface !== "admin") {
         assert.equal(call.headers.get("authorization"), `Bearer ${visitorToken}`);
-        assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
+        assert.equal(call.headers.get("x-arky-store-id"), storefrontIdentity.storeId);
+    assert.equal(call.headers.get("x-arky-sales-channel-id"), storefrontIdentity.salesChannelId);
       }
     });
     for (const id of [undefined, "card", methodId.toUpperCase()]) {
@@ -125,7 +126,7 @@ test("storefront setup exposes each option's own saved-card wording and preserve
     ],
   };
   const calls = recordFetch(context, () => setup);
-  const api = createStorefront(publishableKey, { ...idFactories, apiUrl, sessionStorage: visitorStorage() });
+  const api = createStorefront(storefrontIdentity, { ...idFactories, apiUrl, sessionStorage: visitorStorage() });
   const read = await api.getSetup();
   assert.deepEqual(read, setup);
   assert.equal(read.payment_options[0].saved_card_terms.bs, terms);

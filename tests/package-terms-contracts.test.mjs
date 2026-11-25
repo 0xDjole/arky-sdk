@@ -6,7 +6,7 @@ import {
   apiUrl,
   fixedIdFactories,
   ids,
-  publishableKey,
+  storefrontIdentity,
   recordFetch,
   visitorStorage,
   visitorToken,
@@ -51,7 +51,7 @@ test("staff own-terms review and acceptance retain quantity, each frozen product
           package_item_id: choices[0].package_item_id,
           variant_id: choices[0].variant_id,
           quantity: 1,
-          delivery: { type: "once_per_period", offset_days: 0, window_days: 7 },
+          delivery: { type: "once_per_period", offset: 0, window: 7 },
           allocation_weight: 1,
         },
       ],
@@ -98,7 +98,7 @@ test("buyer own-terms sends only editable accepted fields and preserves the exac
     withdrawn: null,
   };
   const calls = recordFetch(context, () => result);
-  const api = createStorefront(publishableKey, {
+  const api = createStorefront(storefrontIdentity, {
     apiUrl,
     sessionStorage: visitorStorage(),
     visitorIdentity: {
@@ -154,7 +154,7 @@ test("buyer current terms reads the canonical member response with authenticatio
     head_revision_id: null,
   };
   const calls = recordFetch(context, () => result);
-  const api = createStorefront(publishableKey, {
+  const api = createStorefront(storefrontIdentity, {
     apiUrl,
     sessionStorage: visitorStorage(),
     visitorIdentity: {
@@ -200,7 +200,7 @@ test("sale and accepted Product choices keep exact package and current member re
     ],
   };
   const calls = recordFetch(context, () => result);
-  const api = createStorefront(publishableKey, {
+  const api = createStorefront(storefrontIdentity, {
     apiUrl,
     sessionStorage: visitorStorage(),
     visitorIdentity: {
@@ -284,7 +284,7 @@ test("member delivery options preserve proposed terms and exact authenticated ve
     offers: [],
   };
   const calls = recordFetch(context, () => result);
-  const api = createStorefront(publishableKey, {
+  const api = createStorefront(storefrontIdentity, {
     apiUrl,
     sessionStorage: visitorStorage(),
     visitorIdentity: {
@@ -370,7 +370,7 @@ test("a switch's new delivery lists its rates through the switch delivery option
     ],
   };
   const calls = recordFetch(context, () => result);
-  const api = createStorefront(publishableKey, {
+  const api = createStorefront(storefrontIdentity, {
     apiUrl,
     sessionStorage: visitorStorage(),
     visitorIdentity: {

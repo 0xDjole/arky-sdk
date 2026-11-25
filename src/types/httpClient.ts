@@ -1,4 +1,5 @@
 import type { QueryParams } from "../utils/queryParams";
+import type { ArkyApiError } from "./apiError";
 
 export interface TokenSet {
   id?: string;
@@ -17,7 +18,6 @@ export interface RequestSuccessContext<T = unknown> {
   status: number;
   request?: unknown;
   duration_ms?: number;
-  request_id?: string | null;
 }
 
 export interface RequestErrorContext {
@@ -28,19 +28,23 @@ export interface RequestErrorContext {
   request?: unknown;
   response?: unknown;
   duration_ms?: number;
-  request_id?: string | null;
   aborted?: boolean;
 }
 
-export interface RequestOptions<T = unknown> {
-  order_token?: string | null;
-  locale?: string;
-  market?: string;
+export interface AdminRequestOptions<T = unknown> {
   headers?: Record<string, string>;
   signal?: AbortSignal;
   onSuccess?: (ctx: RequestSuccessContext<T>) => void | Promise<void>;
   onError?: (ctx: RequestErrorContext) => void | Promise<void>;
 }
+
+export interface RequestOptions<T = unknown> extends AdminRequestOptions<T> {
+  order_token?: string | null;
+  locale?: string;
+  market?: string;
+}
+
+export type StorefrontRequestOptions<T = unknown> = RequestOptions<T>;
 
 export type TransportOptions<T = unknown> = RequestOptions<T> & { params?: QueryParams };
 
@@ -51,7 +55,7 @@ export interface HttpClient {
   post<T>(path: string, body: unknown, opts?: TransportOptions<T>): Promise<T>;
   put<T>(path: string, body: unknown, opts?: TransportOptions<T>): Promise<T>;
   patch<T>(path: string, body: unknown, opts?: TransportOptions<T>): Promise<T>;
-  delete<T>(path: string, opts?: TransportOptions<T> & { body?: unknown }): Promise<T>;
+  delete<T>(path: string, opts?: TransportOptions<T>): Promise<T>;
 }
 
 export interface HttpClientConfig {
@@ -66,6 +70,8 @@ export interface HttpClientConfig {
     response: { status: number; data: unknown };
   }) => boolean | Promise<boolean>;
   refreshCredentials?: (expected: TokenSet | null) => Promise<void>;
+  onRefused?: (error: ArkyApiError) => void;
+  redirect?: RequestRedirect;
 }
 
 export interface ServerError {

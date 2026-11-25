@@ -1,6 +1,6 @@
 import type { ApiConfig } from "../services/clientTypes";
 import type { RequestOptions } from "../types/api";
-import type { DeletedResponse, PaginatedResponse } from "../types/common";
+import type { PaginatedResponse } from "../types/common";
 import type {
   CreateSalesChannelParams,
   DeleteSalesChannelParams,
@@ -46,8 +46,8 @@ export const createSalesChannelApi = (apiConfig: ApiConfig) => ({
     return apiConfig.httpClient.put<SalesChannel>(storeRecordPath(store_id, collection, id), body, options);
   },
 
-  delete(params: DeleteSalesChannelParams, options?: RequestOptions): Promise<DeletedResponse> {
-    return apiConfig.httpClient.delete<DeletedResponse>(storeRecordPath(params.store_id, collection, params.id), {
+  delete(params: DeleteSalesChannelParams, options?: RequestOptions): Promise<{ deleted: true }> {
+    return apiConfig.httpClient.delete<{ deleted: true }>(storeRecordPath(params.store_id, collection, params.id), {
       ...options,
       params: { expected_updated_at: params.expected_updated_at },
     });

@@ -28,13 +28,16 @@ export {
   getOrCreateDurableRequest,
   isDefiniteRefusal,
   readDurableRequest,
+  refusalClearsKeptRequest,
   withDurableRequestLock,
 } from "./durableRequest";
 export type { DurableRequest, DurableRequestErrorCode } from "./durableRequest";
 
-export { readPendingMediaCreate } from "./durableMediaCreate";
+export { discardPendingMediaCreate, readPendingMediaCreate } from "./durableMediaCreate";
 
 export { paginate, readAllPages } from "./paginate";
+export { secondFactorOtpauthUrl } from "./secondFactor";
+export type { SecondFactorOtpauthParams } from "./secondFactor";
 export type { PageRead, PaginateOptions } from "./paginate";
 export { latestPayment, paymentOutcome } from "./paymentOutcome";
 export type { PaymentOutcome } from "./paymentOutcome";
@@ -45,6 +48,8 @@ export {
   missingShippingFields,
 } from "./address";
 export type { ShippingAddressField } from "./address";
+export { toE164 } from "./phone";
+export type { E164Conversion, E164Refusal } from "./phone";
 export type { PaymentAmounts, PaymentRefundView } from "./paymentAmounts";
 
 export {

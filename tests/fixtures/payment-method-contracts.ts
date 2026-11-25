@@ -62,7 +62,7 @@ export type PaymentMethodContracts = [
   Assert<Equal<Extract<MonriCardStatus, { type: "ready" }>["details"], CardDetails>>,
   Assert<Equal<keyof CardDetails, "brand" | "last4" | "exp_month" | "exp_year">>,
   Assert<Missing<Extract<StripeCardStatus, { type: "ready" }>, "mandate_id">>,
-  Assert<Equal<StripeCardPaymentStatus["type"], "pending" | "charging" | "unknown" | "requires_action" | "closing" | "paid" | "cancelled" | "failed" | "confirmed_not_made">>,
+  Assert<Equal<StripeCardPaymentStatus["type"], "pending" | "charging" | "unknown" | "requires_action" | "closing" | "paid" | "cancelled" | "failed" | "confirmed_made" | "confirmed_not_made">>,
   Assert<Missing<PaymentMethod, "details" | "provider" | "state">>,
   Assert<Equal<RequestPaymentMethodSetupParams["accept_storage_and_off_session_use"], true>>,
   Assert<RequiredField<RequestPaymentMethodSetupParams, "accept_storage_and_off_session_use">>,

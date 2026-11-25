@@ -3,38 +3,60 @@ import type { RequestOptions } from "../types/api";
 import type { PaginatedResponse } from "../types/common";
 import type {
   AllowStoreEmailSendingParams,
-  CreateStorePortalSessionParams,
+  CreateStoreCardSetupParams,
+  StoreCardSetup,
+  StoreSubscriptionPayment,
+  StoreRead,
+  StorePlanCharge,
+  ReportStorePlanPaymentParams,
+  FindStorePlanChargesParams,
+  SetStoreSubscriptionCardParams,
+  CancelStoreSubscriptionParams,
+  GrantStorePlanParams,
+  FindTestStoresParams,
+  FindTestStoresByLiveStoresParams,
+  WipeStoreParams,
   CreateStoreParams,
   EndStoreGrantParams,
   GetStoreUsageParams,
+  GetStorePlanParams,
+  GetStoreAgreementParams,
   FindStoresParams,
   GetStoreParams,
   GetStoreSubscriptionParams,
   PauseStoreEmailSendingParams,
   RequestStoreDeletionParams,
-  SelectStorePlanParams,
+  ResumeStoreParams,
+  SuspendStoreParams,
+  ChangeStorePlanParams,
   Store,
-  StorePortalSession,
+  StorePlanSummary,
   StoreSubscription,
-  StoreSubscriptionSelection,
   StoreUsageSummary,
   UpdateStoreParams,
+  NameStoreDefaultLocationParams,
 } from "../types/store";
 import type {
   AcceptStoreInviteParams,
   ChangeStoreMemberStatusParams,
   FindOwnStoreMembershipsParams,
+  FindStoreMemberDirectoryParams,
   FindStoreMembersParams,
   GetOwnStoreMembershipParams,
   InviteStoreMemberParams,
   ResendStoreInviteParams,
+  FindStoreMemberSessionsParams,
   RemoveStoreMemberParams,
+  RevokeStoreMemberSessionParams,
   StoreMember,
+  StoreMemberProfile,
   StoreMembership,
   StoreMembershipWithStoreName,
-  TransferStoreOwnershipParams,
+  UpdateStoreMemberLocationsParams,
   UpdateStoreMemberRolesParams,
 } from "../types/storeRole";
+import type { AccountSession } from "../types/account";
+import type { StoreAgreement } from "../types/network";
 import { requireStoreId } from "../utils/storeTarget";
 import { requireId } from "../utils/ids";
 import { segment, storePath } from "./paths";
@@ -50,8 +72,19 @@ export const createStoreApi = (apiConfig: ApiConfig) => ({
     return apiConfig.httpClient.put<Store>(`/v1/stores/${requireStoreId(id)}`, body, options);
   },
 
-  get(params: GetStoreParams, options?: RequestOptions): Promise<Store> {
-    return apiConfig.httpClient.get<Store>(`/v1/stores/${requireStoreId(params.id)}`, options);
+  get(params: GetStoreParams, options?: RequestOptions): Promise<StoreRead> {
+    return apiConfig.httpClient.get<StoreRead>(`/v1/stores/${requireStoreId(params.id)}`, options);
+  },
+
+  nameDefaultLocation(params: NameStoreDefaultLocationParams, options?: RequestOptions): Promise<Store> {
+    return apiConfig.httpClient.put<Store>(
+      `/v1/stores/${requireStoreId(params.id)}/default-location`,
+      {
+        store_location_id: requireId(params.store_location_id, "store location"),
+        expected_updated_at: params.expected_updated_at,
+      },
+      options,
+    );
   },
 
   find(params: FindStoresParams = {}, options?: RequestOptions): Promise<PaginatedResponse<Store>> {
@@ -74,6 +107,22 @@ export const createStoreApi = (apiConfig: ApiConfig) => ({
     );
   },
 
+  suspend(params: SuspendStoreParams, options?: RequestOptions): Promise<Store> {
+    return apiConfig.httpClient.post<Store>(
+      storePath(params.store_id, "suspend"),
+      { expected_updated_at: params.expected_updated_at, reason: params.reason },
+      options,
+    );
+  },
+
+  resume(params: ResumeStoreParams, options?: RequestOptions): Promise<Store> {
+    return apiConfig.httpClient.post<Store>(
+      storePath(params.store_id, "resume"),
+      { expected_updated_at: params.expected_updated_at },
+      options,
+    );
+  },
+
   requestDeletion(params: RequestStoreDeletionParams, options?: RequestOptions): Promise<Store> {
     return apiConfig.httpClient.post<Store>(
       `/v1/stores/${requireStoreId(params.id)}/deletion`,
@@ -87,29 +136,64 @@ export const createStoreApi = (apiConfig: ApiConfig) => ({
       return apiConfig.httpClient.get<StoreSubscription>(storePath(params.store_id, "subscription"), options);
     },
 
-    select(params: SelectStorePlanParams, options?: RequestOptions): Promise<StoreSubscriptionSelection> {
-      return apiConfig.httpClient.post<StoreSubscriptionSelection>(
-        storePath(params.store_id, "subscription"),
-        { plan_id: params.plan_id, return_url: params.return_url },
+    changePlan(params: ChangeStorePlanParams, options?: RequestOptions): Promise<StoreSubscription> {
+      const { store_id, ...body } = params;
+      return apiConfig.httpClient.put<StoreSubscription>(storePath(store_id, "subscription/plan"), body, options);
+    },
+    createCardSetup(params: CreateStoreCardSetupParams, options?: RequestOptions): Promise<StoreCardSetup> {
+      return apiConfig.httpClient.post<StoreCardSetup>(`/v1/networks/${segment(requireId(params.network_id, "network"))}/card-setups`,
+        { id: requireId(params.id, "card setup"), store_id: requireStoreId(params.store_id) }, options);
+    },
+    setCard(params: SetStoreSubscriptionCardParams, options?: RequestOptions): Promise<StoreSubscription> {
+      const { store_id, ...body } = params;
+      return apiConfig.httpClient.put<StoreSubscription>(storePath(store_id, "subscription/card"), body, options);
+    },
+    pendingPayment(params: GetStoreSubscriptionParams, options?: RequestOptions): Promise<StoreSubscriptionPayment> {
+      return apiConfig.httpClient.get<StoreSubscriptionPayment>(storePath(params.store_id, "subscription/payment"), options);
+    },
+    reportPayment(params: ReportStorePlanPaymentParams, options?: RequestOptions): Promise<StorePlanCharge> {
+      return apiConfig.httpClient.post<StorePlanCharge>(
+        storePath(params.store_id, "subscription/payment/report"),
+        { payment_intent_id: params.payment_intent_id },
         options,
       );
     },
-
-    createPortalSession(params: CreateStorePortalSessionParams, options?: RequestOptions): Promise<StorePortalSession> {
-      return apiConfig.httpClient.post<StorePortalSession>(
-        storePath(params.store_id, "subscription/portal"),
-        { return_url: params.return_url },
-        options,
-      );
+    findCharges(params: FindStorePlanChargesParams, options?: RequestOptions): Promise<PaginatedResponse<StorePlanCharge>> {
+      return apiConfig.httpClient.get<PaginatedResponse<StorePlanCharge>>(storePath(params.store_id, "subscription/charges"), {
+        ...options,
+        params: { limit: params.limit, cursor: params.cursor },
+      });
     },
-
+    cancel(params: CancelStoreSubscriptionParams, options?: RequestOptions): Promise<StoreSubscription> {
+      const { store_id, ...body } = params;
+      return apiConfig.httpClient.post<StoreSubscription>(storePath(store_id, "subscription/cancel"), body, options);
+    },
+    grant(params: GrantStorePlanParams, options?: RequestOptions): Promise<StoreSubscription> {
+      const { store_id, ...body } = params;
+      return apiConfig.httpClient.post<StoreSubscription>(storePath(store_id, "subscription/grant"), body, options);
+    },
     endGrant(params: EndStoreGrantParams, options?: RequestOptions): Promise<StoreSubscription> {
-      return apiConfig.httpClient.post<StoreSubscription>(
-        storePath(params.store_id, "subscription/end-grant"),
-        { expected_updated_at: params.expected_updated_at },
-        options,
-      );
+      const { store_id, ...body } = params;
+      return apiConfig.httpClient.post<StoreSubscription>(storePath(store_id, "subscription/end-grant"), body, options);
     },
+  },
+
+  testStores: {
+    find(params: FindTestStoresParams, options?: RequestOptions): Promise<PaginatedResponse<Store>> {
+      const { store_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<Store>>(storePath(store_id, "test-stores"), { ...options, params: query });
+    },
+
+    findByLiveStores(params: FindTestStoresByLiveStoresParams, options?: RequestOptions): Promise<PaginatedResponse<Store>> {
+      return apiConfig.httpClient.get<PaginatedResponse<Store>>("/v1/stores/test-stores", {
+        ...options,
+        params: { live_store_ids: params.live_store_ids, limit: params.limit, cursor: params.cursor },
+      });
+    },
+  },
+  wipe(params: WipeStoreParams, options?: RequestOptions): Promise<Store> {
+    const { id, ...body } = params;
+    return apiConfig.httpClient.post<Store>(storePath(id, "wipe"), body, options);
   },
 
   usage: {
@@ -118,9 +202,21 @@ export const createStoreApi = (apiConfig: ApiConfig) => ({
     },
   },
 
+  plan: {
+    get(params: GetStorePlanParams, options?: RequestOptions): Promise<StorePlanSummary> {
+      return apiConfig.httpClient.get<StorePlanSummary>(storePath(params.store_id, "plan"), options);
+    },
+  },
+
+  agreement: {
+    get(params: GetStoreAgreementParams, options?: RequestOptions): Promise<StoreAgreement> {
+      return apiConfig.httpClient.get<StoreAgreement>(storePath(params.store_id, "agreement"), options);
+    },
+  },
+
   member: {
-    invite(params: InviteStoreMemberParams, options?: RequestOptions): Promise<boolean> {
-      return apiConfig.httpClient.post<boolean>(
+    invite(params: InviteStoreMemberParams, options?: RequestOptions): Promise<StoreMembership> {
+      return apiConfig.httpClient.post<StoreMembership>(
         storePath(params.store_id, "invitation"),
         { id: requireId(params.id, "membership"), contact: params.contact, role_ids: params.role_ids },
         options,
@@ -143,6 +239,17 @@ export const createStoreApi = (apiConfig: ApiConfig) => ({
       });
     },
 
+    findDirectory(
+      params: FindStoreMemberDirectoryParams,
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<StoreMemberProfile>> {
+      const { store_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<StoreMemberProfile>>(storePath(store_id, "members/directory"), {
+        ...options,
+        params: query,
+      });
+    },
+
     findOwn(
       params: FindOwnStoreMembershipsParams = {},
       options?: RequestOptions,
@@ -158,15 +265,12 @@ export const createStoreApi = (apiConfig: ApiConfig) => ({
     },
 
     acceptInvite(params: AcceptStoreInviteParams, options?: RequestOptions): Promise<StoreMembership> {
-      return apiConfig.httpClient.post<StoreMembership>(
-        storePath(params.store_id, "membership/accept"),
-        { expected_updated_at: params.expected_updated_at },
-        options,
-      );
+      const { store_id, ...body } = params;
+      return apiConfig.httpClient.post<StoreMembership>(storePath(store_id, "membership/accept"), body, options);
     },
 
-    remove(params: RemoveStoreMemberParams, options?: RequestOptions): Promise<boolean> {
-      return apiConfig.httpClient.delete<boolean>(
+    remove(params: RemoveStoreMemberParams, options?: RequestOptions): Promise<true> {
+      return apiConfig.httpClient.delete<true>(
         storePath(params.store_id, `members/${segment(requireId(params.id, "membership"))}`),
         {
           ...options,
@@ -183,6 +287,14 @@ export const createStoreApi = (apiConfig: ApiConfig) => ({
       );
     },
 
+    updateLocations(params: UpdateStoreMemberLocationsParams, options?: RequestOptions): Promise<StoreMembership> {
+      return apiConfig.httpClient.put<StoreMembership>(
+        storePath(params.store_id, `members/${segment(requireId(params.id, "membership"))}/locations`),
+        { expected_updated_at: params.expected_updated_at, store_location_ids: params.store_location_ids },
+        options,
+      );
+    },
+
     changeStatus(params: ChangeStoreMemberStatusParams, options?: RequestOptions): Promise<StoreMembership> {
       return apiConfig.httpClient.put<StoreMembership>(
         storePath(params.store_id, `members/${segment(requireId(params.id, "membership"))}/status`),
@@ -191,10 +303,23 @@ export const createStoreApi = (apiConfig: ApiConfig) => ({
       );
     },
 
-    transferOwnership(params: TransferStoreOwnershipParams, options?: RequestOptions): Promise<Store> {
-      return apiConfig.httpClient.post<Store>(
-        storePath(params.store_id, "ownership/transfer"),
-        { account_id: requireId(params.account_id, "account"), expected_updated_at: params.expected_updated_at },
+    findSessions(
+      params: FindStoreMemberSessionsParams,
+      options?: RequestOptions,
+    ): Promise<PaginatedResponse<AccountSession>> {
+      const { store_id, id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<AccountSession>>(
+        storePath(store_id, `members/${segment(requireId(id, "membership"))}/sessions`),
+        { ...options, params: query },
+      );
+    },
+
+    revokeSession(params: RevokeStoreMemberSessionParams, options?: RequestOptions): Promise<AccountSession> {
+      return apiConfig.httpClient.delete<AccountSession>(
+        storePath(
+          params.store_id,
+          `members/${segment(requireId(params.id, "membership"))}/sessions/${segment(requireId(params.session_id, "session"))}`,
+        ),
         options,
       );
     },

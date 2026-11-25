@@ -23,4 +23,5 @@ export type StoreDiscoveryContracts = [
   Assert<Equal<Parameters<Admin["store"]["zone"]["getByKey"]>[0], StoreRecordByKeyParams>>,
   Assert<Equal<Parameters<Admin["store"]["taxCategory"]["getByKey"]>[0], StoreRecordByKeyParams>>,
   Assert<Equal<Parameters<Admin["store"]["salesChannel"]["getByKey"]>[0], StoreRecordByKeyParams>>,
+  Assert<Equal<Awaited<ReturnType<Admin["store"]["salesChannel"]["delete"]>>, { deleted: true }>>,
 ];

@@ -98,11 +98,11 @@ export const createFormsApi = (apiConfig: ApiConfig) => {
     },
 
     findSubmissions(params: FindFormSubmissionsParams, options?: RequestOptions): Promise<PaginatedResponse<FormSubmission>> {
-      const { store_id, form_id, ...query } = params;
-      const path = form_id === undefined
-        ? storePath(store_id, "forms/submissions")
-        : `${storeRecordPath(store_id, "forms", form_id)}/submissions`;
-      return apiConfig.httpClient.get<PaginatedResponse<FormSubmission>>(path, { ...options, params: query });
+      const { store_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<FormSubmission>>(storePath(store_id, "forms/submissions"), {
+        ...options,
+        params: query,
+      });
     },
 
     getSubmission(params: GetFormSubmissionParams, options?: RequestOptions): Promise<FormSubmission> {
@@ -135,8 +135,8 @@ export const createFormsApi = (apiConfig: ApiConfig) => {
       );
     },
 
-    deleteSubmission(params: DeleteFormSubmissionParams, options?: RequestOptions): Promise<DeletedResponse> {
-      return apiConfig.httpClient.delete<DeletedResponse>(submissionPath(params.store_id, params.form_id, params.id), {
+    deleteSubmission(params: DeleteFormSubmissionParams, options?: RequestOptions): Promise<{ deleted: true }> {
+      return apiConfig.httpClient.delete<{ deleted: true }>(submissionPath(params.store_id, params.form_id, params.id), {
         ...options,
         params: { expected_updated_at: params.expected_updated_at },
       });
@@ -156,7 +156,7 @@ export const createStorefrontFormsApi = (httpClient: HttpClient) => ({
   submit(params: SubmitFormRequest, options?: RequestOptions): Promise<StorefrontFormSubmission> {
     requireId(params.id, "form submission");
     const body = formSubmissionBody(
-      { id: params.id, questions_updated_at: params.questions_updated_at, language: params.language, ...(params.bot_check_token !== undefined ? { bot_check_token: params.bot_check_token } : {}) },
+      { id: params.id, questions_updated_at: params.questions_updated_at, language: params.language },
       params.answers,
     );
     return httpClient.post<StorefrontFormSubmission>(`/v1/storefront/forms/${segment(params.form_id)}/submissions`, body, options);

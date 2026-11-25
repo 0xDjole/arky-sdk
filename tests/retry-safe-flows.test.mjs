@@ -23,7 +23,7 @@ import {
   installGlobal,
   placedAcceptance,
   placedOrder,
-  publishableKey,
+  storefrontIdentity,
   recordFetch,
   visitorStorage,
 } from "./helpers/arky-fixtures.mjs";
@@ -40,7 +40,7 @@ function browser(context) {
 }
 
 function storefront(createId) {
-  return createStorefront(publishableKey, { ...idFactories, createId, apiUrl, locale: "en", sessionStorage: visitorStorage() });
+  return createStorefront(storefrontIdentity, { ...idFactories, createId, apiUrl, locale: "en", sessionStorage: visitorStorage() });
 }
 
 function submissionBody(call) {
@@ -127,7 +127,7 @@ test("a storage failure is a DurableRequestError with code storage, recognised w
   assert.equal(calls.length, 0);
 });
 
-test("the store's forms.submit with a loaded form takes its id from the factory when none is given and sends the bot-check token", async (context) => {
+test("no_storefront_request_carries_a_bot_check_token", async (context) => {
   browser(context);
   const form = {
     id: ids.form,
@@ -136,11 +136,11 @@ test("the store's forms.submit with a loaded form takes its id from the factory 
     questions: [{ id: ids.line, key: "message", required: true, label: { type: "hidden" }, type: "text", min_length: null, max_length: null, pattern: null }],
   };
   const calls = recordFetch(context, (call) => submission(submissionBody(call).id));
-  const store = initialize(publishableKey, { ...idFactories, createId: idSequence(factoryId(7)), apiUrl, locale: "en", sessionStorage: visitorStorage() });
-  const result = await store.forms.submit({ form, values: { message: "Hello" }, language: "en", bot_check_token: "turnstile-token" });
+  const store = initialize(storefrontIdentity, { ...idFactories, createId: idSequence(factoryId(7)), apiUrl, locale: "en", sessionStorage: visitorStorage() });
+  const result = await store.forms.submit({ form, values: { message: "Hello" }, language: "en", bot_check_token: "removed-field" });
   assert.equal(result.id, factoryId(7));
   assert.equal(submissionBody(calls[0]).questions_updated_at, form.questions_updated_at);
-  assert.equal(submissionBody(calls[0]).bot_check_token, "turnstile-token");
+  assert.equal("bot_check_token" in submissionBody(calls[0]), false);
 });
 
 test("support start and send reuse their factory ids after a lost answer", async (context) => {
@@ -153,7 +153,7 @@ test("support start and send reuse their factory ids after a lost answer", async
       lose = false;
       throw new TypeError("Lost response");
     }
-    const conversation = { id: conversationId, language: "en", state: "waiting_for_team", created_at: 1, updated_at: 1 };
+    const conversation = { id: conversationId, type: { type: "chat", language: "en", subject: "" }, state: "waiting_for_store", next_message_sequence: 2, customer_read: { type: "unread" }, created_at: 1, updated_at: 1 };
     if (call.path === "/v1/storefront/conversations") return { conversation, messages: [] };
     return {
       conversation,
@@ -189,23 +189,23 @@ test("requestCode keeps its factory id for the same email and takes a new one fo
     return {
       customer: customerRecord(),
       session: { id: ids.session, store_id: ids.store, customer_id: ids.customer },
-      email_verification: { issued_at: 1, expires_at: 2 },
+      code: { issued_at: 1, expires_at: 2 },
     };
   });
   const client = storefront(idSequence(factoryId(1), factoryId(2), factoryId(3)));
-  await assert.rejects(client.customer.requestCode({ contact: { email: "ana@example.test", language: "en" } }), /Lost response/);
-  await client.customer.requestCode({ contact: { email: "ana@example.test", language: "en" }, bot_check_token: "fresh-token" });
-  await client.customer.requestCode({ contact: { email: "ivo@example.test", language: "en" } });
-  await client.customer.requestCode({ contact: { email: "ivo@example.test", language: "hr" } });
-  await client.customer.requestCode({ id: ids.submission, contact: { email: "ivo@example.test", language: "en" } });
+  await assert.rejects(client.customer.requestCode({ contact: { type: "email", email: "ana@example.test", language: "en" } }), /Lost response/);
+  await client.customer.requestCode({ contact: { type: "email", email: "ana@example.test", language: "en" } });
+  await client.customer.requestCode({ contact: { type: "email", email: "ivo@example.test", language: "en" } });
+  await client.customer.requestCode({ contact: { type: "email", email: "ivo@example.test", language: "hr" } });
+  await client.customer.requestCode({ id: ids.submission, contact: { type: "email", email: "ivo@example.test", language: "en" } });
   assert.deepEqual(calls.map((call) => [call.body.id, call.body.contact]), [
-    [factoryId(1), { email: "ana@example.test", language: "en" }],
-    [factoryId(1), { email: "ana@example.test", language: "en" }],
-    [factoryId(2), { email: "ivo@example.test", language: "en" }],
-    [factoryId(3), { email: "ivo@example.test", language: "hr" }],
-    [ids.submission, { email: "ivo@example.test", language: "en" }],
+    [factoryId(1), { type: "email", email: "ana@example.test", language: "en" }],
+    [factoryId(1), { type: "email", email: "ana@example.test", language: "en" }],
+    [factoryId(2), { type: "email", email: "ivo@example.test", language: "en" }],
+    [factoryId(3), { type: "email", email: "ivo@example.test", language: "hr" }],
+    [ids.submission, { type: "email", email: "ivo@example.test", language: "en" }],
   ]);
-  assert.equal(calls[1].body.bot_check_token, "fresh-token");
+  assert.equal("bot_check_token" in calls[1].body, false);
 });
 
 test("a checkout without ids takes them from the factories, keeps them, and blocks a different checkout", async (context) => {
@@ -223,7 +223,7 @@ test("a checkout without ids takes them from the factories, keeps them, and bloc
     if (call.path === `/v1/storefront/orders/${orderId}`) return placedOrder();
     throw new Error(`Unexpected request ${call.path}`);
   });
-  const client = createStorefront(publishableKey, {
+  const client = createStorefront(storefrontIdentity, {
     ...idFactories,
     createId: idSequence(orderId),
     createOrderToken: () => checkoutRequest().order_token,
@@ -254,7 +254,7 @@ test("a kept form submission keeps its answers for a reload, refuses a different
   const client = storefront(idSequence(factoryId(1)));
   const kept = await client.forms.retainSubmission(formParams);
   assert.equal(kept.id, factoryId(1));
-  await assert.rejects(client.forms.recoverSubmission({ form_id: ids.form, bot_check_token: "first-token" }), /Lost response/);
+  await assert.rejects(client.forms.recoverSubmission({ form_id: ids.form }), /Lost response/);
 
   const reloaded = storefront(idSequence());
   const pending = await reloaded.forms.pendingSubmission({ form_id: ids.form });
@@ -268,12 +268,12 @@ test("a kept form submission keeps its answers for a reload, refuses a different
   await assert.rejects(reloaded.forms.retainSubmission({ ...formParams, answers: [{ type: "file", question_id: ids.line, key: "file", files: [] }] }), TypeError);
 
   answer = "ok";
-  assert.equal((await reloaded.forms.recoverSubmission({ form_id: ids.form, bot_check_token: "second-token" })).id, factoryId(1));
+  assert.equal((await reloaded.forms.recoverSubmission({ form_id: ids.form })).id, factoryId(1));
   assert.equal(await reloaded.forms.pendingSubmission({ form_id: ids.form }), null);
   assert.equal(await reloaded.forms.recoverSubmission({ form_id: ids.form }), null);
   assert.deepEqual(calls.map((call) => [submissionBody(call).id, submissionBody(call).bot_check_token]), [
-    [factoryId(1), "first-token"],
-    [factoryId(1), "second-token"],
+    [factoryId(1), undefined],
+    [factoryId(1), undefined],
   ]);
   assert.deepEqual(pendingKeys(storage), []);
 });

@@ -8,6 +8,7 @@ export {
   ScheduledResultTimeoutError,
   DurableRequestError,
   isDefiniteRefusal,
+  refusalClearsKeptRequest,
   buildFormAnswers,
   formValuesFromAnswers,
   latestPayment,
@@ -22,7 +23,6 @@ export {
   findBlock,
   formatBlockValue,
   getBlockContentValue,
-  getBlockLabel,
   getBlockTextValue,
   getBlockValue,
   getBlockValues,
@@ -54,7 +54,9 @@ export type {
   StorefrontClient,
   StorefrontContext,
   StorefrontCustomerSession,
+  StorefrontLogoutResult,
   StorefrontOptions,
+  StorefrontIdentity,
   StorefrontSessionStorage,
   AuthStateListener,
   CommonCustomerActionKey,
@@ -98,3 +100,7 @@ export {
   MonriCheckoutError,
 } from "./types";
 export type * from "./storefrontStore";
+export { createNetworkCustomer } from "./networkCustomer";
+export type { NetworkCustomerClient } from "./networkCustomer";
+export { toE164 } from "./utils/phone";
+export type { E164Conversion, E164Refusal } from "./utils/phone";

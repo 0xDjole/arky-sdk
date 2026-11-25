@@ -12,16 +12,22 @@ import type {
   DeleteBookingOfferingParams,
   DeleteBookingResourceParams,
   DeleteBookingServiceParams,
+  FindAllBookingOfferingsParams,
+  FindAllBookingResourcesParams,
+  FindAllBookingServicesParams,
+  FindBlockTargetBookingServicesParams,
   FindBookingOfferingsParams,
   FindBookingResourcesParams,
   FindBookingServicesParams,
+  FindCategoryBookingResourcesParams,
+  FindResourceBookingOfferingsParams,
+  FindServiceBookingOfferingsParams,
   GetAvailabilityParams,
   GetBookingOfferingParams,
   GetBookingResourceByKeyParams,
   GetBookingResourceParams,
   GetBookingServiceByKeyParams,
   GetBookingServiceParams,
-  GetBookingOfferingByServiceAndResourceParams,
   UpdateBookingOfferingParams,
   UpdateBookingResourceParams,
   UpdateBookingServiceParams,
@@ -36,6 +42,20 @@ export const createBookingServiceApi = (apiConfig: ApiConfig) => ({
       ...options,
       params: query,
     });
+  },
+
+  findAll(params: FindAllBookingServicesParams, options?: RequestOptions): Promise<PaginatedResponse<BookingService>> {
+    return apiConfig.httpClient.get<PaginatedResponse<BookingService>>(storePath(params.store_id, "booking-services/all"), {
+      ...options,
+      params: { limit: params.limit, cursor: params.cursor },
+    });
+  },
+
+  findByBlockTarget(params: FindBlockTargetBookingServicesParams, options?: RequestOptions): Promise<PaginatedResponse<BookingService>> {
+    return apiConfig.httpClient.get<PaginatedResponse<BookingService>>(
+      storePath(params.store_id, `booking-services/by-block-target/${segment(requireId(params.block_target_id, "block target"))}`),
+      { ...options, params: { limit: params.limit, cursor: params.cursor } },
+    );
   },
 
   get(params: GetBookingServiceParams, options?: RequestOptions): Promise<BookingService> {
@@ -63,13 +83,13 @@ export const createBookingServiceApi = (apiConfig: ApiConfig) => ({
   create(params: CreateBookingServiceParams, options?: RequestOptions): Promise<BookingService> {
     requireId(params.id, "booking service");
     const { store_id } = params;
-    const body = { id: params.id, key: params.key, slugs: params.slugs, blocks: params.blocks, categories: params.categories, status: params.status, segments: params.segments, buffer_before_minutes: params.buffer_before_minutes, buffer_after_minutes: params.buffer_after_minutes, slot_interval_minutes: params.slot_interval_minutes, booking_window: params.booking_window, customer_changes: params.customer_changes, reminder_offsets_minutes: params.reminder_offsets_minutes, tax_category_id: params.tax_category_id };
+    const body = { id: params.id, key: params.key, slugs: params.slugs, blocks: params.blocks, categories: params.categories, status: params.status, length: params.length, slot_interval: params.slot_interval, booking_window: params.booking_window, customer_changes: params.customer_changes, tax_category_id: params.tax_category_id, document_item: params.document_item };
     return apiConfig.httpClient.post<BookingService>(storePath(store_id, "booking-services"), body, options);
   },
 
   update(params: UpdateBookingServiceParams, options?: RequestOptions): Promise<BookingService> {
     const { store_id, id } = params;
-    const body = { key: params.key, slugs: params.slugs, blocks: params.blocks, categories: params.categories, status: params.status, segments: params.segments, buffer_before_minutes: params.buffer_before_minutes, buffer_after_minutes: params.buffer_after_minutes, slot_interval_minutes: params.slot_interval_minutes, booking_window: params.booking_window, customer_changes: params.customer_changes, reminder_offsets_minutes: params.reminder_offsets_minutes, tax_category_id: params.tax_category_id, expected_updated_at: params.expected_updated_at };
+    const body = { key: params.key, slugs: params.slugs, blocks: params.blocks, categories: params.categories, status: params.status, length: params.length, slot_interval: params.slot_interval, booking_window: params.booking_window, customer_changes: params.customer_changes, tax_category_id: params.tax_category_id, document_item: params.document_item, expected_updated_at: params.expected_updated_at };
     return apiConfig.httpClient.put<BookingService>(storeRecordPath(store_id, "booking-services", id), body, options);
   },
 
@@ -90,6 +110,20 @@ export const createBookingResourceApi = (apiConfig: ApiConfig) => ({
     });
   },
 
+  findAll(params: FindAllBookingResourcesParams, options?: RequestOptions): Promise<PaginatedResponse<BookingResource>> {
+    return apiConfig.httpClient.get<PaginatedResponse<BookingResource>>(storePath(params.store_id, "booking-resources/all"), {
+      ...options,
+      params: { limit: params.limit, cursor: params.cursor },
+    });
+  },
+
+  findByCategory(params: FindCategoryBookingResourcesParams, options?: RequestOptions): Promise<PaginatedResponse<BookingResource>> {
+    return apiConfig.httpClient.get<PaginatedResponse<BookingResource>>(
+      storePath(params.store_id, `booking-resources/by-category/${segment(requireId(params.category_id, "category"))}`),
+      { ...options, params: { limit: params.limit, cursor: params.cursor } },
+    );
+  },
+
   get(params: GetBookingResourceParams, options?: RequestOptions): Promise<BookingResource> {
     return apiConfig.httpClient.get<BookingResource>(
       storeRecordPath(params.store_id, "booking-resources", params.id),
@@ -107,13 +141,13 @@ export const createBookingResourceApi = (apiConfig: ApiConfig) => ({
   create(params: CreateBookingResourceParams, options?: RequestOptions): Promise<BookingResource> {
     requireId(params.id, "booking resource");
     const { store_id } = params;
-    const body = { id: params.id, key: params.key, slugs: params.slugs, status: params.status, blocks: params.blocks, categories: params.categories, timezone: params.timezone, capacity: params.capacity, hours: params.hours };
+    const body = { id: params.id, key: params.key, slugs: params.slugs, status: params.status, blocks: params.blocks, categories: params.categories, timezone: params.timezone, capacity: params.capacity, hours: params.hours, daily_limits: params.daily_limits };
     return apiConfig.httpClient.post<BookingResource>(storePath(store_id, "booking-resources"), body, options);
   },
 
   update(params: UpdateBookingResourceParams, options?: RequestOptions): Promise<BookingResource> {
     const { store_id, id } = params;
-    const body = { key: params.key, slugs: params.slugs, status: params.status, blocks: params.blocks, categories: params.categories, timezone: params.timezone, capacity: params.capacity, hours: params.hours, expected_updated_at: params.expected_updated_at };
+    const body = { key: params.key, slugs: params.slugs, status: params.status, blocks: params.blocks, categories: params.categories, timezone: params.timezone, capacity: params.capacity, hours: params.hours, daily_limits: params.daily_limits, expected_updated_at: params.expected_updated_at };
     return apiConfig.httpClient.put<BookingResource>(storeRecordPath(store_id, "booking-resources", id), body, options);
   },
 
@@ -134,6 +168,27 @@ export const createBookingOfferingApi = (apiConfig: ApiConfig) => ({
     });
   },
 
+  findAll(params: FindAllBookingOfferingsParams, options?: RequestOptions): Promise<PaginatedResponse<BookingOffering>> {
+    return apiConfig.httpClient.get<PaginatedResponse<BookingOffering>>(storePath(params.store_id, "booking-offerings/all"), {
+      ...options,
+      params: { limit: params.limit, cursor: params.cursor },
+    });
+  },
+
+  findByService(params: FindServiceBookingOfferingsParams, options?: RequestOptions): Promise<PaginatedResponse<BookingOffering>> {
+    return apiConfig.httpClient.get<PaginatedResponse<BookingOffering>>(
+      storePath(params.store_id, `booking-offerings/by-service/${segment(requireId(params.booking_service_id, "booking service"))}`),
+      { ...options, params: { limit: params.limit, cursor: params.cursor } },
+    );
+  },
+
+  findByResource(params: FindResourceBookingOfferingsParams, options?: RequestOptions): Promise<PaginatedResponse<BookingOffering>> {
+    return apiConfig.httpClient.get<PaginatedResponse<BookingOffering>>(
+      storePath(params.store_id, `booking-offerings/by-resource/${segment(requireId(params.booking_resource_id, "booking resource"))}`),
+      { ...options, params: { limit: params.limit, cursor: params.cursor } },
+    );
+  },
+
   get(params: GetBookingOfferingParams, options?: RequestOptions): Promise<BookingOffering> {
     return apiConfig.httpClient.get<BookingOffering>(
       storeRecordPath(params.store_id, "booking-offerings", params.id),
@@ -141,24 +196,33 @@ export const createBookingOfferingApi = (apiConfig: ApiConfig) => ({
     );
   },
 
-  getByServiceAndResource(params: GetBookingOfferingByServiceAndResourceParams, options?: RequestOptions): Promise<BookingOffering> {
-    const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<BookingOffering>(storePath(store_id, "booking-offerings/lookup"), {
-      ...options,
-      params: query,
-    });
-  },
-
   create(params: CreateBookingOfferingParams, options?: RequestOptions): Promise<BookingOffering> {
     requireId(params.id, "booking offering");
     const { store_id } = params;
-    const body = { id: params.id, booking_service_id: params.booking_service_id, booking_resource_id: params.booking_resource_id, hours: params.hours, venue: params.venue, status: params.status };
+    const body = {
+      id: params.id,
+      booking_service_id: params.booking_service_id,
+      resources: params.resources,
+      times: params.times,
+      locations: params.locations,
+      hours: params.hours,
+      add_ons: params.add_ons ?? [],
+      status: params.status,
+    };
     return apiConfig.httpClient.post<BookingOffering>(storePath(store_id, "booking-offerings"), body, options);
   },
 
   update(params: UpdateBookingOfferingParams, options?: RequestOptions): Promise<BookingOffering> {
     const { store_id, id } = params;
-    const body = { hours: params.hours, venue: params.venue, status: params.status, expected_updated_at: params.expected_updated_at };
+    const body = {
+      resources: params.resources,
+      times: params.times,
+      locations: params.locations,
+      hours: params.hours,
+      add_ons: params.add_ons,
+      status: params.status,
+      expected_updated_at: params.expected_updated_at,
+    };
     return apiConfig.httpClient.put<BookingOffering>(storeRecordPath(store_id, "booking-offerings", id), body, options);
   },
 

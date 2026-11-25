@@ -82,8 +82,8 @@ export const createProductVariantApi = (apiConfig: ApiConfig) => ({
     return apiConfig.httpClient.put<ProductVariant>(storeRecordPath(store_id, "product-variants", id), body, options);
   },
 
-  delete(params: DeleteProductVariantParams, options?: RequestOptions): Promise<ProductVariant | undefined> {
-    return apiConfig.httpClient.delete<ProductVariant | undefined>(
+  delete(params: DeleteProductVariantParams, options?: RequestOptions): Promise<ProductVariant> {
+    return apiConfig.httpClient.delete<ProductVariant>(
       storeRecordPath(params.store_id, "product-variants", params.id),
       { ...options, params: { expected_updated_at: params.expected_updated_at } },
     );

@@ -24,18 +24,40 @@ function isEmpty(value: FormValue): boolean {
   return (typeof value === "string" && value.trim() === "") || (Array.isArray(value) && value.length === 0);
 }
 
+const escapesTheServerReadsAsUnicode = new Set(["d", "D", "w", "W", "b", "B"]);
+
+function readsLikeTheServer(pattern: string): boolean {
+  for (let index = 0; index < pattern.length; index += 1) {
+    if (pattern[index] !== "\\") continue;
+    if (escapesTheServerReadsAsUnicode.has(pattern[index + 1])) return false;
+    index += 1;
+  }
+  return true;
+}
+
+function localPattern(pattern: string): RegExp | null {
+  if (!readsLikeTheServer(pattern)) return null;
+  try {
+    return new RegExp(pattern, "u");
+  } catch {
+    return null;
+  }
+}
+
 function answerFor(question: FormQuestion, value: FormValue): FormAnswerInput {
   const base = { question_id: question.id, key: question.key };
   switch (question.type) {
     case "text": {
       if (typeof value !== "string") throw questionError(question, "invalid", "expected text");
-      if (question.min_length !== null && value.length < question.min_length) {
+      const characters = [...value].length;
+      if (question.min_length !== null && characters < question.min_length) {
         throw questionError(question, "too_short", `must be at least ${question.min_length} characters`);
       }
-      if (question.max_length !== null && value.length > question.max_length) {
+      if (question.max_length !== null && characters > question.max_length) {
         throw questionError(question, "too_long", `must be at most ${question.max_length} characters`);
       }
-      if (question.pattern !== null && !new RegExp(question.pattern).test(value)) {
+      const pattern = question.pattern === null ? null : localPattern(question.pattern);
+      if (pattern !== null && !pattern.test(value)) {
         throw questionError(question, "pattern_mismatch", "doesn't match the expected format");
       }
       return { ...base, type: "text", value };

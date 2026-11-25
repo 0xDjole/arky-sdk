@@ -9,7 +9,7 @@ import {
   fixedIdFactories,
   idFactories,
   ids,
-  publishableKey,
+  storefrontIdentity,
   recordFetch,
   sessionResult,
   SessionStorage,
@@ -37,7 +37,7 @@ const contactForm = {
 };
 
 function storedSessionOf(storage) {
-  const [key] = storage.keys("arky_customer_session:v4:");
+  const [key] = storage.keys("arky_customer_session:v5:");
   return key ? JSON.parse(storage.getItem(key)) : null;
 }
 
@@ -55,11 +55,11 @@ test("the store loads its setup and confirms the selected market before it expos
     if (call.path === "/v1/storefront/markets/by-key/ita") return { ...market, key: marketKey };
     throw new Error(`Unexpected setup request: ${call.method} ${call.path}`);
   }, { answerMarkets: false });
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "ita", locale: "it", sessionStorage: visitorStorage() });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "ita", locale: "it", sessionStorage: visitorStorage() });
   assert.deepEqual(await store.store.load(), setupRecord);
   assert.deepEqual(store.market.get(), market);
   assert.equal(store.currency.get(), "eur");
-  assert.deepEqual(store.allowed_payment_option_ids.get(), [ids.paymentOption]);
+  assert.equal("allowed_payment_option_ids" in store, false);
   assert.deepEqual(store.setup.get(), setupRecord);
   assert.deepEqual(calls.map(({ method, path }) => [method, path]), [
     ["GET", "/v1/storefront"],
@@ -68,17 +68,18 @@ test("the store loads its setup and confirms the selected market before it expos
   for (const call of calls) {
     assert.equal(call.headers.get("x-arky-market"), "ita");
     assert.equal(call.headers.get("x-arky-locale"), "it");
-    assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
+    assert.equal(call.headers.get("x-arky-store-id"), storefrontIdentity.storeId);
+    assert.equal(call.headers.get("x-arky-sales-channel-id"), storefrontIdentity.salesChannelId);
   }
   marketKey = "deu";
-  const other = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "ita", sessionStorage: visitorStorage() });
+  const other = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "ita", sessionStorage: visitorStorage() });
   await assert.rejects(other.store.load(), /didn't confirm the selected key/);
   assert.equal(other.market.get(), null);
   assert.equal(other.currency.get(), null);
   assert.equal(other.setup.get(), null);
 });
 
-test("a fresh visitor's first cart load identifies once and reads no cart, and a create then selects the new cart", async (context) => {
+test("a fresh visitor's first cart load sends nothing, and a create identifies once and selects the new cart", async (context) => {
   const storage = new SessionStorage();
   const line = { type: "product", id: ids.line, variant_id: ids.variant, quantity: 2, form_submission_id: ids.submission, price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price } };
   const cart = cartRecord({ line_items: [line] });
@@ -88,18 +89,19 @@ test("a fresh visitor's first cart load identifies once and reads no cart, and a
     if (call.method === "GET" && call.path === `/v1/storefront/carts/${ids.cart}`) return cart;
     throw new Error(`Unexpected cart request: ${call.method} ${call.path}`);
   });
-  const firstPage = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "ita", sessionStorage: storage });
+  const firstPage = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "ita", sessionStorage: storage });
   const firstCart = firstPage.eshop.cart(scope);
   assert.equal(await firstCart.load(), null);
   assert.equal(firstCart.status.get().error, null);
-  assert.equal(firstPage.hasSession, true);
-  assert.deepEqual(calls.map(({ method, path }) => [method, path]), [["POST", "/v1/storefront/customer/identify"]]);
+  assert.equal(firstPage.hasSession, false);
+  assert.deepEqual(calls, []);
   assert.equal((await firstCart.create({ id: ids.cart })).id, ids.cart);
+  assert.equal(firstPage.hasSession, true);
   const { type: _type, ...productItem } = line;
   assert.deepEqual(firstCart.product_items.get(), [productItem]);
   assert.equal(firstCart.item_count.get(), 2);
 
-  const reloaded = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "ita", sessionStorage: storage });
+  const reloaded = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "ita", sessionStorage: storage });
   assert.equal(reloaded.hasSession, true);
   const reloadedCart = reloaded.eshop.cart(scope);
   assert.equal((await reloadedCart.load()).id, ids.cart);
@@ -118,7 +120,7 @@ test("a fresh visitor's first cart load identifies once and reads no cart, and a
     assert.equal(call.headers.has("x-arky-sales-channel"), false);
   }
   const stored = storedSessionOf(storage);
-  assert.equal(stored.version, 4);
+  assert.equal(stored.version, 5);
   assert.equal(stored.session.token, visitorToken);
 });
 
@@ -135,7 +137,7 @@ test("a cart operation that starts with a session still refuses when the store c
     }
     throw new Error(`Unexpected cart request: ${call.method} ${call.path}`);
   });
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "ita", sessionStorage: visitorStorage() });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "ita", sessionStorage: visitorStorage() });
   const cart = store.eshop.cart(scope);
   await cart.create({ id: ids.cart });
   const loading = cart.load();
@@ -148,7 +150,7 @@ test("a cart operation that starts with a session still refuses when the store c
 
 test("forms.submit with the loaded form reads it anonymously, identifies lazily and submits only given answers as multipart with no store routing", async (context) => {
   const storage = new SessionStorage();
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "it", market: "ita", sessionStorage: storage });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "it", market: "ita", sessionStorage: storage });
   const calls = recordFetch(context, (call) => {
     if (call.method === "GET" && call.path === "/v1/storefront/forms/contact-form") return contactForm;
     if (call.path === "/v1/storefront/customer/identify") return sessionResult();
@@ -191,12 +193,12 @@ test("forms.submit with the loaded form reads it anonymously, identifies lazily 
   });
   assert.deepEqual([...calls[2].body.keys()], ["submission"]);
   assert.equal(calls.some((call) => call.href.includes("store_id")), false);
-  assert.equal(storedSessionOf(storage).version, 4);
+  assert.equal(storedSessionOf(storage).version, 5);
 });
 
 test("forms.submit checks the values against the shown form before identifying or submitting, and a whitespace-only required answer is missing", async (context) => {
   const storage = new SessionStorage();
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: storage });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: storage });
   const calls = recordFetch(context, (call) => {
     if (call.method === "GET") return contactForm;
     throw new Error(`Validation must not issue ${call.method} ${call.path}`);
@@ -215,7 +217,7 @@ test("forms.submit checks the values against the shown form before identifying o
 
 test("a raw storefront submission stays stateful and sends only the id, the loaded form's version, the language and the given answers", async (context) => {
   const storage = new SessionStorage();
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "it", sessionStorage: storage });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "it", sessionStorage: storage });
   const calls = recordFetch(context, (call) => call.path === "/v1/storefront/customer/identify"
     ? sessionResult()
     : { id: ids.submission, form_id: ids.form, language: "it", answers: [], stage_id: "new", created_at: 2, updated_at: 2 });
@@ -247,11 +249,13 @@ test("a raw storefront submission stays stateful and sends only the id, the load
 
 test("Visitor identify sends only the application-picked IDs and does not claim a contact address", async (context) => {
   const storage = new SessionStorage();
-  const store = initialize(publishableKey, { ...idFactories, apiUrl, sessionStorage: storage });
+  const store = initialize(storefrontIdentity, { ...idFactories, apiUrl, sessionStorage: storage });
   const calls = recordFetch(context, () => ({ customer: customerRecord(), session: visitorSession() }));
   const identity = { customer_id: ids.customer, session_id: ids.session };
   const result = await store.customer.identify(identity);
-  assert.deepEqual(result.customer.type, { type: "anonymous" });
+  assert.equal("login" in result, false);
+  assert.deepEqual(result.customer.contacts, []);
+  assert.deepEqual(result.customer.addresses, []);
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [["POST", "/v1/storefront/customer/identify", identity]]);
   assert.equal("captureEmail" in store.customer, false);
   assert.equal("email" in storedSessionOf(storage).customer, false);

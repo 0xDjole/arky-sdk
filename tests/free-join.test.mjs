@@ -6,16 +6,18 @@ import { ExclusiveLockManager, MemoryStorage } from "./helpers/durable-request-f
 import {
   apiUrl,
   cartRecord,
+  confirmedEmail,
   customerRecord,
   emailSession,
   factoryId,
+  phoneSession,
   ids,
   idFactories,
   idSequence,
   installGlobal,
   placedAcceptance,
   placedOrder,
-  publishableKey,
+  storefrontIdentity,
   quoteRecord,
   recordFetch,
   sessionResult,
@@ -57,7 +59,7 @@ function packagePrice(overrides = {}, amount = 0) {
   return {
     price_id: ids.price,
     sellable: { type: "package", package_id: joinedId },
-    content: { sku: null, blocks: [], basis: { type: "package_never" } },
+    content: { sku: null, blocks: [], basis: { type: "package_never" }, placement: { type: "none" } },
     price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price, tax_mode: "inclusive", unit_price: { amount, currency: "eur" }, compare_at: null, priced_at: 1 },
     ...overrides,
   };
@@ -66,7 +68,7 @@ function packagePrice(overrides = {}, amount = 0) {
 const choicesPath = `/v1/storefront/package-items/${ids.packageItem}/prices`;
 
 function client(sessionStorage, createId = idSequence(factoryId(1), factoryId(2), ids.order)) {
-  return createStorefront(publishableKey, { ...idFactories, createId, createOrderToken: () => orderToken, apiUrl, locale: "en", market: "bih", sessionStorage });
+  return createStorefront(storefrontIdentity, { ...idFactories, createId, createOrderToken: () => orderToken, apiUrl, locale: "en", market: "bih", sessionStorage });
 }
 
 function joinServer(context, { loseAccept = false, packageRecord = freePackage(), choicePages = [{ items: [packagePrice()], cursor: null }] } = {}) {
@@ -221,11 +223,11 @@ test("newsletter.requestCode skips a code for the signed-in address and signs ou
     if (call.path === "/v1/storefront/customer/logout") return new Response(null, { status: 204 });
     if (call.path === "/v1/storefront/customer/identify") return sessionResult(ids.otherCustomer, visitorSession(ids.otherCustomer, ids.otherSession));
     if (call.path === "/v1/storefront/customer/request-code") {
-      return { customer: customerRecord(ids.otherCustomer), session: { id: ids.otherSession, store_id: ids.store, customer_id: ids.otherCustomer }, email_verification: { issued_at: 1, expires_at: 2 } };
+      return { customer: customerRecord(ids.otherCustomer), session: { id: ids.otherSession, store_id: ids.store, customer_id: ids.otherCustomer }, code: { issued_at: 1, expires_at: 2 } };
     }
     throw new Error(`Unexpected request ${call.path}`);
   });
-  const api = createStorefront(publishableKey, {
+  const api = createStorefront(storefrontIdentity, {
     ...idFactories,
     createVisitorIdentity: () => ({ customer_id: ids.otherCustomer, session_id: ids.otherSession }),
     createId: idSequence(factoryId(4)),
@@ -241,7 +243,20 @@ test("newsletter.requestCode skips a code for the signed-in address and signs ou
     "/v1/storefront/customer/identify",
     "/v1/storefront/customer/request-code",
   ]);
-  assert.deepEqual(calls[2].body, { id: factoryId(4), contact: { email: "reader@example.test", language: "en" } });
+  assert.deepEqual(calls[2].body, { id: factoryId(4), contact: { type: "email", email: "reader@example.test", language: "en" } });
+});
+
+test("newsletter.requestCode skips the code for a phone sign-in's own confirmed email and keeps that sign-in", async (context) => {
+  browser(context);
+  const calls = recordFetch(context, (call) => {
+    throw new Error(`Unexpected request ${call.path}`);
+  });
+  const signedIn = sessionResult(ids.customer, phoneSession());
+  signedIn.customer.contacts = [...signedIn.customer.contacts, confirmedEmail("reader@example.test", "bs")];
+  const api = client(new SessionStorage(JSON.stringify({ version: 5, ...signedIn })));
+  assert.deepEqual(await api.newsletter.requestCode({ contact: { email: " Reader@Example.test ", language: "en" } }), { type: "verified" });
+  assert.equal(calls.length, 0);
+  assert.deepEqual(api.session.signed_in_with, { type: "phone", number: "+38761222333" });
 });
 
 test("newsletter.join verifies the code, checks the address and joins in the caller's language, not the verified contact's", async (context) => {
@@ -265,7 +280,8 @@ test("newsletter.join verifies the code, checks the address and joins in the cal
   await assert.rejects(api.newsletter.join({ email: verifiedEmail, key: "newsletter", package_id: ids.package, language: "en" }), (error) => error instanceof PackageJoinError && error.code === "sign_in_required");
   await assert.rejects(api.newsletter.join({ email: "other@example.test", code: "123456", key: "newsletter", package_id: ids.package, language: "en" }), (error) => error instanceof PackageJoinError && error.code === "email_mismatch");
   assert.equal(joined, false);
-  assert.deepEqual(api.session.customer.type.contact, { email: verifiedEmail, language: "en" });
+  assert.deepEqual(api.session.signed_in_with, { type: "email", email: verifiedEmail });
+  assert.deepEqual(api.session.customer.contacts, [confirmedEmail(verifiedEmail, "en")]);
   assert.deepEqual(await api.newsletter.join({ email: verifiedEmail, key: "newsletter", package_id: ids.package, language: "bs" }), { type: "joined", order_id: ids.order });
   const accept = calls.find((call) => call.path === "/v1/storefront/carts/accept");
   assert.deepEqual(accept.body.contact_email, { email: verifiedEmail, language: "bs" });
@@ -273,8 +289,8 @@ test("newsletter.join verifies the code, checks the address and joins in the cal
 
 function signedInWithLanguage(language) {
   const signedIn = sessionResult(ids.customer, emailSession());
-  signedIn.customer.type.contact = { email: verifiedEmail, language };
-  return new SessionStorage(JSON.stringify({ version: 4, ...signedIn }));
+  signedIn.customer.contacts = [confirmedEmail(verifiedEmail, language)];
+  return new SessionStorage(JSON.stringify({ version: 5, ...signedIn }));
 }
 
 test("a free sign-up names the Order contact in the caller's language, not the language the verified contact saved", async (context) => {
@@ -284,4 +300,21 @@ test("a free sign-up names the Order contact in the caller's language, not the l
   assert.deepEqual(result, { type: "joined", order_id: ids.order });
   const accept = calls.find((call) => call.path === "/v1/storefront/carts/accept");
   assert.deepEqual(accept.body.contact_email, { email: verifiedEmail, language: "bs" });
+});
+
+test("a free join needs a sign-in by an email the customer confirmed, so a phone sign-in or an unconfirmed email joins nothing", async (context) => {
+  browser(context);
+  const calls = joinServer(context);
+  const byPhone = new SessionStorage(storedSession(ids.customer, phoneSession()));
+  const unconfirmed = sessionResult(ids.customer, emailSession());
+  unconfirmed.customer.contacts = [{ type: "unconfirmed_email", email: verifiedEmail, language: "en" }];
+  const notConfirmed = new SessionStorage(JSON.stringify({ version: 5, ...unconfirmed }));
+  for (const storage of [byPhone, notConfirmed]) {
+    await assert.rejects(client(storage).eshop.package.joinFree({ key: "newsletter", package_id: ids.package, language: "en" }), (error) => {
+      assert.ok(error instanceof PackageJoinError);
+      assert.equal(error.code, "sign_in_required");
+      return true;
+    });
+  }
+  assert.equal(calls.length, 0);
 });

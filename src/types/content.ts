@@ -10,15 +10,40 @@ export type CollectionStatus =
 
 export type CollectionEditableStatus = Exclude<CollectionStatus, { type: "deleting" }>;
 
+export type CollectionType = "public" | "private" | "shared" | "notes";
+
+export type PrivateCollectionType = "private" | "shared";
+
 export interface Collection {
   id: string;
   store_id: string;
   key: string;
+  type: CollectionType;
   schema: BlockSchema[];
   blocks: Block[];
   status: CollectionStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
+}
+
+export interface PublicCollection extends Collection {
+  type: "public";
+}
+
+export interface StorefrontCollection {
+  id: string;
+  store_id: string;
+  key: string;
+  type: "public";
+  schema: BlockSchema[];
+  blocks: Block[];
+  status: CollectionStatus;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+}
+
+export interface PrivateCollection extends Collection {
+  type: PrivateCollectionType;
 }
 
 export interface CollectionCleanupReference {
@@ -41,17 +66,88 @@ export type EntryStatus =
 
 export type EntryEditableStatus = Exclude<EntryStatus, { type: "deleting" }>;
 
+export type PublicEntryType = { type: "public"; key: string; slugs: Record<string, string> };
+
+export type PrivateEntryType =
+  | { type: "private_store" }
+  | { type: "private_customer"; customer_id: string }
+  | { type: "private_company"; company_id: string }
+  | { type: "private_order"; order_id: string }
+  | { type: "private_conversation"; conversation_id: string }
+  | { type: "private_form_submission"; form_submission_id: string };
+
+export type SharedEntryType = { type: "shared"; customer_id: string };
+
+export type NoteEntryType =
+  | { type: "note_customer"; customer_id: string }
+  | { type: "note_company"; company_id: string }
+  | { type: "note_order"; order_id: string }
+  | { type: "note_conversation"; conversation_id: string }
+  | { type: "note_form_submission"; form_submission_id: string }
+  | { type: "note_form_submission_stage_change"; form_submission_id: string; changed_at: EpochMilliseconds };
+
+export type EntryType = PublicEntryType | PrivateEntryType | SharedEntryType | NoteEntryType;
+
+export type PrivateEntryStatus = Exclude<EntryStatus, { type: "scheduled" }>;
+
+export type PrivateEntryEditableStatus = Exclude<PrivateEntryStatus, { type: "deleting" }>;
+
 export interface Entry {
   id: string;
   store_id: string;
   collection_id: string;
-  key: string;
-  slugs: Record<string, string>;
+  type: EntryType;
   blocks: Block[];
   status: EntryStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
   validation_errors: { field: string; error: string }[];
+}
+
+export interface PublicEntry extends Entry {
+  type: PublicEntryType;
+}
+
+export interface PrivateEntry extends Entry {
+  type: PrivateEntryType | SharedEntryType;
+  status: PrivateEntryStatus;
+}
+
+export interface StorefrontEntry {
+  id: string;
+  store_id: string;
+  collection_id: string;
+  type: PublicEntryType;
+  blocks: Block[];
+  status: EntryStatus;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+  validation_errors: { field: string; error: string }[];
+}
+
+export interface StorefrontSharedEntry {
+  id: string;
+  store_id: string;
+  collection_id: string;
+  type: SharedEntryType;
+  blocks: Block[];
+  status: PrivateEntryStatus;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+  validation_errors: { field: string; error: string }[];
+}
+
+export type EntryOwner =
+  | { type: "store" }
+  | { type: "customer"; customer_id: string }
+  | { type: "company"; company_id: string }
+  | { type: "order"; order_id: string }
+  | { type: "conversation"; conversation_id: string }
+  | { type: "form_submission"; form_submission_id: string };
+
+export interface PrivateFileLink {
+  url: string;
+  expires_at: EpochMilliseconds;
 }
 
 export type CategoryStatus =
@@ -118,10 +214,12 @@ export type ImageFormat = "jpeg" | "png" | "webp" | "gif";
 
 export type VideoFormat = "mp4" | "webm" | "quicktime";
 
+export type AudioFormat = "mp3" | "wav";
+
 export interface MediaFile {
   size_bytes: number;
   sha256: string;
-  url: string;
+  url: string | null;
 }
 
 export interface MediaImage {
@@ -129,7 +227,7 @@ export interface MediaImage {
   sha256: string;
   width_px: number;
   height_px: number;
-  url: string;
+  url: string | null;
 }
 
 export type MediaContent =
@@ -143,6 +241,7 @@ export type MediaContent =
       large: MediaImage;
     }
   | { type: "video"; format: VideoFormat; original: MediaFile }
+  | { type: "audio"; format: AudioFormat; original: MediaFile }
   | { type: "pdf"; original: MediaFile };
 
 export type MediaContentType = MediaContent["type"];
@@ -151,12 +250,15 @@ export type MediaImageSize = "original" | "thumbnail" | "small" | "medium" | "la
 
 export type MediaStatus = { type: "active" } | { type: "deleting" };
 
+export type MediaVisibility = "public" | "private";
+
 export interface Media {
   id: string;
   store_id: string;
   file_name: string;
   alt: LocalizedText | null;
   generation_id: string;
+  visibility: MediaVisibility;
   content: MediaContent;
   status: MediaStatus;
   created_at: EpochMilliseconds;
@@ -185,6 +287,13 @@ export interface GetCollectionParams {
 export interface GetCollectionByKeyParams {
   store_id: string;
   key: string;
+}
+
+export interface FindCollectionEntryPageParams {
+  store_id: string;
+  id: string;
+  limit?: number;
+  cursor?: string | null;
 }
 
 export interface GetCollectionCleanupParams {
@@ -246,7 +355,7 @@ export interface FindEntriesByIdsParams {
   store_id: string;
   ids: string[];
   limit?: number;
-  cursor?: string | null;
+  cursor?: never;
 }
 
 export type FindEntriesParams = FindCollectionEntriesParams | FindEntriesByIdsParams;
@@ -268,7 +377,7 @@ export interface StorefrontFindCollectionEntriesParams {
 export interface StorefrontFindEntriesByIdsParams {
   ids: string[];
   limit?: number;
-  cursor?: string | null;
+  cursor?: never;
 }
 
 export type StorefrontFindEntriesParams = StorefrontFindCollectionEntriesParams | StorefrontFindEntriesByIdsParams;
@@ -289,6 +398,12 @@ export interface StorefrontFindMediaParams {
 export interface GetEntryParams {
   store_id: string;
   id: string;
+}
+
+export interface GetEntryByKeyParams {
+  store_id: string;
+  collection_id: string;
+  key: string;
 }
 
 export interface CreateEntryParams {
@@ -317,6 +432,78 @@ export interface DeleteEntryParams {
   expected_updated_at: EpochMilliseconds;
 }
 
+export interface FindPrivateCollectionsParams extends FindCollectionsParams {
+  type?: PrivateCollectionType;
+}
+
+export interface CreatePrivateCollectionParams extends CreateCollectionParams {
+  type: PrivateCollectionType;
+}
+
+export interface GetPrivateCollectionParams extends GetCollectionParams {}
+
+export interface GetPrivateCollectionByKeyParams extends GetCollectionByKeyParams {}
+
+export interface UpdatePrivateCollectionParams extends UpdateCollectionParams {}
+
+export interface DeletePrivateCollectionParams extends DeleteCollectionParams {}
+
+export interface FindPrivateEntriesParams {
+  store_id: string;
+  collection_id: string;
+  owner?: EntryOwner;
+  status?: PrivateEntryStatus["type"];
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface GetPrivateEntryParams {
+  store_id: string;
+  collection_id: string;
+  id: string;
+}
+
+export interface CreatePrivateEntryParams {
+  store_id: string;
+  collection_id: string;
+  id: string;
+  type: PrivateEntryType | SharedEntryType;
+  blocks: Block[];
+  status?: PrivateEntryEditableStatus;
+}
+
+export interface UpdatePrivateEntryParams extends GetPrivateEntryParams {
+  expected_updated_at: EpochMilliseconds;
+  blocks?: Block[];
+  status?: PrivateEntryEditableStatus;
+}
+
+export interface DeletePrivateEntryParams extends GetPrivateEntryParams {
+  expected_updated_at: EpochMilliseconds;
+}
+
+export interface PrintPrivateEntryParams extends GetPrivateEntryParams {}
+
+export interface PrivateEntryFileLinkParams extends GetPrivateEntryParams {
+  media_id: string;
+  variant: MediaImageSize;
+}
+
+export interface FindSharedEntriesParams {
+  collection_id?: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface GetSharedEntryParams {
+  id: string;
+}
+
+export interface SharedEntryFileLinkParams extends GetSharedEntryParams {
+  media_id: string;
+  variant: MediaImageSize;
+}
+
 export interface FindCategoriesParams {
   store_id: string;
   ids?: string[];
@@ -335,6 +522,11 @@ export interface FindCategoriesParams {
 export interface GetCategoryParams {
   store_id: string;
   id: string;
+}
+
+export interface GetCategoryByKeyParams {
+  store_id: string;
+  key: string;
 }
 
 export type StorefrontGetCategoryParams = { id: string } | { slug: string };
@@ -389,6 +581,7 @@ export type CreateMediaParams =
       store_id: string;
       id: string;
       file: File;
+      visibility: MediaVisibility;
       alt?: LocalizedText | null;
       source_url?: never;
     }
@@ -396,6 +589,7 @@ export type CreateMediaParams =
       store_id: string;
       id: string;
       source_url: string;
+      visibility: MediaVisibility;
       alt?: LocalizedText | null;
       file?: never;
     };

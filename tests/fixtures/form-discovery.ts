@@ -1,12 +1,14 @@
 import { createAdmin, epochMilliseconds, initialize } from "arky-sdk";
 import type {
   AlertRecipient,
+  AuditAction,
+  CustomerAuthenticationSnapshot,
+  CustomerScope,
   EmailContact,
   EpochMilliseconds,
   ChangeFormSubmissionStageParams,
   CreateFormParams,
   CreateFormSubmissionParams,
-  DeletedResponse,
   DeleteFormSubmissionParams,
   Email,
   FindFormSubmissionsParams,
@@ -15,13 +17,20 @@ import type {
   FormAnswer,
   FormAnswerInput,
   FormEmails,
+  FormEmailSetting,
   FormOptionSnapshot,
   FormQuestion,
+  FormScope,
   FormStage,
   FormStatus,
+  FormSubmissionAlert,
+  FormType,
+  StorePermission,
+  StorePermissionAccess,
   FormSubmission,
   FormSubmissionSnapshot,
   FormSubmissionSource,
+  FormSubmissionStage,
   FormSubmissionStageChange,
   FormValuesInput,
   GetFormByKeyParams,
@@ -51,7 +60,7 @@ const form_id = "0f6a3c84-2d19-4e75-b8a1-5c9e7d3b2f60";
 const id = "4b9e2d71-8a36-4c05-9f1e-6d3a7b0c5e92";
 const api = createAdmin({ apiUrl: "https://forms.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).forms;
 
-const stages: FormStage[] = [{ id: "new", key: "new" }, { id: "won", key: "won" }];
+const stages: FormStage[] = [{ id: "new", key: "new", changed_email: { type: "off" } }, { id: "won", key: "won", changed_email: { type: "off" } }];
 const questions: FormQuestion[] = [
   { id: "q-answer", key: "answer", type: "text", required: true, label: { type: "shown", text: { en: "Answer" } }, min_length: null, max_length: 200, pattern: null },
   { id: "q-files", key: "files", type: "file", required: false, label: { type: "hidden" }, max_files: 3 },
@@ -60,13 +69,13 @@ const questions: FormQuestion[] = [
 const filter: FindFormsParams = { store_id, status: "draft", sort_field: "key", sort_direction: "asc", cursor: null };
 const byKey: GetFormByKeyParams = { store_id, key: "intake" };
 const byId: GetFormParams = { store_id, id: form_id };
-const create: CreateFormParams = { store_id, id: form_id, key: "intake", questions, stages };
+const create: CreateFormParams = { store_id, id: form_id, key: "intake", type: "private", questions, stages };
 const edit: UpdateFormParams = { store_id, id: form_id, expected_updated_at: epochMilliseconds(1), status: { type: "closed" } };
 const submissionFilter: FindFormSubmissionsParams = {
   store_id,
   form_id,
   customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58",
-  stage_id: "new",
+  stage: "new",
   select: [{ question_id: "q-topic", option_keys: ["sales"] }],
   sort_field: "created_at",
   cursor: null,
@@ -87,13 +96,14 @@ const stageChange: ChangeFormSubmissionStageParams = {
   store_id,
   form_id,
   id,
-  expected_stage_id: "new",
-  expected_changed_at: epochMilliseconds(1),
+  expected_stage: { type: "at", stage_id: "new", changed_at: epochMilliseconds(1) },
   to_stage_id: "won",
   note: { id: "9d1f3b5c-7e8a-4c2e-b4d6-8f0a2c4e6b7d", body: "Out of the delivery area" },
 };
-const alert: Email = { email_template_id: id, sending_address_id: form_id, from_name: "Shop", reply_to: { type: "external", email: "sales@example.test" } };
-const emails: FormEmails = { received: null, stage_changed: { won: alert }, submission_alert: alert, alert_recipients: [{ type: "email", email: "sales@example.test", language: "en" }] };
+const alert: Email = { email_template_id: id, email_address_id: form_id, from_name: "Shop", reply_to_address_id: form_id };
+const emails: FormEmails = { received: { type: "off" }, submission_alert: { type: "on", email: alert, recipients: [{ type: "email", email: "sales@example.test", language: "en" }] } };
+const wonStage: FormStage = { id: "won", key: "won", changed_email: { type: "send", email: alert } };
+const silentAlert: FormSubmissionAlert = { type: "off" };
 const withEmails: CreateFormParams = { ...create, emails };
 const remove: DeleteFormSubmissionParams = { store_id, form_id, id, expected_updated_at: epochMilliseconds(3) };
 
@@ -105,13 +115,13 @@ const edited: Promise<Form> = api.update(edit);
 const submissions: Promise<PaginatedResponse<FormSubmission>> = api.findSubmissions(submissionFilter);
 const staffCreated: Promise<FormSubmission> = api.createSubmission(staffEntry);
 const staged: Promise<FormSubmission> = api.changeSubmissionStage(stageChange);
-const deleted: Promise<DeletedResponse> = api.deleteSubmission(remove);
+const deleted: Promise<{ deleted: true }> = api.deleteSubmission(remove);
 const noted: Promise<Note> = api.notes.create({ store_id, form_id, form_submission_id: id, id: "2c7e9a41-5b3d-4f86-a1e0-7d4c2b9f6e38", body: "Called back" });
 const notes: Promise<PaginatedResponse<Note>> = api.notes.find({ store_id, form_id, form_submission_id: id, limit: 20 });
 const noteEdit: Promise<Note> = api.notes.update({ store_id, form_id, form_submission_id: id, id: "2c7e9a41-5b3d-4f86-a1e0-7d4c2b9f6e38", expected_updated_at: epochMilliseconds(2), body: "Called back twice" });
 
 declare const shown: Form;
-const storefront = initialize(`arky_pk_${"f".repeat(42)}A`, { createVisitorIdentity: () => ({ customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A` });
+const storefront = initialize({ storeId: "5e9b3d71-c826-4a04-b7f5-0d2a8e6c4f19", salesChannelId: "e5a8c2d7-3b91-4f06-9d4e-1c7b6a0f3e28" }, { createVisitorIdentity: () => ({ customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36", createOrderToken: () => `arky_ot_${"F".repeat(42)}A` });
 const valuesSubmission: SubmitFormParams = { id, form: shown, language: "en", values: { answer: "Kept", topic: [], files: [brief] } };
 const answered: Promise<StorefrontFormSubmission> = storefront.forms.submit(valuesSubmission);
 const raw: SubmitFormParams = { form_id, questions_updated_at: epochMilliseconds(4), id, language: "en", answers: [{ type: "select_many", question_id: "q-topic", key: "topic", option_keys: ["sales"] }] };
@@ -123,7 +133,7 @@ declare const submission: FormSubmission;
 declare const savedNote: Note;
 const source: FormSubmissionSource = submission.source;
 const sessionId: string | null = submission.source.type === "storefront" ? submission.source.customer_session_id : null;
-const stageId: string = submission.stage.stage_id;
+const stageId: string | null = submission.stage.type === "at" ? submission.stage.stage_id : null;
 const changedAt: EpochMilliseconds = submission.stage_history[0].changed_at;
 const formKey: string = submission.snapshot.form_key;
 const noteTarget: NoteTarget = savedNote.target;
@@ -137,10 +147,14 @@ export type FormContracts = [
   Assert<Missing<FormsApi, "findByIds" | "getSubmissions" | "getPresentation" | "permanentlyDelete" | "updateSubmission" | "processSubmission">>,
   Assert<Missing<FormsApi, "createSubmissionNote" | "findSubmissionNotes" | "updateSubmissionNote" | "deleteSubmissionNote">>,
   Assert<Missing<FormsApi, "assignSubmission" | "setSubmissionCompany">>,
-  Assert<Equal<keyof FormEmails, "received" | "stage_changed" | "submission_alert" | "alert_recipients">>,
-  Assert<Equal<FormEmails["submission_alert"], Email | null>>,
-  Assert<Equal<FormEmails["stage_changed"], Record<string, Email>>>,
-  Assert<Equal<FormEmails["alert_recipients"], AlertRecipient[]>>,
+  Assert<Equal<keyof FormEmails, "received" | "submission_alert">>,
+  Assert<Equal<FormEmails["received"], FormEmailSetting>>,
+  Assert<Equal<FormEmails["submission_alert"], FormSubmissionAlert>>,
+  Assert<Equal<FormEmailSetting, { type: "off" } | { type: "send"; email: Email }>>,
+  Assert<Equal<FormSubmissionAlert, { type: "off" } | { type: "on"; email: Email; recipients: AlertRecipient[] }>>,
+  Assert<Equal<keyof FormStage, "id" | "key" | "changed_email">>,
+  Assert<Equal<FormStage["changed_email"], FormEmailSetting>>,
+  Assert<RequiredField<FormStage, "changed_email">>,
   Assert<Equal<Form["emails"], FormEmails>>,
   Assert<Equal<FormSubmission["email_contact"], EmailContact | null>>,
   Assert<Missing<FormSubmission, "company_id" | "assignee_account_id">>,
@@ -149,7 +163,7 @@ export type FormContracts = [
   Assert<Equal<Parameters<FormsApi["find"]>[0], FindFormsParams>>,
   Assert<Equal<Awaited<ReturnType<FormsApi["find"]>>, PaginatedResponse<Form>>>,
   Assert<Equal<Awaited<ReturnType<FormsApi["findSubmissions"]>>, PaginatedResponse<FormSubmission>>>,
-  Assert<Equal<Awaited<ReturnType<FormsApi["deleteSubmission"]>>, DeletedResponse>>,
+  Assert<Equal<Awaited<ReturnType<FormsApi["deleteSubmission"]>>, { deleted: true }>>,
   Assert<Equal<Awaited<ReturnType<FormsApi["notes"]["create"]>>, Note>>,
   Assert<Equal<Parameters<FormsApi["getByKey"]>[0], GetFormByKeyParams>>,
   Assert<Equal<keyof GetFormParams, "store_id" | "id">>,
@@ -167,7 +181,7 @@ export type FormContracts = [
   Assert<RequiredField<SubmitFormParams, "language">>,
   Assert<RequiredField<SubmitFormRequest, "questions_updated_at">>,
   Assert<RequiredField<Form, "questions_updated_at">>,
-  Assert<RequiredField<CreateFormParams, "stages">>,
+  Assert<OptionalField<CreateFormParams, "stages">>,
   Assert<Equal<SubmitFormRequest["questions_updated_at"], EpochMilliseconds>>,
   Assert<Missing<FormValuesInput, "questions_updated_at">>,
   Assert<Equal<keyof FormSubmissionSnapshot, "form_key" | "questions" | "options">>,
@@ -176,17 +190,18 @@ export type FormContracts = [
   Assert<Missing<SubmitFormRequest, "store_id" | "locale" | "presentation_digest" | "fields">>,
   Assert<Missing<FormValuesInput, "presentation">>,
   Assert<RequiredField<CreateFormParams, "id">>,
-  Assert<RequiredField<CreateFormParams, "stages">>,
+  Assert<Equal<CreateFormParams["stages"], FormStage[] | undefined>>,
   Assert<Missing<CreateFormParams, "schema">>,
   Assert<RequiredField<CreateFormSubmissionParams, "customer_id">>,
   Assert<RequiredField<CreateFormSubmissionParams, "language">>,
   Assert<RequiredField<UpdateFormParams, "expected_updated_at">>,
   Assert<RequiredField<DeleteFormSubmissionParams, "expected_updated_at">>,
-  Assert<RequiredField<ChangeFormSubmissionStageParams, "expected_stage_id">>,
-  Assert<RequiredField<ChangeFormSubmissionStageParams, "expected_changed_at">>,
+  Assert<RequiredField<ChangeFormSubmissionStageParams, "expected_stage">>,
+  Assert<Equal<ChangeFormSubmissionStageParams["expected_stage"], FormSubmissionStage>>,
   Assert<RequiredField<ChangeFormSubmissionStageParams, "note">>,
   Assert<Equal<FormStatus["type"], "active" | "draft" | "closed">>,
   Assert<Equal<NonNullable<FindFormsParams["status"]>, FormStatus["type"]>>,
+  Assert<Equal<NonNullable<FindFormsParams["type"]>, FormType>>,
   Assert<Equal<NonNullable<UpdateFormParams["status"]>, FormStatus>>,
   Assert<Equal<NonNullable<FindFormSubmissionsParams["sort_field"]>, "created_at">>,
   Assert<Equal<NonNullable<FindFormSubmissionsParams["select"]>[number], { question_id: string; option_keys: string[] }>>,
@@ -202,6 +217,18 @@ export type FormContracts = [
   Assert<Equal<NoteTarget["type"], "form_submission" | "form_submission_stage_change" | "customer" | "company" | "order" | "conversation">>,
   Assert<Equal<keyof FormSubmissionStageChange, "from_stage_id" | "to_stage_id" | "actor" | "changed_at">>,
   Assert<Missing<FormSubmissionStageChange, "note_id">>,
+  Assert<Equal<FormType, "public" | "private">>,
+  Assert<Equal<Form["type"], FormType>>,
+  Assert<RequiredField<CreateFormParams, "type">>,
+  Assert<Equal<CreateFormParams["type"], FormType>>,
+  Assert<Missing<UpdateFormParams, "type">>,
+  Assert<Equal<FormScope, { type: "all" } | { type: "ids"; form_ids: string[] }>>,
+  Assert<Equal<Extract<StorePermission, { type: "private_forms" }>, { type: "private_forms"; forms: FormScope; customers: CustomerScope; access: StorePermissionAccess }>>,
+  Assert<Equal<Extract<AuditAction, { action: "form_submission_read" }>, { action: "form_submission_read"; form_id: string; form_submission_id: string; customer_id: string }>>,
+  Assert<Equal<Extract<AuditAction, { action: "form_submission_file_read" }>, { action: "form_submission_file_read"; form_submission_id: string; customer_id: string; sha256: string }>>,
+  Assert<Equal<Extract<AuditAction, { action: "form_submission_list_read" }>, { action: "form_submission_list_read" }>>,
+  Assert<Equal<CustomerAuthenticationSnapshot, { type: "visitor" } | { type: "signed_in"; authenticated_at: EpochMilliseconds }>>,
+  Assert<Equal<Extract<FormSubmissionSource, { type: "storefront" }>["authentication"], CustomerAuthenticationSnapshot>>,
 ];
 
 void [page, read, readById, created, edited, submissions, staffCreated, staged, deleted, noted, notes, noteEdit, withEmails,

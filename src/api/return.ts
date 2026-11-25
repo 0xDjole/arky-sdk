@@ -16,6 +16,7 @@ import type {
   ReturnDestinationOptions,
   ReturnDetail,
   ReturnInspectionUnit,
+  ReturnListItem,
 } from "../types/return";
 import { requireId } from "../utils/ids";
 import { segment, storePath, storeRecordPath } from "./paths";
@@ -30,9 +31,9 @@ export interface FindAdminRentalReturnOptionsParams {
 export const createReturnApi = (apiConfig: ApiConfig) => {
   const returnPath = (storeId: string, id: string) => storeRecordPath(storeId, "returns", id);
   return {
-    find(params: FindReturnsParams, options?: RequestOptions): Promise<PaginatedResponse<Return>> {
+    find(params: FindReturnsParams, options?: RequestOptions): Promise<PaginatedResponse<ReturnListItem>> {
       const { store_id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<Return>>(storePath(store_id, "returns"), { ...options, params: query });
+      return apiConfig.httpClient.get<PaginatedResponse<ReturnListItem>>(storePath(store_id, "returns"), { ...options, params: query });
     },
 
     get(params: GetReturnParams, options?: RequestOptions): Promise<ReturnDetail> {
@@ -82,6 +83,7 @@ export const createReturnApi = (apiConfig: ApiConfig) => {
       if ((command.type === "approve" || command.type === "decline") && typeof command.notify_customer !== "boolean") {
         throw new TypeError("A return approval or decline requires an explicit customer email choice");
       }
+      if (command.type === "dispose") requireId(command.action_id, "action");
       return apiConfig.httpClient.post<Return>(
         `${returnPath(params.store_id, params.return_id)}/execute`,
         { expected_updated_at: params.expected_updated_at, command: params.command },

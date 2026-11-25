@@ -66,9 +66,10 @@ export type InventoryQuantity = { type: "on_hand" } | { type: "unavailable" };
 
 export type InventoryMovementReason =
   | { type: "receiving"; actor: AccountActor; reference: string | null }
+  | { type: "written_off"; actor: AccountActor; reason: string }
   | { type: "adjustment"; actor: AccountActor; quantity: InventoryQuantity; note: string }
   | { type: "damage"; actor: AccountActor; quantity: InventoryQuantity; reference: string | null }
-  | { type: "dispatched"; fulfillment_id: string }
+  | { type: "dispatched" }
   | { type: "return_restock"; return_id: string }
   | { type: "set_aside"; actor: AccountActor; note: string }
   | { type: "made_available"; actor: AccountActor; note: string }
@@ -99,11 +100,6 @@ export interface InventoryUnitAllocation {
   fulfillment_unit_index: number;
 }
 
-export type InventoryUnitWriteOffSource =
-  | { type: "warehouse"; store_location_id: string }
-  | { type: "rental"; rental_id: string; fulfillment_id: string }
-  | { type: "return_disposition"; return_id: string; store_location_id: string };
-
 export type InventoryUnitStatus =
   | { type: "available"; store_location_id: string }
   | { type: "set_aside"; store_location_id: string }
@@ -113,8 +109,24 @@ export type InventoryUnitStatus =
   | { type: "returning"; rental_id: string; fulfillment_id: string; return_id: string }
   | { type: "inspection"; store_location_id: string; return_id: string; received_at: EpochMilliseconds }
   | {
-      type: "written_off";
-      source: InventoryUnitWriteOffSource;
+      type: "written_off_at_warehouse";
+      store_location_id: string;
+      actor: AccountActor;
+      reason: string;
+      written_off_at: EpochMilliseconds;
+    }
+  | {
+      type: "written_off_on_rental";
+      rental_id: string;
+      fulfillment_id: string;
+      actor: AccountActor;
+      reason: string;
+      written_off_at: EpochMilliseconds;
+    }
+  | {
+      type: "written_off_at_return";
+      return_id: string;
+      store_location_id: string;
       actor: AccountActor;
       reason: string;
       written_off_at: EpochMilliseconds;
@@ -165,8 +177,9 @@ export interface GetInventoryItemByKeyParams {
   key: string;
 }
 
-export interface FindInventoryItemsParams {
+export interface FindInventoryItemsBySearchParams {
   store_id: string;
+  ids?: never;
   query?: string;
   status?: InventoryItemStatus["type"];
   tracking?: InventoryTracking["type"];
@@ -175,6 +188,20 @@ export interface FindInventoryItemsParams {
   limit?: number;
   cursor?: string | null;
 }
+
+export interface FindInventoryItemsByIdsParams {
+  store_id: string;
+  ids: string[];
+  query?: never;
+  status?: never;
+  tracking?: never;
+  sort_field?: never;
+  sort_direction?: never;
+  limit?: never;
+  cursor?: never;
+}
+
+export type FindInventoryItemsParams = FindInventoryItemsBySearchParams | FindInventoryItemsByIdsParams;
 
 export interface DeleteInventoryItemParams {
   store_id: string;
@@ -202,7 +229,7 @@ export interface RemoveInventoryLevelParams {
 
 export interface FindInventoryLevelsParams {
   store_id: string;
-  inventory_item_id?: string;
+  inventory_item_ids?: string[];
   store_location_id?: string;
   sort_field?: "created_at" | "updated_at";
   sort_direction?: SortDirection;
@@ -270,18 +297,35 @@ export interface GetInventoryUnitParams {
   id: string;
 }
 
-export interface FindInventoryUnitsParams {
+export interface FindInventoryUnitsBySearchParams {
   store_id: string;
+  ids?: never;
   inventory_item_id?: string;
   store_location_id?: string;
   rental_id?: string;
   asset_tag?: string;
-  status?: InventoryUnitStatus["type"];
+  status?: "available" | "set_aside" | "allocated" | "issued" | "rented" | "returning" | "inspection" | "written_off";
   sort_field?: "created_at" | "updated_at";
   sort_direction?: SortDirection;
   limit?: number;
   cursor?: string | null;
 }
+
+export interface FindInventoryUnitsByIdsParams {
+  store_id: string;
+  ids: string[];
+  inventory_item_id?: never;
+  store_location_id?: never;
+  rental_id?: never;
+  asset_tag?: never;
+  status?: never;
+  sort_field?: never;
+  sort_direction?: never;
+  limit?: never;
+  cursor?: never;
+}
+
+export type FindInventoryUnitsParams = FindInventoryUnitsBySearchParams | FindInventoryUnitsByIdsParams;
 
 export interface ReceiveInventoryUnitParams {
   store_id: string;
@@ -318,5 +362,6 @@ export interface MoveInventoryUnitParams extends GetInventoryUnitParams {
 
 export interface WriteOffInventoryUnitParams extends GetInventoryUnitParams {
   expected_updated_at: EpochMilliseconds;
+  action_id: string;
   reason: string;
 }

@@ -11,8 +11,8 @@ import {
   DurableRequestError,
   durableRequestPayload,
   getOrCreateDurableRequest,
-  isDefiniteRefusal,
   readDurableRequest,
+  refusalClearsKeptRequest,
   withDurableRequestLock,
   type DurableRequest,
 } from "../utils/durableRequest";
@@ -115,7 +115,7 @@ export async function recoverFormSubmission(
     try {
       submission = await send(kept, options);
     } catch (error) {
-      if (isDefiniteRefusal(error)) clearDurableRequest(saved, label);
+      if (refusalClearsKeptRequest(error)) clearDurableRequest(saved, label);
       throw error;
     }
     if (submission.id !== kept.id || submission.form_id !== kept.form_id || submission.language !== kept.language) {

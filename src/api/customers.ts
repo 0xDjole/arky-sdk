@@ -2,12 +2,21 @@ import type { ApiConfig } from "../services/clientTypes";
 import type { RequestOptions } from "../types/api";
 import type { PaginatedResponse } from "../types/common";
 import type {
+  AddCustomerContactParams,
   CreateCustomerParams,
   Customer,
+  CustomerExport,
+  CustomerInvite,
   CustomerSearchSnapshot,
   CustomerSession,
   EraseCustomerParams,
+  ExportCustomerParams,
+  FindCustomerInvitesParams,
+  InviteCustomerContactParams,
   MergeCustomerParams,
+  RemoveCustomerContactParams,
+  RemoveCustomerLinkParams,
+  UpdateCustomerContactParams,
   FindCustomerSessionsParams,
   FindCustomersParams,
   GetCustomerParams,
@@ -56,11 +65,59 @@ export const createCustomersApi = (apiConfig: ApiConfig) => {
       );
     },
 
+    export(params: ExportCustomerParams, options?: RequestOptions): Promise<CustomerExport> {
+      return apiConfig.httpClient.get<CustomerExport>(`${customerPath(params.store_id, params.id)}/export`, options);
+    },
+
     merge(params: MergeCustomerParams, options?: RequestOptions): Promise<Customer> {
       requireId(params.target_customer_id, "customer");
       return apiConfig.httpClient.post<Customer>(`${customerPath(params.store_id, params.id)}/merge`, {
         target_customer_id: params.target_customer_id, expected_updated_at: params.expected_updated_at,
       }, options);
+    },
+
+    addContact(params: AddCustomerContactParams, options?: RequestOptions): Promise<Customer> {
+      return apiConfig.httpClient.post<Customer>(`${customerPath(params.store_id, params.customer_id)}/contacts`, {
+        expected_updated_at: params.expected_updated_at,
+        contact: params.contact,
+        sms: params.sms ?? null,
+      }, options);
+    },
+
+    updateContact(params: UpdateCustomerContactParams, options?: RequestOptions): Promise<Customer> {
+      const { store_id, customer_id, ...body } = params;
+      return apiConfig.httpClient.put<Customer>(`${customerPath(store_id, customer_id)}/contacts`, body, options);
+    },
+
+    removeContact(params: RemoveCustomerContactParams, options?: RequestOptions): Promise<Customer> {
+      return apiConfig.httpClient.post<Customer>(
+        `${customerPath(params.store_id, params.customer_id)}/contacts/remove`,
+        { expected_updated_at: params.expected_updated_at, address: params.address },
+        options,
+      );
+    },
+
+    removeLink(params: RemoveCustomerLinkParams, options?: RequestOptions): Promise<Customer> {
+      if (!Number.isInteger(params.position) || params.position < 0) {
+        throw new TypeError("A link's position is its index in the customer's links list");
+      }
+      return apiConfig.httpClient.delete<Customer>(
+        `${customerPath(params.store_id, params.customer_id)}/links/${params.position}`,
+        { ...options, params: { expected_updated_at: params.expected_updated_at } },
+      );
+    },
+
+    findInvites(params: FindCustomerInvitesParams, options?: RequestOptions): Promise<CustomerInvite[]> {
+      return apiConfig.httpClient.get<CustomerInvite[]>(`${customerPath(params.store_id, params.customer_id)}/invites`, options);
+    },
+
+    inviteContact(params: InviteCustomerContactParams, options?: RequestOptions): Promise<CustomerInvite> {
+      requireId(params.id, "customer invite");
+      return apiConfig.httpClient.post<CustomerInvite>(
+        `${customerPath(params.store_id, params.customer_id)}/invites`,
+        { id: params.id, address: params.address },
+        options,
+      );
     },
 
     import(params: ImportCustomersParams, options?: RequestOptions): Promise<ImportCustomersResult> {

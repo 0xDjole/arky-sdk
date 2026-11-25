@@ -17,9 +17,10 @@ const setup = {
   publishable_key: "pk_test_arky_store",
   runs_on: simulated,
 };
-const plan = { type: "stripe_embedded_checkout", publishable_key: "pk_test_arky", client_secret: "cs_plan_secret_randomplan", expires_at: 1_900_000_000_000, runs_on: simulated };
+const plan = { type: "stripe", payment_intent_id: "pi_store", publishable_key: "pk_test_arky", client_secret: "pi_store_secret_exact", payment_method_id: "pm_store_card", runs_on: simulated };
 const billing = { full_name: "Test Buyer", address: "Test Street 1", city: "Sarajevo", zip: "71000", phone: "+38761123456", country: "BA", email: "buyer@example.test" };
 const simulatorPayments = `${api_url}/v1/simulator/payments`;
+const simulator_texts = { title: "Pagamento di prova", description: "Nessun denaro reale si muove", complete: "Paga", decline: "Rifiuta", expire: "Scade", cancel: "Annulla" };
 
 class FakeElement {
   constructor(tag) {
@@ -115,13 +116,17 @@ test("simulatePayment posts the client secret and outcome to the address the pay
   });
   assert.equal(await simulatePayment({ simulation: { type: "stripe_checkout", action: stripe, outcome: "complete" } }), undefined);
   await simulatePayment({ simulation: { type: "stripe_checkout", action: stripe, outcome: "decline" } });
-  await simulatePayment({ simulation: { type: "stripe_checkout", action: plan, outcome: "expire" } });
+  await simulatePayment({ simulation: { type: "stripe_checkout", action: stripe, outcome: "expire" } });
+  await adminSimulatePayment({ simulation: { type: "stripe_payment_intent", action: plan, outcome: "complete" } });
+  await adminSimulatePayment({ simulation: { type: "stripe_payment_intent", action: plan, outcome: "decline" } });
   await rootSimulatePayment({ simulation: { type: "monri", action: monri, outcome: "decline" } });
   await adminSimulatePayment({ simulation: { type: "card_setup", setup, outcome: "cancel" } });
   assert.deepEqual(calls.map(({ url, init }) => [url, init.method, JSON.parse(init.body)]), [
     [simulatorPayments, "POST", { type: "stripe_checkout", client_secret: stripe.client_secret, outcome: "complete" }],
     [simulatorPayments, "POST", { type: "stripe_checkout", client_secret: stripe.client_secret, outcome: "decline" }],
-    [simulatorPayments, "POST", { type: "stripe_checkout", client_secret: plan.client_secret, outcome: "expire" }],
+    [simulatorPayments, "POST", { type: "stripe_checkout", client_secret: stripe.client_secret, outcome: "expire" }],
+    [simulatorPayments, "POST", { type: "stripe_payment_intent", client_secret: plan.client_secret, outcome: "complete", payment_method: "pm_store_card" }],
+    [simulatorPayments, "POST", { type: "stripe_payment_intent", client_secret: plan.client_secret, outcome: "decline", payment_method: "pm_store_card" }],
     [simulatorPayments, "POST", { type: "monri", client_secret: monri.client_secret, outcome: "decline" }],
     [simulatorPayments, "POST", { type: "card_setup", client_secret: setup.client_secret, outcome: "cancel" }],
   ]);
@@ -138,6 +143,9 @@ test("simulatePayment refuses a real payment, an outcome that value doesn't offe
   const calls = recordFetch(context, accepted);
   const refused = [
     { type: "stripe_checkout", action: { ...stripe, runs_on: provider }, outcome: "complete" },
+    { type: "stripe_payment_intent", action: { ...plan, runs_on: provider }, outcome: "complete" },
+    { type: "stripe_payment_intent", action: plan, outcome: "expire" },
+    { type: "stripe_payment_intent", action: { ...plan, client_secret: null }, outcome: "complete" },
     { type: "monri", action: { ...monri, runs_on: provider }, outcome: "complete" },
     { type: "card_setup", setup: { ...setup, runs_on: provider }, outcome: "complete" },
     { type: "stripe_checkout", action: { ...stripe, runs_on: undefined }, outcome: "complete" },
@@ -184,15 +192,17 @@ test("a simulated Stripe action mounts Arky's panel with no Stripe.js, and a cli
   const target = fakePage(context);
   const calls = recordFetch(context, accepted);
   let completed = 0;
-  const mounted = await mountCheckoutAction({ action: stripe, element: "#payment", onComplete: () => { completed += 1; } });
+  const mounted = await mountCheckoutAction({ action: stripe, element: "#payment", onComplete: () => { completed += 1; }, simulator_texts });
   assert.equal(mounted.type, "simulator");
   assert.equal("checkout" in mounted, false);
   const buttons = outcomeButtons(target);
   assert.deepEqual(Object.keys(buttons), ["complete", "decline", "expire"]);
   for (const button of Object.values(buttons)) assert.equal(button.type, "button");
   const panelText = flatten(target).map((element) => element.textContent).join(" ");
-  assert.match(panelText, /Test payment/);
-  assert.match(panelText, /No real money moves/);
+  assert.match(panelText, /Pagamento di prova/);
+  assert.match(panelText, /Nessun denaro reale si muove/);
+  assert.doesNotMatch(panelText, /Test payment|No real money/);
+  assert.deepEqual(Object.values(buttons).map((button) => button.textContent), ["Paga", "Rifiuta", "Scade"]);
   assert.equal(calls.length, 0);
 
   buttons.decline.click();
@@ -214,11 +224,11 @@ test("a simulated Stripe action mounts Arky's panel with no Stripe.js, and a cli
   assert.equal(target.children.length, 0);
 });
 
-test("a simulated store plan action mounts the same panel, and an expire is posted too", async (context) => {
+test("a simulated Stripe checkout posts an expire outcome and removes its panel on destroy", async (context) => {
   const target = fakePage(context);
   const calls = recordFetch(context, accepted);
   let completed = 0;
-  const mounted = await mountCheckoutAction({ action: plan, element: target, onComplete: () => { completed += 1; } });
+  const mounted = await mountCheckoutAction({ action: stripe, element: target, onComplete: () => { completed += 1; }, simulator_texts });
   assert.equal(mounted.type, "simulator");
   outcomeButtons(target).expire.click();
   await until(() => completed === 1);
@@ -232,7 +242,7 @@ test("the Stripe panel shows a refused post in place, runs no onComplete, and le
   let status = 502;
   const calls = recordFetch(context, () => (status === 204 ? accepted() : jsonResponse({}, status)));
   let completed = 0;
-  const mounted = await mountCheckoutAction({ action: stripe, element: target, onComplete: () => { completed += 1; } });
+  const mounted = await mountCheckoutAction({ action: stripe, element: target, onComplete: () => { completed += 1; }, simulator_texts });
   const buttons = outcomeButtons(target);
   const alert = panelAlert(target);
   assert.equal(alert.hidden, true);
@@ -254,7 +264,7 @@ test("removing the Stripe panel during a post runs no onComplete afterwards", as
   let answer;
   recordFetch(context, () => new Promise((resolve) => { answer = resolve; }));
   let completed = 0;
-  const mounted = await mountCheckoutAction({ action: stripe, element: target, onComplete: () => { completed += 1; } });
+  const mounted = await mountCheckoutAction({ action: stripe, element: target, onComplete: () => { completed += 1; }, simulator_texts });
   const { complete } = outcomeButtons(target);
   complete.click();
   await until(() => answer !== undefined);
@@ -267,16 +277,16 @@ test("removing the Stripe panel during a post runs no onComplete afterwards", as
 
 test("a simulated Stripe action needs a container that exists", async (context) => {
   const target = fakePage(context);
-  await assert.rejects(mountCheckoutAction({ action: stripe, element: "#missing" }), (error) => error instanceof ArkyError && error.code === "unavailable");
+  await assert.rejects(mountCheckoutAction({ action: stripe, element: "#missing", simulator_texts }), (error) => error instanceof ArkyError && error.code === "unavailable");
   target.isConnected = false;
-  await assert.rejects(mountCheckoutAction({ action: stripe, element: target }), (error) => error instanceof ArkyError && error.code === "unavailable");
+  await assert.rejects(mountCheckoutAction({ action: stripe, element: target, simulator_texts }), (error) => error instanceof ArkyError && error.code === "unavailable");
 });
 
 test("a simulated Monri action keeps its mount on a plain http page, and confirm sends the outcome chosen in the panel", async (context) => {
   const target = fakePage(context);
   const calls = recordFetch(context, accepted);
   let completed = 0;
-  const mounted = await mountCheckoutAction({ action: monri, element: "#payment", payment_id: ids.payment, onComplete: () => { completed += 1; } });
+  const mounted = await mountCheckoutAction({ action: monri, element: "#payment", payment_id: ids.payment, onComplete: () => { completed += 1; }, simulator_texts });
   assert.equal(mounted.type, "monri_components");
   const buttons = outcomeButtons(target);
   assert.deepEqual(Object.keys(buttons), ["complete", "decline"]);
@@ -309,30 +319,30 @@ test("a simulated Monri confirm sends complete until another is chosen, and a po
   let status = 204;
   const calls = recordFetch(context, () => (status === 204 ? accepted() : jsonResponse({}, status)));
   let completed = 0;
-  const approved = await mountCheckoutAction({ action: monri, element: target, payment_id: ids.payment, onComplete: () => { completed += 1; } });
+  const approved = await mountCheckoutAction({ action: monri, element: target, payment_id: ids.payment, onComplete: () => { completed += 1; }, simulator_texts });
   await approved.confirm(billing);
   assert.equal(calls.at(-1).body.outcome, "complete");
   assert.equal(completed, 1);
   approved.destroy();
 
   status = 502;
-  const unknown = await mountCheckoutAction({ action: monri, element: target, payment_id: ids.payment, onComplete: () => { completed += 1; } });
+  const unknown = await mountCheckoutAction({ action: monri, element: target, payment_id: ids.payment, onComplete: () => { completed += 1; }, simulator_texts });
   await assert.rejects(unknown.confirm(billing), (error) => error instanceof MonriCheckoutError && error.code === "unknown_result");
   assert.equal(completed, 1);
   await assert.rejects(unknown.confirm(billing), (error) => error instanceof MonriCheckoutError && error.code === "already_submitted");
   unknown.destroy();
 
-  await assert.rejects(mountCheckoutAction({ action: monri, element: target }), /needs the payment_id of the payment it pays/);
-  await assert.rejects(mountCheckoutAction({ action: monri, element: "#missing", payment_id: ids.payment }), (error) => error instanceof MonriCheckoutError && error.code === "unavailable");
+  await assert.rejects(mountCheckoutAction({ action: monri, element: target, simulator_texts }), /needs the payment_id of the payment it pays/);
+  await assert.rejects(mountCheckoutAction({ action: monri, element: "#missing", payment_id: ids.payment, simulator_texts }), (error) => error instanceof MonriCheckoutError && error.code === "unavailable");
   const { save_card: _saveCard, ...invalid } = monri;
-  await assert.rejects(mountCheckoutAction({ action: invalid, element: target, payment_id: ids.payment }), (error) => error instanceof MonriCheckoutError && error.code === "invalid_action");
+  await assert.rejects(mountCheckoutAction({ action: invalid, element: target, payment_id: ids.payment, simulator_texts }), (error) => error instanceof MonriCheckoutError && error.code === "invalid_action");
   assert.equal(target.children.length, 0);
 });
 
 test("a simulated card setup keeps its mount with no Stripe.js: confirm sends the chosen outcome and a decline throws declined", async (context) => {
   const target = fakePage(context);
   const calls = recordFetch(context, accepted);
-  const mounted = await mountPaymentMethodSetup({ setup, element: "#payment" });
+  const mounted = await mountPaymentMethodSetup({ setup, element: "#payment", simulator_texts });
   assert.equal("type" in mounted, false);
   const buttons = outcomeButtons(target);
   assert.deepEqual(Object.keys(buttons), ["complete", "decline", "cancel"]);
@@ -367,12 +377,28 @@ test("a simulated card setup answers not_confirmed when the post isn't confirmed
   const target = fakePage(context);
   let status = 502;
   const calls = recordFetch(context, () => (status === 204 ? accepted() : jsonResponse({}, status)));
-  const mounted = await mountPaymentMethodSetup({ setup, element: target });
+  const mounted = await mountPaymentMethodSetup({ setup, element: target, simulator_texts });
   await assert.rejects(mounted.confirm({ return_url: "https://shop.example.test/account" }), (error) => error instanceof ArkyError && error.code === "not_confirmed");
   const { complete } = outcomeButtons(target);
   assert.equal(complete.disabled, false);
   status = 204;
   assert.deepEqual(await mounted.confirm({ return_url: "https://shop.example.test/account" }), { type: "completed", setup_intent_id: "seti_arky_3" });
   assert.equal(calls.length, 2);
+  mounted.destroy();
+});
+
+test("a simulated payment form shows only the page's own words, and refuses to mount without them", async (context) => {
+  const target = fakePage(context);
+  const calls = recordFetch(context, accepted);
+  for (const texts of [undefined, { ...simulator_texts, decline: " " }, { title: "Test" }]) {
+    await assert.rejects(mountCheckoutAction({ action: stripe, element: target, simulator_texts: texts }), (error) => error instanceof ArkyError && error.code === "not_ready");
+    await assert.rejects(mountCheckoutAction({ action: monri, element: target, payment_id: ids.payment, simulator_texts: texts }), (error) => error instanceof ArkyError && error.code === "not_ready");
+    await assert.rejects(mountPaymentMethodSetup({ setup, element: target, simulator_texts: texts }), (error) => error instanceof ArkyError && error.code === "not_ready");
+  }
+  assert.equal(target.children.length, 0);
+  assert.equal(calls.length, 0);
+  const mounted = await mountPaymentMethodSetup({ setup, element: target, simulator_texts });
+  const words = flatten(target).map((element) => element.textContent).filter(Boolean);
+  assert.deepEqual(words, ["Pagamento di prova", "Nessun denaro reale si muove", "Paga", "Rifiuta", "Annulla"]);
   mounted.destroy();
 });

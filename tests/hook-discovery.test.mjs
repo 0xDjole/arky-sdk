@@ -32,7 +32,7 @@ test("webhook writes keep tagged statuses and scoped event types, carry the app-
   const calls = recordFetch(context, (call) => call.method === "DELETE" ? { deleted: true } : { id: hookId, ...(call.body ?? {}) });
   const api = store().webhook;
   const events = [
-    { type: "entry.updated", collections: { type: "all" }, entries: { type: "only", keys: ["guide"] } },
+    { type: "entry.updated", collections: { type: "all" }, entries: { type: "keys", keys: ["guide"] } },
     { type: "form_submission.created", forms: { form_ids: ["form-one", "form-two"] } },
     { type: "order.created" },
     { type: "package_member.renewed" },
@@ -69,7 +69,8 @@ test("the webhook event list carries the ten package member events and none of t
     "package_member.renewal_skipped",
     "package_member.payment_method_changed",
   ];
-  assert.equal(WEBHOOK_UNIT_EVENT_TYPES.length, 120);
+  assert.equal(WEBHOOK_UNIT_EVENT_TYPES.length, 130);
+  for (const added of ["promotion_code.updated", "credit_note.outside_number_removed"]) assert.ok(WEBHOOK_UNIT_EVENT_TYPES.includes(added), added);
   assert.equal(new Set(WEBHOOK_UNIT_EVENT_TYPES).size, WEBHOOK_UNIT_EVENT_TYPES.length);
   assert.deepEqual(WEBHOOK_UNIT_EVENT_TYPES.filter((event) => event.startsWith("package_member.")), memberEvents);
   for (const kept of ["package.created", "package.updated"]) assert.ok(WEBHOOK_UNIT_EVENT_TYPES.includes(kept), kept);
@@ -106,4 +107,21 @@ test("the webhook event list carries the conversation, package, item, access and
   for (const filtered of ["form_submission.created", "form_submission.stage_changed", "form_submission.deleted", "collection.created", "entry.updated"]) {
     assert.equal(WEBHOOK_UNIT_EVENT_TYPES.includes(filtered), false, filtered);
   }
+});
+
+test("the webhook event list carries the fiscal receipt, invoice and credit note events right after the order payment events, in the Server's order", () => {
+  const added = [
+    "fiscal_receipt.done",
+    "fiscal_receipt.refused",
+    "fiscal_receipt.unknown",
+    "invoice.issued",
+    "invoice.outside_number_removed",
+    "invoice.discarded",
+    "invoice.reversed",
+    "credit_note.issued",
+    "credit_note.outside_number_removed",
+  ];
+  const start = WEBHOOK_UNIT_EVENT_TYPES.indexOf("order.payment_failed") + 1;
+  assert.deepEqual(WEBHOOK_UNIT_EVENT_TYPES.slice(start, start + added.length), added);
+  assert.equal(WEBHOOK_UNIT_EVENT_TYPES[start + added.length], "refund.created");
 });

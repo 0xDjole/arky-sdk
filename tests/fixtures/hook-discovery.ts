@@ -7,7 +7,7 @@ type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
 
 declare const admin: ReturnType<typeof createAdmin>;
 const webhooks: Promise<{ items: Webhook[]; cursor: string | null }> = admin.store.webhook.find({ store_id: 'store', query: 'entry.updated', status: 'disabled' });
-const scoped: WebhookEvent = { type: 'entry.updated', collections: { type: 'all' }, entries: { type: 'only', keys: ['guide'] } };
+const scoped: WebhookEvent = { type: 'entry.updated', collections: { type: 'all' }, entries: { type: 'keys', keys: ['guide'] } };
 const forms: WebhookEvent = { type: 'form_submission.created', forms: { form_ids: ['form'] } };
 const staged: WebhookEvent = { type: 'form_submission.stage_changed', forms: { form_ids: ['form'] } };
 const removed: WebhookEvent = { type: 'form_submission.deleted', forms: { form_ids: [] } };
@@ -35,4 +35,8 @@ export type HookDiscoveryContracts = [
     | 'package_member.switched' | 'package_member.renewal_skipped'
     | 'package_member.payment_method_changed'>>,
   True<Equal<Extract<WebhookEvent['type'], `subscription.${string}` | 'package.member_added' | 'package.member_removed'>, never>>,
+  True<Equal<Extract<WebhookEvent['type'], `fiscal_receipt.${string}` | `invoice.${string}` | `credit_note.${string}`>,
+    | 'fiscal_receipt.done' | 'fiscal_receipt.refused' | 'fiscal_receipt.unknown'
+    | 'invoice.issued' | 'invoice.outside_number_removed' | 'invoice.discarded' | 'invoice.reversed'
+    | 'credit_note.issued' | 'credit_note.outside_number_removed'>>,
 ];

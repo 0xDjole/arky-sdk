@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { createStorefront } from "../dist/storefront.js";
-import { apiUrl, errorResponse, fixedIdFactories, ids, publishableKey, quoteRecord, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
+import { apiUrl, errorResponse, fixedIdFactories, ids, storefrontIdentity, quoteRecord, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
 
 const storeId = "3b21b61d-7162-414c-a73a-888ccbc57c3e";
 const notificationId = "d65211c1-743f-45fb-ab24-07221b1e3a7c";
@@ -26,7 +26,7 @@ test("a staff offer is made from the reviewed quote for the buyer's contact, sen
     ["POST", `${base}/offer/withdraw`, { expected_updated_at: 125 }],
   ]);
   for (const removed of ["reviewFirstOrderTerms", "sealFirstOrderTerms", "withdrawFirstOrderTerms"]) assert.equal(removed in admin().eshop.cart, false, removed);
-  assert.equal("repeat" in createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl }).eshop.cart, false);
+  assert.equal("repeat" in createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl }).eshop.cart, false);
 });
 
 test("staff see an offer's codes-only quote before making it, with the cart version and the offer language", async (context) => {
@@ -54,30 +54,35 @@ test("notification history and a template preview send only their own fields, an
   const calls = recordFetch(context, (call) => call.method === "GET" ? { items: [], cursor: "opaque:+/=" } : { id: notificationId });
   const api = admin().notification;
   const signal = new AbortController().signal;
-  await api.outgoingEmail.find({ store_id: storeId, to: "buyer@example.test", type: "receipt_resend", order_id: ids.order, limit: 25, cursor: "opaque:+/=" }, { signal, headers: { "x-request-trace": "delivery-contract" } });
-  await api.outgoingEmail.find({ store_id: storeId, type: "broadcast_email", broadcast_id: ids.form });
-  await api.outgoingEmail.get({ store_id: storeId, id: notificationId });
-  const content = { subject: "Narudžba {{order.number}}", preheader: null, html: "<p>{{order.number}}</p>", text: "{{order.number}}" };
+  await api.outgoingMessage.find({ store_id: storeId, to: "buyer@example.test", type: "receipt_resend_email", order_id: ids.order, limit: 25, cursor: "opaque:+/=" }, { signal, headers: { "x-request-trace": "delivery-contract" } });
+  await api.outgoingMessage.find({ store_id: storeId, type: "broadcast_sms", broadcast_id: ids.form });
+  await api.outgoingMessage.get({ store_id: storeId, id: notificationId });
+  const content = { type: "email", content: { subject: "Narudžba {{order.number}}", preheader: null, html: "<p>{{order.number}}</p>", text: "{{order.number}}" } };
   await api.template.preview({ store_id: storeId, id: templateId, language: "bs", content });
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
-    ["GET", `/v1/stores/${storeId}/outgoing-emails`, { to: "buyer@example.test", type: "receipt_resend", order_id: ids.order, limit: "25", cursor: "opaque:+/=" }, null],
-    ["GET", `/v1/stores/${storeId}/outgoing-emails`, { type: "broadcast_email", broadcast_id: ids.form }, null],
-    ["GET", `/v1/stores/${storeId}/outgoing-emails/${notificationId}`, {}, null],
+    ["GET", `/v1/stores/${storeId}/outgoing-messages`, { to: "buyer@example.test", type: "receipt_resend_email", order_id: ids.order, limit: "25", cursor: "opaque:+/=" }, null],
+    ["GET", `/v1/stores/${storeId}/outgoing-messages`, { type: "broadcast_sms", broadcast_id: ids.form }, null],
+    ["GET", `/v1/stores/${storeId}/outgoing-messages/${notificationId}`, {}, null],
     ["POST", `/v1/stores/${storeId}/email-templates/${templateId}/preview`, {}, { language: "bs", content }],
   ]);
   assert.equal(calls[0].signal, signal);
   assert.equal(calls[0].headers.get("x-request-trace"), "delivery-contract");
-  for (const removed of ["save", "delivery", "preview", "stop", "cancel"]) assert.equal(removed in api, false, removed);
+  for (const removed of ["save", "delivery", "preview", "stop", "cancel", "outgoingEmail"]) assert.equal(removed in api, false, removed);
 });
 
 test("minimum progress is read for exactly one customer, company or company location by staff and by the buyer", async (context) => {
+  const month = (value) => ({ month: value, timezone: "Europe/Sarajevo", starts_at: 1, ends_at: 2, package_member_id: null, progress: { type: "unavailable", reason: "no_minimum" } });
+  const customerProgress = { party: { type: "customer", customer_id: ids.customer }, state: { type: "available", current: month("2026-11"), history: [month("2026-10")] } };
   const locationProgress = { party: { type: "company_location", company_location_id: ids.companyLocation }, state: { type: "unavailable", reason: "no_minimum" } };
   const companyProgress = { party: { type: "company", company_id: ids.company }, state: { type: "unavailable", reason: "per_location" } };
-  const calls = recordFetch(context, (call) => "company_id" in call.query ? companyProgress : locationProgress);
+  const calls = recordFetch(context, (call) => "company_id" in call.query ? companyProgress : "customer_id" in call.query ? customerProgress : locationProgress);
   assert.deepEqual(await admin().eshop.minimumProgress.get({ store_id: storeId, company_location_id: ids.companyLocation }), locationProgress);
   assert.deepEqual(await admin().eshop.minimumProgress.get({ store_id: storeId, company_id: ids.company }), companyProgress);
-  await admin().eshop.minimumProgress.get({ store_id: storeId, customer_id: ids.customer });
-  const shop = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
+  const read = await admin().eshop.minimumProgress.get({ store_id: storeId, customer_id: ids.customer });
+  assert.equal(read.state.current.month, "2026-11");
+  assert.deepEqual(read.state.history.map((entry) => entry.month), ["2026-10"]);
+  assert.equal("year" in read.state.current, false);
+  const shop = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
   assert.deepEqual(await shop.eshop.minimumProgress.get({ company_id: ids.company }), companyProgress);
   assert.deepEqual(await shop.eshop.minimumProgress.get({ company_location_id: ids.companyLocation }), locationProgress);
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
@@ -90,4 +95,17 @@ test("minimum progress is read for exactly one customer, company or company loca
   for (const call of calls.slice(3)) assert.equal(call.headers.get("authorization"), `Bearer ${visitorToken}`);
   assert.equal("minimumProgress" in admin().companies, false);
   assert.equal("minimumProgress" in shop.companies, false);
+});
+
+test("staff send one booking line's reminder at once by naming the reminder notification", async (context) => {
+  const answered = { type: "sent", outgoing_message_ids: [notificationId] };
+  const calls = recordFetch(context, () => answered);
+  const api = admin().notification.notification;
+  assert.deepEqual(
+    await api.sendBookingReminder({ store_id: storeId, order_id: ids.order, order_booking_item_id: "line/one", notification_id: notificationId }),
+    answered,
+  );
+  assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
+    ["POST", `/v1/stores/${storeId}/orders/${ids.order}/booking-items/line%2Fone/reminder`, {}, { notification_id: notificationId }],
+  ]);
 });

@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createStorefront } from "../dist/storefront.js";
-import { accessToken, apiUrl, errorResponse, fixedIdFactories, ids, publishableKey, recordFetch, SessionStorage, signedInStorage } from "./helpers/arky-fixtures.mjs";
+import { accessToken, apiUrl, errorResponse, fixedIdFactories, ids, storefrontIdentity, recordFetch, SessionStorage, signedInStorage } from "./helpers/arky-fixtures.mjs";
 
 const companyId = "818c5383-222b-4151-b4e0-59d173b0b74c";
 const locationId = "ec210872-363d-4823-ae6c-f7cde628d7e1";
 
 function signedIn(options = {}) {
   const storage = signedInStorage();
-  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "trade-europe", locale: "bs", sessionStorage: storage, ...options });
+  const client = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "trade-europe", locale: "bs", sessionStorage: storage, ...options });
   assert.equal(client.isAuthenticated, true);
   return { client, storage };
 }
@@ -55,7 +55,8 @@ test("offer discovery sends exactly one company location or company id with its 
     assert.equal(call.path, "/v1/storefront/carts/offers");
     assert.equal(call.body, null);
     assert.equal(call.signal, controller.signal);
-    assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
+    assert.equal(call.headers.get("x-arky-store-id"), storefrontIdentity.storeId);
+    assert.equal(call.headers.get("x-arky-sales-channel-id"), storefrontIdentity.salesChannelId);
     assert.equal(call.headers.get("x-arky-market"), "trade-europe");
     assert.equal(call.headers.get("x-arky-locale"), "bs");
     assert.equal(call.headers.has("x-arky-sales-channel"), false);
@@ -104,7 +105,7 @@ for (const status of [403, 409, 503]) {
     const calls = recordFetch(context, () => errorResponse(status, "CART.OFFERS_UNAVAILABLE", "Offer discovery unavailable"));
     const storage = new SessionStorage(signedInStorage().initial);
     storage.setItem("arky:selected-cart:retained", JSON.stringify({ version: 3, id: ids.cart }));
-    const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: storage });
+    const client = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: storage });
     const before = storedValues(storage);
     await assert.rejects(client.eshop.cart.findOffers({ company_location_id: locationId }), (error) => error.statusCode === status);
     assert.deepEqual(calls.map(({ method, path }) => [method, path]), [["GET", "/v1/storefront/carts/offers"]]);

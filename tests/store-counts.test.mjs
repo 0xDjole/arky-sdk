@@ -22,17 +22,17 @@ test("status counts read the named counts by status in one call", async (context
           { segment: "cancelled", value: 0 },
         ],
       },
-      { type: "customers_by_type", segments: [{ segment: "anonymous", value: 4 }, { segment: "verified", value: 1 }] },
+      { type: "customers_by_link", segments: [{ segment: "anonymous", value: 4 }, { segment: "linked", value: 1 }] },
     ],
   };
   const calls = recordFetch(context, () => answer);
-  const read = await admin().counts.getStatuses({ store_id: storeId, types: ["orders_by_status", "customers_by_type"] });
+  const read = await admin().counts.getStatuses({ store_id: storeId, types: ["orders_by_status", "customers_by_link"] });
   assert.deepEqual(read, answer);
   assert.equal(calls.length, 1);
   assert.equal(calls[0].method, "GET");
   assert.equal(calls[0].body, null);
   assert.equal(calls[0].path, `/v1/stores/${storeId}/counts/statuses`);
-  assert.deepEqual(calls[0].query, { types: JSON.stringify(["orders_by_status", "customers_by_type"]) });
+  assert.deepEqual(calls[0].query, { types: JSON.stringify(["orders_by_status", "customers_by_link"]) });
 });
 
 test("a count report sends its span and reads as JSON query values and leaves out reads it does not name", async (context) => {
@@ -45,7 +45,8 @@ test("a count report sends its span and reads as JSON query values and leaves ou
       { type: "unique_visitors_day", segment: null, value: 340 },
     ],
     breakdowns: [
-      { type: "page_views_by_page_day", segments: [{ segment: "/", value: 90 }], other_segments: 3, other_value: 12 },
+      { type: "page_views_by_page_day", segments: [{ segment: "/", value: 90 }], other_segments: 3, other_value: { type: "count", value: 12 } },
+      { type: "placed_value_by_market_day", segments: [{ segment: marketId, value: 125_000 }], other_segments: 2, other_value: { type: "money", currencies: [{ currency: "eur", value: 4_000 }, { currency: "bam", value: 9_100 }] } },
     ],
     series: [],
   };
@@ -103,8 +104,7 @@ test("status counts read what a store still has open, with every segment the Ser
           { segment: "stripe_card", value: 1 },
           { segment: "monri_checkout", value: 2 },
           { segment: "monri_card", value: 0 },
-          { segment: "cash_on_delivery", value: 0 },
-          { segment: "manual", value: 0 },
+          { segment: "recorded", value: 0 },
         ],
       },
       {
@@ -157,7 +157,7 @@ test("conversation counts name the team's waiting segment as the Server does", a
         type: "conversations_by_status",
         segments: [
           { segment: "flow", value: 2 },
-          { segment: "waiting_for_team", value: 5 },
+          { segment: "waiting_for_store", value: 5 },
           { segment: "resolved", value: 9 },
         ],
       },
@@ -180,4 +180,106 @@ test("count reads refuse a store id that is not canonical before sending", async
     TypeError,
   );
   assert.equal(calls.length, 0);
+});
+
+test("a report reads bookings by day and a location's money inside one market", async (context) => {
+  const locationId = "3f9d2c71-6b84-4e05-a1d3-9c7e5b2a0f68";
+  const answer = {
+    from: "2026-10-01",
+    to: "2026-10-31",
+    totals: [
+      { type: "booking_lines_by_status_day", market_id: null, segment: "no_show", value: 3 },
+      { type: "paid_value_by_location_day", market_id: marketId, segment: locationId, value: 42_000 },
+    ],
+    breakdowns: [
+      {
+        type: "paid_value_by_location_day",
+        market_id: marketId,
+        segments: [{ segment: locationId, value: 42_000 }],
+        other_segments: 1,
+        other_value: { type: "money", currencies: [{ currency: "bam", value: 9_000 }] },
+      },
+    ],
+    series: [],
+  };
+  const calls = recordFetch(context, () => answer);
+  const totals = [
+    { type: "booking_lines_by_status_day", segment: "no_show" },
+    { type: "paid_value_by_location_day", market_id: marketId, segment: locationId },
+  ];
+  const breakdowns = [{ type: "paid_value_by_location_day", market_id: marketId, limit: 1 }];
+  const read = await admin().counts.getReport({ store_id: storeId, from: "2026-10-01", to: "2026-10-31", totals, breakdowns });
+  assert.deepEqual(read, answer);
+  assert.equal(calls[0].path, `/v1/stores/${storeId}/counts/report`);
+  assert.deepEqual(calls[0].query, {
+    from: "2026-10-01",
+    to: "2026-10-31",
+    totals: JSON.stringify(totals),
+    breakdowns: JSON.stringify(breakdowns),
+  });
+});
+
+test("a report reads one branch's bookings by outcome and by sales channel under the branch id", async (context) => {
+  const locationId = "3f9d2c71-6b84-4e05-a1d3-9c7e5b2a0f68";
+  const channelId = "5a7c9e1b-3d4f-4a6b-8c0d-2e4f6a8b0c1d";
+  const answer = {
+    from: "2026-11-01",
+    to: "2026-11-30",
+    totals: [{ type: "booking_lines_by_location_status_day", market_id: null, store_location_id: locationId, segment: "attended", value: 14 }],
+    breakdowns: [
+      {
+        type: "bookings_by_location_sales_channel_day",
+        market_id: null,
+        store_location_id: locationId,
+        segments: [{ segment: channelId, value: 9 }],
+        other_segments: 0,
+        other_value: { type: "count", value: 0 },
+      },
+    ],
+    series: [{ type: "booking_lines_by_location_status_day", market_id: null, store_location_id: locationId, segment: "no_show", points: [] }],
+  };
+  const calls = recordFetch(context, () => answer);
+  const totals = [{ type: "booking_lines_by_location_status_day", store_location_id: locationId, segment: "attended" }];
+  const breakdowns = [{ type: "bookings_by_location_sales_channel_day", store_location_id: locationId, limit: 5 }];
+  const series = [{ type: "booking_lines_by_location_status_day", store_location_id: locationId, segment: "no_show" }];
+  const read = await admin().counts.getReport({ store_id: storeId, from: "2026-11-01", to: "2026-11-30", totals, breakdowns, series });
+  assert.deepEqual(read, answer);
+  assert.deepEqual(calls[0].query, {
+    from: "2026-11-01",
+    to: "2026-11-30",
+    totals: JSON.stringify(totals),
+    breakdowns: JSON.stringify(breakdowns),
+    series: JSON.stringify(series),
+  });
+});
+
+test("a report reads one booking resource's lines by outcome under the resource id, and the answer names the resource", async (context) => {
+  const resourceId = "7b9d1f3a-5c2e-4a6b-8d0f-1a3c5e7b9d2f";
+  const answer = {
+    from: "2026-11-01",
+    to: "2026-11-30",
+    totals: [{ type: "booking_lines_by_resource_status_day", market_id: null, store_location_id: null, booking_resource_id: resourceId, segment: "attended", value: 6 }],
+    breakdowns: [
+      {
+        type: "booking_lines_by_resource_status_day",
+        market_id: null,
+        store_location_id: null,
+        booking_resource_id: resourceId,
+        segments: [{ segment: "no_show", value: 1 }],
+        other_segments: 0,
+        other_value: { type: "count", value: 0 },
+      },
+    ],
+    series: [],
+  };
+  const calls = recordFetch(context, () => answer);
+  const totals = [{ type: "booking_lines_by_resource_status_day", booking_resource_id: resourceId, segment: "attended" }];
+  const breakdowns = [{ type: "booking_lines_by_resource_status_day", booking_resource_id: resourceId }];
+  assert.deepEqual(await admin().counts.getReport({ store_id: storeId, from: "2026-11-01", to: "2026-11-30", totals, breakdowns }), answer);
+  assert.deepEqual(calls[0].query, {
+    from: "2026-11-01",
+    to: "2026-11-30",
+    totals: JSON.stringify(totals),
+    breakdowns: JSON.stringify(breakdowns),
+  });
 });

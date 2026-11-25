@@ -29,20 +29,17 @@ function isValidationError(
   );
 }
 
-function toServerError(value: unknown, statusCode: number): ServerError {
-  const payload = isRecord(value) ? value : {};
+function arkyRefusal(payload: unknown, statusCode: number): ServerError | null {
+  if (!isRecord(payload) || payload.status_code !== statusCode) return null;
+  if (typeof payload.error !== "string" || typeof payload.message !== "string") return null;
   const validationErrors = Array.isArray(payload.validation_errors)
     ? payload.validation_errors.filter(isValidationError).map(({ field, error }) => ({ field, error }))
     : [];
+  return { message: payload.message, error: payload.error, statusCode, validationErrors };
+}
 
-  return {
-    message:
-      typeof payload.message === "string" ? payload.message : "Request failed",
-    error: typeof payload.error === "string" ? payload.error : "REQUEST_FAILED",
-    statusCode:
-      typeof payload.status_code === "number" ? payload.status_code : statusCode,
-    validationErrors,
-  };
+export function reportHookFailure(error: unknown): void {
+  console.error("An Arky request hook failed", error);
 }
 
 export function refusedByArky(response: { status: number; data: unknown }): boolean {
@@ -70,7 +67,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
     method: string,
     path: string,
     body?: unknown,
-    options?: TransportOptions<T> & { body?: unknown },
+    options?: TransportOptions<T>,
     retried = false,
   ): Promise<T> {
     if (!cfg.storefrontMode && (options?.locale !== undefined || options?.market !== undefined)) {
@@ -121,12 +118,9 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
       method,
       headers,
       signal: options?.signal,
+      redirect: cfg.redirect ?? "follow",
     };
-    if (
-      method !== "GET" &&
-      body !== undefined &&
-      (method !== "DELETE" || options?.body !== undefined)
-    ) {
+    if (method !== "GET" && method !== "DELETE" && body !== undefined) {
       fetchOptions.body = multipart
         ? (body as FormData)
         : body instanceof URLSearchParams
@@ -153,7 +147,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
       if (options?.onError && method !== "GET") {
         Promise.resolve(
           options.onError({ error: err, method, url: fullUrl, aborted }),
-        ).catch(() => {});
+        ).catch(reportHookFailure);
       }
       throw err;
     }
@@ -175,7 +169,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
             url: fullUrl,
             status: res.status,
           }),
-        ).catch(() => {});
+        ).catch(reportHookFailure);
       }
       throw err;
     }
@@ -202,7 +196,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
             url: fullUrl,
             status: res.status,
           }),
-        ).catch(() => {});
+        ).catch(reportHookFailure);
       }
       throw err;
     }
@@ -219,25 +213,40 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
         if (recovered) {
           return request<T>(method, path, body, options, true);
         }
-      } else if (cfg.refreshCredentials && tokens) {
+      } else if (cfg.refreshCredentials && tokens && refusedByArky({ status: res.status, data })) {
         await refreshedTokens(tokens);
         return request<T>(method, path, body, options, true);
       }
     }
 
     if (!res.ok) {
-      const serverErr = toServerError(data, res.status);
-      const requestId =
-        res.headers.get("x-request-id") || res.headers.get("request-id");
+      const refusal = arkyRefusal(data, res.status);
+      if (!refusal) {
+        const err = new ArkyNetworkError("unreadable_answer", "The refused answer carries no Arky refusal", {
+          method,
+          url: fullUrl,
+          statusCode: res.status,
+        });
+        if (options?.onError && method !== "GET") {
+          Promise.resolve(
+            options.onError({
+              error: err,
+              method,
+              url: fullUrl,
+              status: res.status,
+            }),
+          ).catch(reportHookFailure);
+        }
+        throw err;
+      }
       const err = new ArkyApiError({
-        message: serverErr.message,
-        code: serverErr.error,
+        message: refusal.message,
+        code: refusal.error,
         response: data,
-        statusCode: serverErr.statusCode,
-        validationErrors: serverErr.validationErrors,
+        statusCode: refusal.statusCode,
+        validationErrors: refusal.validationErrors,
         method,
         url: fullUrl,
-        requestId: requestId || undefined,
       });
       if (options?.onError && method !== "GET") {
         Promise.resolve(
@@ -246,28 +255,25 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
             method,
             url: fullUrl,
             status: res.status,
-            response: serverErr,
-            request_id: requestId || null,
+            response: refusal,
             duration_ms: performance.now() - startedAt,
           }),
-        ).catch(() => {});
+        ).catch(reportHookFailure);
       }
+      cfg.onRefused?.(err);
       throw err;
     }
 
     if (options?.onSuccess && method !== "GET") {
-      const requestId =
-        res.headers.get("x-request-id") || res.headers.get("request-id");
       Promise.resolve(
         options.onSuccess({
           data: data as T,
           method,
           url: fullUrl,
           status: res.status,
-          request_id: requestId || null,
           duration_ms: performance.now() - startedAt,
         }),
-      ).catch(() => {});
+      ).catch(reportHookFailure);
     }
     return data as T;
   }
@@ -281,7 +287,7 @@ export function createHttpClient(cfg: HttpClientConfig): HttpClient {
       request<T>("PUT", path, body, opts),
     patch: <T>(path: string, body: unknown, opts?: TransportOptions<T>) =>
       request<T>("PATCH", path, body, opts),
-    delete: <T>(path: string, opts?: TransportOptions<T> & { body?: unknown }) =>
-      request<T>("DELETE", path, opts?.body, opts),
+    delete: <T>(path: string, opts?: TransportOptions<T>) =>
+      request<T>("DELETE", path, undefined, opts),
   };
 }

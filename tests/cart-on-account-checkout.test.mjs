@@ -11,7 +11,7 @@ import {
   installGlobal,
   placedAcceptance,
   placedOrder,
-  publishableKey,
+  storefrontIdentity,
   recordFetch,
   visitorStorage,
 } from "./helpers/arky-fixtures.mjs";
@@ -26,7 +26,7 @@ const onAccount = {
   language: "bs",
   contact_email: { email: "location@example.test", language: "bs" },
   payment_option_id: ids.paymentOption,
-  terms: { type: "net_days", days: 30 },
+  terms: { type: "net", term: 30 },
   reason: "Merchant approved Net30 for this one-time location purchase",
 };
 
@@ -58,17 +58,17 @@ test("Admin on-account checkout sends the reviewed cart, app-picked order id, la
 
 test("Admin checkouts carry the contact names staff typed, and leave them out when staff typed none", async (context) => {
   const calls = recordFetch(context, () => placedAcceptance());
-  const names = { contact_first_name: "Ana", contact_last_name: "Horvat" };
+  const names = { contact_name: { first_name: "Ana", last_name: "Horvat" } };
   await admin().eshop.cart.checkoutOnAccount({ ...target, ...onAccount, ...names });
-  await admin().eshop.cart.checkout({ ...target, ...checkoutRequest(), language: "en", contact_first_name: null, contact_last_name: "Horvat" });
+  await admin().eshop.cart.checkout({ ...target, ...checkoutRequest(), language: "en", contact_name: null });
   await admin().eshop.cart.checkout({ ...target, ...checkoutRequest(), language: "en" });
-  assert.deepEqual(calls.map(({ path, body }) => [path, body.contact_first_name, body.contact_last_name]), [
-    [`/v1/stores/${ids.store}/carts/accept-on-account`, "Ana", "Horvat"],
-    [`/v1/stores/${ids.store}/carts/accept`, null, "Horvat"],
-    [`/v1/stores/${ids.store}/carts/accept`, undefined, undefined],
+  assert.deepEqual(calls.map(({ path, body }) => [path, body.contact_name]), [
+    [`/v1/stores/${ids.store}/carts/accept-on-account`, { first_name: "Ana", last_name: "Horvat" }],
+    [`/v1/stores/${ids.store}/carts/accept`, null],
+    [`/v1/stores/${ids.store}/carts/accept`, undefined],
   ]);
   assert.deepEqual(calls[0].body, { ...onAccount, ...names });
-  for (const key of ["contact_first_name", "contact_last_name"]) assert.equal(key in calls[2].body, false, key);
+  for (const key of ["contact_name"]) assert.equal(key in calls[2].body, false, key);
 });
 
 test("an already_member answer is passed through unchanged for the Admin to show as finished", async (context) => {
@@ -89,12 +89,12 @@ test("Admin keeps no browser retention for on-account or ordinary checkout", () 
 
 test("the storefront has no on-account acceptance; a company location buyer pays on account through the checkout payment choice", async (context) => {
   const calls = recordFetch(context, (call) => call.method === "GET" ? placedOrder() : placedAcceptance());
-  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", market: "bih", sessionStorage: visitorStorage() });
+  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", market: "bih", sessionStorage: visitorStorage() });
   for (const removed of ["checkoutOnAccount", "retainOnAccountCheckout", "recoverOnAccountCheckout"]) {
     assert.equal(removed in storefront.eshop.cart, false, removed);
   }
   const request = checkoutRequest({ payment: { type: "on_account", payment_option_id: ids.paymentOption } });
-  assert.deepEqual(await storefront.eshop.cart.checkout({ ...request, terms: { type: "net_days", days: 0 }, reason: "browser" }), placedAcceptance());
+  assert.deepEqual(await storefront.eshop.cart.checkout({ ...request, terms: { type: "net", term: 0 }, reason: "browser" }), placedAcceptance());
   assert.deepEqual(calls[0].body, request);
   assert.equal(calls[0].path, "/v1/storefront/carts/accept");
 });
@@ -104,7 +104,7 @@ test("company and location purchasing commands preserve the exact version and th
   const purchasing = {
     payment: {
       type: "on_account",
-      terms: { type: "net_days", days: 30 },
+      terms: { type: "net", term: 30 },
       billing_address: { name: "Location", company: "Partner", street1: "1 Main", street2: null, city: "Sarajevo", state: null, postal_code: "71000", country: "BA", phone: null, email: null },
     },
     allowed_payment_option_ids: [ids.paymentOption],

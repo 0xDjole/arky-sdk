@@ -5,7 +5,7 @@ import { arky, shopPackage } from "./setup.js";
 const page = await arky.eshop.packageItem.find({
   package_id: shopPackage.id,
   include_price: true,
-  selection: { types: ["product"], text: "coffee", sort: "relevance" },
+  selection: { types: ["product"], text: "coffee" },
   limit: 24,
 });
 
@@ -13,7 +13,7 @@ const imageIds = page.items.flatMap((item) => {
   const image = findBlock(item.content, "image");
   return image?.type === "media" && image.value ? [image.value] : [];
 });
-const { items: images } = await arky.media.find({ ids: imageIds });
+const images = await arky.media.find({ ids: imageIds });
 const imageById = new Map<string, Media>(images.map((image) => [image.id, image]));
 
 function startingPrice(item: StorefrontPackageItem): string {

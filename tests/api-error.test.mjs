@@ -11,24 +11,27 @@ import {
   createStorefront,
   isArkyApiError,
   isDefiniteRefusal,
+  refusalClearsKeptRequest,
 } from "../dist/storefront.js";
+import { refusalClearsKeptRequest as rootRefusalClearsKeptRequest } from "../dist/index.js";
+import { refusalClearsKeptRequest as utilsRefusalClearsKeptRequest } from "../dist/utils.js";
 import {
   apiUrl,
   checkoutRequest,
   errorResponse,
   idFactories,
   jsonResponse,
-  publishableKey,
+  storefrontIdentity,
   quoteRecord,
   recordFetch,
   visitorStorage,
 } from "./helpers/arky-fixtures.mjs";
 
 function storefront() {
-  return createStorefront(publishableKey, { ...idFactories, apiUrl, locale: "en", sessionStorage: visitorStorage() });
+  return createStorefront(storefrontIdentity, { ...idFactories, apiUrl, locale: "en", sessionStorage: visitorStorage() });
 }
 
-test("a refused request throws an ArkyApiError with the Server's code, status, message and request id", async (context) => {
+test("a refused request throws an ArkyApiError with the Server's code, status and message, and carries no request id", async (context) => {
   recordFetch(context, () => {
     const response = errorResponse(422, "GENERAL.VALIDATION_FAILED", "The email is invalid", {
       validation_errors: [{ field: "email", error: "GENERAL.INVALID_EMAIL" }],
@@ -48,7 +51,7 @@ test("a refused request throws an ArkyApiError with the Server's code, status, m
   assert.equal(error.statusCode, 422);
   assert.equal(error.message, "The email is invalid");
   assert.deepEqual(error.validationErrors, [{ field: "email", error: "GENERAL.INVALID_EMAIL" }]);
-  assert.equal(error.requestId, "request-7");
+  assert.equal("requestId" in error, false);
   assert.equal(error.method, "GET");
   assert.equal(error.url, `${apiUrl}/v1/storefront/customer/me`);
   assert.equal(error.response.error, "GENERAL.VALIDATION_FAILED");
@@ -77,8 +80,8 @@ test("a 200 that isn't JSON fails as unreadable_answer", async (context) => {
   assert.ok(read instanceof ArkyNetworkError);
   assert.equal(read.code, "unreadable_answer");
   const reported = [];
-  const input = { store_id: "ab73eb42-89fd-4cbf-a1fd-fb84e6d78590", id: "912d27b1-2ed8-4a82-a2f1-318a45e31694", name: "Website", sales_channel_id: "0d6b2f84-3a19-4c57-8e20-7f4a1c9b5d36", bot_check: { type: "off" } };
-  const write = await admin.store.apiKey.create(input, { onError: (failure) => { reported.push(failure); } }).catch((caught) => caught);
+  const input = { store_id: "ab73eb42-89fd-4cbf-a1fd-fb84e6d78590", id: "912d27b1-2ed8-4a82-a2f1-318a45e31694", key: "web", market_ids: [], status: "active" };
+  const write = await admin.store.salesChannel.create(input, { onError: (failure) => { reported.push(failure); } }).catch((caught) => caught);
   assert.ok(write instanceof ArkyNetworkError);
   assert.equal(write.code, "unreadable_answer");
   assert.equal(reported.length, 1);
@@ -112,4 +115,15 @@ test("a changed checkout presentation is an ArkyApiError that carries the new qu
   assert.equal(error.url, `${apiUrl}/v1/storefront/carts/accept`);
   assert.equal(isDefiniteRefusal(error), true);
   assert.equal(new ArkyApiError({ message: "x", code: "GENERAL.CONFLICT", statusCode: 409 }) instanceof CartPresentationChangedError, false);
+});
+
+test("a kept request ends on a definite refusal, but a 401 or 403 keeps it for a fresh sign-in", () => {
+  const refusal = (statusCode) => new ArkyApiError({ message: "refused", code: "GENERAL.REFUSED", statusCode });
+  for (const [entry, clears] of [["storefront", refusalClearsKeptRequest], ["root", rootRefusalClearsKeptRequest], ["utils", utilsRefusalClearsKeptRequest]]) {
+    assert.equal(typeof clears, "function", entry);
+    for (const status of [400, 404, 409, 413, 422]) assert.equal(clears(refusal(status)), true, `${entry} ${status}`);
+    for (const status of [401, 403, 408, 429, 500, 503]) assert.equal(clears(refusal(status)), false, `${entry} ${status}`);
+    assert.equal(clears(new ArkyNetworkError("network", "lost")), false, entry);
+    assert.equal(clears(new TypeError("lost")), false, entry);
+  }
 });

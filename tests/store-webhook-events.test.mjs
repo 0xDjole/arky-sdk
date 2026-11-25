@@ -26,3 +26,28 @@ test("store webhooks subscribe to package item price events by their Server name
     ["POST", `/v1/stores/${storeId}/webhooks`, { id: webhookId, url: "https://hooks.example.test/arky", events, headers: {}, secret: "whsec_contract", status: { type: "active" } }],
   ]);
 });
+
+test("store webhooks subscribe to fiscal receipt, invoice and credit note events by their Server names", async (context) => {
+  const events = [
+    { type: "fiscal_receipt.done" },
+    { type: "fiscal_receipt.refused" },
+    { type: "fiscal_receipt.unknown" },
+    { type: "invoice.issued" },
+    { type: "invoice.outside_number_removed" },
+    { type: "invoice.discarded" },
+    { type: "invoice.reversed" },
+    { type: "credit_note.issued" },
+  ];
+  for (const { type } of events) assert.ok(WEBHOOK_UNIT_EVENT_TYPES.includes(type), type);
+  const calls = recordFetch(context, () => ({ id: webhookId }));
+  await createAdmin({ apiUrl: "https://webhooks.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).store.webhook.create({
+    store_id: storeId,
+    id: webhookId,
+    url: "https://hooks.example.test/accounting",
+    events,
+    headers: {},
+    secret: "whsec_contract",
+    status: { type: "active" },
+  });
+  assert.deepEqual(calls[0].body.events, events);
+});

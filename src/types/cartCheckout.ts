@@ -1,5 +1,5 @@
 import type { RequestOptions, RequestSuccessContext } from "./httpClient";
-import type { CartQuote, StorefrontCheckoutAcceptance, StorefrontCheckoutCartInput } from "./cart";
+import type { StorefrontCartQuote, StorefrontCheckoutAcceptance, StorefrontCheckoutCartInput } from "./cart";
 import type { StorefrontOrder } from "./order";
 import { ArkyApiError, type ArkyApiErrorDetails } from "./apiError";
 
@@ -26,8 +26,8 @@ export class CartPresentationChangedError extends ArkyApiError {
   }
 
   constructor(
-    readonly quote: CartQuote,
-    answer: Pick<ArkyApiErrorDetails, "response" | "method" | "url" | "requestId"> = {},
+    readonly quote: StorefrontCartQuote,
+    answer: Pick<ArkyApiErrorDetails, "response" | "method" | "url"> = {},
   ) {
     super({
       message: "The checkout presentation changed. Review the refreshed quote before ordering.",
@@ -36,7 +36,6 @@ export class CartPresentationChangedError extends ArkyApiError {
       response: answer.response,
       method: answer.method,
       url: answer.url,
-      requestId: answer.requestId,
     });
   }
 }

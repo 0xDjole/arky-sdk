@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { createStorefront } from "../dist/storefront.js";
-import { apiUrl, errorResponse, fixedIdFactories, publishableKey, recordFetch } from "./helpers/arky-fixtures.mjs";
+import { apiUrl, errorResponse, fixedIdFactories, storefrontIdentity, recordFetch } from "./helpers/arky-fixtures.mjs";
 
 const STORE_ID = "5c9e1a37-8d24-4f60-b3a5-0e7f2c4d6b18";
 const OTHER_STORE_ID = "a0d6f2b8-3e51-4c79-9f24-7b1e5a3c8d60";
@@ -98,9 +98,9 @@ test("exact configuration reads never fall back to a search or a create", async 
   }
 });
 
-test("storefront markets and locations are listed in pages within the publishable key's store, with only the fields the Server knows", async (context) => {
+test("storefront markets and locations are listed in pages within the named store and sales channel, with only the fields the Server knows", async (context) => {
   const calls = recordFetch(context, () => ({ items: [], cursor: "next" }));
-  const client = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "configured" });
+  const client = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "configured" });
   for (const owner of ["market", "location"]) {
     assert.deepEqual(await client.store[owner].find({ key: "trade", sort_field: "updated_at", limit: 1, cursor: "previous", sort_direction: "asc" }), { items: [], cursor: "next" });
     const call = calls.at(-1);

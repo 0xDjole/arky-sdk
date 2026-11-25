@@ -5,7 +5,7 @@ import { fixedIdFactories, SessionStorage } from "./helpers/arky-fixtures.mjs";
 
 const STORE_ID = "4b6e2a91-0c5d-4f37-8a2e-1d9c7b3f5e08";
 const CATEGORY_ID = "1f3b5d7e-9a2c-4e6b-8d0f-2a4c6e8b0d1f";
-const publishableKey = `arky_pk_${"s".repeat(43)}`;
+const storefrontIdentity = { storeId: "5e9b3d71-c826-4a04-b7f5-0d2a8e6c4f19", salesChannelId: "e5a8c2d7-3b91-4f06-9d4e-1c7b6a0f3e28" };
 
 test("Category discovery keeps native filters and paged children across both clients", async (context) => {
   const calls = [];
@@ -14,7 +14,7 @@ test("Category discovery keeps native filters and paged children across both cli
     return new Response(JSON.stringify({ items: [], cursor: "category:+/=" }), { headers: { "content-type": "application/json" } });
   });
   const admin = createAdmin({ apiUrl: "https://category.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
-  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories,
+  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories,
     apiUrl: "https://category.test", market: "market-contract", sessionStorage: new SessionStorage(),
   });
   const filters = { parent_id: "parent", ids: ["first", "second"], key: "topics", status: "active", query: "topics", limit: 1, sort_field: "key", sort_direction: "asc", created_at_from: 0, created_at_to: 2 };
@@ -76,7 +76,7 @@ test("storefront category reads go by id or slug on the plain route and by key o
     calls.push({ url: new URL(url), headers: new Headers(init.headers) });
     return new Response(JSON.stringify({ id: CATEGORY_ID }), { headers: { "content-type": "application/json" } });
   });
-  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: "https://category.test", locale: "bs" });
+  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: "https://category.test", locale: "bs" });
   await storefront.category.get({ id: CATEGORY_ID });
   await storefront.category.get({ slug: "teme/sve" });
   await storefront.category.getByKey({ key: "topics" });
@@ -101,7 +101,7 @@ test("a missing category on the plain route is a 404 and the SDK does not retry 
     calls.push(new URL(url).pathname);
     return new Response(JSON.stringify({ message: "Category not found", error: "CATEGORY.NOT_FOUND", status_code: 404 }), { status: 404, headers: { "content-type": "application/json" } });
   });
-  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: "https://category.test", locale: "bs" });
+  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: "https://category.test", locale: "bs" });
   await assert.rejects(storefront.category.get({ slug: "topics" }), (error) => error.statusCode === 404 && error.code === "CATEGORY.NOT_FOUND");
   assert.deepEqual(calls, ["/v1/storefront/categories/topics"]);
 });

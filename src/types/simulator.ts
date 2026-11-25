@@ -52,10 +52,30 @@ export type SimulatorResendOperation =
   | "delete_suppression"
   | "deliver_webhook";
 
+export type SimulatorTwilioOperation =
+  | "read_account"
+  | "send_sms"
+  | "find_phone_number"
+  | "update_phone_number"
+  | "update_call"
+  | "fetch_recording"
+  | "delete_recording"
+  | "deliver_webhook";
+
+export type SimulatorElevenLabsOperation = "register_call" | "delete_conversation" | "deliver_webhook";
+
+export type SimulatorCroatiaCisOperation = "submit_fiscal_receipt" | "deliver_webhook";
+
+export type SimulatorOfsCloudOperation = "issue_fiscal_invoice" | "look_up_fiscal_invoice" | "deliver_webhook";
+
 export type SimulatorPlannedOperation =
   | { provider: "stripe"; operation: SimulatorStripeOperation }
   | { provider: "monri"; operation: SimulatorMonriOperation }
-  | { provider: "resend"; operation: SimulatorResendOperation };
+  | { provider: "resend"; operation: SimulatorResendOperation }
+  | { provider: "twilio"; operation: SimulatorTwilioOperation }
+  | { provider: "eleven_labs"; operation: SimulatorElevenLabsOperation }
+  | { provider: "croatia_cis"; operation: SimulatorCroatiaCisOperation }
+  | { provider: "ofs_cloud"; operation: SimulatorOfsCloudOperation };
 
 export type SimulatorProvider = SimulatorPlannedOperation["provider"];
 
@@ -74,7 +94,11 @@ export type SimulatorPlannedResult =
   | { type: "missing_link" }
   | { type: "expired_link" }
   | { type: "daily_quota_exceeded" }
-  | { type: "monthly_quota_exceeded" };
+  | { type: "monthly_quota_exceeded" }
+  | { type: "stopped" }
+  | { type: "number_missing" }
+  | { type: "answer_for_another_message" }
+  | { type: "temporary_error" };
 
 export type SimulatorPlannedOutcome = SimulatorPlannedOperation & {
   id: string;
@@ -93,6 +117,109 @@ export interface FindSimulatedEmailsParams {
   to?: string;
   limit?: number;
   cursor?: string | null;
+}
+
+export interface SimulatedSms {
+  id: string;
+  from: string;
+  to: string;
+  body: string;
+  status: string;
+  error_code: string | null;
+  created_at: EpochMilliseconds;
+}
+
+export interface FindSimulatedSmsParams {
+  store_id: string;
+  to?: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export type SimulatedCallStatus =
+  | "ringing"
+  | "in-progress"
+  | "completed"
+  | "busy"
+  | "no-answer"
+  | "failed"
+  | "canceled";
+
+export interface SimulatedCall {
+  id: string;
+  from: string | null;
+  to: string;
+  status: SimulatedCallStatus;
+  created_at: EpochMilliseconds;
+}
+
+export interface StartSimulatedCallParams {
+  store_id: string;
+  to: string;
+  from: string | null;
+}
+
+export interface SetSimulatedCallStatusParams {
+  store_id: string;
+  call_sid: string;
+  status: SimulatedCallStatus;
+  duration_seconds: number | null;
+}
+
+export interface SimulatedCallConversation {
+  id: string;
+  call_id: string | null;
+  from: string | null;
+  to: string;
+  status: "in-progress" | "done" | "deleted";
+  created_at: EpochMilliseconds;
+}
+
+export interface FindSimulatedCallConversationsParams {
+  store_id: string;
+  call_id?: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export type SimulatedAssistantTool =
+  | "find-slots"
+  | "propose"
+  | "confirm"
+  | "request-callback"
+  | "transfer"
+  | "record-sms-consent";
+
+export interface SimulatedSaidLine {
+  role: string;
+  message: string;
+  time_in_call_secs?: number;
+}
+
+export interface SimulateToolCallParams {
+  store_id: string;
+  conversation_id: string;
+  tool: SimulatedAssistantTool;
+  parameters: Record<string, unknown>;
+  said: SimulatedSaidLine[];
+}
+
+export interface SimulatedToolCall {
+  tool: SimulatedAssistantTool;
+  answered: number | null;
+  answer: unknown;
+}
+
+export interface SimulatedTranscriptLine {
+  role: "agent" | "user";
+  message: string;
+  time_in_call_secs: number;
+}
+
+export interface FinishSimulatedCallConversationParams {
+  store_id: string;
+  conversation_id: string;
+  transcript: SimulatedTranscriptLine[];
 }
 
 export type CreateSimulatorPlannedOutcomeParams = SimulatorPlannedOperation & {

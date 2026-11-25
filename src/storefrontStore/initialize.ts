@@ -1,3 +1,4 @@
+import type { StorefrontIdentity } from "../index";
 import { atom, computed } from "nanostores";
 import { CartError } from "../types/cartSelection";
 import type { StorefrontMarket, StorefrontSetup } from "../types/storefront";
@@ -10,8 +11,8 @@ import { createCartStore, type CartScope, type CartStore, type CartStoreContext 
 import { createCheckoutFlow, type CheckoutFlow } from "./checkoutFlow";
 import type { ArkyCartScope, ArkyStoreConfig } from "./types";
 
-function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig) {
-  const client = createStorefront(publishableKey, config);
+function initializeStoreCore(identity: StorefrontIdentity, config: ArkyStoreConfig) {
+  const client = createStorefront(identity, config);
   const session = atom<StorefrontCustomerSession | null>(client.session);
   const setup = atom<StorefrontSetup | null>(null);
   const locale = atom(client.getLocale());
@@ -19,13 +20,13 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig) {
   const resolvedMarket = atom<StorefrontMarket | null>(null);
   const market = computed([market_key, resolvedMarket], (key, value) => (key && value?.key === key ? value : null));
   const currency = computed(market, (value) => value?.currency ?? null);
-  const allowed_payment_option_ids = computed(market, (value) => value?.payment_option_ids ?? []);
 
   let contextRevision = 0;
   let sessionRequest: Promise<StorefrontCustomerSession | null> | null = null;
 
   const cartStores = new Map<string, CartStore>();
   const contextInvalidators = new Set<() => void>();
+  const languageListeners = new Set<() => void>();
   const checkoutFlows = new Map<string, CheckoutFlow>();
   const bookingCalendars = new Map<string, BookingCalendar>();
 
@@ -68,8 +69,8 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig) {
   async function loadSetup(): Promise<StorefrontSetup> {
     const key = market_key.get();
     const revision = contextRevision;
-    const result = setup.get() ?? (await client.getSetup());
-    const value = key ? await client.store.market.getByKey({ key }) : null;
+    const result = await client.getSetup();
+    const value = key ? await client.store.market.getCurrent() : null;
     if (revision !== contextRevision || key !== market_key.get()) {
       throw new CartError("context_changed", "The market changed while the store setup was loading");
     }
@@ -84,7 +85,7 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig) {
     if (client.hasSession) return client.session;
     if (!sessionRequest) {
       sessionRequest = client.customer
-        .identify()
+        .ensureSession()
         .then(() => client.session)
         .finally(() => {
           sessionRequest = null;
@@ -105,6 +106,7 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig) {
       for (const store of cartStores.values()) store.quote_result.set(null);
       client.setContext({ locale: context.locale });
       locale.set(client.getLocale());
+      for (const listener of languageListeners) listener();
     }
   }
 
@@ -176,8 +178,10 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig) {
     const key = cartScopeKey(scope, market_key.get());
     const existing = bookingCalendars.get(key);
     if (existing) return existing;
-    const calendar = createBookingCalendar({ client, locale, requireLocale }, cart(scope));
+    const { calendar, invalidate, relabel } = createBookingCalendar({ client, locale, requireLocale }, cart(scope));
     bookingCalendars.set(key, calendar);
+    contextInvalidators.add(invalidate);
+    languageListeners.add(relabel);
     return calendar;
   }
 
@@ -189,7 +193,6 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig) {
     market_key,
     locale,
     currency,
-    allowed_payment_option_ids,
     onAuthStateChanged: client.onAuthStateChanged,
     get hasSession() {
       return client.hasSession;
@@ -210,6 +213,7 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig) {
     },
     media: client.media,
     content: client.content,
+    sharedEntries: client.sharedEntries,
     forms: client.forms,
     category: client.category,
     eshop: {
@@ -228,8 +232,8 @@ function initializeStoreCore(publishableKey: string, config: ArkyStoreConfig) {
 
 export type ArkyStore = ReturnType<typeof initializeStoreCore>;
 
-export function initialize(publishableKey: string, options: ArkyStoreConfig): ArkyStore {
-  return initializeStoreCore(publishableKey, options);
+export function initialize(identity: StorefrontIdentity, options: ArkyStoreConfig): ArkyStore {
+  return initializeStoreCore(identity, options);
 }
 
 export type ArkyCartStore = CartStore;

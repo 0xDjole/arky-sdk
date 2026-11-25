@@ -1,6 +1,6 @@
 import type { ApiConfig } from "../services/clientTypes";
 import type { RequestOptions } from "../types/api";
-import type { DeletedResponse, PaginatedResponse } from "../types/common";
+import type { PaginatedResponse } from "../types/common";
 import type {
   CreateStoreRoleParams,
   DeleteStoreRoleParams,
@@ -33,8 +33,8 @@ export const createStoreRoleApi = (apiConfig: ApiConfig) => ({
     return apiConfig.httpClient.put<StoreRole>(storeRecordPath(store_id, "roles", id), body, options);
   },
 
-  delete(params: DeleteStoreRoleParams, options?: RequestOptions): Promise<DeletedResponse> {
-    return apiConfig.httpClient.delete<DeletedResponse>(storeRecordPath(params.store_id, "roles", params.id), {
+  delete(params: DeleteStoreRoleParams, options?: RequestOptions): Promise<{ deleted: true }> {
+    return apiConfig.httpClient.delete<{ deleted: true }>(storeRecordPath(params.store_id, "roles", params.id), {
       ...options,
       params: { expected_updated_at: params.expected_updated_at },
     });

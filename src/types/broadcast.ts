@@ -1,6 +1,6 @@
-import type { EpochMilliseconds } from "./time";
+import type { Days, EpochMilliseconds } from "./time";
 import type { SortDirection } from "./common";
-import type { Email, EmailContent, EmailLayoutContent, EmailTemplatePreview } from "./notification";
+import type { Email, EmailContent, EmailLayoutContent } from "./notification";
 
 export type BroadcastMembers =
   | { type: "package"; package_id: string }
@@ -8,50 +8,120 @@ export type BroadcastMembers =
 
 export type BroadcastCondition =
   | { type: "ordered_product"; product_id: string }
-  | { type: "ordered_within"; days: number }
-  | { type: "not_ordered_within"; days: number };
+  | { type: "booked_service"; booking_service_id: string }
+  | { type: "ordered_within"; within: Days }
+  | { type: "not_ordered_within"; within: Days };
 
-export interface BroadcastAudience {
-  include: BroadcastMembers[];
-  exclude: BroadcastMembers[];
-  conditions: BroadcastCondition[];
-}
+export type BroadcastAudience =
+  | {
+      type: "package_members";
+      include: BroadcastMembers[];
+      exclude: BroadcastMembers[];
+      conditions: BroadcastCondition[];
+    }
+  | { type: "customers"; conditions: BroadcastCondition[] };
 
-export interface BroadcastContent {
+export interface EmailBroadcastContent {
   default_language: string;
   translations: Record<string, EmailContent>;
   layout: Record<string, EmailLayoutContent>;
   logo_media_id: string | null;
 }
 
-export type BroadcastStatus =
+export interface SmsBroadcastContent {
+  translations: Record<string, string>;
+}
+
+export type EmailBroadcastStatus =
   | { type: "draft" }
-  | { type: "scheduled"; send_at: EpochMilliseconds; content: BroadcastContent }
-  | { type: "sending"; started_at: EpochMilliseconds; content: BroadcastContent }
-  | { type: "sent"; started_at: EpochMilliseconds; recipient_count: number; content: BroadcastContent };
+  | { type: "scheduled"; send_at: EpochMilliseconds; content: EmailBroadcastContent }
+  | { type: "sending"; started_at: EpochMilliseconds; content: EmailBroadcastContent }
+  | { type: "sent"; started_at: EpochMilliseconds; recipient_count: number; content: EmailBroadcastContent };
+
+export type SmsBroadcastStatus =
+  | { type: "draft" }
+  | { type: "scheduled"; send_at: EpochMilliseconds; content: SmsBroadcastContent }
+  | { type: "sending"; started_at: EpochMilliseconds; content: SmsBroadcastContent }
+  | { type: "sent"; started_at: EpochMilliseconds; recipient_count: number; content: SmsBroadcastContent };
+
+export type BroadcastStatusName = EmailBroadcastStatus["type"];
+
+export type BroadcastTypeName = "email" | "sms";
+
+export type BroadcastType =
+  | {
+      type: "email";
+      email: Email;
+      audience: BroadcastAudience;
+      status: EmailBroadcastStatus;
+    }
+  | { type: "sms"; sms_template_id: string; audience: BroadcastAudience; status: SmsBroadcastStatus };
+
+export type BroadcastTypeRequest =
+  | {
+      type: "email";
+      email: Email;
+      audience: BroadcastAudience;
+    }
+  | { type: "sms"; sms_template_id: string; audience: BroadcastAudience };
 
 export interface Broadcast {
   id: string;
   store_id: string;
   key: string;
-  audience: BroadcastAudience;
-  email: Email;
-  status: BroadcastStatus;
+  type: BroadcastType;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
-export type BroadcastPreview = EmailTemplatePreview;
+export type BroadcastSummaryStatus =
+  | { type: "draft" }
+  | { type: "scheduled"; send_at: EpochMilliseconds }
+  | { type: "sending"; started_at: EpochMilliseconds }
+  | { type: "sent"; started_at: EpochMilliseconds; recipient_count: number };
 
-export interface FindBroadcastsParams {
+export type BroadcastSummaryType =
+  | { type: "email"; email: Email; audience: BroadcastAudience; status: BroadcastSummaryStatus }
+  | { type: "sms"; sms_template_id: string; audience: BroadcastAudience; status: BroadcastSummaryStatus };
+
+export interface BroadcastSummary {
+  id: string;
   store_id: string;
+  key: string;
+  type: BroadcastSummaryType;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+}
+
+export type BroadcastPreview =
+  | { type: "email"; language: string; subject: string; html: string; text: string }
+  | { type: "sms"; language: string; text: string };
+
+export interface FindBroadcastsBySearchParams {
+  store_id: string;
+  ids?: never;
+  type?: BroadcastTypeName;
   query?: string;
-  status?: BroadcastStatus["type"];
+  status?: BroadcastStatusName;
   sort_field?: "created_at" | "updated_at";
   sort_direction?: SortDirection;
   limit?: number;
   cursor?: string | null;
 }
+
+export interface FindBroadcastsByIdsParams {
+  store_id: string;
+  ids: string[];
+  type?: never;
+  query?: never;
+  status?: never;
+  sort_field?: never;
+  sort_direction?: never;
+  limit?: never;
+  cursor?: never;
+}
+
+export type FindBroadcastsParams = FindBroadcastsBySearchParams | FindBroadcastsByIdsParams;
 
 export interface GetBroadcastParams {
   store_id: string;
@@ -62,8 +132,7 @@ export interface CreateBroadcastParams {
   store_id: string;
   id: string;
   key: string;
-  audience: BroadcastAudience;
-  email: Email;
+  type: BroadcastTypeRequest;
 }
 
 export interface UpdateBroadcastParams {
@@ -71,8 +140,7 @@ export interface UpdateBroadcastParams {
   id: string;
   expected_updated_at: EpochMilliseconds;
   key?: string;
-  audience?: BroadcastAudience;
-  email?: Email;
+  type?: BroadcastTypeRequest;
 }
 
 export interface DeleteBroadcastParams {
@@ -109,7 +177,7 @@ export interface PreviewBroadcastParams {
 export interface SendBroadcastTestParams {
   store_id: string;
   id: string;
-  outgoing_email_id: string;
+  outgoing_message_id: string;
   language: string;
 }
 

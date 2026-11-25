@@ -1,27 +1,68 @@
 import type { EpochMilliseconds } from "./time";
 import type { EmailContact, SortDirection } from "./common";
-import type { Account, AccountSortField } from "./account";
-import type { StoreMode } from "./store";
+import type { AccountName, AccountSortField } from "./account";
+import type { StoreType } from "./store";
+import type { CreateStoreAgreementInput } from "./network";
 
 export type LocationReach =
-  | { type: "everywhere" }
-  | { type: "only"; store_location_ids: string[] };
+  | { type: "all" }
+  | { type: "ids"; store_location_ids: string[] };
 
-export type StorePermissionAccess = "read_write" | "read_only";
+export type StorePermissionAccess = "read" | "write";
+
+export type CollectionScope = { type: "all" } | { type: "ids"; collection_ids: string[] };
+
+export type FormScope = { type: "all" } | { type: "ids"; form_ids: string[] };
+
+export type CustomerScope =
+  | { type: "all" }
+  | { type: "own" }
+  | { type: "own_locations" }
+  | { type: "customer"; customer_id: string }
+  | { type: "package"; package_id: string }
+  | { type: "company"; company_id: string };
+
+export type BookingResourceScope =
+  | { type: "all" }
+  | { type: "own_locations" }
+  | { type: "ids"; booking_resource_ids: string[] };
+
+export type BookingServiceScope = { type: "all" } | { type: "ids"; booking_service_ids: string[] };
+
+export type PhoneNumberScope = { type: "all" } | { type: "ids"; phone_number_ids: string[] };
 
 export type StorePermission =
   | { type: "admin" }
   | { type: "packages" }
   | { type: "orders"; access: StorePermissionAccess }
   | { type: "payments"; access: StorePermissionAccess }
-  | { type: "customers"; access: StorePermissionAccess }
+  | { type: "customers"; customers: CustomerScope; access: StorePermissionAccess }
   | { type: "fulfillment"; locations: LocationReach }
   | { type: "inventory"; locations: LocationReach }
   | { type: "marketing" }
-  | { type: "content" }
+  | { type: "public_collections"; collections: CollectionScope; access: StorePermissionAccess }
+  | { type: "private_collections"; collections: CollectionScope; access: StorePermissionAccess }
+  | {
+      type: "customer_entries";
+      collections: CollectionScope;
+      customers: CustomerScope;
+      access: StorePermissionAccess;
+    }
+  | {
+      type: "private_forms";
+      forms: FormScope;
+      customers: CustomerScope;
+      access: StorePermissionAccess;
+    }
+  | { type: "bookings"; resources: BookingResourceScope; access: StorePermissionAccess }
+  | { type: "booking_resources"; resources: BookingResourceScope; access: StorePermissionAccess }
+  | { type: "booking_services"; services: BookingServiceScope; access: StorePermissionAccess }
+  | { type: "conversations"; customers: CustomerScope; access: StorePermissionAccess }
   | { type: "support" }
   | { type: "email" }
-  | { type: "analytics" };
+  | { type: "analytics" }
+  | { type: "calls"; phone_numbers: PhoneNumberScope; customers: CustomerScope }
+  | { type: "layouts"; access: StorePermissionAccess };
 
 export type StorePermissionType = StorePermission["type"];
 
@@ -34,12 +75,18 @@ export interface StoreRole {
   updated_at: EpochMilliseconds;
 }
 
+export type WithheldStorePermission =
+  | { type: "second_factor_off"; permission: StorePermission }
+  | { type: "account_token"; permission: StorePermission };
+
 export interface StoreAccess {
   permissions: StorePermission[];
+  withheld: WithheldStorePermission[];
 }
 
 export type StoreMembershipStatus =
   | { type: "invited"; contact: EmailContact }
+  | { type: "owner_invited"; contact: EmailContact }
   | { type: "active"; account_id: string }
   | { type: "disabled"; account_id: string };
 
@@ -49,6 +96,7 @@ export interface StoreMembership {
   id: string;
   store_id: string;
   role_ids: string[];
+  store_location_ids: string[];
   status: StoreMembershipStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
@@ -56,12 +104,47 @@ export interface StoreMembership {
 
 export interface StoreMembershipWithStoreName extends StoreMembership {
   store_name: string;
-  store_mode: StoreMode;
+  store_type: StoreType;
   access: StoreAccess;
 }
 
+export type StoreMemberSecondFactor = "on" | "off" | "hidden";
+
+export interface StoreMemberAccount {
+  id: string;
+  email: string;
+  name: AccountName | null;
+  phone: string | null;
+  second_factor: StoreMemberSecondFactor;
+}
+
+export interface StoreMemberProfile {
+  account_id: string;
+  name: AccountName | null;
+  phone: string | null;
+}
+
+export interface FindStoreMemberDirectoryParams {
+  store_id: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface FindStoreMemberSessionsParams {
+  store_id: string;
+  id: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface RevokeStoreMemberSessionParams {
+  store_id: string;
+  id: string;
+  session_id: string;
+}
+
 export interface StoreMember {
-  account: Account | null;
+  account: StoreMemberAccount | null;
   membership: StoreMembership;
 }
 
@@ -123,6 +206,13 @@ export interface UpdateStoreMemberRolesParams {
   role_ids: string[];
 }
 
+export interface UpdateStoreMemberLocationsParams {
+  store_id: string;
+  id: string;
+  expected_updated_at: EpochMilliseconds;
+  store_location_ids: string[];
+}
+
 export interface ChangeStoreMemberStatusParams {
   store_id: string;
   id: string;
@@ -133,17 +223,17 @@ export interface ChangeStoreMemberStatusParams {
 export interface AcceptStoreInviteParams {
   store_id: string;
   expected_updated_at: EpochMilliseconds;
+  agreement?: CreateStoreAgreementInput;
 }
 
-export interface TransferStoreOwnershipParams {
-  store_id: string;
-  expected_updated_at: EpochMilliseconds;
-  account_id: string;
-}
+export type StoreMemberSearchStatus = "active" | "disabled" | "invited";
 
 export interface FindStoreMembersParams {
   store_id: string;
   query?: string;
+  role_id?: string;
+  status?: StoreMemberSearchStatus;
+  account_id?: string;
   sort_field?: AccountSortField;
   sort_direction?: SortDirection;
   limit?: number;

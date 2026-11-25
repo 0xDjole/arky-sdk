@@ -1,4 +1,4 @@
-import type { EpochMilliseconds } from "./time";
+import type { Days, EpochMilliseconds } from "./time";
 import type { Block } from "./block";
 import type { EmailContact, PostalAddress, PostalAddressInput, SortDirection } from "./common";
 
@@ -26,6 +26,23 @@ export type BuyerTax =
   | { type: "reverse_charge"; registration: TaxRegistration }
   | { type: "exempt"; reason: string; registrations: TaxRegistration[] };
 
+export type StorefrontTaxRegistrationStatus =
+  | { type: "unverified" }
+  | { type: "verified"; verified_at: EpochMilliseconds }
+  | { type: "rejected"; rejected_at: EpochMilliseconds };
+
+export interface StorefrontTaxRegistration {
+  country: string;
+  region: string | null;
+  identifier: string;
+  status: StorefrontTaxRegistrationStatus;
+}
+
+export type StorefrontBuyerTax =
+  | { type: "standard"; registrations: StorefrontTaxRegistration[] }
+  | { type: "reverse_charge"; registration: StorefrontTaxRegistration }
+  | { type: "exempt"; reason: string; registrations: StorefrontTaxRegistration[] };
+
 export interface SetCompanyTaxParams {
   store_id: string;
   id: string;
@@ -35,7 +52,7 @@ export interface SetCompanyTaxParams {
 
 export type PaymentTerms =
   | { type: "due_on_receipt" }
-  | { type: "net_days"; days: number };
+  | { type: "net"; term: Days };
 
 export type CompanyPaymentPolicy =
   | { type: "standard_checkout"; billing_address: PostalAddress | null }
@@ -52,14 +69,17 @@ export interface StorefrontCompany {
   store_id: string;
   name: string;
   contact: EmailContact | null;
-  tax: BuyerTax;
+  tax: StorefrontBuyerTax;
   purchasing: CompanyPurchasingPolicy;
   status: CompanyStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
-export interface Company extends StorefrontCompany { blocks: Block[] }
+export interface Company extends StorefrontCompany {
+  tax: BuyerTax;
+  blocks: Block[];
+}
 
 export type CompanyLocationFulfillment =
   | { type: "routing" }
@@ -77,7 +97,7 @@ export interface StorefrontCompanyLocation {
   company_id: string;
   name: string;
   shipping_address: PostalAddress | null;
-  tax: BuyerTax;
+  tax: StorefrontBuyerTax;
   purchasing: CompanyPurchasingPolicy;
   fulfillment: CompanyLocationFulfillment;
   status: CompanyLocationStatus;
@@ -85,7 +105,10 @@ export interface StorefrontCompanyLocation {
   updated_at: EpochMilliseconds;
 }
 
-export interface CompanyLocation extends StorefrontCompanyLocation { blocks: Block[] }
+export interface CompanyLocation extends StorefrontCompanyLocation {
+  tax: BuyerTax;
+  blocks: Block[];
+}
 
 export type CompanyPermission =
   | "admin"
@@ -140,8 +163,12 @@ export interface CompanyAccessGrant {
   permissions: CompanyPermission[];
 }
 
+export type StorefrontAccessCompany =
+  | ({ type: "company" } & StorefrontCompany)
+  | { type: "locations"; id: string; name: string; status: CompanyStatus };
+
 export interface CompanyCustomerAccess {
-  company: StorefrontCompany;
+  company: StorefrontAccessCompany;
   grants: CompanyAccessGrant[];
 }
 
@@ -177,8 +204,11 @@ export interface DeleteCompanyParams {
   expected_updated_at: EpochMilliseconds;
 }
 
-export interface FindCompaniesParams {
+export interface FindCompaniesBySearchParams {
   store_id: string;
+  ids?: never;
+  tax_registration_country?: never;
+  tax_registration_identifier?: never;
   query?: string;
   status?: CompanyStatus["type"];
   sort_field?: "created_at" | "updated_at";
@@ -186,6 +216,34 @@ export interface FindCompaniesParams {
   limit?: number;
   cursor?: string | null;
 }
+
+export interface FindCompaniesByIdsParams {
+  store_id: string;
+  ids: string[];
+  tax_registration_country?: never;
+  tax_registration_identifier?: never;
+  query?: never;
+  status?: never;
+  sort_field?: never;
+  sort_direction?: never;
+  limit?: never;
+  cursor?: never;
+}
+
+export interface FindCompaniesByTaxRegistrationParams {
+  store_id: string;
+  ids?: never;
+  tax_registration_country: string;
+  tax_registration_identifier: string;
+  query?: never;
+  status?: never;
+  sort_field?: never;
+  sort_direction?: never;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export type FindCompaniesParams = FindCompaniesBySearchParams | FindCompaniesByIdsParams | FindCompaniesByTaxRegistrationParams;
 
 export interface CreateCompanyLocationParams {
   store_id: string;
@@ -260,12 +318,23 @@ export interface DeleteCompanyLocationParams {
   expected_updated_at: EpochMilliseconds;
 }
 
-export interface FindCompanyLocationsParams {
+export interface FindCompanyLocationsByCompanyParams {
   store_id: string;
+  ids?: never;
   company_id?: string;
   limit?: number;
   cursor?: string | null;
 }
+
+export interface FindCompanyLocationsByIdsParams {
+  store_id: string;
+  ids: string[];
+  company_id?: never;
+  limit?: never;
+  cursor?: never;
+}
+
+export type FindCompanyLocationsParams = FindCompanyLocationsByCompanyParams | FindCompanyLocationsByIdsParams;
 
 export interface StorefrontFindCompanyLocationsParams {
   company_id?: string;
@@ -372,14 +441,38 @@ export interface DeleteCompanyMembershipParams {
   expected_updated_at: EpochMilliseconds;
 }
 
-export interface FindCompanyMembershipsParams {
+export type FindCompanyMembershipsBySearchParams = {
   store_id: string;
-  company_id?: string;
-  customer_id?: string;
+  email?: never;
   role_id?: string;
   limit?: number;
   cursor?: string | null;
+} & ({ company_id?: string; customer_id?: never } | { company_id?: never; customer_id?: string });
+
+export interface FindCompanyMembershipByCustomerParams {
+  store_id: string;
+  company_id: string;
+  customer_id: string;
+  email?: never;
+  role_id?: never;
+  limit?: never;
+  cursor?: never;
 }
+
+export interface FindCompanyMembershipByEmailParams {
+  store_id: string;
+  company_id: string;
+  email: string;
+  customer_id?: never;
+  role_id?: never;
+  limit?: never;
+  cursor?: never;
+}
+
+export type FindCompanyMembershipsParams =
+  | FindCompanyMembershipsBySearchParams
+  | FindCompanyMembershipByCustomerParams
+  | FindCompanyMembershipByEmailParams;
 
 export interface StorefrontFindCompanyMembershipsParams {
   company_id?: string;

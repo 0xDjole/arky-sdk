@@ -1,8 +1,9 @@
-import type { CalendarDate, EpochMilliseconds } from "./time";
+import type { CalendarDate, Duration, EpochMilliseconds } from "./time";
 import type { Block, BlockQuery } from "./block";
 import type { CompanyPartyQuery, PaginatedResponse, SortDirection } from "./common";
 import type { CategoryEntry, CategoryQuery } from "./content";
 import type { PackageContext, PackageReadOptions, StorefrontPrice } from "./package";
+import type { DocumentItem } from "./invoice";
 
 export type ProductStatus =
   | { type: "active" }
@@ -44,6 +45,7 @@ export type ProductFulfillment =
       shipping_profile_id: string;
       inventory_requirements: InventoryRequirement[];
       backorder: BackorderPolicy;
+      measure: ProductVariantMeasure;
     }
   | { type: "digital"; asset_ids: string[] };
 
@@ -66,7 +68,7 @@ export interface ProductVariant {
   blocks: Block[];
   fulfillment: ProductFulfillment;
   tax_category_id: string;
-  measure: ProductVariantMeasure;
+  document_item: DocumentItem;
   status: ProductVariantStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
@@ -90,14 +92,12 @@ export interface BookingService {
   status: BookingServiceStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
-  segments: ServiceSegment[];
-  buffer_before_minutes: number;
-  buffer_after_minutes: number;
-  slot_interval_minutes: number;
+  length: Duration;
+  slot_interval: Duration;
   booking_window: BookingWindow;
   customer_changes: BookingCustomerChanges;
-  reminder_offsets_minutes: number[];
   tax_category_id: string;
+  document_item: DocumentItem;
 }
 
 export type Weekday =
@@ -110,30 +110,66 @@ export type Weekday =
   | "sunday";
 
 export interface WorkingWindow {
-  from_minute: number;
-  to_minute: number;
+  from: Duration;
+  to: Duration;
 }
-
-export type ServiceSegment =
-  | { type: "service"; minutes: number }
-  | { type: "pause"; minutes: number };
 
 export interface BookingHours {
   weekly_availability: Partial<Record<Weekday, WorkingWindow[]>>;
   date_overrides: Record<CalendarDate, WorkingWindow[]>;
 }
 
-export type BookingOfferingHours = { type: "resource" } | { type: "within"; hours: BookingHours };
+export interface BookingResourceWindow {
+  store_location_id: string;
+  from: Duration;
+  to: Duration;
+}
 
-export type BookingCustomerChanges = { type: "not_allowed" } | { type: "until_before_start"; minutes: number };
+export interface BookingResourceHours {
+  weekly_availability: Partial<Record<Weekday, BookingResourceWindow[]>>;
+  date_overrides: Record<CalendarDate, BookingResourceWindow[]>;
+}
 
-export type BookingVenue =
-  | { type: "not_fixed"; store_location_id: string }
-  | { type: "store_location"; store_location_id: string };
+export interface BookingResourceDailyLimit {
+  booking_service_id: string;
+  bookings: number;
+}
+
+export type BookingWindowOpening = { type: "any_time" } | { type: "before_start"; period: Duration };
 
 export interface BookingWindow {
-  opens_before_start_minutes: number | null;
-  closes_before_start_minutes: number;
+  opens: BookingWindowOpening;
+  closes_before_start: Duration;
+}
+
+export type BookingCustomerChanges = { type: "not_allowed" } | { type: "until_before_start"; period: Duration };
+
+export type BookingOfferingHours = { type: "all" } | { type: "only"; hours: BookingHours };
+
+export type BookingOfferingResources =
+  | { type: "category"; category_id: string }
+  | { type: "ids"; booking_resource_ids: string[] };
+
+export interface BookingOfferingTime {
+  from: Duration;
+  to: Duration;
+}
+
+export type BookingOfferingLocations =
+  | { type: "all" }
+  | { type: "ids"; store_location_ids: string[] }
+  | { type: "elsewhere"; store_location_id: string };
+
+export type BookingOfferingAddOnResources =
+  | { type: "all" }
+  | { type: "category"; category_id: string }
+  | { type: "ids"; booking_resource_ids: string[] };
+
+export interface BookingOfferingAddOn {
+  id: string;
+  booking_service_id: string;
+  resources: BookingOfferingAddOnResources;
+  from: Duration;
 }
 
 export type BookingOfferingStatus =
@@ -148,12 +184,14 @@ export interface BookingOffering {
   id: string;
   store_id: string;
   booking_service_id: string;
-  booking_resource_id: string;
-  venue: BookingVenue;
+  resources: BookingOfferingResources;
+  times: BookingOfferingTime[];
+  locations: BookingOfferingLocations;
+  hours: BookingOfferingHours;
+  add_ons: BookingOfferingAddOn[];
   status: BookingOfferingStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
-  hours: BookingOfferingHours;
 }
 
 export type BookingResourceStatus =
@@ -176,9 +214,9 @@ export interface BookingResource {
   status: BookingResourceStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
-  hours: BookingHours;
+  hours: BookingResourceHours;
+  daily_limits: BookingResourceDailyLimit[];
 }
-
 
 export type DigitalAssetStatus = { type: "active" } | { type: "archived" };
 
@@ -210,7 +248,6 @@ export interface StorefrontProductVariant {
   blocks: Block[];
   fulfillment: ProductFulfillment;
   tax_category_id: string;
-  measure: ProductVariantMeasure;
   status: ProductVariantStatus;
   package_item_id: string;
   price: StorefrontPrice | null;
@@ -220,7 +257,20 @@ export type StorefrontBookingService = BookingService & { package_item_id: strin
 
 export type StorefrontBookingOffering = BookingOffering & { package_item_id: string; price: StorefrontPrice | null };
 
-export type StorefrontBookingResource = BookingResource;
+export interface StorefrontBookingResource {
+  id: string;
+  store_id: string;
+  key: string;
+  slugs: Record<string, string>;
+  blocks: Block[];
+  categories: CategoryEntry[];
+  timezone: string;
+  capacity: number;
+  status: BookingResourceStatus;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+  hours: BookingResourceHours;
+}
 
 export interface AvailabilitySlot {
   from: EpochMilliseconds;
@@ -235,8 +285,10 @@ export interface DaySlots {
 
 export interface BookingResourceAvailability {
   booking_offering_id: string;
+  store_location_id: string;
   booking_resource_id: string;
   resource_key: string;
+  resource_blocks: Block[];
   timezone: string;
   days: DaySlots[];
 }
@@ -334,7 +386,7 @@ export interface CreateProductVariantParams {
   blocks: Block[];
   fulfillment: ProductFulfillment;
   tax_category_id: string;
-  measure: ProductVariantMeasure;
+  document_item: DocumentItem;
 }
 
 export interface UpdateProductVariantParams {
@@ -345,7 +397,7 @@ export interface UpdateProductVariantParams {
   blocks: Block[];
   fulfillment: ProductFulfillment;
   tax_category_id: string;
-  measure: ProductVariantMeasure;
+  document_item: DocumentItem;
   status: ProductVariantEditableStatus;
 }
 
@@ -354,8 +406,9 @@ export interface GetProductVariantParams {
   id: string;
 }
 
-export interface FindProductVariantsParams {
+export interface FindProductVariantsBySearchParams {
   store_id: string;
+  ids?: never;
   product_id?: string;
   sku?: string;
   status?: ProductVariantStatus["type"];
@@ -364,6 +417,20 @@ export interface FindProductVariantsParams {
   limit?: number;
   cursor?: string | null;
 }
+
+export interface FindProductVariantsByIdsParams {
+  store_id: string;
+  ids: string[];
+  product_id?: never;
+  sku?: never;
+  status?: never;
+  sort_field?: never;
+  sort_direction?: never;
+  limit?: never;
+  cursor?: never;
+}
+
+export type FindProductVariantsParams = FindProductVariantsBySearchParams | FindProductVariantsByIdsParams;
 
 export interface DeleteProductVariantParams {
   store_id: string;
@@ -403,14 +470,12 @@ export interface CreateBookingServiceParams {
   blocks: Block[];
   categories: CategoryEntry[];
   status?: BookingServiceEditableStatus;
-  segments: ServiceSegment[];
-  buffer_before_minutes: number;
-  buffer_after_minutes: number;
-  slot_interval_minutes: number;
+  length: Duration;
+  slot_interval: Duration;
   booking_window: BookingWindow;
   customer_changes: BookingCustomerChanges;
-  reminder_offsets_minutes: number[];
   tax_category_id: string;
+  document_item: DocumentItem;
 }
 
 export interface UpdateBookingServiceParams {
@@ -422,14 +487,12 @@ export interface UpdateBookingServiceParams {
   blocks?: Block[];
   categories?: CategoryEntry[];
   status?: BookingServiceEditableStatus;
-  segments?: ServiceSegment[];
-  buffer_before_minutes?: number;
-  buffer_after_minutes?: number;
-  slot_interval_minutes?: number;
+  length?: Duration;
+  slot_interval?: Duration;
   booking_window?: BookingWindow;
   customer_changes?: BookingCustomerChanges;
-  reminder_offsets_minutes?: number[];
   tax_category_id?: string;
+  document_item?: DocumentItem;
 }
 
 export interface DeleteBookingServiceParams {
@@ -472,7 +535,8 @@ export interface CreateBookingResourceParams {
   timezone: string;
   capacity: number;
   status?: BookingResourceEditableStatus;
-  hours: BookingHours;
+  hours: BookingResourceHours;
+  daily_limits?: BookingResourceDailyLimit[];
 }
 
 export interface UpdateBookingResourceParams {
@@ -486,7 +550,8 @@ export interface UpdateBookingResourceParams {
   timezone?: string;
   capacity?: number;
   status?: BookingResourceEditableStatus;
-  hours?: BookingHours;
+  hours?: BookingResourceHours;
+  daily_limits?: BookingResourceDailyLimit[];
 }
 
 export interface DeleteBookingResourceParams {
@@ -499,30 +564,29 @@ export interface CreateBookingOfferingParams {
   store_id: string;
   id: string;
   booking_service_id: string;
-  booking_resource_id: string;
-  venue: BookingVenue;
-  status: BookingOfferingEditableStatus;
+  resources: BookingOfferingResources;
+  times: BookingOfferingTime[];
+  locations: BookingOfferingLocations;
   hours: BookingOfferingHours;
+  add_ons?: BookingOfferingAddOn[];
+  status: BookingOfferingEditableStatus;
 }
 
 export interface UpdateBookingOfferingParams {
   store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
-  venue?: BookingVenue;
-  status?: BookingOfferingEditableStatus;
+  resources?: BookingOfferingResources;
+  times?: BookingOfferingTime[];
+  locations?: BookingOfferingLocations;
   hours?: BookingOfferingHours;
+  add_ons?: BookingOfferingAddOn[];
+  status?: BookingOfferingEditableStatus;
 }
 
 export interface GetBookingOfferingParams {
   store_id: string;
   id: string;
-}
-
-export interface GetBookingOfferingByServiceAndResourceParams {
-  store_id: string;
-  booking_service_id: string;
-  booking_resource_id: string;
 }
 
 export interface DeleteBookingOfferingParams {
@@ -531,8 +595,9 @@ export interface DeleteBookingOfferingParams {
   expected_updated_at: EpochMilliseconds;
 }
 
-export interface FindBookingOfferingsParams {
+export interface FindBookingOfferingsBySearchParams {
   store_id: string;
+  ids?: never;
   booking_service_id?: string;
   booking_resource_id?: string;
   status?: BookingOfferingStatus["type"];
@@ -542,9 +607,70 @@ export interface FindBookingOfferingsParams {
   cursor?: string | null;
 }
 
+export interface FindBookingOfferingsByIdsParams {
+  store_id: string;
+  ids: string[];
+  booking_service_id?: never;
+  booking_resource_id?: never;
+  status?: never;
+  sort_field?: never;
+  sort_direction?: never;
+  limit?: number;
+  cursor?: never;
+}
+
+export type FindBookingOfferingsParams = FindBookingOfferingsBySearchParams | FindBookingOfferingsByIdsParams;
+
+export interface FindAllBookingOfferingsParams {
+  store_id: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface FindServiceBookingOfferingsParams {
+  store_id: string;
+  booking_service_id: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface FindResourceBookingOfferingsParams {
+  store_id: string;
+  booking_resource_id: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface FindAllBookingServicesParams {
+  store_id: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface FindBlockTargetBookingServicesParams {
+  store_id: string;
+  block_target_id: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface FindAllBookingResourcesParams {
+  store_id: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface FindCategoryBookingResourcesParams {
+  store_id: string;
+  category_id: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
 export type GetAvailabilityParams = {
   store_id: string;
   booking_service_id: string;
+  store_location_id: string;
   from: EpochMilliseconds;
   to: EpochMilliseconds;
   booking_resource_id?: string;
@@ -585,6 +711,10 @@ export type GetStorefrontProductByKeyParams = PackageContext & {
   key: string;
 };
 
+export type FindStorefrontProductsByIdsParams = PackageContext & {
+  ids: string[];
+};
+
 export type GetStorefrontProductVariantParams = PackageReadOptions & {
   product_id: string;
   id: string;
@@ -600,8 +730,13 @@ export type GetStorefrontBookingOfferingParams = PackageReadOptions & {
   id: string;
 };
 
+export type FindStorefrontBookingOfferingsByIdsParams = PackageReadOptions & {
+  ids: string[];
+};
+
 export type GetStorefrontAvailabilityParams = PackageContext & {
   booking_service_id: string;
+  store_location_id: string;
   from: EpochMilliseconds;
   to: EpochMilliseconds;
   booking_resource_id?: string;
@@ -611,6 +746,11 @@ export type GetStorefrontAvailabilityParams = PackageContext & {
 
 export type GetStorefrontBookingResourceParams = PackageContext & {
   id: string;
+  offering_id: string;
+};
+
+export type FindStorefrontBookingResourcesByIdsParams = PackageContext & {
+  ids: string[];
   offering_id: string;
 };
 

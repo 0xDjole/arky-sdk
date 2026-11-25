@@ -34,15 +34,16 @@ test("variant deletion preserves the version and distinguishes accepted deletion
   let status = 202;
   globalThis.fetch = async (input, init) => {
     calls.push({ url: new URL(input), init });
-    return status === 204 ? new Response(null, { status }) : new Response(JSON.stringify(value), { status, headers: { "content-type": "application/json" } });
+    return new Response(JSON.stringify(status === 404 ? { message: "Not found", error: "GENERAL.NOT_FOUND", status_code: 404, validation_errors: [] } : value), { status, headers: { "content-type": "application/json" } });
   };
   try {
     const api = createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).eshop.productVariant;
     const params = { store_id: storeId, id, expected_updated_at: expected };
     assert.deepEqual(await api.delete(params), value);
-    status = 204;
-    assert.equal(await api.delete(params), undefined);
-    assert.equal(calls.length, 2);
+    assert.deepEqual(await api.delete(params), value);
+    status = 404;
+    await assert.rejects(api.delete(params), (error) => error.statusCode === 404);
+    assert.equal(calls.length, 3);
     for (const { url, init } of calls) {
       assert.equal(init.method, "DELETE");
       assert.equal(url.pathname, `/v1/stores/${storeId}/product-variants/${id}`);

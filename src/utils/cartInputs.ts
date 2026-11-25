@@ -1,6 +1,9 @@
 import type { RequestOptions, TransportOptions } from "../types/httpClient";
 import type {
+  CartBookingLineAddOnInput,
+  CartBookingLineAddOnResource,
   CartBookingLineItemInput,
+  CartBookingLineResource,
   CartLineItemInput,
   CartPackageLineItemInput,
   CartProductLineItemInput,
@@ -15,6 +18,36 @@ export function copyPackagePriceRef(price: PackagePriceRef): PackagePriceRef {
     throw new TypeError("A cart line names its exact price: { package_id, package_item_id, price_id }");
   }
   return { package_id: price.package_id, package_item_id: price.package_item_id, price_id: price.price_id };
+}
+
+export function copyBookingLineResource(resource: CartBookingLineResource): CartBookingLineResource {
+  if (typeof resource === "object" && resource !== null) {
+    if (resource.type === "any") return { type: "any" };
+    if (resource.type === "resource") {
+      return { type: "resource", booking_resource_id: requireId(resource.booking_resource_id, "booking resource") };
+    }
+  }
+  throw new TypeError('A booking line takes { type: "any" } or { type: "resource", booking_resource_id }');
+}
+
+function copyAddOnResource(resource: CartBookingLineAddOnResource): CartBookingLineAddOnResource {
+  if (typeof resource === "object" && resource !== null) {
+    if (resource.type === "any") return { type: "any" };
+    if (resource.type === "resource") {
+      return { type: "resource", booking_resource_id: requireId(resource.booking_resource_id, "booking resource") };
+    }
+  }
+  throw new TypeError('A booking add-on takes { type: "any" } or { type: "resource", booking_resource_id }');
+}
+
+export function copyBookingAddOns(addOns: readonly CartBookingLineAddOnInput[]): CartBookingLineAddOnInput[] {
+  if (!Array.isArray(addOns)) throw new TypeError("A booking line names its add_ons as a list, empty when it has none");
+  return addOns.map((addOn) => ({
+    add_on_id: requireId(addOn.add_on_id, "booking add-on"),
+    resource: copyAddOnResource(addOn.resource),
+    ...(addOn.form_submission_id !== undefined ? { form_submission_id: addOn.form_submission_id } : {}),
+    add_ons: copyBookingAddOns(addOn.add_ons),
+  }));
 }
 
 export function refusePerCallMarket(options?: RequestOptions): void {
@@ -69,10 +102,21 @@ export function storefrontCartBooking(item: CartBookingLineItemInput): CartBooki
   return {
     id: item.id,
     booking_offering_id: item.booking_offering_id,
+    store_location_id: requireId(item.store_location_id, "store location"),
+    resource: copyBookingLineResource(item.resource),
     requested_interval: { from: item.requested_interval.from, to: item.requested_interval.to },
+    add_ons: copyBookingAddOns(item.add_ons),
     capacity_units: item.capacity_units,
     price: copyPackagePriceRef(item.price),
     ...(item.form_submission_id !== undefined ? { form_submission_id: item.form_submission_id } : {}),
+    ...(item.session !== undefined && item.session !== null
+      ? {
+          session: {
+            package_member_id: item.session.package_member_id,
+            package_item_id: item.session.package_item_id,
+          },
+        }
+      : {}),
   };
 }
 
@@ -112,6 +156,7 @@ export function storefrontCartUpdateBody(
     ...(input.buyer !== undefined ? { buyer: input.buyer } : {}),
     ...(input.package_id !== undefined ? { package_id: input.package_id } : {}),
     ...(input.market_id !== undefined ? { market_id: input.market_id } : {}),
+    ...(input.place_of_sale !== undefined ? { place_of_sale: input.place_of_sale } : {}),
     ...(input.blocks !== undefined ? { blocks: input.blocks } : {}),
     ...(input.line_items !== undefined ? { line_items: storefrontCartLineItems(input.line_items) } : {}),
     ...(input.delivery_groups !== undefined ? { delivery_groups: input.delivery_groups } : {}),

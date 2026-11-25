@@ -1,5 +1,5 @@
 import type { Block } from "./block";
-import type { Collection, Entry, Media, StorefrontFindCollectionEntriesParams } from "./content";
+import type { StorefrontCollection, StorefrontEntry, Media, StorefrontFindCollectionEntriesParams } from "./content";
 
 export interface ContentBlocks {
   readonly locale: string;
@@ -11,7 +11,7 @@ export interface ContentBlocks {
   list(key: string): ContentBlocks[];
 }
 
-export interface LoadedContent<T extends Collection | Entry> extends ContentBlocks {
+export interface LoadedContent<T extends StorefrontCollection | StorefrontEntry> extends ContentBlocks {
   readonly record: T;
   readonly media_by_id: Readonly<Record<string, Media>>;
 }
@@ -27,8 +27,8 @@ export type LoadContentParams =
   | { collection: LoadContentCollectionParams }
   | { entry: LoadContentEntryParams };
 
-export type LoadContentEntriesParams = Omit<StorefrontFindCollectionEntriesParams, "cursor">;
+export type LoadContentEntriesParams = StorefrontFindCollectionEntriesParams;
 
 export type LoadedContentFor<P extends LoadContentParams> = P extends { collection: LoadContentCollectionParams }
-  ? LoadedContent<Collection>
-  : LoadedContent<Entry>;
+  ? LoadedContent<StorefrontCollection>
+  : LoadedContent<StorefrontEntry>;

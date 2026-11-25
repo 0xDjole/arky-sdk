@@ -1,9 +1,13 @@
 import type {
+  MonriRefund,
+  Payment,
+  RecordedRefund,
   StorefrontMonriRefund,
   StorefrontPayment,
   StorefrontRecordedRefund,
   StorefrontStripeRefund,
   StripeDispute,
+  StripePaymentRefund,
 } from "../types/payment";
 
 export interface PaymentAmounts {
@@ -14,29 +18,29 @@ export interface PaymentAmounts {
   net_paid: number;
 }
 
-function paid(payment: StorefrontPayment): number {
+function paid(payment: Payment | StorefrontPayment): number {
   const type = payment.type;
   switch (type.type) {
     case "stripe_checkout":
-    case "stripe_card":
       return type.status.type === "paid" ? type.status.amount : 0;
+    case "stripe_card":
+      if (type.status.type === "paid") return type.status.amount;
+      return type.status.type === "confirmed_made" ? payment.money.amount : 0;
     case "monri_checkout":
-      return type.status.type === "paid" ? type.status.transaction.amount : 0;
+      if (type.status.type === "paid") return type.status.transaction.amount;
+      return type.status.type === "confirmed_made" ? payment.money.amount : 0;
     case "monri_card":
       if (type.status.type === "paid") return type.status.transaction.amount;
       return type.status.type === "confirmed_made" ? payment.money.amount : 0;
-    case "cash_on_delivery":
-    case "manual":
-      return type.collections
-        .filter((collection) => collection.status.type === "active")
-        .reduce((total, collection) => total + collection.money.amount, 0);
+    case "recorded":
+      return type.status.type === "active" ? payment.money.amount : 0;
   }
 }
 
 export type PaymentRefundView =
-  | { type: "stripe"; refund: StorefrontStripeRefund }
-  | { type: "monri"; refund: StorefrontMonriRefund }
-  | { type: "recorded"; refund: StorefrontRecordedRefund };
+  | { type: "stripe"; refund: StripePaymentRefund | StorefrontStripeRefund }
+  | { type: "monri"; refund: MonriRefund | StorefrontMonriRefund }
+  | { type: "recorded"; refund: RecordedRefund | StorefrontRecordedRefund };
 
 export function refundAmounts(view: PaymentRefundView): { refunded: number; pending: number } {
   switch (view.type) {
@@ -70,7 +74,7 @@ export function refundAmounts(view: PaymentRefundView): { refunded: number; pend
   }
 }
 
-function refundViews(payment: StorefrontPayment): PaymentRefundView[] {
+function refundViews(payment: Payment | StorefrontPayment): PaymentRefundView[] {
   const type = payment.type;
   switch (type.type) {
     case "stripe_checkout":
@@ -79,13 +83,12 @@ function refundViews(payment: StorefrontPayment): PaymentRefundView[] {
     case "monri_checkout":
     case "monri_card":
       return type.refunds.map((refund) => ({ type: "monri", refund }));
-    case "cash_on_delivery":
-    case "manual":
+    case "recorded":
       return type.refunds.map((refund) => ({ type: "recorded", refund }));
   }
 }
 
-function refunds(payment: StorefrontPayment): { refunded: number; pending: number } {
+function refunds(payment: Payment | StorefrontPayment): { refunded: number; pending: number } {
   return refundViews(payment)
     .map(refundAmounts)
     .reduce(
@@ -106,13 +109,13 @@ export function disputeWithdrawnAmount(dispute: StripeDispute): number {
   return Math.max(amount, 0);
 }
 
-function disputed(payment: StorefrontPayment): number {
+function disputed(payment: Payment | StorefrontPayment): number {
   const type = payment.type;
   if (type.type !== "stripe_checkout" && type.type !== "stripe_card") return 0;
   return type.disputes.reduce((total, dispute) => total + disputeWithdrawnAmount(dispute), 0);
 }
 
-export function paymentAmounts(payments: readonly StorefrontPayment[]): PaymentAmounts {
+export function paymentAmounts(payments: readonly (Payment | StorefrontPayment)[]): PaymentAmounts {
   const [first] = payments;
   if (first && payments.some((payment) => payment.order_id !== first.order_id || payment.money.currency !== first.money.currency)) {
     throw new TypeError("Payment amounts add up the payments of one order in one currency");

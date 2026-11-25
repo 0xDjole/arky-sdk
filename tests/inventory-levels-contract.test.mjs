@@ -18,7 +18,7 @@ test("inventory levels keep combined parent filters, ordering and empty-page con
     { items: [{ id: "level", on_hand: 10, reserved: 12, unavailable: 2, available: -4 }], cursor: null },
   ];
   const calls = recordFetch(context, () => responses.shift());
-  const query = { store_id: STORE_ID, inventory_item_id: "component", store_location_id: "warehouse", sort_field: "updated_at", sort_direction: "desc", limit: 25 };
+  const query = { store_id: STORE_ID, inventory_item_ids: ["component", "spare"], store_location_id: "warehouse", sort_field: "updated_at", sort_direction: "desc", limit: 25 };
   const first = await eshop().inventoryLevel.find(query);
   assert.deepEqual(first, { items: [], cursor: "next-projected-page" });
   assert.equal(calls.length, 1);
@@ -27,7 +27,8 @@ test("inventory levels keep combined parent filters, ordering and empty-page con
   for (const call of calls) {
     assert.equal(call.method, "GET");
     assert.equal(call.path, `/v1/stores/${STORE_ID}/inventory-levels`);
-    assert.equal(call.query.inventory_item_id, "component");
+    assert.equal(call.query.inventory_item_ids, JSON.stringify(["component", "spare"]));
+    assert.equal("inventory_item_id" in call.query, false);
     assert.equal(call.query.store_location_id, "warehouse");
     assert.equal(call.query.sort_field, "updated_at");
     assert.equal(call.query.sort_direction, "desc");
@@ -39,11 +40,11 @@ test("inventory levels keep combined parent filters, ordering and empty-page con
 
 test("an inventory index failure stays an error rather than zero stock", async (context) => {
   recordFetch(context, () => errorResponse(503, "GENERAL.UNAVAILABLE", "Search unavailable"));
-  await assert.rejects(eshop().inventoryLevel.find({ store_id: STORE_ID, inventory_item_id: "component" }), (error) => error.statusCode === 503);
+  await assert.rejects(eshop().inventoryLevel.find({ store_id: STORE_ID, inventory_item_ids: ["component"] }), (error) => error.statusCode === 503);
 });
 
 test("inventory history keeps combined filters, empty continuations and exact quantity changes", async (context) => {
-  const record = { id: "movement", inventory_item_id: "item", tracking: { type: "individual", inventory_unit_id: "unit" }, store_location_id: "location", delta: -1, after: 7, reason: { type: "dispatched", fulfillment_id: "fulfillment" }, action_id: actionId(1) };
+  const record = { id: "movement", inventory_item_id: "item", tracking: { type: "individual", inventory_unit_id: "unit" }, store_location_id: "location", delta: -1, after: 7, reason: { type: "dispatched" }, action_id: actionId(1) };
   const responses = [{ items: [], cursor: "movement-next" }, { items: [record], cursor: null }];
   const calls = recordFetch(context, () => responses.shift());
   const query = { inventory_item_id: "item", store_location_id: "location", inventory_unit_id: "unit", action_id: actionId(1), limit: 10, sort_field: "created_at", sort_direction: "desc" };
@@ -62,10 +63,10 @@ test("inventory history keeps combined filters, empty continuations and exact qu
 test("stock reads keep unavailable and negative available quantities with the item's identity", async (context) => {
   const record = { id: "level", inventory_item_id: "item", store_location_id: "location", on_hand: 2, reserved: 5, unavailable: 1, available: -4, item: { key: "stock-item", sku: null, tracking: { type: "tracked" } } };
   const calls = recordFetch(context, () => ({ items: [record], cursor: null }));
-  const query = { store_id: OTHER_STORE_ID, inventory_item_id: "item", store_location_id: "location", limit: 5, cursor: "" };
+  const query = { store_id: OTHER_STORE_ID, inventory_item_ids: ["item"], store_location_id: "location", limit: 5, cursor: "" };
   assert.deepEqual(await eshop().inventoryLevel.findStock(query), { items: [record], cursor: null });
   assert.equal(calls[0].path, `/v1/stores/${OTHER_STORE_ID}/inventory-levels/stock`);
-  assert.deepEqual(calls[0].query, { inventory_item_id: "item", store_location_id: "location", limit: "5", cursor: "" });
+  assert.deepEqual(calls[0].query, { inventory_item_ids: JSON.stringify(["item"]), store_location_id: "location", limit: "5", cursor: "" });
 });
 
 test("stock commands carry the app-picked action id and the exact incoming stock", async (context) => {
@@ -96,11 +97,11 @@ test("stock commands carry the app-picked action id and the exact incoming stock
 });
 
 test("levels are created under an app-picked id and removed with their version", async (context) => {
-  const calls = recordFetch(context, (call) => call.method === "DELETE" ? undefined : { id: levelId });
+  const calls = recordFetch(context, (call) => call.method === "DELETE" ? { deleted: true } : { id: levelId });
   const api = eshop().inventoryLevel;
   await api.create({ store_id: STORE_ID, id: levelId, inventory_item_id: "item", store_location_id: "warehouse" });
   await api.get({ store_id: STORE_ID, id: levelId });
-  assert.equal(await api.remove({ store_id: STORE_ID, id: levelId, expected_updated_at: 9 }), undefined);
+  assert.deepEqual(await api.remove({ store_id: STORE_ID, id: levelId, expected_updated_at: 9 }), { deleted: true });
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
     ["POST", `/v1/stores/${STORE_ID}/inventory-levels`, {}, { id: levelId, inventory_item_id: "item", store_location_id: "warehouse" }],
     ["GET", `/v1/stores/${STORE_ID}/inventory-levels/${levelId}`, {}, null],
@@ -175,5 +176,17 @@ test("an inventory item delete answers nothing after removal and when it is alre
   assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
     ["DELETE", `/v1/stores/${STORE_ID}/inventory-items/${itemId}`, { expected_updated_at: "7" }],
     ["DELETE", `/v1/stores/${STORE_ID}/inventory-items/${itemId}`, { expected_updated_at: "7" }],
+  ]);
+});
+
+test("stock items and stock units are read by ids alone from one list request each", async (context) => {
+  const calls = recordFetch(context, () => ({ items: [], cursor: null }));
+  const itemIds = ["8c1e3a5f-7b9d-4f2a-8c4e-6a8b0d2f4a6c", "1d3f5b7a-9c2e-4a6b-9d1f-3b5d7f9a1c3e"];
+  const unitIds = ["2e4a6c8b-0d1f-4b3c-8e5a-7c9e1b3d5f7a"];
+  assert.deepEqual(await eshop().inventoryItem.find({ store_id: STORE_ID, ids: itemIds }), { items: [], cursor: null });
+  assert.deepEqual(await eshop().inventoryUnit.find({ store_id: STORE_ID, ids: unitIds }), { items: [], cursor: null });
+  assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
+    ["GET", `/v1/stores/${STORE_ID}/inventory-items`, { ids: JSON.stringify(itemIds) }],
+    ["GET", `/v1/stores/${STORE_ID}/inventory-units`, { ids: JSON.stringify(unitIds) }],
   ]);
 });

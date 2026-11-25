@@ -1,24 +1,28 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
-import { MemoryStorage } from "./helpers/durable-request-fixtures.mjs";
+import { MemoryStorage, QueuedLockManager } from "./helpers/durable-request-fixtures.mjs";
 
 const logoutBaseUrl = "https://logout.test";
 const logoutStorageKey = `arky_admin_session:${logoutBaseUrl}`;
 const loginSessionId = "5f3c9a21-7e46-4b08-9d2c-1a6e8b4f0c37";
 const laterSessionId = "8d1b6f47-2a93-4c05-b7e8-4f0a2c9d6e13";
 const loginStoreId = "2b7d4e90-6c15-4a38-8f2e-9d1c5b7a3e64";
+const loginNetworkId = "4e8a1c37-9b25-4d60-a3f7-1c5e9b2d7f48";
 
 function installWindow(context) {
   const storage = new MemoryStorage();
-  const descriptor = Object.getOwnPropertyDescriptor(globalThis, "window");
-  Object.defineProperty(globalThis, "window", {
-    configurable: true, writable: true, value: Object.assign(new EventTarget(), { localStorage: storage }),
-  });
-  context.after(() => {
-    if (descriptor) Object.defineProperty(globalThis, "window", descriptor);
-    else delete globalThis.window;
-  });
+  for (const [name, value] of [
+    ["window", Object.assign(new EventTarget(), { localStorage: storage })],
+    ["navigator", { locks: new QueuedLockManager() }],
+  ]) {
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, name);
+    Object.defineProperty(globalThis, name, { configurable: true, writable: true, value });
+    context.after(() => {
+      if (descriptor) Object.defineProperty(globalThis, name, descriptor);
+      else delete globalThis[name];
+    });
+  }
   return storage;
 }
 
@@ -83,10 +87,9 @@ test("an account token is made under the app's id, shown once, revoked and delet
   const storeId = "c7e2a915-4d38-4b60-8f1e-2a5d9c3b7e46";
   const value = `arky_at_${"V".repeat(42)}A`;
   const token = {
-    id: tokenId, account_id: "0f4c7a29-5e13-4d86-b2a7-6c9e1f3d5b80", name: "CI",
-    token_hint: value.slice(0, 16), stores: { type: "only", store_ids: [storeId] },
-    permissions: [{ type: "fulfillment", locations: { type: "everywhere" } }, { type: "orders", access: "read_only" }],
-    expires_at: null, status: { type: "active" }, created_at: 1, updated_at: 1,
+    id: tokenId, account_id: "0f4c7a29-5e13-4d86-b2a7-6c9e1f3d5b80", email: "operator@example.test", name: "CI",
+    token_hint: value.slice(0, 16), stores: { type: "ids", store_ids: [storeId] },
+    expiry: { type: "never" }, status: { type: "active" }, created_at: 1, updated_at: 1,
   };
   const revoked = { ...token, status: { type: "revoked", revoked_at: 2 }, updated_at: 2 };
   const calls = [];
@@ -94,16 +97,16 @@ test("an account token is made under the app's id, shown once, revoked and delet
     const parsed = new URL(url);
     const call = { method: init.method ?? "GET", path: parsed.pathname, query: Object.fromEntries(parsed.searchParams), body: init.body === undefined ? null : JSON.parse(String(init.body)) };
     calls.push(call);
-    if (call.method === "DELETE") return new Response(null, { status: 204 });
+    if (call.method === "DELETE") return new Response(JSON.stringify({ deleted: true }), { status: 200, headers: { "content-type": "application/json" } });
     const answer = call.path.endsWith("/revoke") ? revoked : calls.length === 1 ? { type: "secret_created", token, value } : { type: "existing", token };
-    return new Response(JSON.stringify(answer), { status: call.path.endsWith("/revoke") ? 200 : 201, headers: { "content-type": "application/json" } });
+    return new Response(JSON.stringify(answer), { status: 200, headers: { "content-type": "application/json" } });
   });
   const api = createAdmin({ apiUrl: "https://credentials.test" }).account.token;
-  const request = { id: tokenId, name: "CI", stores: token.stores, permissions: token.permissions, expires_at: null };
+  const request = { id: tokenId, name: "CI", stores: token.stores, expiry: { type: "never" } };
   assert.deepEqual(await api.create(request), { type: "secret_created", token, value });
   assert.deepEqual(await api.create(request), { type: "existing", token });
   assert.deepEqual(await api.revoke({ id: tokenId, expected_updated_at: 1 }), revoked);
-  assert.equal(await api.delete({ id: tokenId, expected_updated_at: 2 }), undefined);
+  assert.deepEqual(await api.delete({ id: tokenId, expected_updated_at: 2 }), { deleted: true });
   assert.deepEqual(calls, [
     { method: "POST", path: "/v1/accounts/me/tokens", query: {}, body: request },
     { method: "POST", path: "/v1/accounts/me/tokens", query: {}, body: request },
@@ -114,6 +117,10 @@ test("an account token is made under the app's id, shown once, revoked and delet
     await assert.rejects(async () => api.create({ ...request, id: invented }), { name: "TypeError", message: /account token id must be a canonical UUID/ });
   }
   assert.equal(calls.length, 4);
+  await api.create({ ...request, expiry: { type: "at", expires_at: 1_900_000_000_000 } });
+  assert.deepEqual(calls[4].body, { id: tokenId, name: "CI", stores: token.stores, expiry: { type: "at", expires_at: 1_900_000_000_000 } });
+  await api.create({ id: tokenId, name: "CI", stores: token.stores, expires_at: null });
+  assert.equal("expires_at" in calls[5].body, false, "a token's end is its expiry, so a bare expires_at is not sent");
   assert.equal("update" in api, false);
   assert.equal("apiToken" in createAdmin({ apiUrl: "https://credentials.test" }).account, false);
 });
@@ -234,4 +241,62 @@ test("a later login survives the completion of an earlier logout", async (contex
   assert.equal(calls[0].authorization, "Bearer access-current");
   assert.deepEqual(JSON.parse(storage.getItem(logoutStorageKey)), laterLogin);
   assert.deepEqual(admin.session, { id: laterSessionId, email: "operator@example.test" });
+});
+
+
+test("account deletion returns the accepted deleting account", async (context) => {
+  installWindow(context);
+  const account = {
+    id: loginSessionId,
+    type: {
+      type: "network",
+      network_id: loginNetworkId,
+      logins: [{ type: "member_email", email: "operator@example.test", language: "en", since: 1 }],
+      name: null,
+      phone: null,
+      second_factor: { type: "off" },
+    },
+    status: { type: "deleting" },
+    created_at: 1,
+    updated_at: 2,
+  };
+  const calls = recordFetch(context, (call) => call.method === "DELETE" ? [202, account] : [200, issuedCredentials()]);
+  const admin = createAdmin({ apiUrl: logoutBaseUrl });
+  await admin.account.auth.verify({ session_id: loginSessionId, network_id: loginNetworkId, code: "123456" });
+  assert.deepEqual(await admin.account.delete(), account);
+  assert.deepEqual(calls.at(-1), { url: `${logoutBaseUrl}/v1/accounts`, method: "DELETE", authorization: "Bearer access-current", body: undefined });
+});
+
+test("an account adds a login email by code, confirms a join on purpose and removes a login by its address", async (context) => {
+  const me = {
+    id: loginSessionId,
+    type: {
+      type: "network",
+      network_id: loginNetworkId,
+      logins: [
+        { type: "member_email", email: "operator@example.test", language: "en", since: 1 },
+        { type: "member_email", email: "second@example.test", language: "bs", since: 3 },
+      ],
+      name: { first_name: "Ana", last_name: "Kovač" },
+      phone: null,
+      second_factor: { type: "off" },
+    },
+    status: { type: "active" },
+    session_email: "operator@example.test",
+    created_at: 1,
+    updated_at: 3,
+  };
+  const calls = recordFetch(context, (call) => [200, call.url.endsWith("/logins/code") ? { code_expires_at: 1_900_000_000_000 } : me]);
+  const admin = createAdmin({ apiUrl: "https://credentials.test", accountToken: `arky_at_${"k".repeat(42)}A` });
+  assert.deepEqual(await admin.account.login.requestCode({ email: "second@example.test", language: "bs" }), { code_expires_at: 1_900_000_000_000 });
+  assert.deepEqual(await admin.account.login.verify({ email: "second@example.test", code: "123456", confirm_join: false }), me);
+  assert.deepEqual(await admin.account.login.remove({ address: { type: "email", email: "second@example.test" } }), me);
+  assert.deepEqual(await admin.account.getMe(), me);
+  assert.deepEqual(calls.map(({ url, method, body }) => [method, url, body]), [
+    ["POST", "https://credentials.test/v1/accounts/me/logins/code", { email: "second@example.test", language: "bs" }],
+    ["POST", "https://credentials.test/v1/accounts/me/logins/verify", { email: "second@example.test", code: "123456", confirm_join: false }],
+    ["POST", "https://credentials.test/v1/accounts/me/logins/remove", { address: { type: "email", email: "second@example.test" } }],
+    ["GET", "https://credentials.test/v1/accounts/me", undefined],
+  ]);
+  for (const call of calls) assert.equal(call.authorization, `Bearer arky_at_${"k".repeat(42)}A`);
 });

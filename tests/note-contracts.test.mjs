@@ -61,7 +61,7 @@ test("submission and conversation notes are Note records, and a stage change car
   await forms.notes.find({ ...scope, limit: 10 });
   await forms.notes.update({ ...scope, id: noteId, expected_updated_at: 2, body: "Called back twice" });
   await forms.notes.delete({ ...scope, id: noteId, expected_updated_at: 3 });
-  await forms.changeSubmissionStage({ store_id: storeId, form_id: formId, id: recordId, to_stage_id: "rejected", expected_stage_id: "new", expected_changed_at: 4, note: { id: noteId, body: "Outside the delivery area" } });
+  await forms.changeSubmissionStage({ store_id: storeId, form_id: formId, id: recordId, to_stage_id: "rejected", expected_stage: { type: "at", stage_id: "new", changed_at: 4 }, note: { id: noteId, body: "Outside the delivery area" } });
   await forms.findSubmissions({ store_id: storeId, form_id: formId, limit: 5 });
   await admin.support.conversation.notes.create({ store_id: storeId, conversation_id: conversationId, id: noteId, body: "Handed to the team" });
   await admin.support.conversation.notes.find({ store_id: storeId, conversation_id: conversationId, limit: 5 });
@@ -71,8 +71,8 @@ test("submission and conversation notes are Note records, and a stage change car
     { method: "GET", path: `${submission}/notes`, query: { limit: "10" }, body: null },
     { method: "PUT", path: `${submission}/notes/${noteId}`, query: {}, body: { expected_updated_at: 2, body: "Called back twice" } },
     { method: "DELETE", path: `${submission}/notes/${noteId}`, query: { expected_updated_at: "3" }, body: null },
-    { method: "POST", path: `${submission}/stage`, query: {}, body: { to_stage_id: "rejected", expected_stage_id: "new", expected_changed_at: 4, note: { id: noteId, body: "Outside the delivery area" } } },
-    { method: "GET", path: `/v1/stores/${storeId}/forms/${formId}/submissions`, query: { limit: "5" }, body: null },
+    { method: "POST", path: `${submission}/stage`, query: {}, body: { to_stage_id: "rejected", expected_stage: { type: "at", stage_id: "new", changed_at: 4 }, note: { id: noteId, body: "Outside the delivery area" } } },
+    { method: "GET", path: `/v1/stores/${storeId}/forms/submissions`, query: { form_id: formId, limit: "5" }, body: null },
     { method: "POST", path: `/v1/stores/${storeId}/conversations/${conversationId}/notes`, query: {}, body: { id: noteId, body: "Handed to the team" } },
     { method: "GET", path: `/v1/stores/${storeId}/conversations/${conversationId}/notes`, query: { limit: "5" }, body: null },
   ]);
@@ -82,7 +82,7 @@ test("submission and conversation notes are Note records, and a stage change car
 });
 
 test("notes are staff-only and absent from the storefront client", () => {
-  const storefront = createStorefront(`arky_pk_${"n".repeat(42)}A`, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl });
+  const storefront = createStorefront({ storeId: "5e9b3d71-c826-4a04-b7f5-0d2a8e6c4f19", salesChannelId: "e5a8c2d7-3b91-4f06-9d4e-1c7b6a0f3e28" }, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl });
   assert.equal("notes" in storefront.eshop.order, false);
   assert.equal("notes" in storefront.companies, false);
 });

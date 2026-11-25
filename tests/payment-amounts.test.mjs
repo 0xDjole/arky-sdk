@@ -9,7 +9,7 @@ const actor = { type: "account", account_id: ids.account };
 const eur = (amount) => ({ amount, currency: "eur" });
 
 function payment(id, amount, type) {
-  return { id, store_id: ids.store, order_id: ids.order, payment_option_id: ids.paymentOption, money: eur(amount), type, holds: [], status: "paid", status_revision: "1", created_at: 1, updated_at: 1 };
+  return { id, store_id: ids.store, order_id: ids.order, payment_option_id: ids.paymentOption, payment_option_key: "desk", money: eur(amount), type, holds: [], status: "paid", created_at: 1, updated_at: 1 };
 }
 
 const stripe = payment(ids.payment, 5000, {
@@ -18,9 +18,9 @@ const stripe = payment(ids.payment, 5000, {
   expires_at: 1,
   status: { type: "paid", payment_intent_id: "pi_1", charge_id: "ch_1", amount: 5000 },
   refunds: [
-    { id: "r1", money: eur(1000), source: { type: "stripe", reason: "requested" }, status: { type: "succeeded", stripe_refund_id: "re_1", balance_transaction_id: "txn_1" }, created_at: 1 },
-    { id: "r2", money: eur(500), source: { type: "stripe", reason: "requested" }, status: { type: "pending", stripe_refund_id: "re_2" }, created_at: 1 },
-    { id: "r3", money: eur(300), source: { type: "stripe", reason: "requested" }, status: { type: "failed", stripe_refund_id: "re_3" }, created_at: 1 },
+    { type: "stripe_dashboard", id: "r1", money: eur(1000), source: { type: "unallocated", reason: "requested" }, status: { type: "succeeded", stripe_refund_id: "re_1", balance_transaction_id: "txn_1" }, created_at: 1 },
+    { type: "stripe_dashboard", id: "r2", money: eur(500), source: { type: "unallocated", reason: "requested" }, status: { type: "pending", stripe_refund_id: "re_2" }, created_at: 1 },
+    { type: "stripe_dashboard", id: "r3", money: eur(300), source: { type: "unallocated", reason: "requested" }, status: { type: "failed", stripe_refund_id: "re_3" }, created_at: 1 },
   ],
   disputes: [
     {
@@ -51,23 +51,33 @@ const monri = payment(ids.otherOrder, 2000, {
   ],
 });
 
-const receipt = { recorded_by: actor, reference: "cash", recorded_at: 1 };
-const cash = payment(ids.credit, 3000, {
-  type: "cash_on_delivery",
-  status: "open",
-  collections: [
-    { id: "c1", money: eur(1000), recorded_by: actor, reference: null, recorded_at: 1, status: { type: "active" } },
-    { id: "c2", money: eur(500), recorded_by: actor, reference: null, recorded_at: 1, status: { type: "voided", by: actor, reason: "Wrong", at: 2 } },
-  ],
+const receipt = { recorded_by: actor, reference: "cash", recorded_at: 1, method: { type: "cash" } };
+const cash = payment(ids.credit, 1000, {
+  type: "recorded",
+  method: { type: "cash" },
+  reference: null,
+  recorded_by: actor,
+  status: { type: "active" },
   refunds: [
     { id: "x1", money: eur(200), request: {}, status: { type: "sent", ...receipt }, created_at: 1 },
     { id: "x2", money: eur(100), request: {}, status: { type: "requested" }, created_at: 1 },
-    { id: "x3", money: eur(50), request: {}, status: { type: "returned", sent: receipt, returned: receipt }, created_at: 1 },
+    { id: "x3", money: eur(50), request: {}, status: { type: "returned", sent: receipt, returned: { recorded_by: actor, reference: "cash", recorded_at: 1 } }, created_at: 1 },
   ],
 });
+const voidedCard = {
+  ...payment(ids.line, 500, {
+    type: "recorded",
+    method: { type: "card" },
+    reference: "Terminal slip 7",
+    recorded_by: actor,
+    status: { type: "voided", by: actor, reason: "Wrong", at: 2 },
+    refunds: [],
+  }),
+  status: "voided",
+};
 
 test("paymentAmounts adds up paid, refunded, pending refunds and disputes the way Arky's order summary does", () => {
-  assert.deepEqual(paymentAmounts([stripe, monri, cash]), { paid: 8000, refunded: 1650, refund_pending: 650, disputed: 500, net_paid: 5850 });
+  assert.deepEqual(paymentAmounts([stripe, monri, cash, voidedCard]), { paid: 8000, refunded: 1650, refund_pending: 650, disputed: 500, net_paid: 5850 });
   assert.deepEqual(paymentAmounts([stripe]), { paid: 5000, refunded: 1000, refund_pending: 500, disputed: 500, net_paid: 3500 });
   assert.deepEqual(utilsPaymentAmounts([]), { paid: 0, refunded: 0, refund_pending: 0, disputed: 0, net_paid: 0 });
   assert.throws(() => paymentAmounts([stripe, { ...cash, order_id: ids.otherOrder }]), TypeError);
@@ -113,4 +123,59 @@ test("refundAmounts reads a payment's refunds the way paymentAmounts counts them
     stripe.type.refunds.map((refund) => refundAmounts({ type: "stripe", refund })),
     [{ refunded: 1000, pending: 0 }, { refunded: 0, pending: 500 }, { refunded: 0, pending: 0 }],
   );
+});
+
+test("a recorded payment counts its whole money while active and nothing once voided", () => {
+  assert.deepEqual(paymentAmounts([cash]), { paid: 1000, refunded: 200, refund_pending: 100, disputed: 0, net_paid: 800 });
+  assert.deepEqual(paymentAmounts([voidedCard]), { paid: 0, refunded: 0, refund_pending: 0, disputed: 0, net_paid: 0 });
+  assert.deepEqual(
+    cash.type.refunds.map((refund) => refundAmounts({ type: "recorded", refund })),
+    [{ refunded: 200, pending: 0 }, { refunded: 0, pending: 100 }, { refunded: 0, pending: 0 }],
+  );
+});
+
+test("a staff payment adds up the same way, and a refund paid out in cash against an identity document counts once it is sent", () => {
+  const identityDocument = { type: "cash_with_identity_document", number: "0123456789" };
+  const request = { actor, reason: "customer_request", application: { type: "excess_collection", reason: "Paid twice" }, notify_customer: false };
+  const paidOut = (reference) => ({ recorded_by: actor, reference, recorded_at: 2, method: identityDocument });
+  const staffCash = {
+    ...payment(ids.payment, 3000, {
+      type: "recorded",
+      method: { type: "cash" },
+      reference: null,
+      recorded_by: actor,
+      status: { type: "active" },
+      refunds: [
+        { id: "s1", money: eur(700), request, status: { type: "sent", ...paidOut("Payout 7") }, created_at: 2 },
+        { id: "s2", money: eur(300), request, status: { type: "requested" }, created_at: 2 },
+        { id: "s3", money: eur(200), request, status: { type: "returned", sent: paidOut("Payout 8"), returned: { recorded_by: actor, reference: "Came back", recorded_at: 3 } }, created_at: 2 },
+      ],
+    }),
+    void: { type: "refunded" },
+  };
+  assert.deepEqual(paymentAmounts([staffCash]), { paid: 3000, refunded: 700, refund_pending: 300, disputed: 0, net_paid: 2300 });
+  assert.deepEqual(utilsPaymentAmounts([staffCash]), paymentAmounts([staffCash]));
+  assert.deepEqual(
+    staffCash.type.refunds.map((refund) => refundAmounts({ type: "recorded", refund })),
+    [{ refunded: 700, pending: 0 }, { refunded: 0, pending: 300 }, { refunded: 0, pending: 0 }],
+  );
+});
+
+test("a card charge or a Monri page a person confirmed as made counts as paid, the way Arky counts it", () => {
+  const card = payment(ids.payment, 1200, {
+    type: "stripe_card",
+    payment_method: {},
+    purpose: "renewal",
+    status: { type: "confirmed_made", payment_intent_id: "pi_7", by: actor },
+    refunds: [],
+    disputes: [],
+  });
+  const page = payment(ids.payment, 800, {
+    type: "monri_checkout",
+    status: { type: "confirmed_made", transaction_id: "77", by: actor },
+    refunds: [],
+  });
+  assert.deepEqual(paymentAmounts([card, page]), { paid: 2000, refunded: 0, refund_pending: 0, disputed: 0, net_paid: 2000 });
+  const cancelled = payment(ids.payment, 800, { type: "monri_checkout", status: { type: "cancelled" }, refunds: [] });
+  assert.equal(paymentAmounts([cancelled]).paid, 0);
 });

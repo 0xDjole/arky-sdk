@@ -1,8 +1,9 @@
-import type { EpochMilliseconds } from "./time";
+import type { CalendarMonth, EpochMilliseconds } from "./time";
 import type { Block } from "./block";
 import type { AccountActor, CommerceParty, EmailContact, Money, PostalAddress, SortDirection, UnitSpan } from "./common";
+import type { FiscalJurisdiction } from "./market";
 import type { InventoryRequirement } from "./product";
-import type { OrderDeliveryTiming } from "./order";
+import type { OrderDeliveryTiming, OrderPlaceOfSale } from "./order";
 import type { PackageMinimumScope } from "./package";
 
 export type RoutingCondition =
@@ -50,13 +51,12 @@ export interface FulfillmentUnitSpan {
 
 export type FulfillmentJobLineSource =
   | { type: "order_product"; order_product_line_item_id: string; order_unit_spans: UnitSpan[] }
-  | { type: "rental_issue"; rental_id: string; revision_id: string };
+  | { type: "rental_issue"; rental_id: string; package_member_revision_id: string; quantity: number };
 
 export interface FulfillmentJobLine {
   id: string;
   source: FulfillmentJobLineSource;
   inventory_requirements: InventoryRequirement[];
-  quantity: number;
   fulfilled_quantity: number;
   cancelled_units: FulfillmentUnitSpan[];
   moved_units: FulfillmentUnitSpan[];
@@ -128,13 +128,19 @@ export interface FulfillmentJobContact {
 
 export type FulfillmentJobStatus = "scheduled" | "on_hold" | "open" | "in_progress" | "completed" | "cancelled";
 
+export type FulfillmentJobPlaceOfSale =
+  | { type: "none" }
+  | { type: "store_location"; store_location_id: string; jurisdiction: FiscalJurisdiction | null };
+
 export interface FulfillmentJob {
   id: string;
   store_id: string;
   type: FulfillmentJobType;
   method: FulfillmentJobMethod;
   holds: FulfillmentHold[];
+  order_number: string | null;
   contact: FulfillmentJobContact;
+  place_of_sale: FulfillmentJobPlaceOfSale;
   status: FulfillmentJobStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
@@ -185,7 +191,7 @@ export interface FulfillmentLine {
 }
 
 export type FulfillmentSource =
-  | { type: "order_delivery"; order_id: string; buyer: CommerceParty }
+  | { type: "order_delivery"; buyer: CommerceParty }
   | { type: "rental_replacement" };
 
 export interface Fulfillment {
@@ -259,22 +265,21 @@ export interface RecordPickupCashParams {
   store_id: string;
   fulfillment_job_id: string;
   id: string;
-  payment_id: string;
   expected_job_updated_at: EpochMilliseconds;
-  expected_payment_updated_at: EpochMilliseconds;
+  fiscal_device_id: string | null;
   money: Money;
   reference: string | null;
 }
 
 export interface PickupCash {
-  payment_id: string;
-  payment_updated_at: EpochMilliseconds;
+  order_id: string;
+  place_of_sale: OrderPlaceOfSale;
   due: Money;
 }
 
 export interface FindFulfillmentJobsParams {
   store_id: string;
-  order_id?: string;
+  order_ids?: string[];
   rental_id?: string;
   store_location_id?: string;
   hold?: FulfillmentHoldReason["type"];
@@ -295,7 +300,7 @@ export interface GetFulfillmentParams {
 
 export interface FindFulfillmentsParams {
   store_id: string;
-  order_id?: string;
+  order_ids?: string[];
   fulfillment_job_id?: string;
   rental_id?: string;
   limit?: number;
@@ -328,6 +333,7 @@ export type FulfillmentCommand =
 export interface ActOnFulfillmentParams extends GetFulfillmentParams {
   expected_updated_at: EpochMilliseconds;
   command: FulfillmentCommand;
+  fiscal_device_id: string | null;
 }
 
 export interface UpdateFulfillmentTrackingParams extends GetFulfillmentParams {
@@ -356,6 +362,7 @@ export type CustomerShipmentStatus =
 export interface CustomerOrderShipment {
   fulfillment_id: string;
   status: CustomerShipmentStatus;
+  trackings: Tracking[];
   preparation_started_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
@@ -380,6 +387,8 @@ export interface CustomerOrderFulfillment {
 
 export interface FindCustomerOrderFulfillmentsParams {
   order_id: string;
+  limit?: number;
+  cursor?: string | null;
 }
 
 export type MinimumProgressUnavailableReason =
@@ -407,8 +416,7 @@ export type MinimumProgressMonthState =
   | { type: "unavailable"; reason: MinimumProgressUnavailableReason };
 
 export interface MinimumProgressMonth {
-  year: number;
-  month: number;
+  month: CalendarMonth;
   timezone: string;
   starts_at: EpochMilliseconds;
   ends_at: EpochMilliseconds;

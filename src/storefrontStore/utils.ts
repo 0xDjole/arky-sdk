@@ -35,6 +35,7 @@ export function formatServiceSlotRange(from: EpochMilliseconds, to: EpochMillise
 export interface AvailableSlot {
   from: EpochMilliseconds;
   to: EpochMilliseconds;
+  storeLocationId: string;
   bookingResourceId: string;
   bookingOfferingId: string;
   timezone: string;
@@ -58,6 +59,7 @@ export function fileSlots(
         slots.push({
           from: slot.from,
           to: slot.to,
+          storeLocationId: resource.store_location_id,
           bookingResourceId: resource.booking_resource_id,
           bookingOfferingId: resource.booking_offering_id,
           timezone: zone,

@@ -24,6 +24,14 @@ import type {
   StorefrontGetMarketParams,
   StorefrontPaymentOption,
   StorefrontSetup,
+  FiscalJurisdiction,
+  CroatiaOnlineFiscalDevice,
+  RepublikaSrpskaOnlineFiscalDevice,
+  SetStoreLocationFiscalParams,
+  StoreLocationFiscal,
+  StorefrontCustomerSignIn,
+  StorefrontSeller,
+  PostalAddress,
 } from "arky-sdk";
 
 type Admin = ReturnType<typeof createAdmin>;
@@ -62,11 +70,26 @@ export type ConfigurationPages = [
   Assert<Equal<CreateStoreLocationParams["address"], PostalAddressInput>>,
   Assert<Equal<RequiredField<UpdateStoreLocationParams, "address">, false>>,
   Assert<Missing<UpdateMarketParams, "tax_mode">>,
+  Assert<Equal<StoreLocation["fiscal"], StoreLocationFiscal>>,
+  Assert<Equal<StoreLocationFiscal, { type: "not_fiscal" } | { type: "croatia"; online_fiscal_device: CroatiaOnlineFiscalDevice } | { type: "republika_srpska"; online_fiscal_device: RepublikaSrpskaOnlineFiscalDevice } | { type: "serbia" } | { type: "fbih2009" } | { type: "fbih2026" } | { type: "brcko" }>>,
+  Assert<Equal<FiscalJurisdiction, "croatia" | "fbih2009" | "fbih2026" | "republika_srpska" | "brcko" | "serbia">>,
+  Assert<Equal<CroatiaOnlineFiscalDevice, { type: "none" } | { type: "device"; fiscal_device_id: string }>>,
+  Assert<Equal<RepublikaSrpskaOnlineFiscalDevice, { type: "none" } | { type: "device"; fiscal_device_id: string }>>,
+  Assert<Equal<Parameters<Admin["store"]["location"]["setFiscal"]>[0], SetStoreLocationFiscalParams>>,
+  Assert<Equal<keyof SetStoreLocationFiscalParams, "store_id" | "id" | "expected_updated_at" | "fiscal">>,
+  Assert<Equal<Awaited<ReturnType<Admin["store"]["location"]["setFiscal"]>>, StoreLocation>>,
+  Assert<Missing<CreateStoreLocationParams, "fiscal">>,
+  Assert<Missing<UpdateStoreLocationParams, "fiscal">>,
 ];
 
 export type PublicSetup = [
   Assert<Equal<Awaited<ReturnType<Front["getSetup"]>>, StorefrontSetup>>,
-  Assert<Equal<keyof StorefrontSetup, "name" | "timezone" | "languages" | "payment_options" | "bot_check">>,
+  Assert<Equal<keyof StorefrontSetup, "name" | "timezone" | "languages" | "payment_options" | "customer_sign_in" | "seller">>,
+  Assert<Equal<StorefrontSetup["customer_sign_in"], StorefrontCustomerSignIn>>,
+  Assert<Equal<StorefrontSetup["seller"], StorefrontSeller>>,
+  Assert<Equal<StorefrontSeller, { type: "none" } | { type: "seller"; name: string; address: PostalAddress }>>,
+  Assert<Equal<Extract<StorefrontSeller, { type: "seller" }>["address"]["country"], string>>,
+  Assert<Equal<StorefrontCustomerSignIn, { type: "store" } | { type: "network"; network_id: string }>>,
   Assert<Equal<StorefrontSetup["languages"], string[]>>,
   Assert<Equal<StorefrontSetup["payment_options"], StorefrontPaymentOption[]>>,
   Assert<Missing<StorefrontPaymentOption, "configuration" | "status" | "store_id">>,

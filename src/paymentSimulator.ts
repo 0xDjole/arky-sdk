@@ -1,12 +1,13 @@
 import type { StripeEmbeddedCheckoutAction } from "./types/embeddedCheckout";
 import type { CheckoutPaymentAction, MonriComponentsAction, StorefrontPaymentMethodSetupStart, PaymentRunsOn } from "./types/payment";
-import type { StoreSubscriptionPaymentAction } from "./types/store";
+import type { StoreCardSetup, StoreSubscriptionPayment } from "./types/store";
 import { ArkyError } from "./types/apiError";
 
 export type PaymentSimulation =
   | { type: "stripe_checkout"; action: StripeEmbeddedCheckoutAction; outcome: "complete" | "decline" | "expire" }
+  | { type: "stripe_payment_intent"; action: Extract<StoreSubscriptionPayment, { type: "stripe" }>; outcome: "complete" | "decline" }
   | { type: "monri"; action: MonriComponentsAction; outcome: "complete" | "decline" }
-  | { type: "card_setup"; setup: StorefrontPaymentMethodSetupStart; outcome: "complete" | "cancel" | "decline" };
+  | { type: "card_setup"; setup: StorefrontPaymentMethodSetupStart | StoreCardSetup; outcome: "complete" | "cancel" | "decline" };
 
 export interface SimulatePaymentParams {
   simulation: PaymentSimulation;
@@ -18,12 +19,12 @@ export interface SimulatePaymentOptions {
 
 interface SimulatorRequest {
   url: string;
-  body: { type: PaymentSimulation["type"]; client_secret: string; outcome: string };
+  body: { type: PaymentSimulation["type"]; client_secret: string; outcome: string; payment_method?: string };
 }
 
 const notSimulated = "This payment isn't run by Arky's provider simulator";
 
-export function isSimulatedPayment(value: CheckoutPaymentAction | StoreSubscriptionPaymentAction | StorefrontPaymentMethodSetupStart): boolean {
+export function isSimulatedPayment(value: CheckoutPaymentAction | StoreSubscriptionPayment | StorefrontPaymentMethodSetupStart | StoreCardSetup): boolean {
   return "runs_on" in value && value.runs_on.type === "simulator";
 }
 
@@ -51,6 +52,16 @@ function simulatorRequest(simulation: PaymentSimulation): SimulatorRequest {
           type: simulation.type,
           client_secret: requireSecret(simulation.action.client_secret),
           outcome: requireOutcome(simulation.outcome, ["complete", "decline", "expire"]),
+        },
+      };
+    case "stripe_payment_intent":
+      return {
+        url: simulatorPaymentsUrl(simulation.action.runs_on),
+        body: {
+          type: simulation.type,
+          client_secret: requireSecret(simulation.action.client_secret),
+          outcome: requireOutcome(simulation.outcome, ["complete", "decline"]),
+          payment_method: simulation.action.payment_method_id,
         },
       };
     case "monri":

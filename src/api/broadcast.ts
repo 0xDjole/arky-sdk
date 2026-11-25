@@ -5,6 +5,7 @@ import type { DeletedResponse, PaginatedResponse } from "../types/common";
 import type {
   Broadcast,
   BroadcastPreview,
+  BroadcastSummary,
   BroadcastUnsubscribeResponse,
   CreateBroadcastParams,
   DeleteBroadcastParams,
@@ -18,7 +19,7 @@ import type {
   UnsubscribeBroadcastParams,
   UpdateBroadcastParams,
 } from "../types/broadcast";
-import type { OutgoingEmail } from "../types/notification";
+import type { OutgoingMessage } from "../types/notification";
 import { requireId } from "../utils/ids";
 import { storePath, storeRecordPath } from "./paths";
 
@@ -26,9 +27,9 @@ export const createBroadcastApi = (apiConfig: ApiConfig) => {
   const broadcastPath = (storeId: string, id: string) => storeRecordPath(storeId, "broadcasts", id);
 
   return {
-    find(params: FindBroadcastsParams, options?: RequestOptions): Promise<PaginatedResponse<Broadcast>> {
+    find(params: FindBroadcastsParams, options?: RequestOptions): Promise<PaginatedResponse<BroadcastSummary>> {
       const { store_id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<Broadcast>>(storePath(store_id, "broadcasts"), {
+      return apiConfig.httpClient.get<PaginatedResponse<BroadcastSummary>>(storePath(store_id, "broadcasts"), {
         ...options,
         params: query,
       });
@@ -82,11 +83,11 @@ export const createBroadcastApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.post<BroadcastPreview>(`${broadcastPath(store_id, id)}/preview`, body, options);
     },
 
-    test(params: SendBroadcastTestParams, options?: RequestOptions): Promise<OutgoingEmail> {
-      requireId(params.outgoing_email_id, "test email");
-      return apiConfig.httpClient.post<OutgoingEmail>(
+    test(params: SendBroadcastTestParams, options?: RequestOptions): Promise<OutgoingMessage> {
+      requireId(params.outgoing_message_id, "test email");
+      return apiConfig.httpClient.post<OutgoingMessage>(
         `${broadcastPath(params.store_id, params.id)}/test`,
-        { id: params.outgoing_email_id, language: params.language },
+        { id: params.outgoing_message_id, language: params.language },
         options,
       );
     },

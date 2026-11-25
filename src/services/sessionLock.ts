@@ -1,3 +1,5 @@
+import { ArkyError } from "../types/apiError";
+
 const queues = new Map<string, Promise<unknown>>();
 
 export async function exclusive<T>(key: string, operation: () => Promise<T>): Promise<T> {
@@ -10,8 +12,11 @@ export async function exclusive<T>(key: string, operation: () => Promise<T>): Pr
       clearTimeout(timer);
     }
   }
+  if (typeof window !== "undefined") {
+    throw new ArkyError("storage", "This browser has no Web Locks, so the session can't be refreshed in one tab at a time");
+  }
   const previous = queues.get(key) ?? Promise.resolve();
-  const current = previous.catch(() => {}).then(operation);
+  const current = previous.then(operation, operation);
   queues.set(key, current);
   try {
     return await current;

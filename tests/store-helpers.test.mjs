@@ -11,7 +11,7 @@ import {
   ids,
   installGlobal,
   placedOrder,
-  publishableKey,
+  storefrontIdentity,
   recordFetch,
   visitorStorage,
 } from "./helpers/arky-fixtures.mjs";
@@ -20,7 +20,7 @@ const orderToken = `arky_ot_${"T".repeat(42)}A`;
 const otherOrderToken = `arky_ot_${"U".repeat(42)}A`;
 
 function storefront() {
-  return createStorefront(publishableKey, { ...idFactories, apiUrl, locale: "en", sessionStorage: visitorStorage() });
+  return createStorefront(storefrontIdentity, { ...idFactories, apiUrl, locale: "en", sessionStorage: visitorStorage() });
 }
 
 function page(items, cursor) {
@@ -54,29 +54,44 @@ test("paginate reads every page once and refuses cursors that don't advance", as
   assert.deepEqual(first, [1, 2]);
 });
 
+test("a short or empty page that still has a cursor is not the end: paging goes on until the cursor is null", async (context) => {
+  const pages = [page([], "rows-50"), page([], "rows-100"), page([placedOrder({ id: ids.order })], "rows-150"), page([], null)];
+  const calls = recordFetch(context, (call) => pages[Number(call.query.cursor?.split("-")[1] ?? 0) / 50]);
+  const orderApi = storefront().eshop.order;
+  const read = (cursor) => orderApi.find({ updated_at_from: 1_700_000_000_000, limit: 10, ...(cursor ? { cursor } : {}) });
+  const orders = await readAllPages(read);
+  assert.deepEqual(orders.map((order) => order.id), [ids.order]);
+  assert.deepEqual(calls.map((call) => call.query.cursor ?? null), [null, "rows-50", "rows-100", "rows-150"]);
+  assert.ok(calls.every((call) => call.path === "/v1/storefront/orders" && call.query.updated_at_from === "1700000000000"));
+});
+
 function payment(type, status, overrides = {}) {
   const base = {
     id: ids.payment,
     store_id: ids.store,
     order_id: ids.order,
+    invoice_id: ids.cart,
     payment_option_id: ids.paymentOption,
+    payment_option_key: "desk",
     money: { amount: 1000, currency: "eur" },
     holds: [],
     status,
-    status_revision: "1",
     created_at: 1,
     updated_at: 1,
   };
-  const recorded = { status: status === "cancelled" ? "cancelled" : "open", collections: [], refunds: [] };
   const types = {
     stripe_checkout: { type: "stripe_checkout", return_url: "https://shop.example.test", expires_at: 1, status: { type: status }, refunds: [], disputes: [] },
-    cash_on_delivery: { type: "cash_on_delivery", ...recorded },
-    manual: { type: "manual", requested: { type: "at_checkout" }, reference: null, ...recorded },
+    recorded: {
+      type: "recorded",
+      method: { type: "cash" },
+      status: status === "voided" ? { type: "voided", at: 3 } : { type: "active" },
+      refunds: [],
+    },
   };
   return { ...base, type: types[type], ...overrides };
 }
 
-test("paymentOutcome maps every payment status to paid, pay later, awaiting, unconfirmed or failed", () => {
+test("paymentOutcome maps every payment status to paid, awaiting, unconfirmed or failed", () => {
   assert.equal(paymentOutcome(payment("stripe_checkout", "paid")), "paid");
   for (const status of ["pending", "open", "requires_action", "closing"]) {
     assert.equal(paymentOutcome(payment("stripe_checkout", status)), "awaiting", status);
@@ -85,15 +100,8 @@ test("paymentOutcome maps every payment status to paid, pay later, awaiting, unc
   for (const status of ["expired", "cancelled", "declined", "failed"]) {
     assert.equal(paymentOutcome(payment("stripe_checkout", status)), "failed", status);
   }
-  assert.equal(paymentOutcome(payment("cash_on_delivery", "open")), "pay_later");
-  assert.equal(paymentOutcome(payment("manual", "open")), "pay_later");
-  assert.equal(paymentOutcome(payment("cash_on_delivery", "cancelled")), "failed");
-  const collected = payment("cash_on_delivery", "open");
-  const active = { id: ids.credit, money: { amount: 1000, currency: "eur" }, recorded_by: { type: "account", account_id: ids.account }, reference: null, recorded_at: 2, status: { type: "active" } };
-  collected.type.collections = [active];
-  assert.equal(paymentOutcome(collected), "paid");
-  collected.type.collections = [{ ...active, status: { type: "voided", by: { type: "account", account_id: ids.account }, reason: "Wrong", at: 3 } }];
-  assert.equal(paymentOutcome(collected), "pay_later");
+  assert.equal(paymentOutcome(payment("recorded", "paid")), "paid", "money the desk recorded is paid from the start");
+  assert.equal(paymentOutcome(payment("recorded", "voided")), "failed");
   const older = payment("stripe_checkout", "failed", { id: ids.otherOrder, created_at: 1 });
   const newer = payment("stripe_checkout", "paid", { created_at: 5 });
   assert.equal(latestPayment([older, newer]).created_at, 5);
@@ -158,6 +166,7 @@ test("content.load resolves block media in batches of 100 and reads blocks in th
     id: ids.form,
     store_id: ids.store,
     key: "website",
+    type: "public",
     schema: [],
     status: { type: "active" },
     created_at: 1,
@@ -182,7 +191,7 @@ test("content.load resolves block media in batches of 100 and reads blocks in th
     if (call.path === "/v1/storefront/media") return JSON.parse(call.query.ids).map(media);
     throw new Error(`Unexpected request ${call.path}`);
   });
-  const store = initialize(publishableKey, { ...idFactories, apiUrl, locale: "it", sessionStorage: visitorStorage() });
+  const store = initialize(storefrontIdentity, { ...idFactories, apiUrl, locale: "it", sessionStorage: visitorStorage() });
   const site = await store.content.load({ collection: { key: "website" } }, { locale: "en" });
   const mediaReads = calls.filter((call) => call.path === "/v1/storefront/media");
   assert.deepEqual(mediaReads.map((call) => JSON.parse(call.query.ids).length), [100, 50]);
@@ -206,8 +215,8 @@ test("content.load and loadEntries never swallow a failed read", async (context)
   recordFetch(context, (call) => {
     if (call.path === "/v1/storefront/entries") {
       return call.query.cursor
-        ? { items: [{ id: ids.otherLine, key: "two", slugs: {}, blocks: [], collection_id: ids.form, store_id: ids.store, status: { type: "active" }, created_at: 1, updated_at: 1, validation_errors: [] }], cursor: null }
-        : { items: [{ id: ids.line, key: "one", slugs: {}, blocks: [{ id: mediaId(1), key: "cover", type: "media", value: mediaId(1) }], collection_id: ids.form, store_id: ids.store, status: { type: "active" }, created_at: 1, updated_at: 1, validation_errors: [] }], cursor: "next" };
+        ? { items: [{ id: ids.otherLine, type: { type: "public", key: "two", slugs: {} }, blocks: [], collection_id: ids.form, store_id: ids.store, status: { type: "active" }, created_at: 1, updated_at: 1, validation_errors: [] }], cursor: null }
+        : { items: [{ id: ids.line, type: { type: "public", key: "one", slugs: {} }, blocks: [{ id: mediaId(1), key: "cover", type: "media", value: mediaId(1) }], collection_id: ids.form, store_id: ids.store, status: { type: "active" }, created_at: 1, updated_at: 1, validation_errors: [] }], cursor: "next" };
     }
     if (call.path === "/v1/storefront/media") return failMedia ? errorResponse(503, "GENERAL.UNAVAILABLE", "Media is down") : JSON.parse(call.query.ids).map(media);
     if (call.path === "/v1/storefront/collections/broken") return errorResponse(500, "GENERAL.INTERNAL", "Boom");
@@ -217,8 +226,31 @@ test("content.load and loadEntries never swallow a failed read", async (context)
   await assert.rejects(client.content.load({ collection: { key: "broken" } }), /Boom/);
   await assert.rejects(client.content.loadEntries({ collection_id: ids.form }), /Media is down/);
   failMedia = false;
-  const entries = await client.content.loadEntries({ collection_id: ids.form, limit: 1 });
-  assert.deepEqual(entries.map((entry) => entry.record.key), ["one", "two"]);
-  assert.equal(entries[0].media("cover").id, mediaId(1));
+  const first = await client.content.loadEntries({ collection_id: ids.form, limit: 1 });
+  assert.deepEqual(first.items.map((entry) => entry.record.type.key), ["one"]);
+  assert.equal(first.items[0].media("cover").id, mediaId(1));
+  assert.equal(first.cursor, "next");
+  const second = await client.content.loadEntries({ collection_id: ids.form, limit: 1, cursor: first.cursor });
+  assert.deepEqual(second.items.map((entry) => entry.record.type.key), ["two"]);
+  assert.equal(second.cursor, null);
   await assert.rejects(client.content.load({ entry: { collection_id: ids.form, key: "absent" } }), /No entry has the key 'absent'/);
+});
+
+test("content.loadEntries reads one page of entries and their media, never the whole collection", async (context) => {
+  const calls = recordFetch(context, (call) => {
+    if (call.path === "/v1/storefront/entries") {
+      const item = (index) => ({ id: `00000000-0000-4000-a000-${String(index).padStart(12, "0")}`, type: { type: "public", key: `entry-${index}`, slugs: {} }, blocks: [{ id: mediaId(index), key: "cover", type: "media", value: mediaId(index) }], collection_id: ids.form, store_id: ids.store, status: { type: "active" }, created_at: 1, updated_at: 1, validation_errors: [] });
+      return { items: [item(1), item(2)], cursor: "page-2" };
+    }
+    if (call.path === "/v1/storefront/media") return JSON.parse(call.query.ids).map(media);
+    throw new Error(`Unexpected request ${call.path}`);
+  });
+  const page = await storefront().content.loadEntries({ collection_id: ids.form, limit: 2 });
+  assert.deepEqual(page.items.map((entry) => entry.record.type.key), ["entry-1", "entry-2"]);
+  assert.equal(page.cursor, "page-2");
+  assert.deepEqual(calls.map((call) => [call.path, call.query.limit ?? null, call.query.cursor ?? null]), [
+    ["/v1/storefront/entries", "2", null],
+    ["/v1/storefront/media", null, null],
+  ]);
+  await assert.rejects(storefront().content.loadEntries({ collection_id: ids.form, cursor: "page-2" }), (error) => error.code === "answer_mismatch");
 });

@@ -5,7 +5,12 @@ export type * from "./api";
 export type { RequestSuccessContext, RequestErrorContext } from "./httpClient";
 export type * from "./block";
 export type * from "./content";
+export type * from "./layout";
+export { LAYOUT_FLOORS, LAYOUT_MODELS, LAYOUT_ROOM_STYLES, LAYOUT_WALL_FINISHES } from "./layout";
 export type * from "./store";
+export type * from "./storeProvider";
+export type * from "./phoneNumber";
+export type * from "./auditLog";
 export type * from "./simulator";
 export type * from "./account";
 export type * from "./storeRole";
@@ -53,6 +58,7 @@ export {
   orderRentalUseItems,
 } from "./order";
 export type * from "./orderCredit";
+export type * from "./invoice";
 export type * from "./payment";
 export type * from "./experiment";
 export type * from "./customerAction";
@@ -80,4 +86,8 @@ export type { CartErrorCode } from "./cartSelection";
 export { CartError } from "./cartSelection";
 export { FulfillmentSelectionError } from "./fulfillmentSelection";
 
-export type * from "./apiKey";
+
+export type * from "./network";
+export type * from "./fiscalDevice";
+export type * from "./fiscalReceipt";
+export type * from "./networkCustomer";

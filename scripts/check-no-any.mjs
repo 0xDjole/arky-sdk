@@ -8,6 +8,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const sourceRoot = resolve(__dirname, "..", "src");
 const guardedPaths = [
   resolve(sourceRoot, "api"),
+  resolve(sourceRoot, "react"),
   resolve(sourceRoot, "storefrontStore"),
   resolve(sourceRoot, "index.ts"),
   resolve(sourceRoot, "services", "createHttpClient.ts"),
@@ -16,7 +17,7 @@ const guardedPaths = [
   resolve(sourceRoot, "utils", "queryParams.ts"),
 ];
 
-const ANY_RE = /(:\s*any\b|\bas\s+any\b)/;
+const ANY_RE = /(:\s*any\b|\bas\s+any\b|<\s*any\b|,\s*any\b|\|\s*any\b|\bany\s*\||&\s*any\b|\bany\s*&)/;
 const MARKET_LITERAL_RE = /\bmarket\s*:\s*["'][^"']+["']/;
 
 function listTsFiles(dir) {
@@ -101,7 +102,7 @@ function main() {
 
   const total = anyCount + marketCount;
   console.error(
-    `Found ${anyCount} ': any' / 'as any' violations and ${marketCount} hardcoded market literals across ${files.length} files.`,
+    `Found ${anyCount} any-typed values and ${marketCount} hardcoded market literals across ${files.length} files.`,
   );
 
   if (total > 0) {

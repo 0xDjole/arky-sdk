@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { createAdmin, SDK_VERSION } from "../dist/index.js";
+import { ArkyApiError, ArkyNetworkError, createAdmin, SDK_VERSION } from "../dist/index.js";
 import { createStorefront, formatMinor, formatMoney, formatPrice, getPriceAmount } from "../dist/storefront.js";
-import { apiUrl as baseUrl, fixedIdFactories, ids, jsonResponse, publishableKey, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
+import { apiUrl as baseUrl, fixedIdFactories, ids, jsonResponse, storefrontIdentity, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
 
 const storeId = ids.store;
 const otherStoreId = ids.otherStore;
@@ -38,43 +38,61 @@ test("Admin reads need no Market or Store context and invent none", async (conte
   await client.store.get({ id: storeId });
   assert.equal(calls.length, 1);
   assert.equal(calls[0].href, `${baseUrl}/v1/stores/${storeId}`);
-  for (const header of ["x-arky-market", "x-arky-locale", "x-arky-sales-channel", "x-arky-publishable-key"]) {
+  for (const header of ["x-arky-market", "x-arky-locale", "x-arky-store-id", "x-arky-sales-channel-id"]) {
     assert.equal(calls[0].headers.has(header), false, header);
   }
 });
 
 test("email and webhook histories use distinct routes and preserve their public delivery states", async (context) => {
-  const email = { id: ids.payment, type: { type: "receipt_resend", sending_address_id: ids.paymentOption, order_id: ids.order }, to: "buyer@example.test", email_provider_id: null, delivery_report: null, complained_at: null, preview: null, send_before: null, status: { type: "waiting" }, created_at: 1, updated_at: 1 };
+  const email = { id: ids.payment, type: { type: "receipt_resend_email", notification_id: ids.credit, email_address_id: ids.paymentOption, order_id: ids.order }, to: "buyer@example.test", delivery_report: null, complained_at: null, preview: null, send_before: null, status: { type: "waiting" }, created_at: 1, updated_at: 1 };
   const webhook = { id: ids.credit, store_id: storeId, webhook_id: ids.form, event_id: ids.submission, event_type: "order.created", status: { type: "acknowledged", at: 2 }, created_at: 1, updated_at: 2 };
   const responses = [{ items: [email], cursor: null }, email, { items: [webhook], cursor: null }];
   const calls = recordFetch(context, () => responses.shift());
   const client = admin();
-  assert.deepEqual((await client.notification.outgoingEmail.find({ store_id: storeId, to: email.to, type: "receipt_resend", order_id: ids.order, limit: 25 })).items, [email]);
-  assert.deepEqual(await client.notification.outgoingEmail.get({ store_id: storeId, id: email.id }), email);
+  assert.deepEqual((await client.notification.outgoingMessage.find({ store_id: storeId, to: email.to, type: "receipt_resend_email", order_id: ids.order, limit: 25 })).items, [email]);
+  assert.deepEqual(await client.notification.outgoingMessage.get({ store_id: storeId, id: email.id }), email);
   assert.deepEqual((await client.notification.outgoingWebhook.find({ store_id: storeId, webhook_id: ids.form })).items, [webhook]);
   assert.deepEqual(calls.map((call) => [call.method, call.href, call.body]), [
-    ["GET", `${baseUrl}/v1/stores/${storeId}/outgoing-emails?to=buyer%40example.test&type=receipt_resend&order_id=${ids.order}&limit=25`, null],
-    ["GET", `${baseUrl}/v1/stores/${storeId}/outgoing-emails/${email.id}`, null],
+    ["GET", `${baseUrl}/v1/stores/${storeId}/outgoing-messages?to=buyer%40example.test&type=receipt_resend_email&order_id=${ids.order}&limit=25`, null],
+    ["GET", `${baseUrl}/v1/stores/${storeId}/outgoing-messages/${email.id}`, null],
     ["GET", `${baseUrl}/v1/stores/${storeId}/outgoing-webhooks?webhook_id=${ids.form}`, null],
   ]);
   assert.equal("find" in client.notification, false);
-  assert.equal("stop" in client.notification.outgoingEmail, false);
+  assert.equal("outgoingEmail" in client.notification, false);
+  assert.equal("stop" in client.notification.outgoingMessage, false);
 });
 
 test("admin code login activates the same pending Account Session and remembers the email it was asked for", async (context) => {
   const responses = [{ session_id: pendingSessionId, verification_expires_at: 900 }, issued()];
   const calls = recordFetch(context, () => responses.shift());
   const client = createAdmin({ apiUrl: baseUrl });
-  const pending = await client.account.auth.requestCode({ session_id: pendingSessionId, email: "operator@example.test" });
-  const verified = await client.account.auth.verify({ session_id: pending.session_id, code: "123456" });
+  const pending = await client.account.auth.requestCode({ session_id: pendingSessionId, email: "operator@example.test", network_id: ids.network, language: "bs" });
+  const verified = await client.account.auth.verify({ session_id: pending.session_id, network_id: ids.network, code: "123456" });
   assert.equal(verified.id, sessionId);
   assert.equal("scope" in verified, false);
   assert.deepEqual(client.session, { id: sessionId, email: "operator@example.test" });
   assert.equal(client.isAuthenticated, true);
   assert.deepEqual(calls.map((call) => [call.method, call.href, call.body]), [
-    ["POST", `${baseUrl}/v1/auth/code`, { session_id: pendingSessionId, email: "operator@example.test" }],
-    ["POST", `${baseUrl}/v1/auth/verify`, { session_id: pendingSessionId, code: "123456" }],
+    ["POST", `${baseUrl}/v1/auth/code`, { session_id: pendingSessionId, email: "operator@example.test", network_id: ids.network, language: "bs" }],
+    ["POST", `${baseUrl}/v1/auth/verify`, { network_id: ids.network, session_id: pendingSessionId, code: "123456" }],
   ]);
+});
+
+test("platform sign-in sends its own code and verify bodies and keeps the verified Account Session", async (context) => {
+  const responses = [{ session_id: pendingSessionId, verification_expires_at: 900 }, issued()];
+  const calls = recordFetch(context, () => responses.shift());
+  const client = createAdmin({ apiUrl: baseUrl });
+  const pending = await client.account.auth.requestPlatformCode({ session_id: pendingSessionId, email: "platform@example.test", language: "en" });
+  const verified = await client.account.auth.verifyPlatform({ session_id: pending.session_id, code: "123456" });
+  assert.equal(verified.id, sessionId);
+  assert.deepEqual(client.session, { id: sessionId, email: "platform@example.test" });
+  assert.equal(client.isAuthenticated, true);
+  assert.deepEqual(calls.map((call) => [call.method, call.href, call.body]), [
+    ["POST", `${baseUrl}/v1/platform/auth/code`, { session_id: pendingSessionId, email: "platform@example.test", language: "en" }],
+    ["POST", `${baseUrl}/v1/platform/auth/verify`, { session_id: pendingSessionId, code: "123456" }],
+  ]);
+  await assert.rejects(async () => client.account.auth.requestPlatformCode({ session_id: "pending", email: "platform@example.test", language: "en" }), TypeError);
+  assert.equal(calls.length, 2);
 });
 
 test("Store invitation login names its Store and wraps the platform-wide pending Account Session", async (context) => {
@@ -123,7 +141,7 @@ test("request errors keep the server response and read its snake_case status and
   let errorContext;
   recordFetch(context, () => jsonResponse(response, 400));
   await assert.rejects(
-    admin().account.auth.requestCode({ session_id: pendingSessionId, email: "invalid" }, { onError: (failure) => { errorContext = failure; } }),
+    admin().account.auth.requestCode({ session_id: pendingSessionId, email: "invalid", network_id: ids.network, language: "en" }, { onError: (failure) => { errorContext = failure; } }),
     (error) => {
       assert.equal(error.name, "ApiError");
       assert.equal(error.message, response.message);
@@ -147,7 +165,7 @@ test("a field error keeps the Server's own text and the SDK invents no code for 
     validation_errors: [{ field: "email", error: "" }],
   };
   recordFetch(context, () => jsonResponse(response, 400));
-  await assert.rejects(admin().account.auth.requestCode({ session_id: pendingSessionId, email: "invalid" }), (error) => {
+  await assert.rejects(admin().account.auth.requestCode({ session_id: pendingSessionId, email: "invalid", network_id: ids.network, language: "en" }), (error) => {
     assert.deepEqual(error.validationErrors, [{ field: "email", error: "" }]);
     assert.equal(JSON.stringify(error.validationErrors).includes("GENERAL."), false);
     return true;
@@ -176,30 +194,46 @@ test("the Server's configured limits decide a query's field count and length, an
   assert.equal(calls.length, 2);
 });
 
-test("a camelCase error body is not the Server's shape: its field errors are not read and the HTTP status stands", async (context) => {
-  recordFetch(context, () => jsonResponse({ message: "Conflict", error: "GENERAL.CONFLICT", statusCode: 400, validationErrors: [{ field: "email", error: "bad" }] }, 409));
+test("a refusal without Arky's error body is no Arky refusal: the SDK invents no code and fails it as unreadable_answer with the HTTP status", async (context) => {
+  const foreignAnswers = [
+    () => new Response("upstream failure", { status: 502, headers: { "content-type": "text/plain" } }),
+    () => new Response("<html><title>413 Request Entity Too Large</title></html>", { status: 413, headers: { "content-type": "text/html" } }),
+    () => new Response(null, { status: 404 }),
+    () => jsonResponse({ message: "Conflict", error: "GENERAL.CONFLICT", statusCode: 409, validationErrors: [{ field: "email", error: "bad" }] }, 409),
+    () => jsonResponse({ message: "Bad gateway", error: "UPSTREAM", status_code: 400, validation_errors: [] }, 502),
+    () => jsonResponse({ message: "Unavailable", status_code: 503, validation_errors: [] }, 503),
+  ];
+  const statuses = [502, 413, 404, 409, 502, 503];
+  for (const [index, answer] of foreignAnswers.entries()) {
+    const contexts = [];
+    recordFetch(context, answer);
+    await assert.rejects(admin().store.update({ id: storeId, expected_updated_at: 1, name: "Proxy" }, { onError: (failure) => contexts.push(failure) }), (error) => {
+      assert.equal(error instanceof ArkyNetworkError, true);
+      assert.equal(error instanceof ArkyApiError, false);
+      assert.equal(error.code, "unreadable_answer");
+      assert.equal(error.statusCode, statuses[index]);
+      assert.equal("validationErrors" in error, false);
+      return true;
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(contexts.map((failure) => [failure.status, failure.error.code]), [[statuses[index], "unreadable_answer"]]);
+  }
+  recordFetch(context, () => jsonResponse({ message: "The store changed", error: "GENERAL.CONFLICT", status_code: 409, validation_errors: [] }, 409));
   await assert.rejects(admin().account.getMe(), (error) => {
-    assert.equal(error.statusCode, 409);
-    assert.deepEqual(error.validationErrors, []);
+    assert.equal(error instanceof ArkyApiError, true);
     assert.equal(error.code, "GENERAL.CONFLICT");
-    return true;
-  });
-  recordFetch(context, () => new Response("upstream failure", { status: 502, headers: { "content-type": "text/plain" } }));
-  await assert.rejects(admin().account.getMe(), (error) => {
-    assert.equal(error.statusCode, 502);
-    assert.equal(error.code, "REQUEST_FAILED");
-    assert.equal(error.message, "Request failed");
-    assert.deepEqual(error.validationErrors, []);
+    assert.equal(error.message, "The store changed");
+    assert.equal(error.statusCode, 409);
     return true;
   });
 });
 
 test("Store create carries the app-picked id, its languages, first market and channel; update carries the version", async (context) => {
-  const store = { id: storeId, name: "Client Contract", owner_account_id: ids.account, timezone: "Europe/Sarajevo", languages: ["en", "bs"], mode: "live", status: { type: "active" }, email_sending: { type: "allowed" }, created_at: 1, updated_at: 1 };
+  const store = { id: storeId, name: "Client Contract", timezone: "Europe/Sarajevo", languages: ["en", "bs"], type: { type: "live", account_id: ids.account, network_id: ids.network }, status: { type: "active" }, email_sending: { type: "allowed" }, invoicing: { type: "none" }, created_at: 1, updated_at: 1 };
   const calls = recordFetch(context, () => store);
   const create = {
     id: storeId,
-    mode: "live",
+    type: { type: "live", network_id: ids.network, plan: { type: "free", plan_id: ids.plan }, owner: { type: "email", email: "owner@example.test", language: "bs" } },
     name: "Client Contract",
     timezone: "Europe/Sarajevo",
     languages: ["en", "bs"],
@@ -330,21 +364,22 @@ test("admin market deletion sends the version and answers the market marked dele
 });
 
 test("Category is top-level on both clients", () => {
-  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl });
+  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl });
   assert.equal("category" in admin().content, false);
   assert.equal("category" in storefront.content, false);
   assert.equal(typeof admin().category.find, "function");
   assert.equal(typeof storefront.category.get, "function");
 });
 
-test("storefront collection lookup uses a keyless route with the publishable key and locale headers", async (context) => {
+test("storefront collection lookup uses a keyless route with the store, sales-channel and locale headers", async (context) => {
   const calls = recordFetch(context, () => ({ id: "collection-contract", key: "articles" }));
-  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl, locale: "en" });
+  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl, locale: "en" });
   await storefront.content.collection.getByKey({ key: "articles" });
   await storefront.content.collection.get({ id: ids.form });
   assert.deepEqual(calls.map((call) => call.href), [`${baseUrl}/v1/storefront/collections/articles`, `${baseUrl}/v1/storefront/collections/${ids.form}`]);
   for (const call of calls) {
-    assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
+    assert.equal(call.headers.get("x-arky-store-id"), storefrontIdentity.storeId);
+    assert.equal(call.headers.get("x-arky-sales-channel-id"), storefrontIdentity.salesChannelId);
     assert.equal(call.headers.get("x-arky-locale"), "en");
     assert.equal(call.headers.get("authorization"), null);
   }
@@ -360,28 +395,29 @@ test("admin Product writes carry the app-picked id and version and InventoryLeve
   const client = admin();
   assert.deepEqual(await client.eshop.product.create({ store_id: storeId, ...create }), product);
   await client.eshop.product.update({ store_id: storeId, ...update });
-  assert.deepEqual(await client.eshop.inventoryLevel.find({ store_id: storeId, inventory_item_id: ids.order, store_location_id: ids.companyLocation }), { items: inventory, cursor: null });
+  assert.deepEqual(await client.eshop.inventoryLevel.find({ store_id: storeId, inventory_item_ids: [ids.order], store_location_id: ids.companyLocation }), { items: inventory, cursor: null });
   assert.deepEqual(calls.map((call) => [call.method, call.href, call.body]), [
     ["POST", `${baseUrl}/v1/stores/${storeId}/products`, create],
     ["PUT", `${baseUrl}/v1/stores/${storeId}/products/${ids.product}`, { expected_updated_at: 1, slugs: update.slugs, status: update.status }],
-    ["GET", `${baseUrl}/v1/stores/${storeId}/inventory-levels?inventory_item_id=${ids.order}&store_location_id=${ids.companyLocation}`, null],
+    ["GET", `${baseUrl}/v1/stores/${storeId}/inventory-levels?inventory_item_ids=${encodeURIComponent(JSON.stringify([ids.order]))}&store_location_id=${ids.companyLocation}`, null],
   ]);
 });
 
 test("storefront variant read carries the exact product and buyer context", async (context) => {
   const calls = recordFetch(context, () => ({}));
-  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl, locale: "en" });
+  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl, locale: "en" });
   await storefront.eshop.productVariant.get({ product_id: "lean-product", id: "variant-one", package_id: ids.package, company_location_id: "location-one", include_price: true });
   await storefront.eshop.productVariant.get({ product_id: "lean-product", id: "variant-one", package_id: ids.package, company_id: "company-one" });
   assert.equal(calls[0].href, `${baseUrl}/v1/storefront/products/lean-product/variants/variant-one?package_id=${ids.package}&company_location_id=location-one&include_price=true`);
   assert.equal(calls[1].href, `${baseUrl}/v1/storefront/products/lean-product/variants/variant-one?package_id=${ids.package}&company_id=company-one`);
-  assert.equal(calls[0].headers.get("x-arky-publishable-key"), publishableKey);
+  assert.equal(calls[0].headers.get("x-arky-store-id"), storefrontIdentity.storeId);
+    assert.equal(calls[0].headers.get("x-arky-sales-channel-id"), storefrontIdentity.salesChannelId);
 });
 
 test("storefront cart reads send the recovery credential only in the cart-token header", async (context) => {
   const recoveryToken = "cart-recovery-contract-token";
   const calls = recordFetch(context, () => ({ id: ids.cart }));
-  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl, sessionStorage: visitorStorage() });
+  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl, sessionStorage: visitorStorage() });
   await storefront.eshop.cart.get(
     { id: ids.cart, token: recoveryToken },
     {
@@ -397,7 +433,7 @@ test("storefront cart reads send the recovery credential only in the cart-token 
 });
 
 test("storefront money helpers preserve exact zero, need an explicit locale and reject invalid minor units", () => {
-  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl, market: "ita" });
+  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl, market: "ita" });
   assert.equal("utils" in storefront, false);
   assert.equal("utils" in admin(), false);
   const price = { price_id: ids.price, tax_mode: "inclusive", unit_price: { amount: 0, currency: "eur" }, compare_at: null, priced_at: 1 };
@@ -415,7 +451,7 @@ test("storefront money helpers preserve exact zero, need an explicit locale and 
 test("SDK_VERSION equals the package version", async () => {
   const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
   assert.equal(SDK_VERSION, packageJson.version);
-  assert.equal(SDK_VERSION, "0.26.106");
+  assert.equal(SDK_VERSION, "0.26.143");
 });
 
 test("recursive storefront declarations never degrade to any", async () => {

@@ -3,7 +3,7 @@ import { afterEach, test } from "node:test";
 
 import { createAdmin, TYPED_CUSTOMER_ACTION_KEYS } from "../dist/admin.js";
 import { COMMON_CUSTOMER_ACTION_KEYS, createStorefront, initialize } from "../dist/storefront.js";
-import { apiUrl, fixedIdFactories, ids, publishableKey, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
+import { apiUrl, fixedIdFactories, ids, storefrontIdentity, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
 import { ExclusiveLockManager, MemoryStorage } from "./helpers/durable-request-fixtures.mjs";
 
 const actionId = ids.picked;
@@ -105,7 +105,7 @@ test("the server records commerce, support and package actions itself, so the st
 test("initialized storefront tracks an action with the visitor session and only its id, key and data, and page views are no action", async (context) => {
   browser();
   const calls = recordFetch(context, () => new Response(null, { status: 204 }));
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", sessionStorage: visitorStorage() });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", sessionStorage: visitorStorage() });
   assert.equal(store.actions.pageView, undefined);
   await store.actions.track({ key: "product.view", data: { path: "/products/example" } });
   await store.actions.track({ key: "search" });
@@ -115,14 +115,15 @@ test("initialized storefront tracks an action with the visitor session and only 
   ]);
   for (const call of calls) {
     assert.equal(call.headers.get("authorization"), `Bearer ${visitorToken}`);
-    assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
+    assert.equal(call.headers.get("x-arky-store-id"), storefrontIdentity.storeId);
+    assert.equal(call.headers.get("x-arky-sales-channel-id"), storefrontIdentity.salesChannelId);
   }
 });
 
 test("the storefront action client forwards no store, customer or session field from the caller", async (context) => {
   browser();
   const calls = recordFetch(context, () => new Response(null, { status: 204 }));
-  const storefront = createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
+  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
   await storefront.actions.track({ key: "share", data: { channel: "email" }, store_id: ids.otherStore, customer_id: ids.otherCustomer });
   assert.deepEqual(calls[0].body, { id: actionId, key: "share", data: { channel: "email" } });
 });
@@ -139,7 +140,7 @@ test("a tracked action names its id and a retry sends the same id", async (conte
     }
     return new Response(null, { status: 204 });
   });
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => picks[picked++], createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, locale: "en", sessionStorage: visitorStorage() });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, createVisitorIdentity: () => ({ customer_id: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47", session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14" }), createSessionId: () => "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14", createId: () => picks[picked++], createOrderToken: () => `arky_ot_${"F".repeat(42)}A`, apiUrl, locale: "en", sessionStorage: visitorStorage() });
   await assert.rejects(store.actions.track({ key: "share", data: { channel: "email" } }));
   assert.equal(storage.length, 1);
   await store.actions.track({ key: "share", data: { channel: "email" } });

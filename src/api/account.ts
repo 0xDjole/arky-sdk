@@ -1,8 +1,9 @@
 import type { ApiConfig } from "../services/clientTypes";
 import type { RequestOptions } from "../types/api";
-import type { PaginatedResponse } from "../types/common";
+import type { DeletedResponse, PaginatedResponse } from "../types/common";
 import type {
   Account,
+  AccountMe,
   AccountSession,
   AccountToken,
   AccountTokenCreated,
@@ -11,30 +12,99 @@ import type {
   FindAccountSessionsParams,
   FindAccountsParams,
   FindAccountTokensParams,
+  ListedAccount,
+  LoginCodeSent,
+  NewRecoveryCodesParams,
+  RecoveryCodes,
+  RemoveAccountLoginParams,
+  RequestAccountLoginCodeParams,
   RevokeAccountSessionParams,
   RevokeAccountTokenParams,
+  SecondFactorSetup,
+  SecondFactorTurnedOn,
+  TurnOffSecondFactorParams,
+  TurnOnSecondFactorParams,
+  UpdateAccountProfileParams,
+  VerifyAccountLoginParams,
 } from "../types/account";
 import { requireId } from "../utils/ids";
 import { segment } from "./paths";
 
-export interface DeleteAccountResult {
-  success: boolean;
-  message: string;
-}
-
 const tokensPath = "/v1/accounts/me/tokens";
+const loginsPath = "/v1/accounts/me/logins";
 
 export const createAccountApi = (apiConfig: ApiConfig) => ({
-  getMe(options?: RequestOptions): Promise<Account> {
-    return apiConfig.httpClient.get<Account>("/v1/accounts/me", options);
+  getMe(options?: RequestOptions): Promise<AccountMe> {
+    return apiConfig.httpClient.get<AccountMe>("/v1/accounts/me", options);
   },
 
-  delete(options?: RequestOptions): Promise<DeleteAccountResult> {
-    return apiConfig.httpClient.delete<DeleteAccountResult>("/v1/accounts", options);
+  delete(options?: RequestOptions): Promise<Account> {
+    return apiConfig.httpClient.delete<Account>("/v1/accounts", options);
   },
 
-  find(params: FindAccountsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<Account>> {
-    return apiConfig.httpClient.get<PaginatedResponse<Account>>("/v1/accounts/search", { ...options, params });
+  updateProfile(params: UpdateAccountProfileParams, options?: RequestOptions): Promise<Account> {
+    const body: { name?: UpdateAccountProfileParams["name"]; phone?: string | null; expected_updated_at: number } = {
+      expected_updated_at: params.expected_updated_at,
+    };
+    if (params.name !== undefined) body.name = params.name;
+    if (params.phone !== undefined) body.phone = params.phone;
+    return apiConfig.httpClient.patch<Account>("/v1/accounts/me", body, options);
+  },
+
+  login: {
+    requestCode(params: RequestAccountLoginCodeParams, options?: RequestOptions): Promise<LoginCodeSent> {
+      return apiConfig.httpClient.post<LoginCodeSent>(
+        `${loginsPath}/code`,
+        { email: params.email, language: params.language },
+        options,
+      );
+    },
+
+    verify(params: VerifyAccountLoginParams, options?: RequestOptions): Promise<AccountMe> {
+      return apiConfig.httpClient.post<AccountMe>(
+        `${loginsPath}/verify`,
+        { email: params.email, code: params.code, confirm_join: params.confirm_join },
+        options,
+      );
+    },
+
+    remove(params: RemoveAccountLoginParams, options?: RequestOptions): Promise<AccountMe> {
+      return apiConfig.httpClient.post<AccountMe>(`${loginsPath}/remove`, { address: params.address }, options);
+    },
+  },
+
+  secondFactor: {
+    setup(options?: RequestOptions): Promise<SecondFactorSetup> {
+      return apiConfig.httpClient.post<SecondFactorSetup>("/v1/accounts/me/second-factor/setup", undefined, options);
+    },
+
+    turnOn(params: TurnOnSecondFactorParams, options?: RequestOptions): Promise<SecondFactorTurnedOn> {
+      return apiConfig.httpClient.post<SecondFactorTurnedOn>(
+        "/v1/accounts/me/second-factor/turn-on",
+        { setup_token: params.setup_token, code: params.code },
+        options,
+      );
+    },
+
+    turnOff(params: TurnOffSecondFactorParams, options?: RequestOptions): Promise<Account> {
+      return apiConfig.httpClient.post<Account>(
+        "/v1/accounts/me/second-factor/turn-off",
+        { code: params.code },
+        options,
+      );
+    },
+
+    newRecoveryCodes(params: NewRecoveryCodesParams, options?: RequestOptions): Promise<RecoveryCodes> {
+      return apiConfig.httpClient.post<RecoveryCodes>(
+        "/v1/accounts/me/second-factor/recovery-codes",
+        { code: params.code },
+        options,
+      );
+    },
+  },
+
+  find(params: FindAccountsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<ListedAccount>> {
+    return apiConfig.httpClient.get<PaginatedResponse<ListedAccount>>("/v1/accounts/search", { ...options, params });
   },
 
   session: {
@@ -58,8 +128,7 @@ export const createAccountApi = (apiConfig: ApiConfig) => ({
           id: requireId(params.id, "account token"),
           name: params.name,
           stores: params.stores,
-          permissions: params.permissions,
-          expires_at: params.expires_at,
+          expiry: params.expiry,
         },
         options,
       );
@@ -77,8 +146,8 @@ export const createAccountApi = (apiConfig: ApiConfig) => ({
       );
     },
 
-    delete(params: DeleteAccountTokenParams, options?: RequestOptions): Promise<void> {
-      return apiConfig.httpClient.delete<void>(`${tokensPath}/${segment(params.id)}`, {
+    delete(params: DeleteAccountTokenParams, options?: RequestOptions): Promise<DeletedResponse> {
+      return apiConfig.httpClient.delete<DeletedResponse>(`${tokensPath}/${segment(params.id)}`, {
         ...options,
         params: { expected_updated_at: params.expected_updated_at },
       });

@@ -4,7 +4,15 @@ import type { HttpClient } from "../types/httpClient";
 import type { RequestOptions } from "../types/api";
 import type { PaginatedResponse } from "../types/common";
 import type {
+  SupportAssistant,
+  CreateSupportAssistantParams,
+  UpdateSupportAssistantParams,
+  DeleteSupportAssistantParams,
+  GetSupportAssistantParams,
+  FindSupportAssistantsParams,
   AssignConversationParams,
+  CallListItem,
+  CallRecordingLink,
   ChangeConversationChatVisibilityParams,
   Conversation,
   ConversationAttachmentLink,
@@ -12,32 +20,58 @@ import type {
   ConversationReply,
   CreateSupportFlowParams,
   DeleteSupportFlowParams,
+  FindCallsParams,
   FindConversationMessagesParams,
   FindConversationsParams,
   FindSupportFlowsParams,
+  GetCallParams,
   GetConversationAttachmentLinkParams,
   GetConversationMessageParams,
   GetConversationParams,
   GetSupportFlowParams,
+  MarkConversationReadParams,
+  MarkStorefrontConversationReadParams,
+  ReopenConversationParams,
   ReplyConversationParams,
   ResolveConversationParams,
   SelectConversationReplyEmailParams,
   SendConversationMessageParams,
+  SendConversationSmsParams,
+  SendCustomerSmsParams,
   StartConversationParams,
+  StartChatConversationParams,
   StartEmailConversationParams,
+  StorefrontAssistantProposalParams,
   StorefrontConversation,
+  StorefrontConversationListItem,
   StorefrontConversationMessage,
   StorefrontConversationReply,
   StorefrontFindConversationMessagesParams,
+  StorefrontFindConversationsParams,
+  StorefrontGetConversationAttachmentLinkParams,
   StorefrontGetConversationMessageParams,
   StorefrontGetConversationParams,
   SupportFlow,
   UpdateSupportFlowParams,
 } from "../types/support";
+import type { FindCallPostsParams, ResolveCallPostParams } from "../types/support";
+import type { ElevenLabsCallIncomingWebhook, TwilioCallIncomingWebhook } from "../types/payment";
 import { requireId } from "../utils/ids";
 import { segment, storePath, storeRecordPath } from "./paths";
 import { createConversationNoteApi } from "./note";
 import { isValidKey } from "../utils/keyValidation";
+
+function messageWithFiles(part: string, message: Record<string, unknown>, files: File[] | undefined): Record<string, unknown> | FormData {
+  if (files === undefined || files.length === 0) return message;
+  const formData = new FormData();
+  formData.append(part, JSON.stringify(message));
+  files.forEach((file, index) => {
+    if (!file.name) throw new TypeError("Every file a message carries needs a file name");
+    if (file.size < 1) throw new TypeError(`The file '${file.name}' is empty`);
+    formData.append(`file-${index}`, file, file.name);
+  });
+  return formData;
+}
 
 export function createStorefrontSupportApi(
   httpClient: HttpClient,
@@ -46,6 +80,8 @@ export function createStorefrontSupportApi(
 ) {
   const base = "/v1/storefront/conversations";
   const conversationPath = (id: string) => `${base}/${segment(id)}`;
+  const proposalPath = (conversationId: string, messageId: string, proposalId: string) =>
+    `${conversationPath(conversationId)}/messages/${segment(messageId)}/proposals/${segment(proposalId)}`;
 
   return {
     conversation: {
@@ -53,10 +89,11 @@ export function createStorefrontSupportApi(
         if (typeof params.flow_key !== "string" || !isValidKey(params.flow_key)) {
           throw new TypeError("A chat starts on a support flow: pass its flow_key, an exact key");
         }
+        const subject = params.subject ?? "";
         const send = (id: string) =>
           httpClient.post<StorefrontConversationReply>(
             base,
-            { id, language: params.language, flow_key: params.flow_key },
+            { id, language: params.language, flow_key: params.flow_key, subject },
             options,
           );
         if (params.id !== undefined) {
@@ -68,11 +105,27 @@ export function createStorefrontSupportApi(
         return runDurableCreate({
           key: flows.pendingKey("conversation", params.flow_key),
           label: "support conversation",
-          input: { language: params.language, flow_key: params.flow_key },
+          input: { language: params.language, flow_key: params.flow_key, subject },
           appId: () => flows.appId("conversation"),
           send,
           confirms: (reply, id) => reply.conversation.id === id,
         });
+      },
+
+      async find(
+        params: StorefrontFindConversationsParams = {},
+        options?: RequestOptions,
+      ): Promise<PaginatedResponse<StorefrontConversationListItem>> {
+        await ensureSession();
+        return httpClient.get<PaginatedResponse<StorefrontConversationListItem>>(base, { ...options, params });
+      },
+
+      async findAll(
+        params: StorefrontFindConversationsParams = {},
+        options?: RequestOptions,
+      ): Promise<PaginatedResponse<StorefrontConversationListItem>> {
+        await ensureSession();
+        return httpClient.get<PaginatedResponse<StorefrontConversationListItem>>(`${base}/all`, { ...options, params });
       },
 
       async get(params: StorefrontGetConversationParams, options?: RequestOptions): Promise<StorefrontConversation> {
@@ -99,6 +152,50 @@ export function createStorefrontSupportApi(
         await ensureSession();
         return httpClient.get<StorefrontConversationMessage>(
           `${conversationPath(params.conversation_id)}/messages/${segment(params.message_id)}`,
+          options,
+        );
+      },
+
+      async getAttachmentLink(
+        params: StorefrontGetConversationAttachmentLinkParams,
+        options?: RequestOptions,
+      ): Promise<ConversationAttachmentLink> {
+        await ensureSession();
+        return httpClient.get<ConversationAttachmentLink>(
+          `${conversationPath(params.conversation_id)}/messages/${segment(params.message_id)}/attachments/${segment(params.sha256)}`,
+          options,
+        );
+      },
+
+      async markRead(params: MarkStorefrontConversationReadParams, options?: RequestOptions): Promise<StorefrontConversation> {
+        await ensureSession();
+        return httpClient.post<StorefrontConversation>(
+          `${conversationPath(params.conversation_id)}/read`,
+          { sequence: params.sequence },
+          options,
+        );
+      },
+
+      async confirmProposal(
+        params: StorefrontAssistantProposalParams,
+        options?: RequestOptions,
+      ): Promise<StorefrontConversationMessage> {
+        await ensureSession();
+        return httpClient.post<StorefrontConversationMessage>(
+          `${proposalPath(params.conversation_id, params.message_id, params.proposal_id)}/confirm`,
+          undefined,
+          options,
+        );
+      },
+
+      async declineProposal(
+        params: StorefrontAssistantProposalParams,
+        options?: RequestOptions,
+      ): Promise<StorefrontConversationMessage> {
+        await ensureSession();
+        return httpClient.post<StorefrontConversationMessage>(
+          `${proposalPath(params.conversation_id, params.message_id, params.proposal_id)}/decline`,
+          undefined,
           options,
         );
       },
@@ -138,6 +235,38 @@ export function createAdminSupportApi(apiConfig: ApiConfig) {
   const conversationPath = (storeId: string, id: string) => storeRecordPath(storeId, "conversations", id);
 
   return {
+    assistant: {
+      find(params: FindSupportAssistantsParams, options?: RequestOptions): Promise<PaginatedResponse<SupportAssistant>> {
+        const { store_id, ...query } = params;
+        return apiConfig.httpClient.get<PaginatedResponse<SupportAssistant>>(storePath(store_id, "support-assistants"), {
+          ...options,
+          params: query,
+        });
+      },
+
+      get(params: GetSupportAssistantParams, options?: RequestOptions): Promise<SupportAssistant> {
+        return apiConfig.httpClient.get<SupportAssistant>(storeRecordPath(params.store_id, "support-assistants", params.id), options);
+      },
+
+      create(params: CreateSupportAssistantParams, options?: RequestOptions): Promise<SupportAssistant> {
+        requireId(params.id, "support assistant");
+        const { store_id, ...body } = params;
+        return apiConfig.httpClient.post<SupportAssistant>(storePath(store_id, "support-assistants"), body, options);
+      },
+
+      update(params: UpdateSupportAssistantParams, options?: RequestOptions): Promise<SupportAssistant> {
+        const { store_id, id, ...body } = params;
+        return apiConfig.httpClient.put<SupportAssistant>(storeRecordPath(store_id, "support-assistants", id), body, options);
+      },
+
+      delete(params: DeleteSupportAssistantParams, options?: RequestOptions): Promise<{ deleted: boolean }> {
+        return apiConfig.httpClient.delete<{ deleted: boolean }>(
+          storeRecordPath(params.store_id, "support-assistants", params.id),
+          { ...options, params: { expected_updated_at: params.expected_updated_at } },
+        );
+      },
+    },
+
     flow: {
       find(params: FindSupportFlowsParams, options?: RequestOptions): Promise<PaginatedResponse<SupportFlow>> {
         const { store_id, ...query } = params;
@@ -217,12 +346,23 @@ export function createAdminSupportApi(apiConfig: ApiConfig) {
         );
       },
 
+      startChat(params: StartChatConversationParams, options?: RequestOptions): Promise<ConversationReply> {
+        requireId(params.id, "conversation");
+        requireId(params.message_id, "conversation message");
+        const { store_id, files, ...body } = params;
+        return apiConfig.httpClient.post<ConversationReply>(
+          storePath(store_id, "conversations/chats"),
+          messageWithFiles("chat", body, files),
+          options,
+        );
+      },
+
       reply(params: ReplyConversationParams, options?: RequestOptions): Promise<ConversationReply> {
         requireId(params.id, "conversation message");
-        const { store_id, conversation_id, ...body } = params;
+        const { store_id, conversation_id, files, ...body } = params;
         return apiConfig.httpClient.post<ConversationReply>(
           `${conversationPath(store_id, conversation_id)}/messages`,
-          body,
+          messageWithFiles("reply", body, files),
           options,
         );
       },
@@ -247,10 +387,57 @@ export function createAdminSupportApi(apiConfig: ApiConfig) {
         );
       },
 
+      sendSms(params: SendConversationSmsParams, options?: RequestOptions): Promise<ConversationReply> {
+        requireId(params.id, "conversation message");
+        return apiConfig.httpClient.post<ConversationReply>(
+          `${conversationPath(params.store_id, params.conversation_id)}/sms`,
+          {
+            id: params.id,
+            newest_message_sequence: params.newest_message_sequence,
+            text: params.text,
+            resolve: params.resolve ?? false,
+          },
+          options,
+        );
+      },
+
+      sendCustomerSms(params: SendCustomerSmsParams, options?: RequestOptions): Promise<ConversationReply> {
+        requireId(params.id, "conversation message");
+        return apiConfig.httpClient.post<ConversationReply>(
+          `${storeRecordPath(params.store_id, "customers", params.customer_id)}/sms`,
+          { id: params.id, text: params.text, resolve: params.resolve ?? false },
+          options,
+        );
+      },
+
+      reopen(params: ReopenConversationParams, options?: RequestOptions): Promise<Conversation> {
+        return apiConfig.httpClient.post<Conversation>(
+          `${conversationPath(params.store_id, params.conversation_id)}/reopen`,
+          { newest_message_sequence: params.newest_message_sequence },
+          options,
+        );
+      },
+
       resolve(params: ResolveConversationParams, options?: RequestOptions): Promise<Conversation> {
         return apiConfig.httpClient.post<Conversation>(
           `${conversationPath(params.store_id, params.conversation_id)}/resolve`,
-          { expected_updated_at: params.expected_updated_at },
+          { newest_message_sequence: params.newest_message_sequence },
+          options,
+        );
+      },
+
+      markRead(params: MarkConversationReadParams, options?: RequestOptions): Promise<Conversation> {
+        return apiConfig.httpClient.post<Conversation>(
+          `${conversationPath(params.store_id, params.conversation_id)}/read`,
+          { sequence: params.sequence },
+          options,
+        );
+      },
+
+      markUnread(params: MarkConversationReadParams, options?: RequestOptions): Promise<Conversation> {
+        return apiConfig.httpClient.post<Conversation>(
+          `${conversationPath(params.store_id, params.conversation_id)}/unread`,
+          { sequence: params.sequence },
           options,
         );
       },
@@ -262,5 +449,88 @@ export function createAdminSupportApi(apiConfig: ApiConfig) {
 
       notes: createConversationNoteApi(apiConfig),
     },
+
+    call: {
+      find(params: FindCallsParams, options?: RequestOptions): Promise<PaginatedResponse<CallListItem>> {
+        return apiConfig.httpClient.get<PaginatedResponse<CallListItem>>(storePath(params.store_id, "calls"), {
+          ...options,
+          params: {
+            outcomes: params.outcomes,
+            waiting_callback: params.waiting_callback,
+            phone_number_id: params.phone_number_id,
+            query: params.query,
+            limit: params.limit,
+            cursor: params.cursor,
+          },
+        });
+      },
+
+      get(params: GetCallParams, options?: RequestOptions): Promise<ConversationMessage> {
+        return apiConfig.httpClient.get<ConversationMessage>(
+          `${conversationPath(params.store_id, params.conversation_id)}/messages/${segment(params.message_id)}/call`,
+          options,
+        );
+      },
+
+      getRecordingLink(params: GetCallParams, options?: RequestOptions): Promise<CallRecordingLink> {
+        return apiConfig.httpClient.get<CallRecordingLink>(
+          `${conversationPath(params.store_id, params.conversation_id)}/messages/${segment(params.message_id)}/recording`,
+          options,
+        );
+      },
+    },
+
+    twilioPost: {
+      find(params: FindCallPostsParams, options?: RequestOptions): Promise<PaginatedResponse<TwilioCallIncomingWebhook>> {
+        return apiConfig.httpClient.get<PaginatedResponse<TwilioCallIncomingWebhook>>(
+          storePath(params.store_id, "incoming-webhooks/twilio"),
+          { ...options, params: callPostsQuery(params) },
+        );
+      },
+
+      resolve(params: ResolveCallPostParams, options?: RequestOptions): Promise<TwilioCallIncomingWebhook> {
+        return apiConfig.httpClient.post<TwilioCallIncomingWebhook>(
+          `${storeRecordPath(params.store_id, "incoming-webhooks/twilio", params.id)}/resolve`,
+          callPostResolution(params),
+          options,
+        );
+      },
+    },
+
+    elevenLabsPost: {
+      find(params: FindCallPostsParams, options?: RequestOptions): Promise<PaginatedResponse<ElevenLabsCallIncomingWebhook>> {
+        return apiConfig.httpClient.get<PaginatedResponse<ElevenLabsCallIncomingWebhook>>(
+          storePath(params.store_id, "incoming-webhooks/elevenlabs"),
+          { ...options, params: callPostsQuery(params) },
+        );
+      },
+
+      resolve(params: ResolveCallPostParams, options?: RequestOptions): Promise<ElevenLabsCallIncomingWebhook> {
+        return apiConfig.httpClient.post<ElevenLabsCallIncomingWebhook>(
+          `${storeRecordPath(params.store_id, "incoming-webhooks/elevenlabs", params.id)}/resolve`,
+          callPostResolution(params),
+          options,
+        );
+      },
+    },
+  };
+}
+
+function callPostsQuery(params: FindCallPostsParams) {
+  const login =
+    params.store_provider_id !== undefined && params.network_provider_id === undefined
+      ? { store_provider_id: requireId(params.store_provider_id, "store provider") }
+      : params.network_provider_id !== undefined && params.store_provider_id === undefined
+        ? { network_provider_id: requireId(params.network_provider_id, "network provider") }
+        : null;
+  if (!login) throw new TypeError("Call posts are read for exactly one login: store_provider_id or network_provider_id");
+  return { ...login, status: params.status, limit: params.limit, cursor: params.cursor };
+}
+
+function callPostResolution(params: ResolveCallPostParams) {
+  return {
+    expected_updated_at: params.expected_updated_at,
+    resolution: params.resolution,
+    ...(params.reason !== undefined && params.reason !== null ? { reason: params.reason } : {}),
   };
 }

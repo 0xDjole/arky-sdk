@@ -21,14 +21,13 @@ test("a tax category carries its rules with exact treatments and explicit schedu
       treatment: {
         type: "rates",
         components: [
-          { id: "first", title: "Exact rate", code: "vat", calculation: { type: "percentage", rate: { numerator: 1, denominator: 3 }, compound: true } },
+          { id: "first", title: "Exact rate", code: "vat", calculation: { type: "compound_percentage", rate: { numerator: 1, denominator: 3 } } },
           { id: "second", title: "Per item", code: null, calculation: { type: "fixed_per_unit", unit_amount: { amount: 42, currency: "eur" } } },
         ],
       },
-      starts_at: 1_900_000_000_123,
-      ends_at: null,
+      schedule: { type: "scheduled", starts_at: 1_900_000_000_123, ends_at: null },
     },
-    { id: "rule-2", areas: [{ type: "country", country: "US" }], treatment: { type: "zero_rated", reason: "Exports" }, starts_at: null, ends_at: 1_900_000_000_456 },
+    { id: "rule-2", areas: [{ type: "country", country: "US" }], treatment: { type: "zero_rated", reason: "Exports" }, schedule: { type: "always" } },
   ];
   const api = store().taxCategory;
   await api.create({ store_id: STORE_ID, id: categoryId, key: "standard", rules });
@@ -45,20 +44,19 @@ test("a tax category carries its rules with exact treatments and explicit schedu
 test("a shipping method carries its rates with explicit nulls, schedules and prices", async (context) => {
   const calls = recordFetch(context, () => ({ id: methodId }));
   const rates = [
-    { id: "rate-1", zone_id: zoneId, shipping_profile_id: "profile", conditions: [], pricing: { type: "flat", amount: 495, free_above_subtotal: null }, delivery_estimate: null, starts_at: null, ends_at: null },
+    { id: "rate-1", zone_id: zoneId, shipping_profile_id: "profile", conditions: [], pricing: { type: "flat", amount: 495, free_above_subtotal: { type: "never" } }, delivery_estimate: null, schedule: { type: "always" } },
     {
       id: "rate-2",
       zone_id: zoneId,
       shipping_profile_id: "profile",
       conditions: [{ type: "minimum_weight_grams", grams: 1000 }],
-      pricing: { type: "weight_tiered", tiers: [{ up_to_grams: 5000, amount: 900 }, { up_to_grams: null, amount: 1500 }], free_above_subtotal: 10_000 },
-      delivery_estimate: { min_business_days: 1, max_business_days: 3 },
-      starts_at: 1_900_000_000_123,
-      ends_at: 1_900_000_000_456,
+      pricing: { type: "weight_tiered", tiers: [{ up_to_grams: 5000, amount: 900 }, { up_to_grams: null, amount: 1500 }], free_above_subtotal: { type: "above", amount: 10_000 } },
+      delivery_estimate: { min: 1, max: 3 },
+      schedule: { type: "scheduled", starts_at: 1_900_000_000_123, ends_at: 1_900_000_000_456 },
     },
   ];
   const api = store().shippingMethod;
-  const create = { id: methodId, key: "courier", blocks: [], type: { type: "delivery" }, tax_category_id: categoryId, rates, status: { type: "active" } };
+  const create = { id: methodId, key: "courier", blocks: [], type: { type: "delivery" }, tax: { type: "category", tax_category_id: categoryId }, document_item: { type: "named", name: "Courier", unit: "pcs" }, rates, status: { type: "active" } };
   await api.create({ store_id: STORE_ID, ...create });
   await api.update({ store_id: STORE_ID, id: methodId, expected_updated_at: 100, rates, status: { type: "archived" } });
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [

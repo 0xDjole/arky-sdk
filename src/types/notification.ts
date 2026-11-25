@@ -1,41 +1,157 @@
-import type { EpochMilliseconds } from "./time";
+import type { Days, Duration, EpochMilliseconds } from "./time";
+import type { ProviderLogin } from "./common";
 import type { IncomingWebhookResolution, IncomingWebhookStatusName } from "./payment";
 
-export type OutgoingEmailType =
-  | { type: "arky_sign_in" }
-  | { type: "customer_sign_in"; sending_address_id: string }
-  | { type: "store_admin_sign_in"; sending_address_id: string }
-  | { type: "store_admin_invite"; sending_address_id: string }
+export type OutgoingMessageTypeName =
+  | "network_sign_in_email"
+  | "customer_sign_in_email"
+  | "customer_invite_email"
+  | "store_admin_sign_in_email"
+  | "store_admin_invite_email"
+  | "event_email"
+  | "event_sms"
+  | "form_received_email"
+  | "form_stage_changed_email"
+  | "form_submission_alert_email"
+  | "booking_reminder_email"
+  | "booking_reminder_sms"
+  | "booking_recall_email"
+  | "booking_recall_sms"
+  | "after_visit_email"
+  | "after_visit_sms"
+  | "receipt_resend_email"
+  | "broadcast_email"
+  | "broadcast_sms"
+  | "template_test_email"
+  | "support_reply_email"
+  | "support_reply_sms"
+  | "customer_sign_in_sms"
+  | "customer_invite_sms";
+
+export type OutgoingMessageType =
+  | { type: "network_sign_in_email"; network_id: string; network_provider_id: string }
+  | { type: "customer_sign_in_email"; notification_id: string; email_address_id: string }
+  | { type: "customer_invite_email"; notification_id: string; email_address_id: string }
+  | { type: "store_admin_sign_in_email"; notification_id: string; email_address_id: string }
+  | { type: "store_admin_invite_email"; notification_id: string; email_address_id: string }
+  | { type: "event_email"; notification_id: string; email_address_id: string; event_id: string }
   | {
-      type: "event_email";
-      sending_address_id: string;
+      type: "event_sms";
+      notification_id: string;
       event_id: string;
-      email_template_id: string;
+      store_id: string;
+      customer_id: string;
+      language: string;
     }
-  | { type: "receipt_resend"; sending_address_id: string; order_id: string }
-  | { type: "template_test"; sending_address_id: string }
-  | { type: "broadcast_email"; sending_address_id: string; broadcast_id: string }
-  | { type: "support_reply"; sending_address_id: string };
+  | { type: "form_received_email"; form_id: string; email_address_id: string; event_id: string }
+  | { type: "form_stage_changed_email"; form_id: string; email_address_id: string; event_id: string }
+  | { type: "form_submission_alert_email"; form_id: string; email_address_id: string; event_id: string }
+  | {
+      type: "booking_reminder_email";
+      notification_id: string;
+      email_address_id: string;
+      order_id: string;
+      order_booking_line_item_id: string;
+      starts_at: EpochMilliseconds;
+    }
+  | {
+      type: "booking_reminder_sms";
+      notification_id: string;
+      order_id: string;
+      order_booking_line_item_id: string;
+      starts_at: EpochMilliseconds;
+      store_id: string;
+      customer_id: string;
+      language: string;
+    }
+  | {
+      type: "booking_recall_email";
+      notification_id: string;
+      email_address_id: string;
+      order_id: string;
+      order_booking_line_item_id: string;
+    }
+  | {
+      type: "booking_recall_sms";
+      notification_id: string;
+      order_id: string;
+      order_booking_line_item_id: string;
+      store_id: string;
+      customer_id: string;
+      language: string;
+    }
+  | {
+      type: "after_visit_email";
+      notification_id: string;
+      email_address_id: string;
+      order_id: string;
+      order_booking_line_item_id: string;
+    }
+  | {
+      type: "after_visit_sms";
+      notification_id: string;
+      order_id: string;
+      order_booking_line_item_id: string;
+      store_id: string;
+      customer_id: string;
+      language: string;
+    }
+  | { type: "receipt_resend_email"; notification_id: string; email_address_id: string; order_id: string }
+  | { type: "broadcast_email"; broadcast_id: string; email_address_id: string }
+  | { type: "broadcast_sms"; broadcast_id: string; store_id: string; customer_id: string; language: string }
+  | { type: "template_test_email"; email_address_id: string }
+  | { type: "support_reply_email"; email_address_id: string }
+  | { type: "support_reply_sms"; store_id: string; customer_id: string; language: string }
+  | { type: "customer_sign_in_sms"; notification_id: string; store_id: string; customer_id: string; language: string }
+  | { type: "customer_invite_sms"; notification_id: string; store_id: string; customer_id: string; language: string };
 
 export interface OutgoingEmailRecovery {
   retry_until: EpochMilliseconds;
   acceptance_uncertain: boolean;
 }
 
-export type OutgoingEmailStatus =
+export type SmsDelivery =
+  | { type: "pending" }
+  | { type: "delivered"; at: EpochMilliseconds }
+  | { type: "failed"; code: string; at: EpochMilliseconds };
+
+export type SmsNotSentReason =
+  | { type: "no_consent" }
+  | { type: "suppressed" }
+  | { type: "no_text" }
+  | { type: "template_failed" }
+  | { type: "sender_unavailable" }
+  | { type: "store_unavailable" }
+  | { type: "expired" }
+  | { type: "order_history_limit" }
+  | { type: "provider_rejected"; code: string };
+
+export type OutgoingMessageStatus =
   | { type: "waiting" }
   | { type: "sending"; attempt: number; until: EpochMilliseconds; recovery: OutgoingEmailRecovery }
   | { type: "retrying"; attempt: number; next_at: EpochMilliseconds; reason: string; recovery: OutgoingEmailRecovery }
   | { type: "sent"; provider_email_id: string; sent_at: EpochMilliseconds }
   | { type: "not_sent"; reason: string; at: EpochMilliseconds }
-  | { type: "maybe_sent"; at: EpochMilliseconds };
+  | { type: "maybe_sent"; at: EpochMilliseconds }
+  | { type: "sms_waiting"; login: ProviderLogin }
+  | { type: "sms_sending"; login: ProviderLogin; deadline_at: EpochMilliseconds }
+  | { type: "sms_accepted"; login: ProviderLogin; message_sid: string; at: EpochMilliseconds; delivery: SmsDelivery }
+  | { type: "sms_not_sent"; reason: SmsNotSentReason; at: EpochMilliseconds }
+  | { type: "sms_unknown"; login: ProviderLogin; at: EpochMilliseconds };
+
+export type WebhookUnacknowledgedReason =
+  | { type: "webhook_unavailable" }
+  | { type: "store_closing" }
+  | { type: "store_unavailable" }
+  | { type: "refused"; message: string }
+  | { type: "no_acknowledgement"; last_reason: string };
 
 export type OutgoingWebhookStatus =
   | { type: "waiting" }
   | { type: "sending"; attempt: number; until: EpochMilliseconds }
   | { type: "retrying"; attempt: number; next_at: EpochMilliseconds; reason: string }
   | { type: "acknowledged"; at: EpochMilliseconds }
-  | { type: "unacknowledged"; reason: string; at: EpochMilliseconds };
+  | { type: "unacknowledged"; reason: WebhookUnacknowledgedReason; at: EpochMilliseconds };
 
 export type EmailFailureType = "hard_bounce" | "soft_bounce" | "rejected" | "other";
 
@@ -64,30 +180,28 @@ export interface EmailPreview extends EmailPreviewSummary {
   text: string;
 }
 
-export interface OutgoingEmailSummary {
+export interface OutgoingMessageSummary {
   id: string;
-  type: OutgoingEmailType;
+  type: OutgoingMessageType;
   to: string | null;
-  email_provider_id: string | null;
   delivery_report: EmailDeliveryReport | null;
   complained_at: EpochMilliseconds | null;
   preview: EmailPreviewSummary | null;
   send_before: EpochMilliseconds | null;
-  status: OutgoingEmailStatus;
+  status: OutgoingMessageStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
-export interface OutgoingEmail {
+export interface OutgoingMessage {
   id: string;
-  type: OutgoingEmailType;
+  type: OutgoingMessageType;
   to: string | null;
-  email_provider_id: string | null;
   delivery_report: EmailDeliveryReport | null;
   complained_at: EpochMilliseconds | null;
   preview: EmailPreview | null;
   send_before: EpochMilliseconds | null;
-  status: OutgoingEmailStatus;
+  status: OutgoingMessageStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
@@ -115,15 +229,11 @@ export interface EmailLayoutContent {
   text: string;
 }
 
-export type EmailReplyTo =
-  | { type: "address"; email_address_id: string }
-  | { type: "external"; email: string };
-
 export interface Email {
   email_template_id: string;
-  sending_address_id: string;
+  email_address_id: string;
   from_name: string;
-  reply_to: EmailReplyTo;
+  reply_to_address_id: string;
 }
 
 export type AlertRecipient =
@@ -132,9 +242,10 @@ export type AlertRecipient =
 
 export type EmailTemplateTypeName =
   | "customer_sign_in"
+  | "customer_invite"
   | "store_admin_sign_in"
   | "customer_email_verification"
-  | "email_changed"
+  | "login_changed"
   | "order_received"
   | "first_order_placed"
   | "order_dispatched"
@@ -145,6 +256,8 @@ export type EmailTemplateTypeName =
   | "booking_confirmed"
   | "booking_reminder"
   | "booking_cancelled"
+  | "booking_recall"
+  | "after_visit"
   | "offer_sent"
   | "offer_revised"
   | "offer_reminder"
@@ -163,98 +276,266 @@ export type EmailTemplateTypeName =
   | "order_alert"
   | "return_alert"
   | "conversation_message_alert"
+  | "conversation_message_notice"
+  | "entry_shared"
+  | "booking_cancelled_alert"
+  | "booking_moved_alert"
+  | "entry_added_alert"
+  | "daily_overview_alert"
+  | "invoice_counter_held_alert"
+  | "outside_invoice_waiting_alert"
+  | "invoice_issue_blocked_alert"
+  | "fiscal_receipt_refused_alert"
+  | "fiscal_receipt_unknown_alert"
+  | "fiscal_receipt_deadline_alert"
+  | "fiscal_refund_needs_allocation_alert"
+  | "fiscal_advance_open_alert"
+  | "fiscal_credit_after_receipt_alert"
+  | "fiscal_refund_returned_alert"
+  | "fiscal_dispute_lost_alert"
+  | "fiscal_device_not_ready_alert"
+  | "fiscal_certificate_expiring_alert"
   | "support_message"
   | "broadcast";
 
 export type EmailTemplateType = { type: EmailTemplateTypeName };
 
-export interface EmailCreationTemplates {
-  form_received: string;
-  form_stage_changed: string;
-  form_submission_alert: string;
-  support_message: string;
-  broadcast: string;
-}
+export type SmsTemplateTypeName =
+  | "customer_sign_in"
+  | "customer_invite"
+  | "login_changed"
+  | "booking_confirmed"
+  | "booking_reminder"
+  | "booking_cancelled"
+  | "booking_recall"
+  | "after_visit"
+  | "conversation_message_notice"
+  | "entry_shared"
+  | "broadcast";
 
-export interface StoreEmailSettings {
-  customer_sign_in: Email | null;
-  store_admin_sign_in: Email | null;
-  customer_email_verification: Email | null;
-  email_changed: Email | null;
-  order_received: Email | null;
-  first_order_placed: Email | null;
-  order_dispatched: Email | null;
-  order_delivered: Email | null;
-  order_ready_for_pickup: Email | null;
-  order_cancelled: Email | null;
-  order_refunded: Email | null;
-  booking_confirmed: Email | null;
-  booking_reminder: Email | null;
-  booking_cancelled: Email | null;
-  offer_sent: Email | null;
-  offer_revised: Email | null;
-  offer_reminder: Email | null;
-  company_invite: Email | null;
-  company_access_notice: Email | null;
-  store_admin_invite: Email | null;
-  return_requested: Email | null;
-  return_approved: Email | null;
-  return_declined: Email | null;
-  renewal_upcoming: Email | null;
-  renewal_payment_failed: Email | null;
-  membership_cancelled: Email | null;
-  order_alert: Email | null;
-  return_alert: Email | null;
-  conversation_message_alert: Email | null;
-  offer_reminder_after_days: number;
-  order_alert_recipients: AlertRecipient[];
-  return_alert_recipients: AlertRecipient[];
-  conversation_message_alert_recipients: AlertRecipient[];
-  creation_templates: EmailCreationTemplates;
-}
+export type SmsTemplateType = { type: SmsTemplateTypeName };
 
-export interface StoreEmails extends StoreEmailSettings {
-  id: string;
-  store_id: string;
-  created_at: EpochMilliseconds;
-  updated_at: EpochMilliseconds;
-}
+export type TemplateTypeName = "email" | "sms";
 
-export interface GetStoreEmailsParams {
-  store_id: string;
-}
+export type TemplateType =
+  | {
+      type: "email";
+      purpose: EmailTemplateType;
+      default_language: string;
+      content: Record<string, EmailContent>;
+      layout_id: string;
+    }
+  | { type: "sms"; purpose: SmsTemplateType; content: Record<string, string> };
 
-export interface UpdateStoreEmailsParams extends StoreEmailSettings {
-  store_id: string;
-  expected_updated_at: EpochMilliseconds;
-}
-
-export interface EmailTemplate {
+export interface Template {
   id: string;
   store_id: string;
   key: string;
   name: string;
-  default_language: string;
-  layout_id: string;
-  type: EmailTemplateType;
-  content: Record<string, EmailContent>;
+  type: TemplateType;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
-export interface EmailTemplateDefault {
+export type TemplateSummaryType =
+  | { type: "email"; purpose: EmailTemplateType; default_language: string; languages: string[]; layout_id: string }
+  | { type: "sms"; purpose: SmsTemplateType; languages: string[] };
+
+export interface TemplateSummary {
+  id: string;
+  store_id: string;
   key: string;
   name: string;
-  type: EmailTemplateType;
-  content: EmailContent;
+  type: TemplateSummaryType;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+}
+
+export type TemplateStarter =
+  | { type: "email"; purpose: EmailTemplateType; content: EmailContent }
+  | { type: "sms"; purpose: SmsTemplateType; text: string };
+
+export interface TemplateDefault {
+  key: string;
+  name: string;
+  type: TemplateStarter;
   allowed_fields: string[];
+  list_fields: string[];
 }
 
-export interface EmailTemplatePreview {
-  language: string;
-  subject: string;
-  html: string;
-  text: string;
+export type TemplatePreview =
+  | { type: "email"; language: string; subject: string; html: string; text: string }
+  | { type: "sms"; language: string; text: string };
+
+export type TemplatePreviewContent =
+  | { type: "email"; content: EmailContent }
+  | { type: "sms"; text: string };
+
+export type TemplateContentChange =
+  | {
+      type: "email";
+      default_language?: string;
+      layout_id?: string;
+      content?: Record<string, EmailContent>;
+    }
+  | { type: "sms"; content: Record<string, string> };
+
+export type NotificationTypeName =
+  | "customer_sign_in_email"
+  | "customer_sign_in_sms"
+  | "customer_invite_email"
+  | "customer_invite_sms"
+  | "store_admin_sign_in"
+  | "customer_email_verification"
+  | "login_changed_email"
+  | "login_changed_sms"
+  | "store_admin_invite"
+  | "company_invite"
+  | "company_access_notice"
+  | "order_received"
+  | "first_order_placed"
+  | "order_dispatched"
+  | "order_delivered"
+  | "order_ready_for_pickup"
+  | "order_cancelled"
+  | "order_refunded"
+  | "offer_sent"
+  | "offer_revised"
+  | "offer_reminder"
+  | "return_requested"
+  | "return_approved"
+  | "return_declined"
+  | "renewal_upcoming"
+  | "renewal_payment_failed"
+  | "membership_cancelled"
+  | "booking_confirmed_email"
+  | "booking_confirmed_sms"
+  | "booking_cancelled_email"
+  | "booking_cancelled_sms"
+  | "conversation_message_notice_email"
+  | "conversation_message_notice_sms"
+  | "entry_shared_email"
+  | "entry_shared_sms"
+  | "booking_reminder_email"
+  | "booking_reminder_sms"
+  | "booking_recall_email"
+  | "booking_recall_sms"
+  | "after_visit_email"
+  | "after_visit_sms"
+  | "order_alert"
+  | "return_alert"
+  | "conversation_message_alert"
+  | "booking_cancelled_alert"
+  | "booking_moved_alert"
+  | "entry_added_alert"
+  | "daily_overview_alert"
+  | "invoice_counter_held_alert"
+  | "outside_invoice_waiting_alert"
+  | "invoice_issue_blocked_alert"
+  | "fiscal_receipt_refused_alert"
+  | "fiscal_receipt_unknown_alert"
+  | "fiscal_receipt_deadline_alert"
+  | "fiscal_refund_needs_allocation_alert"
+  | "fiscal_advance_open_alert"
+  | "fiscal_credit_after_receipt_alert"
+  | "fiscal_refund_returned_alert"
+  | "fiscal_dispute_lost_alert"
+  | "fiscal_device_not_ready_alert"
+  | "fiscal_certificate_expiring_alert";
+
+export type NotificationServices =
+  | { type: "all" }
+  | { type: "ids"; booking_service_ids: string[] };
+
+export type NotificationType =
+  | { type: "customer_sign_in_email"; email: Email }
+  | { type: "customer_sign_in_sms"; sms_template_id: string }
+  | { type: "customer_invite_email"; email: Email }
+  | { type: "customer_invite_sms"; sms_template_id: string }
+  | { type: "store_admin_sign_in"; email: Email }
+  | { type: "customer_email_verification"; email: Email }
+  | { type: "login_changed_email"; email: Email }
+  | { type: "login_changed_sms"; sms_template_id: string }
+  | { type: "store_admin_invite"; email: Email }
+  | { type: "company_invite"; email: Email }
+  | { type: "company_access_notice"; email: Email }
+  | { type: "order_received"; email: Email }
+  | { type: "first_order_placed"; email: Email }
+  | { type: "order_dispatched"; email: Email }
+  | { type: "order_delivered"; email: Email }
+  | { type: "order_ready_for_pickup"; email: Email }
+  | { type: "order_cancelled"; email: Email }
+  | { type: "order_refunded"; email: Email }
+  | { type: "offer_sent"; email: Email }
+  | { type: "offer_revised"; email: Email }
+  | { type: "offer_reminder"; email: Email; after: Days }
+  | { type: "return_requested"; email: Email }
+  | { type: "return_approved"; email: Email }
+  | { type: "return_declined"; email: Email }
+  | { type: "renewal_upcoming"; email: Email }
+  | { type: "renewal_payment_failed"; email: Email }
+  | { type: "membership_cancelled"; email: Email }
+  | { type: "booking_confirmed_email"; email: Email }
+  | { type: "booking_confirmed_sms"; sms_template_id: string }
+  | { type: "booking_cancelled_email"; email: Email }
+  | { type: "booking_cancelled_sms"; sms_template_id: string }
+  | { type: "conversation_message_notice_email"; email: Email }
+  | { type: "conversation_message_notice_sms"; sms_template_id: string }
+  | { type: "entry_shared_email"; email: Email }
+  | { type: "entry_shared_sms"; sms_template_id: string }
+  | { type: "booking_reminder_email"; email: Email; before: Duration; services: NotificationServices }
+  | { type: "booking_reminder_sms"; sms_template_id: string; before: Duration; services: NotificationServices }
+  | { type: "booking_recall_email"; email: Email; after_visit: Days; services: NotificationServices }
+  | { type: "booking_recall_sms"; sms_template_id: string; after_visit: Days; services: NotificationServices }
+  | { type: "after_visit_email"; email: Email; after: Duration; services: NotificationServices }
+  | { type: "after_visit_sms"; sms_template_id: string; after: Duration; services: NotificationServices }
+  | { type: "order_alert"; email: Email; recipients: AlertRecipient[] }
+  | { type: "return_alert"; email: Email; recipients: AlertRecipient[] }
+  | { type: "conversation_message_alert"; email: Email; recipients: AlertRecipient[] }
+  | { type: "booking_cancelled_alert"; email: Email; recipients: AlertRecipient[] }
+  | { type: "booking_moved_alert"; email: Email; recipients: AlertRecipient[] }
+  | { type: "entry_added_alert"; collections: AlertCollections; email: Email; recipients: AlertRecipient[] }
+  | { type: "daily_overview_alert"; at: Duration; email: Email; recipients: AlertRecipient[] }
+  | { type: "invoice_counter_held_alert"; email: Email; recipients: AlertRecipient[] }
+  | { type: "outside_invoice_waiting_alert"; email: Email; recipients: AlertRecipient[] }
+  | { type: "invoice_issue_blocked_alert"; email: Email; recipients: AlertRecipient[] }
+  | { type: "fiscal_receipt_refused_alert"; email: Email; recipients: AlertRecipient[] }
+  | { type: "fiscal_receipt_unknown_alert"; email: Email; recipients: AlertRecipient[] }
+  | { type: "fiscal_receipt_deadline_alert"; email: Email; recipients: AlertRecipient[] }
+  | { type: "fiscal_refund_needs_allocation_alert"; email: Email; recipients: AlertRecipient[] }
+  | { type: "fiscal_advance_open_alert"; email: Email; recipients: AlertRecipient[] }
+  | { type: "fiscal_credit_after_receipt_alert"; email: Email; recipients: AlertRecipient[] }
+  | { type: "fiscal_refund_returned_alert"; email: Email; recipients: AlertRecipient[] }
+  | { type: "fiscal_dispute_lost_alert"; email: Email; recipients: AlertRecipient[] }
+  | { type: "fiscal_device_not_ready_alert"; email: Email; recipients: AlertRecipient[] }
+  | { type: "fiscal_certificate_expiring_alert"; email: Email; recipients: AlertRecipient[] };
+
+export type AlertCollections = { type: "all" } | { type: "ids"; collection_ids: string[] };
+
+export type NotificationStatus = { type: "active"; since: EpochMilliseconds } | { type: "paused" };
+
+export type ReminderSkipReason = "no_contact" | "no_consent" | "suppressed" | "not_set_up" | "expired";
+
+export type ReminderResult =
+  | { type: "sent"; outgoing_message_ids: string[] }
+  | { type: "skipped"; reason: ReminderSkipReason };
+
+export type NotificationSwitch = "active" | "paused";
+
+export interface SendBookingReminderParams {
+  store_id: string;
+  order_id: string;
+  order_booking_item_id: string;
+  notification_id: string;
+}
+
+export interface Notification {
+  id: string;
+  store_id: string;
+  type: NotificationType;
+  status: NotificationStatus;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
 }
 
 export interface EmailLayout {
@@ -268,78 +549,58 @@ export interface EmailLayout {
   updated_at: EpochMilliseconds;
 }
 
-export type EmailProviderType =
-  | { type: "resend"; webhook_id: string }
-  | { type: "arky_resend"; webhook_id: string };
-
-export interface EmailProvider {
+export interface EmailLayoutSummary {
   id: string;
   store_id: string;
+  key: string;
   name: string;
-  type: EmailProviderType;
+  logo_media_id: string | null;
+  languages: string[];
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
-}
-
-export type EmailProviderSetupProblem =
-  | { type: "webhook_missing" }
-  | { type: "webhook_duplicated"; webhook_ids: string[] }
-  | { type: "webhook_secret_mismatch" }
-  | { type: "webhook_disabled" }
-  | { type: "webhook_events_missing"; events: string[] };
-
-export interface EmailProviderSetup {
-  webhook_address: string;
-  events: string[];
-  webhook_id: string | null;
-  problems: EmailProviderSetupProblem[];
-}
-
-export type EmailProviderDomainStatus =
-  | "not_started"
-  | "pending"
-  | "verified"
-  | "partially_verified"
-  | "partially_failed"
-  | "failed"
-  | "temporary_failure";
-
-export interface EmailProviderDnsRecord {
-  record: string;
-  status: string;
-  type: string;
-  name: string;
-  value: string;
-  priority: number | null;
-}
-
-export interface EmailProviderDomain {
-  id: string;
-  name: string;
-  status: EmailProviderDomainStatus;
-  records: EmailProviderDnsRecord[];
-  sending_enabled: boolean;
-  receiving_enabled: boolean;
 }
 
 export interface EmailAddress {
   id: string;
   store_id: string;
-  email_provider_id: string;
+  login: ProviderLogin;
   email: string;
 }
 
+export type ProviderLoginInput = { type: "store"; store_provider_id: string } | { type: "network" };
+
+export type NetworkStoreAddresses = { type: "off" } | { type: "domain"; domain: string };
+
+export type EmailReadinessReason =
+  | "domain_absent"
+  | "sending_disabled"
+  | "sending_unverified"
+  | "receiving_disabled"
+  | "receiving_unverified"
+  | "webhook_missing"
+  | "webhook_duplicated"
+  | "webhook_disabled"
+  | "webhook_events_missing"
+  | "webhook_secret_mismatch"
+  | "webhook_changed"
+  | "provider_refused"
+  | "daily_quota_used_up"
+  | "monthly_quota_used_up"
+  | "rate_limited"
+  | "no_answer"
+  | "request_not_built";
+
 export type EmailCapabilityReadiness =
   | { type: "ready" }
-  | { type: "unavailable"; reason: string }
-  | { type: "check_failed"; reason: string };
+  | { type: "unavailable"; reason: EmailReadinessReason }
+  | { type: "check_failed"; reason: EmailReadinessReason };
 
 export interface EmailAddressReadiness {
   sending: EmailCapabilityReadiness;
   receiving: EmailCapabilityReadiness;
 }
 
-interface FindOutgoingEmailsFilters {
+interface FindOutgoingMessagesFilters {
   store_id: string;
   to?: string;
   broadcast_id?: string;
@@ -347,9 +608,14 @@ interface FindOutgoingEmailsFilters {
   cursor?: string | null;
 }
 
-export type FindOutgoingEmailsParams =
-  | (FindOutgoingEmailsFilters & { type?: OutgoingEmailType["type"]; order_id?: never })
-  | (FindOutgoingEmailsFilters & { type: "receipt_resend"; order_id: string });
+export type FindOutgoingMessagesParams =
+  | (FindOutgoingMessagesFilters & { type?: OutgoingMessageTypeName; order_id?: never })
+  | (FindOutgoingMessagesFilters & { type: "receipt_resend_email"; order_id: string });
+
+export interface GetOutgoingMessageParams {
+  store_id: string;
+  id: string;
+}
 
 export interface FindOutgoingWebhooksParams {
   store_id: string;
@@ -358,75 +624,114 @@ export interface FindOutgoingWebhooksParams {
   cursor?: string | null;
 }
 
-export interface GetOutgoingEmailParams {
-  store_id: string;
-  id: string;
-}
-
 export interface GetOutgoingWebhookParams {
   store_id: string;
   id: string;
 }
 
-export interface FindEmailTemplatesParams {
+interface FindTemplatesPage {
   store_id: string;
-  type?: EmailTemplateTypeName;
+  ids?: never;
   limit?: number;
   cursor?: string | null;
 }
 
-export interface GetEmailTemplateParams {
+export interface FindTemplatesByIdsParams {
+  store_id: string;
+  ids: string[];
+  type?: never;
+  purpose?: never;
+  limit?: never;
+  cursor?: never;
+}
+
+export type FindTemplatesParams =
+  | (FindTemplatesPage & { type?: never; purpose?: never })
+  | (FindTemplatesPage & { type: "email"; purpose?: EmailTemplateTypeName })
+  | (FindTemplatesPage & { type: "sms"; purpose?: SmsTemplateTypeName })
+  | FindTemplatesByIdsParams;
+
+export interface GetTemplateParams {
   store_id: string;
   id: string;
 }
 
-export interface FindEmailTemplateDefaultsParams {
+export interface FindTemplateDefaultsParams {
   store_id: string;
 }
 
-export interface CreateEmailTemplateParams {
+export interface CreateTemplateParams {
   store_id: string;
   id: string;
   key: string;
   name: string;
-  default_language: string;
-  layout_id: string;
-  type: EmailTemplateType;
-  content: Record<string, EmailContent>;
+  type: TemplateType;
 }
 
-export interface UpdateEmailTemplateParams {
+export interface UpdateTemplateParams {
   store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   key?: string;
   name?: string;
-  default_language?: string;
-  layout_id?: string;
-  content?: Record<string, EmailContent>;
+  content?: TemplateContentChange;
 }
 
-export interface DeleteEmailTemplateParams {
+export interface DeleteTemplateParams {
   store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
-export interface PreviewEmailTemplateParams {
+export interface PreviewTemplateParams {
   store_id: string;
   id: string;
   language: string;
-  content?: EmailContent;
+  layout_id?: string;
+  content?: TemplatePreviewContent;
 }
 
 export interface SendEmailTemplateTestParams {
   store_id: string;
   id: string;
-  outgoing_email_id: string;
+  outgoing_message_id: string;
   language: string;
-  sending_address_id: string;
+  email_address_id: string;
   from_name: string;
-  reply_to: EmailReplyTo;
+  reply_to_address_id: string;
+}
+
+export interface FindNotificationsParams {
+  store_id: string;
+  type?: NotificationTypeName;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface GetNotificationParams {
+  store_id: string;
+  id: string;
+}
+
+export interface CreateNotificationParams {
+  store_id: string;
+  id: string;
+  type: NotificationType;
+  status: NotificationSwitch;
+}
+
+export interface UpdateNotificationParams {
+  store_id: string;
+  id: string;
+  expected_updated_at: EpochMilliseconds;
+  type: NotificationType;
+  status: NotificationSwitch;
+}
+
+export interface DeleteNotificationParams {
+  store_id: string;
+  id: string;
+  expected_updated_at: EpochMilliseconds;
 }
 
 export interface FindEmailLayoutsParams {
@@ -465,56 +770,6 @@ export interface DeleteEmailLayoutParams {
   expected_updated_at: EpochMilliseconds;
 }
 
-export interface FindEmailProvidersParams {
-  store_id: string;
-  limit?: number;
-  cursor?: string | null;
-}
-
-export interface GetEmailProviderParams {
-  store_id: string;
-  id: string;
-}
-
-export interface ConnectEmailProviderParams {
-  store_id: string;
-  id: string;
-  name: string;
-  api_key: string;
-  webhook_secret: string;
-}
-
-export interface ConnectArkyResendEmailProviderParams {
-  store_id: string;
-  id: string;
-  name: string;
-  domains: string[];
-}
-
-export interface ReplaceEmailProviderKeyParams {
-  store_id: string;
-  id: string;
-  expected_updated_at: EpochMilliseconds;
-  api_key: string;
-  webhook_secret: string;
-}
-
-export interface DeleteEmailProviderParams {
-  store_id: string;
-  id: string;
-  expected_updated_at: EpochMilliseconds;
-}
-
-export interface FindEmailProviderDomainsParams {
-  store_id: string;
-  id: string;
-}
-
-export interface CheckEmailProviderSetupParams {
-  store_id: string;
-  id: string;
-}
-
 export interface FindEmailAddressesParams {
   store_id: string;
   limit?: number;
@@ -530,7 +785,7 @@ export interface CreateEmailAddressParams {
   store_id: string;
   id: string;
   email: string;
-  email_provider_id: string;
+  login: ProviderLoginInput;
 }
 
 export interface DeleteEmailAddressParams {
@@ -543,13 +798,20 @@ export interface GetEmailAddressReadinessParams {
   id: string;
 }
 
-export interface FindStoreResendEventsParams {
+export interface GetEmailAddressNetworkDomainParams {
   store_id: string;
-  email_provider_id: string;
+}
+
+interface FindStoreResendEventsFilters {
+  store_id: string;
   status: IncomingWebhookStatusName;
   limit?: number;
   cursor?: string | null;
 }
+
+export type FindStoreResendEventsParams =
+  | (FindStoreResendEventsFilters & { store_provider_id: string; network_provider_id?: never })
+  | (FindStoreResendEventsFilters & { network_provider_id: string; store_provider_id?: never });
 
 export interface ResolveStoreResendEventParams {
   store_id: string;

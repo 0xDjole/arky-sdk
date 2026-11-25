@@ -10,7 +10,7 @@ import {
   ids,
   placedAcceptance,
   placedOrder,
-  publishableKey,
+  storefrontIdentity,
   quoteRecord,
   recordFetch,
   visitorStorage,
@@ -23,13 +23,14 @@ const packageLineId = ids.otherLine;
 const priceRef = { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price };
 const packageSelection = { id: packageLineId, package_id: ids.product, quantity: 1, choices: [], start: { type: "on_acceptance" }, deliveries: [], price: priceRef };
 const companyBuyer = { type: "company_location", company_location_id: ids.companyLocation, purchase_order_number: "PO-7" };
+const storeLocationId = "3d7b9f15-2a64-4c80-9e1b-5f8a2c6d0e93";
 
 function admin() {
   return createAdmin({ apiUrl: apiUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
 }
 
 function storefront(options = {}) {
-  return createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "bs", market: "bih", sessionStorage: visitorStorage(), ...options });
+  return createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "bs", market: "bih", sessionStorage: visitorStorage(), ...options });
 }
 
 test("the exact source Cart Order read preserves the authoritative nullable response and sends no Cart capability", async (context) => {
@@ -235,7 +236,7 @@ test("Storefront Cart lines carry their own ids and exact price references and s
       { type: "product", id: ids.line, product_id: ids.product, variant_id: ids.variant, quantity: 2, price_override: override, price: { ...priceRef, spoof: true }, store_id: "spoof" },
       { type: "product", id: ids.otherLine, product_id: ids.product, variant_id: ids.variant, quantity: 1, price_override: override, form_submission_id: ids.submission,
         price: { ...priceRef, price_id: ids.otherPrice, amount: 0 } },
-      { type: "booking", id: ids.credit, booking_offering_id: ids.product, requested_interval: { from: 0, to: 60000, timezone: "spoof" }, capacity_units: 1, price: { ...priceRef, price_id: ids.otherPrice, spoof: true }, price_override: override },
+      { type: "booking", id: ids.credit, booking_offering_id: ids.product, store_location_id: storeLocationId, resource: { type: "any", spoof: true }, requested_interval: { from: 0, to: 60000, timezone: "spoof" }, add_ons: [], capacity_units: 1, price: { ...priceRef, price_id: ids.otherPrice, spoof: true }, price_override: override },
       { type: "package", ...packageSelection, id: ids.submission, price_override: override },
     ],
   });
@@ -245,7 +246,7 @@ test("Storefront Cart lines carry their own ids and exact price references and s
     line_items: [
       { type: "product", id: ids.line, variant_id: ids.variant, quantity: 2, price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price } },
       { type: "product", id: ids.otherLine, variant_id: ids.variant, quantity: 1, price: { ...priceRef, price_id: ids.otherPrice }, form_submission_id: ids.submission },
-      { type: "booking", id: ids.credit, booking_offering_id: ids.product, requested_interval: { from: 0, to: 60000 }, capacity_units: 1, price: { ...priceRef, price_id: ids.otherPrice } },
+      { type: "booking", id: ids.credit, booking_offering_id: ids.product, store_location_id: storeLocationId, resource: { type: "any" }, requested_interval: { from: 0, to: 60000 }, add_ons: [], capacity_units: 1, price: { ...priceRef, price_id: ids.otherPrice } },
       { type: "package", ...packageSelection, id: ids.submission },
     ],
   });
@@ -301,7 +302,7 @@ test("initialize quotes and checks out a package-only cart through the reviewed 
     if (call.method === "GET") return placedOrder();
     throw new Error(`Unexpected request ${call.method} ${call.path}`);
   });
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "bs", market: "bih", sessionStorage: visitorStorage() });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "bs", market: "bih", sessionStorage: visitorStorage() });
   const cart = store.eshop.cart({ buyer: { type: "customer" }, package_id: ids.package });
   await cart.create({ id: ids.cart });
   assert.equal(cart.item_count.get(), 1);
@@ -330,11 +331,7 @@ test("initialize quotes and checks out a package-only cart through the reviewed 
   assert.equal(calls.filter((call) => call.path.endsWith("/quote")).every((call) => call.headers.get("x-arky-locale") === "bs" && JSON.stringify(call.body) === "{}"), true);
   assert.equal(calls.at(-1).path, `/v1/storefront/orders/${ids.order}`);
   assert.deepEqual(cart.cart.get(), current);
-  const lastOrder = cart.last_order.get();
-  assert.equal(lastOrder.order_id, ids.order);
-  assert.equal(lastOrder.cart_id, ids.cart);
-  assert.equal(lastOrder.total, quoteRecord().totals.total);
-  assert.equal(lastOrder.currency, "eur");
+  assert.equal("last_order" in cart, false);
 });
 
 test("Admin and storefront future delivery choices are quoted and saved with the explicit version", async (context) => {
@@ -371,7 +368,7 @@ test("initialize saves future deliveries into the loaded cart and drops its stal
     if (call.path.endsWith("/quote")) return quoteRecord();
     return updated;
   });
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "bs", market: "bih", sessionStorage: visitorStorage() });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "bs", market: "bih", sessionStorage: visitorStorage() });
   const cart = store.eshop.cart({ buyer: { type: "customer" }, package_id: ids.package });
   await cart.create({ id: ids.cart });
   await cart.quote();
@@ -393,7 +390,7 @@ test("initialize refuses a late quote after the language changed and a late deli
     started();
     return pending;
   });
-  const store = initialize(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "bs", market: "bih", sessionStorage: visitorStorage() });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "bs", market: "bih", sessionStorage: visitorStorage() });
   const cart = store.eshop.cart({ buyer: { type: "customer" }, package_id: ids.package });
   await cart.create({ id: ids.cart });
   const quote = cart.quote();
@@ -453,4 +450,22 @@ test("Explicit Order capability replaces every casing of a caller header without
   assert.equal(headers.get("x-arky-order-token").includes(","), false);
   assert.equal(headers.get("x-receipt-request"), "retained");
   assert.equal(headers.get("authorization"), `Bearer ${visitorToken}`);
+});
+
+test("an admin cart, its change and a purchase quote name their place of sale as staff set it", async (context) => {
+  const place = { type: "store_location", store_location_id: "9b3e1d57-2c84-4a06-8f1e-6d2a7c0b3e95" };
+  const calls = recordFetch(context, (call) => (call.path.endsWith("/orders/quote") ? quoteRecord({ place_of_sale: place }) : { type: "created", cart: cartRecord({ place_of_sale: place }), recovery_token: "token" }));
+  const api = admin().eshop.cart;
+  const cart = { store_id: STORE_ID, id: ids.cart, customer_id: ids.customer, buyer: { type: "customer" }, sales_channel_id: ids.channel, package_id: ids.package, market_id: ids.market };
+  await api.create({ ...cart, place_of_sale: place });
+  await api.update({ store_id: STORE_ID, id: ids.cart, expected_updated_at: 1_700_000_000_001, place_of_sale: { type: "none" } });
+  const purchase = { store_id: STORE_ID, customer_id: ids.customer, buyer: { type: "customer" }, sales_channel_id: ids.channel, package_id: ids.package, market_id: ids.market, place_of_sale: place, line_items: [], delivery_groups: [], billing_address: null, language: "en" };
+  assert.deepEqual((await api.quotePurchase(purchase)).place_of_sale, place);
+  const { store_id: _cartStore, ...cartBody } = cart;
+  const { store_id: _purchaseStore, ...purchaseBody } = purchase;
+  assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
+    ["POST", `/v1/stores/${STORE_ID}/carts`, { ...cartBody, place_of_sale: place }],
+    ["PUT", `/v1/stores/${STORE_ID}/carts/${ids.cart}`, { expected_updated_at: 1_700_000_000_001, place_of_sale: { type: "none" } }],
+    ["POST", `/v1/stores/${STORE_ID}/orders/quote`, purchaseBody],
+  ]);
 });

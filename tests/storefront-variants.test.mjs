@@ -1,17 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createStorefront } from "../dist/storefront.js";
-import { apiUrl, fixedIdFactories, ids, publishableKey, recordFetch } from "./helpers/arky-fixtures.mjs";
+import { apiUrl, fixedIdFactories, ids, storefrontIdentity, recordFetch } from "./helpers/arky-fixtures.mjs";
 
 function storefront() {
-  return createStorefront(publishableKey, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl });
+  return createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl });
 }
 
 test("a product's prices page through its item and an exact variant read keeps the buyer context and encoded ids", async (context) => {
   const choice = {
     price_id: ids.price,
     sellable: { type: "product_variant", variant_id: "variant/one" },
-    content: { sku: "S-1", blocks: [], basis: { type: "product_unit" } },
+    content: { sku: "S-1", blocks: [], basis: { type: "product_unit" }, placement: { type: "none" } },
     price: null,
   };
   const responses = [
@@ -38,7 +38,8 @@ test("a product's prices page through its item and an exact variant read keeps t
     assert.equal(call.query.company_location_id, ids.companyLocation);
     assert.equal(call.query.include_price, "true");
     assert.equal("store_id" in call.query, false);
-    assert.equal(call.headers.get("x-arky-publishable-key"), publishableKey);
+    assert.equal(call.headers.get("x-arky-store-id"), storefrontIdentity.storeId);
+    assert.equal(call.headers.get("x-arky-sales-channel-id"), storefrontIdentity.salesChannelId);
   }
   assert.equal("find" in client.eshop.productVariant, false);
 });
@@ -92,4 +93,18 @@ test("every storefront browse read sends the one named package, and only priced 
   assert.ok(unscoped.every((call) => call.searchParams.get("package_id") === ids.package));
   assert.throws(() => client.eshop.product.get({}), /needs its id or its slug/);
   assert.throws(() => client.eshop.bookingService.get({ key: "service" }), /needs its id or its slug/);
+});
+
+test("a storefront reads the products of several ids in one request under its package, and a page names no cursor", async (context) => {
+  const product = { id: ids.product, key: "classic", package_item_id: ids.packageItem };
+  const calls = recordFetch(context, () => ({ items: [product], cursor: null }));
+  const client = storefront();
+  assert.deepEqual(await client.eshop.product.findByIds({ ids: [ids.product, ids.otherPackage], package_id: ids.package, company_id: ids.company }), { items: [product], cursor: null });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].path, "/v1/storefront/products");
+  assert.deepEqual(JSON.parse(calls[0].query.ids), [ids.product, ids.otherPackage]);
+  assert.equal(calls[0].query.package_id, ids.package);
+  assert.equal(calls[0].query.company_id, ids.company);
+  assert.equal("store_id" in calls[0].query, false);
+  assert.equal("find" in client.eshop.product, false);
 });

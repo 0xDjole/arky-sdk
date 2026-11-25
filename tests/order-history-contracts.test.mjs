@@ -8,7 +8,8 @@ import {
   orderRentalUseItems,
 } from "../dist/index.js";
 import { companyLocationOrder, retainedOrder as retained } from "./fixtures/retained-order.mjs";
-import { errorResponse, ids, recordFetch } from "./helpers/arky-fixtures.mjs";
+import { createStorefront } from "../dist/storefront.js";
+import { accessToken, apiUrl as storefrontApiUrl, errorResponse, factoryOrderToken, fixedIdFactories, ids, recordFetch, signedInStorage, storefrontIdentity } from "./helpers/arky-fixtures.mjs";
 
 const baseUrl = "https://api.example.test";
 const storeId = retained.store_id;
@@ -33,8 +34,10 @@ test("an order read keeps its cart source, the placed snapshot and every line fa
   assert.equal(product.money_runs[0].money.unit_price, 1000);
   assert.equal("type" in product, true);
   assert.equal(booking.snapshot.service_key, "consultation");
-  assert.deepEqual(booking.status, { type: "confirmed", attendance: { type: "upcoming" } });
-  assert.deepEqual(booking.reschedules, []);
+  assert.deepEqual(booking.status, { type: "confirmed", attendance: { type: "upcoming", response: { type: "unanswered" } } });
+  assert.deepEqual(booking.changes, []);
+  assert.deepEqual(booking.add_ons, []);
+  assert.equal("reschedules" in booking, false);
   assert.equal("attendance" in booking, false);
   assert.equal(packageLine.package_member_id, ids.packageMember);
   assert.equal("type" in packageLine, true);
@@ -79,19 +82,20 @@ test("cancelling a whole order sends its exact version and notification choice t
   assert.equal(calls.length, 1);
 });
 
-test("booking attendance, access revocation and a receipt resend each name the line or the app-picked id", async (context) => {
+test("booking attendance, access revocation and a receipt resend each name the line, the desk device or the app-picked id", async (context) => {
   const calls = recordFetch(context, (call) => call.path.endsWith("/resend-receipt") ? { id: ids.credit } : retained);
   const api = client().eshop.order;
   const lineId = "19f4bc18-4259-46b8-b5ef-3579d1dac971";
-  assert.equal("completeBookingItem" in api, false);
-  await api.attendBookingItem({ store_id: storeId, order_id: retained.id, line_item_id: lineId, expected_updated_at: 3 });
-  await api.markBookingItemNoShow({ store_id: storeId, order_id: retained.id, line_item_id: lineId, expected_updated_at: 4 });
+  const deskDevice = "2d7f9b14-6c38-4a05-9e21-8b4c0f6a3d57";
+  for (const removed of ["completeBookingItem", "attendBookingItem", "markBookingItemNoShow", "markBookingItemWaiting", "startBookingItem"]) assert.equal(removed in api, false, removed);
+  await api.stepBookingItem({ store_id: storeId, order_id: retained.id, order_booking_item_id: lineId, expected_updated_at: 3, step: "attended", fiscal_device_id: deskDevice });
+  await api.stepBookingItem({ store_id: storeId, order_id: retained.id, order_booking_item_id: lineId, expected_updated_at: 4, step: "no_show", fiscal_device_id: null });
   await api.revokeAccess({ store_id: storeId, id: retained.id, expected_updated_at: 5, line_item_id: "3e956b8d-efc3-42e6-a5c1-9fb38ea840fa", effective_at: 1_789_000_000_000, reason: "Chargeback" });
   await api.resendReceipt({ store_id: storeId, order_id: retained.id, id: ids.credit, expected_updated_at: 5 });
   const base = `/v1/stores/${storeId}/orders/${retained.id}`;
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
-    ["POST", `${base}/booking-items/${lineId}/attend`, { expected_updated_at: 3 }],
-    ["POST", `${base}/booking-items/${lineId}/no-show`, { expected_updated_at: 4 }],
+    ["POST", `${base}/booking-items/${lineId}/attend`, { expected_updated_at: 3, fiscal_device_id: deskDevice }],
+    ["POST", `${base}/booking-items/${lineId}/no-show`, { expected_updated_at: 4, fiscal_device_id: null }],
     ["POST", `${base}/access/revoke`, { expected_updated_at: 5, line_item_id: "3e956b8d-efc3-42e6-a5c1-9fb38ea840fa", effective_at: 1_789_000_000_000, reason: "Chargeback" }],
     ["POST", `${base}/resend-receipt`, { id: ids.credit, expected_updated_at: 5 }],
   ]);
@@ -114,15 +118,15 @@ test("a refused order change is propagated once, without a retry or a replacemen
 test("contact, blocks, delivery address and sold booking changes carry the exact current Order version", async (context) => {
   const calls = recordFetch(context, () => retained);
   const api = client().eshop.order;
-  const contact = { first_name: "New", last_name: "Contact", email: { email: "updated@example.test", language: "bs" }, phone: null };
+  const contact = { name: { first_name: "New", last_name: "Contact" }, email: { email: "updated@example.test", language: "bs" }, phone: null };
   const blocks = [{ key: "note", type: "text", value: "Accepted gift note" }];
   const delivery = ids.otherLine;
   const booking = ids.line;
   const address = { country: "BA", street1: "Changed street", city: "Sarajevo", postal_code: "71000" };
   await api.update({ store_id: storeId, id: retained.id, expected_updated_at: 10, contact, blocks });
   await api.correctDeliveryAddress({ store_id: storeId, order_id: retained.id, delivery_group_id: delivery, expected_updated_at: 11, address });
-  await api.rescheduleBookingItem({ store_id: storeId, order_id: retained.id, line_item_id: booking, expected_updated_at: 12, starts_at: 1_800_000_000_000, notify_customer: false });
-  await api.cancelBookingItem({ store_id: storeId, order_id: retained.id, line_item_id: booking, credit_id: ids.credit, expected_updated_at: 13, notify_customer: true });
+  await api.rescheduleBookingItem({ store_id: storeId, order_id: retained.id, order_booking_item_id: booking, expected_updated_at: 12, starts_at: 1_800_000_000_000, notify_customer: false });
+  await api.cancelBookingItem({ store_id: storeId, order_id: retained.id, order_booking_item_id: booking, credit_id: ids.credit, expected_updated_at: 13, notify_customer: true });
   const base = `/v1/stores/${storeId}/orders/${retained.id}`;
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
     ["PATCH", base, { expected_updated_at: 10, contact, blocks }],
@@ -149,4 +153,92 @@ test("order history retains the actual newly shipped rental quantity", async (co
   const order = await client().eshop.order.get({ store_id: storeId, id: retained.id });
   assert.deepEqual(order.delivery_groups[0].rentals, [rental]);
   assert.equal("rental_ids" in order.delivery_groups[0], false);
+});
+
+test("a booking is answered by staff with the Order version, by the buyer with the visit's start, and by a reminder link with its token alone", async (context) => {
+  const answered = { order_id: retained.id, order_booking_item_id: ids.line, starts_at: 1_800_000_000_000, response: { type: "coming", by: { type: "link" }, at: 2 } };
+  const calls = recordFetch(context, (call) => call.path.endsWith("/booking-response") ? answered : retained);
+  await client().eshop.order.answerBookingItem({ store_id: storeId, order_id: retained.id, order_booking_item_id: ids.line, expected_updated_at: 14, answer: "change_requested" });
+  const shop = createStorefront(storefrontIdentity, { ...fixedIdFactories, apiUrl: storefrontApiUrl, sessionStorage: signedInStorage() });
+  await shop.eshop.order.answerBookingItem({ order_id: retained.id, order_booking_item_id: ids.line, starts_at: 1_800_000_000_000, answer: "coming" }, { order_token: factoryOrderToken });
+  assert.deepEqual(await shop.eshop.order.answerBookingByLink({ token: "v1.booking/answer+token=", answer: "coming" }), answered);
+  assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
+    ["POST", `/v1/stores/${storeId}/orders/${retained.id}/booking-items/${ids.line}/response`, { expected_updated_at: 14, answer: "change_requested" }],
+    ["POST", `/v1/storefront/orders/${retained.id}/booking-items/${ids.line}/response`, { starts_at: 1_800_000_000_000, answer: "coming" }],
+    ["POST", "/v1/storefront/orders/booking-response", { token: "v1.booking/answer+token=", answer: "coming" }],
+  ]);
+  assert.equal(calls[1].headers.get("authorization"), `Bearer ${accessToken}`);
+  assert.equal(calls[1].headers.get("x-arky-order-token"), factoryOrderToken);
+  assert.equal(calls[2].headers.has("authorization"), false);
+  assert.equal(calls[2].headers.has("x-arky-order-token"), false);
+});
+
+test("visit steps, a new length and this-one-and-after changes each name the line and the order version, and only supply steps name a desk device", async (context) => {
+  const calls = recordFetch(context, () => retained);
+  const api = client().eshop.order;
+  const line = ids.line;
+  const deskDevice = "2d7f9b14-6c38-4a05-9e21-8b4c0f6a3d57";
+  for (const [step, version] of [["waiting", 3], ["in_progress", 4], ["upcoming", 10]]) {
+    await api.stepBookingItem({ store_id: storeId, order_id: retained.id, order_booking_item_id: line, expected_updated_at: version, step, fiscal_device_id: deskDevice });
+  }
+  await api.stepBookingItem({ store_id: storeId, order_id: retained.id, order_booking_item_id: line, expected_updated_at: 5, step: "attended", fiscal_device_id: deskDevice });
+  await api.stepBookingItem({ store_id: storeId, order_id: retained.id, order_booking_item_id: line, expected_updated_at: 6, step: "no_show", fiscal_device_id: null });
+  await api.resizeBookingItem({ store_id: storeId, order_id: retained.id, order_booking_item_id: line, expected_updated_at: 7, ends_at: 1_800_000_900_000 });
+  await api.rescheduleBookingSeries({ store_id: storeId, order_id: retained.id, order_booking_item_id: line, expected_updated_at: 8, starts_at: 1_800_000_000_000, notify_customer: false });
+  await api.cancelBookingSeries({ store_id: storeId, order_id: retained.id, order_booking_item_id: line, credit_id: ids.credit, expected_updated_at: 9, notify_customer: true });
+  const base = `/v1/stores/${storeId}/orders/${retained.id}/booking-items/${line}`;
+  assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
+    ["POST", `${base}/waiting`, { expected_updated_at: 3 }],
+    ["POST", `${base}/in-progress`, { expected_updated_at: 4 }],
+    ["POST", `${base}/upcoming`, { expected_updated_at: 10 }],
+    ["POST", `${base}/attend`, { expected_updated_at: 5, fiscal_device_id: deskDevice }],
+    ["POST", `${base}/no-show`, { expected_updated_at: 6, fiscal_device_id: null }],
+    ["POST", `${base}/resize`, { expected_updated_at: 7, ends_at: 1_800_000_900_000 }],
+    ["POST", `${base}/series/reschedule`, { expected_updated_at: 8, starts_at: 1_800_000_000_000, notify_customer: false }],
+    ["POST", `${base}/series/cancel`, { credit_id: ids.credit, expected_updated_at: 9, notify_customer: true }],
+  ]);
+  await assert.rejects(
+    async () => api.cancelBookingSeries({ store_id: storeId, order_id: retained.id, order_booking_item_id: line, credit_id: "credit", expected_updated_at: 9, notify_customer: true }),
+    TypeError,
+  );
+  await assert.rejects(
+    async () => api.cancelBookingSeries({ store_id: storeId, order_id: retained.id, order_booking_item_id: line, credit_id: ids.credit, expected_updated_at: 9 }),
+    TypeError,
+  );
+  assert.equal(calls.length, 8);
+});
+
+test("an order read keeps each booking line's branch, add-ons, changes and the visit's marks as sent", async (context) => {
+  const mark = { by: { account_id: ids.account, snapshot: { email: "staff@example.test", credential_type: { type: "session" } } }, at: 1_800_000_100_000 };
+  const addOn = {
+    add_on_id: "4a6c8e0b-2d4f-4b6a-8c0e-2a4c6e8a0b2d",
+    booking_offering_id: ids.otherLine,
+    booking_service_id: "5b7d9f1c-3e5a-4c7b-9d1f-3b5d7f9b1c3e",
+    booking_resource_id: "6c8e0a2d-4f6b-4d8c-8e2a-4c6e8a0c2d4f",
+    service_key: "room",
+    resource_key: "room-two",
+    interval: { from: 1_800_003_600_000, to: 1_800_005_400_000 },
+    capacity_intervals: [{ from: 1_800_003_600_000, to: 1_800_005_400_000 }],
+    price: { type: "free" },
+    form_submission_id: null,
+    add_ons: [],
+    status: { type: "taken_off", by: mark.by, at: 1_800_000_300_000 },
+  };
+  const change = { type: { type: "add_on_added", add_on_id: addOn.add_on_id }, by: { type: "account", ...mark.by }, at: 1_800_000_050_000 };
+  const visit = {
+    ...orderBookingItems(retained)[0],
+    add_ons: [addOn],
+    changes: [change],
+    status: { type: "confirmed", attendance: { type: "attended", arrived: mark, started: null, finished: { ...mark, at: 1_800_000_200_000 } } },
+  };
+  const response = { ...retained, line_items: [...retained.line_items.filter((line) => line.type !== "booking"), visit] };
+  recordFetch(context, () => response);
+  const order = await client().eshop.order.get({ store_id: storeId, id: retained.id });
+  const [first] = orderBookingItems(order);
+  assert.equal("booking_type" in first, false);
+  assert.equal(first.store_location_id, visit.store_location_id);
+  assert.deepEqual(first.total_interval, visit.total_interval);
+  assert.deepEqual(first.add_ons, [addOn]);
+  assert.deepEqual(first.changes, [change]);
+  assert.deepEqual(first.status.attendance, { type: "attended", arrived: mark, started: null, finished: { ...mark, at: 1_800_000_200_000 } });
 });
