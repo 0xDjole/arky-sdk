@@ -286,7 +286,7 @@ test("a remount after every caller aborted reads the setup again instead of the 
 test("package text search keeps its selection, the price range and the continuation together", async (context) => {
   const calls = recordFetch(context, () => ({ items: [], cursor: "next-search-page" }));
   const client = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "bih", locale: "bs" });
-  const selection = { types: ["product"], text: "KOŠULJA-0001", choice: { price: { min_amount: 0, max_amount: 5000 } }, sort: "relevance" };
+  const selection = { types: ["product"], text: "KOŠULJA-0001", choice: { price: { min_amount: 0, max_amount: 5000 } }, sort: "package_order" };
   const params = { package_id: ids.package, selection, limit: 20, cursor: "current-search-page" };
   assert.deepEqual(await client.eshop.packageItem.find(params), { items: [], cursor: "next-search-page" });
   assert.deepEqual(JSON.parse(calls[0].query.selection), selection);

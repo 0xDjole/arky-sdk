@@ -345,7 +345,7 @@ export interface StorefrontPrice {
 
 export type PackageItemRecordType = "product" | "booking_service" | "package";
 
-export type PackageItemSort = "package_order" | "relevance" | "starting_price";
+export type PackageItemSort = "package_order" | "starting_price";
 
 export type PackageItemPriceBasis =
   | { type: "product_unit" }

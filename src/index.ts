@@ -203,7 +203,7 @@ export type * from "./storefrontStore";
 export { createNetworkCustomer } from "./networkCustomer";
 export type { NetworkCustomerClient } from "./networkCustomer";
 
-export const SDK_VERSION = "0.26.142";
+export const SDK_VERSION = "0.26.143";
 
 export interface AdminSession {
   id: string;
