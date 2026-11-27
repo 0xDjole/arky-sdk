@@ -1,6 +1,7 @@
 import type { EpochMilliseconds } from "./time";
 import type { ProviderEffectError } from "./common";
 import type { MonriEnvironment, StripeWebhook } from "./payment";
+import type { AssistantTool } from "./support";
 
 export type StoreProviderStatus = "active" | "disabled";
 
@@ -28,12 +29,10 @@ export interface StoreStripeLogin {
 export type ElevenLabsRegion = "global" | "us" | "eu" | "in" | "sg";
 
 export interface ElevenLabsTools {
-  find_slots: string;
-  propose: string;
   confirm: string;
-  request_callback: string;
   transfer: string;
-  record_sms_consent: string;
+  request_callback: string;
+  optional: Partial<Record<AssistantTool, string>>;
 }
 
 export type ElevenLabsSetup =
@@ -42,12 +41,10 @@ export type ElevenLabsSetup =
   | { type: "failed"; error: ProviderEffectError; at: EpochMilliseconds };
 
 export interface ArkyElevenLabsTools {
-  find_slots: string;
-  propose: string;
   confirm: string;
-  request_callback: string;
   transfer: string;
-  record_sms_consent: string;
+  request_callback: string;
+  optional: Partial<Record<AssistantTool, string>>;
 }
 
 export type ArkyElevenLabsSetup =

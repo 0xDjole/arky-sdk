@@ -50,17 +50,38 @@ const definitions = [
   {
     path: ["companies", "membership"],
     route: "company-memberships",
-    create: { company_id: selectedStoreId, contact: { email: "buyer@example.test", language: "en" }, grants: [{ scope: { type: "company_location", company_location_id: otherId }, role_ids: [otherId] }] },
-    update: { grants: [{ scope: { type: "company" }, role_ids: [selectedStoreId] }, { scope: { type: "company_location", company_location_id: otherId }, role_ids: [] }], status: { type: "disabled" } },
+    create: { company_id: selectedStoreId, contact: { email: "buyer@example.test", language: "en" }, role_ids: [otherId] },
+    update: { role_ids: [selectedStoreId, otherId], status: { type: "disabled" } },
     query: { company_id: selectedStoreId, customer_id: otherId, role_id: otherId },
     deletion: "deleted",
   },
   {
     path: ["companies", "role"],
     route: "company-roles",
-    create: { key: "purchaser", permissions: ["place_orders", "access_digital_products", "join_packages", "view_own_packages"] },
-    update: { permissions: ["admin", "view_company_packages", "manage_company_packages"] },
-    query: { key: "purchaser" },
+    create: {
+      company_id: selectedStoreId,
+      key: "purchaser",
+      permissions: [
+        { type: "company_place_orders", store_id: selectedStoreId, company_id: selectedStoreId, locations: { type: "all" } },
+        { type: "company_digital_products_read", store_id: selectedStoreId, company_id: selectedStoreId, locations: { type: "filtered", filters: [{ type: "ids", ids: [otherId] }] } },
+        { type: "company_join_packages", store_id: selectedStoreId, company_id: selectedStoreId, locations: { type: "all" } },
+        { type: "company_own_packages_read", store_id: selectedStoreId, company_id: selectedStoreId, locations: { type: "all" } },
+      ],
+    },
+    response: {
+      permissions: [
+        { id: otherId, role_id: id, type: { type: "company_place_orders", store_id: selectedStoreId, company_id: selectedStoreId, locations: { type: "all" } }, created_at: now },
+      ],
+    },
+    update: {
+      company_id: selectedStoreId,
+      permissions: [
+        { type: "company_write", store_id: selectedStoreId, company_id: selectedStoreId },
+        { type: "company_all_packages", store_id: selectedStoreId, company_id: selectedStoreId, action: "write", locations: { type: "all" } },
+      ],
+    },
+    scope: { company_id: selectedStoreId },
+    query: { company_id: selectedStoreId, key: "purchaser" },
     deletion: "deleted",
   },
   {
@@ -106,22 +127,19 @@ const getApi = (client, path) => path.reduce((owner, key) => owner[key], client)
 const createClient = () => createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
 const response = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
-test("company-wide and per-location grants are sent explicitly for an invited contact and survive exact reads", async (context) => {
-  const grants = [
-    { scope: { type: "company" }, role_ids: [] },
-    { scope: { type: "company_location", company_location_id: selectedStoreId }, role_ids: [otherId, id] },
-  ];
+test("a company membership names the company's roles for an invited contact and survives exact reads", async (context) => {
+  const role_ids = [otherId, id];
   const contact = { email: "buyer@example.test", language: "bs" };
-  const record = { id, store_id: storeId, company_id: selectedStoreId, grants, status: { type: "invited", contact }, created_at: now, updated_at: now };
+  const record = { id, store_id: storeId, company_id: selectedStoreId, role_ids, status: { type: "invited", contact }, created_at: now, updated_at: now };
   const calls = [];
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     calls.push({ path: new URL(url).pathname, body: init.body ? JSON.parse(init.body) : null });
     return response(record);
   });
   const api = createClient().companies.membership;
-  assert.deepEqual(await api.create({ store_id: storeId, id, company_id: selectedStoreId, contact, grants }), record);
-  assert.deepEqual(calls[0].body, { id, company_id: selectedStoreId, contact, grants });
-  for (const removed of ["scope", "locations", "role_ids", "email", "language", "customer_id"]) assert.equal(removed in calls[0].body, false, removed);
+  assert.deepEqual(await api.create({ store_id: storeId, id, company_id: selectedStoreId, contact, role_ids }), record);
+  assert.deepEqual(calls[0].body, { id, company_id: selectedStoreId, contact, role_ids });
+  for (const removed of ["grants", "scope", "locations", "email", "language", "customer_id"]) assert.equal(removed in calls[0].body, false, removed);
   assert.equal(calls[0].path, `/v1/stores/${storeId}/company-memberships`);
   assert.deepEqual(await api.get({ store_id: storeId, id }), record);
   assert.equal(calls[1].path, `/v1/stores/${storeId}/company-memberships/${id}`);
@@ -186,9 +204,12 @@ for (const definition of definitions) {
       return response(record);
     });
     const api = getApi(createClient(), definition.path);
+    const scope = definition.scope ?? {};
+    const scopeSearch = Object.keys(scope).length ? `?${new URLSearchParams(scope)}` : "";
     assert.deepEqual(await api.create({ ...definition.create, id, store_id: selectedStoreId }), record);
     assert.deepEqual(calls.at(-1).body, { ...definition.create, id });
-    assert.deepEqual(await api.get({ id, store_id: selectedStoreId }), record);
+    assert.deepEqual(await api.get({ id, store_id: selectedStoreId, ...scope }), record);
+    assert.equal(calls.at(-1).target.search, scopeSearch);
     const query = { ...definition.query, limit: 20, cursor: "previous-page" };
     assert.deepEqual(await api.find({ store_id: selectedStoreId, ...query }), { items: [record], cursor: "next-page" });
     for (const [key, value] of Object.entries(query)) {
@@ -203,10 +224,11 @@ for (const definition of definitions) {
       assert.equal("update" in api, false);
     }
     assert.equal("usage" in api, false);
-    assert.deepEqual(await api.delete({ id, store_id: selectedStoreId, expected_updated_at: now }), deletionAnswer);
+    assert.deepEqual(await api.delete({ id, store_id: selectedStoreId, expected_updated_at: now, ...scope }), deletionAnswer);
     assert.equal(calls.at(-1).method, "DELETE");
     assert.equal(calls.at(-1).body, null);
     assert.equal(calls.at(-1).target.searchParams.get("expected_updated_at"), String(now));
+    for (const [key, value] of Object.entries(scope)) assert.equal(calls.at(-1).target.searchParams.get(key), value, key);
     for (const call of calls) {
       assert.ok(call.target.pathname.startsWith(`/v1/stores/${selectedStoreId}/${definition.route}`));
       assert.equal(call.headers.get("authorization"), "Bearer arky_at_ttttttttttttttttttttttttttttttttttttttttttA");
@@ -218,9 +240,9 @@ for (const definition of definitions) {
     }
     const signal = new AbortController().signal;
     await assert.rejects(async () => api.get({ id: "one/segment?only" }), TypeError);
-    await api.get({ store_id: storeId, id: "one/segment?only" }, { signal, headers: { "x-client-trace": "company-contract" } });
+    await api.get({ store_id: storeId, id: "one/segment?only", ...scope }, { signal, headers: { "x-client-trace": "company-contract" } });
     assert.equal(calls.at(-1).target.pathname, `/v1/stores/${storeId}/${definition.route}/one%2Fsegment%3Fonly`);
-    assert.equal(calls.at(-1).target.search, "");
+    assert.equal(calls.at(-1).target.search, scopeSearch);
     assert.equal(calls.at(-1).headers.get("x-client-trace"), "company-contract");
     assert.equal(calls.at(-1).signal, signal);
   });
@@ -316,12 +338,13 @@ test("B2B management keeps server denials and conflicts without replacing the mu
   }
 });
 
-test("a buyer reads their company access as scoped grants, their memberships and the locations they may buy for", async (context) => {
+test("a buyer reads their company access as the permissions of their roles, their memberships and the locations they may buy for", async (context) => {
   const access = {
     company: { type: "company", id: selectedStoreId, store_id: storeId, name: "Buyer", contact: { email: "accounts@example.test", language: "en" }, tax: { type: "standard", registrations: [{ country: "BA", region: null, identifier: "4200000000000", status: { type: "rejected", rejected_at: now } }] }, purchasing: standardCheckout, status: { type: "active" }, created_at: now, updated_at: now },
-    grants: [
-      { scope: { type: "company" }, permissions: ["place_orders", "join_packages"] },
-      { scope: { type: "company_location", company_location_id: otherId }, permissions: ["view_company_orders", "manage_company_packages"] },
+    permissions: [
+      { type: "company_place_orders", store_id: storeId, company_id: selectedStoreId, locations: { type: "all" } },
+      { type: "company_all_orders_read", store_id: storeId, company_id: selectedStoreId, locations: { type: "filtered", filters: [{ type: "ids", ids: [otherId] }] } },
+      { type: "company_all_packages", store_id: storeId, company_id: selectedStoreId, action: "write", locations: { type: "filtered", filters: [{ type: "ids", ids: [otherId] }] } },
     ],
   };
   const calls = [];
@@ -334,9 +357,9 @@ test("a buyer reads their company access as scoped grants, their memberships and
   });
   const shop = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() }).companies;
   assert.deepEqual(await shop.getAccess({ id: selectedStoreId }), access);
-  const locationsOnly = { company: { type: "locations", id: selectedStoreId, name: "Buyer", status: { type: "active" } }, grants: [access.grants[1]] };
+  const locationsOnly = { company: { type: "locations", id: selectedStoreId, name: "Buyer", status: { type: "active" } }, permissions: access.permissions.slice(1) };
   access.company = locationsOnly.company;
-  access.grants = locationsOnly.grants;
+  access.permissions = locationsOnly.permissions;
   assert.deepEqual(await shop.getAccess({ id: selectedStoreId }), locationsOnly);
   await shop.membership.find({ limit: 10 });
   await shop.location.find({ company_id: selectedStoreId, limit: 5 });
@@ -368,12 +391,12 @@ test("a company manager changes the company, its locations and its members throu
   });
   const shop = storefrontCompanies();
   const contact = { email: "buyer@example.test", language: "bs" };
-  const grants = [{ scope: { type: "company_location", company_location_id: otherId }, role_ids: [id] }];
+  const role_ids = [id];
   const companyUpdate = { expected_updated_at: now, name: "Buyer 2", contact: null, billing_address: address };
   const locationCreate = { id: otherId, company_id: selectedStoreId, name: "Depot", shipping_address: address, billing_address: null, status: { type: "active" }, blocks: [] };
   const locationUpdate = { expected_updated_at: now + 1, name: "Depot 2", shipping_address: null, billing_address: address, status: { type: "archived" } };
-  const membershipCreate = { id, company_id: selectedStoreId, contact, grants };
-  const membershipUpdate = { expected_updated_at: now + 3, grants, status: { type: "disabled" } };
+  const membershipCreate = { id, company_id: selectedStoreId, contact, role_ids };
+  const membershipUpdate = { expected_updated_at: now + 3, role_ids, status: { type: "disabled" } };
   await shop.update({ id: selectedStoreId, ...companyUpdate });
   await shop.location.create(locationCreate);
   await shop.location.update({ id: otherId, ...locationUpdate });
@@ -424,7 +447,7 @@ test("a storefront company location or membership is created only under the app'
       name: "TypeError",
       message: "The company location id must be a canonical UUID v4 picked by the app",
     });
-    await assert.rejects(async () => shop.membership.create({ id: invented, company_id: selectedStoreId, contact: { email: "buyer@example.test", language: "bs" }, grants: [] }), {
+    await assert.rejects(async () => shop.membership.create({ id: invented, company_id: selectedStoreId, contact: { email: "buyer@example.test", language: "bs" }, role_ids: [id] }), {
       name: "TypeError",
       message: "The company membership id must be a canonical UUID v4 picked by the app",
     });
@@ -454,8 +477,8 @@ test("the store's companies has the client's getAccess, update, location, member
   const companyUpdate = { expected_updated_at: now, name: "Buyer 2", contact: null, billing_address: address };
   const locationCreate = { id: otherId, company_id: selectedStoreId, name: "Depot", shipping_address: address, billing_address: null, status: { type: "active" }, blocks: [] };
   const locationUpdate = { expected_updated_at: now + 1, name: "Depot 2", shipping_address: null, billing_address: address, status: { type: "archived" } };
-  const membershipCreate = { id, company_id: selectedStoreId, contact: { email: "buyer@example.test", language: "bs" }, grants: [] };
-  const membershipUpdate = { expected_updated_at: now + 3, grants: [], status: { type: "disabled" } };
+  const membershipCreate = { id, company_id: selectedStoreId, contact: { email: "buyer@example.test", language: "bs" }, role_ids: [otherId] };
+  const membershipUpdate = { expected_updated_at: now + 3, role_ids: [otherId], status: { type: "disabled" } };
   await shop.getAccess({ id: selectedStoreId });
   await shop.update({ id: selectedStoreId, ...companyUpdate });
   await shop.location.find({ company_id: selectedStoreId });

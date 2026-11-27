@@ -163,7 +163,10 @@ export const createCompanyRoleApi = (apiConfig: ApiConfig) => ({
   },
 
   get(params: GetCompanyRoleParams, options?: RequestOptions): Promise<CompanyRole> {
-    return apiConfig.httpClient.get<CompanyRole>(storeRecordPath(params.store_id, "company-roles", params.id), options);
+    return apiConfig.httpClient.get<CompanyRole>(storeRecordPath(params.store_id, "company-roles", params.id), {
+      ...options,
+      params: { company_id: params.company_id },
+    });
   },
 
   create(params: CreateCompanyRoleParams, options?: RequestOptions): Promise<CompanyRole> {
@@ -180,7 +183,7 @@ export const createCompanyRoleApi = (apiConfig: ApiConfig) => ({
   delete(params: DeleteCompanyRoleParams, options?: RequestOptions): Promise<DeletedResponse> {
     return apiConfig.httpClient.delete<DeletedResponse>(storeRecordPath(params.store_id, "company-roles", params.id), {
       ...options,
-      params: { expected_updated_at: params.expected_updated_at },
+      params: { company_id: params.company_id, expected_updated_at: params.expected_updated_at },
     });
   },
 });

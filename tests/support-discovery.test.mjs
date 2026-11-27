@@ -183,11 +183,11 @@ test("support writes carry the app-picked id, the conversation version or, for a
     { type: "chat", start_step_key: "start" },
     { type: "incoming_email", email_address_id: addressId, reply_language: "en", reply, start_step_key: "team" },
   ];
-  const assistant = { status: { type: "active" }, login: { type: "store", store_provider_id: ids.picked }, languages: ["bs"], instructions: "Book check-ups only.", actions: ["book", "move", "cancel", "confirm_attendance"], sales_channel_id: ids.channel, market_id: ids.market, package_id: ids.package };
+  const assistant = { status: { type: "active" }, login: { type: "store", store_provider_id: ids.picked }, languages: ["bs"], instructions: "Book check-ups only.", tools: ["find_slots", "book", "move", "cancel", "confirm_attendance"], sales_channel_id: ids.channel, market_id: ids.market, package_id: ids.package, place_of_sale: { type: "none" } };
   const phoneSteps = {
     hours: { type: "open_hours", hours: { weekly_availability: { monday: [{ from: 28_800_000, to: 57_600_000 }] }, date_overrides: {} }, open_step_key: "menu", closed_step_key: "closed" },
     menu: { type: "phone_menu", prompt: { type: "play", media_id: "6c1e9a47-2b58-4f03-8d6a-1e7c3b9f5a20" }, options: [{ digit: 1, next_step_key: "assistant" }], no_answer_step_key: "ring" },
-    assistant: { type: "phone_assistant", assistant_id: proposalId, greeting: { bs: "Dobar dan." }, recording: { type: "keep", period: 30 }, transfer_step_key: "ring" },
+    assistant: { type: "phone_assistant", assistant_id: proposalId, greeting: { bs: "Dobar dan." }, voice: { type: "eleven_labs", voice_id: "JBFqnCBsd6RMkjVDRZzb" }, recording: { type: "keep", period: 30 }, transfer_step_key: "ring" },
     ring: { type: "phone_ring", number: "+38733000000", ring: 30_000, next_step_key: "closed" },
     closed: { type: "phone_say", prompt: { type: "speak", text: { bs: "Nazovite kasnije." } }, next_step_key: "team" },
     chat: { type: "chat_assistant", assistant_id: messageId, hand_over_step_key: "team" },
@@ -482,7 +482,7 @@ test("a customer opens a file of the store's reply through their own session", a
 test("reusable assistants keep their caller-picked identity, flat settings and edit version", async (context) => {
   const calls = recordFetch(context, (call) => call.method === "DELETE" ? { deleted: true } : call.method === "GET" && call.path.endsWith("support-assistants") ? { items: [], cursor: "next:+/=" } : { id: proposalId });
   const api = support().assistant;
-  const settings = { status: { type: "active" }, login: { type: "store", store_provider_id: ids.picked }, languages: ["bs"], instructions: "Book check-ups only.", actions: ["book"], sales_channel_id: ids.channel, market_id: ids.market, package_id: ids.package };
+  const settings = { status: { type: "active" }, login: { type: "store", store_provider_id: ids.picked }, languages: ["bs"], instructions: "Book check-ups only.", tools: ["find_items", "order"], sales_channel_id: ids.channel, market_id: ids.market, package_id: ids.package, place_of_sale: { type: "store_location", store_location_id: "3f8b1d6a-7c24-4e59-a0d3-9b6e2c4f8a17" } };
   const body = { id: proposalId, key: "reception", ...settings };
   await api.create({ store_id: STORE_ID, ...body });
   await api.create({ store_id: STORE_ID, ...body });

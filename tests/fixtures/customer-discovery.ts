@@ -1,5 +1,5 @@
 import { createAdmin } from '../../dist/index.js';
-import type { CustomerContactStatus, CustomerContactSummary, CustomerContactSummaryAddress, CustomerExport, CustomerExportCut, CustomerInviteStatus, CustomerOrderContact, CustomerSearchSnapshot, EmailContact, EpochMilliseconds, ExportCustomerParams, FindCustomersParams, LoginAddress, SmsConsent, SmsConsentChoice, StorefrontSmsConsent, BlockQuery, CustomerBlockAbsence, CustomerBlockFilter } from '../../dist/index.js';
+import type { CustomerContactStatus, CustomerContactSummary, CustomerContactSummaryAddress, CustomerExport, CustomerExportCut, CustomerInviteStatus, CustomerOrderContact, CustomerSearchSnapshot, EmailContact, EpochMilliseconds, ExportCustomerParams, FindCustomersParams, LoginAddress, SmsConsent, SmsConsentChoice, StorefrontSmsConsent, BlockQuery, CustomerBlockAbsence, CustomerBlockFilter, CategoryEntry, CreateCustomerParams, Customer, UpdateCustomerParams } from '../../dist/index.js';
 
 type Assert<T extends true> = T;
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
@@ -48,4 +48,11 @@ export type CustomerDiscoveryContracts = [
   Assert<Equal<ExportCustomerParams, { store_id: string; id: string }>>,
   Assert<Equal<keyof CustomerExport, 'customer' | 'booking_lines' | 'entries' | 'form_submissions' | 'conversations' | 'cut' | 'exported_at'>>,
   Assert<Equal<CustomerExportCut, { part: 'booking_lines' | 'entries' | 'form_submissions' | 'conversations' | 'calls'; reason: 'grant' | 'size' }>>,
+  Assert<Equal<Customer['categories'], CategoryEntry[]>>,
+  Assert<Equal<CreateCustomerParams['categories'], CategoryEntry[] | undefined>>,
+  Assert<Equal<{} extends Pick<CreateCustomerParams, 'categories'> ? true : false, true>>,
+  Assert<Equal<UpdateCustomerParams['categories'], CategoryEntry[] | undefined>>,
+  Assert<Equal<FindCustomersParams['category_ids'], string[] | undefined>>,
+  Assert<Equal<{ store_id: string; contact_email: string; category_ids: string[] } extends FindCustomersParams ? true : false, false>>,
+  Assert<Equal<{ store_id: string; contact_number: string; category_ids: string[] } extends FindCustomersParams ? true : false, false>>,
 ];

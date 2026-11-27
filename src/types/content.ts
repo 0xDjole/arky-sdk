@@ -10,9 +10,9 @@ export type CollectionStatus =
 
 export type CollectionEditableStatus = Exclude<CollectionStatus, { type: "deleting" }>;
 
-export type CollectionType = "public" | "private" | "shared" | "notes";
+export type CollectionType = "public" | "private" | "customer";
 
-export type PrivateCollectionType = "private" | "shared";
+export type PrivateCollectionType = "private" | "customer";
 
 export interface Collection {
   id: string;
@@ -68,25 +68,11 @@ export type EntryEditableStatus = Exclude<EntryStatus, { type: "deleting" }>;
 
 export type PublicEntryType = { type: "public"; key: string; slugs: Record<string, string> };
 
-export type PrivateEntryType =
-  | { type: "private_store" }
-  | { type: "private_customer"; customer_id: string }
-  | { type: "private_company"; company_id: string }
-  | { type: "private_order"; order_id: string }
-  | { type: "private_conversation"; conversation_id: string }
-  | { type: "private_form_submission"; form_submission_id: string };
+export type PrivateEntryType = { type: "private" };
 
-export type SharedEntryType = { type: "shared"; customer_id: string };
+export type CustomerEntryType = { type: "customer"; customer_id: string };
 
-export type NoteEntryType =
-  | { type: "note_customer"; customer_id: string }
-  | { type: "note_company"; company_id: string }
-  | { type: "note_order"; order_id: string }
-  | { type: "note_conversation"; conversation_id: string }
-  | { type: "note_form_submission"; form_submission_id: string }
-  | { type: "note_form_submission_stage_change"; form_submission_id: string; changed_at: EpochMilliseconds };
-
-export type EntryType = PublicEntryType | PrivateEntryType | SharedEntryType | NoteEntryType;
+export type EntryType = PublicEntryType | PrivateEntryType | CustomerEntryType;
 
 export type PrivateEntryStatus = Exclude<EntryStatus, { type: "scheduled" }>;
 
@@ -109,7 +95,7 @@ export interface PublicEntry extends Entry {
 }
 
 export interface PrivateEntry extends Entry {
-  type: PrivateEntryType | SharedEntryType;
+  type: PrivateEntryType | CustomerEntryType;
   status: PrivateEntryStatus;
 }
 
@@ -125,25 +111,17 @@ export interface StorefrontEntry {
   validation_errors: { field: string; error: string }[];
 }
 
-export interface StorefrontSharedEntry {
+export interface StorefrontCustomerEntry {
   id: string;
   store_id: string;
   collection_id: string;
-  type: SharedEntryType;
+  type: CustomerEntryType;
   blocks: Block[];
   status: PrivateEntryStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
   validation_errors: { field: string; error: string }[];
 }
-
-export type EntryOwner =
-  | { type: "store" }
-  | { type: "customer"; customer_id: string }
-  | { type: "company"; company_id: string }
-  | { type: "order"; order_id: string }
-  | { type: "conversation"; conversation_id: string }
-  | { type: "form_submission"; form_submission_id: string };
 
 export interface PrivateFileLink {
   url: string;
@@ -451,7 +429,7 @@ export interface DeletePrivateCollectionParams extends DeleteCollectionParams {}
 export interface FindPrivateEntriesParams {
   store_id: string;
   collection_id: string;
-  owner?: EntryOwner;
+  customer_id?: string;
   status?: PrivateEntryStatus["type"];
   limit?: number;
   cursor?: string | null;
@@ -467,7 +445,7 @@ export interface CreatePrivateEntryParams {
   store_id: string;
   collection_id: string;
   id: string;
-  type: PrivateEntryType | SharedEntryType;
+  type: PrivateEntryType | CustomerEntryType;
   blocks: Block[];
   status?: PrivateEntryEditableStatus;
 }
@@ -489,17 +467,17 @@ export interface PrivateEntryFileLinkParams extends GetPrivateEntryParams {
   variant: MediaImageSize;
 }
 
-export interface FindSharedEntriesParams {
+export interface StorefrontFindCustomerEntriesParams {
   collection_id?: string;
   limit?: number;
   cursor?: string | null;
 }
 
-export interface GetSharedEntryParams {
+export interface StorefrontGetCustomerEntryParams {
   id: string;
 }
 
-export interface SharedEntryFileLinkParams extends GetSharedEntryParams {
+export interface StorefrontCustomerEntryFileLinkParams extends StorefrontGetCustomerEntryParams {
   media_id: string;
   variant: MediaImageSize;
 }

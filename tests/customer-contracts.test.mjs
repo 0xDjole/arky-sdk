@@ -100,6 +100,22 @@ test("Admin Customer commands send profile blocks, address changes and explicit 
   await assert.rejects(async () => admin.customers.create({ store_id: storeId, id: "customer", profile, blocks: [] }), TypeError);
 });
 
+test("a customer's categories go in on create and update as entries, and the list finds the customers in any named category", async (context) => {
+  const diabetes = "7e3a9c51-2d84-4b06-9f1e-5c8a2d6b0e73";
+  const vip = "2c6e8a04-9b17-4d35-a0f2-6e1c3b5d7a98";
+  const categories = [{ category_id: diabetes, fields: [{ type: "select_one", field_id: ids.line, option_key: "type_2" }] }];
+  const calls = recordFetch(context, (call) => call.method === "GET" ? { items: [], cursor: null } : customerRecord());
+  const admin = createAdmin({ apiUrl: baseUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
+  await admin.customers.create({ store_id: storeId, id: customerId, profile, blocks: [], categories });
+  await admin.customers.update({ store_id: storeId, id: customerId, expected_updated_at: 2, categories: [] });
+  await admin.customers.find({ store_id: storeId, category_ids: [diabetes, vip], query: "Ana", limit: 20 });
+  assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
+    ["POST", `/v1/stores/${storeId}/customers`, {}, { id: customerId, profile, blocks: [], categories }],
+    ["PATCH", `/v1/stores/${storeId}/customers/${customerId}`, {}, { expected_updated_at: 2, categories: [] }],
+    ["GET", `/v1/stores/${storeId}/customers`, { category_ids: JSON.stringify([diabetes, vip]), query: "Ana", limit: "20" }, null],
+  ]);
+});
+
 test("Admin contact commands add, change with PUT and remove a contact by its address, drop a link by its position and invite a contact", async (context) => {
   const address = { type: "phone", number: "+38761222333" };
   const invite = {

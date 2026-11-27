@@ -14,6 +14,7 @@ export type * from "./auditLog";
 export type * from "./simulator";
 export type * from "./account";
 export type * from "./storeRole";
+export type * from "./permission";
 export type * from "./market";
 export type * from "./webhook";
 export { WEBHOOK_UNIT_EVENT_TYPES } from "./webhook";

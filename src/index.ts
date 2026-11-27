@@ -120,7 +120,7 @@ import { createShippingProfileApi } from "./api/shippingProfile";
 import { createStoreSimulatorApi } from "./api/simulator";
 import { createStoreApi } from "./api/store";
 import { createStoreProviderApi } from "./api/storeProvider";
-import { createStoreRoleApi } from "./api/storeRole";
+import { createCustomerRoleApi, createStoreAssistantMembershipApi, createStoreRoleApi } from "./api/storeRole";
 import { createSuppressionApi } from "./api/suppression";
 import {
   createStorefrontApi,
@@ -203,7 +203,7 @@ export type * from "./storefrontStore";
 export { createNetworkCustomer } from "./networkCustomer";
 export type { NetworkCustomerClient } from "./networkCustomer";
 
-export const SDK_VERSION = "0.26.144";
+export const SDK_VERSION = "0.26.145";
 
 export interface AdminSession {
   id: string;
@@ -318,6 +318,8 @@ function createAdminClient(config: CreateAdminConfig) {
       ...createStoreApi(apiConfig),
       country: createCountryApi(apiConfig),
       role: createStoreRoleApi(apiConfig),
+      customerRole: createCustomerRoleApi(apiConfig),
+      assistantMembership: createStoreAssistantMembershipApi(apiConfig),
       webhook: createWebhookApi(apiConfig),
       location: createLocationApi(apiConfig),
       market: createMarketApi(apiConfig),
@@ -1346,7 +1348,7 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
     category: storefrontApi.category,
     media: storefrontApi.media,
     content: storefrontApi.content,
-    sharedEntries: storefrontApi.sharedEntries,
+    customerEntries: storefrontApi.customerEntries,
     forms: storefrontApi.forms,
     eshop: storefrontApi.eshop,
     companies: storefrontApi.companies,

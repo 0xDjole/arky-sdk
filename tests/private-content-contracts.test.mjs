@@ -30,12 +30,14 @@ test("private collections have their own routes and preserve type, filters and v
   const calls = recordFetch(context, () => ({ id: collectionId, type: "private" }));
   const api = admin().content.privateCollection;
   await api.create({ store_id: ids.store, id: collectionId, type: "private", key: "history", schema: [], blocks: [] });
+  await api.create({ store_id: ids.store, id: collectionId, type: "customer", key: "charts", schema: [], blocks: [] });
   await api.find({ store_id: ids.store, type: "private", key: "history", status: "active", limit: 10, cursor: "collections" });
   await api.get({ store_id: ids.store, id: collectionId });
   await api.update({ store_id: ids.store, id: collectionId, expected_updated_at: 3, status: { type: "archived" } });
   await api.delete({ store_id: ids.store, id: collectionId, expected_updated_at: 4 });
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
     ["POST", collectionPath, {}, { id: collectionId, type: "private", key: "history", schema: [], blocks: [] }],
+    ["POST", collectionPath, {}, { id: collectionId, type: "customer", key: "charts", schema: [], blocks: [] }],
     ["GET", collectionPath, { type: "private", key: "history", status: "active", limit: "10", cursor: "collections" }, null],
     ["GET", `${collectionPath}/${collectionId}`, {}, null],
     ["PUT", `${collectionPath}/${collectionId}`, {}, { expected_updated_at: 3, status: { type: "archived" } }],
@@ -43,27 +45,44 @@ test("private collections have their own routes and preserve type, filters and v
   ]);
 });
 
-test("private entries name their collection and encode one owner without public search filters", async (context) => {
-  const calls = recordFetch(context, () => ({ id: entryId, type: { type: "private_customer", customer_id: ids.customer } }));
+test("private and customer entries name their collection, and one customer's entries list by customer_id", async (context) => {
+  const calls = recordFetch(context, () => ({ id: entryId, type: { type: "customer", customer_id: ids.customer } }));
   const api = admin().content.privateEntry;
   const target = { store_id: ids.store, collection_id: collectionId };
-  const type = { type: "private_customer", customer_id: ids.customer };
-  const owner = { type: "customer", customer_id: ids.customer };
+  const type = { type: "customer", customer_id: ids.customer };
   await api.create({ ...target, id: entryId, type, blocks: [], status: { type: "draft" } });
-  await api.find({ ...target, owner, limit: 2, cursor: "owner-page" });
+  await api.create({ ...target, id: entryId, type: { type: "private" }, blocks: [] });
+  await api.find({ ...target, customer_id: ids.customer, limit: 2, cursor: "customer-page" });
   await api.find({ ...target, limit: 5 });
   await api.get({ ...target, id: entryId });
   await api.update({ ...target, id: entryId, expected_updated_at: 6, blocks: [], status: { type: "active" } });
   await api.delete({ ...target, id: entryId, expected_updated_at: 7 });
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
     ["POST", entriesPath, {}, { id: entryId, type, blocks: [], status: { type: "draft" } }],
-    ["GET", entriesPath, { owner: JSON.stringify(owner), limit: "2", cursor: "owner-page" }, null],
+    ["POST", entriesPath, {}, { id: entryId, type: { type: "private" }, blocks: [] }],
+    ["GET", entriesPath, { customer_id: ids.customer, limit: "2", cursor: "customer-page" }, null],
     ["GET", entriesPath, { limit: "5" }, null],
     ["GET", `${entriesPath}/${entryId}`, {}, null],
     ["PUT", `${entriesPath}/${entryId}`, {}, { expected_updated_at: 6, blocks: [], status: { type: "active" } }],
     ["DELETE", `${entriesPath}/${entryId}`, { expected_updated_at: "7" }, null],
   ]);
   assert.ok(calls.every((call) => call.headers.get("authorization") === `Bearer ${accountToken}`));
+});
+
+test("the staff entry search lists every customer's entries of a collection named by its id alone, and a deleting status reads back", async (context) => {
+  const customerEntry = { id: entryId, collection_id: collectionId, type: { type: "customer", customer_id: ids.customer } };
+  const otherEntry = { ...customerEntry, id: mediaId, type: { type: "customer", customer_id: ids.otherCustomer } };
+  const calls = recordFetch(context, () => ({ items: [customerEntry, otherEntry], cursor: "search:+/=" }));
+  const api = admin().content;
+  const page = await api.entry.find({ store_id: ids.store, collection_id: collectionId, query: "insulin", limit: 50 });
+  assert.deepEqual(page.items.map((item) => item.type), [customerEntry.type, otherEntry.type]);
+  await api.entry.find({ store_id: ids.store, collection_id: collectionId, cursor: page.cursor });
+  await api.privateEntry.find({ store_id: ids.store, collection_id: collectionId, customer_id: ids.customer, status: "deleting" });
+  assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
+    ["GET", `/v1/stores/${ids.store}/entries`, { collection_id: collectionId, query: "insulin", limit: "50" }, null],
+    ["GET", `/v1/stores/${ids.store}/entries`, { collection_id: collectionId, cursor: "search:+/=" }, null],
+    ["GET", entriesPath, { customer_id: ids.customer, status: "deleting" }, null],
+  ]);
 });
 
 test("a_private_entry_file_link_names_its_entry_and_file", async (context) => {
@@ -94,18 +113,18 @@ test("entry reads are found in the store's audit log by entry, collection or acc
   }
 });
 
-test("a_shared_entry_read_sends_the_customers_session", async (context) => {
-  const entry = { id: entryId, type: { type: "shared", customer_id: ids.customer } };
-  const link = { url: "https://private.example.test/shared?signature=limited", expires_at: 1_900_000_300_000 };
+test("a_customer_entry_read_sends_the_customers_session", async (context) => {
+  const entry = { id: entryId, type: { type: "customer", customer_id: ids.customer } };
+  const link = { url: "https://private.example.test/customer?signature=limited", expires_at: 1_900_000_300_000 };
   const calls = recordFetch(context, (call) => call.path.includes("/files/") ? link : call.path.endsWith(entryId) ? entry : { items: [entry], cursor: "next" });
   const store = initialize(storefrontIdentity, { ...fixedIdFactories, apiUrl, sessionStorage: signedInStorage() });
-  assert.deepEqual(await store.sharedEntries.find({ collection_id: collectionId, limit: 5, cursor: "page" }), { items: [entry], cursor: "next" });
-  assert.deepEqual(await store.sharedEntries.get({ id: entryId }), entry);
-  assert.deepEqual(await store.sharedEntries.fileLink({ id: entryId, media_id: mediaId, variant: "small" }), link);
+  assert.deepEqual(await store.customerEntries.find({ collection_id: collectionId, limit: 5, cursor: "page" }), { items: [entry], cursor: "next" });
+  assert.deepEqual(await store.customerEntries.get({ id: entryId }), entry);
+  assert.deepEqual(await store.customerEntries.fileLink({ id: entryId, media_id: mediaId, variant: "small" }), link);
   assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
-    ["GET", "/v1/storefront/shared-entries", { collection_id: collectionId, limit: "5", cursor: "page" }],
-    ["GET", `/v1/storefront/shared-entries/${entryId}`, {}],
-    ["GET", `/v1/storefront/shared-entries/${entryId}/files/${mediaId}`, { variant: "small" }],
+    ["GET", "/v1/storefront/customer-entries", { collection_id: collectionId, limit: "5", cursor: "page" }],
+    ["GET", `/v1/storefront/customer-entries/${entryId}`, {}],
+    ["GET", `/v1/storefront/customer-entries/${entryId}/files/${mediaId}`, { variant: "small" }],
   ]);
   for (const call of calls) {
     assert.equal(call.headers.get("authorization"), `Bearer ${accessToken}`);
@@ -114,14 +133,14 @@ test("a_shared_entry_read_sends_the_customers_session", async (context) => {
   }
 });
 
-test("a refused private or shared read is returned without trying a public route", async (context) => {
+test("a refused private or customer entry read is returned without trying a public route", async (context) => {
   const calls = recordFetch(context, () => errorResponse(404, "GENERAL.NOT_FOUND", "Not found"));
   await assert.rejects(admin().content.privateEntry.get({ store_id: ids.store, collection_id: collectionId, id: entryId }), (error) => error.code === "GENERAL.NOT_FOUND");
   const client = createStorefront(storefrontIdentity, { ...fixedIdFactories, apiUrl, sessionStorage: new SessionStorage() });
-  await assert.rejects(client.sharedEntries.get({ id: entryId }), (error) => error.code === "GENERAL.NOT_FOUND");
+  await assert.rejects(client.customerEntries.get({ id: entryId }), (error) => error.code === "GENERAL.NOT_FOUND");
   assert.deepEqual(calls.map((call) => call.path), [
     `${entriesPath}/${entryId}`,
-    `/v1/storefront/shared-entries/${entryId}`,
+    `/v1/storefront/customer-entries/${entryId}`,
   ]);
   assert.equal(calls[1].headers.has("authorization"), false);
   assert.equal(client.hasSession, false);
@@ -147,7 +166,7 @@ test("private media never produces a preview URL", () => {
 });
 
 test("a private entry is printed through its own call with no body", async (context) => {
-  const entry = { id: entryId, type: { type: "private_customer", customer_id: ids.customer } };
+  const entry = { id: entryId, type: { type: "customer", customer_id: ids.customer } };
   const calls = recordFetch(context, () => entry);
   assert.deepEqual(await admin().content.privateEntry.print({ store_id: ids.store, collection_id: collectionId, id: entryId }), entry);
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [

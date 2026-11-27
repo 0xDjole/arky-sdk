@@ -182,6 +182,8 @@ export interface SimulatedCallConversation {
   from: string | null;
   to: string;
   status: "in-progress" | "done" | "deleted";
+  voice_id: string | null;
+  max_duration_seconds: number | null;
   created_at: EpochMilliseconds;
 }
 
@@ -193,17 +195,27 @@ export interface FindSimulatedCallConversationsParams {
 }
 
 export type SimulatedAssistantTool =
+  | "find-items"
   | "find-slots"
-  | "propose"
+  | "find-locations"
+  | "find-entries"
+  | "find-orders"
+  | "read-customer"
+  | "save-customer"
+  | "save-entry"
+  | "book"
+  | "move"
+  | "cancel"
+  | "confirm-attendance"
+  | "order"
+  | "record-sms-consent"
   | "confirm"
   | "request-callback"
-  | "transfer"
-  | "record-sms-consent";
+  | "transfer";
 
 export interface SimulatedSaidLine {
   role: string;
   message: string;
-  time_in_call_secs?: number;
 }
 
 export interface SimulateToolCallParams {

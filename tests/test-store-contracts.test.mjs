@@ -171,7 +171,7 @@ test("calls.start rings one of the store's simulated numbers from a caller or a 
 test("a simulated call is read, and its status and its assistant conversation are driven, through the store's own call controls", async (context) => {
   const ended = { id: "CA1", from: "+15550001111", to: "+38761000001", status: "completed", audio: { type: "none" }, created_at: 5 };
   const streaming = { ...ended, status: "in-progress", audio: { type: "stream", url: "wss://voice.example.test/v1/convai/conversation", parameters: { conversation_id: "conv_1" } } };
-  const conversation = { id: "conv_1", call_id: ids.order, from: "+15550001111", to: "+38761000001", status: "in-progress", created_at: 6 };
+  const conversation = { id: "conv_1", call_id: ids.order, from: "+15550001111", to: "+38761000001", status: "in-progress", voice_id: "JBFqnCBsd6RMkjVDRZzb", max_duration_seconds: 900, created_at: 6 };
   const toolCall = { tool: "find-slots", answered: 200, answer: { ok: true, slots: [] } };
   const finished = { ...conversation, status: "done" };
   const answers = [streaming, ended, { items: [conversation], cursor: null }, toolCall, finished];
@@ -180,7 +180,7 @@ test("a simulated call is read, and its status and its assistant conversation ar
   assert.deepEqual(await simulated.get({ store_id: storeId, call_sid: "CA1" }), streaming);
   assert.deepEqual(await simulated.setStatus({ store_id: storeId, call_sid: "CA1", status: "completed", duration_seconds: 42 }), ended);
   assert.deepEqual(await simulated.findConversations({ store_id: storeId, call_id: ids.order }), { items: [conversation], cursor: null });
-  const said = [{ role: "user", message: "Is Friday free?", time_in_call_secs: 4 }];
+  const said = [{ role: "user", message: "Is Friday free?" }];
   const parameters = { booking_offering_id: "5d3e9a71-2c84-4f06-b1e7-8a4c2d6f0b93", date_from: "2026-11-14", date_to: "2026-11-20" };
   const request = { store_id: storeId, conversation_id: "conv_1", tool: "find-slots", parameters, said };
   const original = structuredClone(request);

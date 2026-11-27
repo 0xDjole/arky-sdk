@@ -204,7 +204,7 @@ import { createStorefrontCompanyApi } from "./company";
 import { createStorefrontFormsApi } from "./forms";
 import { createStorefrontPackageApi } from "./packageMember";
 import { createStorefrontPaymentMethodApi } from "./paymentMethod";
-import { createSharedEntriesApi } from "./privateContent";
+import { createCustomerEntriesApi } from "./privateContent";
 import { segment, storefrontBase } from "./paths";
 import { createCountryApi } from "./location";
 
@@ -595,7 +595,7 @@ export const createStorefrontApi = (
   }
 
   return {
-    sharedEntries: createSharedEntriesApi(httpClient),
+    customerEntries: createCustomerEntriesApi(httpClient),
     customer: {
       async identify(params: IdentifyCustomerParams, options?: RequestOptions): Promise<CustomerSessionResult> {
         requireId(params.customer_id, "customer");

@@ -3,84 +3,43 @@ import type { EmailContact, SortDirection } from "./common";
 import type { AccountName, AccountSortField } from "./account";
 import type { StoreType } from "./store";
 import type { CreateStoreAgreementInput } from "./network";
-
-export type LocationReach =
-  | { type: "all" }
-  | { type: "ids"; store_location_ids: string[] };
-
-export type StorePermissionAccess = "read" | "write";
-
-export type CollectionScope = { type: "all" } | { type: "ids"; collection_ids: string[] };
-
-export type FormScope = { type: "all" } | { type: "ids"; form_ids: string[] };
-
-export type CustomerScope =
-  | { type: "all" }
-  | { type: "own" }
-  | { type: "own_locations" }
-  | { type: "customer"; customer_id: string }
-  | { type: "package"; package_id: string }
-  | { type: "company"; company_id: string };
-
-export type BookingResourceScope =
-  | { type: "all" }
-  | { type: "own_locations" }
-  | { type: "ids"; booking_resource_ids: string[] };
-
-export type BookingServiceScope = { type: "all" } | { type: "ids"; booking_service_ids: string[] };
-
-export type PhoneNumberScope = { type: "all" } | { type: "ids"; phone_number_ids: string[] };
-
-export type StorePermission =
-  | { type: "admin" }
-  | { type: "packages" }
-  | { type: "orders"; access: StorePermissionAccess }
-  | { type: "payments"; access: StorePermissionAccess }
-  | { type: "customers"; customers: CustomerScope; access: StorePermissionAccess }
-  | { type: "fulfillment"; locations: LocationReach }
-  | { type: "inventory"; locations: LocationReach }
-  | { type: "marketing" }
-  | { type: "public_collections"; collections: CollectionScope; access: StorePermissionAccess }
-  | { type: "private_collections"; collections: CollectionScope; access: StorePermissionAccess }
-  | {
-      type: "customer_entries";
-      collections: CollectionScope;
-      customers: CustomerScope;
-      access: StorePermissionAccess;
-    }
-  | {
-      type: "private_forms";
-      forms: FormScope;
-      customers: CustomerScope;
-      access: StorePermissionAccess;
-    }
-  | { type: "bookings"; resources: BookingResourceScope; access: StorePermissionAccess }
-  | { type: "booking_resources"; resources: BookingResourceScope; access: StorePermissionAccess }
-  | { type: "booking_services"; services: BookingServiceScope; access: StorePermissionAccess }
-  | { type: "conversations"; customers: CustomerScope; access: StorePermissionAccess }
-  | { type: "support" }
-  | { type: "email" }
-  | { type: "analytics" }
-  | { type: "calls"; phone_numbers: PhoneNumberScope; customers: CustomerScope }
-  | { type: "layouts"; access: StorePermissionAccess };
-
-export type StorePermissionType = StorePermission["type"];
+import type {
+  CustomerPermissionType,
+  CustomerRolePermission,
+  StorePermissionType,
+  StoreRolePermission,
+} from "./permission";
 
 export interface StoreRole {
   id: string;
   store_id: string;
   key: string;
-  permissions: StorePermission[];
+  permissions: StoreRolePermission[];
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
+export interface CustomerRole {
+  id: string;
+  store_id: string;
+  key: string;
+  permissions: CustomerRolePermission[];
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+}
+
+export interface StoreRoleAccess {
+  role_id: string;
+  permissions: StorePermissionType[];
+}
+
 export type WithheldStorePermission =
-  | { type: "second_factor_off"; permission: StorePermission }
-  | { type: "account_token"; permission: StorePermission };
+  | { type: "second_factor_off"; role_id: string; permission: StorePermissionType }
+  | { type: "account_token"; role_id: string; permission: StorePermissionType };
 
 export interface StoreAccess {
-  permissions: StorePermission[];
+  owner: boolean;
+  roles: StoreRoleAccess[];
   withheld: WithheldStorePermission[];
 }
 
@@ -96,8 +55,16 @@ export interface StoreMembership {
   id: string;
   store_id: string;
   role_ids: string[];
-  store_location_ids: string[];
   status: StoreMembershipStatus;
+  created_at: EpochMilliseconds;
+  updated_at: EpochMilliseconds;
+}
+
+export interface StoreAssistantMembership {
+  id: string;
+  store_id: string;
+  assistant_id: string;
+  role_ids: string[];
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
@@ -152,7 +119,7 @@ export interface CreateStoreRoleParams {
   store_id: string;
   id: string;
   key: string;
-  permissions: StorePermission[];
+  permissions: StorePermissionType[];
 }
 
 export interface GetStoreRoleParams {
@@ -165,7 +132,7 @@ export interface UpdateStoreRoleParams {
   id: string;
   expected_updated_at: EpochMilliseconds;
   key: string;
-  permissions: StorePermission[];
+  permissions: StorePermissionType[];
 }
 
 export interface DeleteStoreRoleParams {
@@ -178,6 +145,61 @@ export interface FindStoreRolesParams {
   store_id: string;
   limit?: number;
   cursor?: string | null;
+}
+
+export interface GetCustomerRoleParams {
+  store_id: string;
+}
+
+export interface CreateCustomerRoleParams {
+  store_id: string;
+  id: string;
+  key: string;
+  permissions: CustomerPermissionType[];
+}
+
+export interface UpdateCustomerRoleParams {
+  store_id: string;
+  expected_updated_at: EpochMilliseconds;
+  key: string;
+  permissions: CustomerPermissionType[];
+}
+
+export interface DeleteCustomerRoleParams {
+  store_id: string;
+  expected_updated_at: EpochMilliseconds;
+}
+
+export interface FindStoreAssistantMembershipsParams {
+  store_id: string;
+  assistant_id?: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface GetStoreAssistantMembershipParams {
+  store_id: string;
+  id: string;
+}
+
+export interface CreateStoreAssistantMembershipParams {
+  store_id: string;
+  id: string;
+  assistant_id: string;
+  role_ids: string[];
+}
+
+export interface UpdateStoreAssistantMembershipParams {
+  store_id: string;
+  id: string;
+  expected_updated_at: EpochMilliseconds;
+  role_ids: string[];
+}
+
+export interface DeleteStoreAssistantMembershipParams {
+  store_id: string;
+  id: string;
+  expected_updated_at: EpochMilliseconds;
 }
 
 export interface InviteStoreMemberParams {
@@ -204,13 +226,6 @@ export interface UpdateStoreMemberRolesParams {
   id: string;
   expected_updated_at: EpochMilliseconds;
   role_ids: string[];
-}
-
-export interface UpdateStoreMemberLocationsParams {
-  store_id: string;
-  id: string;
-  expected_updated_at: EpochMilliseconds;
-  store_location_ids: string[];
 }
 
 export interface ChangeStoreMemberStatusParams {

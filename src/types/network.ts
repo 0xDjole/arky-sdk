@@ -4,7 +4,8 @@ import type { FeatureType, Store } from "./store";
 import type { NetworkStoreAddresses } from "./notification";
 import type { StripeSecretKeyType } from "./storeProvider";
 import type { AccountName } from "./account";
-import type { StorePermissionAccess } from "./storeRole";
+import type { NetworkPermissionType, NetworkRolePermission } from "./permission";
+import type { AssistantTool } from "./support";
 
 export type NetworkType = { type: "isolated" } | { type: "connected" };
 
@@ -49,12 +50,10 @@ export type NetworkProviderStatus = "active" | "disabled";
 export type NetworkElevenLabsRegion = "global" | "us" | "eu" | "in" | "sg";
 
 export interface NetworkElevenLabsTools {
-  find_slots: string;
-  propose: string;
   confirm: string;
-  request_callback: string;
   transfer: string;
-  record_sms_consent: string;
+  request_callback: string;
+  optional: Partial<Record<AssistantTool, string>>;
 }
 
 export type NetworkElevenLabsSetup =
@@ -263,25 +262,17 @@ export interface SetUpNetworkElevenLabsAgainParams {
   expected_updated_at: EpochMilliseconds;
 }
 
-export type NetworkPermission =
-  | { type: "admin" }
-  | { type: "stores"; access: StorePermissionAccess }
-  | { type: "plans"; access: StorePermissionAccess }
-  | { type: "logins" };
-
-export type NetworkPermissionType = NetworkPermission["type"];
-
 export interface NetworkRole {
   id: string;
   network_id: string;
   key: string;
-  permissions: NetworkPermission[];
+  permissions: NetworkRolePermission[];
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
 export interface NetworkAccess {
-  permissions: NetworkPermission[];
+  permissions: NetworkPermissionType[];
 }
 
 export type NetworkMembershipStatus =
@@ -339,14 +330,14 @@ export interface CreateNetworkRoleParams {
   network_id: string;
   id: string;
   key: string;
-  permissions: NetworkPermission[];
+  permissions: NetworkPermissionType[];
 }
 export interface UpdateNetworkRoleParams {
   network_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   key: string;
-  permissions: NetworkPermission[];
+  permissions: NetworkPermissionType[];
 }
 export interface DeleteNetworkRoleParams { network_id: string; id: string; expected_updated_at: EpochMilliseconds }
 

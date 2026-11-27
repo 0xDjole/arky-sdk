@@ -52,7 +52,6 @@ import type {
   StoreMemberProfile,
   StoreMembership,
   StoreMembershipWithStoreName,
-  UpdateStoreMemberLocationsParams,
   UpdateStoreMemberRolesParams,
 } from "../types/storeRole";
 import type { AccountSession } from "../types/account";
@@ -283,14 +282,6 @@ export const createStoreApi = (apiConfig: ApiConfig) => ({
       return apiConfig.httpClient.put<StoreMembership>(
         storePath(params.store_id, `members/${segment(requireId(params.id, "membership"))}/roles`),
         { expected_updated_at: params.expected_updated_at, role_ids: params.role_ids },
-        options,
-      );
-    },
-
-    updateLocations(params: UpdateStoreMemberLocationsParams, options?: RequestOptions): Promise<StoreMembership> {
-      return apiConfig.httpClient.put<StoreMembership>(
-        storePath(params.store_id, `members/${segment(requireId(params.id, "membership"))}/locations`),
-        { expected_updated_at: params.expected_updated_at, store_location_ids: params.store_location_ids },
         options,
       );
     },

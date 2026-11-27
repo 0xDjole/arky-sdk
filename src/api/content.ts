@@ -8,6 +8,7 @@ import type {
   CreateEntryParams,
   DeleteCollectionParams,
   DeleteEntryParams,
+  Entry,
   PublicEntry,
   FindCollectionEntryPageParams,
   FindCollectionsParams,
@@ -74,9 +75,9 @@ export const createCollectionApi = (apiConfig: ApiConfig) => ({
 });
 
 export const createEntryApi = (apiConfig: ApiConfig) => ({
-  find(params: FindEntriesParams, options?: RequestOptions): Promise<PaginatedResponse<PublicEntry>> {
+  find(params: FindEntriesParams, options?: RequestOptions): Promise<PaginatedResponse<Entry>> {
     const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<PaginatedResponse<PublicEntry>>(storePath(store_id, "entries"), { ...options, params: query });
+    return apiConfig.httpClient.get<PaginatedResponse<Entry>>(storePath(store_id, "entries"), { ...options, params: query });
   },
 
   get(params: GetEntryParams, options?: RequestOptions): Promise<PublicEntry> {

@@ -2,7 +2,16 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { createStorefront } from "../dist/storefront.js";
-import { hasStorePermission, storeLocationReadReach, storePermissionReach } from "../dist/utils.js";
+import {
+  storeAccessCovers,
+  storeAccessHolds,
+  storeAccessIsAdmin,
+  storeAccessLocations,
+  storeAccessPermits,
+  storeAccessReads,
+  storeAccessWithheld,
+  storePermissionNeedsSecondFactor,
+} from "../dist/utils.js";
 import { fixedIdFactories, recordFetch } from "./helpers/arky-fixtures.mjs";
 
 const baseUrl = "https://api.store-roles.test";
@@ -11,6 +20,9 @@ const accountId = "a35bc883-e98c-4fa9-94a2-8cbb7c3ac755";
 const roleId = "5b7e2c94-1d38-4f60-a9e5-3c8d0f2b6a17";
 const locationA = "0d4f8b26-7a13-4c95-b2e8-6f1a3d9c5e70";
 const locationB = "9e3a6c10-4b27-4d8f-a5c1-2e7b9d0f3a64";
+const permissionId = "2f6a8c14-3e57-4b90-8d21-7c4e9a0b5f36";
+const assistantId = "7d1b3f59-6a24-4c8e-9b07-5e3a1c9d2f48";
+const accessOf = (...permissions) => ({ owner: false, roles: [{ role_id: roleId, permissions }], withheld: [] });
 
 test("platform discovery keeps sorting and opaque continuation without hidden page reads", async (context) => {
   const calls = [];
@@ -40,7 +52,7 @@ test("membership permissions use an exact Store read while own discovery preserv
   const calls = [];
   const cursor = "memberships:/+==";
   const membership = { id: "member", store_id: storeId, store_name: "Contract Store", store_type: { type: "live", account_id: accountId, network_id: storeId }, role_ids: [roleId],
-    access: { permissions: [{ type: "fulfillment", locations: { type: "ids", store_location_ids: [locationA] } }], withheld: [] }, status: { type: "active", account_id: accountId },
+    access: accessOf({ type: "store_fulfillment", store_id: storeId, locations: { type: "filtered", filters: [{ type: "ids", ids: [locationA] }] } }), status: { type: "active", account_id: accountId },
     created_at: 1, updated_at: 1 };
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     const parsed = new URL(url);
@@ -66,8 +78,13 @@ test("membership permissions use an exact Store read while own discovery preserv
 });
 
 test("store roles are created under an app-picked id and use exact routes, versioned updates and versioned deletes", async (context) => {
-  const role = { id: roleId, store_id: storeId, key: "warehouse", permissions: [{ type: "inventory", locations: { type: "all" } }],
+  const warehouse = [{ type: "store_inventory", store_id: storeId, locations: { type: "all" } }];
+  const role = { id: roleId, store_id: storeId, key: "warehouse", permissions: [{ id: permissionId, role_id: roleId, type: warehouse[0], created_at: 1 }],
     created_at: 1, updated_at: 2 };
+  const picker = [
+    { type: "store_fulfillment", store_id: storeId, locations: { type: "filtered", filters: [{ type: "ids", ids: [locationA] }] } },
+    { type: "store_orders", store_id: storeId, action: "read" },
+  ];
   const calls = [];
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     const parsed = new URL(url);
@@ -78,8 +95,8 @@ test("store roles are created under an app-picked id and use exact routes, versi
     return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
   });
   const admin = createAdmin({ apiUrl: baseUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
-  assert.deepEqual(await admin.store.role.create({ store_id: storeId, id: roleId, key: role.key, permissions: role.permissions }), role);
-  await admin.store.role.update({ store_id: storeId, id: roleId, expected_updated_at: 2, key: "picker", permissions: [{ type: "fulfillment", locations: { type: "ids", store_location_ids: [locationA] } }] });
+  assert.deepEqual(await admin.store.role.create({ store_id: storeId, id: roleId, key: role.key, permissions: warehouse }), role);
+  await admin.store.role.update({ store_id: storeId, id: roleId, expected_updated_at: 2, key: "picker", permissions: picker });
   await admin.store.role.get({ store_id: storeId, id: roleId });
   assert.deepEqual(await admin.store.role.find({ store_id: storeId, limit: 20 }), { items: [role], cursor: null });
   assert.deepEqual(await admin.store.role.delete({ store_id: storeId, id: roleId, expected_updated_at: 3 }), { deleted: true });
@@ -90,10 +107,10 @@ test("store roles are created under an app-picked id and use exact routes, versi
     ["GET", `/v1/stores/${storeId}/roles?limit=20`],
     ["DELETE", `/v1/stores/${storeId}/roles/${roleId}?expected_updated_at=3`],
   ]);
-  assert.deepEqual(calls[0].body, { id: roleId, key: "warehouse", permissions: role.permissions });
-  assert.deepEqual(calls[1].body, { expected_updated_at: 2, key: "picker", permissions: [{ type: "fulfillment", locations: { type: "ids", store_location_ids: [locationA] } }] });
+  assert.deepEqual(calls[0].body, { id: roleId, key: "warehouse", permissions: warehouse });
+  assert.deepEqual(calls[1].body, { expected_updated_at: 2, key: "picker", permissions: picker });
   assert.equal(calls[4].body, null);
-  await assert.rejects(async () => admin.store.role.create({ store_id: storeId, id: "warehouse", key: role.key, permissions: role.permissions }), {
+  await assert.rejects(async () => admin.store.role.create({ store_id: storeId, id: "warehouse", key: role.key, permissions: warehouse }), {
     name: "TypeError",
     message: "The role id must be a canonical UUID v4 picked by the app",
   });
@@ -118,20 +135,76 @@ test("members are invited by caller-picked identity and re-roled by membership i
   assert.equal(calls.length, 2);
 });
 
-test("a member's locations are set by membership id, from the invite on", async (context) => {
-  const membership = { id: accountId, store_id: storeId, role_ids: [roleId], store_location_ids: [locationA], status: { type: "invited", contact: { email: "doctor@example.test", language: "bs" } }, created_at: 1, updated_at: 6 };
+test("a member's branches come from its roles' permissions, so no call sets a member's locations", () => {
+  const admin = createAdmin({ apiUrl: baseUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
+  assert.equal("updateLocations" in admin.store.member, false);
+});
+
+test("the store's one customers role is read, created, replaced and deleted at its own route with its version", async (context) => {
+  const ownCharts = {
+    type: "customer_own_entries", store_id: storeId, collection_id: locationA,
+    entries: { type: "filtered", filters: [{ type: "boolean", key: "released", value: true }] },
+  };
+  const role = { id: roleId, store_id: storeId, key: "patients", permissions: [{ id: permissionId, role_id: roleId, type: ownCharts, created_at: 1 }], created_at: 1, updated_at: 2 };
+  const calls = recordFetch(context, (call) => call.method === "DELETE" ? { deleted: true } : role);
+  const admin = createAdmin({ apiUrl: baseUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
+  assert.deepEqual(await admin.store.customerRole.get({ store_id: storeId }), role);
+  assert.deepEqual(await admin.store.customerRole.create({ store_id: storeId, id: roleId, key: "patients", permissions: [ownCharts] }), role);
+  assert.deepEqual(await admin.store.customerRole.update({ store_id: storeId, expected_updated_at: 2, key: "patients", permissions: [ownCharts] }), role);
+  assert.deepEqual(await admin.store.customerRole.delete({ store_id: storeId, expected_updated_at: 3 }), { deleted: true });
+  assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
+    ["GET", `/v1/stores/${storeId}/customers-role`, {}, null],
+    ["POST", `/v1/stores/${storeId}/customers-role`, {}, { id: roleId, key: "patients", permissions: [ownCharts] }],
+    ["PUT", `/v1/stores/${storeId}/customers-role`, {}, { expected_updated_at: 2, key: "patients", permissions: [ownCharts] }],
+    ["DELETE", `/v1/stores/${storeId}/customers-role`, { expected_updated_at: "3" }, null],
+  ]);
+  await assert.rejects(async () => admin.store.customerRole.create({ store_id: storeId, id: "patients", key: "patients", permissions: [ownCharts] }), {
+    name: "TypeError",
+    message: "The customers role id must be a canonical UUID v4 picked by the app",
+  });
+  assert.equal(calls.length, 4);
+});
+
+test("a store without a customers role answers its read with the Server's 404, which the SDK throws rather than answering null", async (context) => {
   const calls = [];
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
-    calls.push({ url: new URL(url), method: init.method ?? "GET", body: init.body ? JSON.parse(String(init.body)) : null });
-    return new Response(JSON.stringify(membership), { status: 200, headers: { "content-type": "application/json" } });
+    calls.push({ url: new URL(url), method: init.method ?? "GET" });
+    return Response.json({ error: "GENERAL.NOT_FOUND", message: "Not found", status_code: 404, validation_errors: [] }, { status: 404 });
   });
   const admin = createAdmin({ apiUrl: baseUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
-  assert.deepEqual(await admin.store.member.updateLocations({ store_id: storeId, id: accountId, expected_updated_at: 5, store_location_ids: [locationA] }), membership);
-  assert.deepEqual(calls.map(({ url, method, body }) => [method, url.pathname, body]), [
-    ["PUT", `/v1/stores/${storeId}/members/${accountId}/locations`, { expected_updated_at: 5, store_location_ids: [locationA] }],
+  await assert.rejects(admin.store.customerRole.get({ store_id: storeId }), (error) => {
+    assert.equal(error.statusCode, 404);
+    assert.equal(error.code, "GENERAL.NOT_FOUND");
+    return true;
+  });
+  assert.deepEqual(calls.map(({ url, method }) => [method, url.pathname + url.search]), [["GET", `/v1/stores/${storeId}/customers-role`]]);
+});
+
+test("an assistant's membership names the assistant and its roles, and is listed, read, re-roled and deleted with its version", async (context) => {
+  const membershipId = "4c8e0a26-9b13-4f57-a2d9-6e1b3c5d7f80";
+  const membership = { id: membershipId, store_id: storeId, assistant_id: assistantId, role_ids: [roleId], created_at: 1, updated_at: 2 };
+  const calls = recordFetch(context, (call) => call.method === "DELETE"
+    ? { deleted: true }
+    : call.method === "GET" && call.path.endsWith("/assistant-memberships") ? { items: [membership], cursor: null } : membership);
+  const admin = createAdmin({ apiUrl: baseUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
+  const memberships = admin.store.assistantMembership;
+  assert.deepEqual(await memberships.create({ store_id: storeId, id: membershipId, assistant_id: assistantId, role_ids: [roleId] }), membership);
+  assert.deepEqual(await memberships.find({ store_id: storeId, assistant_id: assistantId, limit: 1 }), { items: [membership], cursor: null });
+  assert.deepEqual(await memberships.get({ store_id: storeId, id: membershipId }), membership);
+  assert.deepEqual(await memberships.update({ store_id: storeId, id: membershipId, expected_updated_at: 2, role_ids: [] }), membership);
+  assert.deepEqual(await memberships.delete({ store_id: storeId, id: membershipId, expected_updated_at: 3 }), { deleted: true });
+  assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
+    ["POST", `/v1/stores/${storeId}/assistant-memberships`, {}, { id: membershipId, assistant_id: assistantId, role_ids: [roleId] }],
+    ["GET", `/v1/stores/${storeId}/assistant-memberships`, { assistant_id: assistantId, limit: "1" }, null],
+    ["GET", `/v1/stores/${storeId}/assistant-memberships/${membershipId}`, {}, null],
+    ["PUT", `/v1/stores/${storeId}/assistant-memberships/${membershipId}`, {}, { expected_updated_at: 2, role_ids: [] }],
+    ["DELETE", `/v1/stores/${storeId}/assistant-memberships/${membershipId}`, { expected_updated_at: "3" }, null],
   ]);
-  await assert.rejects(async () => admin.store.member.updateLocations({ store_id: storeId, id: "slug", expected_updated_at: 5, store_location_ids: [] }), { name: "TypeError", message: /membership id must be a canonical UUID/ });
-  assert.equal(calls.length, 1);
+  await assert.rejects(async () => memberships.create({ store_id: storeId, id: "front-desk", assistant_id: assistantId, role_ids: [] }), {
+    name: "TypeError",
+    message: "The assistant membership id must be a canonical UUID v4 picked by the app",
+  });
+  assert.equal(calls.length, 5);
 });
 
 test("a store has no owner transfer, and members are paused and resumed by status", async (context) => {
@@ -160,14 +233,16 @@ test("a store has no owner transfer, and members are paused and resumed by statu
 
 test("a role and an account token give orders, payments and customers read-only or read-write access exactly as sent", async (context) => {
   const permissions = [
-    { type: "orders", access: "read" },
-    { type: "payments", access: "write" },
-    { type: "customers", customers: { type: "all" }, access: "read" },
-    { type: "packages" },
+    { type: "store_orders", store_id: storeId, action: "read" },
+    { type: "store_payments", store_id: storeId, action: "write" },
+    { type: "store_customers", store_id: storeId, action: "read", customers: { type: "all" } },
+    { type: "store_packages", store_id: storeId },
   ];
   const tokenId = "6a1c3e85-7b29-4d04-9f6e-2c8a0d4b6e13";
   const stores = { type: "ids", store_ids: [storeId] };
-  const calls = recordFetch(context, (call) => call.path.endsWith("/tokens") ? { type: "secret_created", token: { id: tokenId, stores, expiry: { type: "never" } }, value: `arky_at_${"v".repeat(42)}A` } : { id: roleId, permissions });
+  const calls = recordFetch(context, (call) => call.path.endsWith("/tokens")
+    ? { type: "secret_created", token: { id: tokenId, stores, expiry: { type: "never" } }, value: `arky_at_${"v".repeat(42)}A` }
+    : { id: roleId, store_id: storeId, key: "bookkeeping", permissions: permissions.map((type, index) => ({ id: `${permissionId.slice(0, -1)}${index}`, role_id: roleId, type, created_at: 1 })), created_at: 1, updated_at: 1 });
   const admin = createAdmin({ apiUrl: baseUrl });
   await admin.store.role.create({ store_id: storeId, id: roleId, key: "bookkeeping", permissions });
   await admin.account.token.create({ id: tokenId, name: "Reports", stores, expiry: { type: "never" } });
@@ -179,51 +254,140 @@ test("a role and an account token give orders, payments and customers read-only 
   ]);
 });
 
-test("store access helpers mirror the Server's permission and location reach rules", () => {
-  const picker = { permissions: [
-    { type: "fulfillment", locations: { type: "ids", store_location_ids: [locationB] } },
-    { type: "inventory", locations: { type: "ids", store_location_ids: [locationA] } },
-  ] };
-  assert.equal(hasStorePermission(picker, "fulfillment", locationB), true);
-  assert.equal(hasStorePermission(picker, "fulfillment", locationA), false);
-  assert.equal(hasStorePermission(picker, "fulfillment"), false);
-  assert.equal(hasStorePermission(picker, "orders"), false);
-  const paymentsOnly = { permissions: [{ type: "payments", access: "write" }] };
-  assert.equal(hasStorePermission(paymentsOnly, "payments"), true);
-  assert.equal(hasStorePermission(paymentsOnly, "orders"), false);
-  assert.deepEqual(storeLocationReadReach(paymentsOnly), { type: "all" });
-  assert.equal(hasStorePermission(paymentsOnly, "inventory", locationA), false);
-  assert.equal(hasStorePermission(paymentsOnly, "fulfillment", locationA), false);
-  assert.deepEqual(storeLocationReadReach(picker), { type: "ids", store_location_ids: [locationA, locationB].sort() });
-  const mixed = { permissions: [...picker.permissions, { type: "orders", access: "read" }] };
-  assert.deepEqual(storeLocationReadReach(mixed), { type: "all" });
-  assert.equal(hasStorePermission(mixed, "orders"), true);
-  const readOnly = { permissions: [{ type: "orders", access: "read" }, { type: "payments", access: "read" }, { type: "customers", customers: { type: "own" }, access: "read" }] };
-  for (const type of ["orders", "payments", "customers"]) assert.equal(hasStorePermission(readOnly, type), true, type);
-  assert.equal(hasStorePermission(readOnly, "packages"), false);
-  const admin = { permissions: [{ type: "admin" }] };
-  assert.equal(hasStorePermission(admin, "fulfillment", locationA), true);
-  assert.equal(hasStorePermission(admin, "analytics"), true);
-  for (const type of ["private_collections", "customer_entries", "calls"]) assert.equal(hasStorePermission(admin, type), false, type);
-  const calls = { permissions: [{ type: "admin" }, { type: "calls", phone_numbers: { type: "all" }, customers: { type: "all" } }] };
-  assert.equal(hasStorePermission(calls, "calls"), true);
-  assert.deepEqual(storePermissionReach(admin, "inventory"), { type: "all" });
-  assert.deepEqual(storeLocationReadReach(admin), { type: "all" });
-  assert.equal(storePermissionReach(picker, "packages"), null);
-  assert.equal(hasStorePermission(null, "admin"), false);
-  assert.deepEqual(storeLocationReadReach(null), { type: "ids", store_location_ids: [] });
-  const twoRoles = { permissions: [
-    { type: "fulfillment", locations: { type: "ids", store_location_ids: [locationA] } },
-    { type: "fulfillment", locations: { type: "all" } },
-  ] };
-  assert.equal(hasStorePermission(twoRoles, "fulfillment"), true);
+test("store access helpers follow the Server's store-wide and area checks", () => {
+  const resourceId = "3c7e1a95-2d48-4b06-8f3a-9e5c1b7d2a40";
+  const otherRoleId = "6e2c4a80-1f39-4d75-b6a8-0c9e3d5f7b12";
+  const thirdRoleId = "8a4c6e02-3b51-4f97-a8c0-2e1d5f7b9c34";
+  const atBranches = (ids) => ({ type: "filtered", filters: [{ type: "ids", ids }] });
+  const picker = accessOf(
+    { type: "store_fulfillment", store_id: storeId, locations: atBranches([locationB]) },
+    { type: "store_inventory", store_id: storeId, locations: atBranches([locationA]) },
+  );
+  assert.equal(storeAccessIsAdmin(picker), false);
+  assert.equal(storeAccessHolds(picker, "store_fulfillment"), true);
+  assert.equal(storeAccessReads(picker, "store_fulfillment"), false);
+  assert.equal(storeAccessPermits(picker, "store_fulfillment"), false);
+  assert.equal(storeAccessCovers(picker, "store_fulfillment", locationB), true);
+  assert.equal(storeAccessCovers(picker, "store_fulfillment", locationA), false);
+  assert.equal(storeAccessCovers(picker, "store_inventory", locationA), true);
+  assert.deepEqual(storeAccessLocations(picker, "store_fulfillment"), atBranches([locationB]));
+  assert.equal(storeAccessHolds(picker, "store_orders"), false);
+
+  const twoBranches = { owner: false, roles: [
+    { role_id: roleId, permissions: [{ type: "store_fulfillment", store_id: storeId, locations: atBranches([locationB]) }] },
+    { role_id: otherRoleId, permissions: [{ type: "store_fulfillment", store_id: storeId, locations: atBranches([locationA]) }] },
+  ], withheld: [] };
+  assert.deepEqual(storeAccessLocations(twoBranches, "store_fulfillment"), atBranches([locationA, locationB].sort()));
+  assert.equal(storeAccessLocations(twoBranches, "store_inventory"), null);
+  assert.equal(storeAccessCovers(twoBranches, "store_fulfillment", locationA), true);
+  const everywhere = { ...twoBranches, roles: [...twoBranches.roles, { role_id: thirdRoleId, permissions: [{ type: "store_fulfillment", store_id: storeId, locations: { type: "all" } }] }] };
+  assert.deepEqual(storeAccessLocations(everywhere, "store_fulfillment"), { type: "all" });
+  assert.equal(storeAccessReads(everywhere, "store_fulfillment"), true);
+  assert.equal(storeAccessPermits(everywhere, "store_fulfillment"), true);
+
+  const bookkeeping = accessOf(
+    { type: "store_orders", store_id: storeId, action: "read" },
+    { type: "store_payments", store_id: storeId, action: "write" },
+    { type: "store_packages", store_id: storeId },
+  );
+  assert.equal(storeAccessReads(bookkeeping, "store_orders"), true);
+  assert.equal(storeAccessPermits(bookkeeping, "store_orders"), false);
+  assert.equal(storeAccessPermits(bookkeeping, "store_payments"), true);
+  assert.equal(storeAccessPermits(bookkeeping, "store_packages"), true);
+  assert.equal(storeAccessHolds(bookkeeping, "store_marketing"), false);
+
+  const atSarajevo = { type: "filtered", filters: [{ type: "booked_at_locations", store_location_ids: [locationA] }] };
+  const nurse = accessOf(
+    { type: "store_customers", store_id: storeId, action: "write", customers: atSarajevo },
+    { type: "store_customers", store_id: storeId, action: "read", customers: { type: "all" } },
+    {
+      type: "store_bookings", store_id: storeId, action: "write",
+      bookings: { type: "filtered", filters: [{ type: "on_resources", booking_resource_ids: [resourceId] }, { type: "at_locations", store_location_ids: [locationA] }] },
+    },
+    { type: "store_customers_deny", store_id: storeId, filter: { type: "in_categories", category_ids: ["1b7d3f95-6c28-4a40-8e13-5f9a2c7e0d64"] } },
+  );
+  assert.equal(storeAccessHolds(nurse, "store_customers"), true);
+  assert.equal(storeAccessReads(nurse, "store_customers"), true);
+  assert.equal(storeAccessPermits(nurse, "store_customers"), false, "a filtered write and a store-wide read make no store-wide write");
+  assert.equal(storeAccessHolds(nurse, "store_bookings"), true);
+  assert.equal(storeAccessReads(nurse, "store_bookings"), false);
+  assert.equal(storeAccessHolds(nurse, "store_customers_deny"), true);
+
+  const admin = accessOf({ type: "store_admin", store_id: storeId });
+  assert.equal(storeAccessIsAdmin(admin), true);
+  for (const type of ["store_admin", "store_orders", "store_fulfillment", "store_bookings", "store_customers", "store_public_collections", "store_analytics"]) {
+    assert.equal(storeAccessHolds(admin, type), true, type);
+    assert.equal(storeAccessReads(admin, type), true, type);
+    assert.equal(storeAccessPermits(admin, type), true, type);
+  }
+  assert.equal(storeAccessCovers(admin, "store_inventory", locationB), true);
+  assert.deepEqual(storeAccessLocations(admin, "store_inventory"), { type: "all" });
+  for (const type of ["store_private_collections", "store_customer_collections", "store_private_forms", "store_calls"]) {
+    assert.equal(storeAccessHolds(admin, type), false, type);
+    assert.equal(storeAccessReads(admin, type), false, type);
+    assert.equal(storeAccessPermits(admin, type), false, type);
+  }
+  assert.equal(storeAccessHolds(admin, "store_customers_deny"), false);
+  const adminWithCalls = { ...admin, roles: [...admin.roles, { role_id: otherRoleId, permissions: [{ type: "store_calls", store_id: storeId, phone_numbers: { type: "all" }, customers: { type: "all" } }] }] };
+  assert.equal(storeAccessReads(adminWithCalls, "store_calls"), true);
+  assert.equal(storeAccessPermits(adminWithCalls, "store_calls"), true);
+
+  const owner = { owner: true, roles: [], withheld: [] };
+  assert.equal(storeAccessIsAdmin(owner), true);
+  assert.equal(storeAccessPermits(owner, "store_orders"), true);
+  assert.equal(storeAccessHolds(owner, "store_private_forms"), false);
+
+  assert.equal(storeAccessIsAdmin(null), false);
+  assert.equal(storeAccessHolds(undefined, "store_orders"), false);
+  assert.equal(storeAccessReads(null, "store_orders"), false);
+  assert.equal(storeAccessPermits(null, "store_orders"), false);
+  assert.equal(storeAccessCovers(null, "store_fulfillment", locationA), false);
+  assert.equal(storeAccessLocations(null, "store_fulfillment"), null);
+  assert.equal(storeAccessHolds({ owner: false, roles: [], withheld: [] }, "store_orders"), false);
+});
+
+test("the permissions a second factor opens are withheld beside their role, never held, and read back as an access of their own", () => {
+  const otherRoleId = "6e2c4a80-1f39-4d75-b6a8-0c9e3d5f7b12";
+  const charts = { type: "store_customer_collections", store_id: storeId, action: "write", collections: { type: "all" }, entries: { type: "all" }, customers: { type: "all" } };
+  const forms = { type: "store_private_forms", store_id: storeId, action: "read", forms: { type: "all" }, customers: { type: "all" } };
+  const secondFactorOff = {
+    owner: false,
+    roles: [{ role_id: roleId, permissions: [{ type: "store_orders", store_id: storeId, action: "read" }] }],
+    withheld: [
+      { type: "second_factor_off", role_id: roleId, permission: charts },
+      { type: "second_factor_off", role_id: otherRoleId, permission: forms },
+    ],
+  };
+  assert.equal(storeAccessHolds(secondFactorOff, "store_customer_collections"), false);
+  assert.equal(storeAccessHolds(secondFactorOff, "store_private_forms"), false);
+  const withheld = storeAccessWithheld(secondFactorOff);
+  assert.deepEqual(withheld, { owner: false, roles: [{ role_id: roleId, permissions: [charts] }, { role_id: otherRoleId, permissions: [forms] }], withheld: [] });
+  assert.equal(storeAccessPermits(withheld, "store_customer_collections"), true);
+  assert.equal(storeAccessReads(withheld, "store_private_forms"), true);
+  assert.equal(storeAccessPermits(withheld, "store_private_forms"), false);
+  assert.equal(storeAccessHolds(withheld, "store_orders"), false);
+  assert.deepEqual(storeAccessWithheld(null), { owner: false, roles: [], withheld: [] });
+
+  const privateCollections = { type: "store_private_collections", store_id: storeId, action: "read", collections: { type: "all" }, entries: { type: "all" } };
+  const token = { owner: true, roles: [], withheld: [{ type: "account_token", role_id: roleId, permission: privateCollections }] };
+  assert.equal(storeAccessHolds(token, "store_private_collections"), false);
+  assert.equal(storeAccessIsAdmin(storeAccessWithheld(token)), false);
+  assert.equal(storeAccessReads(storeAccessWithheld(token), "store_private_collections"), true);
+  assert.deepEqual(
+    ["store_private_collections", "store_customer_collections", "store_private_forms", "store_calls", "store_customers"].map((type) => storePermissionNeedsSecondFactor(type)),
+    [true, true, true, false, false],
+  );
 });
 
 test("own workspace discovery retains each Store name and access without public presentation reads", async (context) => {
   const calls = [];
   const memberships = ["First Store", "Second Store"].map((store_name, index) => ({
     id: `membership-${index}`, store_id: index === 0 ? storeId : accountId, store_name,
-    role_ids: [roleId], access: { permissions: [{ type: "orders", access: index === 0 ? "write" : "read" }], withheld: index === 0 ? [] : [{ type: "account_token", permission: { type: "private_forms", forms: { type: "all" }, customers: { type: "all" }, access: "read" } }] }, status: { type: "active", account_id: accountId },
+    role_ids: [roleId], access: {
+      owner: false,
+      roles: [{ role_id: roleId, permissions: [{ type: "store_orders", store_id: storeId, action: index === 0 ? "write" : "read" }] }],
+      withheld: index === 0 ? [] : [{ type: "account_token", role_id: roleId, permission: { type: "store_private_forms", store_id: storeId, action: "read", forms: { type: "all" }, customers: { type: "all" } } }],
+    }, status: { type: "active", account_id: accountId },
     created_at: 1, updated_at: 1,
   }));
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
@@ -233,16 +397,16 @@ test("own workspace discovery retains each Store name and access without public 
   const admin = createAdmin({ apiUrl: baseUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   const page = await admin.store.member.findOwn({ limit: 20 });
   assert.deepEqual(page.items.map(({ store_name }) => store_name), ["First Store", "Second Store"]);
-  assert.deepEqual(page.items.map(({ access }) => access.permissions[0]), [{ type: "orders", access: "write" }, { type: "orders", access: "read" }]);
+  assert.deepEqual(page.items.map(({ access }) => access.roles[0].permissions[0]), [{ type: "store_orders", store_id: storeId, action: "write" }, { type: "store_orders", store_id: storeId, action: "read" }]);
   assert.deepEqual(page.items.map(({ access }) => access.withheld.map(({ type }) => type)), [[], ["account_token"]]);
   assert.deepEqual(calls, [{ path: "/v1/stores/memberships", method: "GET" }]);
 });
 
 test("a nonexpiring email invite is explicitly resent and accepted with its current version", async (context) => {
   const contact = { email: "packer@example.test", language: "en" };
-  const invited = { id: "member", store_id: storeId, store_name: "Contract Store", store_type: { type: "live", account_id: accountId, network_id: storeId }, role_ids: [roleId], access: { permissions: [], withheld: [] }, status: { type: "invited", contact }, created_at: 1, updated_at: 2 };
+  const invited = { id: "member", store_id: storeId, store_name: "Contract Store", store_type: { type: "live", account_id: accountId, network_id: storeId }, role_ids: [roleId], access: { owner: false, roles: [], withheld: [] }, status: { type: "invited", contact }, created_at: 1, updated_at: 2 };
   const accepted = { id: "member", store_id: storeId, role_ids: [roleId], status: { type: "active", account_id: accountId }, created_at: 1, updated_at: 3 };
-  const membership = { id: accountId, store_id: storeId, role_ids: [roleId], store_location_ids: [], status: { type: "invited", contact }, created_at: 1, updated_at: 2 };
+  const membership = { id: accountId, store_id: storeId, role_ids: [roleId], status: { type: "invited", contact }, created_at: 1, updated_at: 2 };
   const calls = [];
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     const parsed = new URL(url);

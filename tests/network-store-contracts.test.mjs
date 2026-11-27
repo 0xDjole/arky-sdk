@@ -227,11 +227,11 @@ test("network roles, members and store agreements keep their network, target and
   const network = client.network;
   const network_id = ids.network;
   const id = ids.picked;
-  const permissions = [{ type: "stores", access: "write" }, { type: "logins" }];
+  const permissions = [{ type: "network_stores", network_id, action: "write" }, { type: "network_logins", network_id }];
   await network.role.find({ network_id, limit: 20, cursor: "roles" });
   await network.role.get({ network_id, id });
   await network.role.create({ network_id, id, key: "desk", permissions });
-  await network.role.update({ network_id, id, expected_updated_at: 2, key: "desk", permissions: [{ type: "admin" }] });
+  await network.role.update({ network_id, id, expected_updated_at: 2, key: "desk", permissions: [{ type: "network_admin", network_id }] });
   await network.role.delete({ network_id, id, expected_updated_at: 3 });
   await network.member.find({ network_id, limit: 10, cursor: "members" });
   await network.member.invite({ network_id, id, contact: { email: "team@example.test", language: "bs" }, role_ids: [ids.plan] });
@@ -248,7 +248,7 @@ test("network roles, members and store agreements keep their network, target and
     ["GET", `${path}/roles`, { limit: "20", cursor: "roles" }, null],
     ["GET", `${path}/roles/${id}`, {}, null],
     ["POST", `${path}/roles`, {}, { id, key: "desk", permissions }],
-    ["PUT", `${path}/roles/${id}`, {}, { expected_updated_at: 2, key: "desk", permissions: [{ type: "admin" }] }],
+    ["PUT", `${path}/roles/${id}`, {}, { expected_updated_at: 2, key: "desk", permissions: [{ type: "network_admin", network_id }] }],
     ["DELETE", `${path}/roles/${id}`, { expected_updated_at: "3" }, null],
     ["GET", `${path}/members`, { limit: "10", cursor: "members" }, null],
     ["POST", `${path}/members`, {}, { id, contact: { email: "team@example.test", language: "bs" }, role_ids: [ids.plan] }],

@@ -27,6 +27,7 @@ export type AuditSubjectType =
   | "conversation_message"
   | "collection"
   | "entry"
+  | "note"
   | "media"
   | "form_submission"
   | "category"
@@ -88,8 +89,11 @@ export type AuditSubjectType =
 
 export type AuditEntryOwner =
   | { type: "store" }
-  | { type: "company"; company_id: string }
   | { type: "customer"; customer_id: string };
+
+export type AuditNoteOwner =
+  | { type: "customer"; customer_id: string }
+  | { type: "company"; company_id: string };
 
 export type AuditAction =
   | { action: "promotion_code_created"; promotion_code_id: string }
@@ -169,6 +173,10 @@ export type AuditAction =
   | { action: "entry_updated"; collection_id: string; entry_id: string; owner: AuditEntryOwner }
   | { action: "entry_deleted"; collection_id: string; entry_id: string; owner: AuditEntryOwner }
   | { action: "entry_printed"; collection_id: string; entry_id: string; owner: AuditEntryOwner }
+  | { action: "note_created"; note_id: string; owner: AuditNoteOwner }
+  | { action: "note_updated"; note_id: string; owner: AuditNoteOwner }
+  | { action: "note_deleted"; note_id: string; owner: AuditNoteOwner }
+  | { action: "note_list_read"; owner: AuditNoteOwner }
   | { action: "form_submission_created"; form_submission_id: string; customer_id: string }
   | { action: "form_submission_stage_changed"; form_submission_id: string; customer_id: string }
   | { action: "form_submission_deleted"; form_submission_id: string; customer_id: string }

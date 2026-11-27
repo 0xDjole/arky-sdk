@@ -781,13 +781,31 @@ export interface OrderBookingItem {
   line: OrderBookingLineItem;
 }
 
-export interface OrderBookingItemRow extends OrderBookingItem {
+export interface OrderBookingItemFullRow extends OrderBookingItem {
+  type: "full";
   order_blocks: Block[];
   source: OrderSource;
   sales_channel_id: string;
   booking_line_count: number;
   live_invoice: Invoice | null;
 }
+
+export interface OrderBookingItemTakenResource {
+  booking_resource_id: string;
+  interval: TimeRange;
+  capacity_intervals: TimeRange[];
+}
+
+export interface OrderBookingItemTakenRow {
+  type: "taken";
+  store_id: string;
+  store_location_id: string;
+  interval: TimeRange;
+  total_interval: TimeRange;
+  resources: OrderBookingItemTakenResource[];
+}
+
+export type OrderBookingItemRow = OrderBookingItemFullRow | OrderBookingItemTakenRow;
 
 export interface OrderBookingLineReminder {
   notification_id: string;

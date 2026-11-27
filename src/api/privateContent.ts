@@ -8,18 +8,18 @@ import type {
   DeletePrivateEntryParams,
   FindPrivateCollectionsParams,
   FindPrivateEntriesParams,
-  FindSharedEntriesParams,
   GetPrivateCollectionByKeyParams,
   GetPrivateCollectionParams,
   GetPrivateEntryParams,
-  GetSharedEntryParams,
   PrintPrivateEntryParams,
   PrivateCollection,
   PrivateEntry,
   PrivateEntryFileLinkParams,
   PrivateFileLink,
-  SharedEntryFileLinkParams,
-  StorefrontSharedEntry,
+  StorefrontCustomerEntry,
+  StorefrontCustomerEntryFileLinkParams,
+  StorefrontFindCustomerEntriesParams,
+  StorefrontGetCustomerEntryParams,
   UpdatePrivateCollectionParams,
   UpdatePrivateEntryParams,
 } from "../types/content";
@@ -114,17 +114,20 @@ export const createPrivateEntryApi = (apiConfig: ApiConfig) => ({
   },
 });
 
-export const createSharedEntriesApi = (httpClient: HttpClient) => ({
-  find(params: FindSharedEntriesParams = {}, options?: RequestOptions): Promise<PaginatedResponse<StorefrontSharedEntry>> {
-    return httpClient.get<PaginatedResponse<StorefrontSharedEntry>>(`${storefrontBase}/shared-entries`, { ...options, params });
+export const createCustomerEntriesApi = (httpClient: HttpClient) => ({
+  find(
+    params: StorefrontFindCustomerEntriesParams = {},
+    options?: RequestOptions,
+  ): Promise<PaginatedResponse<StorefrontCustomerEntry>> {
+    return httpClient.get<PaginatedResponse<StorefrontCustomerEntry>>(`${storefrontBase}/customer-entries`, { ...options, params });
   },
 
-  get(params: GetSharedEntryParams, options?: RequestOptions): Promise<StorefrontSharedEntry> {
-    return httpClient.get<StorefrontSharedEntry>(`${storefrontBase}/shared-entries/${segment(params.id)}`, options);
+  get(params: StorefrontGetCustomerEntryParams, options?: RequestOptions): Promise<StorefrontCustomerEntry> {
+    return httpClient.get<StorefrontCustomerEntry>(`${storefrontBase}/customer-entries/${segment(params.id)}`, options);
   },
 
-  fileLink(params: SharedEntryFileLinkParams, options?: RequestOptions): Promise<PrivateFileLink> {
-    return httpClient.get<PrivateFileLink>(`${storefrontBase}/shared-entries/${segment(params.id)}/files/${segment(params.media_id)}`, {
+  fileLink(params: StorefrontCustomerEntryFileLinkParams, options?: RequestOptions): Promise<PrivateFileLink> {
+    return httpClient.get<PrivateFileLink>(`${storefrontBase}/customer-entries/${segment(params.id)}/files/${segment(params.media_id)}`, {
       ...options,
       params: { variant: params.variant },
     });

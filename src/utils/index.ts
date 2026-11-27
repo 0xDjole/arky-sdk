@@ -75,7 +75,16 @@ export {
   selectFulfillmentUnits,
   selectFulfillmentMoveUnits,
 } from "./fulfillmentSelection";
-export { hasStorePermission, storeLocationReadReach, storePermissionReach } from "./storeAccess";
+export {
+  storeAccessCovers,
+  storeAccessHolds,
+  storeAccessIsAdmin,
+  storeAccessLocations,
+  storeAccessPermits,
+  storeAccessReads,
+  storeAccessWithheld,
+  storePermissionNeedsSecondFactor,
+} from "./storeAccess";
 export { FulfillmentSelectionError } from "../types/fulfillmentSelection";
 export { copyPackagePriceRef } from "./cartInputs";
 export { isCanonicalId, requireId } from "./ids";

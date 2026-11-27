@@ -11,6 +11,7 @@ import type {
   ReplaceMediaContentParams,
   UpdateMediaParams,
 } from "../types/content";
+import type { ElevenLabsVoice, FindVoicesParams, SpeakMediaParams } from "../types/support";
 import {
   clearPendingMediaCreate,
   getOrCreatePendingMediaCreate,
@@ -133,6 +134,20 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
       return apiConfig.httpClient.delete<Media>(storeRecordPath(params.store_id, "media", params.id), {
         ...options,
         params: { expected_updated_at: params.expected_updated_at },
+      });
+    },
+
+    speak(params: SpeakMediaParams, options?: RequestOptions): Promise<Media> {
+      requireId(params.media_id, "media");
+      const { store_id, ...body } = params;
+      return apiConfig.httpClient.post<Media>(storePath(store_id, "spoken-prompts"), body, options);
+    },
+
+    findVoices(params: FindVoicesParams, options?: RequestOptions): Promise<PaginatedResponse<ElevenLabsVoice>> {
+      const { store_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<ElevenLabsVoice>>(storePath(store_id, "voices"), {
+        ...options,
+        params: query,
       });
     },
   };

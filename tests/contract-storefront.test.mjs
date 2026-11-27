@@ -51,9 +51,10 @@ test("initialize is the root API and exposes the module facade without store swi
     assert.equal(typeof facade.content.entry.get, "function");
     assert.equal(typeof facade.content.entry.find, "function");
     assert.equal(typeof facade.media.find, "function");
-    assert.equal(typeof facade.sharedEntries.find, "function");
-    assert.equal(typeof facade.sharedEntries.get, "function");
-    assert.equal(typeof facade.sharedEntries.fileLink, "function");
+    assert.equal(typeof facade.customerEntries.find, "function");
+    assert.equal(typeof facade.customerEntries.get, "function");
+    assert.equal(typeof facade.customerEntries.fileLink, "function");
+    assert.equal(facade.sharedEntries, undefined);
     assert.equal(typeof facade.forms.get, "function");
     assert.equal(typeof facade.forms.getByKey, "function");
     assert.equal(typeof facade.forms.submit, "function");

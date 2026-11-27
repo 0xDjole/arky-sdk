@@ -3,9 +3,22 @@ import type { createAdmin } from "arky-sdk/admin";
 import type { createStorefront } from "arky-sdk/storefront";
 import type {
   AssignConversationParams,
-  AssistantAction,
+  AssistantCommand,
+  AssistantOrderDestination,
+  AssistantOrderLine,
+  AssistantPlaceOfSale,
+  AssistantProposalState,
+  AssistantConfirmation,
   AssistantRefusal,
   AssistantSettings,
+  AssistantTool,
+  CallOutcome,
+  CallVoice,
+  ElevenLabsVoice,
+  FindVoicesParams,
+  Media,
+  PostalAddress,
+  SpeakMediaParams,
   SupportAssistant,
   CreateSupportAssistantParams,
   UpdateSupportAssistantParams,
@@ -88,6 +101,7 @@ type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
 type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
 type OptionalField<T, K extends keyof T> = {} extends Pick<T, K> ? true : false;
 type AdminSupport = ReturnType<typeof createAdmin>["support"];
+type AdminMedia = ReturnType<typeof createAdmin>["media"];
 type StorefrontSupport = ReturnType<typeof createStorefront>["support"];
 
 const filters: FindConversationsParams = {
@@ -289,7 +303,8 @@ export type SupportContracts = [
   Assert<Missing<Extract<StorefrontConversationMessageType, { type: "booking_response" }>, "by">>,
   Assert<Equal<Extract<StorefrontConversationMessageType, { type: "call" }>, { type: "call"; direction: StorefrontCallDirection; outcome: StorefrontCallOutcome }>>,
   Assert<Equal<StorefrontCallDirection, "incoming">>,
-  Assert<Equal<StorefrontCallOutcome, "ongoing" | "missed" | "booked" | "moved" | "cancelled" | "transferred" | "callback" | "info" | "hung_up" | "answered">>,
+  Assert<Equal<StorefrontCallOutcome, "ongoing" | "missed" | "booked" | "ordered" | "moved" | "cancelled" | "transferred" | "callback" | "info" | "hung_up" | "answered">>,
+  Assert<Equal<CallOutcome, "booked" | "ordered" | "moved" | "cancelled" | "transferred" | "callback" | "info" | "hung_up" | "answered">>,
   Assert<Missing<Extract<StorefrontConversationMessageType, { type: "call" }>, "call" | "transcript" | "recording" | "topic" | "caller">>,
   Assert<Missing<Extract<StorefrontConversationMessageType, { type: "reply" }>, "author" | "delivery">>,
   Assert<Equal<Extract<StorefrontConversationMessageType, { type: "reply" }>["attachments"], EmailAttachment[]>>,
@@ -299,9 +314,33 @@ export type SupportContracts = [
   Assert<Equal<Extract<CallRecording, { type: "delete_failed" }>, { type: "delete_failed"; recording_sid: string; error: ProviderEffectError }>>,
   Assert<Equal<Extract<CallRecording, { type: "starting" }>, { type: "starting"; claim: ProviderOperationClaim }>>,
   Assert<Equal<Extract<CallRecording, { type: "failed" }>, { type: "failed"; error: ProviderEffectError }>>,
-  Assert<Equal<AssistantRefusal, "slot_taken" | "booking_changed" | "too_late" | "changes_disabled" | "payment_required" | "no_caller_reply" | "not_sold" | "customer_not_verified" | "booking_overlap">>,
+  Assert<Equal<AssistantRefusal, "slot_taken" | "booking_changed" | "too_late" | "changes_disabled" | "payment_required" | "no_caller_reply" | "not_sold" | "customer_not_verified" | "booking_overlap" | "order_changed">>,
   Assert<Equal<AssistantSettings["login"], ProviderLogin>>,
-  Assert<Equal<AssistantAction, "book" | "move" | "cancel" | "confirm_attendance" | "record_sms_consent">>,
+  Assert<Equal<AssistantTool,
+    | "find_items" | "find_slots" | "find_locations" | "find_entries" | "find_orders" | "read_customer" | "save_customer"
+    | "save_entry" | "book" | "move" | "cancel" | "confirm_attendance" | "order" | "record_sms_consent">>,
+  Assert<Equal<AssistantSettings["tools"], AssistantTool[]>>,
+  Assert<Missing<AssistantSettings, "actions">>,
+  Assert<Equal<AssistantSettings["place_of_sale"], AssistantPlaceOfSale>>,
+  Assert<Equal<AssistantPlaceOfSale, { type: "none" } | { type: "store_location"; store_location_id: string }>>,
+  Assert<Equal<keyof AssistantSettings, "status" | "login" | "languages" | "instructions" | "tools" | "sales_channel_id" | "market_id" | "package_id" | "place_of_sale">>,
+  Assert<Equal<CreateSupportAssistantParams["tools"], AssistantTool[]>>,
+  Assert<Equal<UpdateSupportAssistantParams["place_of_sale"], AssistantPlaceOfSale>>,
+  Assert<Equal<Extract<SupportStep, { type: "phone_assistant" }>["voice"], CallVoice>>,
+  Assert<Equal<CallVoice, { type: "eleven_labs"; voice_id: string }>>,
+  Assert<Equal<Extract<AssistantCommand, { type: "order" }>, { type: "order"; line_items: AssistantOrderLine[]; destination: AssistantOrderDestination; presentation_digest: string }>>,
+  Assert<Equal<AssistantOrderLine, { package_item_id: string; price_id: string; quantity: number }>>,
+  Assert<Equal<AssistantOrderDestination, { type: "delivery"; address: PostalAddress; shipping_method_id: string } | { type: "pickup"; shipping_method_id: string }>>,
+  Assert<Equal<Extract<AssistantProposalState, { type: "ordered" }>, { type: "ordered"; confirmation: AssistantConfirmation; order_id: string; at: EpochMilliseconds }>>,
+  Assert<Equal<Parameters<AdminMedia["speak"]>[0], SpeakMediaParams>>,
+  Assert<Equal<SpeakMediaParams, { store_id: string; media_id: string; text: string; language: string; login: ProviderLogin; voice: CallVoice }>>,
+  Assert<Equal<Awaited<ReturnType<AdminMedia["speak"]>>, Media>>,
+  Assert<Equal<Parameters<AdminMedia["findVoices"]>[0], FindVoicesParams>>,
+  Assert<Equal<{ store_id: string; store_provider_id: string; network_provider_id: string } extends FindVoicesParams ? true : false, false>>,
+  Assert<Equal<{ store_id: string; network_provider_id: string; limit: number } extends FindVoicesParams ? true : false, true>>,
+  Assert<Equal<{ store_id: string } extends FindVoicesParams ? true : false, false>>,
+  Assert<Equal<Awaited<ReturnType<AdminMedia["findVoices"]>>, PaginatedResponse<ElevenLabsVoice>>>,
+  Assert<Equal<ElevenLabsVoice, { voice_id: string; name: string; preview_url: string | null; languages: string[] }>>,
   Assert<Equal<Extract<ElevenLabsConversation, { type: "kept" }>, { type: "kept"; login: ProviderLogin; conversation_id: string }>>,
 ];
 

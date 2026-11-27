@@ -1,6 +1,7 @@
 import type { Days, EpochMilliseconds } from "./time";
 import type { Block } from "./block";
 import type { EmailContact, PostalAddress, PostalAddressInput, SortDirection } from "./common";
+import type { CompanyPermissionType, CompanyRolePermission } from "./permission";
 
 export type CompanyStatus =
   | { type: "active" }
@@ -110,37 +111,14 @@ export interface CompanyLocation extends StorefrontCompanyLocation {
   blocks: Block[];
 }
 
-export type CompanyPermission =
-  | "admin"
-  | "place_orders"
-  | "join_packages"
-  | "access_digital_products"
-  | "view_own_orders"
-  | "view_company_orders"
-  | "view_own_packages"
-  | "view_company_packages"
-  | "manage_company"
-  | "manage_addresses"
-  | "manage_members"
-  | "manage_company_packages"
-  | "manage_payment_methods";
-
 export interface CompanyRole {
   id: string;
   store_id: string;
+  company_id: string;
   key: string;
-  permissions: CompanyPermission[];
+  permissions: CompanyRolePermission[];
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
-}
-
-export type CompanyMembershipScope =
-  | { type: "company" }
-  | { type: "company_location"; company_location_id: string };
-
-export interface CompanyMembershipGrant {
-  scope: CompanyMembershipScope;
-  role_ids: string[];
 }
 
 export type CompanyMembershipStatus =
@@ -152,15 +130,10 @@ export interface CompanyMembership {
   id: string;
   store_id: string;
   company_id: string;
-  grants: CompanyMembershipGrant[];
+  role_ids: string[];
   status: CompanyMembershipStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
-}
-
-export interface CompanyAccessGrant {
-  scope: CompanyMembershipScope;
-  permissions: CompanyPermission[];
 }
 
 export type StorefrontAccessCompany =
@@ -169,7 +142,7 @@ export type StorefrontAccessCompany =
 
 export interface CompanyCustomerAccess {
   company: StorefrontAccessCompany;
-  grants: CompanyAccessGrant[];
+  permissions: CompanyPermissionType[];
 }
 
 export interface CreateCompanyParams {
@@ -385,30 +358,35 @@ export interface StorefrontDeleteCompanyLocationParams {
 export interface CreateCompanyRoleParams {
   store_id: string;
   id: string;
+  company_id: string;
   key: string;
-  permissions: CompanyPermission[];
+  permissions: CompanyPermissionType[];
 }
 
 export interface GetCompanyRoleParams {
   store_id: string;
   id: string;
+  company_id: string;
 }
 
 export interface UpdateCompanyRoleParams {
   store_id: string;
   id: string;
+  company_id: string;
   expected_updated_at: EpochMilliseconds;
-  permissions: CompanyPermission[];
+  permissions: CompanyPermissionType[];
 }
 
 export interface DeleteCompanyRoleParams {
   store_id: string;
   id: string;
+  company_id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface FindCompanyRolesParams {
   store_id: string;
+  company_id: string;
   key?: string;
   limit?: number;
   cursor?: string | null;
@@ -419,7 +397,7 @@ export interface CreateCompanyMembershipParams {
   id: string;
   company_id: string;
   contact: EmailContact;
-  grants: CompanyMembershipGrant[];
+  role_ids: string[];
 }
 
 export interface GetCompanyMembershipParams {
@@ -431,7 +409,7 @@ export interface UpdateCompanyMembershipParams {
   store_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
-  grants: CompanyMembershipGrant[];
+  role_ids: string[];
   status?: { type: "active" } | { type: "disabled" };
 }
 
@@ -484,13 +462,13 @@ export interface StorefrontCreateCompanyMembershipParams {
   id: string;
   company_id: string;
   contact: EmailContact;
-  grants: CompanyMembershipGrant[];
+  role_ids: string[];
 }
 
 export interface StorefrontUpdateCompanyMembershipParams {
   id: string;
   expected_updated_at: EpochMilliseconds;
-  grants: CompanyMembershipGrant[];
+  role_ids: string[];
   status?: { type: "active" } | { type: "disabled" };
 }
 

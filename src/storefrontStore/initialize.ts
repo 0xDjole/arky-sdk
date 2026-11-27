@@ -213,7 +213,7 @@ function initializeStoreCore(identity: StorefrontIdentity, config: ArkyStoreConf
     },
     media: client.media,
     content: client.content,
-    sharedEntries: client.sharedEntries,
+    customerEntries: client.customerEntries,
     forms: client.forms,
     category: client.category,
     eshop: {

@@ -3,7 +3,7 @@ import type { AccountActor, EmailContact, PostalAddress, PostalAddressInput, Sor
 import type { LoginAddress, LoginContact } from "./account";
 import type { Block, BlockQuery } from "./block";
 import type { ApiErrorResponse } from "./apiError";
-import type { PrivateEntry, PrivateFileLink } from "./content";
+import type { CategoryEntry, PrivateEntry, PrivateFileLink } from "./content";
 import type { FormSubmission, FormSubmissionFileLink } from "./forms";
 import type { OrderBookingItem } from "./order";
 import type { CallRecordingLink, Conversation, ConversationAttachmentLink, ConversationMessage } from "./support";
@@ -102,6 +102,7 @@ export interface Customer {
   default_billing_address_id: string | null;
   profile: Block[];
   blocks: Block[];
+  categories: CategoryEntry[];
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
@@ -306,6 +307,7 @@ export interface CreateCustomerParams {
   name?: CustomerName | null;
   profile: Block[];
   blocks: Block[];
+  categories?: CategoryEntry[];
 }
 
 export interface UpdateCustomerParams {
@@ -315,6 +317,7 @@ export interface UpdateCustomerParams {
   name?: CustomerName | null;
   profile?: Block[];
   blocks?: Block[];
+  categories?: CategoryEntry[];
   addresses?: CustomerAddressInput[];
   default_shipping_address_id?: string | null;
   default_billing_address_id?: string | null;
@@ -340,6 +343,7 @@ export interface FindCustomersBySearchParams {
   verified?: boolean;
   has_customer_action?: boolean;
   has_cart?: boolean;
+  category_ids?: string[];
   sort_field?: "id" | "email" | "name" | "created_at" | "updated_at";
   sort_direction?: SortDirection;
   contact_email?: never;
@@ -359,6 +363,7 @@ export interface FindCustomersByContactEmailParams {
   verified?: never;
   has_customer_action?: never;
   has_cart?: never;
+  category_ids?: never;
   sort_field?: never;
   sort_direction?: never;
   limit?: number;
@@ -376,6 +381,7 @@ export interface FindCustomersByContactNumberParams {
   verified?: never;
   has_customer_action?: never;
   has_cart?: never;
+  category_ids?: never;
   sort_field?: never;
   sort_direction?: never;
   limit?: number;

@@ -3,6 +3,7 @@ import type {
   AccountActor,
   EmailContact,
   LocalizedText,
+  PostalAddress,
   ProviderEffectError,
   ProviderLogin,
   ProviderOperationClaim,
@@ -21,7 +22,23 @@ export interface SupportButton {
   next_step_key: string;
 }
 
-export type AssistantAction = "book" | "move" | "cancel" | "confirm_attendance" | "record_sms_consent";
+export type AssistantTool =
+  | "find_items"
+  | "find_slots"
+  | "find_locations"
+  | "find_entries"
+  | "find_orders"
+  | "read_customer"
+  | "save_customer"
+  | "save_entry"
+  | "book"
+  | "move"
+  | "cancel"
+  | "confirm_attendance"
+  | "order"
+  | "record_sms_consent";
+
+export type AssistantPlaceOfSale = { type: "none" } | { type: "store_location"; store_location_id: string };
 
 export type AssistantStatus = { type: "active" } | { type: "paused" };
 
@@ -30,10 +47,11 @@ export interface AssistantSettings {
   login: ProviderLogin;
   languages: string[];
   instructions: string;
-  actions: AssistantAction[];
+  tools: AssistantTool[];
   sales_channel_id: string;
   market_id: string;
   package_id: string;
+  place_of_sale: AssistantPlaceOfSale;
 }
 
 export interface SupportAssistant extends AssistantSettings {
@@ -92,6 +110,28 @@ export interface PhoneMenuOption {
 
 export type CallRecordingSetting = { type: "off" } | { type: "keep"; period: Days };
 
+export type CallVoice = { type: "eleven_labs"; voice_id: string };
+
+export interface ElevenLabsVoice {
+  voice_id: string;
+  name: string;
+  preview_url: string | null;
+  languages: string[];
+}
+
+export type FindVoicesParams =
+  | { store_id: string; store_provider_id: string; network_provider_id?: never; limit?: number; cursor?: string | null }
+  | { store_id: string; store_provider_id?: never; network_provider_id: string; limit?: number; cursor?: string | null };
+
+export interface SpeakMediaParams {
+  store_id: string;
+  media_id: string;
+  text: string;
+  language: string;
+  login: ProviderLogin;
+  voice: CallVoice;
+}
+
 export type SupportStep =
   | { type: "chat_message"; text: LocalizedText; next_step_key: string }
   | { type: "chat_choice"; text: LocalizedText; buttons: SupportButton[] }
@@ -112,6 +152,7 @@ export type SupportStep =
       type: "phone_assistant";
       assistant_id: string;
       greeting: LocalizedText;
+      voice: CallVoice;
       recording: CallRecordingSetting;
       transfer_step_key: string;
     }
@@ -292,11 +333,27 @@ export type ConversationReplyDelivery =
 
 export type ReplyDeliveryName = ConversationReplyDelivery["type"];
 
+export interface AssistantOrderLine {
+  package_item_id: string;
+  price_id: string;
+  quantity: number;
+}
+
+export type AssistantOrderDestination =
+  | { type: "delivery"; address: PostalAddress; shipping_method_id: string }
+  | { type: "pickup"; shipping_method_id: string };
+
 export type AssistantCommand =
   | { type: "book"; booking_offering_id: string; store_location_id: string; interval: TimeRange }
   | { type: "move"; order_id: string; order_booking_line_item_id: string; interval: TimeRange }
   | { type: "cancel"; order_id: string; order_booking_line_item_id: string }
-  | { type: "confirm_attendance"; order_id: string; order_booking_line_item_id: string };
+  | { type: "confirm_attendance"; order_id: string; order_booking_line_item_id: string }
+  | {
+      type: "order";
+      line_items: AssistantOrderLine[];
+      destination: AssistantOrderDestination;
+      presentation_digest: string;
+    };
 
 export type AssistantConfirmation =
   | { type: "tapped"; customer_session_id: string }
@@ -311,7 +368,8 @@ export type AssistantRefusal =
   | "no_caller_reply"
   | "not_sold"
   | "customer_not_verified"
-  | "booking_overlap";
+  | "booking_overlap"
+  | "order_changed";
 
 export type AssistantProposalClosure = "declined" | "expired" | "replaced" | "store_took_over" | "call_ended";
 
@@ -324,6 +382,7 @@ export type AssistantProposalState =
       order_booking_line_item_id: string;
       at: EpochMilliseconds;
     }
+  | { type: "ordered"; confirmation: AssistantConfirmation; order_id: string; at: EpochMilliseconds }
   | { type: "applied"; confirmation: AssistantConfirmation; at: EpochMilliseconds }
   | { type: "refused"; confirmation: AssistantConfirmation; reason: AssistantRefusal; at: EpochMilliseconds }
   | { type: "closed"; reason: AssistantProposalClosure; at: EpochMilliseconds };
@@ -380,6 +439,7 @@ export type CallHandler = "store" | "assistant";
 
 export type CallOutcome =
   | "booked"
+  | "ordered"
   | "moved"
   | "cancelled"
   | "transferred"
@@ -551,6 +611,7 @@ export type StorefrontCallOutcome =
   | "ongoing"
   | "missed"
   | "booked"
+  | "ordered"
   | "moved"
   | "cancelled"
   | "transferred"
