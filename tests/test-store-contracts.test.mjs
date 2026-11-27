@@ -150,7 +150,7 @@ test("sms.find reads a page of the store's simulated SMS, for one number when na
 });
 
 test("calls.start rings one of the store's simulated numbers from a caller or a withheld number and answers the call", async (context) => {
-  const call = { id: "CA1", from: "+15550001111", to: "+38761000001", status: "in-progress", created_at: 5 };
+  const call = { id: "CA1", from: "+15550001111", to: "+38761000001", status: "in-progress", audio: { type: "stream", url: "wss://voice.example.test/v1/convai/conversation", parameters: { conversation_id: "conv_1" } }, created_at: 5 };
   const withheld = { ...call, id: "CA2", from: null };
   const calls = recordFetch(context, (_call, index) => (index === 1 ? call : withheld));
   const { calls: simulated } = admin().store.simulator;
@@ -168,14 +168,16 @@ test("calls.start rings one of the store's simulated numbers from a caller or a 
   assert.equal(calls.length, 2);
 });
 
-test("a simulated call's status and its assistant conversation are driven through the store's own call controls", async (context) => {
-  const ended = { id: "CA1", from: "+15550001111", to: "+38761000001", status: "completed", created_at: 5 };
+test("a simulated call is read, and its status and its assistant conversation are driven, through the store's own call controls", async (context) => {
+  const ended = { id: "CA1", from: "+15550001111", to: "+38761000001", status: "completed", audio: { type: "none" }, created_at: 5 };
+  const streaming = { ...ended, status: "in-progress", audio: { type: "stream", url: "wss://voice.example.test/v1/convai/conversation", parameters: { conversation_id: "conv_1" } } };
   const conversation = { id: "conv_1", call_id: ids.order, from: "+15550001111", to: "+38761000001", status: "in-progress", created_at: 6 };
   const toolCall = { tool: "find-slots", answered: 200, answer: { ok: true, slots: [] } };
   const finished = { ...conversation, status: "done" };
-  const answers = [ended, { items: [conversation], cursor: null }, toolCall, finished];
+  const answers = [streaming, ended, { items: [conversation], cursor: null }, toolCall, finished];
   const calls = recordFetch(context, () => answers.shift());
   const { calls: simulated } = admin().store.simulator;
+  assert.deepEqual(await simulated.get({ store_id: storeId, call_sid: "CA1" }), streaming);
   assert.deepEqual(await simulated.setStatus({ store_id: storeId, call_sid: "CA1", status: "completed", duration_seconds: 42 }), ended);
   assert.deepEqual(await simulated.findConversations({ store_id: storeId, call_id: ids.order }), { items: [conversation], cursor: null });
   const said = [{ role: "user", message: "Is Friday free?", time_in_call_secs: 4 }];
@@ -188,13 +190,15 @@ test("a simulated call's status and its assistant conversation are driven throug
   assert.deepEqual(await simulated.finishConversation({ store_id: storeId, conversation_id: "conv_1", transcript }), finished);
   const base = `/v1/stores/${storeId}/simulator/calls`;
   assert.deepEqual(requests(calls), [
+    ["GET", `${base}/CA1`, {}, null],
     ["POST", `${base}/CA1/status`, {}, { status: "completed", duration_seconds: 42 }],
     ["GET", `${base}/conversations`, { call_id: ids.order }, null],
     ["POST", `${base}/conversations/conv_1/tools/find-slots`, {}, { parameters, said }],
     ["POST", `${base}/conversations/conv_1/finish`, {}, { transcript }],
   ]);
   await assert.rejects(async () => simulated.setStatus({ store_id: "shop", call_sid: "CA1", status: "completed", duration_seconds: null }), TypeError);
-  assert.equal(calls.length, 4);
+  await assert.rejects(async () => simulated.get({ store_id: "shop", call_sid: "CA1" }), TypeError);
+  assert.equal(calls.length, 5);
 });
 
 test("planned outcomes are made under the app's id, listed and removed through the store's own path", async (context) => {

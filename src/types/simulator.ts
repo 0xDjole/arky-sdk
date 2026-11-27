@@ -145,11 +145,16 @@ export type SimulatedCallStatus =
   | "failed"
   | "canceled";
 
+export type SimulatedCallAudio =
+  | { type: "none" }
+  | { type: "stream"; url: string; parameters: Record<string, string> };
+
 export interface SimulatedCall {
   id: string;
   from: string | null;
   to: string;
   status: SimulatedCallStatus;
+  audio: SimulatedCallAudio;
   created_at: EpochMilliseconds;
 }
 
@@ -157,6 +162,11 @@ export interface StartSimulatedCallParams {
   store_id: string;
   to: string;
   from: string | null;
+}
+
+export interface GetSimulatedCallParams {
+  store_id: string;
+  call_sid: string;
 }
 
 export interface SetSimulatedCallStatusParams {

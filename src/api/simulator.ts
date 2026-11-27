@@ -8,6 +8,7 @@ import type {
   FindSimulatedSmsParams,
   FindSimulatorPlannedOutcomesParams,
   FinishSimulatedCallConversationParams,
+  GetSimulatedCallParams,
   RemoveSimulatorPlannedOutcomeParams,
   SetSimulatedCallStatusParams,
   SimulateToolCallParams,
@@ -75,6 +76,13 @@ export const createStoreSimulatorApi = (apiConfig: ApiConfig) => {
         return apiConfig.httpClient.post<SimulatedCall>(
           storePath(params.store_id, "simulator/calls"),
           { to: params.to, from: params.from },
+          options,
+        );
+      },
+
+      get(params: GetSimulatedCallParams, options?: RequestOptions): Promise<SimulatedCall> {
+        return apiConfig.httpClient.get<SimulatedCall>(
+          storePath(params.store_id, `simulator/calls/${segment(params.call_sid)}`),
           options,
         );
       },
