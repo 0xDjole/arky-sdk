@@ -119,7 +119,7 @@ const adminSurface = {
   "store.salesChannel": ["create", "delete", "find", "get", "getByKey", "update"],
   "store.shippingMethod": ["create", "delete", "find", "get", "getByKey", "update"],
   "store.shippingProfile": ["create", "delete", "find", "get", "getByKey", "update"],
-  "store.simulator.calls": ["callTool", "findConversations", "finishConversation", "setStatus", "start"],
+  "store.simulator.calls": ["callTool", "findConversations", "finishConversation", "get", "setStatus", "start"],
   "store.simulator.emails": ["find"],
   "store.simulator.payments": ["decline", "expire", "pay"],
   "store.simulator.plannedOutcomes": ["create", "find", "remove"],
