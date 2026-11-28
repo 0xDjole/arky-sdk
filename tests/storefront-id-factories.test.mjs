@@ -6,7 +6,7 @@ import {
   accessToken,
   apiUrl,
   cartRecord,
-  customerRecord,
+  userRecord,
   emailSession,
   errorResponse,
   idFactories,
@@ -26,9 +26,9 @@ import {
 const missingFactories = /createVisitorIdentity, createSessionId, createId and createOrderToken/;
 const firstSignInId = "0c4b8e21-7d36-4a95-b1f8-5e2a9c7d3b60";
 const secondSignInId = "5d1f9a73-2e48-4c06-8b3d-7a6c0e9f1b24";
-const replacementCustomerId = "2a7c4e91-6b35-4d08-9f1e-3c8b5a0d7e62";
+const replacementUserId = "2a7c4e91-6b35-4d08-9f1e-3c8b5a0d7e62";
 const replacementSessionId = "7b3e1d59-4c82-4a6f-a0d7-9e5f2c1b8a43";
-const replacementVisitorToken = `customer_visitor_${"n".repeat(64)}`;
+const replacementVisitorToken = `user_visitor_${"n".repeat(64)}`;
 
 test("a storefront without every id factory is refused when it is created", () => {
   const { createVisitorIdentity, createSessionId, createId, createOrderToken } = idFactories;
@@ -38,7 +38,7 @@ test("a storefront without every id factory is refused when it is created", () =
     { apiUrl, locale: "it", market: "ita" },
     { apiUrl, locale: "en", createVisitorIdentity },
     { apiUrl, locale: "en", createSessionId },
-    { apiUrl, visitorIdentity: { customer_id: ids.customer, session_id: ids.session }, createSessionId },
+    { apiUrl, visitorIdentity: { user_id: ids.user, session_id: ids.session }, createSessionId },
     { apiUrl, createVisitorIdentity, createSessionId },
     { apiUrl, createVisitorIdentity, createSessionId, createId },
     { apiUrl, createVisitorIdentity, createSessionId, createOrderToken },
@@ -56,11 +56,11 @@ test("verify issues the signed-in session under a new id from createSessionId an
   const picked = [firstSignInId, secondSignInId];
   let verifications = 0;
   const calls = recordFetch(context, (call) => {
-    if (call.path !== "/v1/storefront/customer/verify") throw new Error(`Unexpected request: ${call.path}`);
+    if (call.path !== "/v1/storefront/user/verify") throw new Error(`Unexpected request: ${call.path}`);
     verifications += 1;
     if (verifications === 1) throw new TypeError("Lost response");
     if (verifications === 2) return errorResponse(400, "GENERAL.BAD_REQUEST", "Invalid or expired verification code");
-    return sessionResult(ids.customer, emailSession(ids.customer, call.body.session_id));
+    return sessionResult(ids.user, emailSession(ids.user, call.body.session_id));
   });
   const client = createStorefront(storefrontIdentity, {
     apiUrl,
@@ -69,9 +69,9 @@ test("verify issues the signed-in session under a new id from createSessionId an
     createSessionId: () => picked.shift(),
   });
 
-  await assert.rejects(client.customer.verify({ code: "111111" }), /Lost response/);
-  await assert.rejects(client.customer.verify({ code: "111111" }), /Invalid or expired verification code/);
-  const verified = await client.customer.verify({ code: "222222" });
+  await assert.rejects(client.user.verify({ code: "111111" }), /Lost response/);
+  await assert.rejects(client.user.verify({ code: "111111" }), /Invalid or expired verification code/);
+  const verified = await client.user.verify({ code: "222222" });
 
   assert.deepEqual(calls.map((call) => [call.headers.get("authorization"), call.body]), [
     [`Bearer ${visitorToken}`, { session_id: firstSignInId, code: "111111" }],
@@ -92,15 +92,15 @@ test("a signed-in session that Arky refuses to refresh is cleared and reported a
   );
 
   const calls = recordFetch(context, (call) => {
-    if (call.path === "/v1/storefront/customer/refresh") return errorResponse(401, "GENERAL.UNAUTHENTICATED", "Refresh token rejected");
-    if (call.path === "/v1/storefront/customer/identify") {
-      return sessionResult(replacementCustomerId, visitorSession(replacementCustomerId, replacementSessionId, replacementVisitorToken));
+    if (call.path === "/v1/storefront/user/refresh") return errorResponse(401, "GENERAL.UNAUTHENTICATED", "Refresh token rejected");
+    if (call.path === "/v1/storefront/user/identify") {
+      return sessionResult(replacementUserId, visitorSession(replacementUserId, replacementSessionId, replacementVisitorToken));
     }
-    if (call.path === "/v1/storefront/customer/me") {
+    if (call.path === "/v1/storefront/user/me") {
       if (call.headers.get("authorization") === `Bearer ${accessToken}`) return errorResponse(401, "GENERAL.UNAUTHENTICATED", "Access expired");
       return {
-        customer: customerRecord(replacementCustomerId),
-        session: { ...visitorSession(replacementCustomerId, replacementSessionId, replacementVisitorToken), store_id: ids.store },
+        user: userRecord(replacementUserId),
+        session: { ...visitorSession(replacementUserId, replacementSessionId, replacementVisitorToken), tenant_id: ids.tenant },
       };
     }
     throw new Error(`Unexpected request: ${call.path}`);
@@ -110,27 +110,27 @@ test("a signed-in session that Arky refuses to refresh is cleared and reported a
     apiUrl,
     sessionStorage: storage,
     ...idFactories,
-    createVisitorIdentity: () => ({ customer_id: replacementCustomerId, session_id: replacementSessionId }),
+    createVisitorIdentity: () => ({ user_id: replacementUserId, session_id: replacementSessionId }),
     createSessionId: () => ids.otherSession,
   });
   const reported = [];
   client.onAuthStateChanged((session) => reported.push(session));
   assert.equal(client.isAuthenticated, true);
 
-  await assert.rejects(client.customer.getMe(), (error) => error.statusCode === 401);
+  await assert.rejects(client.user.getMe(), (error) => error.statusCode === 401);
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.equal(client.session, null);
   assert.equal(client.isAuthenticated, false);
   assert.equal(client.hasSession, false);
   assert.equal(storage.initial, null);
-  assert.deepEqual(storage.keys("arky_customer_session:"), []);
+  assert.deepEqual(storage.keys("arky_user_session:"), []);
   assert.equal(reported.at(-1), null);
 
-  assert.equal(await client.customer.getMe(), null);
+  assert.equal(await client.user.getMe(), null);
   assert.deepEqual(calls.map((call) => [call.path, call.headers.get("authorization"), call.body]), [
-    ["/v1/storefront/customer/me", `Bearer ${accessToken}`, null],
-    ["/v1/storefront/customer/refresh", null, { session_id: ids.otherSession, refresh_token: emailSession().refresh_token }],
+    ["/v1/storefront/user/me", `Bearer ${accessToken}`, null],
+    ["/v1/storefront/user/refresh", null, { session_id: ids.otherSession, refresh_token: emailSession().refresh_token }],
   ]);
   assert.equal(client.hasSession, false);
 });
@@ -139,8 +139,8 @@ test("only Arky's own refusal of the automatic refresh signs the shopper out; a 
   const codes = { 401: "GENERAL.UNAUTHENTICATED", 403: "GENERAL.UNAUTHORIZED", 429: "GENERAL.RATE_LIMITED", 503: "GENERAL.SERVICE_UNAVAILABLE" };
   let status;
   const calls = recordFetch(context, (call) => {
-    if (call.path === "/v1/storefront/customer/me") return errorResponse(401, "GENERAL.UNAUTHENTICATED", "Access expired");
-    if (call.path !== "/v1/storefront/customer/refresh") throw new Error(`Unexpected request: ${call.path}`);
+    if (call.path === "/v1/storefront/user/me") return errorResponse(401, "GENERAL.UNAUTHENTICATED", "Access expired");
+    if (call.path !== "/v1/storefront/user/refresh") throw new Error(`Unexpected request: ${call.path}`);
     if (status === "network") throw new TypeError("Network unavailable");
     return errorResponse(status, codes[status], "Refresh failed");
   });
@@ -152,11 +152,11 @@ test("only Arky's own refusal of the automatic refresh signs the shopper out; a 
     const reported = [];
     const unsubscribe = client.onAuthStateChanged((session) => reported.push(session));
     const sent = calls.length;
-    const error = await client.customer.getMe().catch((caught) => caught);
+    const error = await client.user.getMe().catch((caught) => caught);
     await new Promise((resolve) => setImmediate(resolve));
     assert.deepEqual(calls.slice(sent).map((call) => [call.path, call.headers.get("authorization"), call.body]), [
-      ["/v1/storefront/customer/me", `Bearer ${accessToken}`, null],
-      ["/v1/storefront/customer/refresh", null, { session_id: ids.otherSession, refresh_token: refreshToken }],
+      ["/v1/storefront/user/me", `Bearer ${accessToken}`, null],
+      ["/v1/storefront/user/refresh", null, { session_id: ids.otherSession, refresh_token: refreshToken }],
     ], label);
     if (status === 401 || status === 403) {
       assert.ok(error instanceof ArkyApiError, label);
@@ -181,7 +181,7 @@ test("only Arky's own refusal of the automatic refresh signs the shopper out; a 
       assert.equal(storage.initial, retained, label);
       assert.equal(reported.some((session) => session === null), false, label);
     }
-    assert.deepEqual(storage.keys("arky_customer_session:"), [], label);
+    assert.deepEqual(storage.keys("arky_user_session:"), [], label);
     unsubscribe();
   }
 });
@@ -195,8 +195,8 @@ test("a 401 or 403 that Arky did not send on the automatic refresh keeps the sig
   ];
   let answer;
   const calls = recordFetch(context, (call) => {
-    if (call.path === "/v1/storefront/customer/me") return errorResponse(401, "GENERAL.UNAUTHENTICATED", "Access expired");
-    if (call.path === "/v1/storefront/customer/refresh") return answer();
+    if (call.path === "/v1/storefront/user/me") return errorResponse(401, "GENERAL.UNAUTHENTICATED", "Access expired");
+    if (call.path === "/v1/storefront/user/refresh") return answer();
     throw new Error(`Unexpected request: ${call.path}`);
   });
   for (const [status, make] of answers) {
@@ -206,7 +206,7 @@ test("a 401 or 403 that Arky did not send on the automatic refresh keeps the sig
     const client = createStorefront(storefrontIdentity, { ...idFactories, apiUrl, sessionStorage: storage });
     const reported = [];
     const unsubscribe = client.onAuthStateChanged((session) => reported.push(session));
-    await assert.rejects(client.customer.getMe(), (error) => error instanceof ArkyNetworkError && !(error instanceof ArkyApiError) && error.code === "unreadable_answer" && error.statusCode === status);
+    await assert.rejects(client.user.getMe(), (error) => error instanceof ArkyNetworkError && !(error instanceof ArkyApiError) && error.code === "unreadable_answer" && error.statusCode === status);
     await new Promise((resolve) => setImmediate(resolve));
     assert.equal(client.isAuthenticated, true);
     assert.equal(client.session.id, ids.session);
@@ -214,13 +214,13 @@ test("a 401 or 403 that Arky did not send on the automatic refresh keeps the sig
     assert.equal(reported.some((session) => session === null), false);
     unsubscribe();
   }
-  assert.deepEqual(calls.map((call) => call.path), answers.flatMap(() => ["/v1/storefront/customer/me", "/v1/storefront/customer/refresh"]));
+  assert.deepEqual(calls.map((call) => call.path), answers.flatMap(() => ["/v1/storefront/user/me", "/v1/storefront/user/refresh"]));
 });
 
 test("a refused automatic refresh can't sign out the session the shopper got while it was pending", async (context) => {
-  const rotated = emailSession(ids.customer, "7e2c9b14-5a63-4d80-b1f7-3c8e0a6d2f95", {
-    access_token: `customer_access_${"u".repeat(64)}`,
-    refresh_token: `customer_refresh_${"w".repeat(64)}`,
+  const rotated = emailSession(ids.user, "7e2c9b14-5a63-4d80-b1f7-3c8e0a6d2f95", {
+    access_token: `user_access_${"u".repeat(64)}`,
+    refresh_token: `user_refresh_${"w".repeat(64)}`,
   });
   let refreshStarted;
   const started = new Promise((resolve) => {
@@ -232,10 +232,10 @@ test("a refused automatic refresh can't sign out the session the shopper got whi
   });
   let refreshes = 0;
   const calls = recordFetch(context, (call) => {
-    if (call.path === "/v1/storefront/customer/me") return errorResponse(401, "GENERAL.UNAUTHENTICATED", "Access expired");
-    if (call.path !== "/v1/storefront/customer/refresh") throw new Error(`Unexpected request: ${call.path}`);
+    if (call.path === "/v1/storefront/user/me") return errorResponse(401, "GENERAL.UNAUTHENTICATED", "Access expired");
+    if (call.path !== "/v1/storefront/user/refresh") throw new Error(`Unexpected request: ${call.path}`);
     refreshes += 1;
-    if (refreshes === 2) return sessionResult(ids.customer, rotated);
+    if (refreshes === 2) return sessionResult(ids.user, rotated);
     refreshStarted();
     return refused;
   });
@@ -244,9 +244,9 @@ test("a refused automatic refresh can't sign out the session the shopper got whi
   const reported = [];
   client.onAuthStateChanged((session) => reported.push(session));
 
-  const reading = client.customer.getMe();
+  const reading = client.user.getMe();
   await started;
-  await client.customer.refresh({ session_id: rotated.id });
+  await client.user.refresh({ session_id: rotated.id });
   refuse(errorResponse(401, "GENERAL.UNAUTHENTICATED", "Refresh token rejected"));
   await assert.rejects(reading, (error) => error instanceof ArkyApiError && error.message === "Access expired");
   await new Promise((resolve) => setImmediate(resolve));
@@ -254,12 +254,12 @@ test("a refused automatic refresh can't sign out the session the shopper got whi
   assert.equal(client.isAuthenticated, true);
   assert.equal(client.session.id, rotated.id);
   assert.equal(reported.some((session) => session === null), false);
-  const [key] = storage.keys("arky_customer_session:");
+  const [key] = storage.keys("arky_user_session:");
   assert.equal(JSON.parse(storage.getItem(key)).session.access_token, rotated.access_token);
   assert.deepEqual(calls.map((call) => [call.path, call.body]), [
-    ["/v1/storefront/customer/me", null],
-    ["/v1/storefront/customer/refresh", { session_id: ids.otherSession, refresh_token: refreshToken }],
-    ["/v1/storefront/customer/refresh", { session_id: rotated.id, refresh_token: refreshToken }],
+    ["/v1/storefront/user/me", null],
+    ["/v1/storefront/user/refresh", { session_id: ids.otherSession, refresh_token: refreshToken }],
+    ["/v1/storefront/user/refresh", { session_id: rotated.id, refresh_token: refreshToken }],
   ]);
 });
 
@@ -271,9 +271,9 @@ test("an archived sales channel answers 409 SALES_CHANNEL.NOT_ACTIVE, which keep
     const reported = [];
     const unsubscribe = client.onAuthStateChanged((session) => reported.push(session));
     const sent = calls.length;
-    await assert.rejects(client.customer.getMe(), (error) => error instanceof ArkyApiError && error.statusCode === 409 && error.code === "SALES_CHANNEL.NOT_ACTIVE");
+    await assert.rejects(client.user.getMe(), (error) => error instanceof ArkyApiError && error.statusCode === 409 && error.code === "SALES_CHANNEL.NOT_ACTIVE");
     await new Promise((resolve) => setImmediate(resolve));
-    assert.deepEqual(calls.slice(sent).map((call) => call.path), ["/v1/storefront/customer/me"]);
+    assert.deepEqual(calls.slice(sent).map((call) => call.path), ["/v1/storefront/user/me"]);
     assert.equal(client.hasSession, true);
     assert.equal(client.session.id, ids.session);
     assert.equal(storage.initial, retained);
@@ -291,14 +291,14 @@ test("a 401 that Arky did not send keeps the visitor, and only Arky's own 401 re
   ];
   let answer;
   const calls = recordFetch(context, (call) => {
-    if (call.path === "/v1/storefront/customer/identify") {
-      return sessionResult(replacementCustomerId, visitorSession(replacementCustomerId, replacementSessionId, replacementVisitorToken));
+    if (call.path === "/v1/storefront/user/identify") {
+      return sessionResult(replacementUserId, visitorSession(replacementUserId, replacementSessionId, replacementVisitorToken));
     }
-    if (call.path !== "/v1/storefront/customer/me") throw new Error(`Unexpected request: ${call.path}`);
+    if (call.path !== "/v1/storefront/user/me") throw new Error(`Unexpected request: ${call.path}`);
     if (call.headers.get("authorization") === `Bearer ${visitorToken}`) return answer();
     return {
-      customer: customerRecord(replacementCustomerId),
-      session: { ...visitorSession(replacementCustomerId, replacementSessionId, replacementVisitorToken), store_id: ids.store },
+      user: userRecord(replacementUserId),
+      session: { ...visitorSession(replacementUserId, replacementSessionId, replacementVisitorToken), tenant_id: ids.tenant },
     };
   });
   for (const proxyAnswer of proxyAnswers) {
@@ -308,14 +308,14 @@ test("a 401 that Arky did not send keeps the visitor, and only Arky's own 401 re
       ...idFactories,
       apiUrl,
       sessionStorage: storage,
-      createVisitorIdentity: () => ({ customer_id: replacementCustomerId, session_id: replacementSessionId }),
+      createVisitorIdentity: () => ({ user_id: replacementUserId, session_id: replacementSessionId }),
     });
     const reported = [];
     const unsubscribe = client.onAuthStateChanged((session) => reported.push(session));
     const sent = calls.length;
 
     answer = proxyAnswer;
-    await assert.rejects(client.customer.getMe(), (error) => error instanceof ArkyNetworkError && !(error instanceof ArkyApiError) && error.code === "unreadable_answer" && error.statusCode === 401);
+    await assert.rejects(client.user.getMe(), (error) => error instanceof ArkyNetworkError && !(error instanceof ArkyApiError) && error.code === "unreadable_answer" && error.statusCode === 401);
     await new Promise((resolve) => setImmediate(resolve));
     assert.equal(client.hasSession, true);
     assert.equal(client.session.id, ids.session);
@@ -323,35 +323,35 @@ test("a 401 that Arky did not send keeps the visitor, and only Arky's own 401 re
     assert.equal(reported.some((session) => session === null), false);
 
     answer = () => errorResponse(401, "GENERAL.UNAUTHENTICATED", "Unauthenticated");
-    const me = await client.customer.getMe();
-    assert.equal(me.customer.id, replacementCustomerId);
+    const me = await client.user.getMe();
+    assert.equal(me.user.id, replacementUserId);
     assert.equal(client.session.id, replacementSessionId);
-    const [key] = storage.keys("arky_customer_session:");
+    const [key] = storage.keys("arky_user_session:");
     assert.equal(JSON.parse(storage.getItem(key)).session.token, replacementVisitorToken);
     assert.deepEqual(calls.slice(sent).map((call) => [call.path, call.headers.get("authorization"), call.body]), [
-      ["/v1/storefront/customer/me", `Bearer ${visitorToken}`, null],
-      ["/v1/storefront/customer/me", `Bearer ${visitorToken}`, null],
-      ["/v1/storefront/customer/identify", null, { customer_id: replacementCustomerId, session_id: replacementSessionId }],
-      ["/v1/storefront/customer/me", `Bearer ${replacementVisitorToken}`, null],
+      ["/v1/storefront/user/me", `Bearer ${visitorToken}`, null],
+      ["/v1/storefront/user/me", `Bearer ${visitorToken}`, null],
+      ["/v1/storefront/user/identify", null, { user_id: replacementUserId, session_id: replacementSessionId }],
+      ["/v1/storefront/user/me", `Bearer ${replacementVisitorToken}`, null],
     ]);
     unsubscribe();
   }
 });
 
 test("ensure_session_retries_identify_once_after_a_409", async (context) => {
-  const firstPair = { customer_id: "0b1c2d3e-4f50-4a61-8b72-9c83d4e5f601", session_id: "1c2d3e4f-5061-4b72-8c83-9d94e5f60712" };
-  const secondPair = { customer_id: replacementCustomerId, session_id: replacementSessionId };
+  const firstPair = { user_id: "0b1c2d3e-4f50-4a61-8b72-9c83d4e5f601", session_id: "1c2d3e4f-5061-4b72-8c83-9d94e5f60712" };
+  const secondPair = { user_id: replacementUserId, session_id: replacementSessionId };
   const picks = [firstPair, secondPair];
   let identifies = 0;
   const calls = recordFetch(context, (call) => {
-    if (call.path === "/v1/storefront/customer/identify") {
+    if (call.path === "/v1/storefront/user/identify") {
       identifies += 1;
       if (identifies === 1) throw new TypeError("Lost response");
-      if (call.body.customer_id === firstPair.customer_id) return errorResponse(409, "GENERAL.CONFLICT", "The visitor ids are taken");
-      return sessionResult(secondPair.customer_id, visitorSession(secondPair.customer_id, secondPair.session_id, replacementVisitorToken));
+      if (call.body.user_id === firstPair.user_id) return errorResponse(409, "GENERAL.CONFLICT", "The visitor ids are taken");
+      return sessionResult(secondPair.user_id, visitorSession(secondPair.user_id, secondPair.session_id, replacementVisitorToken));
     }
     if (call.method === "POST" && call.path === "/v1/storefront/carts") {
-      return { type: "created", cart: cartRecord({ id: call.body.id, customer_id: secondPair.customer_id }), recovery_token: "token" };
+      return { type: "created", cart: cartRecord({ id: call.body.id, user_id: secondPair.user_id }), recovery_token: "token" };
     }
     throw new Error(`Unexpected request ${call.method} ${call.path}`);
   });
@@ -363,10 +363,10 @@ test("ensure_session_retries_identify_once_after_a_409", async (context) => {
     market: "bih",
     sessionStorage: new SessionStorage(),
   });
-  const cart = store.eshop.cart({ buyer: { type: "customer" }, package_id: ids.package });
+  const cart = store.eshop.cart({ buyer: { type: "user" }, package_id: ids.package });
   await assert.rejects(cart.create({ id: ids.cart }), /Lost response/);
   assert.equal((await cart.create({ id: ids.cart })).id, ids.cart);
-  assert.deepEqual(calls.filter((call) => call.path === "/v1/storefront/customer/identify").map((call) => call.body), [firstPair, firstPair, secondPair]);
-  assert.equal(store.session.get().customer.id, secondPair.customer_id);
+  assert.deepEqual(calls.filter((call) => call.path === "/v1/storefront/user/identify").map((call) => call.body), [firstPair, firstPair, secondPair]);
+  assert.equal(store.session.get().user.id, secondPair.user_id);
   assert.equal(picks.length, 0);
 });

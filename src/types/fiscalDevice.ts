@@ -75,8 +75,8 @@ export type FiscalDeviceReadiness =
 
 export interface FiscalDevice {
   id: string;
-  store_id: string;
-  store_location_id: string;
+  tenant_id: string;
+  tenant_location_id: string;
   key: string;
   type: FiscalDeviceType;
   status: FiscalDeviceStatus;
@@ -98,8 +98,8 @@ export type CreateFiscalDeviceType =
   | { type: "manual" };
 
 export interface FindFiscalDevicesParams {
-  store_id: string;
-  store_location_id?: string;
+  tenant_id: string;
+  tenant_location_id?: string;
   type?: FiscalDeviceTypeName;
   status?: FiscalDeviceStatus;
   limit?: number;
@@ -107,33 +107,33 @@ export interface FindFiscalDevicesParams {
 }
 
 export interface GetFiscalDeviceParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface CreateFiscalDeviceParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
-  store_location_id: string;
+  tenant_location_id: string;
   key: string;
   type: CreateFiscalDeviceType;
 }
 
 export interface RenameFiscalDeviceParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   key: string;
 }
 
 export interface ArchiveFiscalDeviceParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface ReleaseFiscalDeviceParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
@@ -159,19 +159,19 @@ export interface IssuedFiscalDeviceToken {
 }
 
 export interface CreateFiscalDeviceTokenParams {
-  store_id: string;
+  tenant_id: string;
   fiscal_device_id: string;
   id: string;
   name: string;
 }
 
 export interface FindFiscalDeviceTokensParams {
-  store_id: string;
+  tenant_id: string;
   fiscal_device_id: string;
 }
 
 export interface RevokeFiscalDeviceTokenParams {
-  store_id: string;
+  tenant_id: string;
   fiscal_device_id: string;
   id: string;
 }

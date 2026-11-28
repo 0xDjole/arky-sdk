@@ -3,10 +3,10 @@ import type { createAdmin } from "arky-sdk/admin";
 import type { createStorefront } from "arky-sdk/storefront";
 import type {
   ActOnRentalParams,
-  CustomerRental,
-  CustomerRentalStatus,
+  UserRental,
+  UserRentalStatus,
   EpochMilliseconds,
-  FindCustomerRentalsParams,
+  FindUserRentalsParams,
   FindInventoryUnitsParams,
   FindRentalsParams,
   FulfillmentJobLineSource,
@@ -23,14 +23,14 @@ import type {
   RentalDetail,
   RentalEndCause,
   RentalListItem,
-  CustomerRentalUnit,
+  UserRentalUnit,
   RentalIssueReplacement,
   RentalReplacementMethod,
   RentalReturnState,
   RentalStatus,
   RentalTerms,
 } from "arky-sdk";
-import type { Block, CustomerRental as PublicCustomerRental, Rental as PublicRental, RentalDetail as PublicDetail } from "arky-sdk/types";
+import type { Block, UserRental as PublicUserRental, Rental as PublicRental, RentalDetail as PublicDetail } from "arky-sdk/types";
 
 type Assert<T extends true> = T;
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
@@ -43,21 +43,21 @@ type Action<T extends RentalCommand["type"]> = Extract<RentalCommand, { type: T 
 type EndingByAccount = Extract<RentalStatus, { type: "ending_by_account" }>;
 type EndingBySystem = Extract<RentalStatus, { type: "ending_by_system" }>;
 type Withdrawn = Extract<RentalStatus, { type: "withdrawn" }>;
-type BuyerWithdrawn = Extract<CustomerRentalStatus, { type: "withdrawn" }>;
+type BuyerWithdrawn = Extract<UserRentalStatus, { type: "withdrawn" }>;
 
 export type RentalContract = [
   Assert<Equal<Rental, PublicRental>>,
   Assert<Equal<RentalDetail, PublicDetail>>,
-  Assert<Equal<keyof Rental, "id" | "store_id" | "package_member_id" | "package_member_revision_id" | "package_item_id" | "status" | "created_at" | "updated_at">>,
+  Assert<Equal<keyof Rental, "id" | "tenant_id" | "package_member_id" | "package_member_revision_id" | "package_item_id" | "status" | "created_at" | "updated_at">>,
   Assert<Equal<Extract<RentalReturnState, { type: "missing" }>, { type: "missing" }>>,
-  Assert<Equal<keyof FindRentalsParams, "store_id" | "ids" | "package_member_ids" | "company_id" | "company_location_id" | "status" | "sort_field" | "sort_direction" | "limit" | "cursor">>,
+  Assert<Equal<keyof FindRentalsParams, "tenant_id" | "ids" | "package_member_ids" | "company_id" | "company_location_id" | "status" | "sort_field" | "sort_direction" | "limit" | "cursor">>,
   Assert<Equal<FindRentalsParams["package_member_ids"], string[] | undefined>>,
-  Assert<Equal<{ store_id: string; ids: string[]; status: "active" } extends FindRentalsParams ? true : false, false>>,
-  Assert<Equal<RentalListItem, Rental & { product: ProductReference | null; variant_sku: string | null; quantity: number; units: CustomerRentalUnit[] }>>,
-  Assert<Equal<CustomerRental["package_member_id"], string>>,
-  Assert<Equal<CustomerRental, PublicCustomerRental>>,
-  Assert<Equal<CustomerRental["product"], ProductReference | null>>,
-  Assert<Equal<CustomerRental["product_key"], string>>,
+  Assert<Equal<{ tenant_id: string; ids: string[]; status: "active" } extends FindRentalsParams ? true : false, false>>,
+  Assert<Equal<RentalListItem, Rental & { product: ProductReference | null; variant_sku: string | null; quantity: number; units: UserRentalUnit[] }>>,
+  Assert<Equal<UserRental["package_member_id"], string>>,
+  Assert<Equal<UserRental, PublicUserRental>>,
+  Assert<Equal<UserRental["product"], ProductReference | null>>,
+  Assert<Equal<UserRental["product_key"], string>>,
   Assert<Equal<keyof ProductReference, "id" | "key" | "blocks">>,
   Assert<Equal<ProductReference["blocks"], Block[]>>,
   Assert<Missing<Rental, "product">>,
@@ -79,7 +79,7 @@ export type RentalContract = [
   Assert<Equal<keyof RentalTerms, "product_id" | "variant_id" | "quantity" | "inventory_item_id" | "product_key" | "variant_sku">>,
   Assert<Equal<keyof RentalDetail, "rental" | "terms" | "product" | "units">>,
   Assert<Equal<RentalDetail["product"], ProductReference | null>>,
-  Assert<Equal<RentalDetail["units"], CustomerRentalUnit[]>>,
+  Assert<Equal<RentalDetail["units"], UserRentalUnit[]>>,
   Assert<Equal<RentalCommand["type"], "request_replacement" | "end" | "close" | "resume" | "cancel_issue">>,
   Assert<Equal<Action<"request_replacement">["replacement"], RentalIssueReplacement>>,
   Assert<Equal<Action<"request_replacement">["method"], RentalReplacementMethod>>,
@@ -93,22 +93,22 @@ export type RentalContract = [
   Assert<Equal<Parameters<RentalApi["get"]>[0], GetRentalParams>>,
   Assert<Equal<Awaited<ReturnType<RentalApi["get"]>>, RentalDetail>>,
   Assert<Equal<Parameters<RentalApi["execute"]>[0], ActOnRentalParams>>,
-  Assert<Equal<keyof ActOnRentalParams, "store_id" | "id" | "expected_updated_at" | "command">>,
+  Assert<Equal<keyof ActOnRentalParams, "tenant_id" | "id" | "expected_updated_at" | "command">>,
   Assert<Equal<ActOnRentalParams["command"], RentalCommand>>,
   Assert<Missing<ActOnRentalParams, "request_id" | "action" | "type">>,
   Assert<Equal<Awaited<ReturnType<RentalApi["execute"]>>, Rental>>,
-  Assert<Equal<Parameters<BuyerRentals["find"]>[0], FindCustomerRentalsParams>>,
-  Assert<Equal<FindCustomerRentalsParams["package_member_ids"], string[] | undefined>>,
-  Assert<Equal<{ limit: number } extends FindCustomerRentalsParams ? true : false, false>>,
-  Assert<Equal<{ company_location_id: string; limit: number } extends FindCustomerRentalsParams ? true : false, true>>,
-  Assert<Equal<{ package_member_ids: string[] } extends FindCustomerRentalsParams ? true : false, true>>,
-  Assert<Missing<FindCustomerRentalsParams, "subscription_id">>,
-  Assert<Equal<Awaited<ReturnType<BuyerRentals["get"]>>, CustomerRental>>,
-  Assert<Equal<CustomerRentalStatus["type"], "waiting" | "active" | "ending" | "closed" | "withdrawn">>,
-  Assert<Equal<Extract<CustomerRentalStatus, { type: "waiting" }>, { type: "waiting" }>>,
+  Assert<Equal<Parameters<BuyerRentals["find"]>[0], FindUserRentalsParams>>,
+  Assert<Equal<FindUserRentalsParams["package_member_ids"], string[] | undefined>>,
+  Assert<Equal<{ limit: number } extends FindUserRentalsParams ? true : false, false>>,
+  Assert<Equal<{ company_location_id: string; limit: number } extends FindUserRentalsParams ? true : false, true>>,
+  Assert<Equal<{ package_member_ids: string[] } extends FindUserRentalsParams ? true : false, true>>,
+  Assert<Missing<FindUserRentalsParams, "subscription_id">>,
+  Assert<Equal<Awaited<ReturnType<BuyerRentals["get"]>>, UserRental>>,
+  Assert<Equal<UserRentalStatus["type"], "waiting" | "active" | "ending" | "closed" | "withdrawn">>,
+  Assert<Equal<Extract<UserRentalStatus, { type: "waiting" }>, { type: "waiting" }>>,
   Assert<Equal<keyof BuyerWithdrawn, "type" | "withdrawn_at">>,
   Assert<Equal<BuyerWithdrawn["withdrawn_at"], EpochMilliseconds>>,
-  Assert<Missing<Extract<CustomerRentalStatus, { type: "ending" }>, "actor" | "reason">>,
+  Assert<Missing<Extract<UserRentalStatus, { type: "ending" }>, "actor" | "reason">>,
 ];
 
 export type RentalWorkContract = [
@@ -119,17 +119,17 @@ export type RentalWorkContract = [
   Assert<Equal<FindInventoryUnitsParams["rental_id"], string | undefined>>,
 ];
 
-const ending: RentalCommand = { type: "end", reason: "Customer ended the agreement", return_due_at: null };
+const ending: RentalCommand = { type: "end", reason: "User ended the agreement", return_due_at: null };
 const replacement: RentalCommand = {
   type: "request_replacement",
   fulfillment_job_id: "7f3c1a85-4e29-4b60-a1d7-9c2e5b8f0a36",
   fulfillment_job_line_id: "2d8e4b61-9a37-4c05-8f1e-6b3d0a7c5e92",
   replacement: { predecessor_inventory_unit_id: "unit", predecessor_fulfillment_job_line_id: "delivered-line", predecessor_fulfillment_unit_index: 0, overlap_authorized: false },
-  store_location_id: "location",
+  tenant_location_id: "location",
   method: { type: "pickup" },
 };
 const waiting: RentalStatus = { type: "waiting" };
 const memberEnded: RentalStatus = { type: "ending_by_system", requested_at: epochMilliseconds(1_700_000_000_000), cause: { type: "member_ended" } };
-const withdrawn: CustomerRentalStatus = { type: "withdrawn", withdrawn_at: epochMilliseconds(1_700_000_000_000) };
-const waitingList: FindRentalsParams = { store_id: "6c1e9a47-2b58-4d93-8f0a-3e7b5d2c9f14", status: "waiting" };
+const withdrawn: UserRentalStatus = { type: "withdrawn", withdrawn_at: epochMilliseconds(1_700_000_000_000) };
+const waitingList: FindRentalsParams = { tenant_id: "6c1e9a47-2b58-4d93-8f0a-3e7b5d2c9f14", status: "waiting" };
 void [ending, replacement, waiting, memberEnded, withdrawn, waitingList];

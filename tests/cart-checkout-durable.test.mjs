@@ -18,7 +18,7 @@ import {
   visitorStorage,
 } from "./helpers/arky-fixtures.mjs";
 
-const storageKey = `arky:cart-checkout:v6:${encodeURIComponent(`storefront:${apiUrl}:${storefrontIdentity.storeId}:${storefrontIdentity.salesChannelId}:${ids.customer}`)}`;
+const storageKey = `arky:cart-checkout:v6:${encodeURIComponent(`storefront:${apiUrl}:${storefrontIdentity.tenantId}:${storefrontIdentity.salesChannelId}:${ids.user}`)}`;
 const request = checkoutRequest();
 const originals = new Map(["fetch", "localStorage", "navigator", "window"].map((name) => [name, Object.getOwnPropertyDescriptor(globalThis, name)]));
 
@@ -35,7 +35,7 @@ function browser(storage = new MemoryStorage()) {
 }
 
 function storefront() {
-  return createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", market: "bih", sessionStorage: visitorStorage() });
+  return createStorefront(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", market: "bih", sessionStorage: visitorStorage() });
 }
 
 function capture(respond) {
@@ -114,8 +114,8 @@ test("an unresolved checkout blocks every cart change and a new cart until it is
   const cart = storefront().eshop.cart;
   const product = { id: ids.otherLine, variant_id: ids.variant, quantity: 1, price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price } };
   for (const mutate of [
-    () => cart.create({ id: ids.otherCart, buyer: { type: "customer" }, package_id: ids.package }),
-    () => cart.reorder({ id: ids.otherCart, order_id: ids.otherOrder, buyer: { type: "customer" }, package_id: ids.package }),
+    () => cart.create({ id: ids.otherCart, buyer: { type: "user" }, package_id: ids.package }),
+    () => cart.reorder({ id: ids.otherCart, order_id: ids.otherOrder, buyer: { type: "user" }, package_id: ids.package }),
     () => cart.update({ id: ids.cart, expected_updated_at: 1, promotion_codes: ["NEW"] }),
     () => cart.addProduct({ id: ids.cart, expected_updated_at: 1, product }),
     () => cart.addBooking({ id: ids.cart, expected_updated_at: 1, booking: { id: ids.otherLine, booking_offering_id: ids.product, requested_interval: { from: 1, to: 2 }, capacity_units: 1 } }),
@@ -134,7 +134,7 @@ test("an unresolved checkout blocks every cart change and a new cart until it is
 test("direct checkout submits the caller's exact request, never a body language, and creates no recovery state", async () => {
   const { storage } = browser();
   const calls = capture(success);
-  assert.deepEqual(await storefront().eshop.cart.checkout({ ...request, language: "bs", locale: "bs", store_id: ids.otherStore }), placedAcceptance());
+  assert.deepEqual(await storefront().eshop.cart.checkout({ ...request, language: "bs", locale: "bs", tenant_id: ids.otherTenant }), placedAcceptance());
   assert.deepEqual(calls.map((call) => [call.method, call.path]), [["POST", "/v1/storefront/carts/accept"], ["GET", `/v1/storefront/orders/${ids.order}`]]);
   assert.deepEqual(calls[0].body, request);
   assert.equal("language" in calls[0].body, false);
@@ -321,7 +321,7 @@ test("a placed answer whose order read fails or does not confirm this cart stays
     () => Response.json({ message: "Bad read", status_code: 400 }, { status: 400 }),
     () => { throw new TypeError("read lost"); },
     () => Response.json(placedOrder({ id: ids.otherOrder })),
-    () => Response.json(placedOrder({ source: { type: "cart", cart_id: ids.otherCart, placed_by: { type: "customer", customer_id: ids.customer, customer_session_id: ids.session } } })),
+    () => Response.json(placedOrder({ source: { type: "cart", cart_id: ids.otherCart, placed_by: { type: "user", user_id: ids.user, user_session_id: ids.session } } })),
     () => Response.json(placedOrder({ source: { type: "renewal", recovery: null } })),
     () => Response.json(placedOrder({ source: null })),
   ]) {
@@ -483,7 +483,7 @@ test("each branch keeps its own checkout: a pending one blocks only its own cart
   const writes = capture((call) => {
     if (call.method === "PUT") return Response.json({ id: ids.otherCart });
     if (call.path === "/v1/storefront/carts/accept") return Response.json(placedAcceptance({ order_id: call.body.order_id }));
-    return Response.json(placedOrder({ id: ids.otherOrder, source: { type: "cart", cart_id: ids.otherCart, placed_by: { type: "customer", customer_id: ids.customer, customer_session_id: ids.session } } }));
+    return Response.json(placedOrder({ id: ids.otherOrder, source: { type: "cart", cart_id: ids.otherCart, placed_by: { type: "user", user_id: ids.user, user_session_id: ids.session } } }));
   });
   await client.eshop.cart.update({ id: ids.otherCart, expected_updated_at: 1, promotion_codes: [] });
   await assert.rejects(client.eshop.cart.update({ id: ids.cart, expected_updated_at: 1, promotion_codes: [] }), (error) => error instanceof DurableRequestError && error.code === "pending");
@@ -567,7 +567,7 @@ test("a_write_refused_busy_leaves_the_running_writes_answer_in_view", async () =
   browser();
   const write = { started: opened(), release: opened() };
   const calls = cartStoreServer({ write, read: { started: opened(), release: opened() } });
-  const cart = cartStore().eshop.cart({ buyer: { type: "customer" }, package_id: ids.package });
+  const cart = cartStore().eshop.cart({ buyer: { type: "user" }, package_id: ids.package });
   await cart.create({ id: ids.cart });
   const first = cart.addProduct(productToAdd);
   await write.started.gate;
@@ -587,8 +587,8 @@ test("a cart write refused by another cart's running write keeps the read it rac
   const read = { started: opened(), release: opened() };
   cartStoreServer({ write, read });
   const arky = cartStore();
-  const shop = arky.eshop.cart({ buyer: { type: "customer" }, package_id: ids.package });
-  const club = arky.eshop.cart({ buyer: { type: "customer" }, package_id: ids.otherPackage });
+  const shop = arky.eshop.cart({ buyer: { type: "user" }, package_id: ids.package });
+  const club = arky.eshop.cart({ buyer: { type: "user" }, package_id: ids.otherPackage });
   await shop.create({ id: ids.cart });
   await club.create({ id: ids.otherCart });
   const reading = club.load();

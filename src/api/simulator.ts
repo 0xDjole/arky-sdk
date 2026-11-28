@@ -23,15 +23,15 @@ import type {
   StartSimulatedCallParams,
 } from "../types/simulator";
 import { requireId } from "../utils/ids";
-import { segment, storePath, storeRecordPath } from "./paths";
+import { segment, tenantPath, tenantRecordPath } from "./paths";
 
 const plannedOutcomes = "simulator/planned-outcomes";
 const callConversations = "simulator/calls/conversations";
 
-export const createStoreSimulatorApi = (apiConfig: ApiConfig) => {
+export const createTenantSimulatorApi = (apiConfig: ApiConfig) => {
   const paymentControl = (params: SimulatorPaymentControlParams, verb: string, options?: RequestOptions) =>
     apiConfig.httpClient.post<void>(
-      storePath(params.store_id, `simulator/payments/${segment(params.payment_id)}/${verb}`),
+      tenantPath(params.tenant_id, `simulator/payments/${segment(params.payment_id)}/${verb}`),
       undefined,
       options,
     );
@@ -53,8 +53,8 @@ export const createStoreSimulatorApi = (apiConfig: ApiConfig) => {
 
     emails: {
       find(params: FindSimulatedEmailsParams, options?: RequestOptions): Promise<PaginatedResponse<SimulatedEmail>> {
-        const { store_id, ...query } = params;
-        return apiConfig.httpClient.get<PaginatedResponse<SimulatedEmail>>(storePath(store_id, "simulator/emails"), {
+        const { tenant_id, ...query } = params;
+        return apiConfig.httpClient.get<PaginatedResponse<SimulatedEmail>>(tenantPath(tenant_id, "simulator/emails"), {
           ...options,
           params: query,
         });
@@ -63,8 +63,8 @@ export const createStoreSimulatorApi = (apiConfig: ApiConfig) => {
 
     sms: {
       find(params: FindSimulatedSmsParams, options?: RequestOptions): Promise<PaginatedResponse<SimulatedSms>> {
-        const { store_id, ...query } = params;
-        return apiConfig.httpClient.get<PaginatedResponse<SimulatedSms>>(storePath(store_id, "simulator/sms"), {
+        const { tenant_id, ...query } = params;
+        return apiConfig.httpClient.get<PaginatedResponse<SimulatedSms>>(tenantPath(tenant_id, "simulator/sms"), {
           ...options,
           params: query,
         });
@@ -74,7 +74,7 @@ export const createStoreSimulatorApi = (apiConfig: ApiConfig) => {
     calls: {
       start(params: StartSimulatedCallParams, options?: RequestOptions): Promise<SimulatedCall> {
         return apiConfig.httpClient.post<SimulatedCall>(
-          storePath(params.store_id, "simulator/calls"),
+          tenantPath(params.tenant_id, "simulator/calls"),
           { to: params.to, from: params.from },
           options,
         );
@@ -82,14 +82,14 @@ export const createStoreSimulatorApi = (apiConfig: ApiConfig) => {
 
       get(params: GetSimulatedCallParams, options?: RequestOptions): Promise<SimulatedCall> {
         return apiConfig.httpClient.get<SimulatedCall>(
-          storePath(params.store_id, `simulator/calls/${segment(params.call_sid)}`),
+          tenantPath(params.tenant_id, `simulator/calls/${segment(params.call_sid)}`),
           options,
         );
       },
 
       setStatus(params: SetSimulatedCallStatusParams, options?: RequestOptions): Promise<SimulatedCall> {
         return apiConfig.httpClient.post<SimulatedCall>(
-          storePath(params.store_id, `simulator/calls/${segment(params.call_sid)}/status`),
+          tenantPath(params.tenant_id, `simulator/calls/${segment(params.call_sid)}/status`),
           { status: params.status, duration_seconds: params.duration_seconds },
           options,
         );
@@ -99,8 +99,8 @@ export const createStoreSimulatorApi = (apiConfig: ApiConfig) => {
         params: FindSimulatedCallConversationsParams,
         options?: RequestOptions,
       ): Promise<PaginatedResponse<SimulatedCallConversation>> {
-        const { store_id, ...query } = params;
-        return apiConfig.httpClient.get<PaginatedResponse<SimulatedCallConversation>>(storePath(store_id, callConversations), {
+        const { tenant_id, ...query } = params;
+        return apiConfig.httpClient.get<PaginatedResponse<SimulatedCallConversation>>(tenantPath(tenant_id, callConversations), {
           ...options,
           params: query,
         });
@@ -108,8 +108,8 @@ export const createStoreSimulatorApi = (apiConfig: ApiConfig) => {
 
       callTool(params: SimulateToolCallParams, options?: RequestOptions): Promise<SimulatedToolCall> {
         return apiConfig.httpClient.post<SimulatedToolCall>(
-          storePath(
-            params.store_id,
+          tenantPath(
+            params.tenant_id,
             `${callConversations}/${segment(params.conversation_id)}/tools/${segment(params.tool)}`,
           ),
           { parameters: params.parameters, said: params.said },
@@ -122,7 +122,7 @@ export const createStoreSimulatorApi = (apiConfig: ApiConfig) => {
         options?: RequestOptions,
       ): Promise<SimulatedCallConversation> {
         return apiConfig.httpClient.post<SimulatedCallConversation>(
-          storePath(params.store_id, `${callConversations}/${segment(params.conversation_id)}/finish`),
+          tenantPath(params.tenant_id, `${callConversations}/${segment(params.conversation_id)}/finish`),
           { transcript: params.transcript },
           options,
         );
@@ -132,13 +132,13 @@ export const createStoreSimulatorApi = (apiConfig: ApiConfig) => {
     plannedOutcomes: {
       create(params: CreateSimulatorPlannedOutcomeParams, options?: RequestOptions): Promise<SimulatorPlannedOutcome> {
         requireId(params.id, "planned outcome");
-        const { store_id, ...body } = params;
-        return apiConfig.httpClient.post<SimulatorPlannedOutcome>(storePath(store_id, plannedOutcomes), body, options);
+        const { tenant_id, ...body } = params;
+        return apiConfig.httpClient.post<SimulatorPlannedOutcome>(tenantPath(tenant_id, plannedOutcomes), body, options);
       },
 
       find(params: FindSimulatorPlannedOutcomesParams, options?: RequestOptions): Promise<PaginatedResponse<SimulatorPlannedOutcome>> {
-        const { store_id, ...query } = params;
-        return apiConfig.httpClient.get<PaginatedResponse<SimulatorPlannedOutcome>>(storePath(store_id, plannedOutcomes), {
+        const { tenant_id, ...query } = params;
+        return apiConfig.httpClient.get<PaginatedResponse<SimulatorPlannedOutcome>>(tenantPath(tenant_id, plannedOutcomes), {
           ...options,
           params: query,
         });
@@ -146,7 +146,7 @@ export const createStoreSimulatorApi = (apiConfig: ApiConfig) => {
 
       remove(params: RemoveSimulatorPlannedOutcomeParams, options?: RequestOptions): Promise<SimulatorPlannedOutcomeRemoval> {
         return apiConfig.httpClient.delete<SimulatorPlannedOutcomeRemoval>(
-          storeRecordPath(params.store_id, plannedOutcomes, params.id),
+          tenantRecordPath(params.tenant_id, plannedOutcomes, params.id),
           options,
         );
       },

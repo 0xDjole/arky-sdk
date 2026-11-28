@@ -13,7 +13,7 @@ import {
   visitorStorage,
 } from "./helpers/arky-fixtures.mjs";
 
-const visitorIdentity = { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" };
+const visitorIdentity = { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" };
 const doctorOffering = "6a1f2b3c-4d5e-4f60-8a7b-9c0d1e2f3a4b";
 const roomOffering = "7b2a3c4d-5e6f-4a71-9b8c-0d1e2f3a4b5c";
 const roomAddOn = "8c3b4d5e-6f7a-4b82-8c9d-1e2f3a4b5c6d";
@@ -26,7 +26,7 @@ const visit = {
   type: "booking",
   id: ids.line,
   booking_offering_id: doctorOffering,
-  store_location_id: branch,
+  tenant_location_id: branch,
   resource: { type: "any" },
   requested_interval: { from: 1_800_000_000_000, to: 1_800_001_800_000 },
   add_ons: [
@@ -49,7 +49,7 @@ function visitInput() {
   return {
     id: ids.line,
     booking_offering_id: doctorOffering,
-    store_location_id: branch,
+    tenant_location_id: branch,
     resource: { type: "any" },
     requested_interval: { from: 1_800_000_000_000, to: 1_800_001_800_000 },
     add_ons: [
@@ -82,7 +82,7 @@ test("a booking line without its branch, its resource or its add-on list is refu
   const client = storefront();
   const input = visitInput();
   for (const booking of [
-    { ...input, store_location_id: "branch" },
+    { ...input, tenant_location_id: "branch" },
     { ...input, resource: undefined },
     { ...input, resource: { type: "resource", booking_resource_id: "room" } },
     { ...input, add_ons: undefined },
@@ -106,7 +106,7 @@ test("a store cart with a booking and its add-ons saves them unchanged when it s
     throw new Error(`Unexpected request ${call.method} ${call.path}`);
   });
   const store = initialize(storefrontIdentity, { visitorIdentity, ...fixedIdFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: visitorStorage() });
-  const cart = store.eshop.cart({ buyer: { type: "customer" }, package_id: ids.package });
+  const cart = store.eshop.cart({ buyer: { type: "user" }, package_id: ids.package });
   await cart.create({ id: ids.cart });
   await cart.setProductQuantity({ line_item_id: coffee.id, quantity: 2 });
   const saved = calls.find((call) => call.method === "PUT");

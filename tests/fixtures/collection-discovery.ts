@@ -12,15 +12,15 @@ export type ScheduledEntryContracts = [
   Assert<Equal<Extract<NonNullable<UpdateEntryParams["status"]>, { type: "scheduled" }>, Extract<EntryStatus, { type: "scheduled" }>>>,
 ];
 
-const store_id = "7a3f9e21-5c84-4d06-b2e9-0f1d6c8a4b73";
+const tenant_id = "7a3f9e21-5c84-4d06-b2e9-0f1d6c8a4b73";
 const api = createAdmin({ apiUrl: "https://content.test" }).content.collection;
-const filters: FindCollectionsParams = { store_id, query: "guides", key: "guides", ids: ["collection"],
+const filters: FindCollectionsParams = { tenant_id, query: "guides", key: "guides", ids: ["collection"],
   status: "archived", sort_field: "key", sort_direction: "asc", limit: 1, cursor: null,
   created_at_from: epochMilliseconds(0), created_at_to: epochMilliseconds(2) };
 const page: Promise<{ items: Collection[]; cursor: string | null }> = api.find(filters);
 const status: CollectionStatus = { type: "archived" };
-const create: CreateCollectionParams = { store_id, id: "2c4e6a8b-0d1f-4a3c-9e5b-7d9f1b3d5e6a", key: "guides", schema: [], blocks: [] };
-const update: UpdateCollectionParams = { store_id, id: "collection", expected_updated_at: epochMilliseconds(1), status: { type: "archived" } };
+const create: CreateCollectionParams = { tenant_id, id: "2c4e6a8b-0d1f-4a3c-9e5b-7d9f1b3d5e6a", key: "guides", schema: [], blocks: [] };
+const update: UpdateCollectionParams = { tenant_id, id: "collection", expected_updated_at: epochMilliseconds(1), status: { type: "archived" } };
 void [page, status, create, update];
 
 export type CollectionDiscoveryContracts = [
@@ -30,10 +30,10 @@ export type CollectionDiscoveryContracts = [
   Assert<RequiredField<CreateCollectionParams, "id">>,
   Assert<RequiredField<CreateCollectionParams, "schema">>,
   Assert<RequiredField<CreateCollectionParams, "blocks">>,
-  Assert<RequiredField<CreateCollectionParams, "store_id">>,
+  Assert<RequiredField<CreateCollectionParams, "tenant_id">>,
   Assert<RequiredField<UpdateCollectionParams, "expected_updated_at">>,
   Assert<Equal<Parameters<typeof api.getCleanup>[0], GetCollectionCleanupParams>>,
-  Assert<Equal<GetCollectionCleanupParams, { store_id: string; id: string }>>,
+  Assert<Equal<GetCollectionCleanupParams, { tenant_id: string; id: string }>>,
   Assert<Equal<Awaited<ReturnType<typeof api.getCleanup>>, CollectionCleanup>>,
   Assert<Equal<CollectionCleanup["type"], "running" | "stopped_at_entry" | "stopped_at_collection">>,
   Assert<Equal<Extract<CollectionCleanup, { type: "stopped_at_entry" }>, { type: "stopped_at_entry"; entry_id: string; blocked_by: CollectionCleanupReference[] }>>,

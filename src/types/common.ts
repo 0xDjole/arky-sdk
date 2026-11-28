@@ -119,30 +119,30 @@ export interface AccountActor {
 }
 
 export type Actor =
-  | { type: "customer"; customer_id: string; customer_session_id: string }
+  | { type: "user"; user_id: string; user_session_id: string }
   | ({ type: "account" } & AccountActor)
   | { type: "assistant"; conversation_message_id: string };
 
 export type CommerceParty =
-  | { type: "customer"; customer_id: string }
+  | { type: "user"; user_id: string }
   | { type: "company"; company_id: string }
   | { type: "company_location"; company_location_id: string };
 
 export type CommercePartyQuery =
-  | { customer_id?: string; company_id?: never; company_location_id?: never }
-  | { customer_id?: never; company_id?: string; company_location_id?: never }
-  | { customer_id?: never; company_id?: never; company_location_id?: string };
+  | { user_id?: string; company_id?: never; company_location_id?: never }
+  | { user_id?: never; company_id?: string; company_location_id?: never }
+  | { user_id?: never; company_id?: never; company_location_id?: string };
 
 export type CompanyPartyQuery =
   | { company_id?: string; company_location_id?: never }
   | { company_id?: never; company_location_id?: string };
 
-export type CustomerAuthenticationSnapshot =
+export type UserAuthenticationSnapshot =
   | { type: "visitor" }
   | { type: "signed_in"; authenticated_at: EpochMilliseconds };
 
 export type ProviderLogin =
-  | { type: "store"; store_provider_id: string }
+  | { type: "tenant"; tenant_provider_id: string }
   | { type: "network"; network_provider_id: string };
 
 export interface ProviderOperationClaim {

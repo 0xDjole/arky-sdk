@@ -8,9 +8,9 @@ import type {
   GetSuppressionParams,
   ReleaseSuppressionParams,
   Suppression,
-} from "../types/customer";
+} from "../types/user";
 import { requireId } from "../utils/ids";
-import { storePath, storeRecordPath } from "./paths";
+import { tenantPath, tenantRecordPath } from "./paths";
 
 const collection = "suppressions";
 
@@ -21,28 +21,28 @@ export const createSuppressionApi = (apiConfig: ApiConfig) => {
     options?: RequestOptions,
   ) => {
     requireId(params.id, "suppression");
-    const { store_id, ...body } = params;
-    return apiConfig.httpClient.post<Suppression>(storePath(store_id, `${collection}/${verb}`), body, options);
+    const { tenant_id, ...body } = params;
+    return apiConfig.httpClient.post<Suppression>(tenantPath(tenant_id, `${collection}/${verb}`), body, options);
   };
 
   const release = (verb: string, params: ReleaseSuppressionParams, options?: RequestOptions) =>
     apiConfig.httpClient.post<Suppression>(
-      `${storeRecordPath(params.store_id, collection, params.id)}/${verb}`,
+      `${tenantRecordPath(params.tenant_id, collection, params.id)}/${verb}`,
       { note: params.note, expected_updated_at: params.expected_updated_at },
       options,
     );
 
   return {
     find(params: FindSuppressionsParams, options?: RequestOptions): Promise<PaginatedResponse<Suppression>> {
-      const { store_id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<Suppression>>(storePath(store_id, collection), {
+      const { tenant_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<Suppression>>(tenantPath(tenant_id, collection), {
         ...options,
         params: query,
       });
     },
 
     get(params: GetSuppressionParams, options?: RequestOptions): Promise<Suppression> {
-      return apiConfig.httpClient.get<Suppression>(storeRecordPath(params.store_id, collection, params.id), options);
+      return apiConfig.httpClient.get<Suppression>(tenantRecordPath(params.tenant_id, collection, params.id), options);
     },
 
     blockEmail(params: ActivateEmailSuppressionParams, options?: RequestOptions): Promise<Suppression> {

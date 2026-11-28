@@ -30,7 +30,7 @@ export interface TaxRule {
 
 export interface TaxCategory {
   id: string;
-  store_id: string;
+  tenant_id: string;
   key: string;
   rules: TaxRule[];
   created_at: EpochMilliseconds;
@@ -38,7 +38,7 @@ export interface TaxCategory {
 }
 
 export interface FindTaxCategoriesParams {
-  store_id: string;
+  tenant_id: string;
   key?: string;
   sort_field?: "created_at" | "updated_at";
   sort_direction?: SortDirection;
@@ -47,14 +47,14 @@ export interface FindTaxCategoriesParams {
 }
 
 export interface CreateTaxCategoryParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   key: string;
   rules: TaxRule[];
 }
 
 export interface UpdateTaxCategoryParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   key?: string;
@@ -62,7 +62,7 @@ export interface UpdateTaxCategoryParams {
 }
 
 export interface DeleteTaxCategoryParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }

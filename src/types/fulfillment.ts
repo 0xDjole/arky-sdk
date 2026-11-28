@@ -37,7 +37,7 @@ export interface RoutingRule {
 
 export interface FulfillmentRouting {
   id: string;
-  store_id: string;
+  tenant_id: string;
   rules: RoutingRule[];
   otherwise: RoutingTarget;
   created_at: EpochMilliseconds;
@@ -89,10 +89,10 @@ export type FulfillmentJobMethod =
   | {
       type: "delivery";
       destination: PostalAddress;
-      store_location_id: string;
+      tenant_location_id: string;
       source: FulfillmentAssignmentSource;
     }
-  | { type: "pickup"; store_location_id: string };
+  | { type: "pickup"; tenant_location_id: string };
 
 export type FulfillmentHoldReason =
   | { type: "awaiting_payment" }
@@ -108,7 +108,7 @@ export interface FulfillmentHold {
 }
 
 export type FulfillmentJobBuyer =
-  | { type: "customer"; customer_id: string }
+  | { type: "user"; user_id: string }
   | { type: "company"; company_id: string; company_name: string }
   | {
       type: "company_location";
@@ -130,11 +130,11 @@ export type FulfillmentJobStatus = "scheduled" | "on_hold" | "open" | "in_progre
 
 export type FulfillmentJobPlaceOfSale =
   | { type: "none" }
-  | { type: "store_location"; store_location_id: string; jurisdiction: FiscalJurisdiction | null };
+  | { type: "tenant_location"; tenant_location_id: string; jurisdiction: FiscalJurisdiction | null };
 
 export interface FulfillmentJob {
   id: string;
-  store_id: string;
+  tenant_id: string;
   type: FulfillmentJobType;
   method: FulfillmentJobMethod;
   holds: FulfillmentHold[];
@@ -196,7 +196,7 @@ export type FulfillmentSource =
 
 export interface Fulfillment {
   id: string;
-  store_id: string;
+  tenant_id: string;
   fulfillment_job_id: string;
   source: FulfillmentSource;
   created_by: AccountActor;
@@ -229,11 +229,11 @@ export interface FulfillmentJobMoveLine {
 }
 
 export type FulfillmentJobCommand =
-  | { type: "move"; to_store_location_id: string }
+  | { type: "move"; to_tenant_location_id: string }
   | {
       type: "split";
       fulfillment_job_id: string;
-      to_store_location_id: string;
+      to_tenant_location_id: string;
       lines: FulfillmentJobMoveLine[];
     }
   | { type: "hand_back"; note: string }
@@ -241,18 +241,18 @@ export type FulfillmentJobCommand =
   | { type: "release_hold"; hold_id: string };
 
 export interface GetFulfillmentRoutingParams {
-  store_id: string;
+  tenant_id: string;
 }
 
 export interface UpdateFulfillmentRoutingParams {
-  store_id: string;
+  tenant_id: string;
   expected_updated_at: EpochMilliseconds;
   rules: RoutingRule[];
   otherwise: RoutingTarget;
 }
 
 export interface GetFulfillmentJobParams {
-  store_id: string;
+  tenant_id: string;
   fulfillment_job_id: string;
 }
 
@@ -262,7 +262,7 @@ export interface ActOnFulfillmentJobParams extends GetFulfillmentJobParams {
 }
 
 export interface RecordPickupCashParams {
-  store_id: string;
+  tenant_id: string;
   fulfillment_job_id: string;
   id: string;
   expected_job_updated_at: EpochMilliseconds;
@@ -278,10 +278,10 @@ export interface PickupCash {
 }
 
 export interface FindFulfillmentJobsParams {
-  store_id: string;
+  tenant_id: string;
   order_ids?: string[];
   rental_id?: string;
-  store_location_id?: string;
+  tenant_location_id?: string;
   hold?: FulfillmentHoldReason["type"];
   inventory_item_id?: string;
   status?: FulfillmentJobStatus;
@@ -294,12 +294,12 @@ export interface FindFulfillmentJobsParams {
 }
 
 export interface GetFulfillmentParams {
-  store_id: string;
+  tenant_id: string;
   fulfillment_id: string;
 }
 
 export interface FindFulfillmentsParams {
-  store_id: string;
+  tenant_id: string;
   order_ids?: string[];
   fulfillment_job_id?: string;
   rental_id?: string;
@@ -308,7 +308,7 @@ export interface FindFulfillmentsParams {
 }
 
 export interface CreateFulfillmentParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   fulfillment_job_id: string;
   lines: FulfillmentLine[];
@@ -320,11 +320,11 @@ export interface FulfillmentLotReference {
 }
 
 export type FulfillmentCommand =
-  | { type: "ready"; notify_customer: boolean }
+  | { type: "ready"; notify_user: boolean }
   | {
       type: "fulfill";
       timing: FulfillmentExecutionTiming;
-      notify_customer: boolean;
+      notify_user: boolean;
       trackings?: Tracking[];
       lot_references?: FulfillmentLotReference[];
     }
@@ -344,14 +344,14 @@ export interface UpdateFulfillmentTrackingParams extends GetFulfillmentParams {
 export interface MarkFulfillmentDeliveredParams extends GetFulfillmentParams {
   expected_updated_at: EpochMilliseconds;
   delivered_at: EpochMilliseconds;
-  notify_customer: boolean;
+  notify_user: boolean;
 }
 
-export type CustomerFulfillmentMethod =
+export type UserFulfillmentMethod =
   | { type: "delivery" }
-  | { type: "pickup"; store_location_id: string };
+  | { type: "pickup"; tenant_location_id: string };
 
-export type CustomerShipmentStatus =
+export type UserShipmentStatus =
   | { type: "preparing" }
   | { type: "ready_for_pickup"; ready_at: EpochMilliseconds }
   | { type: "dispatched"; dispatched_at: EpochMilliseconds }
@@ -359,33 +359,33 @@ export type CustomerShipmentStatus =
   | { type: "collected"; collected_at: EpochMilliseconds }
   | { type: "cancelled"; cancelled_at: EpochMilliseconds };
 
-export interface CustomerOrderShipment {
+export interface UserOrderShipment {
   fulfillment_id: string;
-  status: CustomerShipmentStatus;
+  status: UserShipmentStatus;
   trackings: Tracking[];
   preparation_started_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
-export type CustomerFulfillmentJobStatus =
+export type UserFulfillmentJobStatus =
   | { type: "scheduled" }
   | { type: "pending" }
   | { type: "in_progress" }
   | { type: "completed" }
   | { type: "cancelled" };
 
-export interface CustomerOrderFulfillment {
+export interface UserOrderFulfillment {
   fulfillment_job_id: string;
   order_delivery_group_id: string;
-  method: CustomerFulfillmentMethod;
-  status: CustomerFulfillmentJobStatus;
+  method: UserFulfillmentMethod;
+  status: UserFulfillmentJobStatus;
   timing: OrderDeliveryTiming;
-  shipments: CustomerOrderShipment[];
+  shipments: UserOrderShipment[];
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
-export interface FindCustomerOrderFulfillmentsParams {
+export interface FindUserOrderFulfillmentsParams {
   order_id: string;
   limit?: number;
   cursor?: string | null;
@@ -434,8 +434,8 @@ export interface MinimumProgress {
 }
 
 export type StorefrontGetMinimumProgressParams =
-  | { customer_id: string; company_id?: never; company_location_id?: never }
-  | { customer_id?: never; company_id: string; company_location_id?: never }
-  | { customer_id?: never; company_id?: never; company_location_id: string };
+  | { user_id: string; company_id?: never; company_location_id?: never }
+  | { user_id?: never; company_id: string; company_location_id?: never }
+  | { user_id?: never; company_id?: never; company_location_id: string };
 
-export type GetMinimumProgressParams = StorefrontGetMinimumProgressParams & { store_id: string };
+export type GetMinimumProgressParams = StorefrontGetMinimumProgressParams & { tenant_id: string };

@@ -62,7 +62,7 @@ test("staff own-terms review and acceptance retain quantity, each frozen product
     purchase_order_number: "PO-77",
   };
   const input = {
-    store_id: ids.store,
+    tenant_id: ids.tenant,
     id: memberId,
     expected_updated_at: version,
     terms,
@@ -76,7 +76,7 @@ test("staff own-terms review and acceptance retain quantity, each frozen product
     assert.deepEqual(await api[method](input), result);
     assert.equal(
       calls.at(-1).path,
-      `/v1/stores/${ids.store}/package-members/${memberId}/${route}`,
+      `/v1/tenants/${ids.tenant}/package-members/${memberId}/${route}`,
     );
     assert.deepEqual(calls.at(-1).body, {
       expected_updated_at: version,
@@ -102,12 +102,12 @@ test("buyer own-terms sends only editable accepted fields and preserves the exac
     apiUrl,
     sessionStorage: visitorStorage(),
     visitorIdentity: {
-      customer_id: ids.customer,
+      user_id: ids.user,
       session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63",
     },
     ...fixedIdFactories,
     createVisitorIdentity: () => ({
-      customer_id: ids.customer,
+      user_id: ids.user,
       session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14",
     }),
   }).eshop.packageMember;
@@ -139,7 +139,7 @@ test("buyer own-terms sends only editable accepted fields and preserves the exac
     );
     assert.equal("package" in calls.at(-1).body, false);
     assert.equal("terms" in calls.at(-1).body, false);
-    assert.equal("store_id" in calls.at(-1).body, false);
+    assert.equal("tenant_id" in calls.at(-1).body, false);
     assert.equal(calls.at(-1).body.purchase_order_number, null);
   }
   assert.deepEqual(input, before);
@@ -158,12 +158,12 @@ test("buyer current terms reads the canonical member response with authenticatio
     apiUrl,
     sessionStorage: visitorStorage(),
     visitorIdentity: {
-      customer_id: ids.customer,
+      user_id: ids.user,
       session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63",
     },
     ...fixedIdFactories,
     createVisitorIdentity: () => ({
-      customer_id: ids.customer,
+      user_id: ids.user,
       session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14",
     }),
   }).eshop.packageMember;
@@ -204,12 +204,12 @@ test("sale and accepted Product choices keep exact package and current member re
     apiUrl,
     sessionStorage: visitorStorage(),
     visitorIdentity: {
-      customer_id: ids.customer,
+      user_id: ids.user,
       session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63",
     },
     ...fixedIdFactories,
     createVisitorIdentity: () => ({
-      customer_id: ids.customer,
+      user_id: ids.user,
       session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14",
     }),
   });
@@ -255,7 +255,7 @@ test("member delivery options preserve proposed terms and exact authenticated ve
   const revision_id = "c5de228a-691f-45b1-aaeb-8e30bf0249a0";
   const delivery_id = "b3b57589-1cc6-4fa9-8333-ad818d9d8eaf";
   const address = {
-    name: "Customer",
+    name: "User",
     company: null,
     street1: "2 New Street",
     street2: null,
@@ -288,12 +288,12 @@ test("member delivery options preserve proposed terms and exact authenticated ve
     apiUrl,
     sessionStorage: visitorStorage(),
     visitorIdentity: {
-      customer_id: ids.customer,
+      user_id: ids.user,
       session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63",
     },
     ...fixedIdFactories,
     createVisitorIdentity: () => ({
-      customer_id: ids.customer,
+      user_id: ids.user,
       session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14",
     }),
   }).eshop.packageMember;
@@ -319,7 +319,7 @@ test("member delivery options preserve proposed terms and exact authenticated ve
   assert.equal(calls[0].method, "POST");
   assert.equal(calls[0].headers.get("authorization"), `Bearer ${visitorToken}`);
   assert.deepEqual(calls[0].body, body);
-  assert.equal("store_id" in calls[0].body, false);
+  assert.equal("tenant_id" in calls[0].body, false);
   assert.equal("package_id" in calls[0].body, false);
   assert.equal("package" in calls[0].body, false);
   assert.equal("reason" in calls[0].body, false);
@@ -332,7 +332,7 @@ test("a switch's new delivery lists its rates through the switch delivery option
   const delivery_id = "6e2b9d14-7a35-4c80-9f1e-3d5a8c2b7e41";
   const printPackageId = "9d4f2b71-3c86-4e05-a8b1-6f0e3c9d5a27";
   const address = {
-    name: "Customer",
+    name: "User",
     company: null,
     street1: "2 New Street",
     street2: null,
@@ -374,12 +374,12 @@ test("a switch's new delivery lists its rates through the switch delivery option
     apiUrl,
     sessionStorage: visitorStorage(),
     visitorIdentity: {
-      customer_id: ids.customer,
+      user_id: ids.user,
       session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63",
     },
     ...fixedIdFactories,
     createVisitorIdentity: () => ({
-      customer_id: ids.customer,
+      user_id: ids.user,
       session_id: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14",
     }),
   }).eshop.packageMember;

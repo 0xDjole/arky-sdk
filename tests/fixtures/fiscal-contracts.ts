@@ -27,7 +27,7 @@ import type {
   FindFiscalDevicesParams,
   FindFiscalReceiptsByOrdersParams,
   FindFiscalReceiptsParams,
-  FindStoreFiscalReceiptsParams,
+  FindTenantFiscalReceiptsParams,
   RecordedPayments,
   FiscalAgentOutcome,
   PostalAddress,
@@ -106,7 +106,7 @@ export type FiscalContracts = [
 ];
 
 export type FiscalReceiptWireContracts = [
-  Assert<Equal<keyof FiscalReceipt, "id" | "store_id" | "order_id" | "fiscal_device_id" | "type" | "document" | "print" | "created_at" | "updated_at">>,
+  Assert<Equal<keyof FiscalReceipt, "id" | "tenant_id" | "order_id" | "fiscal_device_id" | "type" | "document" | "print" | "created_at" | "updated_at">>,
   Assert<Equal<FiscalReceipt["print"], FiscalReceiptPrint>>,
   Assert<Equal<FiscalReceiptPrint, "at_desk" | "not_printed">>,
   Assert<Equal<FiscalAdvanceChain, { type: "goods" } | { type: "target"; target: FiscalTarget }>>,
@@ -158,17 +158,17 @@ export type FiscalReceiptWireContracts = [
 type ReceiptApi = Admin["eshop"]["order"]["fiscalReceipt"];
 
 export type FiscalReceiptListContracts = [
-  Assert<Equal<FindFiscalReceiptsParams, FindStoreFiscalReceiptsParams | FindFiscalReceiptsByOrdersParams>>,
+  Assert<Equal<FindFiscalReceiptsParams, FindTenantFiscalReceiptsParams | FindFiscalReceiptsByOrdersParams>>,
   Assert<Equal<Parameters<ReceiptApi["find"]>[0], FindFiscalReceiptsParams>>,
-  Assert<Equal<keyof FindStoreFiscalReceiptsParams, "store_id" | "order_ids" | "open" | "created_at_from" | "created_at_to" | "limit" | "cursor">>,
-  Assert<Equal<keyof FindFiscalReceiptsByOrdersParams, "store_id" | "order_ids" | "open" | "created_at_from" | "created_at_to" | "limit" | "cursor">>,
-  Assert<Equal<FindStoreFiscalReceiptsParams["created_at_from"], EpochMilliseconds | undefined>>,
-  Assert<Equal<FindStoreFiscalReceiptsParams["created_at_to"], EpochMilliseconds | undefined>>,
+  Assert<Equal<keyof FindTenantFiscalReceiptsParams, "tenant_id" | "order_ids" | "open" | "created_at_from" | "created_at_to" | "limit" | "cursor">>,
+  Assert<Equal<keyof FindFiscalReceiptsByOrdersParams, "tenant_id" | "order_ids" | "open" | "created_at_from" | "created_at_to" | "limit" | "cursor">>,
+  Assert<Equal<FindTenantFiscalReceiptsParams["created_at_from"], EpochMilliseconds | undefined>>,
+  Assert<Equal<FindTenantFiscalReceiptsParams["created_at_to"], EpochMilliseconds | undefined>>,
   Assert<Equal<FindFiscalReceiptsByOrdersParams["order_ids"], string[]>>,
-  Assert<Accepts<FindFiscalReceiptsParams, { store_id: string; order_ids: string[] }>>,
-  Assert<Accepts<FindFiscalReceiptsParams, { store_id: string; open: true; created_at_from: EpochMilliseconds; created_at_to: EpochMilliseconds }>>,
-  Assert<Accepts<FindFiscalReceiptsParams, { store_id: string; order_ids: string[]; open: true }> extends false ? true : false>,
-  Assert<Accepts<FindFiscalReceiptsParams, { store_id: string; order_ids: string[]; created_at_from: EpochMilliseconds }> extends false ? true : false>,
+  Assert<Accepts<FindFiscalReceiptsParams, { tenant_id: string; order_ids: string[] }>>,
+  Assert<Accepts<FindFiscalReceiptsParams, { tenant_id: string; open: true; created_at_from: EpochMilliseconds; created_at_to: EpochMilliseconds }>>,
+  Assert<Accepts<FindFiscalReceiptsParams, { tenant_id: string; order_ids: string[]; open: true }> extends false ? true : false>,
+  Assert<Accepts<FindFiscalReceiptsParams, { tenant_id: string; order_ids: string[]; created_at_from: EpochMilliseconds }> extends false ? true : false>,
   Assert<Equal<keyof FiscalReceiptDetail, keyof FiscalReceipt | "deliverable">>,
   Assert<Equal<FiscalReceiptDetail["deliverable"], boolean>>,
   Assert<Equal<Awaited<ReturnType<ReceiptApi["find"]>>["items"], FiscalReceiptDetail[]>>,
@@ -187,9 +187,9 @@ export type FiscalDeviceHoldContracts = [
   Assert<Equal<FiscalDeviceStatus, "active" | "held_after_restore" | "archived">>,
   Assert<Equal<FiscalDevice["status"], FiscalDeviceStatus>>,
   Assert<Equal<FindFiscalDevicesParams["status"], FiscalDeviceStatus | undefined>>,
-  Assert<Equal<keyof Admin["store"]["fiscalDevice"], "find" | "get" | "create" | "rename" | "archive" | "release" | "token">>,
-  Assert<Equal<Parameters<Admin["store"]["fiscalDevice"]["release"]>[0], ReleaseFiscalDeviceParams>>,
-  Assert<Equal<keyof ReleaseFiscalDeviceParams, "store_id" | "id" | "expected_updated_at">>,
+  Assert<Equal<keyof Admin["tenant"]["fiscalDevice"], "find" | "get" | "create" | "rename" | "archive" | "release" | "token">>,
+  Assert<Equal<Parameters<Admin["tenant"]["fiscalDevice"]["release"]>[0], ReleaseFiscalDeviceParams>>,
+  Assert<Equal<keyof ReleaseFiscalDeviceParams, "tenant_id" | "id" | "expected_updated_at">>,
   Assert<Equal<ReleaseFiscalDeviceParams["expected_updated_at"], EpochMilliseconds>>,
-  Assert<Equal<Awaited<ReturnType<Admin["store"]["fiscalDevice"]["release"]>>, FiscalDevice>>,
+  Assert<Equal<Awaited<ReturnType<Admin["tenant"]["fiscalDevice"]["release"]>>, FiscalDevice>>,
 ];

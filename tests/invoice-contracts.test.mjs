@@ -4,7 +4,7 @@ import { createAdmin } from "../dist/admin.js";
 import { createStorefront } from "../dist/storefront.js";
 import { apiUrl as storefrontApiUrl, factoryOrderToken, fixedIdFactories, recordFetch, storefrontIdentity, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
 
-const storeId = "74f46c74-7776-47f4-a249-a57b80af62bb";
+const tenantId = "74f46c74-7776-47f4-a249-a57b80af62bb";
 const orderId = "030a5ec0-eccf-430c-8c0a-3a68c842de1f";
 const invoiceId = "5d1c7e93-2a46-4b08-9f3e-6c0a8d2b4e71";
 const reversalId = "3a8f6c21-9d47-4b05-8e13-7c2b5d9f0a64";
@@ -52,7 +52,7 @@ function admin() {
 }
 
 function unissued(id = invoiceId) {
-  return { id, store_id: storeId, order_id: orderId, type: { type: "unissued_invoice", reason: "blocked" }, fiscal_receipts: [], created_at: 1, updated_at: 2 };
+  return { id, tenant_id: tenantId, order_id: orderId, type: { type: "unissued_invoice", reason: "blocked" }, fiscal_receipts: [], created_at: 1, updated_at: 2 };
 }
 
 function invoiceDocument(sequence, text) {
@@ -69,7 +69,7 @@ function invoiceDocument(sequence, text) {
       footer: { type: "text", text: "Hvala na povjerenju" },
     },
     buyer: { type: "company", name: "Firma d.o.o.", address, tax: companyTax, purchase_order: { type: "number", number: "PO-7" } },
-    place: { type: "store_location", address: sellerAddress },
+    place: { type: "tenant_location", address: sellerAddress },
     supplied: { type: "on", date: "2026-09-08" },
     currency: "bam",
     pricing: "tax_included",
@@ -90,7 +90,7 @@ function invoiceDocument(sequence, text) {
 function issued() {
   return {
     id: invoiceId,
-    store_id: storeId,
+    tenant_id: tenantId,
     order_id: orderId,
     type: {
       type: "invoice",
@@ -108,16 +108,16 @@ function issued() {
   };
 }
 
-test("invoices are listed for an order or the whole store and read with their frozen document and receipt numbers", async (context) => {
+test("invoices are listed for an order or the whole tenant and read with their frozen document and receipt numbers", async (context) => {
   const calls = recordFetch(context, (call) => (call.path.endsWith("/invoices") ? { items: [issued(), unissued(newInvoiceId)], cursor: null } : issued()));
   const api = admin().eshop.order.invoice;
-  assert.deepEqual(await api.find({ store_id: storeId, order_id: orderId }), { items: [issued(), unissued(newInvoiceId)], cursor: null });
-  await api.find({ store_id: storeId, limit: 50, cursor });
-  const read = await api.get({ store_id: storeId, invoice_id: invoiceId });
+  assert.deepEqual(await api.find({ tenant_id: tenantId, order_id: orderId }), { items: [issued(), unissued(newInvoiceId)], cursor: null });
+  await api.find({ tenant_id: tenantId, limit: 50, cursor });
+  const read = await api.get({ tenant_id: tenantId, invoice_id: invoiceId });
   assert.deepEqual(read, issued());
   assert.equal(read.type.document.totals.gross, 11700);
   assert.deepEqual(read.fiscal_receipts.map((receipt) => receipt.number.type), ["issued", "pending"]);
-  const base = `/v1/stores/${storeId}/invoices`;
+  const base = `/v1/tenants/${tenantId}/invoices`;
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
     ["GET", base, { order_id: orderId }, null],
     ["GET", base, { limit: "50", cursor }, null],
@@ -144,11 +144,11 @@ test("an Order is issued to the order's buyer or a buyer staff name, with a memo
   ];
   const memo = { type: "text", text: "Plaćanje u roku 14 dana" };
   for (const [index, buyer] of buyers.entries()) {
-    assert.deepEqual(await api.issue({ store_id: storeId, order_id: orderId, buyer, memo: index === 0 ? memo : { type: "none" } }), issued());
+    assert.deepEqual(await api.issue({ tenant_id: tenantId, order_id: orderId, buyer, memo: index === 0 ? memo : { type: "none" } }), issued());
   }
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), buyers.map((buyer, index) => [
     "POST",
-    `/v1/stores/${storeId}/invoices`,
+    `/v1/tenants/${tenantId}/invoices`,
     {},
     { order_id: orderId, buyer, memo: index === 0 ? memo : { type: "none" } },
   ]));
@@ -180,7 +180,7 @@ test("a reissue reverses the invoice and issues a new one under two app-picked i
   const calls = recordFetch(context, () => answer);
   const api = admin().eshop.order.invoice;
   const request = {
-    store_id: storeId,
+    tenant_id: tenantId,
     invoice_id: invoiceId,
     expected_updated_at: 5,
     reversal_id: reversalId,
@@ -192,7 +192,7 @@ test("a reissue reverses the invoice and issues a new one under two app-picked i
   };
   assert.deepEqual(await api.reissue(request), answer);
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
-    ["POST", `/v1/stores/${storeId}/invoices/${invoiceId}/reissue`, {
+    ["POST", `/v1/tenants/${tenantId}/invoices/${invoiceId}/reissue`, {
       expected_updated_at: 5,
       reversal_id: reversalId,
       new_invoice_id: newInvoiceId,
@@ -225,21 +225,21 @@ test("a credit note's answer carries its own frozen document, the invoice it cor
     },
   };
   const calls = recordFetch(context, () => creditNote);
-  assert.deepEqual(await admin().eshop.order.invoice.get({ store_id: storeId, invoice_id: creditNoteId }), creditNote);
-  assert.deepEqual(calls.map(({ method, path }) => [method, path]), [["GET", `/v1/stores/${storeId}/invoices/${creditNoteId}`]]);
+  assert.deepEqual(await admin().eshop.order.invoice.get({ tenant_id: tenantId, invoice_id: creditNoteId }), creditNote);
+  assert.deepEqual(calls.map(({ method, path }) => [method, path]), [["GET", `/v1/tenants/${tenantId}/invoices/${creditNoteId}`]]);
 });
 
 test("an outside invoice number is attached with a link or as paper and detached by version, and an outside credit note is added under the app's id and removed by version", async (context) => {
   const calls = recordFetch(context, (call) => (call.method === "DELETE" ? { deleted: true } : unissued()));
   const api = admin().eshop.order.invoice;
   const link = { type: "link", url: "https://accounting.example.test/r-2026-17" };
-  await api.attachOutside({ store_id: storeId, order_id: orderId, number: "R-2026-17", document: link });
-  await api.attachOutside({ store_id: storeId, order_id: orderId, number: "R-2026-18", document: { type: "paper" } });
-  await api.detachOutside({ store_id: storeId, invoice_id: invoiceId, expected_updated_at: 8 });
-  await api.createOutsideCreditNote({ store_id: storeId, invoice_id: invoiceId, id: creditNoteId, order_credit_id: creditId, number: "CN-2026-3", document: { type: "link", url: "https://accounting.example.test/cn-2026-3" } });
-  await api.createOutsideCreditNote({ store_id: storeId, invoice_id: invoiceId, id: creditNoteId, order_credit_id: creditId, number: "CN-2026-4", document: { type: "paper" } });
-  assert.deepEqual(await api.deleteOutsideCreditNote({ store_id: storeId, invoice_id: creditNoteId, expected_updated_at: 9 }), { deleted: true });
-  const base = `/v1/stores/${storeId}/invoices`;
+  await api.attachOutside({ tenant_id: tenantId, order_id: orderId, number: "R-2026-17", document: link });
+  await api.attachOutside({ tenant_id: tenantId, order_id: orderId, number: "R-2026-18", document: { type: "paper" } });
+  await api.detachOutside({ tenant_id: tenantId, invoice_id: invoiceId, expected_updated_at: 8 });
+  await api.createOutsideCreditNote({ tenant_id: tenantId, invoice_id: invoiceId, id: creditNoteId, order_credit_id: creditId, number: "CN-2026-3", document: { type: "link", url: "https://accounting.example.test/cn-2026-3" } });
+  await api.createOutsideCreditNote({ tenant_id: tenantId, invoice_id: invoiceId, id: creditNoteId, order_credit_id: creditId, number: "CN-2026-4", document: { type: "paper" } });
+  assert.deepEqual(await api.deleteOutsideCreditNote({ tenant_id: tenantId, invoice_id: creditNoteId, expected_updated_at: 9 }), { deleted: true });
+  const base = `/v1/tenants/${tenantId}/invoices`;
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
     ["POST", `${base}/outside`, {}, { order_id: orderId, number: "R-2026-17", document: link }],
     ["POST", `${base}/outside`, {}, { order_id: orderId, number: "R-2026-18", document: { type: "paper" } }],
@@ -250,7 +250,7 @@ test("an outside invoice number is attached with a link or as paper and detached
   ]);
   for (const call of calls) assert.equal("url" in (call.body ?? {}), false, "an outside document's link travels inside its document");
   await assert.rejects(
-    async () => api.createOutsideCreditNote({ store_id: storeId, invoice_id: invoiceId, id: "cn-1", order_credit_id: creditId, number: "CN-1", document: { type: "paper" } }),
+    async () => api.createOutsideCreditNote({ tenant_id: tenantId, invoice_id: invoiceId, id: "cn-1", order_credit_id: creditId, number: "CN-1", document: { type: "paper" } }),
     { name: "TypeError", message: "The credit note id must be a canonical UUID v4 picked by the app" },
   );
   assert.equal(calls.length, 6);
@@ -278,17 +278,17 @@ test("the seller record with its payment reference format and invoice footer is 
   const tax = { type: "vat_registered", tax_id: "4200000000000", vat_id: "200000000000" };
   const bank_account = { type: "account", bank: "Raiffeisen Bank", account: "1610000000000000", reference: { type: "model97" } };
   const invoice_footer = { type: "text", text: "Hvala na povjerenju" };
-  const seller = { id: sellerId, store_id: storeId, name: "Klinika d.o.o.", address: sellerAddress, tax, bank_account, invoice_footer, created_at: 1, updated_at: 1 };
+  const seller = { id: sellerId, tenant_id: tenantId, name: "Klinika d.o.o.", address: sellerAddress, tax, bank_account, invoice_footer, created_at: 1, updated_at: 1 };
   const calls = recordFetch(context, (call) => (call.method === "DELETE" ? { deleted: true } : seller));
-  const api = admin().store.seller;
+  const api = admin().tenant.seller;
   const typedAddress = { country: "BA", street1: "Titova 1", city: "Sarajevo", phone: "+38761222333" };
-  assert.deepEqual(await api.get({ store_id: storeId }), seller);
-  await api.create({ store_id: storeId, id: sellerId, name: "Klinika d.o.o.", address: typedAddress, tax, bank_account, invoice_footer });
-  await api.update({ store_id: storeId, expected_updated_at: 1, name: "Klinika d.o.o.", address: sellerAddress, tax: { type: "not_vat_registered", tax_id: "4200000000000" }, bank_account: { type: "account", bank: "UniCredit", account: "3380000000000000", reference: { type: "creditor" } }, invoice_footer: { type: "none" } });
-  await api.update({ store_id: storeId, expected_updated_at: 2, name: "Klinika d.o.o.", address: sellerAddress, tax, bank_account: { type: "account", bank: "UniCredit", account: "3380000000000000", reference: { type: "plain" } }, invoice_footer });
-  await api.update({ store_id: storeId, expected_updated_at: 3, name: "Klinika d.o.o.", address: sellerAddress, tax, bank_account: { type: "none" }, invoice_footer });
-  assert.deepEqual(await api.delete({ store_id: storeId, expected_updated_at: 4 }), { deleted: true });
-  const path = `/v1/stores/${storeId}/seller`;
+  assert.deepEqual(await api.get({ tenant_id: tenantId }), seller);
+  await api.create({ tenant_id: tenantId, id: sellerId, name: "Klinika d.o.o.", address: typedAddress, tax, bank_account, invoice_footer });
+  await api.update({ tenant_id: tenantId, expected_updated_at: 1, name: "Klinika d.o.o.", address: sellerAddress, tax: { type: "not_vat_registered", tax_id: "4200000000000" }, bank_account: { type: "account", bank: "UniCredit", account: "3380000000000000", reference: { type: "creditor" } }, invoice_footer: { type: "none" } });
+  await api.update({ tenant_id: tenantId, expected_updated_at: 2, name: "Klinika d.o.o.", address: sellerAddress, tax, bank_account: { type: "account", bank: "UniCredit", account: "3380000000000000", reference: { type: "plain" } }, invoice_footer });
+  await api.update({ tenant_id: tenantId, expected_updated_at: 3, name: "Klinika d.o.o.", address: sellerAddress, tax, bank_account: { type: "none" }, invoice_footer });
+  assert.deepEqual(await api.delete({ tenant_id: tenantId, expected_updated_at: 4 }), { deleted: true });
+  const path = `/v1/tenants/${tenantId}/seller`;
   assert.deepEqual(calls.map(({ method, path: called, query, body }) => [method, called, query, body]), [
     ["GET", path, {}, null],
     ["POST", path, {}, { id: sellerId, name: "Klinika d.o.o.", address: typedAddress, tax, bank_account, invoice_footer }],
@@ -297,34 +297,34 @@ test("the seller record with its payment reference format and invoice footer is 
     ["PUT", path, {}, { expected_updated_at: 3, name: "Klinika d.o.o.", address: sellerAddress, tax, bank_account: { type: "none" }, invoice_footer }],
     ["DELETE", path, { expected_updated_at: "4" }, null],
   ]);
-  await assert.rejects(async () => api.create({ store_id: storeId, id: "seller", name: "Klinika", address: sellerAddress, tax, bank_account, invoice_footer }), {
+  await assert.rejects(async () => api.create({ tenant_id: tenantId, id: "seller", name: "Klinika", address: sellerAddress, tax, bank_account, invoice_footer }), {
     name: "TypeError",
     message: "The seller id must be a canonical UUID v4 picked by the app",
   });
-  await assert.rejects(async () => api.get({ store_id: "store" }), TypeError);
+  await assert.rejects(async () => api.get({ tenant_id: "tenant" }), TypeError);
   assert.equal(calls.length, 6);
 });
 
-test("a store's invoicing is set with the version it read and answers the store", async (context) => {
+test("a tenant's invoicing is set with the version it read and answers the tenant", async (context) => {
   const invoicing = { type: "arky" };
-  const store = { id: storeId, name: "Klinika", invoicing, updated_at: 3 };
-  const calls = recordFetch(context, () => store);
-  const api = admin().store.invoicing;
-  assert.deepEqual(await api.set({ store_id: storeId, expected_updated_at: 2, invoicing }), store);
-  await api.set({ store_id: storeId, expected_updated_at: 3, invoicing: { type: "outside" } });
-  await api.set({ store_id: storeId, expected_updated_at: 4, invoicing: { type: "none" } });
+  const tenant = { id: tenantId, name: "Klinika", invoicing, updated_at: 3 };
+  const calls = recordFetch(context, () => tenant);
+  const api = admin().tenant.invoicing;
+  assert.deepEqual(await api.set({ tenant_id: tenantId, expected_updated_at: 2, invoicing }), tenant);
+  await api.set({ tenant_id: tenantId, expected_updated_at: 3, invoicing: { type: "outside" } });
+  await api.set({ tenant_id: tenantId, expected_updated_at: 4, invoicing: { type: "none" } });
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
-    ["PUT", `/v1/stores/${storeId}/invoicing`, { expected_updated_at: 2, invoicing }],
-    ["PUT", `/v1/stores/${storeId}/invoicing`, { expected_updated_at: 3, invoicing: { type: "outside" } }],
-    ["PUT", `/v1/stores/${storeId}/invoicing`, { expected_updated_at: 4, invoicing: { type: "none" } }],
+    ["PUT", `/v1/tenants/${tenantId}/invoicing`, { expected_updated_at: 2, invoicing }],
+    ["PUT", `/v1/tenants/${tenantId}/invoicing`, { expected_updated_at: 3, invoicing: { type: "outside" } }],
+    ["PUT", `/v1/tenants/${tenantId}/invoicing`, { expected_updated_at: 4, invoicing: { type: "none" } }],
   ]);
 });
 
 test("invoice counters are listed and a counter held after a restore is confirmed with the next number", async (context) => {
   const counter = {
     id: counterId,
-    store_id: storeId,
-    series: { type: "store" },
+    tenant_id: tenantId,
+    series: { type: "tenant" },
     year: 2026,
     last_number: 41,
     status: "held_after_restore",
@@ -332,14 +332,14 @@ test("invoice counters are listed and a counter held after a restore is confirme
     updated_at: 2,
   };
   const calls = recordFetch(context, (call) => (call.method === "GET" ? { items: [counter], cursor: "counters" } : { ...counter, status: "open", updated_at: 3 }));
-  const api = admin().store.invoiceCounter;
-  assert.deepEqual(await api.find({ store_id: storeId, limit: 20 }), { items: [counter], cursor: "counters" });
-  await api.find({ store_id: storeId, cursor: "counters" });
-  assert.equal((await api.confirm({ store_id: storeId, invoice_counter_id: counterId, expected_updated_at: 2, next_number: 42 })).status, "open");
+  const api = admin().tenant.invoiceCounter;
+  assert.deepEqual(await api.find({ tenant_id: tenantId, limit: 20 }), { items: [counter], cursor: "counters" });
+  await api.find({ tenant_id: tenantId, cursor: "counters" });
+  assert.equal((await api.confirm({ tenant_id: tenantId, invoice_counter_id: counterId, expected_updated_at: 2, next_number: 42 })).status, "open");
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
-    ["GET", `/v1/stores/${storeId}/invoice-counters`, { limit: "20" }, null],
-    ["GET", `/v1/stores/${storeId}/invoice-counters`, { cursor: "counters" }, null],
-    ["POST", `/v1/stores/${storeId}/invoice-counters/${counterId}/confirm`, {}, { expected_updated_at: 2, next_number: 42 }],
+    ["GET", `/v1/tenants/${tenantId}/invoice-counters`, { limit: "20" }, null],
+    ["GET", `/v1/tenants/${tenantId}/invoice-counters`, { cursor: "counters" }, null],
+    ["POST", `/v1/tenants/${tenantId}/invoice-counters/${counterId}/confirm`, {}, { expected_updated_at: 2, next_number: 42 }],
   ]);
 });
 
@@ -359,7 +359,7 @@ test("a buyer reads one invoice of their order as the full document, on the visi
   assert.equal(calls[1].headers.has("x-arky-order-token"), false);
   for (const call of calls) {
     assert.equal(call.headers.get("authorization"), `Bearer ${visitorToken}`);
-    assert.equal(call.headers.get("x-arky-store-id"), storefrontIdentity.storeId);
+    assert.equal(call.headers.get("x-arky-tenant-id"), storefrontIdentity.tenantId);
   }
 });
 
@@ -367,11 +367,11 @@ test("unissued invoices page by their required reason and expose the current exp
   const item = { ...unissued(), explanation: { type: "blocked", code: "INVOICE.BUYER_INCOMPLETE", message: "Add a buyer name and address" } };
   const calls = recordFetch(context, () => ({ items: [item], cursor }));
   const api = admin().eshop.order.invoice;
-  assert.deepEqual(await api.findUnissued({ store_id: storeId, reason: "blocked", limit: 25, cursor }), { items: [item], cursor });
-  assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [["GET", `/v1/stores/${storeId}/invoices/unissued`, { reason: "blocked", limit: "25", cursor }, null]]);
+  assert.deepEqual(await api.findUnissued({ tenant_id: tenantId, reason: "blocked", limit: 25, cursor }), { items: [item], cursor });
+  assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [["GET", `/v1/tenants/${tenantId}/invoices/unissued`, { reason: "blocked", limit: "25", cursor }, null]]);
 });
 
 test("detaching an outside number can remove its row when no outside obligation remains", async (context) => {
   recordFetch(context, () => null);
-  assert.equal(await admin().eshop.order.invoice.detachOutside({ store_id: storeId, invoice_id: invoiceId, expected_updated_at: 8 }), null);
+  assert.equal(await admin().eshop.order.invoice.detachOutside({ tenant_id: tenantId, invoice_id: invoiceId, expected_updated_at: 8 }), null);
 });

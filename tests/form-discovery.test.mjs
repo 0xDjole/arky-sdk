@@ -5,7 +5,7 @@ import { createAdmin } from "../dist/admin.js";
 import { buildFormAnswers, FormAnswerError, initialize } from "../dist/storefront.js";
 import { apiUrl, errorResponse, fixedIdFactories, ids, storefrontIdentity, recordFetch, visitorStorage } from "./helpers/arky-fixtures.mjs";
 
-const STORE_ID = "a8c41e2f-6d95-4b07-83f1-0e5d7a9c2b36";
+const TENANT_ID = "a8c41e2f-6d95-4b07-83f1-0e5d7a9c2b36";
 const FORM_ID = ids.form;
 const SUBMISSION_ID = ids.submission;
 
@@ -20,7 +20,7 @@ function submissionOf(call) {
 
 const intake = {
   id: FORM_ID,
-  store_id: STORE_ID,
+  tenant_id: TENANT_ID,
   key: "intake",
   type: "private",
   questions: [
@@ -38,19 +38,19 @@ test("Form discovery keeps native filters, nullable continuations and exact id b
   const calls = recordFetch(context, (_call, count) => ({ items: [], cursor: count === 1 ? "form:+/=" : null }));
   const api = admin().forms;
   const filters = { key: "intake", query: "intake", type: "public", status: "closed", limit: 0, sort_field: "key", sort_direction: "asc", created_at_from: 0, created_at_to: 3 };
-  const page = await api.find({ store_id: STORE_ID, ...filters });
+  const page = await api.find({ tenant_id: TENANT_ID, ...filters });
   assert.equal(page.cursor, "form:+/=");
-  await api.find({ store_id: STORE_ID, ...filters, cursor: page.cursor });
-  await api.find({ store_id: STORE_ID, ids: [FORM_ID] });
+  await api.find({ tenant_id: TENANT_ID, ...filters, cursor: page.cursor });
+  await api.find({ tenant_id: TENANT_ID, ids: [FORM_ID] });
   for (const call of calls.slice(0, 2)) {
-    assert.equal(call.path, `/v1/stores/${STORE_ID}/forms`);
+    assert.equal(call.path, `/v1/tenants/${TENANT_ID}/forms`);
     assert.equal(call.method, "GET");
-    assert.equal("store_id" in call.query, false);
+    assert.equal("tenant_id" in call.query, false);
     assert.equal(call.body, null);
     for (const [key, value] of Object.entries(filters)) assert.equal(call.query[key], String(value));
   }
   assert.equal(calls[1].query.cursor, page.cursor);
-  assert.equal(calls[2].path, `/v1/stores/${STORE_ID}/forms`);
+  assert.equal(calls[2].path, `/v1/tenants/${TENANT_ID}/forms`);
   assert.deepEqual(Object.keys(calls[2].query), ["ids"]);
   assert.deepEqual(JSON.parse(calls[2].query.ids), [FORM_ID]);
   for (const removed of ["findByIds", "getPresentation", "getSubmissions", "permanentlyDelete"]) assert.equal(removed in api, false, removed);
@@ -60,19 +60,19 @@ test("Form writes carry the app-picked id, typed questions and stages, and the v
   const calls = recordFetch(context, (call) => call.method === "DELETE" ? { deleted: true } : intake);
   const api = admin().forms;
   const create = { id: FORM_ID, key: "intake", type: "private", questions: intake.questions, stages: intake.stages };
-  assert.deepEqual(await api.create({ store_id: STORE_ID, ...create }), intake);
-  await api.update({ store_id: STORE_ID, id: FORM_ID, expected_updated_at: 1, status: { type: "closed" } });
-  await api.get({ store_id: STORE_ID, id: FORM_ID });
-  await api.getByKey({ store_id: STORE_ID, key: "intake/form" });
-  assert.deepEqual(await api.delete({ store_id: STORE_ID, id: FORM_ID, expected_updated_at: 2 }), { deleted: true });
+  assert.deepEqual(await api.create({ tenant_id: TENANT_ID, ...create }), intake);
+  await api.update({ tenant_id: TENANT_ID, id: FORM_ID, expected_updated_at: 1, status: { type: "closed" } });
+  await api.get({ tenant_id: TENANT_ID, id: FORM_ID });
+  await api.getByKey({ tenant_id: TENANT_ID, key: "intake/form" });
+  assert.deepEqual(await api.delete({ tenant_id: TENANT_ID, id: FORM_ID, expected_updated_at: 2 }), { deleted: true });
   assert.deepEqual(calls.map(({ method, path, url, body }) => [method, path, url.search, body]), [
-    ["POST", `/v1/stores/${STORE_ID}/forms`, "", create],
-    ["PUT", `/v1/stores/${STORE_ID}/forms/${FORM_ID}`, "", { expected_updated_at: 1, status: { type: "closed" } }],
-    ["GET", `/v1/stores/${STORE_ID}/forms/${FORM_ID}`, "", null],
-    ["GET", `/v1/stores/${STORE_ID}/forms/by-key/intake%2Fform`, "", null],
-    ["DELETE", `/v1/stores/${STORE_ID}/forms/${FORM_ID}`, "?expected_updated_at=2", null],
+    ["POST", `/v1/tenants/${TENANT_ID}/forms`, "", create],
+    ["PUT", `/v1/tenants/${TENANT_ID}/forms/${FORM_ID}`, "", { expected_updated_at: 1, status: { type: "closed" } }],
+    ["GET", `/v1/tenants/${TENANT_ID}/forms/${FORM_ID}`, "", null],
+    ["GET", `/v1/tenants/${TENANT_ID}/forms/by-key/intake%2Fform`, "", null],
+    ["DELETE", `/v1/tenants/${TENANT_ID}/forms/${FORM_ID}`, "?expected_updated_at=2", null],
   ]);
-  await assert.rejects(async () => api.create({ store_id: STORE_ID, ...create, id: "intake" }), TypeError);
+  await assert.rejects(async () => api.create({ tenant_id: TENANT_ID, ...create, id: "intake" }), TypeError);
   assert.equal(calls.length, 5);
 });
 
@@ -80,21 +80,21 @@ test("submission discovery reads every form or one form and sends the select fil
   const calls = recordFetch(context, () => ({ items: [], cursor: null }));
   const api = admin().forms;
   const select = [{ question_id: "q-topic", option_keys: ["sales"] }];
-  const filters = { form_ids: [FORM_ID], customer_id: ids.customer, stage: "new", select, query: "answer", sort_field: "created_at", sort_direction: "asc", limit: 1, created_at_from: 0, cursor: "sub:+/=" };
-  await api.findSubmissions({ store_id: STORE_ID, ...filters });
-  await api.findSubmissions({ store_id: STORE_ID, form_id: FORM_ID, select });
-  await api.findSubmissions({ store_id: STORE_ID, form_id: FORM_ID, stage: "none" });
-  assert.equal(calls[0].path, `/v1/stores/${STORE_ID}/forms/submissions`);
+  const filters = { form_ids: [FORM_ID], user_id: ids.user, stage: "new", select, query: "answer", sort_field: "created_at", sort_direction: "asc", limit: 1, created_at_from: 0, cursor: "sub:+/=" };
+  await api.findSubmissions({ tenant_id: TENANT_ID, ...filters });
+  await api.findSubmissions({ tenant_id: TENANT_ID, form_id: FORM_ID, select });
+  await api.findSubmissions({ tenant_id: TENANT_ID, form_id: FORM_ID, stage: "none" });
+  assert.equal(calls[0].path, `/v1/tenants/${TENANT_ID}/forms/submissions`);
   assert.deepEqual(JSON.parse(calls[0].query.form_ids), [FORM_ID]);
   assert.deepEqual(JSON.parse(calls[0].query.select), select);
-  assert.equal(calls[0].query.customer_id, ids.customer);
+  assert.equal(calls[0].query.user_id, ids.user);
   assert.equal(calls[0].query.cursor, "sub:+/=");
   assert.equal(calls[0].query.created_at_from, "0");
   assert.equal(calls[0].query.stage, "new");
   assert.equal("stage_id" in calls[0].query, false);
   assert.deepEqual(calls[2].query, { form_id: FORM_ID, stage: "none" });
   for (const removed of ["company_id", "assignee_account_id"]) assert.equal(removed in calls[0].query, false, removed);
-  assert.ok(calls.every((call) => call.path === `/v1/stores/${STORE_ID}/forms/submissions`), "every submission list reads the one store route");
+  assert.ok(calls.every((call) => call.path === `/v1/tenants/${TENANT_ID}/forms/submissions`), "every submission list reads the one tenant route");
   assert.deepEqual(Object.keys(calls[1].query).sort(), ["form_id", "select"]);
   assert.equal(calls[1].query.form_id, FORM_ID);
 });
@@ -105,7 +105,7 @@ test("storefront submit with the loaded form keeps the caller's id and answers a
     if (++submissions === 1) throw new TypeError("response lost");
     return { id: SUBMISSION_ID, form_id: FORM_ID, language: "en", answers: [], stage_id: "new", created_at: 2, updated_at: 2 };
   });
-  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", sessionStorage: visitorStorage() });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", sessionStorage: visitorStorage() });
   const request = { id: SUBMISSION_ID, form: intake, language: "en", values: { answer: "kept" } };
   await assert.rejects(store.forms.submit(request), /response lost/);
   const answer = await store.forms.submit(request);
@@ -125,7 +125,7 @@ test("storefront submit with the loaded form keeps the caller's id and answers a
 
 test("a submission against a form that changed since it loaded is refused as FORM_CHANGED without a hidden reload or resubmission", async (context) => {
   const calls = recordFetch(context, () => Response.json({ message: "The form changed; reload it", error: "FORM_SUBMISSION.FORM_CHANGED", status_code: 409, validation_errors: [] }, { status: 409 }));
-  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", sessionStorage: visitorStorage() });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", sessionStorage: visitorStorage() });
   const loaded = { ...intake, questions_updated_at: 7, updated_at: 8 };
   await assert.rejects(store.forms.submit({ id: SUBMISSION_ID, form: loaded, language: "en", values: { answer: "Kept" } }), (error) => {
     assert.equal(error.code, "FORM_SUBMISSION.FORM_CHANGED");
@@ -140,7 +140,7 @@ test("a submission against a form that changed since it loaded is refused as FOR
 
 test("a refused submission whose answers don't fit the form propagates its field errors without a resubmission", async (context) => {
   const calls = recordFetch(context, () => Response.json({ message: "The answers don't fit the form", error: "FORM_SUBMISSION.INVALID_INPUT", status_code: 400, validation_errors: [{ field: "answers[0].question_id", error: "FORM_SUBMISSION.UNKNOWN_QUESTION" }] }, { status: 400 }));
-  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", sessionStorage: visitorStorage() });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", sessionStorage: visitorStorage() });
   await assert.rejects(store.forms.submit({ id: SUBMISSION_ID, form: intake, language: "en", values: { answer: "Kept" } }), (error) => {
     assert.equal(error.code, "FORM_SUBMISSION.INVALID_INPUT");
     assert.equal(error.statusCode, 400);
@@ -159,19 +159,19 @@ test("staff submission work uses exact stage, file, note and deletion routes and
   for (const removed of ["processSubmission", "assignSubmission", "setSubmissionCompany"]) assert.equal(removed in api, false, removed);
   const file = new File(["%PDF"], "brief.pdf", { type: "application/pdf" });
   await api.createSubmission({
-    store_id: STORE_ID, form_id: FORM_ID, id: SUBMISSION_ID, customer_id: ids.customer, language: "en",
+    tenant_id: TENANT_ID, form_id: FORM_ID, id: SUBMISSION_ID, user_id: ids.user, language: "en",
     answers: [
       { type: "text", question_id: "q-answer", key: "answer", value: "Called" },
       { type: "file", question_id: "q-files", key: "files", files: [file] },
     ],
   });
   const noteId = "9d1f3b5c-7e8a-4c2e-b4d6-8f0a2c4e6b7d";
-  await api.changeSubmissionStage({ store_id: STORE_ID, form_id: FORM_ID, id: SUBMISSION_ID, expected_stage: { type: "at", stage_id: "new", changed_at: 5 }, to_stage_id: "won", note: { id: noteId, body: "Signed" } });
-  await api.getSubmissionFile({ store_id: STORE_ID, form_id: FORM_ID, id: SUBMISSION_ID, sha256: "c".repeat(64) });
-  await api.notes.create({ store_id: STORE_ID, form_id: FORM_ID, form_submission_id: SUBMISSION_ID, id: noteId, body: "Called back" });
-  await api.notes.find({ store_id: STORE_ID, form_id: FORM_ID, form_submission_id: SUBMISSION_ID, limit: 20 });
-  assert.deepEqual(await api.deleteSubmission({ store_id: STORE_ID, form_id: FORM_ID, id: SUBMISSION_ID, expected_updated_at: 7 }), { deleted: true });
-  const base = `/v1/stores/${STORE_ID}/forms/${FORM_ID}/submissions`;
+  await api.changeSubmissionStage({ tenant_id: TENANT_ID, form_id: FORM_ID, id: SUBMISSION_ID, expected_stage: { type: "at", stage_id: "new", changed_at: 5 }, to_stage_id: "won", note: { id: noteId, body: "Signed" } });
+  await api.getSubmissionFile({ tenant_id: TENANT_ID, form_id: FORM_ID, id: SUBMISSION_ID, sha256: "c".repeat(64) });
+  await api.notes.create({ tenant_id: TENANT_ID, form_id: FORM_ID, form_submission_id: SUBMISSION_ID, id: noteId, body: "Called back" });
+  await api.notes.find({ tenant_id: TENANT_ID, form_id: FORM_ID, form_submission_id: SUBMISSION_ID, limit: 20 });
+  assert.deepEqual(await api.deleteSubmission({ tenant_id: TENANT_ID, form_id: FORM_ID, id: SUBMISSION_ID, expected_updated_at: 7 }), { deleted: true });
+  const base = `/v1/tenants/${TENANT_ID}/forms/${FORM_ID}/submissions`;
   assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
     ["POST", base, {}],
     ["POST", `${base}/${SUBMISSION_ID}/stage`, {}],
@@ -182,7 +182,7 @@ test("staff submission work uses exact stage, file, note and deletion routes and
   ]);
   assert.deepEqual(submissionOf(calls[0]), {
     id: SUBMISSION_ID,
-    customer_id: ids.customer,
+    user_id: ids.user,
     language: "en",
     answers: [
       { type: "text", question_id: "q-answer", key: "answer", value: "Called" },
@@ -194,9 +194,9 @@ test("staff submission work uses exact stage, file, note and deletion routes and
   assert.equal(await part.text(), "%PDF");
   assert.deepEqual(calls[1].body, { expected_stage: { type: "at", stage_id: "new", changed_at: 5 }, to_stage_id: "won", note: { id: noteId, body: "Signed" } });
   assert.deepEqual(calls[3].body, { id: noteId, body: "Called back" });
-  await assert.rejects(async () => api.changeSubmissionStage({ store_id: STORE_ID, form_id: FORM_ID, id: SUBMISSION_ID, expected_stage: { type: "none" }, to_stage_id: "won", note: { id: "note-1", body: "x" } }), TypeError);
-  await assert.rejects(async () => api.createSubmission({ store_id: STORE_ID, form_id: FORM_ID, id: "submission-1", customer_id: ids.customer, language: "en", answers: [] }), TypeError);
-  await assert.rejects(async () => api.notes.create({ store_id: STORE_ID, form_id: FORM_ID, form_submission_id: SUBMISSION_ID, id: "note-1", body: "x" }), TypeError);
+  await assert.rejects(async () => api.changeSubmissionStage({ tenant_id: TENANT_ID, form_id: FORM_ID, id: SUBMISSION_ID, expected_stage: { type: "none" }, to_stage_id: "won", note: { id: "note-1", body: "x" } }), TypeError);
+  await assert.rejects(async () => api.createSubmission({ tenant_id: TENANT_ID, form_id: FORM_ID, id: "submission-1", user_id: ids.user, language: "en", answers: [] }), TypeError);
+  await assert.rejects(async () => api.notes.create({ tenant_id: TENANT_ID, form_id: FORM_ID, form_submission_id: SUBMISSION_ID, id: "note-1", body: "x" }), TypeError);
   assert.equal(calls.length, 6);
 });
 
@@ -208,7 +208,7 @@ test("form emails are typed settings: the received email and each stage's email 
     submission_alert: {
       type: "on",
       email: selection("1b3d5f7a-9c2e-4a6b-8d0f-2b4d6f8a0c1e"),
-      recipients: [{ type: "store_role", store_role_id: roleId, language: "en" }, { type: "email", email: "sales@example.test", language: "bs" }],
+      recipients: [{ type: "tenant_role", tenant_role_id: roleId, language: "en" }, { type: "email", email: "sales@example.test", language: "bs" }],
     },
   };
   const stages = [
@@ -218,14 +218,14 @@ test("form emails are typed settings: the received email and each stage's email 
   const calls = recordFetch(context, () => ({ ...intake, stages, emails }));
   const api = admin().forms;
   const create = { id: FORM_ID, key: "intake", questions: intake.questions, stages, emails };
-  const created = await api.create({ store_id: STORE_ID, ...create });
+  const created = await api.create({ tenant_id: TENANT_ID, ...create });
   assert.deepEqual(created.emails, emails);
   assert.deepEqual(created.stages, stages);
   const silent = { received: { type: "off" }, submission_alert: { type: "off" } };
-  await api.update({ store_id: STORE_ID, id: FORM_ID, expected_updated_at: 1, emails: silent });
+  await api.update({ tenant_id: TENANT_ID, id: FORM_ID, expected_updated_at: 1, emails: silent });
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
-    ["POST", `/v1/stores/${STORE_ID}/forms`, create],
-    ["PUT", `/v1/stores/${STORE_ID}/forms/${FORM_ID}`, { expected_updated_at: 1, emails: silent }],
+    ["POST", `/v1/tenants/${TENANT_ID}/forms`, create],
+    ["PUT", `/v1/tenants/${TENANT_ID}/forms/${FORM_ID}`, { expected_updated_at: 1, emails: silent }],
   ]);
   for (const removed of ["stage_changed", "alert_recipients", "alert", "staff_new_submission", "staff_recipients"]) assert.equal(removed in calls[0].body.emails, false, removed);
 });
@@ -234,8 +234,8 @@ test("a staff submission read carries the email contact the Server derived from 
   const submission = {
     id: SUBMISSION_ID,
     form_id: FORM_ID,
-    store_id: STORE_ID,
-    customer_id: ids.customer,
+    tenant_id: TENANT_ID,
+    user_id: ids.user,
     source: { type: "account", actor: { account_id: ids.account, snapshot: { email: "staff@example.test", credential_type: { type: "session" } } } },
     language: "bs",
     email_contact: { email: "buyer@example.test", language: "bs" },
@@ -247,16 +247,16 @@ test("a staff submission read carries the email contact the Server derived from 
     updated_at: 1,
   };
   const calls = recordFetch(context, () => submission);
-  const read = await admin().forms.getSubmission({ store_id: STORE_ID, form_id: FORM_ID, id: SUBMISSION_ID });
+  const read = await admin().forms.getSubmission({ tenant_id: TENANT_ID, form_id: FORM_ID, id: SUBMISSION_ID });
   assert.deepEqual(read.email_contact, { email: "buyer@example.test", language: "bs" });
   for (const removed of ["company_id", "assignee_account_id"]) assert.equal(removed in read, false, removed);
-  assert.deepEqual(calls.map(({ method, path }) => [method, path]), [["GET", `/v1/stores/${STORE_ID}/forms/${FORM_ID}/submissions/${SUBMISSION_ID}`]]);
+  assert.deepEqual(calls.map(({ method, path }) => [method, path]), [["GET", `/v1/tenants/${TENANT_ID}/forms/${FORM_ID}/submissions/${SUBMISSION_ID}`]]);
 });
 
 test("an empty file answer is refused before any upload, and the Server's configured limits decide every larger or longer file list", async (context) => {
   const calls = recordFetch(context, () => ({ id: SUBMISSION_ID }));
   const api = admin().forms;
-  const answer = (files) => ({ store_id: STORE_ID, form_id: FORM_ID, id: SUBMISSION_ID, customer_id: ids.customer, language: "en", answers: [{ type: "file", question_id: "q", key: "files", files }] });
+  const answer = (files) => ({ tenant_id: TENANT_ID, form_id: FORM_ID, id: SUBMISSION_ID, user_id: ids.user, language: "en", answers: [{ type: "file", question_id: "q", key: "files", files }] });
   await assert.rejects(async () => api.createSubmission(answer([new File([], "empty.pdf")])), (error) => error.code === "file_size" && /is empty/.test(error.message));
   await assert.rejects(async () => api.createSubmission(answer([new File(["x"], "kept.pdf"), new File([], "empty.pdf")])), /The file 'empty.pdf' is empty/);
   assert.equal(calls.length, 0);
@@ -274,7 +274,7 @@ test("an empty file answer is refused before any upload, and the Server's config
   assert.equal(parts(calls[2]).reduce((total, key) => total + calls[2].body.get(key).size, 0), 6 * 9 * 1024 * 1024);
   for (const call of calls) {
     assert.equal(call.method, "POST");
-    assert.equal(call.path, `/v1/stores/${STORE_ID}/forms/${FORM_ID}/submissions`);
+    assert.equal(call.path, `/v1/tenants/${TENANT_ID}/forms/${FORM_ID}/submissions`);
     assert.deepEqual(submissionOf(call).answers[0].parts, parts(call));
   }
 });
@@ -287,7 +287,7 @@ test("a file list over the Server's configured limits comes back as the Server's
   ];
   const calls = recordFetch(context, () => refusals.shift());
   const api = admin().forms;
-  const answer = (files) => ({ store_id: STORE_ID, form_id: FORM_ID, id: SUBMISSION_ID, customer_id: ids.customer, language: "en", answers: [{ type: "file", question_id: "q", key: "files", files }] });
+  const answer = (files) => ({ tenant_id: TENANT_ID, form_id: FORM_ID, id: SUBMISSION_ID, user_id: ids.user, language: "en", answers: [{ type: "file", question_id: "q", key: "files", files }] });
   const expected = [[413, "FORM_SUBMISSION.FILE_TOO_LARGE"], [409, "FORM_SUBMISSION.TOO_MANY_FILES"], [413, "GENERAL.PAYLOAD_TOO_LARGE"]];
   for (const [statusCode, code] of expected) {
     await assert.rejects(async () => api.createSubmission(answer([new File(["x"], "a.pdf")])), (error) => error.statusCode === statusCode && error.code === code);
@@ -298,10 +298,10 @@ test("a file list over the Server's configured limits comes back as the Server's
 test("a staff submission leaves out whitespace-only text, empty choices and empty file lists, like the storefront", async (context) => {
   const calls = recordFetch(context, () => ({ id: SUBMISSION_ID }));
   await admin().forms.createSubmission({
-    store_id: STORE_ID,
+    tenant_id: TENANT_ID,
     form_id: FORM_ID,
     id: SUBMISSION_ID,
-    customer_id: ids.customer,
+    user_id: ids.user,
     language: "en",
     answers: [
       { type: "text", question_id: "q-answer", key: "answer", value: "  " },
@@ -312,7 +312,7 @@ test("a staff submission leaves out whitespace-only text, empty choices and empt
   });
   assert.deepEqual(submissionOf(calls[0]), {
     id: SUBMISSION_ID,
-    customer_id: ids.customer,
+    user_id: ids.user,
     language: "en",
     answers: [{ type: "boolean", question_id: "q-member", key: "member", value: false }],
   });
@@ -370,14 +370,14 @@ test("an_emoji_answer_at_the_limit_passes", () => {
   );
 });
 
-test("a submission delete that finds no submission, deleted or another store's, rejects with the Server's 404", async (context) => {
+test("a submission delete that finds no submission, deleted or another tenant's, rejects with the Server's 404", async (context) => {
   const calls = recordFetch(context, () => errorResponse(404, "FORM_SUBMISSION.NOT_FOUND", `Form submission ${SUBMISSION_ID} was not found`));
   const api = admin().forms;
   await assert.rejects(
-    api.deleteSubmission({ store_id: STORE_ID, form_id: FORM_ID, id: SUBMISSION_ID, expected_updated_at: 7 }),
+    api.deleteSubmission({ tenant_id: TENANT_ID, form_id: FORM_ID, id: SUBMISSION_ID, expected_updated_at: 7 }),
     (error) => error.statusCode === 404 && error.code === "FORM_SUBMISSION.NOT_FOUND",
   );
   assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
-    ["DELETE", `/v1/stores/${STORE_ID}/forms/${FORM_ID}/submissions/${SUBMISSION_ID}`, { expected_updated_at: "7" }],
+    ["DELETE", `/v1/tenants/${TENANT_ID}/forms/${FORM_ID}/submissions/${SUBMISSION_ID}`, { expected_updated_at: "7" }],
   ]);
 });

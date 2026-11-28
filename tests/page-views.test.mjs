@@ -33,7 +33,7 @@ function refuseFetch(context) {
   });
 }
 
-test("a page view is one text beacon with only the store, sales channel, path and referrer", (context) => {
+test("a page view is one text beacon with only the tenant, sales channel, path and referrer", (context) => {
   const sent = stubBeacon(context);
   const calls = refuseFetch(context);
   const storefront = createStorefront(storefrontIdentity, { ...idFactories, apiUrl, sessionStorage: visitorStorage() });
@@ -51,35 +51,35 @@ test("a page view is one text beacon with only the store, sales channel, path an
   assert.equal(typeof sent[0].body, "string");
   assert.deepEqual(sent.map((beacon) => beacon.parsed), [
     {
-      store_id: storefrontIdentity.storeId, sales_channel_id: storefrontIdentity.salesChannelId,
+      tenant_id: storefrontIdentity.tenantId, sales_channel_id: storefrontIdentity.salesChannelId,
       path: "/products/example?utm_source=mail",
       referrer: "https://www.google.com/search?q=example",
     },
-    { store_id: storefrontIdentity.storeId, sales_channel_id: storefrontIdentity.salesChannelId, path: "/", referrer: null },
+    { tenant_id: storefrontIdentity.tenantId, sales_channel_id: storefrontIdentity.salesChannelId, path: "/", referrer: null },
   ]);
   for (const beacon of sent) {
     assert.equal(beacon.body.includes(ids.session), false);
-    assert.equal(beacon.body.includes(ids.customer), false);
+    assert.equal(beacon.body.includes(ids.user), false);
     assert.equal(beacon.body.includes(visitorToken), false);
   }
   assert.equal(calls.length, 0);
 });
 
-test("a page view forwards no session, customer, store or visitor field from the caller", (context) => {
+test("a page view forwards no session, user, tenant or visitor field from the caller", (context) => {
   const sent = stubBeacon(context);
   const storefront = createStorefront(storefrontIdentity, { ...idFactories, apiUrl, sessionStorage: visitorStorage() });
 
   storefront.pageViews.send({
     path: "/",
     referrer: null,
-    customer_session_id: ids.session,
-    customer_id: ids.customer,
-    store_id: ids.otherStore,
+    user_session_id: ids.session,
+    user_id: ids.user,
+    tenant_id: ids.otherTenant,
     visitor_id: ids.otherSession,
   });
 
   assert.deepEqual(sent.map((beacon) => beacon.parsed), [
-    { store_id: storefrontIdentity.storeId, sales_channel_id: storefrontIdentity.salesChannelId, path: "/", referrer: null },
+    { tenant_id: storefrontIdentity.tenantId, sales_channel_id: storefrontIdentity.salesChannelId, path: "/", referrer: null },
   ]);
 });
 
@@ -90,7 +90,7 @@ test("an empty referrer travels as none, and a page view never creates or stores
   const storefront = createStorefront(storefrontIdentity, {
     apiUrl,
     sessionStorage: storage,
-    createVisitorIdentity: () => ({ customer_id: ids.customer, session_id: ids.session }),
+    createVisitorIdentity: () => ({ user_id: ids.user, session_id: ids.session }),
     createSessionId: () => ids.otherSession,
     createId: () => ids.submission,
     createOrderToken: () => factoryOrderToken,
@@ -99,7 +99,7 @@ test("an empty referrer travels as none, and a page view never creates or stores
   storefront.pageViews.send({ path: "/about", referrer: "" });
 
   assert.deepEqual(sent.map((beacon) => beacon.parsed), [
-    { store_id: storefrontIdentity.storeId, sales_channel_id: storefrontIdentity.salesChannelId, path: "/about", referrer: null },
+    { tenant_id: storefrontIdentity.tenantId, sales_channel_id: storefrontIdentity.salesChannelId, path: "/about", referrer: null },
   ]);
   assert.equal(calls.length, 0);
   assert.equal(storefront.session, null);
@@ -126,7 +126,7 @@ test("a page view fails visibly outside a browser and when the browser does not 
   assert.equal(sent.length, 1);
 });
 
-test("the initialized store sends page views through the same call and keeps actions for tracked outcomes", async (context) => {
+test("the initialized tenant sends page views through the same call and keeps actions for tracked outcomes", async (context) => {
   const sent = stubBeacon(context);
   const calls = recordFetch(context, () => new Response(null, { status: 204 }));
   const store = initialize(storefrontIdentity, { ...idFactories, apiUrl, locale: "en", sessionStorage: visitorStorage() });
@@ -134,7 +134,7 @@ test("the initialized store sends page views through the same call and keeps act
   store.pageViews.send({ path: "/", referrer: "https://news.example.org/story" });
 
   assert.deepEqual(sent.map((beacon) => beacon.parsed), [
-    { store_id: storefrontIdentity.storeId, sales_channel_id: storefrontIdentity.salesChannelId, path: "/", referrer: "https://news.example.org/story" },
+    { tenant_id: storefrontIdentity.tenantId, sales_channel_id: storefrontIdentity.salesChannelId, path: "/", referrer: "https://news.example.org/story" },
   ]);
   assert.equal(store.actions.pageView, undefined);
   assert.equal(calls.length, 0);

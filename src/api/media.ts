@@ -20,8 +20,8 @@ import {
 } from "../utils/durableMediaCreate";
 import { DurableRequestError, isDefiniteRefusal, withDurableRequestLock } from "../utils/durableRequest";
 import { requireId } from "../utils/ids";
-import { requireStoreId } from "../utils/storeTarget";
-import { storePath, storeRecordPath } from "./paths";
+import { requireTenantId } from "../utils/tenantTarget";
+import { tenantPath, tenantRecordPath } from "./paths";
 
 function browserHasDurableStorage(): boolean {
   return typeof globalThis.window !== "undefined";
@@ -37,8 +37,8 @@ function isAmbiguousMediaResult(error: unknown): boolean {
   return status === null || status >= 500;
 }
 
-function matchingMedia(media: Media, storeId: string, mediaId: string, visibility: MediaVisibility): boolean {
-  return typeof media === "object" && media !== null && media.id === mediaId && media.store_id === storeId && media.visibility === visibility;
+function matchingMedia(media: Media, tenantId: string, mediaId: string, visibility: MediaVisibility): boolean {
+  return typeof media === "object" && media !== null && media.id === mediaId && media.tenant_id === tenantId && media.visibility === visibility;
 }
 
 function requireVisibility(value: unknown): MediaVisibility {
@@ -55,18 +55,18 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
     else formData.append("source_url", exact.source_url);
     if (exact.alt) formData.append("alt", JSON.stringify(exact.alt));
     formData.append("visibility", requireVisibility(exact.visibility));
-    return apiConfig.httpClient.put<Media>(storeRecordPath(exact.store_id, "media", exact.id), formData, options);
+    return apiConfig.httpClient.put<Media>(tenantRecordPath(exact.tenant_id, "media", exact.id), formData, options);
   };
 
   return {
     async create(params: CreateMediaParams, options?: RequestOptions): Promise<Media> {
-      const storeId = requireStoreId(params.store_id);
+      const tenantId = requireTenantId(params.tenant_id);
       requireId(params.id, "media");
       requireVisibility(params.visibility);
       if (!browserHasDurableStorage()) return send(params, options);
-      const storageKey = mediaCreateStorageKey(storeId);
+      const storageKey = mediaCreateStorageKey(tenantId);
       return withDurableRequestLock(storageKey, mediaCreateLabel, async () => {
-        const pending = await getOrCreatePendingMediaCreate(storeId, params);
+        const pending = await getOrCreatePendingMediaCreate(tenantId, params);
         let result: Media;
         try {
           result = await send(pending.params, options);
@@ -78,9 +78,9 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
           if (isAmbiguousMediaResult(error)) {
             try {
               const reconciled = await apiConfig.httpClient.get<Media>(
-                storeRecordPath(storeId, "media", pending.params.id),
+                tenantRecordPath(tenantId, "media", pending.params.id),
               );
-              if (matchingMedia(reconciled, storeId, pending.params.id, pending.params.visibility)) {
+              if (matchingMedia(reconciled, tenantId, pending.params.id, pending.params.visibility)) {
                 await clearPendingMediaCreate(pending.durable);
                 return reconciled;
               }
@@ -88,7 +88,7 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
           }
           throw error;
         }
-        if (!matchingMedia(result, storeId, pending.params.id, pending.params.visibility)) {
+        if (!matchingMedia(result, tenantId, pending.params.id, pending.params.visibility)) {
           throw new DurableRequestError(
             "answer_mismatch",
             `${mediaCreateLabel} was answered with another media; the request is kept for a retry`,
@@ -100,20 +100,20 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
     },
 
     find(params: FindMediaParams, options?: RequestOptions): Promise<PaginatedResponse<Media>> {
-      const { store_id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<Media>>(storePath(store_id, "media"), {
+      const { tenant_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<Media>>(tenantPath(tenant_id, "media"), {
         ...options,
         params: query,
       });
     },
 
     get(params: GetMediaParams, options?: RequestOptions): Promise<Media> {
-      return apiConfig.httpClient.get<Media>(storeRecordPath(params.store_id, "media", params.id), options);
+      return apiConfig.httpClient.get<Media>(tenantRecordPath(params.tenant_id, "media", params.id), options);
     },
 
     update(params: UpdateMediaParams, options?: RequestOptions): Promise<Media> {
       return apiConfig.httpClient.patch<Media>(
-        storeRecordPath(params.store_id, "media", params.id),
+        tenantRecordPath(params.tenant_id, "media", params.id),
         { expected_updated_at: params.expected_updated_at, alt: params.alt },
         options,
       );
@@ -124,14 +124,14 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
       formData.append("expected_updated_at", String(params.expected_updated_at));
       formData.append("file", params.file);
       return apiConfig.httpClient.put<Media>(
-        `${storeRecordPath(params.store_id, "media", params.id)}/content`,
+        `${tenantRecordPath(params.tenant_id, "media", params.id)}/content`,
         formData,
         options,
       );
     },
 
     delete(params: DeleteMediaParams, options?: RequestOptions): Promise<Media> {
-      return apiConfig.httpClient.delete<Media>(storeRecordPath(params.store_id, "media", params.id), {
+      return apiConfig.httpClient.delete<Media>(tenantRecordPath(params.tenant_id, "media", params.id), {
         ...options,
         params: { expected_updated_at: params.expected_updated_at },
       });
@@ -139,13 +139,13 @@ export const createMediaApi = (apiConfig: ApiConfig) => {
 
     speak(params: SpeakMediaParams, options?: RequestOptions): Promise<Media> {
       requireId(params.media_id, "media");
-      const { store_id, ...body } = params;
-      return apiConfig.httpClient.post<Media>(storePath(store_id, "spoken-prompts"), body, options);
+      const { tenant_id, ...body } = params;
+      return apiConfig.httpClient.post<Media>(tenantPath(tenant_id, "spoken-prompts"), body, options);
     },
 
     findVoices(params: FindVoicesParams, options?: RequestOptions): Promise<PaginatedResponse<ElevenLabsVoice>> {
-      const { store_id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<ElevenLabsVoice>>(storePath(store_id, "voices"), {
+      const { tenant_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<ElevenLabsVoice>>(tenantPath(tenant_id, "voices"), {
         ...options,
         params: query,
       });

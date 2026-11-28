@@ -4,8 +4,8 @@ import { createAdmin } from "../dist/admin.js";
 import { initialize } from "../dist/storefront.js";
 import { apiUrl, fixedIdFactories, ids, storefrontIdentity, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
 
-const STORE_ID = "2f7b4d91-8c36-4a05-b1e9-6d3a0c8f5e27";
-const OTHER_STORE_ID = "a6c1e8f4-3b92-4d57-9e0a-5f2d7b1c8e46";
+const TENANT_ID = "2f7b4d91-8c36-4a05-b1e9-6d3a0c8f5e27";
+const OTHER_TENANT_ID = "a6c1e8f4-3b92-4d57-9e0a-5f2d7b1c8e46";
 const returnId = "4d7e1b39-1000-4c62-8a15-9e3f6b0d2c74";
 const lineId = "8c2a6e14-5b97-4d03-a1f8-3e6c9b0d7a52";
 const disposeActionId = "2b6f0c84-7e19-4d35-a8c2-1f4e9b7d3a60";
@@ -22,7 +22,7 @@ function returns() {
 test("a buyer's return is created under the app-picked id and read through storefront routes only", async (context) => {
   const retained = { id: returnId, status: { type: "requested", destination: { type: "undecided" } } };
   const calls = recordFetch(context, (call) => call.method === "GET" && call.path === "/v1/storefront/returns" ? { items: [], cursor: "next" } : retained);
-  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
   const request = { id: returnId, type: orderReturn, destination: { type: "undecided" } };
   const before = structuredClone(request);
   assert.deepEqual(await store.eshop.return.create(request), retained);
@@ -41,18 +41,18 @@ test("a buyer's return is created under the app-picked id and read through store
   assert.deepEqual(calls[0].body, request);
   await assert.rejects(store.eshop.return.create({ ...request, id: "return" }), TypeError);
   assert.equal(calls.length, 5);
-  assert.ok(calls.every((call) => call.headers.get("authorization") === `Bearer ${visitorToken}` && (call.headers.get("x-arky-store-id") === storefrontIdentity.storeId && call.headers.get("x-arky-sales-channel-id") === storefrontIdentity.salesChannelId)));
+  assert.ok(calls.every((call) => call.headers.get("authorization") === `Bearer ${visitorToken}` && (call.headers.get("x-arky-tenant-id") === storefrontIdentity.tenantId && call.headers.get("x-arky-sales-channel-id") === storefrontIdentity.salesChannelId)));
 });
 
 test("return discovery carries every filter and keeps the empty continuation", async (context) => {
   const calls = recordFetch(context, () => ({ items: [], cursor: "next" }));
   const api = returns();
-  const query = { store_id: STORE_ID, order_id: ids.order, rental_id: "rental", destination_store_location_id: "warehouse", status: "open", limit: 20, sort_field: "updated_at", sort_direction: "desc" };
+  const query = { tenant_id: TENANT_ID, order_id: ids.order, rental_id: "rental", destination_tenant_location_id: "warehouse", status: "open", limit: 20, sort_field: "updated_at", sort_direction: "desc" };
   assert.deepEqual(await api.find(query), { items: [], cursor: "next" });
   assert.equal(calls.length, 1);
   await api.find({ ...query, cursor: "next" });
-  assert.equal(calls[0].path, `/v1/stores/${STORE_ID}/returns`);
-  const expected = { order_id: ids.order, rental_id: "rental", destination_store_location_id: "warehouse", status: "open", limit: "20", sort_field: "updated_at", sort_direction: "desc" };
+  assert.equal(calls[0].path, `/v1/tenants/${TENANT_ID}/returns`);
+  const expected = { order_id: ids.order, rental_id: "rental", destination_tenant_location_id: "warehouse", status: "open", limit: "20", sort_field: "updated_at", sort_direction: "desc" };
   assert.deepEqual(calls[0].query, expected);
   assert.deepEqual(calls[1].query, { ...expected, cursor: "next" });
   assert.equal(calls.length, 2);
@@ -63,14 +63,14 @@ test("staff returns are created under the app-picked id, and every action goes t
   const retained = { id: returnId, trackings: [], status: { type: "requested", destination: { type: "undecided" } } };
   const calls = recordFetch(context, () => retained);
   const api = returns();
-  const create = { store_id: STORE_ID, id: returnId, type: orderReturn, destination: { type: "decided", store_location_id: "warehouse" } };
+  const create = { tenant_id: TENANT_ID, id: returnId, type: orderReturn, destination: { type: "decided", tenant_location_id: "warehouse" } };
   assert.deepEqual(await api.create(create), retained);
-  await api.get({ store_id: OTHER_STORE_ID, return_id: "return/id" });
+  await api.get({ tenant_id: OTHER_TENANT_ID, return_id: "return/id" });
   const items = [{ line_id: lineId, inventory_item_id: "item", quantity: 1, inventory_unit_ids: [] }];
   const commands = [
-    { type: "approve", destination: { type: "undecided" }, notify_customer: true },
-    { type: "decide", store_location_id: "warehouse" },
-    { type: "decline", reason: "Outside the return window", notify_customer: false },
+    { type: "approve", destination: { type: "undecided" }, notify_user: true },
+    { type: "decide", tenant_location_id: "warehouse" },
+    { type: "decline", reason: "Outside the return window", notify_user: false },
     { type: "receive", items },
     { type: "dispose", action_id: disposeActionId, items: items.map((item) => ({ ...item, disposition: { type: "not_restocked", reason: "Broken seal" } })) },
     { type: "missing", items: [{ line_id: lineId, inventory_item_id: "item", quantity: 1 }] },
@@ -78,14 +78,14 @@ test("staff returns are created under the app-picked id, and every action goes t
     { type: "tracking", trackings: [] },
     { type: "cancel" },
   ];
-  for (const command of commands) await api.execute({ store_id: STORE_ID, return_id: returnId, expected_updated_at: 1_700_000_000_000, command });
-  const { store_id: _store, ...createBody } = create;
+  for (const command of commands) await api.execute({ tenant_id: TENANT_ID, return_id: returnId, expected_updated_at: 1_700_000_000_000, command });
+  const { tenant_id: _tenant, ...createBody } = create;
   assert.deepEqual(calls[0].body, createBody);
-  assert.equal(calls[0].path, `/v1/stores/${STORE_ID}/returns`);
-  assert.equal(calls[1].path, `/v1/stores/${OTHER_STORE_ID}/returns/return%2Fid`);
+  assert.equal(calls[0].path, `/v1/tenants/${TENANT_ID}/returns`);
+  assert.equal(calls[1].path, `/v1/tenants/${OTHER_TENANT_ID}/returns/return%2Fid`);
   calls.slice(2).forEach((call, index) => {
     assert.equal(call.method, "POST");
-    assert.equal(call.path, `/v1/stores/${STORE_ID}/returns/${returnId}/execute`);
+    assert.equal(call.path, `/v1/tenants/${TENANT_ID}/returns/${returnId}/execute`);
     assert.deepEqual(call.body, { expected_updated_at: 1_700_000_000_000, command: commands[index] });
   });
   await assert.rejects(async () => api.create({ ...create, id: "return" }), {
@@ -94,7 +94,7 @@ test("staff returns are created under the app-picked id, and every action goes t
   });
   for (const action_id of [undefined, "dispose", disposeActionId.toUpperCase()]) {
     await assert.rejects(
-      async () => api.execute({ store_id: STORE_ID, return_id: returnId, expected_updated_at: 1_700_000_000_000, command: { type: "dispose", action_id, items: [] } }),
+      async () => api.execute({ tenant_id: TENANT_ID, return_id: returnId, expected_updated_at: 1_700_000_000_000, command: { type: "dispose", action_id, items: [] } }),
       { name: "TypeError", message: "The action id must be a canonical UUID v4 picked by the app" },
     );
   }
@@ -104,66 +104,66 @@ test("staff returns are created under the app-picked id, and every action goes t
 test("a return read answers each line's product with the return, for staff and for the buyer", async (context) => {
   const named = {
     id: returnId,
-    store_id: STORE_ID,
+    tenant_id: TENANT_ID,
     type: orderReturn,
-    status: { type: "open", store_location_id: "warehouse" },
+    status: { type: "open", tenant_location_id: "warehouse" },
     products: [
       { line_id: lineId, product: { id: "product", key: "espresso-beans", blocks: [{ id: "name", type: "localized_text", key: "name", value: { en: "Espresso beans" } }] } },
       { line_id: "removed", product: null },
     ],
   };
   const calls = recordFetch(context, () => named);
-  const staffRead = await returns().get({ store_id: STORE_ID, return_id: returnId });
+  const staffRead = await returns().get({ tenant_id: TENANT_ID, return_id: returnId });
   assert.deepEqual(staffRead, named);
   assert.equal(staffRead.products[0].product.blocks[0].value.en, "Espresso beans");
   assert.equal(staffRead.products[1].product, null);
-  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
   assert.deepEqual(await store.eshop.return.get({ id: returnId }), named);
   assert.deepEqual(calls.map((call) => [call.method, call.path]), [
-    ["GET", `/v1/stores/${STORE_ID}/returns/${returnId}`],
+    ["GET", `/v1/tenants/${TENANT_ID}/returns/${returnId}`],
     ["GET", `/v1/storefront/returns/${returnId}`],
   ]);
 });
 
-test("approving or declining a return needs an explicit customer email choice and sends it as given", async (context) => {
+test("approving or declining a return needs an explicit user email choice and sends it as given", async (context) => {
   const calls = recordFetch(context, () => ({ id: returnId }));
   const api = returns();
-  const version = { store_id: STORE_ID, return_id: returnId, expected_updated_at: 9 };
+  const version = { tenant_id: TENANT_ID, return_id: returnId, expected_updated_at: 9 };
   for (const command of [
-    { type: "approve", destination: { type: "decided", store_location_id: "warehouse" } },
+    { type: "approve", destination: { type: "decided", tenant_location_id: "warehouse" } },
     { type: "decline", reason: "Outside the return window" },
-    { type: "approve", destination: { type: "undecided" }, notify_customer: "yes" },
+    { type: "approve", destination: { type: "undecided" }, notify_user: "yes" },
   ]) {
     await assert.rejects(async () => api.execute({ ...version, command }), {
       name: "TypeError",
-      message: "A return approval or decline requires an explicit customer email choice",
+      message: "A return approval or decline requires an explicit user email choice",
     });
   }
   assert.equal(calls.length, 0);
-  await api.execute({ ...version, command: { type: "approve", destination: { type: "decided", store_location_id: "warehouse" }, notify_customer: false } });
-  await api.execute({ ...version, command: { type: "decline", reason: "Seal broken", notify_customer: true } });
+  await api.execute({ ...version, command: { type: "approve", destination: { type: "decided", tenant_location_id: "warehouse" }, notify_user: false } });
+  await api.execute({ ...version, command: { type: "decline", reason: "Seal broken", notify_user: true } });
   assert.deepEqual(calls.map((call) => call.body.command), [
-    { type: "approve", destination: { type: "decided", store_location_id: "warehouse" }, notify_customer: false },
-    { type: "decline", reason: "Seal broken", notify_customer: true },
+    { type: "approve", destination: { type: "decided", tenant_location_id: "warehouse" }, notify_user: false },
+    { type: "decline", reason: "Seal broken", notify_user: true },
   ]);
 });
 
 test("a return credit carries the app-picked credit id and the return version, and the option reads name their owner", async (context) => {
-  const inspection = { store_id: STORE_ID, return_id: returnId, line_id: lineId, inventory_item_id: "item", inventory_unit_id: "unit/1" };
+  const inspection = { tenant_id: TENANT_ID, return_id: returnId, line_id: lineId, inventory_item_id: "item", inventory_unit_id: "unit/1" };
   const calls = recordFetch(context, (call) => call.path.endsWith("/credit") ? { id: ids.credit } : call.path.includes("/inspection-units/") ? inspection : call.path.includes("/rentals/") ? { items: [], cursor: null } : { return_id: returnId });
   const api = returns();
-  await api.credit({ store_id: STORE_ID, return_id: returnId, id: ids.credit, expected_updated_at: 5 });
-  await api.getDestinationOptions({ store_id: STORE_ID, return_id: returnId });
-  assert.deepEqual(await api.getInspectionUnit({ store_id: STORE_ID, return_id: returnId, inventory_unit_id: "unit/1" }), inspection);
-  await api.getOrderOptions({ store_id: STORE_ID, order_id: ids.order });
-  await api.findRentalOptions({ store_id: STORE_ID, rental_id: "rental", limit: 3 });
+  await api.credit({ tenant_id: TENANT_ID, return_id: returnId, id: ids.credit, expected_updated_at: 5 });
+  await api.getDestinationOptions({ tenant_id: TENANT_ID, return_id: returnId });
+  assert.deepEqual(await api.getInspectionUnit({ tenant_id: TENANT_ID, return_id: returnId, inventory_unit_id: "unit/1" }), inspection);
+  await api.getOrderOptions({ tenant_id: TENANT_ID, order_id: ids.order });
+  await api.findRentalOptions({ tenant_id: TENANT_ID, rental_id: "rental", limit: 3 });
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
-    ["POST", `/v1/stores/${STORE_ID}/returns/${returnId}/credit`, {}, { id: ids.credit, expected_updated_at: 5 }],
-    ["GET", `/v1/stores/${STORE_ID}/returns/${returnId}/destination-options`, {}, null],
-    ["GET", `/v1/stores/${STORE_ID}/returns/${returnId}/inspection-units/unit%2F1`, {}, null],
-    ["GET", `/v1/stores/${STORE_ID}/orders/${ids.order}/return-options`, {}, null],
-    ["GET", `/v1/stores/${STORE_ID}/rentals/rental/return-options`, { limit: "3" }, null],
+    ["POST", `/v1/tenants/${TENANT_ID}/returns/${returnId}/credit`, {}, { id: ids.credit, expected_updated_at: 5 }],
+    ["GET", `/v1/tenants/${TENANT_ID}/returns/${returnId}/destination-options`, {}, null],
+    ["GET", `/v1/tenants/${TENANT_ID}/returns/${returnId}/inspection-units/unit%2F1`, {}, null],
+    ["GET", `/v1/tenants/${TENANT_ID}/orders/${ids.order}/return-options`, {}, null],
+    ["GET", `/v1/tenants/${TENANT_ID}/rentals/rental/return-options`, { limit: "3" }, null],
   ]);
-  await assert.rejects(async () => api.credit({ store_id: STORE_ID, return_id: returnId, id: "credit", expected_updated_at: 5 }), TypeError);
+  await assert.rejects(async () => api.credit({ tenant_id: TENANT_ID, return_id: returnId, id: "credit", expected_updated_at: 5 }), TypeError);
   assert.equal(calls.length, 5);
 });

@@ -82,7 +82,7 @@ export type PackageOccurrence =
 
 export interface PackageOffering {
   id: string;
-  store_id: string;
+  tenant_id: string;
   key: string;
   blocks: Block[];
   package_ids: string[];
@@ -164,7 +164,7 @@ export interface PackageMemberSessions {
 
 export interface PackageMember {
   id: string;
-  store_id: string;
+  tenant_id: string;
   package_id: string;
   subject: CommerceParty;
   renewal: PackageMemberRenewal;
@@ -213,7 +213,7 @@ export type PackageMemberSelfStatus =
 
 export interface PackageMemberSelf {
   id: string;
-  store_id: string;
+  tenant_id: string;
   package_id: string;
   subject: CommerceParty;
   renewal: PackageMemberSelfRenewal;
@@ -314,7 +314,7 @@ export type PackageMemberRevisionStatus =
 
 export interface PackageMemberRevision {
   id: string;
-  store_id: string;
+  tenant_id: string;
   package_member_id: string;
   origin: PackageMemberRevisionOrigin;
   terms: PackageMemberAcceptedTerms;
@@ -435,7 +435,7 @@ export type PackageMemberSelfRevisionStatus =
 
 export interface PackageMemberRevisionSelf {
   id: string;
-  store_id: string;
+  tenant_id: string;
   package_member_id: string;
   origin: PackageMemberSelfRevisionOrigin;
   terms: PackageMemberSelfAcceptedTerms;
@@ -512,7 +512,7 @@ export interface PackageMemberVersion {
 }
 
 export interface CreatePackageOfferingParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   key: string;
   blocks: Block[];
@@ -520,7 +520,7 @@ export interface CreatePackageOfferingParams {
 }
 
 export interface UpdatePackageOfferingParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   blocks: Block[];
@@ -528,23 +528,23 @@ export interface UpdatePackageOfferingParams {
 }
 
 export interface DeletePackageOfferingParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface GetPackageOfferingParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface GetPackageOfferingByKeyParams {
-  store_id: string;
+  tenant_id: string;
   key: string;
 }
 
 export interface FindPackageOfferingsParams {
-  store_id: string;
+  tenant_id: string;
   key?: string;
   sort_field?: "created_at" | "updated_at";
   sort_direction?: SortDirection;
@@ -555,7 +555,7 @@ export interface FindPackageOfferingsParams {
 export type PackageMemberRenewalType = "never" | "every";
 
 export type FindPackageMembersBySearchParams = CommercePartyQuery & {
-  store_id: string;
+  tenant_id: string;
   ids?: never;
   package_id?: string;
   package_offering_id?: string;
@@ -566,9 +566,9 @@ export type FindPackageMembersBySearchParams = CommercePartyQuery & {
 };
 
 export interface FindPackageMembersByIdsParams {
-  store_id: string;
+  tenant_id: string;
   ids: string[];
-  customer_id?: never;
+  user_id?: never;
   company_id?: never;
   company_location_id?: never;
   package_id?: never;
@@ -590,7 +590,7 @@ export type PackageMemberDetailSelf = PackageMemberSelf & { end: When };
 export type PackageMemberSelfListItem = PackageMemberSelf & { package: PackageMemberPackageSelf; end: When };
 
 export interface FindPackageMembersCurrentParams {
-  store_id: string;
+  tenant_id: string;
   ids: string[];
 }
 
@@ -599,12 +599,12 @@ export interface FindPackageMemberOrdersParams extends FindPackageMemberPagePara
 }
 
 export interface GetPackageMemberParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface AssignPackageMemberParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   package_id: string;
   subject: CommerceParty;
@@ -612,14 +612,14 @@ export interface AssignPackageMemberParams {
 }
 
 export interface FindPackageMemberPageParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   limit?: number;
   cursor?: string | null;
 }
 
 export interface GetPackageMemberRevisionParams {
-  store_id: string;
+  tenant_id: string;
   package_member_id: string;
   revision_id: string;
 }
@@ -630,19 +630,19 @@ export interface FindPackageMemberRevisionPurchaseOrdersParams extends GetPackag
 }
 
 export interface GetPackageMemberMinimumParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   at?: EpochMilliseconds;
 }
 
 export interface PackageMemberActionParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface CancelPackageMemberParams extends PackageMemberActionParams {
-  notify_customer: boolean;
+  notify_user: boolean;
 }
 
 export interface SchedulePackageMemberEndParams extends CancelPackageMemberParams {
@@ -732,7 +732,7 @@ export interface RevokePackageMemberParams extends PackageMemberActionParams {
 }
 
 export interface TransferPackageMemberMinimumParams {
-  store_id: string;
+  tenant_id: string;
   from: PackageMemberVersion;
   to: PackageMemberVersion;
   minimum: PackageMinimum;
@@ -770,30 +770,30 @@ export interface StorefrontFindPackageMemberOrdersParams {
 
 export type StorefrontPackageMemberActionParams = Omit<
   PackageMemberActionParams,
-  "store_id"
+  "tenant_id"
 >;
 
 export type StorefrontPausePackageMemberParams = Omit<
   PausePackageMemberParams,
-  "store_id"
+  "tenant_id"
 >;
 
 export type StorefrontSkipNextPackageMemberRenewalParams = Omit<
   SkipNextPackageMemberRenewalParams,
-  "store_id"
+  "tenant_id"
 >;
 
 export type StorefrontSelectPackageMemberPaymentMethodParams = Omit<
   SelectPackageMemberPaymentMethodParams,
-  "store_id"
+  "tenant_id"
 >;
 
 export type StorefrontSwitchPackageMemberParams = Omit<
   SwitchPackageMemberParams,
-  "store_id"
+  "tenant_id"
 >;
 
 export type StorefrontWithdrawPackageMemberRevisionParams = Omit<
   WithdrawPackageMemberRevisionParams,
-  "store_id"
+  "tenant_id"
 >;

@@ -21,7 +21,7 @@ export interface LayoutCompositeEntry {
 }
 
 export type LayoutType =
-  | { type: "elements"; store_location_id: string }
+  | { type: "elements"; tenant_location_id: string }
   | { type: "composite"; layouts: LayoutCompositeEntry[] };
 
 export type LayoutBackground =
@@ -32,7 +32,7 @@ export type LayoutStatus = { type: "active" } | { type: "deleting" };
 
 export interface Layout {
   id: string;
-  store_id: string;
+  tenant_id: string;
   key: string;
   type: LayoutType;
   backgrounds: LayoutBackground[];
@@ -346,7 +346,7 @@ export type LayoutElementLink = { type: "booking_resource"; booking_resource_id:
 
 export interface LayoutElement {
   id: string;
-  store_id: string;
+  tenant_id: string;
   layout_id: string;
   key: string;
   blocks: Block[];
@@ -358,25 +358,25 @@ export interface LayoutElement {
 }
 
 export interface FindLayoutsParams {
-  store_id: string;
+  tenant_id: string;
   key?: string;
-  store_location_id?: string;
+  tenant_location_id?: string;
   limit?: number;
   cursor?: string | null;
 }
 
 export interface GetLayoutParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface GetLayoutByKeyParams {
-  store_id: string;
+  tenant_id: string;
   key: string;
 }
 
 export interface CreateLayoutParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   key: string;
   type: LayoutType;
@@ -385,7 +385,7 @@ export interface CreateLayoutParams {
 }
 
 export interface UpdateLayoutParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   key: string;
@@ -395,13 +395,13 @@ export interface UpdateLayoutParams {
 }
 
 export interface DeleteLayoutParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface FindLayoutElementsParams {
-  store_id: string;
+  tenant_id: string;
   layout_id: string;
   key?: string;
   limit?: number;
@@ -431,7 +431,7 @@ export type LayoutElementChange =
   | { action: "delete"; id: string; expected_updated_at: EpochMilliseconds };
 
 export interface SaveLayoutElementsParams {
-  store_id: string;
+  tenant_id: string;
   layout_id: string;
   changes: LayoutElementChange[];
 }

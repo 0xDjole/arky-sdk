@@ -33,7 +33,7 @@ export type RentalStatus =
 
 export interface Rental {
   id: string;
-  store_id: string;
+  tenant_id: string;
   package_member_id: string;
   package_member_revision_id: string;
   package_item_id: string;
@@ -55,10 +55,10 @@ export interface RentalDetail {
   rental: Rental;
   terms: RentalTerms;
   product: ProductReference | null;
-  units: CustomerRentalUnit[];
+  units: UserRentalUnit[];
 }
 
-export type RentalListItem = Rental & { product: ProductReference | null; variant_sku: string | null; quantity: number; units: CustomerRentalUnit[] };
+export type RentalListItem = Rental & { product: ProductReference | null; variant_sku: string | null; quantity: number; units: UserRentalUnit[] };
 
 export type RentalReplacementMethod =
   | { type: "delivery"; destination: PostalAddress }
@@ -70,7 +70,7 @@ export type RentalCommand =
       fulfillment_job_id: string;
       fulfillment_job_line_id: string;
       replacement: RentalIssueReplacement;
-      store_location_id: string;
+      tenant_location_id: string;
       method: RentalReplacementMethod;
     }
   | { type: "end"; reason: string; return_due_at: EpochMilliseconds | null }
@@ -79,12 +79,12 @@ export type RentalCommand =
   | { type: "cancel_issue"; fulfillment_job_id: string; fulfillment_job_line_id: string };
 
 export interface GetRentalParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface FindRentalsBySearchParams {
-  store_id: string;
+  tenant_id: string;
   ids?: never;
   package_member_ids?: string[];
   company_id?: string;
@@ -97,7 +97,7 @@ export interface FindRentalsBySearchParams {
 }
 
 export interface FindRentalsByIdsParams {
-  store_id: string;
+  tenant_id: string;
   ids: string[];
   package_member_ids?: never;
   company_id?: never;
@@ -116,14 +116,14 @@ export interface ActOnRentalParams extends GetRentalParams {
   command: RentalCommand;
 }
 
-export type CustomerRentalStatus =
+export type UserRentalStatus =
   | { type: "waiting" }
   | { type: "active" }
   | { type: "ending"; requested_at: EpochMilliseconds; return_due_at: EpochMilliseconds | null }
   | { type: "closed"; closed_at: EpochMilliseconds }
   | { type: "withdrawn"; withdrawn_at: EpochMilliseconds };
 
-export type CustomerRentalUnitDelivery =
+export type UserRentalUnitDelivery =
   | {
       type: "allocated";
       fulfillment_job_id: string;
@@ -158,45 +158,45 @@ export type RentalReturnState =
   | { type: "cancelled" }
   | { type: "declined" };
 
-export interface CustomerRentalUnitReturn {
+export interface UserRentalUnitReturn {
   return_id: string;
   status: ReturnStatus;
   state: RentalReturnState;
 }
 
-export interface CustomerRentalUnit {
+export interface UserRentalUnit {
   inventory_unit_id: string;
   asset_tag: string;
   manufacturer_serial: string | null;
-  deliveries: CustomerRentalUnitDelivery[];
-  returns: CustomerRentalUnitReturn[];
+  deliveries: UserRentalUnitDelivery[];
+  returns: UserRentalUnitReturn[];
 }
 
-export interface CustomerRental {
+export interface UserRental {
   id: string;
   package_member_id: string;
   product_key: string;
   product: ProductReference | null;
   variant_sku: string | null;
   quantity: number;
-  status: CustomerRentalStatus;
-  units: CustomerRentalUnit[];
+  status: UserRentalStatus;
+  units: UserRentalUnit[];
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
-interface FindCustomerRentalsPage {
+interface FindUserRentalsPage {
   limit?: number;
   cursor?: string | null;
 }
 
-export type FindCustomerRentalsParams = FindCustomerRentalsPage &
+export type FindUserRentalsParams = FindUserRentalsPage &
   (
     | { package_member_ids: string[]; company_id?: string; company_location_id?: string }
     | { package_member_ids?: string[]; company_id: string; company_location_id?: string }
     | { package_member_ids?: string[]; company_id?: string; company_location_id: string }
   );
 
-export interface GetCustomerRentalParams {
+export interface GetUserRentalParams {
   id: string;
 }

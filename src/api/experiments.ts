@@ -12,47 +12,47 @@ import type {
   UpdateExperimentParams,
 } from "../types/experiment";
 import { requireId } from "../utils/ids";
-import { storePath, storeRecordPath } from "./paths";
+import { tenantPath, tenantRecordPath } from "./paths";
 
 export const createExperimentsApi = (apiConfig: ApiConfig) => {
-  const experimentPath = (storeId: string, id: string) => storeRecordPath(storeId, "experiments", id);
+  const experimentPath = (tenantId: string, id: string) => tenantRecordPath(tenantId, "experiments", id);
   const action = (verb: string, params: ExperimentActionParams, options?: RequestOptions) =>
     apiConfig.httpClient.post<Experiment>(
-      `${experimentPath(params.store_id, params.id)}/${verb}`,
+      `${experimentPath(params.tenant_id, params.id)}/${verb}`,
       { expected_updated_at: params.expected_updated_at },
       options,
     );
 
   return {
     find(params: FindExperimentsParams, options?: RequestOptions): Promise<PaginatedResponse<Experiment>> {
-      const { store_id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<Experiment>>(storePath(store_id, "experiments"), {
+      const { tenant_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<Experiment>>(tenantPath(tenant_id, "experiments"), {
         ...options,
         params: query,
       });
     },
 
     get(params: GetExperimentParams, options?: RequestOptions): Promise<Experiment> {
-      return apiConfig.httpClient.get<Experiment>(experimentPath(params.store_id, params.id), options);
+      return apiConfig.httpClient.get<Experiment>(experimentPath(params.tenant_id, params.id), options);
     },
 
     getResults(params: GetExperimentParams, options?: RequestOptions): Promise<ExperimentResults> {
-      return apiConfig.httpClient.get<ExperimentResults>(`${experimentPath(params.store_id, params.id)}/results`, options);
+      return apiConfig.httpClient.get<ExperimentResults>(`${experimentPath(params.tenant_id, params.id)}/results`, options);
     },
 
     create(params: CreateExperimentParams, options?: RequestOptions): Promise<Experiment> {
       requireId(params.id, "experiment");
-      const { store_id, ...body } = params;
-      return apiConfig.httpClient.post<Experiment>(storePath(store_id, "experiments"), body, options);
+      const { tenant_id, ...body } = params;
+      return apiConfig.httpClient.post<Experiment>(tenantPath(tenant_id, "experiments"), body, options);
     },
 
     update(params: UpdateExperimentParams, options?: RequestOptions): Promise<Experiment> {
-      const { store_id, id, ...body } = params;
-      return apiConfig.httpClient.put<Experiment>(experimentPath(store_id, id), body, options);
+      const { tenant_id, id, ...body } = params;
+      return apiConfig.httpClient.put<Experiment>(experimentPath(tenant_id, id), body, options);
     },
 
     delete(params: DeleteExperimentParams, options?: RequestOptions): Promise<DeletedResponse> {
-      return apiConfig.httpClient.delete<DeletedResponse>(experimentPath(params.store_id, params.id), {
+      return apiConfig.httpClient.delete<DeletedResponse>(experimentPath(params.tenant_id, params.id), {
         ...options,
         params: { expected_updated_at: params.expected_updated_at },
       });

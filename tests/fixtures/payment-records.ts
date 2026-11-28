@@ -60,7 +60,7 @@ const refund: MonriRefund = {
   money: { amount: 4000, currency: "bam" },
   request: {
     actor,
-    reason: "customer_request",
+    reason: "user_request",
     application: {
       type: "commercial_credit",
       allocations: [
@@ -71,7 +71,7 @@ const refund: MonriRefund = {
         },
       ],
     },
-    notify_customer: false,
+    notify_user: false,
   },
   status: { type: "succeeded", transaction },
   created_at: at,
@@ -79,7 +79,7 @@ const refund: MonriRefund = {
 
 export const monriPayment: Payment = {
   id: "f17c0b95-2e4d-4a83-9b6c-31d5e8a70f24",
-  store_id: "5e9b3d71-c826-4a04-b7f5-0d2a8e6c4f19",
+  tenant_id: "5e9b3d71-c826-4a04-b7f5-0d2a8e6c4f19",
   order_id: "4a2c7c0d-4389-4aae-b3d7-02ff834a024d",
   payment_option_id: "5b8c1e47-3d29-4a6f-9c15-7e0d2f4a8b31",
   payment_option_key: "monri-cards",
@@ -120,9 +120,9 @@ export const recordedPayment: Payment = {
         money: { amount: 4000, currency: "bam" },
         request: {
           actor,
-          reason: "customer_request",
+          reason: "user_request",
           application: { type: "excess_collection", reason: "Extra cash" },
-          notify_customer: true,
+          notify_user: true,
         },
         status: {
           type: "returned",
@@ -145,7 +145,7 @@ export const recordedPayment: Payment = {
       status: {
         type: "resolved",
         by: actor,
-        note: "Returned to the customer",
+        note: "Returned to the user",
         at,
       },
     },
@@ -282,7 +282,7 @@ export type PaymentRecordContracts = [
     >
   >,
   Assert<Missing<RecordedRefundReturned, "method">>,
-  Assert<Equal<RefundRequest["notify_customer"], boolean>>,
+  Assert<Equal<RefundRequest["notify_user"], boolean>>,
   Assert<
     Equal<
       StripeCardPaymentStatus["type"],

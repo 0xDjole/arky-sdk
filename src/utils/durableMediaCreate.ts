@@ -16,7 +16,7 @@ interface DurableMediaCreate {
 }
 
 interface FileMediaCreatePayload {
-  store_id: string;
+  tenant_id: string;
   media_id: string;
   alt: LocalizedText | null;
   visibility: MediaVisibility;
@@ -29,7 +29,7 @@ interface FileMediaCreatePayload {
 }
 
 interface UrlMediaCreatePayload {
-  store_id: string;
+  tenant_id: string;
   media_id: string;
   alt: LocalizedText | null;
   visibility: MediaVisibility;
@@ -189,14 +189,14 @@ function parsePayload(requestJson: string): MediaCreatePayload {
     throw unavailable("payload is corrupt");
   }
   if (!isRecord(value)) throw unavailable("payload is invalid");
-  if (!isCanonicalId(value.store_id) || !isCanonicalId(value.media_id)) {
+  if (!isCanonicalId(value.tenant_id) || !isCanonicalId(value.media_id)) {
     throw unavailable("payload identity is invalid");
   }
   if (!validAlt(value.alt)) throw unavailable("payload alt text is invalid");
   if (value.visibility !== "public" && value.visibility !== "private") throw unavailable("payload visibility is invalid");
   if (
     value.type === "source_url" &&
-    exactKeys(value, ["store_id", "media_id", "alt", "visibility", "type", "source_url"]) &&
+    exactKeys(value, ["tenant_id", "media_id", "alt", "visibility", "type", "source_url"]) &&
     typeof value.source_url === "string" &&
     value.source_url.length > 0
   ) {
@@ -205,7 +205,7 @@ function parsePayload(requestJson: string): MediaCreatePayload {
   if (
     value.type === "file" &&
     exactKeys(value, [
-      "store_id",
+      "tenant_id",
       "media_id",
       "alt",
       "visibility",
@@ -270,8 +270,8 @@ async function decodeDurable(
 ): Promise<{ durable: DurableMediaCreate; payload: MediaCreatePayload }> {
   const durable = durableRecord(value, storageKey);
   const payload = parsePayload(durable.requestJson);
-  if (storageKey !== mediaCreateStorageKey(payload.store_id)) {
-    throw unavailable("key does not match its exact Store");
+  if (storageKey !== mediaCreateStorageKey(payload.tenant_id)) {
+    throw unavailable("key does not match its exact Tenant");
   }
   if (payload.type === "source_url") {
     if (durable.blob !== null) throw unavailable("URL payload contains a Blob");
@@ -289,17 +289,17 @@ async function decodeDurable(
 }
 
 async function payloadFor(
-  storeId: string,
+  tenantId: string,
   params: CreateMediaParams,
 ): Promise<{ payload: MediaCreatePayload; blob: Blob | null }> {
-  if (!isCanonicalId(storeId) || !isCanonicalId(params.id)) {
+  if (!isCanonicalId(tenantId) || !isCanonicalId(params.id)) {
     throw unavailable("identity is not a canonical UUID-v4");
   }
   if (params.file) {
     const blob = params.file;
     return {
       payload: {
-        store_id: storeId,
+        tenant_id: tenantId,
         media_id: params.id,
         alt: params.alt ?? null,
         visibility: params.visibility,
@@ -315,7 +315,7 @@ async function payloadFor(
   }
   return {
     payload: {
-      store_id: storeId,
+      tenant_id: tenantId,
       media_id: params.id,
       alt: params.alt ?? null,
       visibility: params.visibility,
@@ -332,7 +332,7 @@ function paramsFrom(
 ): CreateMediaParams {
   if (payload.type === "source_url") {
     return {
-      store_id: payload.store_id,
+      tenant_id: payload.tenant_id,
       id: payload.media_id,
       alt: payload.alt,
       visibility: payload.visibility,
@@ -344,7 +344,7 @@ function paramsFrom(
     throw unavailable("Blob cannot be reconstructed as a File");
   }
   return {
-    store_id: payload.store_id,
+    tenant_id: payload.tenant_id,
     id: payload.media_id,
     alt: payload.alt,
     visibility: payload.visibility,
@@ -355,14 +355,14 @@ function paramsFrom(
   };
 }
 
-export function mediaCreateStorageKey(storeId: string): string {
-  return `arky:media-create:v2:${encodeURIComponent(storeId)}`;
+export function mediaCreateStorageKey(tenantId: string): string {
+  return `arky:media-create:v2:${encodeURIComponent(tenantId)}`;
 }
 
 export async function readPendingMediaCreate(
-  storeId: string,
+  tenantId: string,
 ): Promise<CreateMediaParams | null> {
-  const storageKey = mediaCreateStorageKey(storeId);
+  const storageKey = mediaCreateStorageKey(tenantId);
   const value = await readRaw(storageKey);
   if (value === null) return null;
   const decoded = await decodeDurable(value, storageKey);
@@ -370,11 +370,11 @@ export async function readPendingMediaCreate(
 }
 
 export async function getOrCreatePendingMediaCreate(
-  storeId: string,
+  tenantId: string,
   params: CreateMediaParams,
 ): Promise<{ durable: DurableMediaCreate; params: CreateMediaParams }> {
-  const storageKey = mediaCreateStorageKey(storeId);
-  const candidate = await payloadFor(storeId, params);
+  const storageKey = mediaCreateStorageKey(tenantId);
+  const candidate = await payloadFor(tenantId, params);
   const requestJson = JSON.stringify(candidate.payload);
   const existing = await readRaw(storageKey);
   if (existing !== null) {
@@ -415,8 +415,8 @@ export async function clearPendingMediaCreate(
   }
 }
 
-export async function discardPendingMediaCreate(storeId: string): Promise<void> {
-  const storageKey = mediaCreateStorageKey(storeId);
+export async function discardPendingMediaCreate(tenantId: string): Promise<void> {
+  const storageKey = mediaCreateStorageKey(tenantId);
   await withDurableRequestLock(storageKey, mediaCreateLabel, async () => {
     await deleteRaw(storageKey);
     if ((await readRaw(storageKey)) !== null) throw unavailable("state was not cleared");

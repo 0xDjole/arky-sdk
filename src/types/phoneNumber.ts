@@ -8,7 +8,7 @@ export type PhoneNumberSetup =
 
 export interface PhoneNumber {
   id: string;
-  store_id: string;
+  tenant_id: string;
   login: ProviderLogin;
   number: string;
   setup: PhoneNumberSetup;
@@ -17,31 +17,31 @@ export interface PhoneNumber {
 }
 
 export interface FindPhoneNumbersParams {
-  store_id: string;
+  tenant_id: string;
   limit?: number;
   cursor?: string | null;
 }
 
 export interface GetPhoneNumberParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface CreatePhoneNumberParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   login: ProviderLogin;
   number: string;
 }
 
 export interface SetUpPhoneNumberParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface DeletePhoneNumberParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }

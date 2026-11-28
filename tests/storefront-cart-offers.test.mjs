@@ -8,7 +8,7 @@ const locationId = "ec210872-363d-4823-ae6c-f7cde628d7e1";
 
 function signedIn(options = {}) {
   const storage = signedInStorage();
-  const client = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "trade-europe", locale: "bs", sessionStorage: storage, ...options });
+  const client = createStorefront(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "trade-europe", locale: "bs", sessionStorage: storage, ...options });
   assert.equal(client.isAuthenticated, true);
   return { client, storage };
 }
@@ -29,10 +29,10 @@ test("offer discovery sends exactly one company location or company id with its 
       "X-Arky-Market": "forged-market",
       "X-Arky-Locale": "forged-locale",
       "X-Arky-Publishable-Key": "forged-key",
-      Authorization: "Bearer forged-customer",
+      Authorization: "Bearer forged-user",
       "X-Arky-Cart-Token": "private-recovery-token",
     },
-    params: { store_id: "forged-store", customer_id: "forged-customer", market_id: "forged-market", cart_token: "private-query-token" },
+    params: { tenant_id: "forged-tenant", user_id: "forged-user", market_id: "forged-market", cart_token: "private-query-token" },
     onSuccess: () => { successCalls += 1; },
   };
   const params = { company_location_id: locationId };
@@ -55,7 +55,7 @@ test("offer discovery sends exactly one company location or company id with its 
     assert.equal(call.path, "/v1/storefront/carts/offers");
     assert.equal(call.body, null);
     assert.equal(call.signal, controller.signal);
-    assert.equal(call.headers.get("x-arky-store-id"), storefrontIdentity.storeId);
+    assert.equal(call.headers.get("x-arky-tenant-id"), storefrontIdentity.tenantId);
     assert.equal(call.headers.get("x-arky-sales-channel-id"), storefrontIdentity.salesChannelId);
     assert.equal(call.headers.get("x-arky-market"), "trade-europe");
     assert.equal(call.headers.get("x-arky-locale"), "bs");
@@ -105,7 +105,7 @@ for (const status of [403, 409, 503]) {
     const calls = recordFetch(context, () => errorResponse(status, "CART.OFFERS_UNAVAILABLE", "Offer discovery unavailable"));
     const storage = new SessionStorage(signedInStorage().initial);
     storage.setItem("arky:selected-cart:retained", JSON.stringify({ version: 3, id: ids.cart }));
-    const client = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: storage });
+    const client = createStorefront(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: storage });
     const before = storedValues(storage);
     await assert.rejects(client.eshop.cart.findOffers({ company_location_id: locationId }), (error) => error.statusCode === status);
     assert.deepEqual(calls.map(({ method, path }) => [method, path]), [["GET", "/v1/storefront/carts/offers"]]);

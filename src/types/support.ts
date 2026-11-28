@@ -28,8 +28,8 @@ export type AssistantTool =
   | "find_locations"
   | "find_entries"
   | "find_orders"
-  | "read_customer"
-  | "save_customer"
+  | "read_user"
+  | "save_user"
   | "save_entry"
   | "book"
   | "move"
@@ -38,7 +38,7 @@ export type AssistantTool =
   | "order"
   | "record_sms_consent";
 
-export type AssistantPlaceOfSale = { type: "none" } | { type: "store_location"; store_location_id: string };
+export type AssistantPlaceOfSale = { type: "none" } | { type: "tenant_location"; tenant_location_id: string };
 
 export type AssistantStatus = { type: "active" } | { type: "paused" };
 
@@ -56,7 +56,7 @@ export interface AssistantSettings {
 
 export interface SupportAssistant extends AssistantSettings {
   id: string;
-  store_id: string;
+  tenant_id: string;
   key: string;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
@@ -71,30 +71,30 @@ export type ChatAssistantRequest = { type: "none" } | { type: "reply"; operation
 export type CallAssistantSession = { type: "none" } | { type: "session"; step_key: string; operation: AssistantOperation };
 
 export interface CreateSupportAssistantParams extends AssistantSettings {
-  store_id: string;
+  tenant_id: string;
   id: string;
   key: string;
 }
 export interface UpdateSupportAssistantParams extends CreateSupportAssistantParams {
   expected_updated_at: EpochMilliseconds;
 }
-export interface GetSupportAssistantParams { store_id: string; id: string; }
+export interface GetSupportAssistantParams { tenant_id: string; id: string; }
 export interface DeleteSupportAssistantParams extends GetSupportAssistantParams { expected_updated_at: EpochMilliseconds; }
-export interface FindSupportAssistantsParams { store_id: string; key?: string; limit?: number; cursor?: string | null; }
+export interface FindSupportAssistantsParams { tenant_id: string; key?: string; limit?: number; cursor?: string | null; }
 
 export type CallPostLogin =
-  | { store_provider_id: string; network_provider_id?: never }
-  | { store_provider_id?: never; network_provider_id: string };
+  | { tenant_provider_id: string; network_provider_id?: never }
+  | { tenant_provider_id?: never; network_provider_id: string };
 
 export type FindCallPostsParams = CallPostLogin & {
-  store_id: string;
+  tenant_id: string;
   status: IncomingWebhookStatusName;
   limit?: number;
   cursor?: string | null;
 };
 
 export interface ResolveCallPostParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   resolution: IncomingWebhookResolution;
@@ -120,11 +120,11 @@ export interface ElevenLabsVoice {
 }
 
 export type FindVoicesParams =
-  | { store_id: string; store_provider_id: string; network_provider_id?: never; limit?: number; cursor?: string | null }
-  | { store_id: string; store_provider_id?: never; network_provider_id: string; limit?: number; cursor?: string | null };
+  | { tenant_id: string; tenant_provider_id: string; network_provider_id?: never; limit?: number; cursor?: string | null }
+  | { tenant_id: string; tenant_provider_id?: never; network_provider_id: string; limit?: number; cursor?: string | null };
 
 export interface SpeakMediaParams {
-  store_id: string;
+  tenant_id: string;
   media_id: string;
   text: string;
   language: string;
@@ -157,7 +157,7 @@ export type SupportStep =
       transfer_step_key: string;
     }
   | { type: "open_hours"; hours: BookingHours; open_step_key: string; closed_step_key: string }
-  | { type: "hand_to_store" }
+  | { type: "hand_to_tenant" }
   | { type: "resolve" };
 
 export type SupportStepType = SupportStep["type"];
@@ -175,7 +175,7 @@ export type SupportEntry =
 
 export interface SupportFlow {
   id: string;
-  store_id: string;
+  tenant_id: string;
   key: string;
   entries: SupportEntry[];
   steps: Record<string, SupportStep>;
@@ -186,7 +186,7 @@ export interface SupportFlow {
 export type ConversationFlowFailureReason =
   | "step_missing"
   | "chat_step_in_email"
-  | "loops_without_customer"
+  | "loops_without_user"
   | "text_language_missing"
   | "no_email_contact"
   | "email_selection_gone"
@@ -219,7 +219,7 @@ export type WaitingReason = "message" | "booking_change_requested" | "callback_r
 
 export type ConversationState =
   | { type: "flow"; step_key: string; flow: ConversationFlow }
-  | { type: "waiting_for_store"; reason: WaitingReason; flow: ConversationPastFlow }
+  | { type: "waiting_for_tenant"; reason: WaitingReason; flow: ConversationPastFlow }
   | { type: "resolved"; flow: ConversationPastFlow };
 
 export type ConversationStateName = ConversationState["type"];
@@ -241,14 +241,14 @@ export type ReadPosition = { type: "unread" } | { type: "through"; sequence: num
 
 export interface Conversation {
   id: string;
-  store_id: string;
-  customer_id: string;
+  tenant_id: string;
+  user_id: string;
   assigned_account_id: string | null;
   type: ConversationType;
   state: ConversationState;
   next_message_sequence: number;
-  customer_read: ReadPosition;
-  store_read: ReadPosition;
+  user_read: ReadPosition;
+  tenant_read: ReadPosition;
   unread: boolean;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
@@ -344,7 +344,7 @@ export type AssistantOrderDestination =
   | { type: "pickup"; shipping_method_id: string };
 
 export type AssistantCommand =
-  | { type: "book"; booking_offering_id: string; store_location_id: string; interval: TimeRange }
+  | { type: "book"; booking_offering_id: string; tenant_location_id: string; interval: TimeRange }
   | { type: "move"; order_id: string; order_booking_line_item_id: string; interval: TimeRange }
   | { type: "cancel"; order_id: string; order_booking_line_item_id: string }
   | { type: "confirm_attendance"; order_id: string; order_booking_line_item_id: string }
@@ -356,7 +356,7 @@ export type AssistantCommand =
     };
 
 export type AssistantConfirmation =
-  | { type: "tapped"; customer_session_id: string }
+  | { type: "tapped"; user_session_id: string }
   | { type: "spoken"; caller_text: string };
 
 export type AssistantRefusal =
@@ -367,11 +367,11 @@ export type AssistantRefusal =
   | "payment_required"
   | "no_caller_reply"
   | "not_sold"
-  | "customer_not_verified"
+  | "user_not_verified"
   | "booking_overlap"
   | "order_changed";
 
-export type AssistantProposalClosure = "declined" | "expired" | "replaced" | "store_took_over" | "call_ended";
+export type AssistantProposalClosure = "declined" | "expired" | "replaced" | "tenant_took_over" | "call_ended";
 
 export type AssistantProposalState =
   | { type: "open"; expires_at: EpochMilliseconds }
@@ -401,7 +401,7 @@ export type ElevenLabsConversation =
 export type CallFlowFailureReason =
   | "step_missing"
   | "chat_step_in_email"
-  | "loops_without_customer"
+  | "loops_without_user"
   | "text_language_missing"
   | "no_email_contact"
   | "email_selection_gone"
@@ -432,10 +432,10 @@ export interface CallFlow {
 export type Caller =
   | { type: "known"; number: string }
   | { type: "unknown"; number: string }
-  | { type: "shared"; number: string; identified_customer_id: string | null }
+  | { type: "shared"; number: string; identified_user_id: string | null }
   | { type: "withheld" };
 
-export type CallHandler = "store" | "assistant";
+export type CallHandler = "tenant" | "assistant";
 
 export type CallOutcome =
   | "booked"
@@ -496,7 +496,7 @@ export interface Call {
 }
 
 export type ConversationMessageType =
-  | { type: "customer_chat"; text: string; assistant: ChatAssistantRequest }
+  | { type: "user_chat"; text: string; assistant: ChatAssistantRequest }
   | {
       type: "received_email";
       text: string;
@@ -549,7 +549,7 @@ export type CallTranscriptState =
 
 export interface ConversationMessage {
   id: string;
-  store_id: string;
+  tenant_id: string;
   conversation_id: string;
   sequence: number;
   type: ConversationMessageType;
@@ -577,8 +577,8 @@ export type CallListOutcome = CallOutcome | "missed";
 
 export interface CallListItem {
   call: ConversationMessage;
-  customer_id: string;
-  customer_name: string | null;
+  user_id: string;
+  user_name: string | null;
   waiting_callback: boolean;
 }
 
@@ -589,7 +589,7 @@ export interface StorefrontConversation {
   type: StorefrontConversationType;
   state: ConversationStateName;
   next_message_sequence: number;
-  customer_read: ReadPosition;
+  user_read: ReadPosition;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
@@ -598,7 +598,7 @@ export interface StorefrontConversationListItem {
   id: string;
   type: StorefrontConversationType;
   state: ConversationStateName;
-  customer_read: ReadPosition;
+  user_read: ReadPosition;
   newest_message_at: EpochMilliseconds;
   unread: boolean;
   created_at: EpochMilliseconds;
@@ -621,7 +621,7 @@ export type StorefrontCallOutcome =
   | "answered";
 
 export type StorefrontConversationMessageType =
-  | { type: "customer_chat"; text: string }
+  | { type: "user_chat"; text: string }
   | { type: "received_email"; text: string }
   | { type: "flow_message"; text: string }
   | { type: "flow_choice"; text: string; buttons: string[] }
@@ -712,10 +712,10 @@ export interface SendConversationMessageParams {
 }
 
 export interface StartEmailConversationParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   message_id: string;
-  customer_id: string;
+  user_id: string;
   contact: EmailContact;
   subject: string;
   reply: Email;
@@ -723,10 +723,10 @@ export interface StartEmailConversationParams {
 }
 
 export interface StartChatConversationParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   message_id: string;
-  customer_id: string;
+  user_id: string;
   language: string;
   subject: string;
   text: string;
@@ -734,7 +734,7 @@ export interface StartChatConversationParams {
 }
 
 export interface FindSupportFlowsParams {
-  store_id: string;
+  tenant_id: string;
   key?: string;
   query?: string;
   sort_field?: "created_at" | "updated_at";
@@ -744,12 +744,12 @@ export interface FindSupportFlowsParams {
 }
 
 export interface GetSupportFlowParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface CreateSupportFlowParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   key: string;
   entries: SupportEntry[];
@@ -757,7 +757,7 @@ export interface CreateSupportFlowParams {
 }
 
 export interface UpdateSupportFlowParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   key?: string;
@@ -766,16 +766,16 @@ export interface UpdateSupportFlowParams {
 }
 
 export interface DeleteSupportFlowParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface FindConversationsParams {
-  store_id: string;
+  tenant_id: string;
   statuses?: ConversationStateName[];
   contact?: ConversationContactName;
-  customer_id?: string;
+  user_id?: string;
   assigned_account_id?: string;
   unassigned?: boolean;
   unread?: boolean;
@@ -787,12 +787,12 @@ export interface FindConversationsParams {
 }
 
 export interface GetConversationParams {
-  store_id: string;
+  tenant_id: string;
   conversation_id: string;
 }
 
 export interface FindConversationMessagesParams {
-  store_id: string;
+  tenant_id: string;
   conversation_id: string;
   after_sequence?: number;
   limit?: number;
@@ -800,20 +800,20 @@ export interface FindConversationMessagesParams {
 }
 
 export interface GetConversationMessageParams {
-  store_id: string;
+  tenant_id: string;
   conversation_id: string;
   message_id: string;
 }
 
 export interface GetConversationAttachmentLinkParams {
-  store_id: string;
+  tenant_id: string;
   conversation_id: string;
   message_id: string;
   sha256: string;
 }
 
 export interface ReplyConversationParams {
-  store_id: string;
+  tenant_id: string;
   conversation_id: string;
   id: string;
   newest_message_sequence: number | null;
@@ -824,7 +824,7 @@ export interface ReplyConversationParams {
 }
 
 export interface SendConversationSmsParams {
-  store_id: string;
+  tenant_id: string;
   conversation_id: string;
   id: string;
   newest_message_sequence: number | null;
@@ -832,22 +832,22 @@ export interface SendConversationSmsParams {
   resolve?: boolean;
 }
 
-export interface SendCustomerSmsParams {
-  store_id: string;
-  customer_id: string;
+export interface SendUserSmsParams {
+  tenant_id: string;
+  user_id: string;
   id: string;
   text: string;
   resolve?: boolean;
 }
 
 export interface MarkConversationReadParams {
-  store_id: string;
+  tenant_id: string;
   conversation_id: string;
   sequence: number;
 }
 
 export interface ChangeConversationChatVisibilityParams {
-  store_id: string;
+  tenant_id: string;
   conversation_id: string;
   message_id: string;
   expected_updated_at: EpochMilliseconds;
@@ -855,33 +855,33 @@ export interface ChangeConversationChatVisibilityParams {
 }
 
 export interface SelectConversationReplyEmailParams {
-  store_id: string;
+  tenant_id: string;
   conversation_id: string;
   expected_reply: Email;
   reply: Email;
 }
 
 export interface ResolveConversationParams {
-  store_id: string;
+  tenant_id: string;
   conversation_id: string;
   newest_message_sequence: number | null;
 }
 
 export interface ReopenConversationParams {
-  store_id: string;
+  tenant_id: string;
   conversation_id: string;
   newest_message_sequence: number | null;
 }
 
 export interface AssignConversationParams {
-  store_id: string;
+  tenant_id: string;
   conversation_id: string;
   expected_account_id: string | null;
   account_id: string | null;
 }
 
 export interface FindCallsParams {
-  store_id: string;
+  tenant_id: string;
   outcomes?: CallListOutcome[];
   waiting_callback?: boolean;
   phone_number_id?: string;
@@ -891,7 +891,7 @@ export interface FindCallsParams {
 }
 
 export interface GetCallParams {
-  store_id: string;
+  tenant_id: string;
   conversation_id: string;
   message_id: string;
 }

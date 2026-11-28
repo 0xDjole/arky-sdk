@@ -19,7 +19,7 @@ export type BroadcastAudience =
       exclude: BroadcastMembers[];
       conditions: BroadcastCondition[];
     }
-  | { type: "customers"; conditions: BroadcastCondition[] };
+  | { type: "users"; conditions: BroadcastCondition[] };
 
 export interface EmailBroadcastContent {
   default_language: string;
@@ -67,7 +67,7 @@ export type BroadcastTypeRequest =
 
 export interface Broadcast {
   id: string;
-  store_id: string;
+  tenant_id: string;
   key: string;
   type: BroadcastType;
   created_at: EpochMilliseconds;
@@ -86,7 +86,7 @@ export type BroadcastSummaryType =
 
 export interface BroadcastSummary {
   id: string;
-  store_id: string;
+  tenant_id: string;
   key: string;
   type: BroadcastSummaryType;
   created_at: EpochMilliseconds;
@@ -98,7 +98,7 @@ export type BroadcastPreview =
   | { type: "sms"; language: string; text: string };
 
 export interface FindBroadcastsBySearchParams {
-  store_id: string;
+  tenant_id: string;
   ids?: never;
   type?: BroadcastTypeName;
   query?: string;
@@ -110,7 +110,7 @@ export interface FindBroadcastsBySearchParams {
 }
 
 export interface FindBroadcastsByIdsParams {
-  store_id: string;
+  tenant_id: string;
   ids: string[];
   type?: never;
   query?: never;
@@ -124,19 +124,19 @@ export interface FindBroadcastsByIdsParams {
 export type FindBroadcastsParams = FindBroadcastsBySearchParams | FindBroadcastsByIdsParams;
 
 export interface GetBroadcastParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface CreateBroadcastParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   key: string;
   type: BroadcastTypeRequest;
 }
 
 export interface UpdateBroadcastParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   key?: string;
@@ -144,38 +144,38 @@ export interface UpdateBroadcastParams {
 }
 
 export interface DeleteBroadcastParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface ScheduleBroadcastParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   send_at: EpochMilliseconds;
 }
 
 export interface UnscheduleBroadcastParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface SendBroadcastParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface PreviewBroadcastParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   language: string;
 }
 
 export interface SendBroadcastTestParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   outgoing_message_id: string;
   language: string;

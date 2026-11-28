@@ -4,7 +4,7 @@ import { createAdmin } from '../dist/admin.js';
 import { ids } from './helpers/arky-fixtures.mjs';
 import { MemoryStorage, QueuedLockManager } from './helpers/durable-request-fixtures.mjs';
 
-const STORE_ID = 'a4219f3b-50b1-4a78-902b-d7264ae027a9';
+const TENANT_ID = 'a4219f3b-50b1-4a78-902b-d7264ae027a9';
 const SESSION_ID = '5d0c8a3e-7b21-4f64-9a1e-3c2b8d7e6f50';
 const OTHER_SESSION_ID = '0b8e4d27-5f13-4a69-9c2e-7d1a6f3b8e40';
 const NETWORK_ID = '6a2d9f41-3c87-4b15-8e60-2f9b4d7c1a53';
@@ -17,7 +17,7 @@ function issued(now, issuedCount, id = SESSION_ID) {
   };
 }
 
-test('removed Store feature APIs are absent and Store code login names its Store explicitly', async (t) => {
+test('removed Tenant feature APIs are absent and Tenant code login names its Tenant explicitly', async (t) => {
   const calls = [];
   const original = globalThis.fetch;
   t.after(() => { globalThis.fetch = original; });
@@ -29,19 +29,19 @@ test('removed Store feature APIs are absent and Store code login names its Store
     return Response.json(issued(now, 1));
   };
   const admin = createAdmin({ apiUrl: 'https://api.example.test' });
-  for (const removed of ['adminDomain', 'branding', 'commerce', 'customerWorkspace', 'marketZone', 'marketPaymentOption', 'paymentTerms']) {
-    assert.equal(removed in admin.store, false, removed);
+  for (const removed of ['adminDomain', 'branding', 'commerce', 'userWorkspace', 'marketZone', 'marketPaymentOption', 'paymentTerms']) {
+    assert.equal(removed in admin.tenant, false, removed);
   }
-  const pending = await admin.account.auth.requestCode({ session_id: SESSION_ID, email: 'invited@example.test', store_id: STORE_ID, language: 'en' });
-  const session = await admin.account.auth.verify({ session_id: pending.session_id, code: '123456', store_id: STORE_ID });
+  const pending = await admin.account.auth.requestCode({ session_id: SESSION_ID, email: 'invited@example.test', tenant_id: TENANT_ID, language: 'en' });
+  const session = await admin.account.auth.verify({ session_id: pending.session_id, code: '123456', tenant_id: TENANT_ID });
   assert.equal('scope' in session, false);
   assert.deepEqual(admin.session, { id: SESSION_ID, email: 'invited@example.test' });
   assert.deepEqual(calls, [
-    { path: `/v1/stores/${STORE_ID}/auth/code`, method: 'POST', body: { session_id: SESSION_ID, email: 'invited@example.test', language: 'en' } },
-    { path: `/v1/stores/${STORE_ID}/auth/verify`, method: 'POST', body: { session_id: SESSION_ID, code: '123456' } },
+    { path: `/v1/tenants/${TENANT_ID}/auth/code`, method: 'POST', body: { session_id: SESSION_ID, email: 'invited@example.test', language: 'en' } },
+    { path: `/v1/tenants/${TENANT_ID}/auth/verify`, method: 'POST', body: { session_id: SESSION_ID, code: '123456' } },
   ]);
-  for (const storeId of ['', 'store/one', STORE_ID.toUpperCase()]) {
-    await assert.rejects(() => admin.account.auth.requestCode({ session_id: SESSION_ID, email: 'invited@example.test', store_id: storeId, language: 'en' }), TypeError);
+  for (const tenantId of ['', 'tenant/one', TENANT_ID.toUpperCase()]) {
+    await assert.rejects(() => admin.account.auth.requestCode({ session_id: SESSION_ID, email: 'invited@example.test', tenant_id: tenantId, language: 'en' }), TypeError);
   }
   assert.equal(calls.length, 2);
 });
@@ -67,14 +67,14 @@ test('retained Sessions keep their exact credentials through refresh and a malfo
   };
   const storageKey = 'arky_admin_session:https://api.example.test';
   const admin = createAdmin({ apiUrl: 'https://api.example.test' });
-  await admin.account.auth.verify({ session_id: 'pending', code: '123456', store_id: STORE_ID });
+  await admin.account.auth.verify({ session_id: 'pending', code: '123456', tenant_id: TENANT_ID });
   assert.deepEqual(admin.session, { id: SESSION_ID, email: undefined });
   assert.deepEqual(JSON.parse(storage.getItem(storageKey)), {
     id: SESSION_ID, access_token: 'access-1', refresh_token: 'refresh-1',
   });
   const rotated = await admin.account.auth.refresh({ refresh_token: 'refresh-1' });
   assert.equal(rotated.access_token, 'access-2');
-  assert.deepEqual(requests.map(({ url }) => url.pathname), [`/v1/stores/${STORE_ID}/auth/verify`, '/v1/auth/refresh']);
+  assert.deepEqual(requests.map(({ url }) => url.pathname), [`/v1/tenants/${TENANT_ID}/auth/verify`, '/v1/auth/refresh']);
   assert.deepEqual(requests[1].body, { refresh_token: 'refresh-1' });
   const stored = JSON.parse(storage.getItem(storageKey));
   assert.equal(stored.id, SESSION_ID);
@@ -122,7 +122,7 @@ test('rejected Account refresh clears retained credentials and notifies consumer
     const admin = createAdmin({ apiUrl: 'https://api.example.test' });
     const events = [];
     const unsubscribe = admin.onAuthStateChanged(session => events.push(session));
-    await assert.rejects(admin.store.find({ limit: 10 }));
+    await assert.rejects(admin.tenant.find({ limit: 10 }));
     await Promise.resolve();
     const rejected = status === 401 || status === 403;
     assert.equal(storage.getItem(storageKey), rejected ? null : retained, String(status));
@@ -168,7 +168,7 @@ test('a 401 or 403 that Arky did not send keeps the retained Account session for
     const admin = createAdmin({ apiUrl: 'https://api.example.test' });
     const events = [];
     const unsubscribe = admin.onAuthStateChanged(session => events.push(session));
-    await assert.rejects(admin.store.find({ limit: 10 }), { name: 'ArkyError', code: 'refresh_failed' });
+    await assert.rejects(admin.tenant.find({ limit: 10 }), { name: 'ArkyError', code: 'refresh_failed' });
     await Promise.resolve();
     assert.equal(storage.getItem(storageKey), retained);
     assert.equal(admin.isAuthenticated, true);
@@ -227,9 +227,9 @@ test('a refused account token keeps the native snake_case failure without refres
   const token = `arky_at_${'r'.repeat(42)}A`;
   const admin = createAdmin({ apiUrl: 'https://api.example.test', accountToken: token });
   const payload = {
-    id: STORE_ID,
+    id: TENANT_ID,
     type: { type: 'live', network_id: ids.network, plan: { type: 'free', plan_id: ids.plan }, owner: { type: 'caller' } },
-    name: 'Account-authorized Store',
+    name: 'Account-authorized Tenant',
     timezone: 'Europe/Sarajevo',
     languages: ['bs', 'en'],
     market: { key: 'bih', currency: 'bam', tax_mode: 'inclusive' },
@@ -237,7 +237,7 @@ test('a refused account token keeps the native snake_case failure without refres
   };
   for (const operation of [
     () => admin.account.getMe({}),
-    () => admin.store.create(payload),
+    () => admin.tenant.create(payload),
   ]) {
     await assert.rejects(operation, (error) => {
       assert.equal(error.message, response.message);
@@ -251,9 +251,9 @@ test('a refused account token keeps the native snake_case failure without refres
   }
   assert.deepEqual(requests, [
     { path: '/v1/accounts/me', method: 'GET', authorization: `Bearer ${token}`, body: null },
-    { path: '/v1/stores', method: 'POST', authorization: `Bearer ${token}`, body: payload },
+    { path: '/v1/tenants', method: 'POST', authorization: `Bearer ${token}`, body: payload },
   ]);
-  await assert.rejects(async () => admin.store.create({ ...payload, id: 'store-one' }), TypeError);
+  await assert.rejects(async () => admin.tenant.create({ ...payload, id: 'tenant-one' }), TypeError);
   assert.equal(requests.length, 2);
 });
 
@@ -316,7 +316,7 @@ test('a device clock far ahead sends each Admin call once, without refreshing fi
   const calls = storedAdminBrowser(t, { id: SESSION_ID, access_token: 'held-access', refresh_token: 'held-refresh', email: 'operator@example.test' });
   const admin = createAdmin({ apiUrl: 'https://api.example.test' });
   assert.equal(admin.isAuthenticated, true);
-  await admin.store.find({ limit: 10 });
+  await admin.tenant.find({ limit: 10 });
   assert.equal(calls.length, 1);
   assert.equal(calls[0].method, 'GET');
   assert.equal(calls[0].authorization, 'Bearer held-access');
@@ -331,7 +331,7 @@ test('a stored Admin session with any other field is no session', async (t) => {
   const admin = createAdmin({ apiUrl: 'https://api.example.test' });
   assert.equal(admin.isAuthenticated, false);
   assert.equal(admin.session, null);
-  await admin.store.find({ limit: 10 });
+  await admin.tenant.find({ limit: 10 });
   assert.equal(calls.length, 1);
   assert.equal(calls[0].authorization, null);
   assert.equal(calls.some(call => call.path === '/v1/auth/refresh'), false);
@@ -359,8 +359,8 @@ test('a 401 that Arky did not send on a request never rotates the Account sessio
     return new Response('<html><title>401 Authorization Required</title></html>', { status: 401, headers: { 'content-type': 'text/html' } });
   });
   const admin = createAdmin({ apiUrl: 'https://api.example.test' });
-  await assert.rejects(admin.store.find({ limit: 10 }), (error) => error.name === 'ParseError' && error.statusCode === 401 && error.code === 'unreadable_answer');
-  assert.deepEqual(calls, ['/v1/stores']);
+  await assert.rejects(admin.tenant.find({ limit: 10 }), (error) => error.name === 'ParseError' && error.statusCode === 401 && error.code === 'unreadable_answer');
+  assert.deepEqual(calls, ['/v1/tenants']);
   assert.equal(storage.getItem('arky_admin_session:https://api.example.test'), retainedAdminSession);
 });
 
@@ -373,7 +373,7 @@ test('a refresh answered without readable JSON fails with unreadable_answer and 
     return Response.json({ message: 'Expired', status_code: 401, error: 'GENERAL.UNAUTHENTICATED' }, { status: 401 });
   });
   const admin = createAdmin({ apiUrl: 'https://api.example.test' });
-  await assert.rejects(admin.store.find({ limit: 10 }), (error) => error.name === 'ParseError' && error.code === 'unreadable_answer');
+  await assert.rejects(admin.tenant.find({ limit: 10 }), (error) => error.name === 'ParseError' && error.code === 'unreadable_answer');
   assert.equal(storage.getItem('arky_admin_session:https://api.example.test'), retainedAdminSession);
   assert.equal(admin.isAuthenticated, true);
 });
@@ -385,8 +385,8 @@ test('an Admin API address with trailing slashes sends each call to its exact pa
     return Response.json({ items: [], cursor: null });
   });
   const admin = createAdmin({ apiUrl: 'https://api.example.test//', accountToken: 'arky_at_ttttttttttttttttttttttttttttttttttttttttttA' });
-  await admin.store.find({ limit: 10 });
-  assert.deepEqual(calls, ['https://api.example.test/v1/stores?limit=10']);
+  await admin.tenant.find({ limit: 10 });
+  assert.deepEqual(calls, ['https://api.example.test/v1/tenants?limit=10']);
 });
 
 test('a browser without Web Locks refuses to refresh the Account session instead of racing other tabs', async (t) => {
@@ -404,8 +404,8 @@ test('a browser without Web Locks refuses to refresh the Account session instead
     return Response.json({ message: 'Expired', status_code: 401, error: 'GENERAL.UNAUTHENTICATED' }, { status: 401 });
   });
   const admin = createAdmin({ apiUrl: 'https://api.example.test' });
-  await assert.rejects(admin.store.find({ limit: 10 }), (error) => error.name === 'ArkyError' && error.code === 'storage');
-  assert.deepEqual(calls, ['/v1/stores']);
+  await assert.rejects(admin.tenant.find({ limit: 10 }), (error) => error.name === 'ArkyError' && error.code === 'storage');
+  assert.deepEqual(calls, ['/v1/tenants']);
   assert.equal(storage.getItem('arky_admin_session:https://api.example.test'), retainedAdminSession);
 });
 
@@ -422,7 +422,7 @@ test('getAccessToken answers the account token, the signed-in session access tok
   assert.equal(createAdmin({ apiUrl: 'https://api.example.test', accountToken: token }).getAccessToken(), token);
   const admin = createAdmin({ apiUrl: 'https://api.example.test' });
   assert.equal(admin.getAccessToken(), null);
-  const pending = await admin.account.auth.requestCode({ session_id: SESSION_ID, email: 'invited@example.test', store_id: STORE_ID, language: 'en' });
-  await admin.account.auth.verify({ session_id: pending.session_id, code: '123456', store_id: STORE_ID });
+  const pending = await admin.account.auth.requestCode({ session_id: SESSION_ID, email: 'invited@example.test', tenant_id: TENANT_ID, language: 'en' });
+  await admin.account.auth.verify({ session_id: pending.session_id, code: '123456', tenant_id: TENANT_ID });
   assert.equal(admin.getAccessToken(), 'access-1');
 });

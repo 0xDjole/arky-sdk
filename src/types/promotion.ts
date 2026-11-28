@@ -35,7 +35,7 @@ export type PromotionEffect =
 
 export type PromotionCondition =
   | { type: "signed_in" }
-  | { type: "customer"; customer_ids: string[] }
+  | { type: "user"; user_ids: string[] }
   | { type: "package"; package_ids: string[] }
   | { type: "package_offering"; package_offering_ids: string[] }
   | { type: "company"; company_ids: string[] }
@@ -63,7 +63,7 @@ export type PromotionEditableStatus = Exclude<PromotionStatus, { type: "deleting
 
 export interface Promotion {
   id: string;
-  store_id: string;
+  tenant_id: string;
   key: string;
   blocks: Block[];
   activation: PromotionActivation;
@@ -73,7 +73,7 @@ export interface Promotion {
   priority: number;
   limit: PromotionLimit;
   uses: number;
-  customer_limit: PromotionLimit;
+  user_limit: PromotionLimit;
   schedule: Schedule;
   status: PromotionStatus;
   created_at: EpochMilliseconds;
@@ -101,7 +101,7 @@ export type PromotionCodeEditableStatus = Exclude<PromotionCodeStatus, { type: "
 
 export interface PromotionCode {
   id: string;
-  store_id: string;
+  tenant_id: string;
   promotion_id: string;
   code: string;
   limit: PromotionLimit;
@@ -114,7 +114,7 @@ export interface PromotionCode {
 export type PromotionCodeWebhookPayload = Omit<PromotionCode, "uses">;
 
 export interface CreatePromotionParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   key: string;
   blocks: Block[];
@@ -124,13 +124,13 @@ export interface CreatePromotionParams {
   stacking: PromotionStacking;
   priority: number;
   limit: PromotionLimit;
-  customer_limit: PromotionLimit;
+  user_limit: PromotionLimit;
   schedule: PackageScheduleInput;
   status: PromotionEditableStatus;
 }
 
 export interface UpdatePromotionParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   key: string;
@@ -140,23 +140,23 @@ export interface UpdatePromotionParams {
   stacking: PromotionStacking;
   priority: number;
   limit: PromotionLimit;
-  customer_limit: PromotionLimit;
+  user_limit: PromotionLimit;
   schedule: PackageScheduleInput;
   status: PromotionEditableStatus;
 }
 
 export interface GetPromotionParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface GetPromotionByKeyParams {
-  store_id: string;
+  tenant_id: string;
   key: string;
 }
 
 export interface FindPromotionsBySearchParams {
-  store_id: string;
+  tenant_id: string;
   ids?: never;
   key?: string;
   status?: PromotionStatus["type"];
@@ -165,7 +165,7 @@ export interface FindPromotionsBySearchParams {
 }
 
 export interface FindPromotionsByIdsParams {
-  store_id: string;
+  tenant_id: string;
   ids: string[];
   key?: never;
   status?: never;
@@ -176,13 +176,13 @@ export interface FindPromotionsByIdsParams {
 export type FindPromotionsParams = FindPromotionsBySearchParams | FindPromotionsByIdsParams;
 
 export interface DeletePromotionParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface CreatePromotionCodeParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   promotion_id: string;
   code: string;
@@ -191,7 +191,7 @@ export interface CreatePromotionCodeParams {
 }
 
 export interface UpdatePromotionCodeParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   code: string;
@@ -200,17 +200,17 @@ export interface UpdatePromotionCodeParams {
 }
 
 export interface GetPromotionCodeParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface GetPromotionCodeByCodeParams {
-  store_id: string;
+  tenant_id: string;
   code: string;
 }
 
 export interface FindPromotionCodesBySearchParams {
-  store_id: string;
+  tenant_id: string;
   ids?: never;
   promotion_id?: string;
   code?: string;
@@ -220,7 +220,7 @@ export interface FindPromotionCodesBySearchParams {
 }
 
 export interface FindPromotionCodesByIdsParams {
-  store_id: string;
+  tenant_id: string;
   ids: string[];
   promotion_id?: never;
   code?: never;
@@ -232,7 +232,7 @@ export interface FindPromotionCodesByIdsParams {
 export type FindPromotionCodesParams = FindPromotionCodesBySearchParams | FindPromotionCodesByIdsParams;
 
 export interface DeletePromotionCodeParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }

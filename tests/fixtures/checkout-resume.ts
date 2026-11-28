@@ -11,7 +11,7 @@ type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
 
 export type CheckoutResumeContracts = [
   Assert<Equal<Parameters<Admin["eshop"]["order"]["resumePayment"]>[0], ResumeOrderPaymentParams>>,
-  Assert<Equal<keyof ResumeOrderPaymentParams, "store_id" | "order_id">>,
+  Assert<Equal<keyof ResumeOrderPaymentParams, "tenant_id" | "order_id">>,
   Assert<Equal<Awaited<ReturnType<Admin["eshop"]["order"]["resumePayment"]>>, CheckoutPaymentAction>>,
   Assert<Equal<Parameters<Storefront["eshop"]["order"]["resumePayment"]>[0], StorefrontResumeOrderPaymentParams>>,
   Assert<Equal<keyof StorefrontResumeOrderPaymentParams, "order_id">>,

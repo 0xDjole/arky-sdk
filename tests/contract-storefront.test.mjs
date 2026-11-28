@@ -29,10 +29,10 @@ const productLine = {
   price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price },
 };
 
-const scope = { buyer: { type: "customer" }, package_id: ids.package };
+const scope = { buyer: { type: "user" }, package_id: ids.package };
 
 function checkoutCart() {
-  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "ita", locale: "it", sessionStorage: visitorStorage() });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "ita", locale: "it", sessionStorage: visitorStorage() });
   const cart = store.eshop.cart(scope);
   cart.cart.set(cartRecord({ line_items: [productLine] }));
   cart.quote_result.set(quoteRecord());
@@ -43,17 +43,17 @@ function cardPayment() {
   return { type: "payment_option", payment_option_id: ids.paymentOption, return_url: "https://shop.example.test/checkout/complete", save_payment_method: { type: "dont_save" } };
 }
 
-test("initialize is the root API and exposes the module facade without store switching", () => {
+test("initialize is the root API and exposes the module facade without tenant switching", () => {
   const rootStore = initializeFromRoot(storefrontIdentity, { ...idFactories, locale: "it" });
-  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, locale: "it", market: "ita" });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, locale: "it", market: "ita" });
   for (const facade of [rootStore, store]) {
     const cart = facade.eshop.cart(scope);
     assert.equal(typeof facade.content.entry.get, "function");
     assert.equal(typeof facade.content.entry.find, "function");
     assert.equal(typeof facade.media.find, "function");
-    assert.equal(typeof facade.customerEntries.find, "function");
-    assert.equal(typeof facade.customerEntries.get, "function");
-    assert.equal(typeof facade.customerEntries.fileLink, "function");
+    assert.equal(typeof facade.userEntries.find, "function");
+    assert.equal(typeof facade.userEntries.get, "function");
+    assert.equal(typeof facade.userEntries.fileLink, "function");
     assert.equal(facade.sharedEntries, undefined);
     assert.equal(typeof facade.forms.get, "function");
     assert.equal(typeof facade.forms.getByKey, "function");
@@ -73,13 +73,13 @@ test("initialize is the root API and exposes the module facade without store swi
     assert.equal(typeof facade.eshop.packageOffering.get, "function");
     assert.equal(typeof facade.eshop.packageMember.find, "function");
     assert.equal(typeof facade.eshop.minimumProgress.get, "function");
-    assert.equal(typeof facade.customer.verifyContact, "function");
-    assert.equal(typeof facade.customer.addContact, "function");
-    assert.equal(typeof facade.customer.updateContact, "function");
-    assert.equal(typeof facade.customer.removeContact, "function");
-    assert.equal(typeof facade.customer.removeLink, "function");
-    assert.equal(typeof facade.customer.useStoreKey, "function");
-    for (const removed of ["changeEmail", "verifyNewLogin", "addLogin", "updateLogin", "deleteLogin"]) assert.equal(removed in facade.customer, false, removed);
+    assert.equal(typeof facade.user.verifyContact, "function");
+    assert.equal(typeof facade.user.addContact, "function");
+    assert.equal(typeof facade.user.updateContact, "function");
+    assert.equal(typeof facade.user.removeContact, "function");
+    assert.equal(typeof facade.user.removeLink, "function");
+    assert.equal(typeof facade.user.useTenantKey, "function");
+    for (const removed of ["changeEmail", "verifyNewLogin", "addLogin", "updateLogin", "deleteLogin"]) assert.equal(removed in facade.user, false, removed);
     assert.equal(typeof facade.setContext, "function");
     assert.equal(typeof facade.eshop.checkoutFlow, "function");
     assert.equal(typeof facade.eshop.bookingCalendar, "function");
@@ -87,7 +87,7 @@ test("initialize is the root API and exposes the module facade without store swi
     assert.equal(typeof facade.newsletter.join, "function");
     assert.equal(typeof facade.newsletter.requestCode, "function");
     for (const removed of [
-      "getStoreId", "forStore", "marketForLocale", "audiences", "packages", "package_members", "cms", "crm",
+      "getTenantId", "forTenant", "marketForLocale", "audiences", "packages", "package_members", "cms", "crm",
       "subscription_plans", "subscription_offerings", "setSalesChannel", "getSalesChannel", "sales_channel_key", "withContext",
       "setMarket", "setLocale", "utils", "ensureSession",
     ]) {
@@ -114,7 +114,7 @@ test("initialize is the root API and exposes the module facade without store swi
 
 test("storefront reference batches use their typed endpoints with the ids JSON-encoded", async (context) => {
   const calls = recordFetch(context, (call) => (call.path === "/v1/storefront/media" ? [] : { items: [], cursor: null }));
-  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl });
+  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl });
   assert.deepEqual(await storefront.media.find({ ids: ["media-1", "media-2"] }), []);
   await storefront.content.entry.find({ ids: ["entry-1"] });
   assert.deepEqual(calls.map((call) => [call.method, call.path, JSON.parse(call.query.ids)]), [
@@ -124,7 +124,7 @@ test("storefront reference batches use their typed endpoints with the ids JSON-e
 });
 
 test("market and locale stay independent, a market change clears the cart view, and the client identity fixes the channel", () => {
-  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, locale: "it", market: "ita" });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, locale: "it", market: "ita" });
   store.setContext({ locale: "en" });
   assert.equal(store.getLocale(), "en");
   assert.equal(store.getMarket(), "ita");
@@ -139,7 +139,7 @@ test("market and locale stay independent, a market change clears the cart view, 
   for (const removed of ["setSalesChannel", "getSalesChannel"]) assert.equal(removed in store, false, removed);
 });
 
-test("checkout from the store sends the reviewed cart through keyless routes with visitor authorization and no store, market or language in the body", async (context) => {
+test("checkout from the tenant sends the reviewed cart through keyless routes with visitor authorization and no tenant, market or language in the body", async (context) => {
   const calls = recordFetch(context, (call) => call.path === "/v1/storefront/carts/accept" ? placedAcceptance() : placedOrder());
   const cart = checkoutCart();
   await assert.rejects(cart.checkout({ order_id: "order-1", order_token: "arky_ot_" + "A".repeat(43), contact_email: null, payment: cardPayment() }), /needs the app's order id/);
@@ -166,11 +166,11 @@ test("checkout from the store sends the reviewed cart through keyless routes wit
   assert.equal(calls[1].body, null);
   for (const call of calls) {
     assert.equal(call.headers.get("authorization"), `Bearer ${visitorToken}`);
-    assert.equal(call.headers.get("x-arky-store-id"), storefrontIdentity.storeId);
+    assert.equal(call.headers.get("x-arky-tenant-id"), storefrontIdentity.tenantId);
     assert.equal(call.headers.get("x-arky-sales-channel-id"), storefrontIdentity.salesChannelId);
     assert.equal(call.headers.get("x-arky-locale"), "it");
     assert.equal(call.headers.get("x-arky-market"), "ita");
-    assert.equal(call.href.includes("store_id"), false);
+    assert.equal(call.href.includes("tenant_id"), false);
   }
   assert.equal(cart.cart.get(), null);
   assert.equal("last_order" in cart, false, "the placed order is the checkout's answer, or the checkout flow's placed state");
@@ -178,7 +178,7 @@ test("checkout from the store sends the reviewed cart through keyless routes wit
   assert.equal(answer.number, "1001");
 });
 
-test("checkout from the store sends the contact names only when the page gives them", async (context) => {
+test("checkout from the tenant sends the contact names only when the page gives them", async (context) => {
   const calls = recordFetch(context, (call) => call.path === "/v1/storefront/carts/accept" ? placedAcceptance({ order_id: call.body.order_id }) : placedOrder({ id: call.path.split("/").at(-1) }));
   const contact = { email: "buyer@example.test", language: "it" };
   const named = checkoutCart();
@@ -259,7 +259,7 @@ test("a card checkout hands back the embedded Stripe action without navigating",
 
 test("payment resume asks the placed order for its payment action, and payments are read exactly", async (context) => {
   const calls = recordFetch(context, (call) => call.path.endsWith("/payment-action") ? { type: "none" } : call.path.endsWith("/payments") ? [] : { id: ids.payment });
-  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
   assert.deepEqual(await store.eshop.order.resumePayment({ order_id: ids.order }), { type: "none" });
   await store.eshop.order.getPayment({ order_id: ids.order, payment_id: ids.payment });
   assert.deepEqual(await store.eshop.order.findPayments({ order_id: ids.order }), []);
@@ -269,7 +269,7 @@ test("payment resume asks the placed order for its payment action, and payments 
     ["GET", `/v1/storefront/orders/${ids.order}/payments`, null],
   ]);
   assert.ok(calls.every((call) => call.headers.get("authorization") === `Bearer ${visitorToken}`));
-  assert.equal("checkout" in createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl }).eshop, false);
+  assert.equal("checkout" in createStorefront(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl }).eshop, false);
 });
 
 test("storefront order, payment, return and cart reads are typed as the buyer's copies", async () => {

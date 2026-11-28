@@ -26,40 +26,40 @@ import type {
 } from "../types/fiscalReceipt";
 import { createHttpClient } from "../services/createHttpClient";
 import { requireId } from "../utils/ids";
-import { requireStoreId } from "../utils/storeTarget";
-import { segment, storePath, storeRecordPath } from "./paths";
+import { requireTenantId } from "../utils/tenantTarget";
+import { segment, tenantPath, tenantRecordPath } from "./paths";
 
 const collection = "fiscal-devices";
 
 export const createFiscalDeviceApi = (apiConfig: ApiConfig) => {
-  const devicePath = (storeId: string, id: string) => storeRecordPath(storeId, collection, id);
-  const tokensPath = (storeId: string, fiscalDeviceId: string) => `${devicePath(storeId, fiscalDeviceId)}/tokens`;
+  const devicePath = (tenantId: string, id: string) => tenantRecordPath(tenantId, collection, id);
+  const tokensPath = (tenantId: string, fiscalDeviceId: string) => `${devicePath(tenantId, fiscalDeviceId)}/tokens`;
 
   return {
     find(params: FindFiscalDevicesParams, options?: RequestOptions): Promise<PaginatedResponse<FiscalDevice>> {
-      const { store_id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<FiscalDevice>>(storePath(store_id, collection), {
+      const { tenant_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<FiscalDevice>>(tenantPath(tenant_id, collection), {
         ...options,
         params: query,
       });
     },
 
     get(params: GetFiscalDeviceParams, options?: RequestOptions): Promise<FiscalDevice> {
-      return apiConfig.httpClient.get<FiscalDevice>(devicePath(params.store_id, params.id), options);
+      return apiConfig.httpClient.get<FiscalDevice>(devicePath(params.tenant_id, params.id), options);
     },
 
     create(params: CreateFiscalDeviceParams, options?: RequestOptions): Promise<FiscalDevice> {
       requireId(params.id, "fiscal device");
       return apiConfig.httpClient.post<FiscalDevice>(
-        storePath(params.store_id, collection),
-        { id: params.id, store_location_id: params.store_location_id, key: params.key, type: params.type },
+        tenantPath(params.tenant_id, collection),
+        { id: params.id, tenant_location_id: params.tenant_location_id, key: params.key, type: params.type },
         options,
       );
     },
 
     rename(params: RenameFiscalDeviceParams, options?: RequestOptions): Promise<FiscalDevice> {
       return apiConfig.httpClient.put<FiscalDevice>(
-        devicePath(params.store_id, params.id),
+        devicePath(params.tenant_id, params.id),
         { expected_updated_at: params.expected_updated_at, key: params.key },
         options,
       );
@@ -67,7 +67,7 @@ export const createFiscalDeviceApi = (apiConfig: ApiConfig) => {
 
     archive(params: ArchiveFiscalDeviceParams, options?: RequestOptions): Promise<FiscalDevice> {
       return apiConfig.httpClient.post<FiscalDevice>(
-        `${devicePath(params.store_id, params.id)}/archive`,
+        `${devicePath(params.tenant_id, params.id)}/archive`,
         { expected_updated_at: params.expected_updated_at },
         options,
       );
@@ -75,7 +75,7 @@ export const createFiscalDeviceApi = (apiConfig: ApiConfig) => {
 
     release(params: ReleaseFiscalDeviceParams, options?: RequestOptions): Promise<FiscalDevice> {
       return apiConfig.httpClient.post<FiscalDevice>(
-        `${devicePath(params.store_id, params.id)}/release`,
+        `${devicePath(params.tenant_id, params.id)}/release`,
         { expected_updated_at: params.expected_updated_at },
         options,
       );
@@ -83,13 +83,13 @@ export const createFiscalDeviceApi = (apiConfig: ApiConfig) => {
 
     token: {
       find(params: FindFiscalDeviceTokensParams, options?: RequestOptions): Promise<FiscalDeviceToken[]> {
-        return apiConfig.httpClient.get<FiscalDeviceToken[]>(tokensPath(params.store_id, params.fiscal_device_id), options);
+        return apiConfig.httpClient.get<FiscalDeviceToken[]>(tokensPath(params.tenant_id, params.fiscal_device_id), options);
       },
 
       create(params: CreateFiscalDeviceTokenParams, options?: RequestOptions): Promise<IssuedFiscalDeviceToken> {
         requireId(params.id, "fiscal device token");
         return apiConfig.httpClient.post<IssuedFiscalDeviceToken>(
-          tokensPath(params.store_id, params.fiscal_device_id),
+          tokensPath(params.tenant_id, params.fiscal_device_id),
           { id: params.id, name: params.name },
           options,
         );
@@ -97,7 +97,7 @@ export const createFiscalDeviceApi = (apiConfig: ApiConfig) => {
 
       revoke(params: RevokeFiscalDeviceTokenParams, options?: RequestOptions): Promise<FiscalDeviceToken> {
         return apiConfig.httpClient.post<FiscalDeviceToken>(
-          `${tokensPath(params.store_id, params.fiscal_device_id)}/${segment(params.id)}/revoke`,
+          `${tokensPath(params.tenant_id, params.fiscal_device_id)}/${segment(params.id)}/revoke`,
           undefined,
           options,
         );
@@ -110,13 +110,13 @@ const FISCAL_DEVICE_TOKEN_PREFIX = "arky_fd_";
 
 export interface FiscalDeviceAgentConfig {
   apiUrl: string;
-  storeId: string;
+  tenantId: string;
   token: string;
   redirect?: RequestRedirect;
 }
 
 export const createFiscalDeviceAgent = (config: FiscalDeviceAgentConfig) => {
-  const storeId = requireStoreId(config.storeId);
+  const tenantId = requireTenantId(config.tenantId);
   if (
     typeof config.token !== "string" ||
     !config.token.startsWith(FISCAL_DEVICE_TOKEN_PREFIX) ||
@@ -131,11 +131,11 @@ export const createFiscalDeviceAgent = (config: FiscalDeviceAgentConfig) => {
     onUnauthorized: () => false,
     redirect: config.redirect,
   });
-  const agentPath = (path: string) => storePath(storeId, `fiscal-device/${path}`);
+  const agentPath = (path: string) => tenantPath(tenantId, `fiscal-device/${path}`);
 
   return {
     getDevice(options?: AdminRequestOptions): Promise<FiscalDeviceAgentDevice> {
-      return httpClient.get<FiscalDeviceAgentDevice>(storePath(storeId, "fiscal-device"), options);
+      return httpClient.get<FiscalDeviceAgentDevice>(tenantPath(tenantId, "fiscal-device"), options);
     },
 
     heartbeat(params: FiscalDeviceHeartbeatParams, options?: AdminRequestOptions): Promise<FiscalDeviceHeartbeat> {

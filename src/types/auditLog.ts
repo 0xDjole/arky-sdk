@@ -2,7 +2,7 @@ import type { EpochMilliseconds } from "./time";
 import type { Actor } from "./common";
 
 export type AuditSubjectType =
-  | "store"
+  | "tenant"
   | "promotion_code"
   | "promotion"
   | "inventory_item"
@@ -21,8 +21,8 @@ export type AuditSubjectType =
   | "package_member"
   | "company"
   | "package_item_price"
-  | "store_membership"
-  | "store_role"
+  | "tenant_membership"
+  | "tenant_role"
   | "conversation"
   | "conversation_message"
   | "collection"
@@ -31,8 +31,8 @@ export type AuditSubjectType =
   | "media"
   | "form_submission"
   | "category"
-  | "customer_action"
-  | "customer"
+  | "user_action"
+  | "user"
   | "digital_asset"
   | "cart"
   | "order"
@@ -48,10 +48,10 @@ export type AuditSubjectType =
   | "booking_service"
   | "broadcast"
   | "payment_option"
-  | "store_location"
+  | "tenant_location"
   | "market"
   | "webhook"
-  | "store_provider"
+  | "tenant_provider"
   | "template"
   | "notification"
   | "suppression"
@@ -71,28 +71,28 @@ export type AuditSubjectType =
   | "order_credit"
   | "invoice"
   | "invoice_counter"
-  | "store_seller"
+  | "tenant_seller"
   | "fiscal_device"
   | "fiscal_device_token"
   | "fiscal_receipt"
   | "payment_method"
   | "experiment"
   | "experiment_assignment"
-  | "customer_session"
+  | "user_session"
   | "incoming_webhook"
-  | "store_subscription"
-  | "store_plan_charge"
+  | "tenant_subscription"
+  | "tenant_plan_charge"
   | "account"
   | "account_session"
   | "layout"
   | "layout_element";
 
 export type AuditEntryOwner =
-  | { type: "store" }
-  | { type: "customer"; customer_id: string };
+  | { type: "tenant" }
+  | { type: "user"; user_id: string };
 
 export type AuditNoteOwner =
-  | { type: "customer"; customer_id: string }
+  | { type: "user"; user_id: string }
   | { type: "company"; company_id: string };
 
 export type AuditAction =
@@ -149,20 +149,20 @@ export type AuditAction =
   | { action: "package_item_price_created"; package_item_id: string; price_id: string }
   | { action: "package_item_price_updated"; package_item_id: string; price_id: string }
   | { action: "package_item_price_deleted"; package_item_id: string; price_id: string }
-  | { action: "store_membership_created"; store_membership_id: string }
-  | { action: "store_membership_updated"; store_membership_id: string }
-  | { action: "store_membership_deleted"; store_membership_id: string }
-  | { action: "store_role_created"; store_role_id: string }
-  | { action: "store_role_updated"; store_role_id: string }
-  | { action: "store_role_deleted"; store_role_id: string }
-  | { action: "conversation_created"; conversation_id: string; customer_id: string }
-  | { action: "conversation_updated"; conversation_id: string; customer_id: string }
-  | { action: "conversation_message_created"; conversation_id: string; conversation_message_id: string; customer_id: string }
-  | { action: "conversation_message_updated"; conversation_id: string; conversation_message_id: string; customer_id: string }
-  | { action: "conversation_message_list_read"; conversation_id: string; customer_id: string }
-  | { action: "conversation_message_file_read"; conversation_id: string; conversation_message_id: string; customer_id: string; sha256: string }
-  | { action: "call_read"; conversation_id: string; conversation_message_id: string; customer_id: string }
-  | { action: "call_recording_read"; conversation_id: string; conversation_message_id: string; customer_id: string }
+  | { action: "tenant_membership_created"; tenant_membership_id: string }
+  | { action: "tenant_membership_updated"; tenant_membership_id: string }
+  | { action: "tenant_membership_deleted"; tenant_membership_id: string }
+  | { action: "tenant_role_created"; tenant_role_id: string }
+  | { action: "tenant_role_updated"; tenant_role_id: string }
+  | { action: "tenant_role_deleted"; tenant_role_id: string }
+  | { action: "conversation_created"; conversation_id: string; user_id: string }
+  | { action: "conversation_updated"; conversation_id: string; user_id: string }
+  | { action: "conversation_message_created"; conversation_id: string; conversation_message_id: string; user_id: string }
+  | { action: "conversation_message_updated"; conversation_id: string; conversation_message_id: string; user_id: string }
+  | { action: "conversation_message_list_read"; conversation_id: string; user_id: string }
+  | { action: "conversation_message_file_read"; conversation_id: string; conversation_message_id: string; user_id: string; sha256: string }
+  | { action: "call_read"; conversation_id: string; conversation_message_id: string; user_id: string }
+  | { action: "call_recording_read"; conversation_id: string; conversation_message_id: string; user_id: string }
   | { action: "collection_created"; collection_id: string }
   | { action: "collection_updated"; collection_id: string }
   | { action: "collection_deleted"; collection_id: string }
@@ -177,23 +177,23 @@ export type AuditAction =
   | { action: "note_updated"; note_id: string; owner: AuditNoteOwner }
   | { action: "note_deleted"; note_id: string; owner: AuditNoteOwner }
   | { action: "note_list_read"; owner: AuditNoteOwner }
-  | { action: "form_submission_created"; form_submission_id: string; customer_id: string }
-  | { action: "form_submission_stage_changed"; form_submission_id: string; customer_id: string }
-  | { action: "form_submission_deleted"; form_submission_id: string; customer_id: string }
-  | { action: "form_submission_read"; form_id: string; form_submission_id: string; customer_id: string }
-  | { action: "form_submission_file_read"; form_submission_id: string; customer_id: string; sha256: string }
+  | { action: "form_submission_created"; form_submission_id: string; user_id: string }
+  | { action: "form_submission_stage_changed"; form_submission_id: string; user_id: string }
+  | { action: "form_submission_deleted"; form_submission_id: string; user_id: string }
+  | { action: "form_submission_read"; form_id: string; form_submission_id: string; user_id: string }
+  | { action: "form_submission_file_read"; form_submission_id: string; user_id: string; sha256: string }
   | { action: "form_submission_list_read" }
   | { action: "category_created"; category_id: string }
   | { action: "category_updated"; category_id: string }
   | { action: "category_deleted"; category_id: string }
-  | { action: "customer_action_created"; customer_action_id: string }
-  | { action: "customer_created"; customer_id: string }
-  | { action: "customer_read"; customer_id: string }
-  | { action: "customer_list_read" }
-  | { action: "customer_updated"; customer_id: string }
-  | { action: "customer_deleted"; customer_id: string }
-  | { action: "customer_merged"; customer_id: string; target_customer_id: string }
-  | { action: "customer_exported"; customer_id: string }
+  | { action: "user_action_created"; user_action_id: string }
+  | { action: "user_created"; user_id: string }
+  | { action: "user_read"; user_id: string }
+  | { action: "user_list_read" }
+  | { action: "user_updated"; user_id: string }
+  | { action: "user_deleted"; user_id: string }
+  | { action: "user_merged"; user_id: string; target_user_id: string }
+  | { action: "user_exported"; user_id: string }
   | { action: "digital_asset_created"; digital_asset_id: string }
   | { action: "digital_asset_updated"; digital_asset_id: string }
   | { action: "cart_created"; cart_id: string }
@@ -267,21 +267,21 @@ export type AuditAction =
   | { action: "broadcast_deleted"; broadcast_id: string }
   | { action: "payment_option_created"; payment_option_id: string }
   | { action: "payment_option_updated"; payment_option_id: string }
-  | { action: "store_created" }
-  | { action: "store_updated" }
-  | { action: "store_deleted" }
-  | { action: "store_location_created"; store_location_id: string }
-  | { action: "store_location_updated"; store_location_id: string }
-  | { action: "store_location_deleted"; store_location_id: string }
+  | { action: "tenant_created" }
+  | { action: "tenant_updated" }
+  | { action: "tenant_deleted" }
+  | { action: "tenant_location_created"; tenant_location_id: string }
+  | { action: "tenant_location_updated"; tenant_location_id: string }
+  | { action: "tenant_location_deleted"; tenant_location_id: string }
   | { action: "market_created"; market_id: string }
   | { action: "market_updated"; market_id: string }
   | { action: "market_deleted"; market_id: string }
   | { action: "webhook_created"; webhook_id: string }
   | { action: "webhook_updated"; webhook_id: string }
   | { action: "webhook_deleted"; webhook_id: string }
-  | { action: "store_provider_created"; store_provider_id: string }
-  | { action: "store_provider_updated"; store_provider_id: string }
-  | { action: "store_provider_deleted"; store_provider_id: string }
+  | { action: "tenant_provider_created"; tenant_provider_id: string }
+  | { action: "tenant_provider_updated"; tenant_provider_id: string }
+  | { action: "tenant_provider_deleted"; tenant_provider_id: string }
   | { action: "fiscal_device_created"; fiscal_device_id: string }
   | { action: "fiscal_device_updated"; fiscal_device_id: string }
   | { action: "fiscal_device_archived"; fiscal_device_id: string }
@@ -344,9 +344,9 @@ export type AuditAction =
   | { action: "outside_invoice_detached"; invoice_id: string }
   | { action: "outside_credit_note_attached"; invoice_id: string }
   | { action: "outside_credit_note_detached"; invoice_id: string }
-  | { action: "store_seller_created"; store_seller_id: string }
-  | { action: "store_seller_updated"; store_seller_id: string }
-  | { action: "store_seller_deleted"; store_seller_id: string }
+  | { action: "tenant_seller_created"; tenant_seller_id: string }
+  | { action: "tenant_seller_updated"; tenant_seller_id: string }
+  | { action: "tenant_seller_deleted"; tenant_seller_id: string }
   | { action: "invoice_counter_confirmed"; invoice_counter_id: string }
   | { action: "payment_method_created"; payment_method_id: string }
   | { action: "payment_method_updated"; payment_method_id: string }
@@ -355,20 +355,20 @@ export type AuditAction =
   | { action: "experiment_updated"; experiment_id: string }
   | { action: "experiment_deleted"; experiment_id: string }
   | { action: "experiment_assignment_created"; experiment_id: string; experiment_assignment_id: string }
-  | { action: "customer_session_created"; customer_id: string; customer_session_id: string }
-  | { action: "customer_session_updated"; customer_id: string; customer_session_id: string }
-  | { action: "customer_contact_added"; customer_id: string }
-  | { action: "customer_contact_changed"; customer_id: string }
-  | { action: "customer_contact_confirmed"; customer_id: string }
-  | { action: "customer_contact_removed"; customer_id: string }
-  | { action: "customer_invite_sent"; customer_id: string; customer_invite_id: string }
-  | { action: "customer_link_added"; customer_id: string }
-  | { action: "customer_link_removed"; customer_id: string }
+  | { action: "user_session_created"; user_id: string; user_session_id: string }
+  | { action: "user_session_updated"; user_id: string; user_session_id: string }
+  | { action: "user_contact_added"; user_id: string }
+  | { action: "user_contact_changed"; user_id: string }
+  | { action: "user_contact_confirmed"; user_id: string }
+  | { action: "user_contact_removed"; user_id: string }
+  | { action: "user_invite_sent"; user_id: string; user_invite_id: string }
+  | { action: "user_link_added"; user_id: string }
+  | { action: "user_link_removed"; user_id: string }
   | { action: "incoming_webhook_retried"; incoming_webhook_id: string }
   | { action: "incoming_webhook_ignored"; incoming_webhook_id: string }
-  | { action: "store_subscription_created"; store_subscription_id: string }
-  | { action: "store_subscription_updated"; store_subscription_id: string }
-  | { action: "store_plan_charge_settled"; store_plan_charge_id: string }
+  | { action: "tenant_subscription_created"; tenant_subscription_id: string }
+  | { action: "tenant_subscription_updated"; tenant_subscription_id: string }
+  | { action: "tenant_plan_charge_settled"; tenant_plan_charge_id: string }
   | { action: "account_session_revoked"; account_id: string; account_session_id: string }
   | { action: "layout_created"; layout_id: string }
   | { action: "layout_updated"; layout_id: string }
@@ -381,7 +381,7 @@ export type AuditResult = "allowed" | "refused";
 
 export interface AuditLog {
   id: string;
-  store_id: string;
+  tenant_id: string;
   actor: Actor;
   action: AuditAction;
   result: AuditResult;
@@ -390,7 +390,7 @@ export interface AuditLog {
 }
 
 interface FindAuditLogsPage {
-  store_id: string;
+  tenant_id: string;
   limit?: number;
   cursor?: string | null;
 }

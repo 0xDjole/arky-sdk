@@ -6,7 +6,7 @@ import {
   apiUrl,
   cartRecord,
   checkoutRequest,
-  customerRecord,
+  userRecord,
   fixedIdFactories,
   ids,
   installGlobal,
@@ -17,7 +17,7 @@ import {
   visitorStorage,
 } from "./helpers/arky-fixtures.mjs";
 
-const customerBuyer = { type: "customer" };
+const userBuyer = { type: "user" };
 const productLine = {
   type: "product",
   id: ids.line,
@@ -26,10 +26,10 @@ const productLine = {
   form_submission_id: null,
   price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price },
 };
-const otherVisitorToken = `customer_visitor_${"w".repeat(64)}`;
+const otherVisitorToken = `user_visitor_${"w".repeat(64)}`;
 
 function otherBuyer() {
-  return { customer: customerRecord(ids.otherCustomer), session: visitorSession(ids.otherCustomer, ids.otherSession, otherVisitorToken) };
+  return { user: userRecord(ids.otherUser), session: visitorSession(ids.otherUser, ids.otherSession, otherVisitorToken) };
 }
 
 function gate() {
@@ -44,20 +44,20 @@ function gate() {
   return { release, enter, waiting, started };
 }
 
-const scope = { buyer: customerBuyer, package_id: ids.package };
+const scope = { buyer: userBuyer, package_id: ids.package };
 
 function storeWithCart(options = {}) {
-  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", market: "market-a", sessionStorage: visitorStorage(), ...options });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", market: "market-a", sessionStorage: visitorStorage(), ...options });
   const cart = store.eshop.cart(scope);
   cart.cart.set(cartRecord({ line_items: [productLine] }));
   return { store, cart };
 }
 
-test("the store saves delivery groups exactly as given, with the loaded cart's id and version, and never makes up another group", async (context) => {
+test("the tenant saves delivery groups exactly as given, with the loaded cart's id and version, and never makes up another group", async (context) => {
   const group = {
     id: "8b79e7c7-7e98-4962-a245-7836a7774054",
     items: [{ line_item: { type: "product", line_item_id: ids.line }, quantity: 1 }],
-    destination: { type: "pickup", store_location_id: "location-a" },
+    destination: { type: "pickup", tenant_location_id: "location-a" },
     shipping: { shipping_method_id: "method-a", rate_id: "rate-a" },
     timing: { type: "window", from: 1_800_000_000_000, to: 1_800_003_600_000 },
   };
@@ -121,7 +121,7 @@ test("a market change clears the selected cart view, and a late read for the old
     await reads.get(id).waiting;
     return cartRecord({ id });
   });
-  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", market: "market-a", sessionStorage: visitorStorage() });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", market: "market-a", sessionStorage: visitorStorage() });
   const cart = store.eshop.cart(scope);
   await cart.create({ id: ids.cart });
   store.setContext({ market: "market-b" });
@@ -153,7 +153,7 @@ test("a market change clears the selected cart view, and a late read for the old
   ]);
 });
 
-test("the market changes while a cart has items, the view clears, and the store has no sales channel to switch", () => {
+test("the market changes while a cart has items, the view clears, and the tenant has no sales channel to switch", () => {
   const { store, cart } = storeWithCart();
   for (const removed of ["setSalesChannel", "getSalesChannel", "sales_channel_key"]) assert.equal(removed in store, false, removed);
   store.setContext({ market: "market-b" });
@@ -166,7 +166,7 @@ for (const change of ["buyer", "language"]) {
   test(`a quote finishing after a ${change} change can't become the reviewed quote`, async (context) => {
     const quote = gate();
     const calls = recordFetch(context, async (call) => {
-      if (call.path === "/v1/storefront/customer/identify") return otherBuyer();
+      if (call.path === "/v1/storefront/user/identify") return otherBuyer();
       quote.enter();
       await quote.waiting;
       return quoteRecord();
@@ -175,7 +175,7 @@ for (const change of ["buyer", "language"]) {
     const pending = cart.quote();
     const rejected = assert.rejects(pending, change === "buyer" ? /changed during the cart operation/ : /language changed while quoting/);
     await quote.started;
-    if (change === "buyer") await store.customer.identify({ customer_id: ids.otherCustomer, session_id: ids.otherSession });
+    if (change === "buyer") await store.user.identify({ user_id: ids.otherUser, session_id: ids.otherSession });
     else store.setContext({ locale: "de" });
     quote.release();
     await rejected;
@@ -199,22 +199,22 @@ test("a buyer or market change leaves an unresolved checkout request byte for by
   installGlobal(context, "localStorage", durable);
   installGlobal(context, "navigator", { locks: new ExclusiveLockManager() });
   const calls = recordFetch(context, (call) => {
-    if (call.path === "/v1/storefront/customer/identify") return otherBuyer();
+    if (call.path === "/v1/storefront/user/identify") return otherBuyer();
     assert.equal(call.path, "/v1/storefront/carts/accept");
     throw new TypeError("response lost");
   });
-  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", market: "market-a", sessionStorage: visitorStorage() });
+  const store = initialize(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", market: "market-a", sessionStorage: visitorStorage() });
   const scoped = store.eshop.cart(scope);
   const request = checkoutRequest();
   await store.client.eshop.cart.retainCheckout({ ...request, scope });
   await assert.rejects(store.client.eshop.cart.recoverCheckout({ scope }), /response lost/);
   const pending = await scoped.pendingCheckout();
   assert.deepEqual(pending, request);
-  const key = `arky:cart-checkout:v6:${encodeURIComponent(`storefront:${apiUrl}:${storefrontIdentity.storeId}:${storefrontIdentity.salesChannelId}:${ids.customer}`)}:${encodeURIComponent(`customer|${ids.package}|market-a`)}`;
+  const key = `arky:cart-checkout:v6:${encodeURIComponent(`storefront:${apiUrl}:${storefrontIdentity.tenantId}:${storefrontIdentity.salesChannelId}:${ids.user}`)}:${encodeURIComponent(`user|${ids.package}|market-a`)}`;
   const retained = durable.getItem(key);
   assert.ok(retained);
   store.setContext({ market: "market-b" });
-  await store.customer.identify({ customer_id: ids.otherCustomer, session_id: ids.otherSession });
+  await store.user.identify({ user_id: ids.otherUser, session_id: ids.otherSession });
   assert.equal(scoped.cart.get(), null);
   assert.equal(durable.getItem(key), retained);
   assert.equal(await store.eshop.cart(scope).pendingCheckout(), null);

@@ -80,16 +80,16 @@ import type {
   WithdrawPackageMemberRevisionParams,
 } from "../types/packageMember";
 import { requireId } from "../utils/ids";
-import { segment, storefrontBase, storePath, storeRecordPath } from "./paths";
+import { segment, storefrontBase, tenantPath, tenantRecordPath } from "./paths";
 
 export const createPackageOfferingApi = (apiConfig: ApiConfig) => ({
   find(
     params: FindPackageOfferingsParams,
     options?: RequestOptions,
   ): Promise<PaginatedResponse<PackageOffering>> {
-    const { store_id, ...query } = params;
+    const { tenant_id, ...query } = params;
     return apiConfig.httpClient.get<PaginatedResponse<PackageOffering>>(
-      storePath(store_id, "package-offerings"),
+      tenantPath(tenant_id, "package-offerings"),
       { ...options, params: query },
     );
   },
@@ -99,7 +99,7 @@ export const createPackageOfferingApi = (apiConfig: ApiConfig) => ({
     options?: RequestOptions,
   ): Promise<PackageOffering> {
     return apiConfig.httpClient.get<PackageOffering>(
-      storeRecordPath(params.store_id, "package-offerings", params.id),
+      tenantRecordPath(params.tenant_id, "package-offerings", params.id),
       options,
     );
   },
@@ -109,8 +109,8 @@ export const createPackageOfferingApi = (apiConfig: ApiConfig) => ({
     options?: RequestOptions,
   ): Promise<PackageOffering> {
     return apiConfig.httpClient.get<PackageOffering>(
-      storePath(
-        params.store_id,
+      tenantPath(
+        params.tenant_id,
         `package-offerings/by-key/${segment(params.key)}`,
       ),
       options,
@@ -122,9 +122,9 @@ export const createPackageOfferingApi = (apiConfig: ApiConfig) => ({
     options?: RequestOptions,
   ): Promise<PackageOffering> {
     requireId(params.id, "package offering");
-    const { store_id, ...body } = params;
+    const { tenant_id, ...body } = params;
     return apiConfig.httpClient.post<PackageOffering>(
-      storePath(store_id, "package-offerings"),
+      tenantPath(tenant_id, "package-offerings"),
       body,
       options,
     );
@@ -134,9 +134,9 @@ export const createPackageOfferingApi = (apiConfig: ApiConfig) => ({
     params: UpdatePackageOfferingParams,
     options?: RequestOptions,
   ): Promise<PackageOffering> {
-    const { store_id, id, ...body } = params;
+    const { tenant_id, id, ...body } = params;
     return apiConfig.httpClient.put<PackageOffering>(
-      storeRecordPath(store_id, "package-offerings", id),
+      tenantRecordPath(tenant_id, "package-offerings", id),
       body,
       options,
     );
@@ -147,7 +147,7 @@ export const createPackageOfferingApi = (apiConfig: ApiConfig) => ({
     options?: RequestOptions,
   ): Promise<DeletedResponse> {
     return apiConfig.httpClient.delete<DeletedResponse>(
-      storeRecordPath(params.store_id, "package-offerings", params.id),
+      tenantRecordPath(params.tenant_id, "package-offerings", params.id),
       {
         ...options,
         params: { expected_updated_at: params.expected_updated_at },
@@ -157,16 +157,16 @@ export const createPackageOfferingApi = (apiConfig: ApiConfig) => ({
 });
 
 export const createPackageMemberApi = (apiConfig: ApiConfig) => {
-  const memberPath = (storeId: string, id: string) =>
-    storeRecordPath(storeId, "package-members", id);
+  const memberPath = (tenantId: string, id: string) =>
+    tenantRecordPath(tenantId, "package-members", id);
   const action = <T>(
     params: PackageMemberActionParams,
     verb: string,
     options?: RequestOptions,
   ) => {
-    const { store_id, id, ...body } = params;
+    const { tenant_id, id, ...body } = params;
     return apiConfig.httpClient.post<T>(
-      `${memberPath(store_id, id)}/${verb}`,
+      `${memberPath(tenant_id, id)}/${verb}`,
       body,
       options,
     );
@@ -177,9 +177,9 @@ export const createPackageMemberApi = (apiConfig: ApiConfig) => {
       params: FindPackageMembersParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<PackageMemberListItem>> {
-      const { store_id, ...query } = params;
+      const { tenant_id, ...query } = params;
       return apiConfig.httpClient.get<PaginatedResponse<PackageMemberListItem>>(
-        storePath(store_id, "package-members"),
+        tenantPath(tenant_id, "package-members"),
         { ...options, params: query },
       );
     },
@@ -189,7 +189,7 @@ export const createPackageMemberApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<PaginatedResponse<PackageMemberCurrent>> {
       return apiConfig.httpClient.get<PaginatedResponse<PackageMemberCurrent>>(
-        storePath(params.store_id, "package-members/current"),
+        tenantPath(params.tenant_id, "package-members/current"),
         { ...options, params: { ids: params.ids } },
       );
     },
@@ -199,7 +199,7 @@ export const createPackageMemberApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<PackageMemberDetail> {
       return apiConfig.httpClient.get<PackageMemberDetail>(
-        memberPath(params.store_id, params.id),
+        memberPath(params.tenant_id, params.id),
         options,
       );
     },
@@ -209,9 +209,9 @@ export const createPackageMemberApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<PackageMember> {
       requireId(params.id, "package member");
-      const { store_id, ...body } = params;
+      const { tenant_id, ...body } = params;
       return apiConfig.httpClient.post<PackageMember>(
-        storePath(store_id, "package-members"),
+        tenantPath(tenant_id, "package-members"),
         body,
         options,
       );
@@ -222,7 +222,7 @@ export const createPackageMemberApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<PackageMemberCurrent> {
       return apiConfig.httpClient.get<PackageMemberCurrent>(
-        `${memberPath(params.store_id, params.id)}/current`,
+        `${memberPath(params.tenant_id, params.id)}/current`,
         options,
       );
     },
@@ -231,10 +231,10 @@ export const createPackageMemberApi = (apiConfig: ApiConfig) => {
       params: FindPackageMemberPageParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<PackageMemberRevision>> {
-      const { store_id, id, ...query } = params;
+      const { tenant_id, id, ...query } = params;
       return apiConfig.httpClient.get<
         PaginatedResponse<PackageMemberRevision>
-      >(`${memberPath(store_id, id)}/revisions`, {
+      >(`${memberPath(tenant_id, id)}/revisions`, {
         ...options,
         params: query,
       });
@@ -245,7 +245,7 @@ export const createPackageMemberApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<PackageMemberRevisionDetail> {
       return apiConfig.httpClient.get<PackageMemberRevisionDetail>(
-        `${memberPath(params.store_id, params.package_member_id)}/revisions/${segment(params.revision_id)}`,
+        `${memberPath(params.tenant_id, params.package_member_id)}/revisions/${segment(params.revision_id)}`,
         options,
       );
     },
@@ -254,9 +254,9 @@ export const createPackageMemberApi = (apiConfig: ApiConfig) => {
       params: FindPackageMemberRevisionPurchaseOrdersParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<Order>> {
-      const { store_id, package_member_id, revision_id, ...query } = params;
+      const { tenant_id, package_member_id, revision_id, ...query } = params;
       return apiConfig.httpClient.get<PaginatedResponse<Order>>(
-        `${memberPath(store_id, package_member_id)}/revisions/${segment(revision_id)}/purchase-orders`,
+        `${memberPath(tenant_id, package_member_id)}/revisions/${segment(revision_id)}/purchase-orders`,
         { ...options, params: query },
       );
     },
@@ -265,9 +265,9 @@ export const createPackageMemberApi = (apiConfig: ApiConfig) => {
       params: FindPackageMemberOrdersParams,
       options?: RequestOptions,
     ): Promise<PaginatedResponse<Order>> {
-      const { store_id, id, ...query } = params;
+      const { tenant_id, id, ...query } = params;
       return apiConfig.httpClient.get<PaginatedResponse<Order>>(
-        `${memberPath(store_id, id)}/orders`,
+        `${memberPath(tenant_id, id)}/orders`,
         {
           ...options,
           params: query,
@@ -279,9 +279,9 @@ export const createPackageMemberApi = (apiConfig: ApiConfig) => {
       params: GetPackageMemberMinimumParams,
       options?: RequestOptions,
     ): Promise<PackageMemberMinimum> {
-      const { store_id, id, ...query } = params;
+      const { tenant_id, id, ...query } = params;
       return apiConfig.httpClient.get<PackageMemberMinimum>(
-        `${memberPath(store_id, id)}/minimum`,
+        `${memberPath(tenant_id, id)}/minimum`,
         { ...options, params: query },
       );
     },
@@ -291,7 +291,7 @@ export const createPackageMemberApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<PackageMemberCalendar> {
       return apiConfig.httpClient.get<PackageMemberCalendar>(
-        `${memberPath(params.store_id, params.id)}/calendar`,
+        `${memberPath(params.tenant_id, params.id)}/calendar`,
         options,
       );
     },
@@ -301,7 +301,7 @@ export const createPackageMemberApi = (apiConfig: ApiConfig) => {
       options?: RequestOptions,
     ): Promise<PackageMemberChanges> {
       return apiConfig.httpClient.get<PackageMemberChanges>(
-        `${memberPath(params.store_id, params.id)}/changes`,
+        `${memberPath(params.tenant_id, params.id)}/changes`,
         options,
       );
     },
@@ -428,10 +428,10 @@ export const createPackageMemberApi = (apiConfig: ApiConfig) => {
       params: TransferPackageMemberMinimumParams,
       options?: RequestOptions,
     ): Promise<PackageMemberMinimumTransfer> {
-      const { store_id, ...body } = params;
+      const { tenant_id, ...body } = params;
       return apiConfig.httpClient.post<PackageMemberMinimumTransfer>(
-        storePath(
-          store_id,
+        tenantPath(
+          tenant_id,
           "package-members/transfer-minimum",
         ),
         body,

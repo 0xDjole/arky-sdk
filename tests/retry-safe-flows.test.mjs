@@ -14,7 +14,7 @@ import { ExclusiveLockManager, MemoryStorage } from "./helpers/durable-request-f
 import {
   apiUrl,
   checkoutRequest,
-  customerRecord,
+  userRecord,
   errorResponse,
   factoryId,
   ids,
@@ -153,11 +153,11 @@ test("support start and send reuse their factory ids after a lost answer", async
       lose = false;
       throw new TypeError("Lost response");
     }
-    const conversation = { id: conversationId, type: { type: "chat", language: "en", subject: "" }, state: "waiting_for_store", next_message_sequence: 2, customer_read: { type: "unread" }, created_at: 1, updated_at: 1 };
+    const conversation = { id: conversationId, type: { type: "chat", language: "en", subject: "" }, state: "waiting_for_tenant", next_message_sequence: 2, user_read: { type: "unread" }, created_at: 1, updated_at: 1 };
     if (call.path === "/v1/storefront/conversations") return { conversation, messages: [] };
     return {
       conversation,
-      messages: [{ id: call.body.id, conversation_id: conversationId, sequence: 1, type: { type: "customer_chat", text: "Hi" }, created_at: 1, updated_at: 1 }],
+      messages: [{ id: call.body.id, conversation_id: conversationId, sequence: 1, type: { type: "user_chat", text: "Hi" }, created_at: 1, updated_at: 1 }],
     };
   });
   const client = storefront(idSequence(conversationId, messageId));
@@ -187,17 +187,17 @@ test("requestCode keeps its factory id for the same email and takes a new one fo
       throw new TypeError("Lost response");
     }
     return {
-      customer: customerRecord(),
-      session: { id: ids.session, store_id: ids.store, customer_id: ids.customer },
+      user: userRecord(),
+      session: { id: ids.session, tenant_id: ids.tenant, user_id: ids.user },
       code: { issued_at: 1, expires_at: 2 },
     };
   });
   const client = storefront(idSequence(factoryId(1), factoryId(2), factoryId(3)));
-  await assert.rejects(client.customer.requestCode({ contact: { type: "email", email: "ana@example.test", language: "en" } }), /Lost response/);
-  await client.customer.requestCode({ contact: { type: "email", email: "ana@example.test", language: "en" } });
-  await client.customer.requestCode({ contact: { type: "email", email: "ivo@example.test", language: "en" } });
-  await client.customer.requestCode({ contact: { type: "email", email: "ivo@example.test", language: "hr" } });
-  await client.customer.requestCode({ id: ids.submission, contact: { type: "email", email: "ivo@example.test", language: "en" } });
+  await assert.rejects(client.user.requestCode({ contact: { type: "email", email: "ana@example.test", language: "en" } }), /Lost response/);
+  await client.user.requestCode({ contact: { type: "email", email: "ana@example.test", language: "en" } });
+  await client.user.requestCode({ contact: { type: "email", email: "ivo@example.test", language: "en" } });
+  await client.user.requestCode({ contact: { type: "email", email: "ivo@example.test", language: "hr" } });
+  await client.user.requestCode({ id: ids.submission, contact: { type: "email", email: "ivo@example.test", language: "en" } });
   assert.deepEqual(calls.map((call) => [call.body.id, call.body.contact]), [
     [factoryId(1), { type: "email", email: "ana@example.test", language: "en" }],
     [factoryId(1), { type: "email", email: "ana@example.test", language: "en" }],

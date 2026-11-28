@@ -3,8 +3,8 @@ import type { EpochMilliseconds } from "./time";
 export type { AdminRequestOptions, RequestOptions, StorefrontRequestOptions } from "./httpClient";
 
 export type RequestPendingAccountSessionParams =
-  | { session_id: string; email: string; network_id: string; language: string; store_id?: undefined }
-  | { session_id: string; email: string; store_id: string; language: string };
+  | { session_id: string; email: string; network_id: string; language: string; tenant_id?: undefined }
+  | { session_id: string; email: string; tenant_id: string; language: string };
 
 export interface RequestPlatformAccountSessionParams {
   session_id: string;
@@ -18,8 +18,8 @@ export interface VerifyPlatformAccountSessionParams {
 }
 
 export type VerifyPendingAccountSessionParams =
-  | { session_id: string; code: string; network_id: string; store_id?: undefined }
-  | { session_id: string; code: string; store_id: string; network_id?: undefined };
+  | { session_id: string; code: string; network_id: string; tenant_id?: undefined }
+  | { session_id: string; code: string; tenant_id: string; network_id?: undefined };
 
 export interface RefreshAccountSessionParams {
   refresh_token: string;
@@ -31,12 +31,12 @@ export interface PendingAccountSession {
 }
 
 export type VerifySecondFactorParams =
-  | { session_id: string; code: string; second_factor_code: string; network_id: string; store_id?: undefined }
-  | { session_id: string; code: string; second_factor_code: string; store_id: string; network_id?: undefined };
+  | { session_id: string; code: string; second_factor_code: string; network_id: string; tenant_id?: undefined }
+  | { session_id: string; code: string; second_factor_code: string; tenant_id: string; network_id?: undefined };
 
 export type SetUpSecondFactorParams =
-  | { session_id: string; code: string; network_id: string; store_id?: undefined }
-  | { session_id: string; code: string; store_id: string; network_id?: undefined };
+  | { session_id: string; code: string; network_id: string; tenant_id?: undefined }
+  | { session_id: string; code: string; tenant_id: string; network_id?: undefined };
 
 export type ConfirmSecondFactorParams =
   | {
@@ -45,14 +45,14 @@ export type ConfirmSecondFactorParams =
       setup_token: string;
       second_factor_code: string;
       network_id: string;
-      store_id?: undefined;
+      tenant_id?: undefined;
     }
   | {
       session_id: string;
       code: string;
       setup_token: string;
       second_factor_code: string;
-      store_id: string;
+      tenant_id: string;
       network_id?: undefined;
     };
 

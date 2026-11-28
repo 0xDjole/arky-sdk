@@ -25,7 +25,7 @@ import {
   visitorStorage,
 } from "./helpers/arky-fixtures.mjs";
 
-const customer = { type: "customer" };
+const user = { type: "user" };
 const profile = "1b3d5f7a-9c2e-4a6b-8d0f-2e4a6c8e0b1d";
 const address = { name: "Ana", company: null, street1: "Main 1", street2: null, city: "Zagreb", state: null, postal_code: "10000", country: "HR", phone: null, email: "ana@example.test" };
 const offer = {
@@ -39,7 +39,7 @@ const offer = {
 };
 const line = { type: "product", id: ids.line, variant_id: ids.variant, quantity: 1, form_submission_id: null, price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price } };
 const ana = { email: "ana@example.test", language: "en" };
-const refreshedAccess = `customer_access_${"n".repeat(64)}`;
+const refreshedAccess = `user_access_${"n".repeat(64)}`;
 const quoteLine = { type: "product", line_item_id: ids.line, product_id: ids.product, product: { id: ids.product, key: "product", blocks: [] }, variant_id: ids.variant, shipping_profile_id: profile, quantity: 1, snapshot: { fulfillment: { type: "physical" } } };
 
 function browser(context) {
@@ -75,7 +75,7 @@ function quoteFor(cart) {
 function payment(status) {
   return {
     id: ids.payment,
-    store_id: ids.store,
+    tenant_id: ids.tenant,
     order_id: ids.order,
     invoice_id: ids.credit,
     payment_option_id: ids.paymentOption,
@@ -90,7 +90,7 @@ function payment(status) {
 }
 
 function refreshed() {
-  return sessionResult(ids.customer, emailSession(ids.customer, ids.otherSession, { access_token: refreshedAccess }));
+  return sessionResult(ids.user, emailSession(ids.user, ids.otherSession, { access_token: refreshedAccess }));
 }
 
 function server(context, accept, paymentStatus = "paid", readPayment = () => payment(paymentStatus), cart = cartRecord({ line_items: [line] }), refresh = refreshed) {
@@ -98,9 +98,9 @@ function server(context, accept, paymentStatus = "paid", readPayment = () => pay
   const calls = recordFetch(context, (call) => {
     if (call.path === "/v1/storefront") return { name: "Shop", timezone: "Europe/Zagreb", languages: ["en"], payment_options: [] };
     if (call.path === "/v1/storefront/markets/by-key/hrv") return { id: ids.market, key: "hrv", currency: "eur", payment_option_ids: [ids.paymentOption] };
-    if (call.path === "/v1/storefront/customer/refresh") return refresh();
-    if (call.path === "/v1/storefront/customer/identify") {
-      return sessionResult(call.body.customer_id, visitorSession(call.body.customer_id, call.body.session_id, `customer_visitor_${"w".repeat(64)}`));
+    if (call.path === "/v1/storefront/user/refresh") return refresh();
+    if (call.path === "/v1/storefront/user/identify") {
+      return sessionResult(call.body.user_id, visitorSession(call.body.user_id, call.body.session_id, `user_visitor_${"w".repeat(64)}`));
     }
     if (call.path === "/v1/storefront/carts") return { type: "created", cart: current, recovery_token: "token" };
     if (call.method === "GET" && call.path === `/v1/storefront/carts/${ids.cart}`) return current;
@@ -137,7 +137,7 @@ async function readyCheckout(sessionStorage = visitorStorage(), openedContact = 
     market: "hrv",
     sessionStorage,
   });
-  const checkout = arky.eshop.checkoutFlow({ buyer: customer, package_id: ids.package });
+  const checkout = arky.eshop.checkoutFlow({ buyer: user, package_id: ids.package });
   assert.equal(arky.eshop.checkoutFlow({ package_id: ids.package }), checkout);
   await checkout.cart.create({ id: ids.cart });
   checkout.cart.reset();
@@ -241,7 +241,7 @@ test("a signed-in shopper's token refresh while placing keeps the checkout and r
   const accepts = calls.filter((call) => call.path === "/v1/storefront/carts/accept");
   assert.equal(accepts.length, 2);
   assert.deepEqual(accepts[0].body, accepts[1].body);
-  assert.equal(calls.filter((call) => call.path === "/v1/storefront/customer/refresh").length, 1);
+  assert.equal(calls.filter((call) => call.path === "/v1/storefront/user/refresh").length, 1);
 });
 
 test("a signed-in shopper's token refresh that fails for a moment while placing keeps the session and the kept checkout, and recover places it", async (context) => {
@@ -295,7 +295,7 @@ for (const change of ["shopper", "market"]) {
     assert.deepEqual(checkout.state.get().contact_name, { first_name: "Ana", last_name: "Horvat" });
     assert.equal(checkout.state.get().placed.order_id, ids.order);
     if (change === "shopper") {
-      await arky.customer.identify({ customer_id: ids.otherCustomer, session_id: ids.otherSession });
+      await arky.user.identify({ user_id: ids.otherUser, session_id: ids.otherSession });
     } else {
       arky.setContext({ market: "other-market" });
     }
@@ -321,14 +321,14 @@ test("opening the first checkout identifies its visitor once before loading the 
   browser(context);
   const calls = server(context, () => placedAcceptance({ payment_id: ids.payment }));
   const arky = initialize(storefrontIdentity, { ...idFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: new SessionStorage() });
-  const checkout = arky.eshop.checkoutFlow({ buyer: customer, package_id: ids.package });
+  const checkout = arky.eshop.checkoutFlow({ buyer: user, package_id: ids.package });
   const state = await checkout.open();
   assert.equal(state.step, "cart");
   assert.equal(state.cart, null);
   assert.equal(state.contact_email, null);
   assert.equal(state.error, null);
-  assert.equal(arky.session.get().customer.id, ids.customer);
-  assert.equal(calls.filter((call) => call.path === "/v1/storefront/customer/identify").length, 1);
+  assert.equal(arky.session.get().user.id, ids.user);
+  assert.equal(calls.filter((call) => call.path === "/v1/storefront/user/identify").length, 1);
 });
 
 test("a payment read finishing after the shopper changes cannot restore the previous checkout", async (context) => {
@@ -350,7 +350,7 @@ test("a payment read finishing after the shopper changes cannot restore the prev
   delay = true;
   const reading = checkout.refreshPayment();
   await started;
-  await arky.customer.identify({ customer_id: ids.otherCustomer, session_id: ids.otherSession });
+  await arky.user.identify({ user_id: ids.otherUser, session_id: ids.otherSession });
   release();
   await assert.rejects(reading, (error) => error instanceof CheckoutFlowError && error.code === "interrupted");
   const state = checkout.state.get();
@@ -376,7 +376,7 @@ test("a guest's quotes carry the contact email, so a promotion code capped per b
 
 test("a taken booking slot, a price that can't hold its fixed fee or a package that adds a second minimum shows on the cart step, not the shipping step", () => {
   const arky = initialize(storefrontIdentity, { ...idFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: visitorStorage() });
-  const checkout = arky.eshop.checkoutFlow({ buyer: customer, package_id: ids.package });
+  const checkout = arky.eshop.checkoutFlow({ buyer: user, package_id: ids.package });
   checkout.cart.cart.set(cartRecord({ line_items: [line] }));
   checkout.setContact({ contact_email: ana });
   for (const blocker of [
@@ -393,7 +393,7 @@ test("a taken booking slot, a price that can't hold its fixed fee or a package t
 
 test("a package held by a package change waiting to take effect shows on the cart step, not the shipping step", () => {
   const arky = initialize(storefrontIdentity, { ...idFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: visitorStorage() });
-  const checkout = arky.eshop.checkoutFlow({ buyer: customer, package_id: ids.package });
+  const checkout = arky.eshop.checkoutFlow({ buyer: user, package_id: ids.package });
   checkout.cart.cart.set(cartRecord({ line_items: [line] }));
   checkout.setContact({ contact_email: ana });
   const scheduled = { type: "package_change_scheduled", line_item_id: ids.line };
@@ -406,7 +406,7 @@ test("a package held by a package change waiting to take effect shows on the car
 
 test("a switch line whose change Arky refuses, or a cart none of its payment options can pay, shows on the cart step, not the details or shipping step", () => {
   const arky = initialize(storefrontIdentity, { ...idFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: visitorStorage() });
-  const checkout = arky.eshop.checkoutFlow({ buyer: customer, package_id: ids.package });
+  const checkout = arky.eshop.checkoutFlow({ buyer: user, package_id: ids.package });
   checkout.cart.cart.set(cartRecord({ line_items: [line] }));
   checkout.setContact({ contact_email: ana });
   const refused = { type: "package_change_refused", line_item_id: ids.line, code: "PACKAGE_MEMBER.HIGHER_PRICE" };
@@ -446,7 +446,7 @@ test("placing a package that a waiting package change holds is refused with its 
 
 test("a line whose price can't hold its fixed fee shows on the cart step, and a delivery that no longer fits its lines on the details step", () => {
   const arky = initialize(storefrontIdentity, { ...idFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: visitorStorage() });
-  const checkout = arky.eshop.checkoutFlow({ buyer: customer, package_id: ids.package });
+  const checkout = arky.eshop.checkoutFlow({ buyer: user, package_id: ids.package });
   checkout.cart.cart.set(cartRecord({ line_items: [line] }));
   checkout.setContact({ contact_email: ana });
   const taxUnavailable = { type: "tax_unavailable", line_item_id: ids.line, code: "TAX.FIXED_ABOVE_PRICE" };
@@ -507,17 +507,17 @@ test("the flow keeps its checkout in its own cart scope, so the client's shared 
   });
   const { arky, checkout } = await readyCheckout();
   await assert.rejects(checkout.place(), (error) => error instanceof CheckoutFlowError && error.code === "interrupted");
-  const shared = `arky:cart-checkout:v6:${encodeURIComponent(`storefront:${apiUrl}:${storefrontIdentity.storeId}:${storefrontIdentity.salesChannelId}:${ids.customer}`)}`;
+  const shared = `arky:cart-checkout:v6:${encodeURIComponent(`storefront:${apiUrl}:${storefrontIdentity.tenantId}:${storefrontIdentity.salesChannelId}:${ids.user}`)}`;
   assert.equal(storage.getItem(shared), null);
-  assert.ok(storage.getItem(`${shared}:${encodeURIComponent(`customer|${ids.package}|hrv`)}`));
+  assert.ok(storage.getItem(`${shared}:${encodeURIComponent(`user|${ids.package}|hrv`)}`));
   assert.equal(await arky.client.eshop.cart.pendingCheckout(), null);
-  assert.equal((await arky.client.eshop.cart.pendingCheckout({ scope: { buyer: customer, package_id: ids.package } })).order_id, ids.order);
+  assert.equal((await arky.client.eshop.cart.pendingCheckout({ scope: { buyer: user, package_id: ids.package } })).order_id, ids.order);
   assert.equal((await checkout.recover()).step, "placed");
 });
 
 function storageWithContact(contact) {
-  const signedIn = sessionResult(ids.customer, emailSession(ids.customer, ids.session, { email: contact.email }));
-  signedIn.customer.contacts = [{ type: "confirmed_email", email: contact.email, language: contact.language }];
+  const signedIn = sessionResult(ids.user, emailSession(ids.user, ids.session, { email: contact.email }));
+  signedIn.user.contacts = [{ type: "confirmed_email", email: contact.email, language: contact.language }];
   return new SessionStorage(JSON.stringify({ version: 5, ...signedIn }));
 }
 
@@ -531,14 +531,14 @@ function contactCheckout(sessionStorage, locale) {
     market: "hrv",
     sessionStorage,
   });
-  return arky.eshop.checkoutFlow({ buyer: customer, package_id: ids.package });
+  return arky.eshop.checkoutFlow({ buyer: user, package_id: ids.package });
 }
 
 test("opening the checkout names no contact: a billing email and a signed-in contact stay out until the page sets one", async (context) => {
   browser(context);
   const billed = cartRecord({ line_items: [line], billing_address: { ...address, email: " billing@example.test " } });
   const calls = server(context, () => placedAcceptance({ payment_id: ids.payment }), "paid", () => payment("paid"), billed);
-  const checkout = contactCheckout(storageWithContact({ email: "customer@example.test", language: "en" }), "hr");
+  const checkout = contactCheckout(storageWithContact({ email: "user@example.test", language: "en" }), "hr");
   await checkout.cart.create({ id: ids.cart });
   checkout.cart.reset();
   let state = await checkout.open();
@@ -567,16 +567,16 @@ test("opening the checkout names no contact: a billing email and a signed-in con
   assert.deepEqual(accept.body.contact_email, ana);
 });
 
-test("a signed-in checkout whose saved language the store dropped sends the page language the page sets", async (context) => {
+test("a signed-in checkout whose saved language the tenant dropped sends the page language the page sets", async (context) => {
   browser(context);
   const calls = server(context, () => placedAcceptance({ payment_id: ids.payment }));
-  const checkout = contactCheckout(storageWithContact({ email: "customer@example.test", language: "fr" }), "en");
+  const checkout = contactCheckout(storageWithContact({ email: "user@example.test", language: "fr" }), "en");
   await checkout.cart.create({ id: ids.cart });
   checkout.cart.reset();
   let state = await checkout.open();
   assert.equal(state.contact_email, null);
   assert.equal(state.step, "details");
-  const pageContact = { email: "customer@example.test", language: "en" };
+  const pageContact = { email: "user@example.test", language: "en" };
   checkout.setContact({ contact_email: pageContact });
   state = await checkout.shipTo({ destination: { type: "delivery", address } });
   state = await checkout.selectShipping({ delivery_group_id: factoryId(1), shipping_method_id: offer.shipping_method_id, rate_id: offer.rate_id });
@@ -627,10 +627,10 @@ test("a zero total placed with a card to save sends the payment option, and plac
   const setup = {
     method: {
       id: methodId,
-      store_id: ids.store,
-      owner: { type: "customer", customer_id: ids.customer },
+      tenant_id: ids.tenant,
+      owner: { type: "user", user_id: ids.user },
       payment_option_id: ids.paymentOption,
-      consent: { given_by: { type: "customer", customer_id: ids.customer, customer_session_id: ids.session }, accepted_at: 1, language: "en", terms: "Save my card for renewals" },
+      consent: { given_by: { type: "user", user_id: ids.user, user_session_id: ids.session }, accepted_at: 1, language: "en", terms: "Save my card for renewals" },
       type: { type: "stripe", setup: { type: "dedicated" }, status: { type: "requested" } },
       created_at: 1,
       updated_at: 1,
@@ -671,7 +671,7 @@ test("an order opened from its link is placed with no card setup to mount", asyn
     throw new Error(`Unexpected request ${call.method} ${call.path}`);
   });
   const arky = initialize(storefrontIdentity, { ...idFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: visitorStorage() });
-  const checkout = arky.eshop.checkoutFlow({ buyer: customer, package_id: ids.package });
+  const checkout = arky.eshop.checkoutFlow({ buyer: user, package_id: ids.package });
   const { state, url } = await checkout.openOrder({ order_id: ids.order, url: `https://shop.example.test/order/${ids.order}#order_token=${token}` });
   assert.equal(url, `https://shop.example.test/order/${ids.order}`);
   assert.equal(state.step, "placed");
@@ -697,7 +697,7 @@ test("a zero total placed without a card to save is free", async (context) => {
 
 test("a line its place of sale can't supply or whose document Arky can't issue shows on the cart step, and such a delivery on the details step", () => {
   const arky = initialize(storefrontIdentity, { ...idFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: visitorStorage() });
-  const checkout = arky.eshop.checkoutFlow({ buyer: customer, package_id: ids.package });
+  const checkout = arky.eshop.checkoutFlow({ buyer: user, package_id: ids.package });
   checkout.cart.cart.set(cartRecord({ line_items: [line] }));
   checkout.setContact({ contact_email: ana });
   const shippingRequired = { type: "shipping_required", delivery_group_id: ids.otherCart };
@@ -723,7 +723,7 @@ test("a line its place of sale can't supply or whose document Arky can't issue s
 test("a fiscal branch shop names its place of sale on the new cart, and a missing one holds the details step until setPlaceOfSale", async (context) => {
   browser(context);
   const branch = "3c5e7a9b-1d2f-4a6c-8e0b-2d4f6a8c0e1f";
-  const branchSale = { type: "store_location", store_location_id: branch };
+  const branchSale = { type: "tenant_location", tenant_location_id: branch };
   const carts = new Map();
   const calls = recordFetch(context, (call) => {
     if (call.path === "/v1/storefront") return { name: "Shop", timezone: "Europe/Sarajevo", languages: ["en"], payment_options: [] };
@@ -748,7 +748,7 @@ test("a fiscal branch shop names its place of sale on the new cart, and a missin
     throw new Error(`Unexpected request ${call.method} ${call.path}`);
   });
   const arky = initialize(storefrontIdentity, { ...idFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: visitorStorage() });
-  const checkout = arky.eshop.checkoutFlow({ buyer: customer, package_id: ids.package });
+  const checkout = arky.eshop.checkoutFlow({ buyer: user, package_id: ids.package });
   await checkout.cart.create({ id: ids.cart });
   checkout.setContact({ contact_email: ana });
   let state = await checkout.open();
@@ -757,7 +757,7 @@ test("a fiscal branch shop names its place of sale on the new cart, and a missin
   state = await checkout.setPlaceOfSale({ place_of_sale: branchSale });
   assert.equal(state.step, "payment");
   assert.deepEqual(state.cart.place_of_sale, branchSale);
-  const branchCart = arky.eshop.cart({ buyer: customer, package_id: ids.otherPackage });
+  const branchCart = arky.eshop.cart({ buyer: user, package_id: ids.otherPackage });
   await branchCart.create({ id: ids.otherCart, place_of_sale: branchSale });
   await branchCart.setPlaceOfSale({ place_of_sale: { type: "none" } });
   const creates = calls.filter((call) => call.method === "POST" && call.path === "/v1/storefront/carts");
@@ -813,7 +813,7 @@ test("a placed checkout opens again on the cart, and reset leaves paying while k
 
 test("every quote blocker has its step, and a blocker this SDK doesn't know yet holds the cart step", () => {
   const arky = initialize(storefrontIdentity, { ...idFactories, apiUrl, locale: "en", market: "hrv", sessionStorage: visitorStorage() });
-  const checkout = arky.eshop.checkoutFlow({ buyer: customer, package_id: ids.package });
+  const checkout = arky.eshop.checkoutFlow({ buyer: user, package_id: ids.package });
   checkout.cart.cart.set(cartRecord({ line_items: [line] }));
   checkout.setContact({ contact_email: ana });
   const shippingRequired = { type: "shipping_required", delivery_group_id: ids.otherCart };
@@ -823,7 +823,7 @@ test("every quote blocker has its step, and a blocker this SDK doesn't know yet 
     [{ type: "booking_session", line_item_id: ids.line, code: "BOOKING.SESSION_USED" }, "cart"],
     [{ type: "a_blocker_added_later", line_item_id: ids.line }, "cart"],
     [{ type: "place_of_sale_required" }, "details"],
-    [{ type: "place_of_sale_not_active", store_location_id: ids.otherCart }, "details"],
+    [{ type: "place_of_sale_not_active", tenant_location_id: ids.otherCart }, "details"],
     [{ type: "purchase_order_number_required" }, "details"],
     [{ type: "units_without_delivery", line_item: { type: "product", line_item_id: ids.line }, quantity: 1 }, "details"],
   ]) {

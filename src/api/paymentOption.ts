@@ -11,14 +11,14 @@ import type {
   UpdatePaymentOptionParams,
 } from "../types/payment";
 import { requireId } from "../utils/ids";
-import { segment, storePath, storeRecordPath } from "./paths";
+import { segment, tenantPath, tenantRecordPath } from "./paths";
 
 const collection = "payment-options";
 
 export const createPaymentOptionApi = (apiConfig: ApiConfig) => {
   const createCard = (route: string, params: CreateCardPaymentOptionParams, options?: RequestOptions) => {
     requireId(params.id, "payment option");
-    return apiConfig.httpClient.post<PaymentOption>(storePath(params.store_id, `${collection}/${route}`), {
+    return apiConfig.httpClient.post<PaymentOption>(tenantPath(params.tenant_id, `${collection}/${route}`), {
       provider_id: params.provider_id,
       id: params.id,
       key: params.key,
@@ -30,7 +30,7 @@ export const createPaymentOptionApi = (apiConfig: ApiConfig) => {
 
   return {
     find(params: FindPaymentOptionsParams, options?: RequestOptions): Promise<PaginatedResponse<PaymentOption>> {
-      return apiConfig.httpClient.get<PaginatedResponse<PaymentOption>>(storePath(params.store_id, collection), {
+      return apiConfig.httpClient.get<PaginatedResponse<PaymentOption>>(tenantPath(params.tenant_id, collection), {
         ...options,
         params: {
           key: params.key,
@@ -45,19 +45,19 @@ export const createPaymentOptionApi = (apiConfig: ApiConfig) => {
     },
 
     get(params: GetPaymentOptionParams, options?: RequestOptions): Promise<PaymentOption> {
-      return apiConfig.httpClient.get<PaymentOption>(storeRecordPath(params.store_id, collection, params.id), options);
+      return apiConfig.httpClient.get<PaymentOption>(tenantRecordPath(params.tenant_id, collection, params.id), options);
     },
 
     getByKey(params: GetPaymentOptionByKeyParams, options?: RequestOptions): Promise<PaymentOption> {
       return apiConfig.httpClient.get<PaymentOption>(
-        storePath(params.store_id, `${collection}/key/${segment(params.key)}`),
+        tenantPath(params.tenant_id, `${collection}/key/${segment(params.key)}`),
         options,
       );
     },
 
     create(params: CreatePaymentOptionParams, options?: RequestOptions): Promise<PaymentOption> {
       requireId(params.id, "payment option");
-      return apiConfig.httpClient.post<PaymentOption>(storePath(params.store_id, collection), {
+      return apiConfig.httpClient.post<PaymentOption>(tenantPath(params.tenant_id, collection), {
         id: params.id,
         key: params.key,
         blocks: params.blocks,
@@ -83,7 +83,7 @@ export const createPaymentOptionApi = (apiConfig: ApiConfig) => {
     },
 
     update(params: UpdatePaymentOptionParams, options?: RequestOptions): Promise<PaymentOption> {
-      return apiConfig.httpClient.put<PaymentOption>(storeRecordPath(params.store_id, collection, params.id), {
+      return apiConfig.httpClient.put<PaymentOption>(tenantRecordPath(params.tenant_id, collection, params.id), {
         expected_updated_at: params.expected_updated_at,
         blocks: params.blocks,
         status: params.status,

@@ -5,7 +5,7 @@ import type { DocumentItem } from "./invoice";
 
 export interface ShippingProfile {
   id: string;
-  store_id: string;
+  tenant_id: string;
   key: string;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
@@ -13,7 +13,7 @@ export interface ShippingProfile {
 
 export type ShippingMethodType =
   | { type: "delivery" }
-  | { type: "pickup"; store_location_id: string };
+  | { type: "pickup"; tenant_location_id: string };
 
 export type ShippingRateCondition =
   | { type: "sales_channel"; sales_channel_ids: string[] }
@@ -63,7 +63,7 @@ export type ShippingMethodStatus = { type: "active" } | { type: "archived" };
 
 export interface ShippingMethod {
   id: string;
-  store_id: string;
+  tenant_id: string;
   key: string;
   blocks: Block[];
   type: ShippingMethodType;
@@ -76,7 +76,7 @@ export interface ShippingMethod {
 }
 
 export interface FindShippingProfilesParams {
-  store_id: string;
+  tenant_id: string;
   key?: string;
   sort_field?: "created_at" | "updated_at";
   sort_direction?: SortDirection;
@@ -85,30 +85,30 @@ export interface FindShippingProfilesParams {
 }
 
 export interface CreateShippingProfileParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   key: string;
 }
 
 export interface UpdateShippingProfileParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   key: string;
 }
 
 export interface DeleteShippingProfileParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface FindShippingMethodsParams {
-  store_id: string;
+  tenant_id: string;
   key?: string;
   status?: ShippingMethodStatus["type"];
   type?: ShippingMethodType["type"];
-  store_location_id?: string;
+  tenant_location_id?: string;
   sort_field?: "created_at" | "updated_at";
   sort_direction?: SortDirection;
   limit?: number;
@@ -116,7 +116,7 @@ export interface FindShippingMethodsParams {
 }
 
 export interface CreateShippingMethodParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   key: string;
   blocks: Block[];
@@ -128,7 +128,7 @@ export interface CreateShippingMethodParams {
 }
 
 export interface UpdateShippingMethodParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   key?: string;
@@ -140,7 +140,7 @@ export interface UpdateShippingMethodParams {
 }
 
 export interface DeleteShippingMethodParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }

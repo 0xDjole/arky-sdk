@@ -27,7 +27,7 @@ import type {
 } from "../types/forms";
 import { FormAnswerError } from "../types/forms";
 import { requireId } from "../utils/ids";
-import { segment, storePath, storeRecordPath } from "./paths";
+import { segment, tenantPath, tenantRecordPath } from "./paths";
 
 function isGiven(answer: FormAnswerInput): boolean {
   if ((answer.type === "text" || answer.type === "email")) return answer.value.trim() !== "";
@@ -62,61 +62,61 @@ export function formSubmissionBody(submission: Record<string, unknown>, answers:
 }
 
 export const createFormsApi = (apiConfig: ApiConfig) => {
-  const submissionPath = (storeId: string, formId: string, id: string) =>
-    `${storeRecordPath(storeId, "forms", formId)}/submissions/${segment(id)}`;
+  const submissionPath = (tenantId: string, formId: string, id: string) =>
+    `${tenantRecordPath(tenantId, "forms", formId)}/submissions/${segment(id)}`;
 
   return {
     find(params: FindFormsParams, options?: RequestOptions): Promise<PaginatedResponse<Form>> {
-      const { store_id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<Form>>(storePath(store_id, "forms"), { ...options, params: query });
+      const { tenant_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<Form>>(tenantPath(tenant_id, "forms"), { ...options, params: query });
     },
 
     get(params: GetFormParams, options?: RequestOptions): Promise<Form> {
-      return apiConfig.httpClient.get<Form>(storeRecordPath(params.store_id, "forms", params.id), options);
+      return apiConfig.httpClient.get<Form>(tenantRecordPath(params.tenant_id, "forms", params.id), options);
     },
 
     getByKey(params: GetFormByKeyParams, options?: RequestOptions): Promise<Form> {
-      return apiConfig.httpClient.get<Form>(storePath(params.store_id, `forms/by-key/${segment(params.key)}`), options);
+      return apiConfig.httpClient.get<Form>(tenantPath(params.tenant_id, `forms/by-key/${segment(params.key)}`), options);
     },
 
     create(params: CreateFormParams, options?: RequestOptions): Promise<Form> {
       requireId(params.id, "form");
-      const { store_id, ...body } = params;
-      return apiConfig.httpClient.post<Form>(storePath(store_id, "forms"), body, options);
+      const { tenant_id, ...body } = params;
+      return apiConfig.httpClient.post<Form>(tenantPath(tenant_id, "forms"), body, options);
     },
 
     update(params: UpdateFormParams, options?: RequestOptions): Promise<Form> {
-      const { store_id, id, ...body } = params;
-      return apiConfig.httpClient.put<Form>(storeRecordPath(store_id, "forms", id), body, options);
+      const { tenant_id, id, ...body } = params;
+      return apiConfig.httpClient.put<Form>(tenantRecordPath(tenant_id, "forms", id), body, options);
     },
 
     delete(params: DeleteFormParams, options?: RequestOptions): Promise<DeletedResponse> {
-      return apiConfig.httpClient.delete<DeletedResponse>(storeRecordPath(params.store_id, "forms", params.id), {
+      return apiConfig.httpClient.delete<DeletedResponse>(tenantRecordPath(params.tenant_id, "forms", params.id), {
         ...options,
         params: { expected_updated_at: params.expected_updated_at },
       });
     },
 
     findSubmissions(params: FindFormSubmissionsParams, options?: RequestOptions): Promise<PaginatedResponse<FormSubmission>> {
-      const { store_id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<FormSubmission>>(storePath(store_id, "forms/submissions"), {
+      const { tenant_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<FormSubmission>>(tenantPath(tenant_id, "forms/submissions"), {
         ...options,
         params: query,
       });
     },
 
     getSubmission(params: GetFormSubmissionParams, options?: RequestOptions): Promise<FormSubmission> {
-      return apiConfig.httpClient.get<FormSubmission>(submissionPath(params.store_id, params.form_id, params.id), options);
+      return apiConfig.httpClient.get<FormSubmission>(submissionPath(params.tenant_id, params.form_id, params.id), options);
     },
 
     createSubmission(params: CreateFormSubmissionParams, options?: RequestOptions): Promise<FormSubmission> {
       requireId(params.id, "form submission");
       const body = formSubmissionBody(
-        { id: params.id, customer_id: params.customer_id, language: params.language },
+        { id: params.id, user_id: params.user_id, language: params.language },
         params.answers,
       );
       return apiConfig.httpClient.post<FormSubmission>(
-        `${storeRecordPath(params.store_id, "forms", params.form_id)}/submissions`,
+        `${tenantRecordPath(params.tenant_id, "forms", params.form_id)}/submissions`,
         body,
         options,
       );
@@ -124,19 +124,19 @@ export const createFormsApi = (apiConfig: ApiConfig) => {
 
     changeSubmissionStage(params: ChangeFormSubmissionStageParams, options?: RequestOptions): Promise<FormSubmission> {
       if (params.note) requireId(params.note.id, "note");
-      const { store_id, form_id, id, ...body } = params;
-      return apiConfig.httpClient.post<FormSubmission>(`${submissionPath(store_id, form_id, id)}/stage`, body, options);
+      const { tenant_id, form_id, id, ...body } = params;
+      return apiConfig.httpClient.post<FormSubmission>(`${submissionPath(tenant_id, form_id, id)}/stage`, body, options);
     },
 
     getSubmissionFile(params: GetFormSubmissionFileParams, options?: RequestOptions): Promise<FormSubmissionFileLink> {
       return apiConfig.httpClient.get<FormSubmissionFileLink>(
-        `${submissionPath(params.store_id, params.form_id, params.id)}/files/${segment(params.sha256)}`,
+        `${submissionPath(params.tenant_id, params.form_id, params.id)}/files/${segment(params.sha256)}`,
         options,
       );
     },
 
     deleteSubmission(params: DeleteFormSubmissionParams, options?: RequestOptions): Promise<{ deleted: true }> {
-      return apiConfig.httpClient.delete<{ deleted: true }>(submissionPath(params.store_id, params.form_id, params.id), {
+      return apiConfig.httpClient.delete<{ deleted: true }>(submissionPath(params.tenant_id, params.form_id, params.id), {
         ...options,
         params: { expected_updated_at: params.expected_updated_at },
       });

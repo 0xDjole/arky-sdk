@@ -15,7 +15,7 @@ test("a buyer reads their order's fulfillment timeline from one exact route", as
     shipments: [{ fulfillment_id: "shipment", status: { type: "dispatched", dispatched_at: 5 }, preparation_started_at: 4, updated_at: 5 }],
   }];
   const calls = recordFetch(context, (_call, count) => ({ items: timeline, cursor: count === 1 ? "jobs:1" : null }));
-  const client = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
+  const client = createStorefront(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
   assert.deepEqual(await client.eshop.order.findFulfillments({ order_id: "order/one" }), { items: timeline, cursor: "jobs:1" });
   assert.deepEqual(await client.eshop.order.findFulfillments({ order_id: "order/one", limit: 1, cursor: "jobs:1" }), { items: timeline, cursor: null });
   assert.deepEqual(calls.map((call) => [call.method, call.path, call.url.search]), [
@@ -25,7 +25,7 @@ test("a buyer reads their order's fulfillment timeline from one exact route", as
   assert.equal(calls[0].headers.get("authorization"), `Bearer ${visitorToken}`);
 });
 
-test("a_customer_shipment_carries_trackings", async (context) => {
+test("a_user_shipment_carries_trackings", async (context) => {
   const trackings = [
     { carrier: "DHL", number: "JD014600003828", url: "https://dhl.example.test/track/JD014600003828" },
     { carrier: "Pošta", number: "RR123456789BA", url: null },
@@ -41,25 +41,25 @@ test("a_customer_shipment_carries_trackings", async (context) => {
     updated_at: 5,
   }];
   recordFetch(context, () => ({ items: timeline, cursor: null }));
-  const client = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
+  const client = createStorefront(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
   const { items: [fulfillment] } = await client.eshop.order.findFulfillments({ order_id: ids.order });
   assert.deepEqual(fulfillment.shipments[0].trackings, trackings);
 });
 
 test("a buyer's return names the drop-off location as decided only when one is chosen, and undecided otherwise", async (context) => {
   const calls = recordFetch(context, () => ({ id: returnId, status: { type: "requested", destination: { type: "undecided" } } }));
-  const client = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
+  const client = createStorefront(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() });
   const request = {
     id: returnId,
     type: { type: "order", order_id: ids.order, lines: [{ id: "line", order_product_line_item_id: ids.line, unit_spans: [{ first_unit: 0, quantity: 1 }], reason: "damaged", items: [{ inventory_item_id: "stock-item", quantity: 1 }] }] },
     destination: { type: "undecided" },
   };
   await client.eshop.return.create(request);
-  await client.eshop.return.create({ ...request, destination: { type: "decided", store_location_id: "warehouse" } });
+  await client.eshop.return.create({ ...request, destination: { type: "decided", tenant_location_id: "warehouse" } });
   assert.deepEqual(calls.map((call) => [call.method, call.path, call.body.destination]), [
     ["POST", "/v1/storefront/returns", { type: "undecided" }],
-    ["POST", "/v1/storefront/returns", { type: "decided", store_location_id: "warehouse" }],
+    ["POST", "/v1/storefront/returns", { type: "decided", tenant_location_id: "warehouse" }],
   ]);
-  assert.equal("destination_store_location_id" in calls[0].body, false);
+  assert.equal("destination_tenant_location_id" in calls[0].body, false);
   assert.deepEqual(calls[0].body, request);
 });

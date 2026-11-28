@@ -164,8 +164,8 @@ function selectUnits(work: FulfillmentJob, lineId: string, quantity: number, his
   const prepared: FulfillmentUnitSpan[] = [];
   for (const fulfillment of history) {
     const execution = fulfillmentExecution(fulfillment);
-    if (fulfillment.store_id !== work.store_id) {
-      throw new FulfillmentSelectionError("A shipment of another store was given.");
+    if (fulfillment.tenant_id !== work.tenant_id) {
+      throw new FulfillmentSelectionError("A shipment of another tenant was given.");
     }
     if (fulfillment.fulfillment_job_id !== work.id) continue;
     if (!execution && fulfillment.type.status.type === "cancelled") continue;

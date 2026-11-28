@@ -8,8 +8,8 @@ const offeringId = "8d1c2f4e-5b6a-4c7d-8e9f-0a1b2c3d4e5f";
 const memberPackageId = "6b7f3f38-2a8b-4a1e-9f02-7a1d9a2f0f21";
 const otherPackageId = "3c9e5a71-8d24-4f06-b2a8-5e1c7d3f9b40";
 const automaticItemId = "0b9a4b7e-51a1-4d5f-9d9f-7a0e3f9ce0a1";
-const STORE_ID = "d7b1f4e9-2a63-4c58-8e0d-5b9c3a6f1e24";
-const OTHER_STORE_ID = "0a6e3c9f-5d21-4b87-9f4a-8c2e1b7d5a03";
+const TENANT_ID = "d7b1f4e9-2a63-4c58-8e0d-5b9c3a6f1e24";
+const OTHER_TENANT_ID = "0a6e3c9f-5d21-4b87-9f4a-8c2e1b7d5a03";
 
 function admin() {
   return createAdmin({ accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA", apiUrl: apiUrl });
@@ -19,7 +19,7 @@ test("storefront package and offering reads name their shop, answer the plan's i
   const calls = recordFetch(context, (call) => call.path.includes("/package-offerings/")
     ? { id: offeringId, key: "members-club", blocks: [], package_ids: [memberPackageId] }
     : { id: memberPackageId, package_item_id: ids.packageItem, package_offering_id: offeringId });
-  const client = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "us", locale: "en" });
+  const client = createStorefront(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "us", locale: "en" });
   const memberPackage = await client.eshop.package.getByKey({ key: "monthly/plan", package_id: ids.package, company_id: ids.company });
   assert.equal(memberPackage.package_item_id, ids.packageItem);
   assert.equal(memberPackage.package_offering_id, offeringId);
@@ -55,7 +55,7 @@ test("a storefront package names each machine it lends by the product the Server
   };
   const rental = (id) => ({
     id,
-    type: { type: "rent_product", variant_id: ids.variant, quantity: 1, tax_category_id: STORE_ID },
+    type: { type: "rent_product", variant_id: ids.variant, quantity: 1, tax_category_id: TENANT_ID },
   });
   const package_ = {
     id: memberPackageId,
@@ -73,7 +73,7 @@ test("a storefront package names each machine it lends by the product the Server
     package_offering_id: null,
   };
   const calls = recordFetch(context, () => package_);
-  const client = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "us", locale: "en" });
+  const client = createStorefront(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "us", locale: "en" });
   for (const read of [
     await client.eshop.package.get({ id: memberPackageId, package_id: ids.package, company_location_id: ids.companyLocation }),
     await client.eshop.package.getByKey({ key: "milkpal-package", package_id: ids.package, company_location_id: ids.companyLocation }),
@@ -102,7 +102,7 @@ test("a package owns its renewal, stay and automatic item operations, and is cre
   };
   const stay = { type: "at_least", length: { interval: "year", interval_count: 1 }, then: { type: "renew_once" } };
   const create = {
-    store_id: STORE_ID,
+    tenant_id: TENANT_ID,
     id: memberPackageId,
     key: "monthly",
     blocks: [],
@@ -113,14 +113,14 @@ test("a package owns its renewal, stay and automatic item operations, and is cre
     status: { type: "active" },
     items,
   };
-  const { store_id: _store, ...body } = create;
-  const calls = recordFetch(context, () => ({ ...body, store_id: STORE_ID, created_at: 1, updated_at: 1 }));
+  const { tenant_id: _tenant, ...body } = create;
+  const calls = recordFetch(context, () => ({ ...body, tenant_id: TENANT_ID, created_at: 1, updated_at: 1 }));
   const before = structuredClone(create);
   const saved = await admin().eshop.package.create(create);
   assert.deepEqual(saved.renewal, renewal);
   assert.deepEqual(saved.stay, stay);
   assert.deepEqual(create, before);
-  assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [["POST", `/v1/stores/${STORE_ID}/packages`, body]]);
+  assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [["POST", `/v1/tenants/${TENANT_ID}/packages`, body]]);
   for (const removed of ["subscriptionPlan", "subscriptionOffering"]) assert.equal(removed in admin().eshop, false, removed);
   for (const id of [undefined, "monthly", memberPackageId.toUpperCase()]) {
     await assert.rejects(async () => admin().eshop.package.create({ ...create, id }), {
@@ -137,49 +137,49 @@ test("package and offering edits carry the version, offerings list their package
     ? call.path.includes("/package-offerings/") ? { deleted: true } : deleting
     : call.method === "GET" ? { items: [], cursor: null } : { id: "record" });
   const client = admin().eshop;
-  const update = { store_id: OTHER_STORE_ID, id: memberPackageId, expected_updated_at: 5, blocks: [], renewal: { type: "never" }, stay: { type: "any_time" }, minimum: { type: "none" }, schedule: { type: "always" }, status: { type: "closed" }, items: [] };
+  const update = { tenant_id: OTHER_TENANT_ID, id: memberPackageId, expected_updated_at: 5, blocks: [], renewal: { type: "never" }, stay: { type: "any_time" }, minimum: { type: "none" }, schedule: { type: "always" }, status: { type: "closed" }, items: [] };
   await client.package.update(update);
-  assert.deepEqual(await client.package.delete({ store_id: OTHER_STORE_ID, id: memberPackageId, expected_updated_at: 6 }), deleting);
-  await client.package.find({ store_id: STORE_ID, package_offering_id: offeringId, status: { type: "active" }, sort_field: "status", limit: 5 });
-  await client.packageOffering.create({ store_id: STORE_ID, id: offeringId, key: "members-club", blocks: [], package_ids: [memberPackageId] });
-  await client.packageOffering.update({ store_id: STORE_ID, id: offeringId, expected_updated_at: 7, blocks: [], package_ids: [memberPackageId, otherPackageId] });
-  await client.packageOffering.find({ store_id: STORE_ID, key: "members-club", limit: 5 });
-  assert.deepEqual(await client.packageOffering.delete({ store_id: STORE_ID, id: offeringId, expected_updated_at: 8 }), { deleted: true });
-  const { store_id: _store, id: _id, ...updateBody } = update;
+  assert.deepEqual(await client.package.delete({ tenant_id: OTHER_TENANT_ID, id: memberPackageId, expected_updated_at: 6 }), deleting);
+  await client.package.find({ tenant_id: TENANT_ID, package_offering_id: offeringId, status: { type: "active" }, sort_field: "status", limit: 5 });
+  await client.packageOffering.create({ tenant_id: TENANT_ID, id: offeringId, key: "members-club", blocks: [], package_ids: [memberPackageId] });
+  await client.packageOffering.update({ tenant_id: TENANT_ID, id: offeringId, expected_updated_at: 7, blocks: [], package_ids: [memberPackageId, otherPackageId] });
+  await client.packageOffering.find({ tenant_id: TENANT_ID, key: "members-club", limit: 5 });
+  assert.deepEqual(await client.packageOffering.delete({ tenant_id: TENANT_ID, id: offeringId, expected_updated_at: 8 }), { deleted: true });
+  const { tenant_id: _tenant, id: _id, ...updateBody } = update;
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
-    ["PUT", `/v1/stores/${OTHER_STORE_ID}/packages/${memberPackageId}`, {}, updateBody],
-    ["DELETE", `/v1/stores/${OTHER_STORE_ID}/packages/${memberPackageId}`, { expected_updated_at: "6" }, null],
-    ["GET", `/v1/stores/${STORE_ID}/packages`, { package_offering_id: offeringId, status: JSON.stringify({ type: "active" }), sort_field: "status", limit: "5" }, null],
-    ["POST", `/v1/stores/${STORE_ID}/package-offerings`, {}, { id: offeringId, key: "members-club", blocks: [], package_ids: [memberPackageId] }],
-    ["PUT", `/v1/stores/${STORE_ID}/package-offerings/${offeringId}`, {}, { expected_updated_at: 7, blocks: [], package_ids: [memberPackageId, otherPackageId] }],
-    ["GET", `/v1/stores/${STORE_ID}/package-offerings`, { key: "members-club", limit: "5" }, null],
-    ["DELETE", `/v1/stores/${STORE_ID}/package-offerings/${offeringId}`, { expected_updated_at: "8" }, null],
+    ["PUT", `/v1/tenants/${OTHER_TENANT_ID}/packages/${memberPackageId}`, {}, updateBody],
+    ["DELETE", `/v1/tenants/${OTHER_TENANT_ID}/packages/${memberPackageId}`, { expected_updated_at: "6" }, null],
+    ["GET", `/v1/tenants/${TENANT_ID}/packages`, { package_offering_id: offeringId, status: JSON.stringify({ type: "active" }), sort_field: "status", limit: "5" }, null],
+    ["POST", `/v1/tenants/${TENANT_ID}/package-offerings`, {}, { id: offeringId, key: "members-club", blocks: [], package_ids: [memberPackageId] }],
+    ["PUT", `/v1/tenants/${TENANT_ID}/package-offerings/${offeringId}`, {}, { expected_updated_at: 7, blocks: [], package_ids: [memberPackageId, otherPackageId] }],
+    ["GET", `/v1/tenants/${TENANT_ID}/package-offerings`, { key: "members-club", limit: "5" }, null],
+    ["DELETE", `/v1/tenants/${TENANT_ID}/package-offerings/${offeringId}`, { expected_updated_at: "8" }, null],
   ]);
-  await assert.rejects(async () => client.packageOffering.create({ store_id: STORE_ID, id: "members-club", key: "members-club", blocks: [], package_ids: [] }), {
+  await assert.rejects(async () => client.packageOffering.create({ tenant_id: TENANT_ID, id: "members-club", key: "members-club", blocks: [], package_ids: [] }), {
     name: "TypeError",
     message: "The package offering id must be a canonical UUID v4 picked by the app",
   });
   assert.equal(calls.length, 7);
 });
 
-test("package offerings are read by id or by key on the named store, and never from a remembered one", async (context) => {
+test("package offerings are read by id or by key on the named tenant, and never from a remembered one", async (context) => {
   const calls = recordFetch(context, () => ({ id: offeringId }));
   const client = admin().eshop.packageOffering;
-  await client.get({ store_id: STORE_ID, id: offeringId });
-  await client.getByKey({ store_id: OTHER_STORE_ID, key: "members/club" });
-  await admin().eshop.package.get({ store_id: STORE_ID, id: memberPackageId });
+  await client.get({ tenant_id: TENANT_ID, id: offeringId });
+  await client.getByKey({ tenant_id: OTHER_TENANT_ID, key: "members/club" });
+  await admin().eshop.package.get({ tenant_id: TENANT_ID, id: memberPackageId });
   await assert.rejects(async () => client.getByKey({ key: "members-club" }), TypeError);
   assert.deepEqual(calls.map(({ path }) => path), [
-    `/v1/stores/${STORE_ID}/package-offerings/${offeringId}`,
-    `/v1/stores/${OTHER_STORE_ID}/package-offerings/by-key/members%2Fclub`,
-    `/v1/stores/${STORE_ID}/packages/${memberPackageId}`,
+    `/v1/tenants/${TENANT_ID}/package-offerings/${offeringId}`,
+    `/v1/tenants/${OTHER_TENANT_ID}/package-offerings/by-key/members%2Fclub`,
+    `/v1/tenants/${TENANT_ID}/packages/${memberPackageId}`,
   ]);
 });
 
 test("a storefront reads every automatic item's product choices of one package in one request", async (context) => {
   const answer = { package_id: memberPackageId, package_updated_at: 7, items: [{ package_item_id: automaticItemId, alternatives: [] }] };
   const calls = recordFetch(context, () => answer);
-  const client = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl });
+  const client = createStorefront(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl });
   assert.deepEqual(await client.eshop.package.getItemsProductChoices({ id: memberPackageId, quantity: 1, package_id: ids.package, company_id: ids.company }), answer);
   await client.eshop.package.getItemsProductChoices({ key: "monthly", quantity: 3, package_id: ids.package });
   assert.deepEqual(calls.map((call) => [call.method, call.path, call.query]), [

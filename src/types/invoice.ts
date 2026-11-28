@@ -55,7 +55,7 @@ export type InvoiceBuyer =
 
 export type InvoicePlace =
   | { type: "office" }
-  | { type: "store_location"; address: PostalAddress };
+  | { type: "tenant_location"; address: PostalAddress };
 
 export type InvoiceSupply =
   | { type: "on"; date: CalendarDate }
@@ -227,7 +227,7 @@ export interface InvoiceFiscalReceipt {
 
 export interface Invoice {
   id: string;
-  store_id: string;
+  tenant_id: string;
   order_id: string;
   type: InvoiceType;
   fiscal_receipts: InvoiceFiscalReceipt[];
@@ -248,8 +248,8 @@ export type InvoiceBuyerInput =
       purchase_order: InvoicePurchaseOrder;
     };
 
-export interface FindStoreInvoicesParams {
-  store_id: string;
+export interface FindTenantInvoicesParams {
+  tenant_id: string;
   order_id?: never;
   order_ids?: never;
   number?: never;
@@ -260,7 +260,7 @@ export interface FindStoreInvoicesParams {
 }
 
 export interface FindOrderInvoicesParams {
-  store_id: string;
+  tenant_id: string;
   order_id: string;
   order_ids?: never;
   number?: never;
@@ -271,7 +271,7 @@ export interface FindOrderInvoicesParams {
 }
 
 export interface FindInvoicesByOrdersParams {
-  store_id: string;
+  tenant_id: string;
   order_id?: never;
   order_ids: string[];
   number?: never;
@@ -282,7 +282,7 @@ export interface FindInvoicesByOrdersParams {
 }
 
 export interface FindInvoicesByNumberParams {
-  store_id: string;
+  tenant_id: string;
   order_id?: never;
   order_ids?: never;
   number: string;
@@ -293,25 +293,25 @@ export interface FindInvoicesByNumberParams {
 }
 
 export type FindInvoicesParams =
-  | FindStoreInvoicesParams
+  | FindTenantInvoicesParams
   | FindOrderInvoicesParams
   | FindInvoicesByOrdersParams
   | FindInvoicesByNumberParams;
 
 export interface GetInvoiceParams {
-  store_id: string;
+  tenant_id: string;
   invoice_id: string;
 }
 
 export interface IssueInvoiceParams {
-  store_id: string;
+  tenant_id: string;
   order_id: string;
   buyer: InvoiceBuyerInput;
   memo: InvoiceMemo;
 }
 
 export interface ReissueInvoiceParams {
-  store_id: string;
+  tenant_id: string;
   invoice_id: string;
   expected_updated_at: EpochMilliseconds;
   reversal_id: string;
@@ -329,20 +329,20 @@ export interface ReissuedInvoice {
 }
 
 export interface AttachOutsideInvoiceParams {
-  store_id: string;
+  tenant_id: string;
   order_id: string;
   number: string;
   document: OutsideInvoiceDocument;
 }
 
 export interface DetachOutsideInvoiceParams {
-  store_id: string;
+  tenant_id: string;
   invoice_id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface CreateOutsideCreditNoteParams {
-  store_id: string;
+  tenant_id: string;
   invoice_id: string;
   id: string;
   order_credit_id: string;
@@ -351,20 +351,20 @@ export interface CreateOutsideCreditNoteParams {
 }
 
 export interface DeleteOutsideCreditNoteParams {
-  store_id: string;
+  tenant_id: string;
   invoice_id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export type InvoiceCounterSeries =
-  | { type: "store" }
+  | { type: "tenant" }
   | { type: "croatia_device"; fiscal_device_id: string };
 
 export type InvoiceCounterStatus = "open" | "held_after_restore";
 
 export interface InvoiceCounter {
   id: string;
-  store_id: string;
+  tenant_id: string;
   series: InvoiceCounterSeries;
   year: number;
   last_number: number;
@@ -374,89 +374,89 @@ export interface InvoiceCounter {
 }
 
 export interface FindInvoiceCountersParams {
-  store_id: string;
+  tenant_id: string;
   limit?: number;
   cursor?: string | null;
 }
 
 export interface ConfirmInvoiceCounterParams {
-  store_id: string;
+  tenant_id: string;
   invoice_counter_id: string;
   expected_updated_at: EpochMilliseconds;
   next_number: number;
 }
 
-export type StoreInvoicing =
+export type TenantInvoicing =
   | { type: "none" }
   | { type: "outside" }
   | { type: "arky" };
 
-export interface SetStoreInvoicingParams {
-  store_id: string;
+export interface SetTenantInvoicingParams {
+  tenant_id: string;
   expected_updated_at: EpochMilliseconds;
-  invoicing: StoreInvoicing;
+  invoicing: TenantInvoicing;
 }
 
-export type StoreSellerTax =
+export type TenantSellerTax =
   | { type: "vat_registered"; tax_id: string; vat_id: string }
   | { type: "not_vat_registered"; tax_id: string };
 
-export type StoreSellerPaymentReference =
+export type TenantSellerPaymentReference =
   | { type: "plain" }
   | { type: "model97" }
   | { type: "creditor" };
 
-export type StoreSellerBankAccount =
+export type TenantSellerBankAccount =
   | { type: "none" }
-  | { type: "account"; bank: string; account: string; reference: StoreSellerPaymentReference };
+  | { type: "account"; bank: string; account: string; reference: TenantSellerPaymentReference };
 
-export type StoreSellerInvoiceFooter =
+export type TenantSellerInvoiceFooter =
   | { type: "none" }
   | { type: "text"; text: string };
 
-export interface StoreSeller {
+export interface TenantSeller {
   id: string;
-  store_id: string;
+  tenant_id: string;
   name: string;
   address: PostalAddress;
-  tax: StoreSellerTax;
-  bank_account: StoreSellerBankAccount;
-  invoice_footer: StoreSellerInvoiceFooter;
+  tax: TenantSellerTax;
+  bank_account: TenantSellerBankAccount;
+  invoice_footer: TenantSellerInvoiceFooter;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
-export interface GetStoreSellerParams {
-  store_id: string;
+export interface GetTenantSellerParams {
+  tenant_id: string;
 }
 
-export interface CreateStoreSellerParams {
-  store_id: string;
+export interface CreateTenantSellerParams {
+  tenant_id: string;
   id: string;
   name: string;
   address: PostalAddressInput;
-  tax: StoreSellerTax;
-  bank_account: StoreSellerBankAccount;
-  invoice_footer: StoreSellerInvoiceFooter;
+  tax: TenantSellerTax;
+  bank_account: TenantSellerBankAccount;
+  invoice_footer: TenantSellerInvoiceFooter;
 }
 
-export interface UpdateStoreSellerParams {
-  store_id: string;
+export interface UpdateTenantSellerParams {
+  tenant_id: string;
   expected_updated_at: EpochMilliseconds;
   name: string;
   address: PostalAddressInput;
-  tax: StoreSellerTax;
-  bank_account: StoreSellerBankAccount;
-  invoice_footer: StoreSellerInvoiceFooter;
+  tax: TenantSellerTax;
+  bank_account: TenantSellerBankAccount;
+  invoice_footer: TenantSellerInvoiceFooter;
 }
 
-export interface DeleteStoreSellerParams {
-  store_id: string;
+export interface DeleteTenantSellerParams {
+  tenant_id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface FindUnissuedInvoicesParams {
-  store_id: string;
+  tenant_id: string;
   reason: UnissuedInvoiceReason;
   limit?: number;
   cursor?: string | null;

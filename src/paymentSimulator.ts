@@ -1,13 +1,13 @@
 import type { StripeEmbeddedCheckoutAction } from "./types/embeddedCheckout";
 import type { CheckoutPaymentAction, MonriComponentsAction, StorefrontPaymentMethodSetupStart, PaymentRunsOn } from "./types/payment";
-import type { StoreCardSetup, StoreSubscriptionPayment } from "./types/store";
+import type { TenantCardSetup, TenantSubscriptionPayment } from "./types/tenant";
 import { ArkyError } from "./types/apiError";
 
 export type PaymentSimulation =
   | { type: "stripe_checkout"; action: StripeEmbeddedCheckoutAction; outcome: "complete" | "decline" | "expire" }
-  | { type: "stripe_payment_intent"; action: Extract<StoreSubscriptionPayment, { type: "stripe" }>; outcome: "complete" | "decline" }
+  | { type: "stripe_payment_intent"; action: Extract<TenantSubscriptionPayment, { type: "stripe" }>; outcome: "complete" | "decline" }
   | { type: "monri"; action: MonriComponentsAction; outcome: "complete" | "decline" }
-  | { type: "card_setup"; setup: StorefrontPaymentMethodSetupStart | StoreCardSetup; outcome: "complete" | "cancel" | "decline" };
+  | { type: "card_setup"; setup: StorefrontPaymentMethodSetupStart | TenantCardSetup; outcome: "complete" | "cancel" | "decline" };
 
 export interface SimulatePaymentParams {
   simulation: PaymentSimulation;
@@ -24,7 +24,7 @@ interface SimulatorRequest {
 
 const notSimulated = "This payment isn't run by Arky's provider simulator";
 
-export function isSimulatedPayment(value: CheckoutPaymentAction | StoreSubscriptionPayment | StorefrontPaymentMethodSetupStart | StoreCardSetup): boolean {
+export function isSimulatedPayment(value: CheckoutPaymentAction | TenantSubscriptionPayment | StorefrontPaymentMethodSetupStart | TenantCardSetup): boolean {
   return "runs_on" in value && value.runs_on.type === "simulator";
 }
 

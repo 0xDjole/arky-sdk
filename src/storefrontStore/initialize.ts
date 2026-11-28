@@ -4,7 +4,7 @@ import { CartError } from "../types/cartSelection";
 import type { StorefrontMarket, StorefrontSetup } from "../types/storefront";
 import { isOrderToken } from "../utils/orderToken";
 import { requireId } from "../utils/ids";
-import { createStorefront, type StorefrontContext, type StorefrontCustomerSession } from "../index";
+import { createStorefront, type StorefrontContext, type StorefrontUserSession } from "../index";
 import { cartScopeKey } from "../services/cartSelection";
 import { createBookingCalendar, type BookingCalendar } from "./bookingCalendar";
 import { createCartStore, type CartScope, type CartStore, type CartStoreContext } from "./cart";
@@ -13,7 +13,7 @@ import type { ArkyCartScope, ArkyStoreConfig } from "./types";
 
 function initializeStoreCore(identity: StorefrontIdentity, config: ArkyStoreConfig) {
   const client = createStorefront(identity, config);
-  const session = atom<StorefrontCustomerSession | null>(client.session);
+  const session = atom<StorefrontUserSession | null>(client.session);
   const setup = atom<StorefrontSetup | null>(null);
   const locale = atom(client.getLocale());
   const market_key = atom(client.getMarket());
@@ -22,7 +22,7 @@ function initializeStoreCore(identity: StorefrontIdentity, config: ArkyStoreConf
   const currency = computed(market, (value) => value?.currency ?? null);
 
   let contextRevision = 0;
-  let sessionRequest: Promise<StorefrontCustomerSession | null> | null = null;
+  let sessionRequest: Promise<StorefrontUserSession | null> | null = null;
 
   const cartStores = new Map<string, CartStore>();
   const contextInvalidators = new Set<() => void>();
@@ -35,8 +35,8 @@ function initializeStoreCore(identity: StorefrontIdentity, config: ArkyStoreConf
     for (const invalidate of contextInvalidators) invalidate();
   }
 
-  function sameBuyer(left: StorefrontCustomerSession | null, right: StorefrontCustomerSession | null): boolean {
-    return left?.customer.id === right?.customer.id && left?.type === right?.type;
+  function sameBuyer(left: StorefrontUserSession | null, right: StorefrontUserSession | null): boolean {
+    return left?.user.id === right?.user.id && left?.type === right?.type;
   }
 
   function synchronizeSession(): void {
@@ -70,9 +70,9 @@ function initializeStoreCore(identity: StorefrontIdentity, config: ArkyStoreConf
     const key = market_key.get();
     const revision = contextRevision;
     const result = await client.getSetup();
-    const value = key ? await client.store.market.getCurrent() : null;
+    const value = key ? await client.tenant.market.getCurrent() : null;
     if (revision !== contextRevision || key !== market_key.get()) {
-      throw new CartError("context_changed", "The market changed while the store setup was loading");
+      throw new CartError("context_changed", "The market changed while the tenant setup was loading");
     }
     if (value && value.key !== key) throw new CartError("answer_mismatch", "The market read didn't confirm the selected key");
     setup.set(result);
@@ -80,11 +80,11 @@ function initializeStoreCore(identity: StorefrontIdentity, config: ArkyStoreConf
     return result;
   }
 
-  async function ensureSession(): Promise<StorefrontCustomerSession | null> {
+  async function ensureSession(): Promise<StorefrontUserSession | null> {
     synchronizeSession();
     if (client.hasSession) return client.session;
     if (!sessionRequest) {
-      sessionRequest = client.customer
+      sessionRequest = client.user
         .ensureSession()
         .then(() => client.session)
         .finally(() => {
@@ -122,7 +122,7 @@ function initializeStoreCore(identity: StorefrontIdentity, config: ArkyStoreConf
     }
     const isCurrent = () => revision === contextRevision && sameBuyer(client.session, current);
     return {
-      customerId: current.customer.id,
+      userId: current.user.id,
       isCurrent,
       assertCurrent() {
         if (!isCurrent()) throw new CartError("context_changed", "The buyer or the store context changed during the cart operation");
@@ -204,16 +204,16 @@ function initializeStoreCore(identity: StorefrontIdentity, config: ArkyStoreConf
     setContext,
     getMarket: () => market_key.get(),
     getLocale: () => locale.get(),
-    customer: client.customer,
+    user: client.user,
     newsletter: client.newsletter,
     broadcast: client.broadcast,
-    store: {
-      ...client.store,
+    tenant: {
+      ...client.tenant,
       load: loadSetup,
     },
     media: client.media,
     content: client.content,
-    customerEntries: client.customerEntries,
+    userEntries: client.userEntries,
     forms: client.forms,
     category: client.category,
     eshop: {

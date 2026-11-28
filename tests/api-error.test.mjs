@@ -39,7 +39,7 @@ test("a refused request throws an ArkyApiError with the Server's code, status an
     response.headers.set("x-request-id", "request-7");
     return response;
   });
-  const error = await storefront().customer.getMe().catch((caught) => caught);
+  const error = await storefront().user.getMe().catch((caught) => caught);
   assert.ok(error instanceof ArkyApiError);
   assert.ok(error instanceof RootApiError);
   assert.ok(error instanceof AdminApiError);
@@ -53,7 +53,7 @@ test("a refused request throws an ArkyApiError with the Server's code, status an
   assert.deepEqual(error.validationErrors, [{ field: "email", error: "GENERAL.INVALID_EMAIL" }]);
   assert.equal("requestId" in error, false);
   assert.equal(error.method, "GET");
-  assert.equal(error.url, `${apiUrl}/v1/storefront/customer/me`);
+  assert.equal(error.url, `${apiUrl}/v1/storefront/user/me`);
   assert.equal(error.response.error, "GENERAL.VALIDATION_FAILED");
   assert.equal(isDefiniteRefusal(error), true);
 });
@@ -62,7 +62,7 @@ test("network failures are ArkyNetworkErrors with a code, not ArkyApiErrors, and
   recordFetch(context, () => {
     throw new TypeError("socket closed");
   });
-  const error = await storefront().customer.getMe().catch((caught) => caught);
+  const error = await storefront().user.getMe().catch((caught) => caught);
   assert.equal(error.name, "NetworkError");
   assert.ok(error instanceof ArkyNetworkError);
   assert.ok(error instanceof ArkyError);
@@ -80,8 +80,8 @@ test("a 200 that isn't JSON fails as unreadable_answer", async (context) => {
   assert.ok(read instanceof ArkyNetworkError);
   assert.equal(read.code, "unreadable_answer");
   const reported = [];
-  const input = { store_id: "ab73eb42-89fd-4cbf-a1fd-fb84e6d78590", id: "912d27b1-2ed8-4a82-a2f1-318a45e31694", key: "web", market_ids: [], status: "active" };
-  const write = await admin.store.salesChannel.create(input, { onError: (failure) => { reported.push(failure); } }).catch((caught) => caught);
+  const input = { tenant_id: "ab73eb42-89fd-4cbf-a1fd-fb84e6d78590", id: "912d27b1-2ed8-4a82-a2f1-318a45e31694", key: "web", market_ids: [], status: "active" };
+  const write = await admin.tenant.salesChannel.create(input, { onError: (failure) => { reported.push(failure); } }).catch((caught) => caught);
   assert.ok(write instanceof ArkyNetworkError);
   assert.equal(write.code, "unreadable_answer");
   assert.equal(reported.length, 1);

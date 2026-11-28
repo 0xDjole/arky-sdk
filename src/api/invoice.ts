@@ -1,62 +1,62 @@
 import type { ApiConfig } from "../services/clientTypes";
 import type { RequestOptions } from "../types/api";
 import type { DeletedResponse, PaginatedResponse } from "../types/common";
-import type { Store } from "../types/store";
+import type { Tenant } from "../types/tenant";
 import type {
   AttachOutsideInvoiceParams,
   ConfirmInvoiceCounterParams,
   CreateOutsideCreditNoteParams,
-  CreateStoreSellerParams,
+  CreateTenantSellerParams,
   DeleteOutsideCreditNoteParams,
-  DeleteStoreSellerParams,
+  DeleteTenantSellerParams,
   DetachOutsideInvoiceParams,
   FindInvoiceCountersParams,
   FindInvoicesParams,
   FindUnissuedInvoicesParams,
   UnissuedInvoice,
   GetInvoiceParams,
-  GetStoreSellerParams,
+  GetTenantSellerParams,
   Invoice,
   InvoiceCounter,
   IssueInvoiceParams,
   ReissuedInvoice,
   ReissueInvoiceParams,
-  SetStoreInvoicingParams,
-  StoreSeller,
-  UpdateStoreSellerParams,
+  SetTenantInvoicingParams,
+  TenantSeller,
+  UpdateTenantSellerParams,
 } from "../types/invoice";
 import { requireId } from "../utils/ids";
-import { storePath, storeRecordPath } from "./paths";
+import { tenantPath, tenantRecordPath } from "./paths";
 
 const collection = "invoices";
 
 export const createInvoiceApi = (apiConfig: ApiConfig) => {
-  const invoicePath = (storeId: string, invoiceId: string) => storeRecordPath(storeId, collection, invoiceId);
+  const invoicePath = (tenantId: string, invoiceId: string) => tenantRecordPath(tenantId, collection, invoiceId);
 
   return {
     find(params: FindInvoicesParams, options?: RequestOptions): Promise<PaginatedResponse<Invoice>> {
-      const { store_id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<Invoice>>(storePath(store_id, collection), {
+      const { tenant_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<Invoice>>(tenantPath(tenant_id, collection), {
         ...options,
         params: query,
       });
     },
 
     findUnissued(params: FindUnissuedInvoicesParams, options?: RequestOptions): Promise<PaginatedResponse<UnissuedInvoice>> {
-      const { store_id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<UnissuedInvoice>>(`${storePath(store_id, collection)}/unissued`, {
+      const { tenant_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<UnissuedInvoice>>(`${tenantPath(tenant_id, collection)}/unissued`, {
         ...options,
         params: query,
       });
     },
 
     get(params: GetInvoiceParams, options?: RequestOptions): Promise<Invoice> {
-      return apiConfig.httpClient.get<Invoice>(invoicePath(params.store_id, params.invoice_id), options);
+      return apiConfig.httpClient.get<Invoice>(invoicePath(params.tenant_id, params.invoice_id), options);
     },
 
     issue(params: IssueInvoiceParams, options?: RequestOptions): Promise<Invoice> {
       return apiConfig.httpClient.post<Invoice>(
-        storePath(params.store_id, collection),
+        tenantPath(params.tenant_id, collection),
         { order_id: params.order_id, buyer: params.buyer, memo: params.memo },
         options,
       );
@@ -66,7 +66,7 @@ export const createInvoiceApi = (apiConfig: ApiConfig) => {
       requireId(params.reversal_id, "reversal");
       requireId(params.new_invoice_id, "invoice");
       return apiConfig.httpClient.post<ReissuedInvoice>(
-        `${invoicePath(params.store_id, params.invoice_id)}/reissue`,
+        `${invoicePath(params.tenant_id, params.invoice_id)}/reissue`,
         {
           expected_updated_at: params.expected_updated_at,
           reversal_id: params.reversal_id,
@@ -82,7 +82,7 @@ export const createInvoiceApi = (apiConfig: ApiConfig) => {
 
     attachOutside(params: AttachOutsideInvoiceParams, options?: RequestOptions): Promise<Invoice> {
       return apiConfig.httpClient.post<Invoice>(
-        `${storePath(params.store_id, collection)}/outside`,
+        `${tenantPath(params.tenant_id, collection)}/outside`,
         { order_id: params.order_id, number: params.number, document: params.document },
         options,
       );
@@ -90,7 +90,7 @@ export const createInvoiceApi = (apiConfig: ApiConfig) => {
 
     detachOutside(params: DetachOutsideInvoiceParams, options?: RequestOptions): Promise<Invoice | null> {
       return apiConfig.httpClient.post<Invoice | null>(
-        `${invoicePath(params.store_id, params.invoice_id)}/detach`,
+        `${invoicePath(params.tenant_id, params.invoice_id)}/detach`,
         { expected_updated_at: params.expected_updated_at },
         options,
       );
@@ -99,14 +99,14 @@ export const createInvoiceApi = (apiConfig: ApiConfig) => {
     createOutsideCreditNote(params: CreateOutsideCreditNoteParams, options?: RequestOptions): Promise<Invoice> {
       requireId(params.id, "credit note");
       return apiConfig.httpClient.post<Invoice>(
-        `${invoicePath(params.store_id, params.invoice_id)}/credit-notes`,
+        `${invoicePath(params.tenant_id, params.invoice_id)}/credit-notes`,
         { id: params.id, order_credit_id: params.order_credit_id, number: params.number, document: params.document },
         options,
       );
     },
 
     deleteOutsideCreditNote(params: DeleteOutsideCreditNoteParams, options?: RequestOptions): Promise<DeletedResponse> {
-      return apiConfig.httpClient.delete<DeletedResponse>(invoicePath(params.store_id, params.invoice_id), {
+      return apiConfig.httpClient.delete<DeletedResponse>(invoicePath(params.tenant_id, params.invoice_id), {
         ...options,
         params: { expected_updated_at: params.expected_updated_at },
       });
@@ -114,15 +114,15 @@ export const createInvoiceApi = (apiConfig: ApiConfig) => {
   };
 };
 
-export const createStoreSellerApi = (apiConfig: ApiConfig) => ({
-  get(params: GetStoreSellerParams, options?: RequestOptions): Promise<StoreSeller> {
-    return apiConfig.httpClient.get<StoreSeller>(storePath(params.store_id, "seller"), options);
+export const createTenantSellerApi = (apiConfig: ApiConfig) => ({
+  get(params: GetTenantSellerParams, options?: RequestOptions): Promise<TenantSeller> {
+    return apiConfig.httpClient.get<TenantSeller>(tenantPath(params.tenant_id, "seller"), options);
   },
 
-  create(params: CreateStoreSellerParams, options?: RequestOptions): Promise<StoreSeller> {
+  create(params: CreateTenantSellerParams, options?: RequestOptions): Promise<TenantSeller> {
     requireId(params.id, "seller");
-    return apiConfig.httpClient.post<StoreSeller>(
-      storePath(params.store_id, "seller"),
+    return apiConfig.httpClient.post<TenantSeller>(
+      tenantPath(params.tenant_id, "seller"),
       {
         id: params.id,
         name: params.name,
@@ -135,9 +135,9 @@ export const createStoreSellerApi = (apiConfig: ApiConfig) => ({
     );
   },
 
-  update(params: UpdateStoreSellerParams, options?: RequestOptions): Promise<StoreSeller> {
-    return apiConfig.httpClient.put<StoreSeller>(
-      storePath(params.store_id, "seller"),
+  update(params: UpdateTenantSellerParams, options?: RequestOptions): Promise<TenantSeller> {
+    return apiConfig.httpClient.put<TenantSeller>(
+      tenantPath(params.tenant_id, "seller"),
       {
         expected_updated_at: params.expected_updated_at,
         name: params.name,
@@ -150,18 +150,18 @@ export const createStoreSellerApi = (apiConfig: ApiConfig) => ({
     );
   },
 
-  delete(params: DeleteStoreSellerParams, options?: RequestOptions): Promise<DeletedResponse> {
-    return apiConfig.httpClient.delete<DeletedResponse>(storePath(params.store_id, "seller"), {
+  delete(params: DeleteTenantSellerParams, options?: RequestOptions): Promise<DeletedResponse> {
+    return apiConfig.httpClient.delete<DeletedResponse>(tenantPath(params.tenant_id, "seller"), {
       ...options,
       params: { expected_updated_at: params.expected_updated_at },
     });
   },
 });
 
-export const createStoreInvoicingApi = (apiConfig: ApiConfig) => ({
-  set(params: SetStoreInvoicingParams, options?: RequestOptions): Promise<Store> {
-    return apiConfig.httpClient.put<Store>(
-      storePath(params.store_id, "invoicing"),
+export const createTenantInvoicingApi = (apiConfig: ApiConfig) => ({
+  set(params: SetTenantInvoicingParams, options?: RequestOptions): Promise<Tenant> {
+    return apiConfig.httpClient.put<Tenant>(
+      tenantPath(params.tenant_id, "invoicing"),
       { expected_updated_at: params.expected_updated_at, invoicing: params.invoicing },
       options,
     );
@@ -170,8 +170,8 @@ export const createStoreInvoicingApi = (apiConfig: ApiConfig) => ({
 
 export const createInvoiceCounterApi = (apiConfig: ApiConfig) => ({
   find(params: FindInvoiceCountersParams, options?: RequestOptions): Promise<PaginatedResponse<InvoiceCounter>> {
-    const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<PaginatedResponse<InvoiceCounter>>(storePath(store_id, "invoice-counters"), {
+    const { tenant_id, ...query } = params;
+    return apiConfig.httpClient.get<PaginatedResponse<InvoiceCounter>>(tenantPath(tenant_id, "invoice-counters"), {
       ...options,
       params: query,
     });
@@ -179,7 +179,7 @@ export const createInvoiceCounterApi = (apiConfig: ApiConfig) => ({
 
   confirm(params: ConfirmInvoiceCounterParams, options?: RequestOptions): Promise<InvoiceCounter> {
     return apiConfig.httpClient.post<InvoiceCounter>(
-      `${storeRecordPath(params.store_id, "invoice-counters", params.invoice_counter_id)}/confirm`,
+      `${tenantRecordPath(params.tenant_id, "invoice-counters", params.invoice_counter_id)}/confirm`,
       { expected_updated_at: params.expected_updated_at, next_number: params.next_number },
       options,
     );

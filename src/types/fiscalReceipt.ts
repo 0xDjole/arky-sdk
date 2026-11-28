@@ -173,7 +173,7 @@ export type FiscalReceiptPrint = "at_desk" | "not_printed";
 
 export interface FiscalReceipt {
   id: string;
-  store_id: string;
+  tenant_id: string;
   order_id: string;
   fiscal_device_id: string;
   type: FiscalReceiptType;
@@ -187,8 +187,8 @@ export interface FiscalReceiptDetail extends FiscalReceipt {
   deliverable: boolean;
 }
 
-export interface FindStoreFiscalReceiptsParams {
-  store_id: string;
+export interface FindTenantFiscalReceiptsParams {
+  tenant_id: string;
   order_ids?: never;
   open?: boolean;
   created_at_from?: EpochMilliseconds;
@@ -198,7 +198,7 @@ export interface FindStoreFiscalReceiptsParams {
 }
 
 export interface FindFiscalReceiptsByOrdersParams {
-  store_id: string;
+  tenant_id: string;
   order_ids: string[];
   open?: never;
   created_at_from?: never;
@@ -207,15 +207,15 @@ export interface FindFiscalReceiptsByOrdersParams {
   cursor?: string | null;
 }
 
-export type FindFiscalReceiptsParams = FindStoreFiscalReceiptsParams | FindFiscalReceiptsByOrdersParams;
+export type FindFiscalReceiptsParams = FindTenantFiscalReceiptsParams | FindFiscalReceiptsByOrdersParams;
 
 export interface GetFiscalReceiptParams {
-  store_id: string;
+  tenant_id: string;
   fiscal_receipt_id: string;
 }
 
 export interface CopyFiscalReceiptParams {
-  store_id: string;
+  tenant_id: string;
   fiscal_receipt_id: string;
   id: string;
 }
@@ -223,7 +223,7 @@ export interface CopyFiscalReceiptParams {
 export type FiscalCorrectionFollowUp = { type: "receipt_again" } | { type: "wait_for_money" };
 
 export interface CorrectFiscalReceiptParams {
-  store_id: string;
+  tenant_id: string;
   fiscal_receipt_id: string;
   id: string;
   reason: string;
@@ -236,18 +236,18 @@ export type FiscalReceiptSettlement =
   | { type: "not_issued" };
 
 export interface SettleFiscalReceiptParams {
-  store_id: string;
+  tenant_id: string;
   fiscal_receipt_id: string;
   outcome: FiscalReceiptSettlement;
 }
 
 export interface DeliverFiscalReceiptParams {
-  store_id: string;
+  tenant_id: string;
   fiscal_receipt_id: string;
 }
 
 export interface IssueFiscalReceiptsParams {
-  store_id: string;
+  tenant_id: string;
   order_id: string;
   fiscal_device_id: string;
 }

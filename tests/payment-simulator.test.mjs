@@ -9,15 +9,15 @@ import { ids, installGlobal, jsonResponse, recordFetch } from "./helpers/arky-fi
 const api_url = "https://api.example.test";
 const simulated = { type: "simulator", api_url };
 const provider = { type: "provider" };
-const stripe = { type: "stripe_embedded_checkout", publishable_key: "pk_test_arky_store", client_secret: "cs_arky_7_secret_random7", expires_at: 1_900_000_000_000, runs_on: simulated };
+const stripe = { type: "stripe_embedded_checkout", publishable_key: "pk_test_arky_tenant", client_secret: "cs_arky_7_secret_random7", expires_at: 1_900_000_000_000, runs_on: simulated };
 const monri = { type: "monri_components", environment: "test", authenticity_token: "arky-authenticity", client_secret: "monri_session_secret_randommonri", save_card: false, runs_on: simulated };
 const setup = {
   method: { type: { type: "stripe", setup: { type: "dedicated" }, status: { type: "requested" } } },
   client_secret: "seti_arky_3_secret_randomseti",
-  publishable_key: "pk_test_arky_store",
+  publishable_key: "pk_test_arky_tenant",
   runs_on: simulated,
 };
-const plan = { type: "stripe", payment_intent_id: "pi_store", publishable_key: "pk_test_arky", client_secret: "pi_store_secret_exact", payment_method_id: "pm_store_card", runs_on: simulated };
+const plan = { type: "stripe", payment_intent_id: "pi_tenant", publishable_key: "pk_test_arky", client_secret: "pi_tenant_secret_exact", payment_method_id: "pm_tenant_card", runs_on: simulated };
 const billing = { full_name: "Test Buyer", address: "Test Street 1", city: "Sarajevo", zip: "71000", phone: "+38761123456", country: "BA", email: "buyer@example.test" };
 const simulatorPayments = `${api_url}/v1/simulator/payments`;
 const simulator_texts = { title: "Pagamento di prova", description: "Nessun denaro reale si muove", complete: "Paga", decline: "Rifiuta", expire: "Scade", cancel: "Annulla" };
@@ -101,7 +101,7 @@ function accepted() {
   return new Response(null, { status: 204 });
 }
 
-test("isSimulatedPayment reads runs_on on a checkout action, a card setup start and a store plan action", () => {
+test("isSimulatedPayment reads runs_on on a checkout action, a card setup start and a tenant plan action", () => {
   for (const value of [stripe, monri, setup, plan]) assert.equal(isSimulatedPayment(value), true);
   for (const value of [stripe, monri, setup, plan]) assert.equal(isSimulatedPayment({ ...value, runs_on: provider }), false);
   assert.equal(isSimulatedPayment({ type: "none" }), false);
@@ -125,8 +125,8 @@ test("simulatePayment posts the client secret and outcome to the address the pay
     [simulatorPayments, "POST", { type: "stripe_checkout", client_secret: stripe.client_secret, outcome: "complete" }],
     [simulatorPayments, "POST", { type: "stripe_checkout", client_secret: stripe.client_secret, outcome: "decline" }],
     [simulatorPayments, "POST", { type: "stripe_checkout", client_secret: stripe.client_secret, outcome: "expire" }],
-    [simulatorPayments, "POST", { type: "stripe_payment_intent", client_secret: plan.client_secret, outcome: "complete", payment_method: "pm_store_card" }],
-    [simulatorPayments, "POST", { type: "stripe_payment_intent", client_secret: plan.client_secret, outcome: "decline", payment_method: "pm_store_card" }],
+    [simulatorPayments, "POST", { type: "stripe_payment_intent", client_secret: plan.client_secret, outcome: "complete", payment_method: "pm_tenant_card" }],
+    [simulatorPayments, "POST", { type: "stripe_payment_intent", client_secret: plan.client_secret, outcome: "decline", payment_method: "pm_tenant_card" }],
     [simulatorPayments, "POST", { type: "monri", client_secret: monri.client_secret, outcome: "decline" }],
     [simulatorPayments, "POST", { type: "card_setup", client_secret: setup.client_secret, outcome: "cancel" }],
   ]);

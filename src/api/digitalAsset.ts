@@ -9,7 +9,7 @@ import type {
   UploadDigitalAssetParams,
 } from "../types/product";
 import { requireId } from "../utils/ids";
-import { storePath, storeRecordPath } from "./paths";
+import { tenantPath, tenantRecordPath } from "./paths";
 
 const collection = "digital-assets";
 
@@ -19,16 +19,16 @@ export const createDigitalAssetApi = (apiConfig: ApiConfig) => ({
     const formData = new FormData();
     formData.append("id", params.id);
     formData.append("file", params.file);
-    return apiConfig.httpClient.post<DigitalAsset>(storePath(params.store_id, collection), formData, options);
+    return apiConfig.httpClient.post<DigitalAsset>(tenantPath(params.tenant_id, collection), formData, options);
   },
 
   get(params: GetDigitalAssetParams, options?: RequestOptions): Promise<DigitalAsset> {
-    return apiConfig.httpClient.get<DigitalAsset>(storeRecordPath(params.store_id, collection, params.id), options);
+    return apiConfig.httpClient.get<DigitalAsset>(tenantRecordPath(params.tenant_id, collection, params.id), options);
   },
 
   find(params: FindDigitalAssetsParams, options?: RequestOptions): Promise<PaginatedResponse<DigitalAsset>> {
-    const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<PaginatedResponse<DigitalAsset>>(storePath(store_id, collection), {
+    const { tenant_id, ...query } = params;
+    return apiConfig.httpClient.get<PaginatedResponse<DigitalAsset>>(tenantPath(tenant_id, collection), {
       ...options,
       params: query,
     });
@@ -36,7 +36,7 @@ export const createDigitalAssetApi = (apiConfig: ApiConfig) => ({
 
   archive(params: ArchiveDigitalAssetParams, options?: RequestOptions): Promise<DigitalAsset> {
     return apiConfig.httpClient.post<DigitalAsset>(
-      `${storeRecordPath(params.store_id, collection, params.id)}/archive`,
+      `${tenantRecordPath(params.tenant_id, collection, params.id)}/archive`,
       { expected_updated_at: params.expected_updated_at },
       options,
     );

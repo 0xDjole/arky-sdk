@@ -59,7 +59,7 @@ export type CheckoutQuoteWireContracts = [
   Assert<RequiredField<QuoteBookingLine, "line_item_id">>,
   Assert<RequiredField<QuotePackageLine, "line_item_id">>,
   Assert<RequiredField<QuoteBookingLine, "capacity_units">>,
-  Assert<Equal<keyof QuoteBookingLine, "line_item_id" | "booking_offering_id" | "booking_service_id" | "store_location_id" | "resource" | "requested_interval" | "add_ons" | "capacity_units" | "form_submission_id" | "service_key" | "price" | "document_item" | "money" | "totals" | "availability" | "session">>,
+  Assert<Equal<keyof QuoteBookingLine, "line_item_id" | "booking_offering_id" | "booking_service_id" | "tenant_location_id" | "resource" | "requested_interval" | "add_ons" | "capacity_units" | "form_submission_id" | "service_key" | "price" | "document_item" | "money" | "totals" | "availability" | "session">>,
   Assert<Equal<QuoteBookingLine["resource"], CartBookingLineResource>>,
   Assert<Equal<QuoteBookingLine["add_ons"], QuoteBookingAddOn[]>>,
   Assert<Equal<QuoteBookingLine["price"], OrderBookingLinePrice>>,
@@ -156,7 +156,7 @@ export const awaitingTaxBooking: QuoteBookingLine = {
   line_item_id: "booking-line",
   booking_offering_id: "offering",
   booking_service_id: "service",
-  store_location_id: "branch",
+  tenant_location_id: "branch",
   resource: { type: "any" },
   requested_interval: { from, to },
   add_ons: [

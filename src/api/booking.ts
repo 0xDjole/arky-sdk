@@ -33,19 +33,19 @@ import type {
   UpdateBookingServiceParams,
 } from "../types/product";
 import { requireId } from "../utils/ids";
-import { segment, storePath, storeRecordPath } from "./paths";
+import { segment, tenantPath, tenantRecordPath } from "./paths";
 
 export const createBookingServiceApi = (apiConfig: ApiConfig) => ({
   find(params: FindBookingServicesParams, options?: RequestOptions): Promise<PaginatedResponse<BookingService>> {
-    const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<PaginatedResponse<BookingService>>(storePath(store_id, "booking-services"), {
+    const { tenant_id, ...query } = params;
+    return apiConfig.httpClient.get<PaginatedResponse<BookingService>>(tenantPath(tenant_id, "booking-services"), {
       ...options,
       params: query,
     });
   },
 
   findAll(params: FindAllBookingServicesParams, options?: RequestOptions): Promise<PaginatedResponse<BookingService>> {
-    return apiConfig.httpClient.get<PaginatedResponse<BookingService>>(storePath(params.store_id, "booking-services/all"), {
+    return apiConfig.httpClient.get<PaginatedResponse<BookingService>>(tenantPath(params.tenant_id, "booking-services/all"), {
       ...options,
       params: { limit: params.limit, cursor: params.cursor },
     });
@@ -53,28 +53,28 @@ export const createBookingServiceApi = (apiConfig: ApiConfig) => ({
 
   findByBlockTarget(params: FindBlockTargetBookingServicesParams, options?: RequestOptions): Promise<PaginatedResponse<BookingService>> {
     return apiConfig.httpClient.get<PaginatedResponse<BookingService>>(
-      storePath(params.store_id, `booking-services/by-block-target/${segment(requireId(params.block_target_id, "block target"))}`),
+      tenantPath(params.tenant_id, `booking-services/by-block-target/${segment(requireId(params.block_target_id, "block target"))}`),
       { ...options, params: { limit: params.limit, cursor: params.cursor } },
     );
   },
 
   get(params: GetBookingServiceParams, options?: RequestOptions): Promise<BookingService> {
     return apiConfig.httpClient.get<BookingService>(
-      storeRecordPath(params.store_id, "booking-services", params.id),
+      tenantRecordPath(params.tenant_id, "booking-services", params.id),
       options,
     );
   },
 
   getByKey(params: GetBookingServiceByKeyParams, options?: RequestOptions): Promise<BookingService> {
     return apiConfig.httpClient.get<BookingService>(
-      storePath(params.store_id, `booking-services/by-key/${segment(params.key)}`),
+      tenantPath(params.tenant_id, `booking-services/by-key/${segment(params.key)}`),
       options,
     );
   },
 
   getAvailability(params: GetAvailabilityParams, options?: RequestOptions): Promise<AvailabilityResponse> {
-    const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<AvailabilityResponse>(storePath(store_id, "booking-services/availability"), {
+    const { tenant_id, ...query } = params;
+    return apiConfig.httpClient.get<AvailabilityResponse>(tenantPath(tenant_id, "booking-services/availability"), {
       ...options,
       params: query,
     });
@@ -82,20 +82,20 @@ export const createBookingServiceApi = (apiConfig: ApiConfig) => ({
 
   create(params: CreateBookingServiceParams, options?: RequestOptions): Promise<BookingService> {
     requireId(params.id, "booking service");
-    const { store_id } = params;
-    const body = { id: params.id, key: params.key, slugs: params.slugs, blocks: params.blocks, categories: params.categories, status: params.status, length: params.length, slot_interval: params.slot_interval, booking_window: params.booking_window, customer_changes: params.customer_changes, tax_category_id: params.tax_category_id, document_item: params.document_item };
-    return apiConfig.httpClient.post<BookingService>(storePath(store_id, "booking-services"), body, options);
+    const { tenant_id } = params;
+    const body = { id: params.id, key: params.key, slugs: params.slugs, blocks: params.blocks, categories: params.categories, status: params.status, length: params.length, slot_interval: params.slot_interval, booking_window: params.booking_window, user_changes: params.user_changes, tax_category_id: params.tax_category_id, document_item: params.document_item };
+    return apiConfig.httpClient.post<BookingService>(tenantPath(tenant_id, "booking-services"), body, options);
   },
 
   update(params: UpdateBookingServiceParams, options?: RequestOptions): Promise<BookingService> {
-    const { store_id, id } = params;
-    const body = { key: params.key, slugs: params.slugs, blocks: params.blocks, categories: params.categories, status: params.status, length: params.length, slot_interval: params.slot_interval, booking_window: params.booking_window, customer_changes: params.customer_changes, tax_category_id: params.tax_category_id, document_item: params.document_item, expected_updated_at: params.expected_updated_at };
-    return apiConfig.httpClient.put<BookingService>(storeRecordPath(store_id, "booking-services", id), body, options);
+    const { tenant_id, id } = params;
+    const body = { key: params.key, slugs: params.slugs, blocks: params.blocks, categories: params.categories, status: params.status, length: params.length, slot_interval: params.slot_interval, booking_window: params.booking_window, user_changes: params.user_changes, tax_category_id: params.tax_category_id, document_item: params.document_item, expected_updated_at: params.expected_updated_at };
+    return apiConfig.httpClient.put<BookingService>(tenantRecordPath(tenant_id, "booking-services", id), body, options);
   },
 
   delete(params: DeleteBookingServiceParams, options?: RequestOptions): Promise<BookingService> {
     return apiConfig.httpClient.delete<BookingService>(
-      storeRecordPath(params.store_id, "booking-services", params.id),
+      tenantRecordPath(params.tenant_id, "booking-services", params.id),
       { ...options, params: { expected_updated_at: params.expected_updated_at } },
     );
   },
@@ -103,15 +103,15 @@ export const createBookingServiceApi = (apiConfig: ApiConfig) => ({
 
 export const createBookingResourceApi = (apiConfig: ApiConfig) => ({
   find(params: FindBookingResourcesParams, options?: RequestOptions): Promise<PaginatedResponse<BookingResource>> {
-    const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<PaginatedResponse<BookingResource>>(storePath(store_id, "booking-resources"), {
+    const { tenant_id, ...query } = params;
+    return apiConfig.httpClient.get<PaginatedResponse<BookingResource>>(tenantPath(tenant_id, "booking-resources"), {
       ...options,
       params: query,
     });
   },
 
   findAll(params: FindAllBookingResourcesParams, options?: RequestOptions): Promise<PaginatedResponse<BookingResource>> {
-    return apiConfig.httpClient.get<PaginatedResponse<BookingResource>>(storePath(params.store_id, "booking-resources/all"), {
+    return apiConfig.httpClient.get<PaginatedResponse<BookingResource>>(tenantPath(params.tenant_id, "booking-resources/all"), {
       ...options,
       params: { limit: params.limit, cursor: params.cursor },
     });
@@ -119,41 +119,41 @@ export const createBookingResourceApi = (apiConfig: ApiConfig) => ({
 
   findByCategory(params: FindCategoryBookingResourcesParams, options?: RequestOptions): Promise<PaginatedResponse<BookingResource>> {
     return apiConfig.httpClient.get<PaginatedResponse<BookingResource>>(
-      storePath(params.store_id, `booking-resources/by-category/${segment(requireId(params.category_id, "category"))}`),
+      tenantPath(params.tenant_id, `booking-resources/by-category/${segment(requireId(params.category_id, "category"))}`),
       { ...options, params: { limit: params.limit, cursor: params.cursor } },
     );
   },
 
   get(params: GetBookingResourceParams, options?: RequestOptions): Promise<BookingResource> {
     return apiConfig.httpClient.get<BookingResource>(
-      storeRecordPath(params.store_id, "booking-resources", params.id),
+      tenantRecordPath(params.tenant_id, "booking-resources", params.id),
       options,
     );
   },
 
   getByKey(params: GetBookingResourceByKeyParams, options?: RequestOptions): Promise<BookingResource> {
     return apiConfig.httpClient.get<BookingResource>(
-      storePath(params.store_id, `booking-resources/by-key/${segment(params.key)}`),
+      tenantPath(params.tenant_id, `booking-resources/by-key/${segment(params.key)}`),
       options,
     );
   },
 
   create(params: CreateBookingResourceParams, options?: RequestOptions): Promise<BookingResource> {
     requireId(params.id, "booking resource");
-    const { store_id } = params;
+    const { tenant_id } = params;
     const body = { id: params.id, key: params.key, slugs: params.slugs, status: params.status, blocks: params.blocks, categories: params.categories, timezone: params.timezone, capacity: params.capacity, hours: params.hours, daily_limits: params.daily_limits };
-    return apiConfig.httpClient.post<BookingResource>(storePath(store_id, "booking-resources"), body, options);
+    return apiConfig.httpClient.post<BookingResource>(tenantPath(tenant_id, "booking-resources"), body, options);
   },
 
   update(params: UpdateBookingResourceParams, options?: RequestOptions): Promise<BookingResource> {
-    const { store_id, id } = params;
+    const { tenant_id, id } = params;
     const body = { key: params.key, slugs: params.slugs, status: params.status, blocks: params.blocks, categories: params.categories, timezone: params.timezone, capacity: params.capacity, hours: params.hours, daily_limits: params.daily_limits, expected_updated_at: params.expected_updated_at };
-    return apiConfig.httpClient.put<BookingResource>(storeRecordPath(store_id, "booking-resources", id), body, options);
+    return apiConfig.httpClient.put<BookingResource>(tenantRecordPath(tenant_id, "booking-resources", id), body, options);
   },
 
   delete(params: DeleteBookingResourceParams, options?: RequestOptions): Promise<BookingResource> {
     return apiConfig.httpClient.delete<BookingResource>(
-      storeRecordPath(params.store_id, "booking-resources", params.id),
+      tenantRecordPath(params.tenant_id, "booking-resources", params.id),
       { ...options, params: { expected_updated_at: params.expected_updated_at } },
     );
   },
@@ -161,15 +161,15 @@ export const createBookingResourceApi = (apiConfig: ApiConfig) => ({
 
 export const createBookingOfferingApi = (apiConfig: ApiConfig) => ({
   find(params: FindBookingOfferingsParams, options?: RequestOptions): Promise<PaginatedResponse<BookingOffering>> {
-    const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<PaginatedResponse<BookingOffering>>(storePath(store_id, "booking-offerings"), {
+    const { tenant_id, ...query } = params;
+    return apiConfig.httpClient.get<PaginatedResponse<BookingOffering>>(tenantPath(tenant_id, "booking-offerings"), {
       ...options,
       params: query,
     });
   },
 
   findAll(params: FindAllBookingOfferingsParams, options?: RequestOptions): Promise<PaginatedResponse<BookingOffering>> {
-    return apiConfig.httpClient.get<PaginatedResponse<BookingOffering>>(storePath(params.store_id, "booking-offerings/all"), {
+    return apiConfig.httpClient.get<PaginatedResponse<BookingOffering>>(tenantPath(params.tenant_id, "booking-offerings/all"), {
       ...options,
       params: { limit: params.limit, cursor: params.cursor },
     });
@@ -177,28 +177,28 @@ export const createBookingOfferingApi = (apiConfig: ApiConfig) => ({
 
   findByService(params: FindServiceBookingOfferingsParams, options?: RequestOptions): Promise<PaginatedResponse<BookingOffering>> {
     return apiConfig.httpClient.get<PaginatedResponse<BookingOffering>>(
-      storePath(params.store_id, `booking-offerings/by-service/${segment(requireId(params.booking_service_id, "booking service"))}`),
+      tenantPath(params.tenant_id, `booking-offerings/by-service/${segment(requireId(params.booking_service_id, "booking service"))}`),
       { ...options, params: { limit: params.limit, cursor: params.cursor } },
     );
   },
 
   findByResource(params: FindResourceBookingOfferingsParams, options?: RequestOptions): Promise<PaginatedResponse<BookingOffering>> {
     return apiConfig.httpClient.get<PaginatedResponse<BookingOffering>>(
-      storePath(params.store_id, `booking-offerings/by-resource/${segment(requireId(params.booking_resource_id, "booking resource"))}`),
+      tenantPath(params.tenant_id, `booking-offerings/by-resource/${segment(requireId(params.booking_resource_id, "booking resource"))}`),
       { ...options, params: { limit: params.limit, cursor: params.cursor } },
     );
   },
 
   get(params: GetBookingOfferingParams, options?: RequestOptions): Promise<BookingOffering> {
     return apiConfig.httpClient.get<BookingOffering>(
-      storeRecordPath(params.store_id, "booking-offerings", params.id),
+      tenantRecordPath(params.tenant_id, "booking-offerings", params.id),
       options,
     );
   },
 
   create(params: CreateBookingOfferingParams, options?: RequestOptions): Promise<BookingOffering> {
     requireId(params.id, "booking offering");
-    const { store_id } = params;
+    const { tenant_id } = params;
     const body = {
       id: params.id,
       booking_service_id: params.booking_service_id,
@@ -209,11 +209,11 @@ export const createBookingOfferingApi = (apiConfig: ApiConfig) => ({
       add_ons: params.add_ons ?? [],
       status: params.status,
     };
-    return apiConfig.httpClient.post<BookingOffering>(storePath(store_id, "booking-offerings"), body, options);
+    return apiConfig.httpClient.post<BookingOffering>(tenantPath(tenant_id, "booking-offerings"), body, options);
   },
 
   update(params: UpdateBookingOfferingParams, options?: RequestOptions): Promise<BookingOffering> {
-    const { store_id, id } = params;
+    const { tenant_id, id } = params;
     const body = {
       resources: params.resources,
       times: params.times,
@@ -223,12 +223,12 @@ export const createBookingOfferingApi = (apiConfig: ApiConfig) => ({
       status: params.status,
       expected_updated_at: params.expected_updated_at,
     };
-    return apiConfig.httpClient.put<BookingOffering>(storeRecordPath(store_id, "booking-offerings", id), body, options);
+    return apiConfig.httpClient.put<BookingOffering>(tenantRecordPath(tenant_id, "booking-offerings", id), body, options);
   },
 
   delete(params: DeleteBookingOfferingParams, options?: RequestOptions): Promise<BookingOffering> {
     return apiConfig.httpClient.delete<BookingOffering>(
-      storeRecordPath(params.store_id, "booking-offerings", params.id),
+      tenantRecordPath(params.tenant_id, "booking-offerings", params.id),
       { ...options, params: { expected_updated_at: params.expected_updated_at } },
     );
   },

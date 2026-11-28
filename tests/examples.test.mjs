@@ -45,7 +45,7 @@ declare global {
   const process: { env: Record<string, string | undefined> };
   const package_id: string;
   const package_item_id: string;
-  const store_location_id: string;
+  const tenant_location_id: string;
   const collection_id: string;
   const variant_id: string;
   const price_id: string;

@@ -8,9 +8,9 @@ import { fixedIdFactories } from "./helpers/arky-fixtures.mjs";
 
 const knownInstant = 1_704_164_645_678;
 const apiUrl = "https://api.time-contract.test";
-const storefrontIdentity = { storeId: "5e9b3d71-c826-4a04-b7f5-0d2a8e6c4f19", salesChannelId: "e5a8c2d7-3b91-4f06-9d4e-1c7b6a0f3e28" };
+const storefrontIdentity = { tenantId: "5e9b3d71-c826-4a04-b7f5-0d2a8e6c4f19", salesChannelId: "e5a8c2d7-3b91-4f06-9d4e-1c7b6a0f3e28" };
 const adminKey = `arky_admin_session:${apiUrl}`;
-const storeId = "8e2c6a14-3f97-4b05-9d1e-7a4c0b8f2e63";
+const tenantId = "8e2c6a14-3f97-4b05-9d1e-7a4c0b8f2e63";
 const sessionId = "2a9d4f71-6c3b-4e85-b0f7-1d8e5c3a9b26";
 
 function jsonResponse(body, status = 200) {
@@ -54,12 +54,12 @@ function refreshedSession(now) {
   };
 }
 
-function customerSession(instant) {
+function userSession(instant) {
   return {
     version: 5,
-    customer: {
-      id: "customer-time",
-      store_id: storeId,
+    user: {
+      id: "user-time",
+      tenant_id: tenantId,
       links: [],
       name: null,
       contacts: [],
@@ -72,18 +72,18 @@ function customerSession(instant) {
     },
     session: {
       id: "session-time",
-      customer_id: "customer-time",
+      user_id: "user-time",
       type: "visitor",
-      token: "customer_visitor_time",
+      token: "user_visitor_time",
       status: { type: "active" },
       expires_at: instant,
     },
   };
 }
 
-function customerKey() {
+function userKey() {
   let key;
-  createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories,
+  createStorefront(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories,
     apiUrl,
     sessionStorage: {
       getItem(value) { key = value; return null; },
@@ -91,7 +91,7 @@ function customerKey() {
       removeItem() {},
     },
   });
-  assert.match(key, /^arky_customer_session:v5:/);
+  assert.match(key, /^arky_user_session:v5:/);
   return key;
 }
 
@@ -100,27 +100,27 @@ test("auth cutover ignores old-unit namespaces without changing durable effect r
   browserStorage(context, storage);
   storage.seed("arky_admin_session", JSON.stringify(adminSession()));
   storage.seed("arky_admin_session:v2", JSON.stringify({ version: 2, session: adminSession() }));
-  storage.seed(customerKey().replace(":v5:", ":v4:"), JSON.stringify({ ...customerSession(1_700_000_000), version: 4 }));
+  storage.seed(userKey().replace(":v5:", ":v4:"), JSON.stringify({ ...userSession(1_700_000_000), version: 4 }));
   const durableKey = "arky:cart-checkout:v6:pending-request";
   storage.seed(durableKey, JSON.stringify({ requestId: "frozen-id", payload: { amount: 200 } }));
   const before = [...storage.values];
   context.mock.method(globalThis, "fetch", () => { throw new Error("No network during initialization"); });
   const admin = createAdmin({ apiUrl: apiUrl });
-  const customer = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: storage });
+  const user = createStorefront(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: storage });
   assert.equal(admin.session, null);
-  assert.equal(customer.session, null);
+  assert.equal(user.session, null);
   assert.deepEqual([...storage.values], before);
 });
 
 test("new auth storage preserves signed and early-epoch milliseconds without guessing", (context) => {
   const storage = new MemoryStorage();
   browserStorage(context, storage);
-  const key = customerKey();
+  const key = userKey();
   for (const instant of [-1, 0, 1, 1_700_000_000, knownInstant]) {
-    const record = customerSession(instant);
+    const record = userSession(instant);
     storage.seed(key, JSON.stringify(record));
-    const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: storage });
-    assert.equal(storefront.session.customer.created_at, instant);
+    const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: storage });
+    assert.equal(storefront.session.user.created_at, instant);
     assert.equal(JSON.parse(storage.getItem(key)).session.expires_at, instant);
   }
 });
@@ -128,16 +128,16 @@ test("new auth storage preserves signed and early-epoch milliseconds without gue
 test("new auth storage rejects wrong envelopes and non-integer or unsafe instants", (context) => {
   const storage = new MemoryStorage();
   browserStorage(context, storage);
-  const key = customerKey();
+  const key = userKey();
   for (const instant of [0.5, -0.5, Number.MAX_SAFE_INTEGER + 1, "1704164645678", null]) {
-    storage.seed(key, JSON.stringify(customerSession(instant)));
-    assert.equal(createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: storage }).session, null);
+    storage.seed(key, JSON.stringify(userSession(instant)));
+    assert.equal(createStorefront(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: storage }).session, null);
   }
   for (const version of [undefined, 1, 2, 3, 4]) {
     storage.seed(adminKey, JSON.stringify({ version, session: adminSession() }));
-    storage.seed(key, JSON.stringify({ ...customerSession(knownInstant), version }));
+    storage.seed(key, JSON.stringify({ ...userSession(knownInstant), version }));
     assert.equal(createAdmin({ apiUrl: apiUrl }).session, null);
-    assert.equal(createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: storage }).session, null);
+    assert.equal(createStorefront(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: storage }).session, null);
   }
   for (const id of [undefined, "", "session-time", sessionId.toUpperCase()]) {
     storage.seed(adminKey, JSON.stringify({ ...adminSession(), id }));
@@ -160,17 +160,17 @@ test("invalid refreshed expiry fails closed before the protected request is sent
     }
     return reply();
   });
-  const read = `${apiUrl}/v1/stores/${storeId}`;
+  const read = `${apiUrl}/v1/tenants/${tenantId}`;
   const refresh = `${apiUrl}/v1/auth/refresh`;
   const admin = createAdmin({ apiUrl: apiUrl });
-  await assert.rejects(admin.store.get({ id: storeId }), /invalid credentials/);
+  await assert.rejects(admin.tenant.get({ id: tenantId }), /invalid credentials/);
   assert.deepEqual(calls, [read, refresh]);
   assert.equal(storage.getItem(adminKey), retained);
   reply = () => jsonResponse({ ...refreshedSession(knownInstant), id: "5f0c3e82-9a14-4d76-b2e8-6c1a7d9f4b30" });
-  await assert.rejects(admin.store.get({ id: storeId }), /invalid credentials/);
+  await assert.rejects(admin.tenant.get({ id: tenantId }), /invalid credentials/);
   assert.equal(storage.getItem(adminKey), retained);
   reply = () => jsonResponse({ message: "Unauthorized", error: "GENERAL.UNAUTHORIZED", status_code: 403, validation_errors: [] }, 403);
-  await assert.rejects(admin.store.get({ id: storeId }), (error) => error.statusCode === 403);
+  await assert.rejects(admin.tenant.get({ id: tenantId }), (error) => error.statusCode === 403);
   assert.deepEqual(calls, Array(3).fill([read, refresh]).flat());
   assert.equal(storage.getItem(adminKey), null);
   assert.equal(admin.isAuthenticated, false);
@@ -185,11 +185,11 @@ test("request duration uses monotonic milliseconds independently of wall-clock m
     assert.equal(init.method, "PUT");
     monotonic = 107.25;
     wallClock -= 60_000;
-    return jsonResponse({ id: "store" });
+    return jsonResponse({ id: "tenant" });
   });
   const admin = createAdmin({ apiUrl: apiUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   let duration;
-  await admin.store.update({ id: storeId, expected_updated_at: knownInstant, name: "Time contract" }, { onSuccess(result) { duration = result.duration_ms; } });
+  await admin.tenant.update({ id: tenantId, expected_updated_at: knownInstant, name: "Time contract" }, { onSuccess(result) { duration = result.duration_ms; } });
   assert.equal(duration, 7.25);
 });
 

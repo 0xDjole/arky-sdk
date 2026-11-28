@@ -1,13 +1,13 @@
 export const apiUrl = "https://api.example.test";
-export const visitorToken = `customer_visitor_${"v".repeat(64)}`;
-export const accessToken = `customer_access_${"t".repeat(64)}`;
-export const refreshToken = `customer_refresh_${"r".repeat(64)}`;
+export const visitorToken = `user_visitor_${"v".repeat(64)}`;
+export const accessToken = `user_access_${"t".repeat(64)}`;
+export const refreshToken = `user_refresh_${"r".repeat(64)}`;
 
 export const ids = {
-  store: "5e9b3d71-c826-4a04-b7f5-0d2a8e6c4f19",
-  otherStore: "b8e1d4a7-2c95-4f36-9d08-6a3c7e1f0b52",
-  customer: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58",
-  otherCustomer: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47",
+  tenant: "5e9b3d71-c826-4a04-b7f5-0d2a8e6c4f19",
+  otherTenant: "b8e1d4a7-2c95-4f36-9d08-6a3c7e1f0b52",
+  user: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58",
+  otherUser: "3a7d9c15-6e24-4b80-9f1c-8d5e2a6b0c47",
   session: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63",
   otherSession: "1d9e7b35-4a62-4c18-8e0f-5b3a7c2d9e14",
   cart: "9f1b6e23-e2ea-4ab9-a1b7-eaaf550ddf41",
@@ -43,8 +43,8 @@ export const ids = {
   picked: "5c0e7a92-3b14-4d68-9f2a-1e7c4b9d0a36",
 };
 
-export const storefrontIdentity = { storeId: ids.store, salesChannelId: ids.channel };
-export const otherStorefrontIdentity = { storeId: ids.otherStore, salesChannelId: ids.otherChannel };
+export const storefrontIdentity = { tenantId: ids.tenant, salesChannelId: ids.channel };
+export const otherStorefrontIdentity = { tenantId: ids.otherTenant, salesChannelId: ids.otherChannel };
 
 export const factoryOrderToken = `arky_ot_${"F".repeat(42)}A`;
 
@@ -63,14 +63,14 @@ export function idSequence(...values) {
 }
 
 export const idFactories = {
-  createVisitorIdentity: () => ({ customer_id: ids.customer, session_id: ids.session }),
+  createVisitorIdentity: () => ({ user_id: ids.user, session_id: ids.session }),
   createSessionId: () => ids.otherSession,
   createId: () => factoryId(++factoryIdCount),
   createOrderToken: () => factoryOrderToken,
 };
 
 export const fixedIdFactories = {
-  createVisitorIdentity: () => ({ customer_id: ids.otherCustomer, session_id: ids.otherSession }),
+  createVisitorIdentity: () => ({ user_id: ids.otherUser, session_id: ids.otherSession }),
   createSessionId: () => ids.otherSession,
   createId: () => ids.picked,
   createOrderToken: () => factoryOrderToken,
@@ -121,10 +121,10 @@ export function recordFetch(context, respond, { answerMarkets = true } = {}) {
   return calls;
 }
 
-export function customerRecord(id = ids.customer, overrides = {}) {
+export function userRecord(id = ids.user, overrides = {}) {
   return {
     id,
-    store_id: ids.store,
+    tenant_id: ids.tenant,
     links: [],
     name: null,
     contacts: [],
@@ -138,32 +138,32 @@ export function customerRecord(id = ids.customer, overrides = {}) {
   };
 }
 
-export const signedInEmail = "customer@example.test";
+export const signedInEmail = "user@example.test";
 
 export function confirmedEmail(email = signedInEmail, language = "en") {
   return { type: "confirmed_email", email, language };
 }
 
-export function signedInCustomer(id = ids.customer, email = signedInEmail, overrides = {}) {
-  return customerRecord(id, { links: [{ type: "own" }], contacts: [confirmedEmail(email)], ...overrides });
+export function signedInUser(id = ids.user, email = signedInEmail, overrides = {}) {
+  return userRecord(id, { links: [{ type: "own" }], contacts: [confirmedEmail(email)], ...overrides });
 }
 
-export function visitorSession(customerId = ids.customer, sessionId = ids.session, token = visitorToken) {
+export function visitorSession(userId = ids.user, sessionId = ids.session, token = visitorToken) {
   return {
     type: "visitor",
     id: sessionId,
-    customer_id: customerId,
+    user_id: userId,
     status: { type: "active" },
     token,
     expires_at: 1_900_000_000_000,
   };
 }
 
-export function emailSession(customerId = ids.customer, sessionId = ids.session, overrides = {}) {
+export function emailSession(userId = ids.user, sessionId = ids.session, overrides = {}) {
   return {
-    type: "store_customer_signed_in_by_email",
+    type: "tenant_user_signed_in_by_email",
     id: sessionId,
-    customer_id: customerId,
+    user_id: userId,
     status: { type: "active" },
     email: signedInEmail,
     access_token: accessToken,
@@ -175,11 +175,11 @@ export function emailSession(customerId = ids.customer, sessionId = ids.session,
   };
 }
 
-export function phoneSession(customerId = ids.customer, sessionId = ids.session, number = "+38761222333", overrides = {}) {
+export function phoneSession(userId = ids.user, sessionId = ids.session, number = "+38761222333", overrides = {}) {
   return {
-    type: "store_customer_signed_in_by_phone",
+    type: "tenant_user_signed_in_by_phone",
     id: sessionId,
-    customer_id: customerId,
+    user_id: userId,
     status: { type: "active" },
     number,
     access_token: accessToken,
@@ -191,25 +191,25 @@ export function phoneSession(customerId = ids.customer, sessionId = ids.session,
   };
 }
 
-export function sessionResult(customerId = ids.customer, session = visitorSession(customerId)) {
+export function sessionResult(userId = ids.user, session = visitorSession(userId)) {
   switch (session.type) {
-    case "store_customer_signed_in_by_email":
-      return { customer: signedInCustomer(customerId, session.email), session };
-    case "store_customer_signed_in_by_phone":
+    case "tenant_user_signed_in_by_email":
+      return { user: signedInUser(userId, session.email), session };
+    case "tenant_user_signed_in_by_phone":
       return {
-        customer: customerRecord(customerId, {
+        user: userRecord(userId, {
           links: [{ type: "own" }],
           contacts: [{ type: "confirmed_phone", number: session.number, language: "en", sms: { type: "off" } }],
         }),
         session,
       };
     default:
-      return { customer: customerRecord(customerId), session };
+      return { user: userRecord(userId), session };
   }
 }
 
-export function storedSession(customerId = ids.customer, session = visitorSession(customerId)) {
-  return JSON.stringify({ version: 5, ...sessionResult(customerId, session) });
+export function storedSession(userId = ids.user, session = visitorSession(userId)) {
+  return JSON.stringify({ version: 5, ...sessionResult(userId, session) });
 }
 
 export class SessionStorage {
@@ -220,16 +220,16 @@ export class SessionStorage {
 
   getItem(key) {
     if (this.values.has(key)) return this.values.get(key);
-    return key.startsWith("arky_customer_session:") ? this.initial : null;
+    return key.startsWith("arky_user_session:") ? this.initial : null;
   }
 
   setItem(key, value) {
-    if (key.startsWith("arky_customer_session:")) this.initial = null;
+    if (key.startsWith("arky_user_session:")) this.initial = null;
     this.values.set(key, String(value));
   }
 
   removeItem(key) {
-    if (key.startsWith("arky_customer_session:")) this.initial = null;
+    if (key.startsWith("arky_user_session:")) this.initial = null;
     this.values.delete(key);
   }
 
@@ -238,25 +238,25 @@ export class SessionStorage {
   }
 }
 
-export function visitorStorage(customerId = ids.customer, sessionId = ids.session) {
-  return new SessionStorage(storedSession(customerId, visitorSession(customerId, sessionId)));
+export function visitorStorage(userId = ids.user, sessionId = ids.session) {
+  return new SessionStorage(storedSession(userId, visitorSession(userId, sessionId)));
 }
 
-export function signedInStorage(customerId = ids.customer, sessionId = ids.session) {
-  return new SessionStorage(storedSession(customerId, emailSession(customerId, sessionId)));
+export function signedInStorage(userId = ids.user, sessionId = ids.session) {
+  return new SessionStorage(storedSession(userId, emailSession(userId, sessionId)));
 }
 
 export function cartRecord(overrides = {}) {
   return {
     id: ids.cart,
-    store_id: ids.store,
-    customer_id: ids.customer,
-    buyer: { type: "customer" },
+    tenant_id: ids.tenant,
+    user_id: ids.user,
+    buyer: { type: "user" },
     sales_channel_id: ids.channel,
     package_id: ids.package,
     market_id: ids.market,
     status: { type: "active" },
-    origin: { type: "storefront", customer_session_id: ids.session },
+    origin: { type: "storefront", user_session_id: ids.session },
     blocks: [],
     line_items: [],
     delivery_groups: [],
@@ -272,9 +272,9 @@ export function cartRecord(overrides = {}) {
 export function quoteRecord(overrides = {}) {
   return {
     cart_id: ids.cart,
-    store_id: ids.store,
-    customer_id: ids.customer,
-    buyer: { type: "customer" },
+    tenant_id: ids.tenant,
+    user_id: ids.user,
+    buyer: { type: "user" },
     market_id: ids.market,
     sales_channel_id: ids.channel,
     package_id: ids.package,
@@ -315,9 +315,9 @@ export function placedOrder(overrides = {}) {
   return {
     id: ids.order,
     number: "1001",
-    store_id: ids.store,
-    source: { type: "cart", cart_id: ids.cart, placed_by: { type: "customer", customer_id: ids.customer, customer_session_id: ids.session } },
-    customer_id: ids.customer,
+    tenant_id: ids.tenant,
+    source: { type: "cart", cart_id: ids.cart, placed_by: { type: "user", user_id: ids.user, user_session_id: ids.session } },
+    user_id: ids.user,
     status: "confirmed",
     ...overrides,
   };

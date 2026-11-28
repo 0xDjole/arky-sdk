@@ -38,14 +38,14 @@ type Equal<A, B> =
     : false;
 type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
 
-const store_id = "56c82765-4f5a-47e9-bd6d-dba7c6354919";
+const tenant_id = "56c82765-4f5a-47e9-bd6d-dba7c6354919";
 const admin = createAdmin({
   apiUrl: "https://api.example.test",
   accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA",
 });
 const members: FindPackageMembersParams = {
-  store_id,
-  customer_id: "customer",
+  tenant_id,
+  user_id: "user",
   package_id: "package",
   package_offering_id: "offering",
   status: "paused",
@@ -54,24 +54,24 @@ const members: FindPackageMembersParams = {
 };
 void admin.eshop.packageMember.find(members);
 const current: Promise<PackageMemberCurrent> =
-  admin.eshop.packageMember.getCurrent({ store_id, id: "member" });
+  admin.eshop.packageMember.getCurrent({ tenant_id, id: "member" });
 const orders: Promise<PaginatedResponse<Order>> =
   admin.eshop.packageMember.findOrders({
-    store_id,
+    tenant_id,
     id: "member",
     limit: 20,
   });
 const revisions: Promise<PaginatedResponse<PackageMemberRevision>> =
-  admin.eshop.packageMember.findRevisions({ store_id, id: "member" });
+  admin.eshop.packageMember.findRevisions({ tenant_id, id: "member" });
 const revision: Promise<PackageMemberRevisionDetail> =
   admin.eshop.packageMember.getRevision({
-    store_id,
+    tenant_id,
     package_member_id: "member",
     revision_id: "revision",
   });
 const revisionPurchases: Promise<PaginatedResponse<Order>> =
   admin.eshop.packageMember.findRevisionPurchaseOrders({
-    store_id,
+    tenant_id,
     package_member_id: "member",
     revision_id: "revision",
     limit: 2,

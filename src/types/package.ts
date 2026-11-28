@@ -77,7 +77,7 @@ export type PackageEditableStatus = Exclude<PackageStatus, { type: "deleting" }>
 
 export interface Package {
   id: string;
-  store_id: string;
+  tenant_id: string;
   key: string;
   blocks: Block[];
   renewal: PackageRenewal;
@@ -137,7 +137,7 @@ export interface PackageBookingPrice {
 }
 
 export interface PackageItemPrice extends PackageItemPriceEntry {
-  store_id: string;
+  tenant_id: string;
   package_id: string;
   package_item_id: string;
   package_item_updated_at: EpochMilliseconds;
@@ -199,7 +199,7 @@ export type PackageItemType = PackagePricedItemType | PackageAutomaticItemType;
 
 export interface PackageItem {
   id: string;
-  store_id: string;
+  tenant_id: string;
   package_id: string;
   type: PackageItemType;
   position: number;
@@ -216,7 +216,7 @@ export type PackageAudience =
   | { type: "everyone" }
   | { type: "package"; package_id: string }
   | { type: "package_offering"; package_offering_id: string }
-  | { type: "customer"; customer_id: string }
+  | { type: "user"; user_id: string }
   | { type: "all_companies" }
   | { type: "company"; company_id: string }
   | { type: "company_location"; company_location_id: string };
@@ -232,7 +232,7 @@ export type PackageAccessLevel =
 
 export interface PackageAccess {
   id: string;
-  store_id: string;
+  tenant_id: string;
   package_id: string;
   audience: PackageAudience;
   channels: PackageChannels;
@@ -377,8 +377,8 @@ export interface PackageParentDefinition {
 
 export type PackageChoiceLocations =
   | { type: "all" }
-  | { type: "ids"; store_location_ids: string[] }
-  | { type: "elsewhere"; store_location_id: string };
+  | { type: "ids"; tenant_location_ids: string[] }
+  | { type: "elsewhere"; tenant_location_id: string };
 
 export type PackageChoiceResources =
   | { type: "category"; category_id: string }
@@ -470,12 +470,12 @@ export type GetStorefrontPackageItemsProductChoicesParams = PackageContext &
   };
 
 export interface FindPackagesByIdsParams {
-  store_id: string;
+  tenant_id: string;
   ids: string[];
 }
 
 interface PackageItemPriceListFilters {
-  store_id: string;
+  tenant_id: string;
   status?: PriceStatus["type"];
   limit?: number;
   cursor?: string | null;
@@ -485,18 +485,18 @@ export type FindPackageItemPricesParams = PackageItemPriceListFilters &
   ({ package_item_id: string; sellable?: SellableRef } | { package_item_id?: string; sellable: SellableRef });
 
 export interface GetPackageItemPriceParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface GetPackageItemPriceByChoiceParams {
-  store_id: string;
+  tenant_id: string;
   package_item_id: string;
   sellable: SellableRef;
 }
 
 export interface CreatePackageItemPriceParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   package_item_id: string;
   sellable: SellableRef;
@@ -508,7 +508,7 @@ export interface CreatePackageItemPriceParams {
 }
 
 export interface UpdatePackageItemPriceParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   amount: number;
@@ -519,18 +519,18 @@ export interface UpdatePackageItemPriceParams {
 }
 
 export interface DeletePackageItemPriceParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export type PackageItemPriceBatchOperation =
-  | ({ type: "create" } & Omit<CreatePackageItemPriceParams, "store_id" | "schedule"> & { schedule: Schedule })
-  | ({ type: "update" } & Omit<UpdatePackageItemPriceParams, "store_id" | "schedule"> & { schedule: Schedule })
+  | ({ type: "create" } & Omit<CreatePackageItemPriceParams, "tenant_id" | "schedule"> & { schedule: Schedule })
+  | ({ type: "update" } & Omit<UpdatePackageItemPriceParams, "tenant_id" | "schedule"> & { schedule: Schedule })
   | { type: "delete"; id: string; expected_updated_at: EpochMilliseconds };
 
 export interface BatchPackageItemPricesParams {
-  store_id: string;
+  tenant_id: string;
   operations: PackageItemPriceBatchOperation[];
 }
 
@@ -540,7 +540,7 @@ export type PackageAutomaticItemOperation =
   | { action: "delete"; id: string; expected_updated_at: EpochMilliseconds };
 
 export interface FindPackagesParams {
-  store_id: string;
+  tenant_id: string;
   query?: string;
   key?: string;
   status?: PackageStatus;
@@ -555,17 +555,17 @@ export interface FindPackagesParams {
 }
 
 export interface GetPackageParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface GetPackageByKeyParams {
-  store_id: string;
+  tenant_id: string;
   key: string;
 }
 
 export interface CreatePackageParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   key: string;
   blocks: Block[];
@@ -578,7 +578,7 @@ export interface CreatePackageParams {
 }
 
 export interface UpdatePackageParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   blocks: Block[];
@@ -591,13 +591,13 @@ export interface UpdatePackageParams {
 }
 
 export interface DeletePackageParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface CopyPackageParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   source_package_id: string;
   source_market_id: string;
@@ -606,14 +606,14 @@ export interface CopyPackageParams {
 }
 
 export type FindPurchasablePackagesParams = CompanyPartyQuery & {
-  store_id: string;
+  tenant_id: string;
   market_id: string;
   sales_channel_id: string;
-  customer_id: string;
+  user_id: string;
 };
 
 export type FindPackageItemsParams = {
-  store_id: string;
+  tenant_id: string;
   package_id: string;
   limit?: number;
 } & (
@@ -622,7 +622,7 @@ export type FindPackageItemsParams = {
 );
 
 export interface GetPackageItemParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
@@ -641,7 +641,7 @@ export type PackagePricedItemInput =
   | { type: "package"; package_id: string; price: PackageItemPriceInput };
 
 export interface CreatePackageItemParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   package_id: string;
   market_id: string;
@@ -649,20 +649,20 @@ export interface CreatePackageItemParams {
 }
 
 export interface UpdatePackageItemParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   position: number;
 }
 
 export interface DeletePackageItemParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface SetPackageItemPricesParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   status: PriceStatus;
@@ -670,17 +670,17 @@ export interface SetPackageItemPricesParams {
 }
 
 export type PackageItemBatchOperation =
-  | ({ type: "create" } & Omit<CreatePackageItemParams, "store_id">)
-  | ({ type: "update" } & Omit<UpdatePackageItemParams, "store_id">)
+  | ({ type: "create" } & Omit<CreatePackageItemParams, "tenant_id">)
+  | ({ type: "update" } & Omit<UpdatePackageItemParams, "tenant_id">)
   | { type: "delete"; id: string; expected_updated_at: EpochMilliseconds };
 
 export interface BatchPackageItemsParams {
-  store_id: string;
+  tenant_id: string;
   operations: PackageItemBatchOperation[];
 }
 
 export interface FindPackageAccessesParams {
-  store_id: string;
+  tenant_id: string;
   package_id: string;
   sort_direction?: SortDirection;
   limit?: number;
@@ -688,12 +688,12 @@ export interface FindPackageAccessesParams {
 }
 
 export interface GetPackageAccessParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface CreatePackageAccessParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   package_id: string;
   audience: PackageAudience;
@@ -702,6 +702,6 @@ export interface CreatePackageAccessParams {
 }
 
 export interface DeletePackageAccessParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }

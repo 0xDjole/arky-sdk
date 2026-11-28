@@ -20,16 +20,16 @@ import type {
 } from "../types/payment";
 import type { EpochMilliseconds } from "../types/time";
 import { requireId } from "../utils/ids";
-import { segment, storePath } from "./paths";
+import { segment, tenantPath } from "./paths";
 
 function paymentMethodRoutes<Method, SetupStart>(httpClient: HttpClient, base: string) {
   const methodPath = (id: string) => `${base}/${segment(id)}`;
   return {
-    find(query: Omit<FindPaymentMethodsParams, "store_id">, options?: RequestOptions): Promise<PaginatedResponse<Method>> {
+    find(query: Omit<FindPaymentMethodsParams, "tenant_id">, options?: RequestOptions): Promise<PaginatedResponse<Method>> {
       return httpClient.get<PaginatedResponse<Method>>(base, {
         ...options,
         params: {
-          customer_id: query.customer_id,
+          user_id: query.user_id,
           company_id: query.company_id,
           company_location_id: query.company_location_id,
           payment_option_id: query.payment_option_id,
@@ -41,7 +41,7 @@ function paymentMethodRoutes<Method, SetupStart>(httpClient: HttpClient, base: s
     get(id: string, options?: RequestOptions): Promise<Method> {
       return httpClient.get<Method>(methodPath(id), options);
     },
-    requestSetup(body: Omit<RequestPaymentMethodSetupParams, "store_id">, options?: RequestOptions): Promise<Method> {
+    requestSetup(body: Omit<RequestPaymentMethodSetupParams, "tenant_id">, options?: RequestOptions): Promise<Method> {
       requireId(body.id, "payment method");
       return httpClient.post<Method>(`${base}/setup`, {
         id: body.id,
@@ -72,31 +72,31 @@ function paymentMethodRoutes<Method, SetupStart>(httpClient: HttpClient, base: s
 }
 
 export const createPaymentMethodApi = (apiConfig: ApiConfig) => {
-  const routes = (storeId: string) =>
-    paymentMethodRoutes<PaymentMethod, PaymentMethodSetupStart>(apiConfig.httpClient, storePath(storeId, "payment-methods"));
+  const routes = (tenantId: string) =>
+    paymentMethodRoutes<PaymentMethod, PaymentMethodSetupStart>(apiConfig.httpClient, tenantPath(tenantId, "payment-methods"));
   return {
     find(params: FindPaymentMethodsParams, options?: RequestOptions): Promise<PaginatedResponse<PaymentMethod>> {
-      const { store_id, ...query } = params;
-      return routes(store_id).find(query, options);
+      const { tenant_id, ...query } = params;
+      return routes(tenant_id).find(query, options);
     },
     get(params: GetPaymentMethodParams, options?: RequestOptions): Promise<PaymentMethod> {
-      return routes(params.store_id).get(params.id, options);
+      return routes(params.tenant_id).get(params.id, options);
     },
     requestSetup(params: RequestPaymentMethodSetupParams, options?: RequestOptions): Promise<PaymentMethod> {
-      const { store_id, ...body } = params;
-      return routes(store_id).requestSetup(body, options);
+      const { tenant_id, ...body } = params;
+      return routes(tenant_id).requestSetup(body, options);
     },
     startSetup(params: GetPaymentMethodParams, options?: RequestOptions): Promise<PaymentMethodSetupStart> {
-      return routes(params.store_id).startSetup(params.id, options);
+      return routes(params.tenant_id).startSetup(params.id, options);
     },
     completeSetup(params: GetPaymentMethodParams, options?: RequestOptions): Promise<PaymentMethod> {
-      return routes(params.store_id).completeSetup(params.id, options);
+      return routes(params.tenant_id).completeSetup(params.id, options);
     },
     cancelSetup(params: CancelPaymentMethodSetupParams, options?: RequestOptions): Promise<PaymentMethod> {
-      return routes(params.store_id).cancelSetup(params.id, params.expected_updated_at, options);
+      return routes(params.tenant_id).cancelSetup(params.id, params.expected_updated_at, options);
     },
     revoke(params: RevokePaymentMethodParams, options?: RequestOptions): Promise<PaymentMethod> {
-      return routes(params.store_id).revoke(params.id, params.expected_updated_at, options);
+      return routes(params.tenant_id).revoke(params.id, params.expected_updated_at, options);
     },
   };
 };
@@ -109,7 +109,7 @@ export const createStorefrontPaymentMethodApi = (httpClient: HttpClient) => {
   return {
     find(params: StorefrontFindPaymentMethodsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<StorefrontPaymentMethod>> {
       return routes.find({
-        customer_id: params.customer_id,
+        user_id: params.user_id,
         company_id: params.company_id,
         company_location_id: params.company_location_id,
         limit: params.limit,

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 
-const store = "5f0e7d93-2b46-4c18-9a7d-e1c3b5f82a06";
+const tenant = "5f0e7d93-2b46-4c18-9a7d-e1c3b5f82a06";
 const template = "3a5c7e9b-1d2f-4a6c-8e0b-2d4f6a8c0e1f";
 const smsTemplate = "9b1d3f5a-7c2e-4a8b-b0d2-6f8a0c2e4b6d";
 const layout = "7c9e1b3d-5f2a-4c8e-a0b2-4d6f8a0c2e4b";
@@ -32,15 +32,15 @@ test("template discovery filters by type and purpose and the starters carry the 
   const { client, calls } = setup(context, (call) => call.url.pathname.endsWith("/defaults")
     ? [starter]
     : { items: [], cursor: calls.length === 1 ? "next:+/=" : null });
-  const first = await client.notification.template.find({ store_id: store, type: "email", purpose: "order_alert", limit: 1 });
-  await client.notification.template.find({ store_id: store, type: "email", purpose: "order_alert", limit: 1, cursor: first.cursor });
-  await client.notification.template.find({ store_id: store, type: "sms" });
-  const defaults = await client.notification.template.findDefaults({ store_id: store });
+  const first = await client.notification.template.find({ tenant_id: tenant, type: "email", purpose: "order_alert", limit: 1 });
+  await client.notification.template.find({ tenant_id: tenant, type: "email", purpose: "order_alert", limit: 1, cursor: first.cursor });
+  await client.notification.template.find({ tenant_id: tenant, type: "sms" });
+  const defaults = await client.notification.template.findDefaults({ tenant_id: tenant });
   assert.deepEqual(defaults, [starter]);
   assert.deepEqual(Object.fromEntries(calls[0].url.searchParams), { type: "email", purpose: "order_alert", limit: "1" });
   assert.equal(calls[1].url.searchParams.get("cursor"), first.cursor);
   assert.deepEqual(Object.fromEntries(calls[2].url.searchParams), { type: "sms" });
-  assert.equal(calls[3].url.pathname, `/v1/stores/${store}/email-templates/defaults`);
+  assert.equal(calls[3].url.pathname, `/v1/tenants/${tenant}/email-templates/defaults`);
 });
 
 test("template writes keep the app's id, its name, and an email's default language, layout and html and text content or an SMS's text", async (context) => {
@@ -48,19 +48,19 @@ test("template writes keep the app's id, its name, and an email's default langua
   const api = client.notification.template;
   const create = { id: template, key: "order-receipt", name: "Order receipt", type: { type: "email", purpose: { type: "order_received" }, default_language: "en", content, layout_id: layout } };
   const sms = { id: smsTemplate, key: "reminder-sms", name: "Reminder", type: { type: "sms", purpose: { type: "booking_reminder" }, content: { en: "See you at {{booking.starts_at}}" } } };
-  await api.create({ store_id: store, ...create });
-  await api.create({ store_id: store, ...sms });
-  await api.update({ store_id: store, id: template, expected_updated_at: 2, name: "Receipt", content: { type: "email", default_language: "bs", layout_id: layout, content } });
-  await api.update({ store_id: store, id: smsTemplate, expected_updated_at: 4, content: { type: "sms", content: { en: "Tomorrow at {{booking.starts_at}}" } } });
-  assert.equal(await api.delete({ store_id: store, id: template, expected_updated_at: 3 }), true);
+  await api.create({ tenant_id: tenant, ...create });
+  await api.create({ tenant_id: tenant, ...sms });
+  await api.update({ tenant_id: tenant, id: template, expected_updated_at: 2, name: "Receipt", content: { type: "email", default_language: "bs", layout_id: layout, content } });
+  await api.update({ tenant_id: tenant, id: smsTemplate, expected_updated_at: 4, content: { type: "sms", content: { en: "Tomorrow at {{booking.starts_at}}" } } });
+  assert.equal(await api.delete({ tenant_id: tenant, id: template, expected_updated_at: 3 }), true);
   assert.deepEqual(calls.map((call) => [call.method, call.url.pathname + call.url.search, call.body]), [
-    ["POST", `/v1/stores/${store}/email-templates`, create],
-    ["POST", `/v1/stores/${store}/email-templates`, sms],
-    ["PUT", `/v1/stores/${store}/email-templates/${template}`, { expected_updated_at: 2, name: "Receipt", content: { type: "email", default_language: "bs", layout_id: layout, content } }],
-    ["PUT", `/v1/stores/${store}/email-templates/${smsTemplate}`, { expected_updated_at: 4, content: { type: "sms", content: { en: "Tomorrow at {{booking.starts_at}}" } } }],
-    ["DELETE", `/v1/stores/${store}/email-templates/${template}?expected_updated_at=3`, undefined],
+    ["POST", `/v1/tenants/${tenant}/email-templates`, create],
+    ["POST", `/v1/tenants/${tenant}/email-templates`, sms],
+    ["PUT", `/v1/tenants/${tenant}/email-templates/${template}`, { expected_updated_at: 2, name: "Receipt", content: { type: "email", default_language: "bs", layout_id: layout, content } }],
+    ["PUT", `/v1/tenants/${tenant}/email-templates/${smsTemplate}`, { expected_updated_at: 4, content: { type: "sms", content: { en: "Tomorrow at {{booking.starts_at}}" } } }],
+    ["DELETE", `/v1/tenants/${tenant}/email-templates/${template}?expected_updated_at=3`, undefined],
   ]);
-  await assert.rejects(async () => api.create({ store_id: store, ...create, id: "order-receipt" }), TypeError);
+  await assert.rejects(async () => api.create({ tenant_id: tenant, ...create, id: "order-receipt" }), TypeError);
   assert.equal(calls.length, 5);
 });
 
@@ -70,15 +70,15 @@ test("a template preview renders one language and a test is sent from the named 
   const smsPreview = { type: "sms", language: "en", text: "Tomorrow at 10" };
   const { client, calls } = setup(context, (call) => call.url.pathname.endsWith("/preview") ? (call.url.pathname.includes(smsTemplate) ? smsPreview : preview) : sent);
   const api = client.notification.template;
-  assert.deepEqual(await api.preview({ store_id: store, id: template, language: "en", content: { type: "email", content: content.en } }), preview);
-  assert.deepEqual(await api.preview({ store_id: store, id: smsTemplate, language: "en", content: { type: "sms", text: "Tomorrow at 10" } }), smsPreview);
-  assert.deepEqual(await api.test({ store_id: store, id: template, outgoing_message_id: testEmail, language: "en", email_address_id: address, from_name: "Shop", reply_to_address_id: replyAddress }), sent);
+  assert.deepEqual(await api.preview({ tenant_id: tenant, id: template, language: "en", content: { type: "email", content: content.en } }), preview);
+  assert.deepEqual(await api.preview({ tenant_id: tenant, id: smsTemplate, language: "en", content: { type: "sms", text: "Tomorrow at 10" } }), smsPreview);
+  assert.deepEqual(await api.test({ tenant_id: tenant, id: template, outgoing_message_id: testEmail, language: "en", email_address_id: address, from_name: "Shop", reply_to_address_id: replyAddress }), sent);
   assert.deepEqual(calls.map((call) => [call.method, call.url.pathname, call.body]), [
-    ["POST", `/v1/stores/${store}/email-templates/${template}/preview`, { language: "en", content: { type: "email", content: content.en } }],
-    ["POST", `/v1/stores/${store}/email-templates/${smsTemplate}/preview`, { language: "en", content: { type: "sms", text: "Tomorrow at 10" } }],
-    ["POST", `/v1/stores/${store}/email-templates/${template}/test`, { id: testEmail, language: "en", email_address_id: address, from_name: "Shop", reply_to_address_id: replyAddress }],
+    ["POST", `/v1/tenants/${tenant}/email-templates/${template}/preview`, { language: "en", content: { type: "email", content: content.en } }],
+    ["POST", `/v1/tenants/${tenant}/email-templates/${smsTemplate}/preview`, { language: "en", content: { type: "sms", text: "Tomorrow at 10" } }],
+    ["POST", `/v1/tenants/${tenant}/email-templates/${template}/test`, { id: testEmail, language: "en", email_address_id: address, from_name: "Shop", reply_to_address_id: replyAddress }],
   ]);
-  await assert.rejects(async () => api.test({ store_id: store, id: template, outgoing_message_id: "test-1", language: "en", email_address_id: address, from_name: "Shop", reply_to_address_id: replyAddress }), {
+  await assert.rejects(async () => api.test({ tenant_id: tenant, id: template, outgoing_message_id: "test-1", language: "en", email_address_id: address, from_name: "Shop", reply_to_address_id: replyAddress }), {
     name: "TypeError",
     message: "The test email id must be a canonical UUID v4 picked by the app",
   });
@@ -86,16 +86,16 @@ test("a template preview renders one language and a test is sent from the named 
 });
 
 test("an automatic message names its email selection and alert recipients, and is saved with the version", async (context) => {
-  const type = { type: "order_alert", email: selection(template), recipients: [{ type: "store_role", store_role_id: role, language: "en" }, { type: "email", email: "owner@example.test", language: "bs" }] };
-  const saved = { id: notificationId, store_id: store, type, status: { type: "active", since: 1 }, created_at: 1, updated_at: 2 };
+  const type = { type: "order_alert", email: selection(template), recipients: [{ type: "tenant_role", tenant_role_id: role, language: "en" }, { type: "email", email: "owner@example.test", language: "bs" }] };
+  const saved = { id: notificationId, tenant_id: tenant, type, status: { type: "active", since: 1 }, created_at: 1, updated_at: 2 };
   const { client, calls } = setup(context, (call) => call.method === "DELETE" ? true : call.method === "GET" && call.url.pathname.endsWith("/notifications") ? { items: [saved], cursor: null } : saved);
   const api = client.notification.notification;
-  assert.deepEqual(await api.find({ store_id: store, type: "order_alert" }), { items: [saved], cursor: null });
-  assert.deepEqual(await api.create({ store_id: store, id: notificationId, type, status: "active" }), saved);
-  assert.deepEqual(await api.get({ store_id: store, id: notificationId }), saved);
-  assert.deepEqual(await api.update({ store_id: store, id: notificationId, expected_updated_at: 2, type, status: "paused" }), saved);
-  assert.equal(await api.delete({ store_id: store, id: notificationId, expected_updated_at: 3 }), true);
-  const base = `/v1/stores/${store}/notifications`;
+  assert.deepEqual(await api.find({ tenant_id: tenant, type: "order_alert" }), { items: [saved], cursor: null });
+  assert.deepEqual(await api.create({ tenant_id: tenant, id: notificationId, type, status: "active" }), saved);
+  assert.deepEqual(await api.get({ tenant_id: tenant, id: notificationId }), saved);
+  assert.deepEqual(await api.update({ tenant_id: tenant, id: notificationId, expected_updated_at: 2, type, status: "paused" }), saved);
+  assert.equal(await api.delete({ tenant_id: tenant, id: notificationId, expected_updated_at: 3 }), true);
+  const base = `/v1/tenants/${tenant}/notifications`;
   assert.deepEqual(calls.map((call) => [call.method, call.url.pathname + call.url.search, call.body]), [
     ["GET", `${base}?type=order_alert`, undefined],
     ["POST", base, { id: notificationId, type, status: "active" }],
@@ -103,20 +103,20 @@ test("an automatic message names its email selection and alert recipients, and i
     ["PUT", `${base}/${notificationId}`, { expected_updated_at: 2, type, status: "paused" }],
     ["DELETE", `${base}/${notificationId}?expected_updated_at=3`, undefined],
   ]);
-  await assert.rejects(async () => api.create({ store_id: store, id: "order-alert", type, status: "active" }), TypeError);
-  assert.equal("emails" in client.store, false);
+  await assert.rejects(async () => api.create({ tenant_id: tenant, id: "order-alert", type, status: "active" }), TypeError);
+  assert.equal("emails" in client.tenant, false);
 });
 
 test("a changed login is also told by SMS: a login_changed SMS template, and a login_changed_sms notice that names it", async (context) => {
   const sms = { id: smsTemplate, key: "login-changed-sms", name: "Login changed", type: { type: "sms", purpose: { type: "login_changed" }, content: { en: "Your sign-in login changed" } } };
   const type = { type: "login_changed_sms", sms_template_id: smsTemplate };
-  const { client, calls } = setup(context, (call) => (call.url.pathname.endsWith("/email-templates") ? { id: smsTemplate } : { id: notificationId, store_id: store, type, status: { type: "active", since: 1 }, created_at: 1, updated_at: 1 }));
-  await client.notification.template.create({ store_id: store, ...sms });
-  const saved = await client.notification.notification.create({ store_id: store, id: notificationId, type, status: "active" });
+  const { client, calls } = setup(context, (call) => (call.url.pathname.endsWith("/email-templates") ? { id: smsTemplate } : { id: notificationId, tenant_id: tenant, type, status: { type: "active", since: 1 }, created_at: 1, updated_at: 1 }));
+  await client.notification.template.create({ tenant_id: tenant, ...sms });
+  const saved = await client.notification.notification.create({ tenant_id: tenant, id: notificationId, type, status: "active" });
   assert.deepEqual(saved.type, type);
   assert.deepEqual(calls.map((call) => [call.method, call.url.pathname, call.body]), [
-    ["POST", `/v1/stores/${store}/email-templates`, sms],
-    ["POST", `/v1/stores/${store}/notifications`, { id: notificationId, type, status: "active" }],
+    ["POST", `/v1/tenants/${tenant}/email-templates`, sms],
+    ["POST", `/v1/tenants/${tenant}/notifications`, { id: notificationId, type, status: "active" }],
   ]);
 });
 
@@ -136,21 +136,21 @@ test("each invoice and fiscal alert is an email template of its own purpose and 
     "fiscal_device_not_ready_alert",
     "fiscal_certificate_expiring_alert",
   ];
-  const recipients = [{ type: "store_role", store_role_id: role, language: "bs" }, { type: "email", email: "books@example.test", language: "en" }];
+  const recipients = [{ type: "tenant_role", tenant_role_id: role, language: "bs" }, { type: "email", email: "books@example.test", language: "en" }];
   const { client, calls } = setup(context, (call) => (call.method === "GET"
     ? { items: [], cursor: null }
     : call.url.pathname.endsWith("/email-templates")
       ? { id: template }
-      : { id: notificationId, store_id: store, type: call.body.type, status: { type: "active", since: 1 }, created_at: 1, updated_at: 1 }));
+      : { id: notificationId, tenant_id: tenant, type: call.body.type, status: { type: "active", since: 1 }, created_at: 1, updated_at: 1 }));
   for (const alert of alerts) {
-    await client.notification.template.create({ store_id: store, id: template, key: alert.replaceAll("_", "-"), name: alert, type: { type: "email", purpose: { type: alert }, default_language: "en", content, layout_id: layout } });
+    await client.notification.template.create({ tenant_id: tenant, id: template, key: alert.replaceAll("_", "-"), name: alert, type: { type: "email", purpose: { type: alert }, default_language: "en", content, layout_id: layout } });
     const type = { type: alert, email: selection(template), recipients };
-    const saved = await client.notification.notification.create({ store_id: store, id: notificationId, type, status: "active" });
+    const saved = await client.notification.notification.create({ tenant_id: tenant, id: notificationId, type, status: "active" });
     assert.deepEqual(saved.type, type, alert);
   }
-  await client.notification.notification.find({ store_id: store, type: "fiscal_receipt_refused_alert" });
-  await client.notification.template.find({ store_id: store, type: "email", purpose: "fiscal_device_not_ready_alert" });
-  const base = `/v1/stores/${store}`;
+  await client.notification.notification.find({ tenant_id: tenant, type: "fiscal_receipt_refused_alert" });
+  await client.notification.template.find({ tenant_id: tenant, type: "email", purpose: "fiscal_device_not_ready_alert" });
+  const base = `/v1/tenants/${tenant}`;
   assert.deepEqual(calls.map((call) => [call.method, call.url.pathname + call.url.search, call.body]), [
     ...alerts.flatMap((alert) => [
       ["POST", `${base}/email-templates`, { id: template, key: alert.replaceAll("_", "-"), name: alert, type: { type: "email", purpose: { type: alert }, default_language: "en", content, layout_id: layout } }],

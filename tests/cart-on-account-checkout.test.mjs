@@ -16,7 +16,7 @@ import {
   visitorStorage,
 } from "./helpers/arky-fixtures.mjs";
 
-const target = { store_id: ids.store };
+const target = { tenant_id: ids.tenant };
 const onAccount = {
   order_id: ids.order,
   order_token: "arky_ot_" + "A".repeat(43),
@@ -43,7 +43,7 @@ test("Admin on-account checkout sends the reviewed cart, app-picked order id, la
   assert.deepEqual(await admin().eshop.cart.checkoutOnAccount({ ...target, ...onAccount }, { signal, headers: { "X-Review": "on-account" } }), placedAcceptance());
   assert.equal(calls.length, 1);
   assert.equal(calls[0].method, "POST");
-  assert.equal(calls[0].path, `/v1/stores/${ids.store}/carts/accept-on-account`);
+  assert.equal(calls[0].path, `/v1/tenants/${ids.tenant}/carts/accept-on-account`);
   assert.deepEqual(calls[0].body, onAccount);
   assert.equal(calls[0].headers.get("authorization"), "Bearer arky_at_ccccccccccccccccccccccccccccccccccccccccccA");
   assert.equal(calls[0].headers.get("x-review"), "on-account");
@@ -52,7 +52,7 @@ test("Admin on-account checkout sends the reviewed cart, app-picked order id, la
   for (const order_id of [undefined, "", "order-1", ids.order.toUpperCase()]) {
     await assert.rejects(async () => admin().eshop.cart.checkoutOnAccount({ ...target, ...onAccount, order_id }), TypeError);
   }
-  await assert.rejects(async () => admin().eshop.cart.checkoutOnAccount({ ...onAccount, store_id: "store/one" }), TypeError);
+  await assert.rejects(async () => admin().eshop.cart.checkoutOnAccount({ ...onAccount, tenant_id: "tenant/one" }), TypeError);
   assert.equal(calls.length, 1);
 });
 
@@ -63,9 +63,9 @@ test("Admin checkouts carry the contact names staff typed, and leave them out wh
   await admin().eshop.cart.checkout({ ...target, ...checkoutRequest(), language: "en", contact_name: null });
   await admin().eshop.cart.checkout({ ...target, ...checkoutRequest(), language: "en" });
   assert.deepEqual(calls.map(({ path, body }) => [path, body.contact_name]), [
-    [`/v1/stores/${ids.store}/carts/accept-on-account`, { first_name: "Ana", last_name: "Horvat" }],
-    [`/v1/stores/${ids.store}/carts/accept`, null],
-    [`/v1/stores/${ids.store}/carts/accept`, undefined],
+    [`/v1/tenants/${ids.tenant}/carts/accept-on-account`, { first_name: "Ana", last_name: "Horvat" }],
+    [`/v1/tenants/${ids.tenant}/carts/accept`, null],
+    [`/v1/tenants/${ids.tenant}/carts/accept`, undefined],
   ]);
   assert.deepEqual(calls[0].body, { ...onAccount, ...names });
   for (const key of ["contact_name"]) assert.equal(key in calls[2].body, false, key);
@@ -89,7 +89,7 @@ test("Admin keeps no browser retention for on-account or ordinary checkout", () 
 
 test("the storefront has no on-account acceptance; a company location buyer pays on account through the checkout payment choice", async (context) => {
   const calls = recordFetch(context, (call) => call.method === "GET" ? placedOrder() : placedAcceptance());
-  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", market: "bih", sessionStorage: visitorStorage() });
+  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "en", market: "bih", sessionStorage: visitorStorage() });
   for (const removed of ["checkoutOnAccount", "retainOnAccountCheckout", "recoverOnAccountCheckout"]) {
     assert.equal(removed in storefront.eshop.cart, false, removed);
   }
@@ -100,7 +100,7 @@ test("the storefront has no on-account acceptance; a company location buyer pays
 });
 
 test("company and location purchasing commands preserve the exact version and the full typed policy", async (context) => {
-  const calls = recordFetch(context, (call) => ({ id: call.path.split("/")[5], store_id: ids.store, ...call.body }));
+  const calls = recordFetch(context, (call) => ({ id: call.path.split("/")[5], tenant_id: ids.tenant, ...call.body }));
   const purchasing = {
     payment: {
       type: "on_account",
@@ -115,7 +115,7 @@ test("company and location purchasing commands preserve the exact version and th
   await admin().companies.location.setPurchasing(input, { signal, headers: { "X-Review": "native-cas" } });
   assert.equal(calls.length, 1);
   assert.equal(calls[0].method, "PUT");
-  assert.equal(calls[0].path, `/v1/stores/${ids.store}/company-locations/${ids.companyLocation}/purchasing`);
+  assert.equal(calls[0].path, `/v1/tenants/${ids.tenant}/company-locations/${ids.companyLocation}/purchasing`);
   assert.deepEqual(calls[0].body, { expected_updated_at: input.expected_updated_at, purchasing });
   assert.equal(calls[0].signal, signal);
   assert.equal(calls[0].headers.get("X-Review"), "native-cas");
@@ -125,11 +125,11 @@ test("company and location purchasing commands preserve the exact version and th
   assert.deepEqual(calls[1].body, { expected_updated_at: input.expected_updated_at, purchasing: standardCheckout });
   await admin().companies.setPurchasing({ ...target, id: ids.company, expected_updated_at: 1_800_000_000_001, purchasing });
   assert.equal(calls[2].method, "PUT");
-  assert.equal(calls[2].path, `/v1/stores/${ids.store}/companies/${ids.company}/purchasing`);
+  assert.equal(calls[2].path, `/v1/tenants/${ids.tenant}/companies/${ids.company}/purchasing`);
   assert.deepEqual(calls[2].body, { expected_updated_at: 1_800_000_000_001, purchasing });
-  await admin().companies.location.setFulfillment({ ...target, id: ids.companyLocation, expected_updated_at: 2, fulfillment: { type: "served_from", store_location_id: ids.otherCompanyLocation } });
-  assert.equal(calls[3].path, `/v1/stores/${ids.store}/company-locations/${ids.companyLocation}/served-from`);
-  assert.deepEqual(calls[3].body, { expected_updated_at: 2, fulfillment: { type: "served_from", store_location_id: ids.otherCompanyLocation } });
+  await admin().companies.location.setFulfillment({ ...target, id: ids.companyLocation, expected_updated_at: 2, fulfillment: { type: "served_from", tenant_location_id: ids.otherCompanyLocation } });
+  assert.equal(calls[3].path, `/v1/tenants/${ids.tenant}/company-locations/${ids.companyLocation}/served-from`);
+  assert.deepEqual(calls[3].body, { expected_updated_at: 2, fulfillment: { type: "served_from", tenant_location_id: ids.otherCompanyLocation } });
   await admin().companies.location.setFulfillment({ ...target, id: ids.companyLocation, expected_updated_at: 3, fulfillment: { type: "routing" } });
   assert.deepEqual(calls[4].body, { expected_updated_at: 3, fulfillment: { type: "routing" } });
   for (const removed of ["setCommercePolicy", "minimumProgress"]) {

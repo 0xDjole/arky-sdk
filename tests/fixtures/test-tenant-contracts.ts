@@ -1,0 +1,322 @@
+import type { createAdmin } from "arky-sdk/admin";
+import {
+  isSimulatedPayment,
+  mountCheckoutAction,
+  mountPaymentMethodSetup,
+  simulatePayment,
+} from "arky-sdk";
+import {
+  isSimulatedPayment as storefrontIsSimulatedPayment,
+  simulatePayment as storefrontSimulatePayment,
+} from "arky-sdk/storefront";
+import type {
+  Account,
+  CheckoutPaymentAction,
+  ConnectArkyElevenLabsTenantProviderParams,
+  ConnectArkyMonriTenantProviderParams,
+  ConnectArkyResendTenantProviderParams,
+  ConnectArkyStripeTenantProviderParams,
+  ConnectArkyTwilioTenantProviderParams,
+  ConnectElevenLabsTenantProviderParams,
+  ArkyElevenLabsSetup,
+  ArkyElevenLabsTools,
+  ElevenLabsRegion,
+  ElevenLabsSetup,
+  ElevenLabsTools,
+  CreateCardPaymentOptionParams,
+  CreateSimulatorPlannedOutcomeParams,
+  CreateTenantParams,
+  EmbeddedCheckoutMount,
+  EpochMilliseconds,
+  FindPaymentOptionsParams,
+  FindSimulatedEmailsParams,
+  FindSimulatorPlannedOutcomesParams,
+  LocalizedMarkdown,
+  MonriComponentsAction,
+  MonriConnection,
+  PaginatedResponse,
+  PaymentMethodSetupStart,
+  PaymentOption,
+  PaymentOptionType,
+  PaymentOptionTypeName,
+  PaymentRunsOn,
+  RemoveSimulatorPlannedOutcomeParams,
+  SetUpTenantElevenLabsAgainParams,
+  SimulatorPaymentControlParams,
+  SetSimulatedCallStatusParams,
+  FindSimulatedCallConversationsParams,
+  FinishSimulatedCallConversationParams,
+  GetSimulatedCallParams,
+  SimulateToolCallParams,
+  SimulatedAssistantTool,
+  SimulatedSaidLine,
+  SimulatedTranscriptLine,
+  AssistantTool,
+  SimulatedCall,
+  SimulatedCallAudio,
+  SimulatedCallConversation,
+  SimulatedCallStatus,
+  SimulatedToolCall,
+  SimulatedEmail,
+  SimulatorMonriOperation,
+  SimulatorPlannedOperation,
+  SimulatorPlannedOutcome,
+  SimulatorPlannedResult,
+  SimulatorProvider,
+  SimulatorResendOperation,
+  SimulatorStripeOperation,
+  SmsSender,
+  StartSimulatedCallParams,
+  Tenant,
+  TenantMembershipWithTenantName,
+  TenantProvider,
+  TenantType,
+  TenantCardSetup,
+  CreateTenantType,
+  TenantSubscriptionPayment,
+  StorefrontPaymentMethodSetupStart,
+  StorefrontPaymentOption,
+  StorefrontPaymentOptionType,
+  StripeConnection,
+  StripeEmbeddedCheckoutAction,
+} from "arky-sdk";
+import type { PaymentSimulation, SimulatePaymentParams } from "arky-sdk/storefront";
+
+type Assert<T extends true> = T;
+type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
+type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
+type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
+type Admin = ReturnType<typeof createAdmin>;
+type PaymentOptions = Admin["tenant"]["paymentOption"];
+type Providers = Admin["tenant"]["provider"];
+type Simulator = Admin["tenant"]["simulator"];
+type StripeAction = Extract<CheckoutPaymentAction, { type: "stripe_embedded_checkout" }>;
+type PlanAction = Extract<TenantSubscriptionPayment, { type: "stripe" }>;
+type SimulatorMount = Extract<EmbeddedCheckoutMount, { type: "simulator" }>;
+
+export type TestTenantContracts = [
+  Assert<Equal<TenantType, { type: "live"; account_id: string; network_id: string } | { type: "test"; live_tenant_id: string }>>,
+  Assert<Equal<Tenant["type"], TenantType>>,
+  Assert<Equal<CreateTenantParams["type"], CreateTenantType>>,
+  Assert<RequiredField<CreateTenantParams, "type">>,
+  Assert<Missing<Account, "test_tenants">>,
+  Assert<Equal<TenantMembershipWithTenantName["tenant_type"], TenantType>>,
+
+  Assert<Equal<PaymentRunsOn, { type: "provider" } | { type: "simulator"; api_url: string }>>,
+  Assert<Equal<StripeAction["runs_on"], PaymentRunsOn>>,
+  Assert<Equal<PlanAction["runs_on"], PaymentRunsOn>>,
+  Assert<Equal<MonriComponentsAction["runs_on"], PaymentRunsOn>>,
+  Assert<Equal<PaymentMethodSetupStart["runs_on"], PaymentRunsOn>>,
+  Assert<Equal<Parameters<typeof isSimulatedPayment>[0], CheckoutPaymentAction | TenantSubscriptionPayment | StorefrontPaymentMethodSetupStart | TenantCardSetup>>,
+  Assert<Equal<ReturnType<typeof isSimulatedPayment>, boolean>>,
+  Assert<Equal<typeof isSimulatedPayment, typeof storefrontIsSimulatedPayment>>,
+  Assert<Equal<typeof simulatePayment, typeof storefrontSimulatePayment>>,
+
+  Assert<Equal<PaymentSimulation["type"], "stripe_checkout" | "stripe_payment_intent" | "monri" | "card_setup">>,
+  Assert<Equal<Extract<PaymentSimulation, { type: "stripe_checkout" }>["action"], StripeEmbeddedCheckoutAction>>,
+  Assert<Equal<Extract<PaymentSimulation, { type: "stripe_checkout" }>["outcome"], "complete" | "decline" | "expire">>,
+  Assert<Equal<Extract<PaymentSimulation, { type: "stripe_payment_intent" }>["action"], PlanAction>>,
+  Assert<Equal<Extract<PaymentSimulation, { type: "stripe_payment_intent" }>["outcome"], "complete" | "decline">>,
+  Assert<Equal<Extract<PaymentSimulation, { type: "monri" }>["action"], MonriComponentsAction>>,
+  Assert<Equal<Extract<PaymentSimulation, { type: "monri" }>["outcome"], "complete" | "decline">>,
+  Assert<Equal<Extract<PaymentSimulation, { type: "card_setup" }>["setup"], StorefrontPaymentMethodSetupStart | TenantCardSetup>>,
+  Assert<Equal<Extract<PaymentSimulation, { type: "card_setup" }>["outcome"], "complete" | "cancel" | "decline">>,
+  Assert<Missing<Extract<PaymentSimulation, { type: "monri" }>, "payment_id" | "attempt_id">>,
+  Assert<Equal<keyof SimulatePaymentParams, "simulation">>,
+  Assert<Missing<SimulatePaymentParams, "simulator_url">>,
+  Assert<Equal<Awaited<ReturnType<typeof simulatePayment>>, void>>,
+
+  Assert<Equal<PaymentOptionTypeName, "cash_on_delivery" | "manual" | "stripe" | "monri" | "arky_stripe" | "arky_monri">>,
+  Assert<Equal<FindPaymentOptionsParams["type_name"], PaymentOptionTypeName | undefined>>,
+  Assert<Equal<Extract<PaymentOptionType, { type: "arky_stripe" }>["account_id"], StripeConnection["account_id"]>>,
+  Assert<Equal<Extract<PaymentOptionType, { type: "arky_monri" }>["environment"], MonriConnection["environment"]>>,
+  Assert<Missing<StripeConnection, "host" | "mode" | "base_url">>,
+  Assert<Missing<MonriConnection, "host" | "mode" | "base_url">>,
+  Assert<Equal<StorefrontPaymentOptionType, "cash_on_delivery" | "manual" | "stripe" | "monri">>,
+  Assert<Equal<StorefrontPaymentOption["type"], StorefrontPaymentOptionType>>,
+
+  Assert<Missing<PaymentOptions, "arkyStripe" | "arkyMonri">>,
+  Assert<Equal<Parameters<Providers["connectArkyStripe"]>[0], ConnectArkyStripeTenantProviderParams>>,
+  Assert<Equal<Parameters<Providers["connectArkyMonri"]>[0], ConnectArkyMonriTenantProviderParams>>,
+  Assert<Equal<ConnectArkyStripeTenantProviderParams, { tenant_id: string; id: string }>>,
+  Assert<Equal<ConnectArkyMonriTenantProviderParams, { tenant_id: string; id: string }>>,
+  Assert<Equal<Awaited<ReturnType<Providers["connectArkyStripe"]>>, TenantProvider>>,
+  Assert<Equal<Awaited<ReturnType<Providers["connectArkyMonri"]>>, TenantProvider>>,
+  Assert<Equal<Parameters<PaymentOptions["createArkyStripe"]>[0], CreateCardPaymentOptionParams>>,
+  Assert<Equal<Parameters<PaymentOptions["createArkyMonri"]>[0], CreateCardPaymentOptionParams>>,
+  Assert<Equal<keyof CreateCardPaymentOptionParams, "tenant_id" | "provider_id" | "id" | "key" | "blocks" | "status" | "saved_card_terms">>,
+  Assert<Equal<CreateCardPaymentOptionParams["saved_card_terms"], LocalizedMarkdown>>,
+  Assert<Equal<Awaited<ReturnType<PaymentOptions["createArkyStripe"]>>, PaymentOption>>,
+  Assert<Equal<Awaited<ReturnType<PaymentOptions["createArkyMonri"]>>, PaymentOption>>,
+
+  Assert<Equal<Extract<TenantProvider["type"], { type: "arky_resend" }>, { type: "arky_resend" }>>,
+  Assert<Equal<Extract<TenantProvider["type"], { type: "resend" }>["webhook_id"], string>>,
+  Assert<Equal<Parameters<Providers["connectArkyResend"]>[0], ConnectArkyResendTenantProviderParams>>,
+  Assert<Equal<ConnectArkyResendTenantProviderParams, { tenant_id: string; id: string; domains: string[] }>>,
+  Assert<Equal<Awaited<ReturnType<Providers["connectArkyResend"]>>, TenantProvider>>,
+
+  Assert<Equal<Extract<TenantProvider["type"], { type: "arky_twilio" }>, { type: "arky_twilio"; account_sid: string; sms_sender: SmsSender }>>,
+  Assert<Equal<Extract<TenantProvider["type"], { type: "eleven_labs" }>, { type: "eleven_labs"; region: ElevenLabsRegion; setup: ElevenLabsSetup }>>,
+  Assert<Equal<Extract<TenantProvider["type"], { type: "arky_eleven_labs" }>, { type: "arky_eleven_labs"; setup: ArkyElevenLabsSetup }>>,
+  Assert<Equal<ElevenLabsRegion, "global" | "us" | "eu" | "in" | "sg">>,
+  Assert<Equal<ElevenLabsSetup["type"], "waiting" | "ready" | "failed">>,
+  Assert<Equal<ArkyElevenLabsSetup["type"], "waiting" | "ready" | "failed">>,
+  Assert<Equal<Extract<ElevenLabsSetup, { type: "ready" }>, { type: "ready"; agent_id: string; tools: ElevenLabsTools; at: EpochMilliseconds }>>,
+  Assert<Equal<Extract<ArkyElevenLabsSetup, { type: "ready" }>, { type: "ready"; agent_id: string; tools: ArkyElevenLabsTools; at: EpochMilliseconds }>>,
+  Assert<Equal<ElevenLabsTools, { confirm: string; transfer: string; request_callback: string; optional: Partial<Record<AssistantTool, string>> }>>,
+  Assert<Equal<ArkyElevenLabsTools, ElevenLabsTools>>,
+  Assert<Equal<Parameters<Providers["connectArkyTwilio"]>[0], ConnectArkyTwilioTenantProviderParams>>,
+  Assert<Equal<ConnectArkyTwilioTenantProviderParams, { tenant_id: string; id: string; sms_sender: SmsSender }>>,
+  Assert<Equal<Parameters<Providers["connectElevenLabs"]>[0], ConnectElevenLabsTenantProviderParams>>,
+  Assert<Equal<ConnectElevenLabsTenantProviderParams, { tenant_id: string; id: string; api_key: string; region: ElevenLabsRegion }>>,
+  Assert<Equal<Parameters<Providers["connectArkyElevenLabs"]>[0], ConnectArkyElevenLabsTenantProviderParams>>,
+  Assert<Equal<ConnectArkyElevenLabsTenantProviderParams, { tenant_id: string; id: string }>>,
+  Assert<Equal<Parameters<Providers["setUpElevenLabsAgain"]>[0], SetUpTenantElevenLabsAgainParams>>,
+  Assert<Equal<SetUpTenantElevenLabsAgainParams, { tenant_id: string; id: string; expected_updated_at: EpochMilliseconds }>>,
+  Assert<Equal<Awaited<ReturnType<Providers["connectArkyTwilio"]>>, TenantProvider>>,
+  Assert<Equal<Awaited<ReturnType<Providers["connectElevenLabs"]>>, TenantProvider>>,
+  Assert<Equal<Awaited<ReturnType<Providers["connectArkyElevenLabs"]>>, TenantProvider>>,
+  Assert<Equal<Awaited<ReturnType<Providers["setUpElevenLabsAgain"]>>, TenantProvider>>,
+
+  Assert<Equal<keyof Simulator, "payments" | "emails" | "sms" | "calls" | "plannedOutcomes">>,
+  Assert<Equal<keyof Simulator["sms"], "find">>,
+  Assert<Equal<keyof Simulator["calls"], "start" | "get" | "setStatus" | "findConversations" | "callTool" | "finishConversation">>,
+  Assert<Equal<Parameters<Simulator["calls"]["start"]>[0], StartSimulatedCallParams>>,
+  Assert<Equal<StartSimulatedCallParams, { tenant_id: string; to: string; from: string | null }>>,
+  Assert<Equal<Awaited<ReturnType<Simulator["calls"]["start"]>>, SimulatedCall>>,
+  Assert<Equal<SimulatedCall, { id: string; from: string | null; to: string; status: SimulatedCallStatus; audio: SimulatedCallAudio; created_at: EpochMilliseconds }>>,
+  Assert<Equal<SimulatedCallAudio, { type: "none" } | { type: "stream"; url: string; parameters: Record<string, string> }>>,
+  Assert<Equal<Parameters<Simulator["calls"]["get"]>[0], GetSimulatedCallParams>>,
+  Assert<Equal<GetSimulatedCallParams, { tenant_id: string; call_sid: string }>>,
+  Assert<Equal<Awaited<ReturnType<Simulator["calls"]["get"]>>, SimulatedCall>>,
+  Assert<Equal<SimulatedCallStatus, "ringing" | "in-progress" | "completed" | "busy" | "no-answer" | "failed" | "canceled">>,
+  Assert<Equal<Parameters<Simulator["calls"]["setStatus"]>[0], SetSimulatedCallStatusParams>>,
+  Assert<Equal<SetSimulatedCallStatusParams, { tenant_id: string; call_sid: string; status: SimulatedCallStatus; duration_seconds: number | null }>>,
+  Assert<Equal<Awaited<ReturnType<Simulator["calls"]["setStatus"]>>, SimulatedCall>>,
+  Assert<Equal<Parameters<Simulator["calls"]["findConversations"]>[0], FindSimulatedCallConversationsParams>>,
+  Assert<Equal<keyof FindSimulatedCallConversationsParams, "tenant_id" | "call_id" | "limit" | "cursor">>,
+  Assert<Equal<Awaited<ReturnType<Simulator["calls"]["findConversations"]>>, PaginatedResponse<SimulatedCallConversation>>>,
+  Assert<Equal<keyof SimulatedCallConversation, "id" | "call_id" | "from" | "to" | "status" | "voice_id" | "max_duration_seconds" | "created_at">>,
+  Assert<Equal<SimulatedCallConversation["voice_id"], string | null>>,
+  Assert<Equal<SimulatedCallConversation["max_duration_seconds"], number | null>>,
+  Assert<Equal<SimulatedCallConversation["status"], "in-progress" | "done" | "deleted">>,
+  Assert<Equal<Parameters<Simulator["calls"]["callTool"]>[0], SimulateToolCallParams>>,
+  Assert<Equal<keyof SimulateToolCallParams, "tenant_id" | "conversation_id" | "tool" | "parameters" | "said">>,
+  Assert<Equal<SimulatedAssistantTool,
+    | "find-items" | "find-slots" | "find-locations" | "find-entries" | "find-orders" | "read-user" | "save-user"
+    | "save-entry" | "book" | "move" | "cancel" | "confirm-attendance" | "order" | "record-sms-consent"
+    | "confirm" | "request-callback" | "transfer">>,
+  Assert<Equal<SimulateToolCallParams["said"], SimulatedSaidLine[]>>,
+  Assert<Equal<SimulatedSaidLine, { role: string; message: string }>>,
+  Assert<Equal<SimulatedTranscriptLine, { role: "agent" | "user"; message: string; time_in_call_secs: number }>>,
+  Assert<Equal<Awaited<ReturnType<Simulator["calls"]["callTool"]>>, SimulatedToolCall>>,
+  Assert<Equal<SimulatedToolCall, { tool: SimulatedAssistantTool; answered: number | null; answer: unknown }>>,
+  Assert<Equal<Parameters<Simulator["calls"]["finishConversation"]>[0], FinishSimulatedCallConversationParams>>,
+  Assert<Equal<FinishSimulatedCallConversationParams["transcript"][number]["role"], "agent" | "user">>,
+  Assert<Equal<Awaited<ReturnType<Simulator["calls"]["finishConversation"]>>, SimulatedCallConversation>>,
+  Assert<Equal<keyof Simulator["payments"], "pay" | "decline" | "expire">>,
+  Assert<Equal<Parameters<Simulator["payments"]["pay"]>[0], SimulatorPaymentControlParams>>,
+  Assert<Equal<SimulatorPaymentControlParams, { tenant_id: string; payment_id: string }>>,
+  Assert<Equal<Awaited<ReturnType<Simulator["payments"]["pay"]>>, void>>,
+  Assert<Equal<Awaited<ReturnType<Simulator["payments"]["decline"]>>, void>>,
+  Assert<Equal<Awaited<ReturnType<Simulator["payments"]["expire"]>>, void>>,
+  Assert<Equal<keyof Simulator["emails"], "find">>,
+  Assert<Equal<Parameters<Simulator["emails"]["find"]>[0], FindSimulatedEmailsParams>>,
+  Assert<Equal<keyof FindSimulatedEmailsParams, "tenant_id" | "to" | "limit" | "cursor">>,
+  Assert<Equal<Awaited<ReturnType<Simulator["emails"]["find"]>>, PaginatedResponse<SimulatedEmail>>>,
+  Assert<Equal<SimulatedEmail["created_at"], EpochMilliseconds>>,
+  Assert<Equal<SimulatedEmail["html"], string | null>>,
+  Assert<Equal<SimulatedEmail["tags"], { name: string; value: string }[]>>,
+  Assert<Equal<keyof Simulator["plannedOutcomes"], "create" | "find" | "remove">>,
+  Assert<Equal<Parameters<Simulator["plannedOutcomes"]["create"]>[0], CreateSimulatorPlannedOutcomeParams>>,
+  Assert<Equal<Extract<CreateSimulatorPlannedOutcomeParams, { provider: "stripe" }>["operation"], SimulatorStripeOperation>>,
+  Assert<Equal<Extract<CreateSimulatorPlannedOutcomeParams, { provider: "monri" }>["operation"], SimulatorMonriOperation>>,
+  Assert<Equal<Extract<CreateSimulatorPlannedOutcomeParams, { provider: "resend" }>["operation"], SimulatorResendOperation>>,
+  Assert<Equal<Extract<SimulatorPlannedOperation, { provider: "resend" }>["operation"] & "create_checkout_session", never>>,
+  Assert<Equal<Extract<SimulatorPlannedOperation, { provider: "twilio" }>["operation"], "read_account" | "send_sms" | "find_phone_number" | "update_phone_number" | "update_call" | "fetch_recording" | "delete_recording" | "deliver_webhook">>,
+  Assert<Equal<Extract<SimulatorPlannedOperation, { provider: "eleven_labs" }>["operation"], "register_call" | "delete_conversation" | "deliver_webhook">>,
+  Assert<Equal<Extract<SimulatorPlannedOperation, { provider: "croatia_cis" }>["operation"], "submit_fiscal_receipt" | "deliver_webhook">>,
+  Assert<Equal<Extract<SimulatorPlannedOperation, { provider: "ofs_cloud" }>["operation"], "issue_fiscal_invoice" | "look_up_fiscal_invoice" | "deliver_webhook">>,
+  Assert<Equal<SimulatorProvider, "stripe" | "monri" | "resend" | "twilio" | "eleven_labs" | "croatia_cis" | "ofs_cloud">>,
+  Assert<Equal<SimulatorPlannedResult["type"], "refused" | "rate_limited" | "unavailable" | "lost_response" | "delayed" | "declined" | "missing_link" | "expired_link" | "daily_quota_exceeded" | "monthly_quota_exceeded" | "stopped" | "number_missing" | "answer_for_another_message" | "temporary_error">>,
+  Assert<Equal<Extract<SimulatorPlannedResult, { type: "daily_quota_exceeded" }>, { type: "daily_quota_exceeded" }>>,
+  Assert<Equal<Extract<SimulatorPlannedResult, { type: "monthly_quota_exceeded" }>, { type: "monthly_quota_exceeded" }>>,
+  Assert<Equal<SimulatorPlannedOutcome["outcome"], SimulatorPlannedResult>>,
+  Assert<Equal<CreateSimulatorPlannedOutcomeParams["outcome"], SimulatorPlannedResult>>,
+  Assert<Equal<Awaited<ReturnType<Simulator["plannedOutcomes"]["create"]>>, SimulatorPlannedOutcome>>,
+  Assert<Equal<Parameters<Simulator["plannedOutcomes"]["find"]>[0], FindSimulatorPlannedOutcomesParams>>,
+  Assert<Equal<Awaited<ReturnType<Simulator["plannedOutcomes"]["find"]>>, PaginatedResponse<SimulatorPlannedOutcome>>>,
+  Assert<Equal<Parameters<Simulator["plannedOutcomes"]["remove"]>[0], RemoveSimulatorPlannedOutcomeParams>>,
+  Assert<Equal<Awaited<ReturnType<Simulator["plannedOutcomes"]["remove"]>>, { deleted: boolean }>>,
+
+  Assert<Equal<EmbeddedCheckoutMount["type"], "stripe_embedded_checkout" | "monri_components" | "simulator">>,
+  Assert<Equal<keyof SimulatorMount, "type" | "unmount" | "destroy">>,
+  Assert<Missing<SimulatorMount, "checkout" | "confirm">>,
+];
+
+export const stripeSimulation: PaymentSimulation = {
+  type: "stripe_checkout",
+  action: { type: "stripe_embedded_checkout", publishable_key: "pk_test_arky", client_secret: "cs_secret_x", expires_at: 1 as EpochMilliseconds, runs_on: { type: "simulator", api_url: "https://api.arky.io" } },
+  outcome: "decline",
+};
+
+export const tenantPaymentSimulation: SimulatePaymentParams = {
+  simulation: {
+    type: "stripe_payment_intent",
+    action: { type: "stripe", payment_intent_id: "pi_tenant", publishable_key: "pk_test_network", client_secret: "pi_tenant_secret_exact", payment_method_id: "pm_tenant_card", runs_on: { type: "simulator", api_url: "https://api.arky.io" } },
+    outcome: "complete",
+  },
+};
+
+export const planned: CreateSimulatorPlannedOutcomeParams = {
+  tenant_id: "tenant",
+  id: "plan",
+  provider: "monri",
+  operation: "charge_saved_card",
+  matching: { type: "payment", payment_id: "payment" },
+  outcome: { type: "declined" },
+};
+
+export const delayed: CreateSimulatorPlannedOutcomeParams = {
+  tenant_id: "tenant",
+  id: "plan",
+  provider: "stripe",
+  operation: "deliver_webhook",
+  matching: { type: "any" },
+  outcome: { type: "delayed", delay_ms: 1000 },
+};
+
+export const refused: CreateSimulatorPlannedOutcomeParams = {
+  tenant_id: "tenant",
+  id: "plan",
+  provider: "resend",
+  operation: "send_email",
+  matching: { type: "to", address: "buyer@example.test" },
+  outcome: { type: "refused", message: "No" },
+};
+
+export const dailyQuota: CreateSimulatorPlannedOutcomeParams = {
+  tenant_id: "tenant",
+  id: "plan",
+  provider: "resend",
+  operation: "send_email",
+  matching: { type: "any" },
+  outcome: { type: "daily_quota_exceeded" },
+};
+
+export const monthlyQuota: CreateSimulatorPlannedOutcomeParams = {
+  tenant_id: "tenant",
+  id: "plan",
+  provider: "resend",
+  operation: "send_email",
+  matching: { type: "to", address: "buyer@example.test" },
+  outcome: { type: "monthly_quota_exceeded" },
+};
+
+export async function mounts(element: string, action: CheckoutPaymentAction, setup: PaymentMethodSetupStart): Promise<void> {
+  const mount = await mountCheckoutAction({ action, element });
+  if (mount?.type === "simulator") mount.destroy();
+  const card = await mountPaymentMethodSetup({ setup, element });
+  const answer = await card.confirm({ return_url: "http://localhost:4173/account" });
+  void answer.setup_intent_id;
+}

@@ -137,7 +137,7 @@ async function place(
   options?: RequestOptions,
 ): Promise<JoinFreePackageResult> {
   const created = await deps.createCart(
-    { id: request.cart_id, buyer: { type: "customer" }, package_id: request.shop_package_id, market_id: request.market_id },
+    { id: request.cart_id, buyer: { type: "user" }, package_id: request.shop_package_id, market_id: request.market_id },
     options,
   );
   let cart = created.cart;
@@ -199,7 +199,7 @@ export async function joinFreePackage(
 ): Promise<JoinFreePackageResult> {
   const verified = params.email !== undefined ? deps.confirmedEmail(params.email) : deps.verifiedContact();
   if (!verified) {
-    throw new PackageJoinError("sign_in_required", "Joining a free package needs a signed-in customer with a verified email");
+    throw new PackageJoinError("sign_in_required", "Joining a free package needs a signed-in user with a verified email");
   }
   const contact: EmailContact = { email: verified.email, language: params.language };
   const shopPackageId = requireId(params.package_id, "package");

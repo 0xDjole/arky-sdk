@@ -4,7 +4,7 @@ import type { RequestOptions } from "../types/api";
 import type { DeletedResponse, PaginatedResponse } from "../types/common";
 import type {
   Company,
-  CompanyCustomerAccess,
+  CompanyUserAccess,
   CompanyLocation,
   CompanyMembership,
   CompanyRole,
@@ -51,58 +51,58 @@ import type {
   UpdateCompanyRoleParams,
 } from "../types/company";
 import { requireId } from "../utils/ids";
-import { segment, storefrontBase, storePath, storeRecordPath } from "./paths";
+import { segment, storefrontBase, tenantPath, tenantRecordPath } from "./paths";
 
 function taxRegistrationRoutes<T>(apiConfig: ApiConfig, collection: string) {
   return {
     setTax(params: SetCompanyTaxParams, options?: RequestOptions): Promise<T> {
-      const { store_id, id, ...body } = params;
-      return apiConfig.httpClient.put<T>(`${storeRecordPath(store_id, collection, id)}/tax`, body, options);
+      const { tenant_id, id, ...body } = params;
+      return apiConfig.httpClient.put<T>(`${tenantRecordPath(tenant_id, collection, id)}/tax`, body, options);
     },
     submitTaxRegistration(params: SubmitCompanyTaxRegistrationParams, options?: RequestOptions): Promise<T> {
-      const { store_id, id, ...body } = params;
-      return apiConfig.httpClient.post<T>(`${storeRecordPath(store_id, collection, id)}/tax/registrations`, body, options);
+      const { tenant_id, id, ...body } = params;
+      return apiConfig.httpClient.post<T>(`${tenantRecordPath(tenant_id, collection, id)}/tax/registrations`, body, options);
     },
 
     reviewTaxRegistration(params: ReviewCompanyTaxRegistrationParams, options?: RequestOptions): Promise<T> {
-      const { store_id, id, ...body } = params;
+      const { tenant_id, id, ...body } = params;
       return apiConfig.httpClient.post<T>(
-        `${storeRecordPath(store_id, collection, id)}/tax/registrations/review`,
+        `${tenantRecordPath(tenant_id, collection, id)}/tax/registrations/review`,
         body,
         options,
       );
     },
 
     setPurchasing(params: SetCompanyPurchasingParams, options?: RequestOptions): Promise<T> {
-      const { store_id, id, ...body } = params;
-      return apiConfig.httpClient.put<T>(`${storeRecordPath(store_id, collection, id)}/purchasing`, body, options);
+      const { tenant_id, id, ...body } = params;
+      return apiConfig.httpClient.put<T>(`${tenantRecordPath(tenant_id, collection, id)}/purchasing`, body, options);
     },
   };
 }
 
 export const createCompanyApi = (apiConfig: ApiConfig) => ({
   find(params: FindCompaniesParams, options?: RequestOptions): Promise<PaginatedResponse<Company>> {
-    const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<PaginatedResponse<Company>>(storePath(store_id, "companies"), { ...options, params: query });
+    const { tenant_id, ...query } = params;
+    return apiConfig.httpClient.get<PaginatedResponse<Company>>(tenantPath(tenant_id, "companies"), { ...options, params: query });
   },
 
   get(params: GetCompanyParams, options?: RequestOptions): Promise<Company> {
-    return apiConfig.httpClient.get<Company>(storeRecordPath(params.store_id, "companies", params.id), options);
+    return apiConfig.httpClient.get<Company>(tenantRecordPath(params.tenant_id, "companies", params.id), options);
   },
 
   create(params: CreateCompanyParams, options?: RequestOptions): Promise<Company> {
     requireId(params.id, "company");
-    const { store_id, ...body } = params;
-    return apiConfig.httpClient.post<Company>(storePath(store_id, "companies"), body, options);
+    const { tenant_id, ...body } = params;
+    return apiConfig.httpClient.post<Company>(tenantPath(tenant_id, "companies"), body, options);
   },
 
   update(params: UpdateCompanyParams, options?: RequestOptions): Promise<Company> {
-    const { store_id, id, ...body } = params;
-    return apiConfig.httpClient.put<Company>(storeRecordPath(store_id, "companies", id), body, options);
+    const { tenant_id, id, ...body } = params;
+    return apiConfig.httpClient.put<Company>(tenantRecordPath(tenant_id, "companies", id), body, options);
   },
 
   delete(params: DeleteCompanyParams, options?: RequestOptions): Promise<Company> {
-    return apiConfig.httpClient.delete<Company>(storeRecordPath(params.store_id, "companies", params.id), {
+    return apiConfig.httpClient.delete<Company>(tenantRecordPath(params.tenant_id, "companies", params.id), {
       ...options,
       params: { expected_updated_at: params.expected_updated_at },
     });
@@ -112,40 +112,40 @@ export const createCompanyApi = (apiConfig: ApiConfig) => ({
 });
 
 export const createCompanyLocationApi = (apiConfig: ApiConfig) => {
-  const locationPath = (storeId: string, id: string) => storeRecordPath(storeId, "company-locations", id);
+  const locationPath = (tenantId: string, id: string) => tenantRecordPath(tenantId, "company-locations", id);
   return {
     find(params: FindCompanyLocationsParams, options?: RequestOptions): Promise<PaginatedResponse<CompanyLocation>> {
-      const { store_id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<CompanyLocation>>(storePath(store_id, "company-locations"), {
+      const { tenant_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<CompanyLocation>>(tenantPath(tenant_id, "company-locations"), {
         ...options,
         params: query,
       });
     },
 
     get(params: GetCompanyLocationParams, options?: RequestOptions): Promise<CompanyLocation> {
-      return apiConfig.httpClient.get<CompanyLocation>(locationPath(params.store_id, params.id), options);
+      return apiConfig.httpClient.get<CompanyLocation>(locationPath(params.tenant_id, params.id), options);
     },
 
     create(params: CreateCompanyLocationParams, options?: RequestOptions): Promise<CompanyLocation> {
       requireId(params.id, "company location");
-      const { store_id, ...body } = params;
-      return apiConfig.httpClient.post<CompanyLocation>(storePath(store_id, "company-locations"), body, options);
+      const { tenant_id, ...body } = params;
+      return apiConfig.httpClient.post<CompanyLocation>(tenantPath(tenant_id, "company-locations"), body, options);
     },
 
     update(params: UpdateCompanyLocationParams, options?: RequestOptions): Promise<CompanyLocation> {
-      const { store_id, id, ...body } = params;
-      return apiConfig.httpClient.put<CompanyLocation>(locationPath(store_id, id), body, options);
+      const { tenant_id, id, ...body } = params;
+      return apiConfig.httpClient.put<CompanyLocation>(locationPath(tenant_id, id), body, options);
     },
 
     setFulfillment(params: SetCompanyLocationFulfillmentParams, options?: RequestOptions): Promise<CompanyLocation> {
-      const { store_id, id, ...body } = params;
-      return apiConfig.httpClient.put<CompanyLocation>(`${locationPath(store_id, id)}/served-from`, body, options);
+      const { tenant_id, id, ...body } = params;
+      return apiConfig.httpClient.put<CompanyLocation>(`${locationPath(tenant_id, id)}/served-from`, body, options);
     },
 
     ...taxRegistrationRoutes<CompanyLocation>(apiConfig, "company-locations"),
 
     delete(params: DeleteCompanyLocationParams, options?: RequestOptions): Promise<DeletedResponse> {
-      return apiConfig.httpClient.delete<DeletedResponse>(locationPath(params.store_id, params.id), {
+      return apiConfig.httpClient.delete<DeletedResponse>(locationPath(params.tenant_id, params.id), {
         ...options,
         params: { expected_updated_at: params.expected_updated_at },
       });
@@ -155,15 +155,15 @@ export const createCompanyLocationApi = (apiConfig: ApiConfig) => {
 
 export const createCompanyRoleApi = (apiConfig: ApiConfig) => ({
   find(params: FindCompanyRolesParams, options?: RequestOptions): Promise<PaginatedResponse<CompanyRole>> {
-    const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<PaginatedResponse<CompanyRole>>(storePath(store_id, "company-roles"), {
+    const { tenant_id, ...query } = params;
+    return apiConfig.httpClient.get<PaginatedResponse<CompanyRole>>(tenantPath(tenant_id, "company-roles"), {
       ...options,
       params: query,
     });
   },
 
   get(params: GetCompanyRoleParams, options?: RequestOptions): Promise<CompanyRole> {
-    return apiConfig.httpClient.get<CompanyRole>(storeRecordPath(params.store_id, "company-roles", params.id), {
+    return apiConfig.httpClient.get<CompanyRole>(tenantRecordPath(params.tenant_id, "company-roles", params.id), {
       ...options,
       params: { company_id: params.company_id },
     });
@@ -171,17 +171,17 @@ export const createCompanyRoleApi = (apiConfig: ApiConfig) => ({
 
   create(params: CreateCompanyRoleParams, options?: RequestOptions): Promise<CompanyRole> {
     requireId(params.id, "company role");
-    const { store_id, ...body } = params;
-    return apiConfig.httpClient.post<CompanyRole>(storePath(store_id, "company-roles"), body, options);
+    const { tenant_id, ...body } = params;
+    return apiConfig.httpClient.post<CompanyRole>(tenantPath(tenant_id, "company-roles"), body, options);
   },
 
   update(params: UpdateCompanyRoleParams, options?: RequestOptions): Promise<CompanyRole> {
-    const { store_id, id, ...body } = params;
-    return apiConfig.httpClient.put<CompanyRole>(storeRecordPath(store_id, "company-roles", id), body, options);
+    const { tenant_id, id, ...body } = params;
+    return apiConfig.httpClient.put<CompanyRole>(tenantRecordPath(tenant_id, "company-roles", id), body, options);
   },
 
   delete(params: DeleteCompanyRoleParams, options?: RequestOptions): Promise<DeletedResponse> {
-    return apiConfig.httpClient.delete<DeletedResponse>(storeRecordPath(params.store_id, "company-roles", params.id), {
+    return apiConfig.httpClient.delete<DeletedResponse>(tenantRecordPath(params.tenant_id, "company-roles", params.id), {
       ...options,
       params: { company_id: params.company_id, expected_updated_at: params.expected_updated_at },
     });
@@ -190,8 +190,8 @@ export const createCompanyRoleApi = (apiConfig: ApiConfig) => ({
 
 export const createCompanyMembershipApi = (apiConfig: ApiConfig) => ({
   find(params: FindCompanyMembershipsParams, options?: RequestOptions): Promise<PaginatedResponse<CompanyMembership>> {
-    const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<PaginatedResponse<CompanyMembership>>(storePath(store_id, "company-memberships"), {
+    const { tenant_id, ...query } = params;
+    return apiConfig.httpClient.get<PaginatedResponse<CompanyMembership>>(tenantPath(tenant_id, "company-memberships"), {
       ...options,
       params: query,
     });
@@ -199,30 +199,30 @@ export const createCompanyMembershipApi = (apiConfig: ApiConfig) => ({
 
   get(params: GetCompanyMembershipParams, options?: RequestOptions): Promise<CompanyMembership> {
     return apiConfig.httpClient.get<CompanyMembership>(
-      storeRecordPath(params.store_id, "company-memberships", params.id),
+      tenantRecordPath(params.tenant_id, "company-memberships", params.id),
       options,
     );
   },
 
   create(params: CreateCompanyMembershipParams, options?: RequestOptions): Promise<CompanyMembership> {
     requireId(params.id, "company membership");
-    const { store_id, ...body } = params;
-    return apiConfig.httpClient.post<CompanyMembership>(storePath(store_id, "company-memberships"), body, options);
+    const { tenant_id, ...body } = params;
+    return apiConfig.httpClient.post<CompanyMembership>(tenantPath(tenant_id, "company-memberships"), body, options);
   },
 
   resendInvite(params: ResendCompanyInviteParams, options?: RequestOptions): Promise<CompanyMembership> {
-    const { store_id, id, ...body } = params;
-    return apiConfig.httpClient.post<CompanyMembership>(`${storeRecordPath(store_id, "company-memberships", id)}/resend-invite`, body, options);
+    const { tenant_id, id, ...body } = params;
+    return apiConfig.httpClient.post<CompanyMembership>(`${tenantRecordPath(tenant_id, "company-memberships", id)}/resend-invite`, body, options);
   },
 
   update(params: UpdateCompanyMembershipParams, options?: RequestOptions): Promise<CompanyMembership> {
-    const { store_id, id, ...body } = params;
-    return apiConfig.httpClient.put<CompanyMembership>(storeRecordPath(store_id, "company-memberships", id), body, options);
+    const { tenant_id, id, ...body } = params;
+    return apiConfig.httpClient.put<CompanyMembership>(tenantRecordPath(tenant_id, "company-memberships", id), body, options);
   },
 
   delete(params: DeleteCompanyMembershipParams, options?: RequestOptions): Promise<DeletedResponse> {
     return apiConfig.httpClient.delete<DeletedResponse>(
-      storeRecordPath(params.store_id, "company-memberships", params.id),
+      tenantRecordPath(params.tenant_id, "company-memberships", params.id),
       { ...options, params: { expected_updated_at: params.expected_updated_at } },
     );
   },
@@ -233,9 +233,9 @@ export function createStorefrontCompanyApi(httpClient: HttpClient, ensureVisitor
   const membershipPath = (id: string) => `${storefrontBase}/company-memberships/${segment(id)}`;
 
   return {
-    async getAccess(params: StorefrontGetCompanyAccessParams, options?: RequestOptions): Promise<CompanyCustomerAccess> {
+    async getAccess(params: StorefrontGetCompanyAccessParams, options?: RequestOptions): Promise<CompanyUserAccess> {
       await ensureVisitorSession();
-      return httpClient.get<CompanyCustomerAccess>(`${storefrontBase}/companies/${segment(params.id)}/access`, options);
+      return httpClient.get<CompanyUserAccess>(`${storefrontBase}/companies/${segment(params.id)}/access`, options);
     },
 
     async update(params: StorefrontUpdateCompanyParams, options?: RequestOptions): Promise<StorefrontCompany> {

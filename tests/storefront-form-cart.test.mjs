@@ -5,7 +5,7 @@ import { initialize } from "../dist/storefront.js";
 import {
   apiUrl,
   cartRecord,
-  customerRecord,
+  userRecord,
   fixedIdFactories,
   idFactories,
   ids,
@@ -18,8 +18,8 @@ import {
   visitorToken,
 } from "./helpers/arky-fixtures.mjs";
 
-const customerBuyer = { type: "customer" };
-const scope = { buyer: customerBuyer, package_id: ids.package };
+const userBuyer = { type: "user" };
+const scope = { buyer: userBuyer, package_id: ids.package };
 
 const contactForm = {
   id: ids.form,
@@ -37,7 +37,7 @@ const contactForm = {
 };
 
 function storedSessionOf(storage) {
-  const [key] = storage.keys("arky_customer_session:v5:");
+  const [key] = storage.keys("arky_user_session:v5:");
   return key ? JSON.parse(storage.getItem(key)) : null;
 }
 
@@ -46,7 +46,7 @@ function submissionOf(call) {
   return JSON.parse(call.body.get("submission"));
 }
 
-test("the store loads its setup and confirms the selected market before it exposes currency and payment options", async (context) => {
+test("the tenant loads its setup and confirms the selected market before it exposes currency and payment options", async (context) => {
   const setupRecord = { name: "Bottega", timezone: "Europe/Rome", languages: ["it", "en"], payment_options: [] };
   const market = { id: ids.market, key: "ita", currency: "eur", tax_mode: "exclusive", payment_option_ids: [ids.paymentOption] };
   let marketKey = "ita";
@@ -55,12 +55,12 @@ test("the store loads its setup and confirms the selected market before it expos
     if (call.path === "/v1/storefront/markets/by-key/ita") return { ...market, key: marketKey };
     throw new Error(`Unexpected setup request: ${call.method} ${call.path}`);
   }, { answerMarkets: false });
-  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "ita", locale: "it", sessionStorage: visitorStorage() });
-  assert.deepEqual(await store.store.load(), setupRecord);
-  assert.deepEqual(store.market.get(), market);
-  assert.equal(store.currency.get(), "eur");
-  assert.equal("allowed_payment_option_ids" in store, false);
-  assert.deepEqual(store.setup.get(), setupRecord);
+  const tenant = initialize(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "ita", locale: "it", sessionStorage: visitorStorage() });
+  assert.deepEqual(await tenant.tenant.load(), setupRecord);
+  assert.deepEqual(tenant.market.get(), market);
+  assert.equal(tenant.currency.get(), "eur");
+  assert.equal("allowed_payment_option_ids" in tenant, false);
+  assert.deepEqual(tenant.setup.get(), setupRecord);
   assert.deepEqual(calls.map(({ method, path }) => [method, path]), [
     ["GET", "/v1/storefront"],
     ["GET", "/v1/storefront/markets/by-key/ita"],
@@ -68,12 +68,12 @@ test("the store loads its setup and confirms the selected market before it expos
   for (const call of calls) {
     assert.equal(call.headers.get("x-arky-market"), "ita");
     assert.equal(call.headers.get("x-arky-locale"), "it");
-    assert.equal(call.headers.get("x-arky-store-id"), storefrontIdentity.storeId);
+    assert.equal(call.headers.get("x-arky-tenant-id"), storefrontIdentity.tenantId);
     assert.equal(call.headers.get("x-arky-sales-channel-id"), storefrontIdentity.salesChannelId);
   }
   marketKey = "deu";
-  const other = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "ita", sessionStorage: visitorStorage() });
-  await assert.rejects(other.store.load(), /didn't confirm the selected key/);
+  const other = initialize(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "ita", sessionStorage: visitorStorage() });
+  await assert.rejects(other.tenant.load(), /didn't confirm the selected key/);
   assert.equal(other.market.get(), null);
   assert.equal(other.currency.get(), null);
   assert.equal(other.setup.get(), null);
@@ -84,12 +84,12 @@ test("a fresh visitor's first cart load sends nothing, and a create identifies o
   const line = { type: "product", id: ids.line, variant_id: ids.variant, quantity: 2, form_submission_id: ids.submission, price: { package_id: ids.package, package_item_id: ids.packageItem, price_id: ids.price } };
   const cart = cartRecord({ line_items: [line] });
   const calls = recordFetch(context, (call) => {
-    if (call.path === "/v1/storefront/customer/identify") return sessionResult();
+    if (call.path === "/v1/storefront/user/identify") return sessionResult();
     if (call.method === "POST" && call.path === "/v1/storefront/carts") return { type: "created", cart, recovery_token: "cart-recovery-token" };
     if (call.method === "GET" && call.path === `/v1/storefront/carts/${ids.cart}`) return cart;
     throw new Error(`Unexpected cart request: ${call.method} ${call.path}`);
   });
-  const firstPage = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "ita", sessionStorage: storage });
+  const firstPage = initialize(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "ita", sessionStorage: storage });
   const firstCart = firstPage.eshop.cart(scope);
   assert.equal(await firstCart.load(), null);
   assert.equal(firstCart.status.get().error, null);
@@ -101,14 +101,14 @@ test("a fresh visitor's first cart load sends nothing, and a create identifies o
   assert.deepEqual(firstCart.product_items.get(), [productItem]);
   assert.equal(firstCart.item_count.get(), 2);
 
-  const reloaded = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "ita", sessionStorage: storage });
+  const reloaded = initialize(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "ita", sessionStorage: storage });
   assert.equal(reloaded.hasSession, true);
   const reloadedCart = reloaded.eshop.cart(scope);
   assert.equal((await reloadedCart.load()).id, ids.cart);
   assert.deepEqual(reloadedCart.cart.get(), cart);
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
-    ["POST", "/v1/storefront/customer/identify", { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }],
-    ["POST", "/v1/storefront/carts", { id: ids.cart, buyer: customerBuyer, package_id: ids.package, market_id: ids.market }],
+    ["POST", "/v1/storefront/user/identify", { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }],
+    ["POST", "/v1/storefront/carts", { id: ids.cart, buyer: userBuyer, package_id: ids.package, market_id: ids.market }],
     ["GET", `/v1/storefront/carts/${ids.cart}`, null],
   ]);
   assert.equal(calls[0].headers.get("authorization"), null);
@@ -137,32 +137,32 @@ test("a cart operation that starts with a session still refuses when the store c
     }
     throw new Error(`Unexpected cart request: ${call.method} ${call.path}`);
   });
-  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "ita", sessionStorage: visitorStorage() });
-  const cart = store.eshop.cart(scope);
+  const tenant = initialize(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "ita", sessionStorage: visitorStorage() });
+  const cart = tenant.eshop.cart(scope);
   await cart.create({ id: ids.cart });
   const loading = cart.load();
   await new Promise((resolve) => setImmediate(resolve));
-  store.setContext({ market: "deu" });
+  tenant.setContext({ market: "deu" });
   releaseRead();
   await assert.rejects(loading, (error) => error.name === "CartError" && error.code === "context_changed" && /changed during the cart operation/.test(error.message));
   assert.equal(cart.cart.get(), null);
 });
 
-test("forms.submit with the loaded form reads it anonymously, identifies lazily and submits only given answers as multipart with no store routing", async (context) => {
+test("forms.submit with the loaded form reads it anonymously, identifies lazily and submits only given answers as multipart with no tenant routing", async (context) => {
   const storage = new SessionStorage();
-  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "it", market: "ita", sessionStorage: storage });
+  const tenant = initialize(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "it", market: "ita", sessionStorage: storage });
   const calls = recordFetch(context, (call) => {
     if (call.method === "GET" && call.path === "/v1/storefront/forms/contact-form") return contactForm;
-    if (call.path === "/v1/storefront/customer/identify") return sessionResult();
+    if (call.path === "/v1/storefront/user/identify") return sessionResult();
     if (call.path === `/v1/storefront/forms/${ids.form}/submissions`) {
       return { id: ids.submission, form_id: ids.form, language: "it", answers: submissionOf(call).answers, stage_id: "new", created_at: 2, updated_at: 2 };
     }
     throw new Error(`Unexpected form request: ${call.method} ${call.path}`);
   });
-  const form = await store.forms.getByKey({ key: "contact-form" });
+  const form = await tenant.forms.getByKey({ key: "contact-form" });
   assert.deepEqual(Object.keys(form).sort(), ["id", "key", "questions", "questions_updated_at", "status"]);
-  assert.equal("state" in store.forms, false);
-  const result = await store.forms.submit({
+  assert.equal("state" in tenant.forms, false);
+  const result = await tenant.forms.submit({
     id: ids.submission,
     form,
     language: "it",
@@ -171,7 +171,7 @@ test("forms.submit with the loaded form reads it anonymously, identifies lazily 
   assert.equal(result.stage_id, "new");
   assert.deepEqual(calls.map(({ method, path }) => [method, path]), [
     ["GET", "/v1/storefront/forms/contact-form"],
-    ["POST", "/v1/storefront/customer/identify"],
+    ["POST", "/v1/storefront/user/identify"],
     ["POST", `/v1/storefront/forms/${ids.form}/submissions`],
   ]);
   assert.equal(calls[0].headers.get("authorization"), null);
@@ -179,7 +179,7 @@ test("forms.submit with the loaded form reads it anonymously, identifies lazily 
   assert.equal(calls[2].headers.get("x-arky-locale"), "it");
   assert.equal(calls[2].headers.get("x-arky-market"), "ita");
   assert.equal(calls[2].headers.get("content-type"), null);
-  assert.deepEqual(calls[1].body, { customer_id: ids.customer, session_id: ids.session });
+  assert.deepEqual(calls[1].body, { user_id: ids.user, session_id: ids.session });
   assert.deepEqual(submissionOf(calls[2]), {
     id: ids.submission,
     questions_updated_at: contactForm.questions_updated_at,
@@ -192,36 +192,36 @@ test("forms.submit with the loaded form reads it anonymously, identifies lazily 
     ],
   });
   assert.deepEqual([...calls[2].body.keys()], ["submission"]);
-  assert.equal(calls.some((call) => call.href.includes("store_id")), false);
+  assert.equal(calls.some((call) => call.href.includes("tenant_id")), false);
   assert.equal(storedSessionOf(storage).version, 5);
 });
 
 test("forms.submit checks the values against the shown form before identifying or submitting, and a whitespace-only required answer is missing", async (context) => {
   const storage = new SessionStorage();
-  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: storage });
+  const tenant = initialize(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: storage });
   const calls = recordFetch(context, (call) => {
     if (call.method === "GET") return contactForm;
     throw new Error(`Validation must not issue ${call.method} ${call.path}`);
   });
-  const form = await store.forms.get({ id: ids.form });
+  const form = await tenant.forms.get({ id: ids.form });
   const request = { id: ids.submission, form, language: "it" };
-  await assert.rejects(async () => store.forms.submit({ ...request, values: { name: "Jane", unknown: "no" } }), { name: "FormAnswerError", code: "unknown_question", questionKey: "unknown" });
-  await assert.rejects(async () => store.forms.submit({ ...request, values: {} }), { name: "FormAnswerError", code: "required", questionKey: "name" });
-  await assert.rejects(async () => store.forms.submit({ ...request, values: { name: "   " } }), /'name': an answer is required/);
-  await assert.rejects(async () => store.forms.submit({ ...request, values: { name: 42 } }), /'name': expected text/);
-  await assert.rejects(async () => store.forms.submit({ ...request, values: { name: "Jane", topics: ["sales", "sales"] } }), { name: "FormAnswerError", code: "unknown_option", questionKey: "topics" });
+  await assert.rejects(async () => tenant.forms.submit({ ...request, values: { name: "Jane", unknown: "no" } }), { name: "FormAnswerError", code: "unknown_question", questionKey: "unknown" });
+  await assert.rejects(async () => tenant.forms.submit({ ...request, values: {} }), { name: "FormAnswerError", code: "required", questionKey: "name" });
+  await assert.rejects(async () => tenant.forms.submit({ ...request, values: { name: "   " } }), /'name': an answer is required/);
+  await assert.rejects(async () => tenant.forms.submit({ ...request, values: { name: 42 } }), /'name': expected text/);
+  await assert.rejects(async () => tenant.forms.submit({ ...request, values: { name: "Jane", topics: ["sales", "sales"] } }), { name: "FormAnswerError", code: "unknown_option", questionKey: "topics" });
   assert.deepEqual(calls.map(({ method, path }) => [method, path]), [["GET", `/v1/storefront/forms/${ids.form}`]]);
   assert.equal(storedSessionOf(storage), null);
-  assert.equal(store.hasSession, false);
+  assert.equal(tenant.hasSession, false);
 });
 
 test("a raw storefront submission stays stateful and sends only the id, the loaded form's version, the language and the given answers", async (context) => {
   const storage = new SessionStorage();
-  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "it", sessionStorage: storage });
-  const calls = recordFetch(context, (call) => call.path === "/v1/storefront/customer/identify"
+  const tenant = initialize(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "it", sessionStorage: storage });
+  const calls = recordFetch(context, (call) => call.path === "/v1/storefront/user/identify"
     ? sessionResult()
     : { id: ids.submission, form_id: ids.form, language: "it", answers: [], stage_id: "new", created_at: 2, updated_at: 2 });
-  await store.forms.submit({
+  await tenant.forms.submit({
     form_id: ids.form,
     questions_updated_at: 1_700_000_000_123,
     id: ids.submission,
@@ -234,7 +234,7 @@ test("a raw storefront submission stays stateful and sends only the id, the load
     ],
   });
   assert.deepEqual(calls.map(({ method, path }) => [method, path]), [
-    ["POST", "/v1/storefront/customer/identify"],
+    ["POST", "/v1/storefront/user/identify"],
     ["POST", `/v1/storefront/forms/${ids.form}/submissions`],
   ]);
   assert.deepEqual(submissionOf(calls[1]), {
@@ -243,20 +243,20 @@ test("a raw storefront submission stays stateful and sends only the id, the load
     language: "it",
     answers: [{ type: "text", question_id: "q-name", key: "name", value: "Hello" }],
   });
-  await assert.rejects(async () => store.forms.submit({ form_id: ids.form, questions_updated_at: 1, id: "submission-raw", language: "it", answers: [] }), TypeError);
+  await assert.rejects(async () => tenant.forms.submit({ form_id: ids.form, questions_updated_at: 1, id: "submission-raw", language: "it", answers: [] }), TypeError);
   assert.equal(calls.length, 2);
 });
 
 test("Visitor identify sends only the application-picked IDs and does not claim a contact address", async (context) => {
   const storage = new SessionStorage();
-  const store = initialize(storefrontIdentity, { ...idFactories, apiUrl, sessionStorage: storage });
-  const calls = recordFetch(context, () => ({ customer: customerRecord(), session: visitorSession() }));
-  const identity = { customer_id: ids.customer, session_id: ids.session };
-  const result = await store.customer.identify(identity);
+  const tenant = initialize(storefrontIdentity, { ...idFactories, apiUrl, sessionStorage: storage });
+  const calls = recordFetch(context, () => ({ user: userRecord(), session: visitorSession() }));
+  const identity = { user_id: ids.user, session_id: ids.session };
+  const result = await tenant.user.identify(identity);
   assert.equal("login" in result, false);
-  assert.deepEqual(result.customer.contacts, []);
-  assert.deepEqual(result.customer.addresses, []);
-  assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [["POST", "/v1/storefront/customer/identify", identity]]);
-  assert.equal("captureEmail" in store.customer, false);
-  assert.equal("email" in storedSessionOf(storage).customer, false);
+  assert.deepEqual(result.user.contacts, []);
+  assert.deepEqual(result.user.addresses, []);
+  assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [["POST", "/v1/storefront/user/identify", identity]]);
+  assert.equal("captureEmail" in tenant.user, false);
+  assert.equal("email" in storedSessionOf(storage).user, false);
 });

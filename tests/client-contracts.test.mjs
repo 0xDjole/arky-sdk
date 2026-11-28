@@ -6,8 +6,8 @@ import { ArkyApiError, ArkyNetworkError, createAdmin, SDK_VERSION } from "../dis
 import { createStorefront, formatMinor, formatMoney, formatPrice, getPriceAmount } from "../dist/storefront.js";
 import { apiUrl as baseUrl, fixedIdFactories, ids, jsonResponse, storefrontIdentity, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
 
-const storeId = ids.store;
-const otherStoreId = ids.otherStore;
+const tenantId = ids.tenant;
+const otherTenantId = ids.otherTenant;
 const sessionId = "7f2a5c90-1d64-4e38-b9a7-0c3e8f6d2b15";
 const pendingSessionId = "3c8e1a64-7b29-4d05-9f3e-2a6c8b0d4e17";
 
@@ -29,33 +29,33 @@ function issued(overrides = {}) {
   };
 }
 
-test("Admin reads need no Market or Store context and invent none", async (context) => {
-  const calls = recordFetch(context, () => ({ id: storeId }));
+test("Admin reads need no Market or Tenant context and invent none", async (context) => {
+  const calls = recordFetch(context, () => ({ id: tenantId }));
   const client = admin();
-  for (const removed of ["getMarket", "setMarket", "getStoreId", "setStoreId", "getLocale", "setLocale"]) {
+  for (const removed of ["getMarket", "setMarket", "getTenantId", "setTenantId", "getLocale", "setLocale"]) {
     assert.equal(removed in client, false, removed);
   }
-  await client.store.get({ id: storeId });
+  await client.tenant.get({ id: tenantId });
   assert.equal(calls.length, 1);
-  assert.equal(calls[0].href, `${baseUrl}/v1/stores/${storeId}`);
-  for (const header of ["x-arky-market", "x-arky-locale", "x-arky-store-id", "x-arky-sales-channel-id"]) {
+  assert.equal(calls[0].href, `${baseUrl}/v1/tenants/${tenantId}`);
+  for (const header of ["x-arky-market", "x-arky-locale", "x-arky-tenant-id", "x-arky-sales-channel-id"]) {
     assert.equal(calls[0].headers.has(header), false, header);
   }
 });
 
 test("email and webhook histories use distinct routes and preserve their public delivery states", async (context) => {
   const email = { id: ids.payment, type: { type: "receipt_resend_email", notification_id: ids.credit, email_address_id: ids.paymentOption, order_id: ids.order }, to: "buyer@example.test", delivery_report: null, complained_at: null, preview: null, send_before: null, status: { type: "waiting" }, created_at: 1, updated_at: 1 };
-  const webhook = { id: ids.credit, store_id: storeId, webhook_id: ids.form, event_id: ids.submission, event_type: "order.created", status: { type: "acknowledged", at: 2 }, created_at: 1, updated_at: 2 };
+  const webhook = { id: ids.credit, tenant_id: tenantId, webhook_id: ids.form, event_id: ids.submission, event_type: "order.created", status: { type: "acknowledged", at: 2 }, created_at: 1, updated_at: 2 };
   const responses = [{ items: [email], cursor: null }, email, { items: [webhook], cursor: null }];
   const calls = recordFetch(context, () => responses.shift());
   const client = admin();
-  assert.deepEqual((await client.notification.outgoingMessage.find({ store_id: storeId, to: email.to, type: "receipt_resend_email", order_id: ids.order, limit: 25 })).items, [email]);
-  assert.deepEqual(await client.notification.outgoingMessage.get({ store_id: storeId, id: email.id }), email);
-  assert.deepEqual((await client.notification.outgoingWebhook.find({ store_id: storeId, webhook_id: ids.form })).items, [webhook]);
+  assert.deepEqual((await client.notification.outgoingMessage.find({ tenant_id: tenantId, to: email.to, type: "receipt_resend_email", order_id: ids.order, limit: 25 })).items, [email]);
+  assert.deepEqual(await client.notification.outgoingMessage.get({ tenant_id: tenantId, id: email.id }), email);
+  assert.deepEqual((await client.notification.outgoingWebhook.find({ tenant_id: tenantId, webhook_id: ids.form })).items, [webhook]);
   assert.deepEqual(calls.map((call) => [call.method, call.href, call.body]), [
-    ["GET", `${baseUrl}/v1/stores/${storeId}/outgoing-messages?to=buyer%40example.test&type=receipt_resend_email&order_id=${ids.order}&limit=25`, null],
-    ["GET", `${baseUrl}/v1/stores/${storeId}/outgoing-messages/${email.id}`, null],
-    ["GET", `${baseUrl}/v1/stores/${storeId}/outgoing-webhooks?webhook_id=${ids.form}`, null],
+    ["GET", `${baseUrl}/v1/tenants/${tenantId}/outgoing-messages?to=buyer%40example.test&type=receipt_resend_email&order_id=${ids.order}&limit=25`, null],
+    ["GET", `${baseUrl}/v1/tenants/${tenantId}/outgoing-messages/${email.id}`, null],
+    ["GET", `${baseUrl}/v1/tenants/${tenantId}/outgoing-webhooks?webhook_id=${ids.form}`, null],
   ]);
   assert.equal("find" in client.notification, false);
   assert.equal("outgoingEmail" in client.notification, false);
@@ -95,18 +95,18 @@ test("platform sign-in sends its own code and verify bodies and keeps the verifi
   assert.equal(calls.length, 2);
 });
 
-test("Store invitation login names its Store and wraps the platform-wide pending Account Session", async (context) => {
+test("Tenant invitation login names its Tenant and wraps the platform-wide pending Account Session", async (context) => {
   const responses = [{ session_id: pendingSessionId, verification_expires_at: 900 }, issued({ id: "0b8e4d27-5f13-4a69-9c2e-7d1a6f3b8e40" })];
   const calls = recordFetch(context, () => responses.shift());
   const client = createAdmin({ apiUrl: baseUrl });
-  const pending = await client.account.auth.requestCode({ session_id: pendingSessionId, email: "invitee@example.test", store_id: otherStoreId, language: "bs" });
-  const verified = await client.account.auth.verify({ session_id: pending.session_id, code: "123456", store_id: otherStoreId });
+  const pending = await client.account.auth.requestCode({ session_id: pendingSessionId, email: "invitee@example.test", tenant_id: otherTenantId, language: "bs" });
+  const verified = await client.account.auth.verify({ session_id: pending.session_id, code: "123456", tenant_id: otherTenantId });
   assert.equal(verified.id, "0b8e4d27-5f13-4a69-9c2e-7d1a6f3b8e40");
-  await assert.rejects(async () => client.account.auth.requestCode({ session_id: pendingSessionId, email: "invitee@example.test", store_id: "store-invitation-contract", language: "bs" }), TypeError);
-  await assert.rejects(async () => client.account.auth.verify({ session_id: "pending", code: "123456", store_id: "" }), TypeError);
+  await assert.rejects(async () => client.account.auth.requestCode({ session_id: pendingSessionId, email: "invitee@example.test", tenant_id: "tenant-invitation-contract", language: "bs" }), TypeError);
+  await assert.rejects(async () => client.account.auth.verify({ session_id: "pending", code: "123456", tenant_id: "" }), TypeError);
   assert.deepEqual(calls.map((call) => [call.method, call.href, call.body]), [
-    ["POST", `${baseUrl}/v1/stores/${otherStoreId}/auth/code`, { session_id: pendingSessionId, email: "invitee@example.test", language: "bs" }],
-    ["POST", `${baseUrl}/v1/stores/${otherStoreId}/auth/verify`, { session_id: pendingSessionId, code: "123456" }],
+    ["POST", `${baseUrl}/v1/tenants/${otherTenantId}/auth/code`, { session_id: pendingSessionId, email: "invitee@example.test", language: "bs" }],
+    ["POST", `${baseUrl}/v1/tenants/${otherTenantId}/auth/verify`, { session_id: pendingSessionId, code: "123456" }],
   ]);
 });
 
@@ -114,7 +114,7 @@ test("admin refresh rotates only the current Account Session", async (context) =
   const responses = [issued({ access_token: "access-previous", refresh_token: "refresh-previous" }), issued({ access_token: "access-rotated", refresh_token: "refresh-rotated", updated_at: 1000 })];
   const calls = recordFetch(context, () => responses.shift());
   const client = createAdmin({ apiUrl: baseUrl });
-  await client.account.auth.verify({ session_id: "pending-session", code: "123456", store_id: storeId });
+  await client.account.auth.verify({ session_id: "pending-session", code: "123456", tenant_id: tenantId });
   await assert.rejects(client.account.auth.refresh({ refresh_token: "refresh-unknown" }), /Account session changed/);
   assert.equal(calls.length, 1);
   const result = await client.account.auth.refresh({ refresh_token: "refresh-previous" });
@@ -122,7 +122,7 @@ test("admin refresh rotates only the current Account Session", async (context) =
   assert.equal(result.authenticated_at, 20);
   assert.deepEqual(client.session, { id: sessionId, email: undefined });
   assert.deepEqual(calls.map((call) => [call.method, call.href, call.body]), [
-    ["POST", `${baseUrl}/v1/stores/${storeId}/auth/verify`, { session_id: "pending-session", code: "123456" }],
+    ["POST", `${baseUrl}/v1/tenants/${tenantId}/auth/verify`, { session_id: "pending-session", code: "123456" }],
     ["POST", `${baseUrl}/v1/auth/refresh`, { refresh_token: "refresh-previous" }],
   ]);
 });
@@ -176,18 +176,18 @@ test("the Server's configured limits decide a query's field count and length, an
   const calls = recordFetch(context, () => ({ items: [], cursor: null }));
   const client = admin();
   const fields = Object.fromEntries(Array.from({ length: 129 }, (_, index) => [`field_${index}`, String(index)]));
-  await client.eshop.promotion.find({ store_id: storeId, ...fields });
+  await client.eshop.promotion.find({ tenant_id: tenantId, ...fields });
   assert.equal(calls.length, 1);
   assert.equal([...calls[0].url.searchParams.keys()].length, 129);
   assert.equal(calls[0].url.searchParams.get("field_128"), "128");
   const long = "q".repeat(64 * 1024 + 1);
-  await client.content.collection.find({ store_id: storeId, query: long });
+  await client.content.collection.find({ tenant_id: tenantId, query: long });
   assert.equal(calls.length, 2);
   assert.equal(calls[1].url.searchParams.get("query"), long);
   assert.ok(calls[1].url.search.length > 64 * 1024);
   const structured = Array.from({ length: 1000 }, (_, index) => `${String(index).padStart(4, "0")}${"x".repeat(36)}`);
   assert.ok(new TextEncoder().encode(JSON.stringify(structured)).length > 32 * 1024);
-  await assert.rejects(async () => client.content.collection.find({ store_id: storeId, ids: structured }), {
+  await assert.rejects(async () => client.content.collection.find({ tenant_id: tenantId, ids: structured }), {
     name: "TypeError",
     message: "Structured query field ids exceeds 32 KiB",
   });
@@ -207,7 +207,7 @@ test("a refusal without Arky's error body is no Arky refusal: the SDK invents no
   for (const [index, answer] of foreignAnswers.entries()) {
     const contexts = [];
     recordFetch(context, answer);
-    await assert.rejects(admin().store.update({ id: storeId, expected_updated_at: 1, name: "Proxy" }, { onError: (failure) => contexts.push(failure) }), (error) => {
+    await assert.rejects(admin().tenant.update({ id: tenantId, expected_updated_at: 1, name: "Proxy" }, { onError: (failure) => contexts.push(failure) }), (error) => {
       assert.equal(error instanceof ArkyNetworkError, true);
       assert.equal(error instanceof ArkyApiError, false);
       assert.equal(error.code, "unreadable_answer");
@@ -218,21 +218,21 @@ test("a refusal without Arky's error body is no Arky refusal: the SDK invents no
     await new Promise((resolve) => setImmediate(resolve));
     assert.deepEqual(contexts.map((failure) => [failure.status, failure.error.code]), [[statuses[index], "unreadable_answer"]]);
   }
-  recordFetch(context, () => jsonResponse({ message: "The store changed", error: "GENERAL.CONFLICT", status_code: 409, validation_errors: [] }, 409));
+  recordFetch(context, () => jsonResponse({ message: "The tenant changed", error: "GENERAL.CONFLICT", status_code: 409, validation_errors: [] }, 409));
   await assert.rejects(admin().account.getMe(), (error) => {
     assert.equal(error instanceof ArkyApiError, true);
     assert.equal(error.code, "GENERAL.CONFLICT");
-    assert.equal(error.message, "The store changed");
+    assert.equal(error.message, "The tenant changed");
     assert.equal(error.statusCode, 409);
     return true;
   });
 });
 
-test("Store create carries the app-picked id, its languages, first market and channel; update carries the version", async (context) => {
-  const store = { id: storeId, name: "Client Contract", timezone: "Europe/Sarajevo", languages: ["en", "bs"], type: { type: "live", account_id: ids.account, network_id: ids.network }, status: { type: "active" }, email_sending: { type: "allowed" }, invoicing: { type: "none" }, created_at: 1, updated_at: 1 };
-  const calls = recordFetch(context, () => store);
+test("Tenant create carries the app-picked id, its languages, first market and channel; update carries the version", async (context) => {
+  const tenant = { id: tenantId, name: "Client Contract", timezone: "Europe/Sarajevo", languages: ["en", "bs"], type: { type: "live", account_id: ids.account, network_id: ids.network }, status: { type: "active" }, email_sending: { type: "allowed" }, invoicing: { type: "none" }, created_at: 1, updated_at: 1 };
+  const calls = recordFetch(context, () => tenant);
   const create = {
-    id: storeId,
+    id: tenantId,
     type: { type: "live", network_id: ids.network, plan: { type: "free", plan_id: ids.plan }, owner: { type: "email", email: "owner@example.test", language: "bs" } },
     name: "Client Contract",
     timezone: "Europe/Sarajevo",
@@ -241,73 +241,73 @@ test("Store create carries the app-picked id, its languages, first market and ch
     market: { key: "bih", currency: "bam", tax_mode: "inclusive" },
     sales_channel: { key: "web" },
   };
-  assert.deepEqual(await admin().store.create(create), store);
-  await admin().store.update({ id: storeId, expected_updated_at: 1, name: "Client Contract", languages: ["bs"] });
+  assert.deepEqual(await admin().tenant.create(create), tenant);
+  await admin().tenant.update({ id: tenantId, expected_updated_at: 1, name: "Client Contract", languages: ["bs"] });
   assert.deepEqual(calls.map((call) => [call.method, call.path, call.body]), [
-    ["POST", "/v1/stores", create],
-    ["PUT", `/v1/stores/${storeId}`, { expected_updated_at: 1, name: "Client Contract", languages: ["bs"] }],
+    ["POST", "/v1/tenants", create],
+    ["PUT", `/v1/tenants/${tenantId}`, { expected_updated_at: 1, name: "Client Contract", languages: ["bs"] }],
   ]);
-  await assert.rejects(async () => admin().store.update({ id: "store/a?b", expected_updated_at: 1 }), TypeError);
-  await assert.rejects(async () => admin().store.create({ ...create, id: undefined }), TypeError);
+  await assert.rejects(async () => admin().tenant.update({ id: "tenant/a?b", expected_updated_at: 1 }), TypeError);
+  await assert.rejects(async () => admin().tenant.create({ ...create, id: undefined }), TypeError);
   assert.equal(calls.length, 2);
 });
 
-test("Store deletion request names the confirmation and version and answers the store marked deleting", async (context) => {
-  const deleting = { id: storeId, status: { type: "deleting" }, updated_at: 3 };
+test("Tenant deletion request names the confirmation and version and answers the tenant marked deleting", async (context) => {
+  const deleting = { id: tenantId, status: { type: "deleting" }, updated_at: 3 };
   const calls = recordFetch(context, () => jsonResponse(deleting, 202));
-  assert.deepEqual(await admin().store.requestDeletion({ id: storeId, confirmation: "Client Contract", expected_updated_at: 2 }), deleting);
+  assert.deepEqual(await admin().tenant.requestDeletion({ id: tenantId, confirmation: "Client Contract", expected_updated_at: 2 }), deleting);
   assert.deepEqual(calls.map((call) => [call.method, call.path, call.body]), [
-    ["POST", `/v1/stores/${storeId}/deletion`, { confirmation: "Client Contract", expected_updated_at: 2 }],
+    ["POST", `/v1/tenants/${tenantId}/deletion`, { confirmation: "Client Contract", expected_updated_at: 2 }],
   ]);
 });
 
-test("Store locations and webhooks carry app-picked ids and versions; a webhook test answers its notification", async (context) => {
+test("Tenant locations and webhooks carry app-picked ids and versions; a webhook test answers its notification", async (context) => {
   const address = { street1: "1 Contract Way", city: "Sarajevo", postal_code: "71000", country: "BA" };
   const calls = recordFetch(context, () => ({}));
   const client = admin();
-  await client.store.location.create({ store_id: storeId, id: ids.companyLocation, key: "main", address, timezone: "Europe/Sarajevo" });
-  await client.store.location.update({ store_id: storeId, id: ids.companyLocation, expected_updated_at: 4, status: { type: "archived" } });
-  await client.store.location.delete({ store_id: storeId, id: ids.companyLocation, expected_updated_at: 5 });
-  const webhook = { id: ids.form, url: "https://events.example.test/hook", events: [{ type: "customer.archived" }, { type: "form_submission.created", forms: { form_ids: [ids.form, ids.submission] } }, { type: "package_member.activated" }], headers: {}, secret: "s".repeat(32), status: { type: "disabled" } };
-  await client.store.webhook.create({ store_id: storeId, ...webhook });
-  await client.store.webhook.update({ store_id: storeId, id: ids.form, expected_updated_at: 6, status: { type: "active" } });
-  await client.store.webhook.test({ store_id: storeId, id: ids.submission, webhook_id: ids.form });
+  await client.tenant.location.create({ tenant_id: tenantId, id: ids.companyLocation, key: "main", address, timezone: "Europe/Sarajevo" });
+  await client.tenant.location.update({ tenant_id: tenantId, id: ids.companyLocation, expected_updated_at: 4, status: { type: "archived" } });
+  await client.tenant.location.delete({ tenant_id: tenantId, id: ids.companyLocation, expected_updated_at: 5 });
+  const webhook = { id: ids.form, url: "https://events.example.test/hook", events: [{ type: "user.archived" }, { type: "form_submission.created", forms: { form_ids: [ids.form, ids.submission] } }, { type: "package_member.activated" }], headers: {}, secret: "s".repeat(32), status: { type: "disabled" } };
+  await client.tenant.webhook.create({ tenant_id: tenantId, ...webhook });
+  await client.tenant.webhook.update({ tenant_id: tenantId, id: ids.form, expected_updated_at: 6, status: { type: "active" } });
+  await client.tenant.webhook.test({ tenant_id: tenantId, id: ids.submission, webhook_id: ids.form });
   assert.deepEqual(calls.map((call) => [call.method, call.path, call.query, call.body]), [
-    ["POST", `/v1/stores/${storeId}/locations`, {}, { id: ids.companyLocation, key: "main", address, timezone: "Europe/Sarajevo" }],
-    ["PUT", `/v1/stores/${storeId}/locations/${ids.companyLocation}`, {}, { expected_updated_at: 4, status: { type: "archived" } }],
-    ["DELETE", `/v1/stores/${storeId}/locations/${ids.companyLocation}`, { expected_updated_at: "5" }, null],
-    ["POST", `/v1/stores/${storeId}/webhooks`, {}, webhook],
-    ["PUT", `/v1/stores/${storeId}/webhooks/${ids.form}`, {}, { expected_updated_at: 6, status: { type: "active" } }],
-    ["POST", `/v1/stores/${storeId}/outgoing-webhooks/test`, {}, { id: ids.submission, webhook_id: ids.form }],
+    ["POST", `/v1/tenants/${tenantId}/locations`, {}, { id: ids.companyLocation, key: "main", address, timezone: "Europe/Sarajevo" }],
+    ["PUT", `/v1/tenants/${tenantId}/locations/${ids.companyLocation}`, {}, { expected_updated_at: 4, status: { type: "archived" } }],
+    ["DELETE", `/v1/tenants/${tenantId}/locations/${ids.companyLocation}`, { expected_updated_at: "5" }, null],
+    ["POST", `/v1/tenants/${tenantId}/webhooks`, {}, webhook],
+    ["PUT", `/v1/tenants/${tenantId}/webhooks/${ids.form}`, {}, { expected_updated_at: 6, status: { type: "active" } }],
+    ["POST", `/v1/tenants/${tenantId}/outgoing-webhooks/test`, {}, { id: ids.submission, webhook_id: ids.form }],
   ]);
-  await assert.rejects(async () => client.store.webhook.test({ store_id: storeId, id: "test-1", webhook_id: ids.form }), TypeError);
+  await assert.rejects(async () => client.tenant.webhook.test({ tenant_id: tenantId, id: "test-1", webhook_id: ids.form }), TypeError);
   assert.equal(calls.length, 6);
 });
 
 test("a market holds its ordered payment options and changes them with one PUT and the version", async (context) => {
   const stripe = {
-    id: ids.paymentOption, store_id: storeId, key: "card", blocks: [], status: "active", created_at: 1, updated_at: 2,
+    id: ids.paymentOption, tenant_id: tenantId, key: "card", blocks: [], status: "active", created_at: 1, updated_at: 2,
     type: { type: "stripe", account_id: "acct_merchant", livemode: false, publishable_key: "pk_test_merchant", charges_enabled: true, account_checked_at: 2, webhook: { type: "not_configured" } },
   };
-  const cash = { id: ids.otherPaymentOption, store_id: storeId, key: "cash", blocks: [], status: "active", created_at: 1, updated_at: 1, type: { type: "cash_on_delivery" } };
-  const market = { id: ids.market, store_id: storeId, key: "bih", currency: "bam", tax_mode: "inclusive", payment_option_ids: [], status: { type: "active" }, created_at: 1, updated_at: 1 };
+  const cash = { id: ids.otherPaymentOption, tenant_id: tenantId, key: "cash", blocks: [], status: "active", created_at: 1, updated_at: 1, type: { type: "cash_on_delivery" } };
+  const market = { id: ids.market, tenant_id: tenantId, key: "bih", currency: "bam", tax_mode: "inclusive", payment_option_ids: [], status: { type: "active" }, created_at: 1, updated_at: 1 };
   const calls = recordFetch(context, (call) => call.path.endsWith("/payment-options") ? { items: [cash, stripe], cursor: null } : market);
   const client = admin();
-  const options = await client.store.paymentOption.find({ store_id: storeId });
+  const options = await client.tenant.paymentOption.find({ tenant_id: tenantId });
   assert.equal(options.items[0].type.type, "cash_on_delivery");
   assert.equal(options.items[1].type.charges_enabled, true);
   assert.equal(options.items[1].type.account_id, "acct_merchant");
-  await client.store.market.create({ store_id: storeId, id: ids.market, key: "bih", currency: "bam", tax_mode: "inclusive" });
-  await client.store.market.update({ store_id: storeId, id: ids.market, expected_updated_at: 1, payment_option_ids: [ids.paymentOption, ids.otherPaymentOption] });
+  await client.tenant.market.create({ tenant_id: tenantId, id: ids.market, key: "bih", currency: "bam", tax_mode: "inclusive" });
+  await client.tenant.market.update({ tenant_id: tenantId, id: ids.market, expected_updated_at: 1, payment_option_ids: [ids.paymentOption, ids.otherPaymentOption] });
   assert.deepEqual(calls.map((call) => [call.method, call.path, call.body]), [
-    ["GET", `/v1/stores/${storeId}/payment-options`, null],
-    ["POST", `/v1/stores/${storeId}/markets`, { id: ids.market, key: "bih", currency: "bam", tax_mode: "inclusive" }],
-    ["PUT", `/v1/stores/${storeId}/markets/${ids.market}`, { expected_updated_at: 1, payment_option_ids: [ids.paymentOption, ids.otherPaymentOption] }],
+    ["GET", `/v1/tenants/${tenantId}/payment-options`, null],
+    ["POST", `/v1/tenants/${tenantId}/markets`, { id: ids.market, key: "bih", currency: "bam", tax_mode: "inclusive" }],
+    ["PUT", `/v1/tenants/${tenantId}/markets/${ids.market}`, { expected_updated_at: 1, payment_option_ids: [ids.paymentOption, ids.otherPaymentOption] }],
   ]);
-  for (const removed of ["marketPaymentOption", "marketZone", "paymentTerms"]) assert.equal(removed in client.store, false, removed);
+  for (const removed of ["marketPaymentOption", "marketZone", "paymentTerms"]) assert.equal(removed in client.tenant, false, removed);
 });
 
-test("admin Order reads by customer and cancels product units under the app's credit id, resending it on retry", async (context) => {
+test("admin Order reads by user and cancels product units under the app's credit id, resending it on retry", async (context) => {
   let failFirst = true;
   const calls = recordFetch(context, (call) => {
     if (call.method === "GET") return { items: [], cursor: null };
@@ -318,20 +318,20 @@ test("admin Order reads by customer and cancels product units under the app's cr
     return { id: ids.order };
   });
   const client = admin();
-  await client.eshop.order.find({ store_id: storeId, customer_id: ids.customer });
-  const request = { store_id: otherStoreId, order_id: "order/one", line_item_id: "line/one", credit_id: ids.credit, expected_updated_at: 1789990000000, notify_customer: false, units: [{ first_unit: 1, quantity: 2 }, { first_unit: 5, quantity: 1 }] };
+  await client.eshop.order.find({ tenant_id: tenantId, user_id: ids.user });
+  const request = { tenant_id: otherTenantId, order_id: "order/one", line_item_id: "line/one", credit_id: ids.credit, expected_updated_at: 1789990000000, notify_user: false, units: [{ first_unit: 1, quantity: 2 }, { first_unit: 5, quantity: 1 }] };
   await assert.rejects(client.eshop.order.cancelProductItem(request), (error) => error.statusCode === 503);
   assert.deepEqual(await client.eshop.order.cancelProductItem(request), { id: ids.order });
   assert.equal(calls.length, 3);
   assert.deepEqual(calls[1].body, calls[2].body);
   assert.deepEqual(calls.map((call) => [call.method, call.href, call.body]), [
-    ["GET", `${baseUrl}/v1/stores/${storeId}/orders?customer_id=${ids.customer}`, null],
-    ["POST", `${baseUrl}/v1/stores/${otherStoreId}/orders/order%2Fone/product-items/line%2Fone/cancel`, { credit_id: ids.credit, expected_updated_at: 1789990000000, notify_customer: false, units: request.units }],
-    ["POST", `${baseUrl}/v1/stores/${otherStoreId}/orders/order%2Fone/product-items/line%2Fone/cancel`, { credit_id: ids.credit, expected_updated_at: 1789990000000, notify_customer: false, units: request.units }],
+    ["GET", `${baseUrl}/v1/tenants/${tenantId}/orders?user_id=${ids.user}`, null],
+    ["POST", `${baseUrl}/v1/tenants/${otherTenantId}/orders/order%2Fone/product-items/line%2Fone/cancel`, { credit_id: ids.credit, expected_updated_at: 1789990000000, notify_user: false, units: request.units }],
+    ["POST", `${baseUrl}/v1/tenants/${otherTenantId}/orders/order%2Fone/product-items/line%2Fone/cancel`, { credit_id: ids.credit, expected_updated_at: 1789990000000, notify_user: false, units: request.units }],
   ]);
   await assert.rejects(async () => client.eshop.order.cancelProductItem({ ...request, credit_id: "cancellation-command" }), TypeError);
-  await assert.rejects(async () => client.eshop.order.cancelProductItem({ ...request, store_id: "store/one" }), TypeError);
-  await assert.rejects(async () => client.eshop.order.cancelProductItem({ ...request, notify_customer: undefined }), TypeError);
+  await assert.rejects(async () => client.eshop.order.cancelProductItem({ ...request, tenant_id: "tenant/one" }), TypeError);
+  await assert.rejects(async () => client.eshop.order.cancelProductItem({ ...request, notify_user: undefined }), TypeError);
   assert.equal(calls.length, 3);
   for (const removed of ["getProducts", "getDigitalProducts", "cancelProduct", "paymentAction"]) {
     assert.equal(removed in client.eshop.order, false, removed);
@@ -343,42 +343,42 @@ test("admin Order reads by customer and cancels product units under the app's cr
 test("a pending order is cancelled with the version and a receipt is resent under the app's notification id", async (context) => {
   const calls = recordFetch(context, () => ({ id: ids.order }));
   const client = admin();
-  await client.eshop.order.cancel({ store_id: storeId, order_id: ids.order, expected_updated_at: 9, notify_customer: true });
-  await client.eshop.order.resendReceipt({ store_id: storeId, order_id: ids.order, id: ids.payment, expected_updated_at: 9 });
+  await client.eshop.order.cancel({ tenant_id: tenantId, order_id: ids.order, expected_updated_at: 9, notify_user: true });
+  await client.eshop.order.resendReceipt({ tenant_id: tenantId, order_id: ids.order, id: ids.payment, expected_updated_at: 9 });
   assert.deepEqual(calls.map((call) => [call.method, call.path, call.body]), [
-    ["POST", `/v1/stores/${storeId}/orders/${ids.order}/cancel`, { expected_updated_at: 9, notify_customer: true }],
-    ["POST", `/v1/stores/${storeId}/orders/${ids.order}/resend-receipt`, { id: ids.payment, expected_updated_at: 9 }],
+    ["POST", `/v1/tenants/${tenantId}/orders/${ids.order}/cancel`, { expected_updated_at: 9, notify_user: true }],
+    ["POST", `/v1/tenants/${tenantId}/orders/${ids.order}/resend-receipt`, { id: ids.payment, expected_updated_at: 9 }],
   ]);
-  await assert.rejects(async () => client.eshop.order.resendReceipt({ store_id: storeId, order_id: ids.order, id: "receipt-1", expected_updated_at: 9 }), TypeError);
-  await assert.rejects(async () => client.eshop.order.cancel({ store_id: storeId, order_id: ids.order, expected_updated_at: 9 }), TypeError);
+  await assert.rejects(async () => client.eshop.order.resendReceipt({ tenant_id: tenantId, order_id: ids.order, id: "receipt-1", expected_updated_at: 9 }), TypeError);
+  await assert.rejects(async () => client.eshop.order.cancel({ tenant_id: tenantId, order_id: ids.order, expected_updated_at: 9 }), TypeError);
   assert.equal(calls.length, 2);
 });
 
 test("admin market deletion sends the version and answers the market marked deleting without a default replacement", async (context) => {
   const deleting = { id: ids.market, status: { type: "deleting" }, updated_at: 1788862721001 };
   const calls = recordFetch(context, () => jsonResponse(deleting, 202));
-  assert.deepEqual(await admin().store.market.delete({ store_id: storeId, id: ids.market, expected_updated_at: 1788862721000 }), deleting);
+  assert.deepEqual(await admin().tenant.market.delete({ tenant_id: tenantId, id: ids.market, expected_updated_at: 1788862721000 }), deleting);
   assert.deepEqual(calls.map((call) => [call.method, call.href]), [
-    ["DELETE", `${baseUrl}/v1/stores/${storeId}/markets/${ids.market}?expected_updated_at=1788862721000`],
+    ["DELETE", `${baseUrl}/v1/tenants/${tenantId}/markets/${ids.market}?expected_updated_at=1788862721000`],
   ]);
 });
 
 test("Category is top-level on both clients", () => {
-  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl });
+  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl });
   assert.equal("category" in admin().content, false);
   assert.equal("category" in storefront.content, false);
   assert.equal(typeof admin().category.find, "function");
   assert.equal(typeof storefront.category.get, "function");
 });
 
-test("storefront collection lookup uses a keyless route with the store, sales-channel and locale headers", async (context) => {
+test("storefront collection lookup uses a keyless route with the tenant, sales-channel and locale headers", async (context) => {
   const calls = recordFetch(context, () => ({ id: "collection-contract", key: "articles" }));
-  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl, locale: "en" });
+  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl, locale: "en" });
   await storefront.content.collection.getByKey({ key: "articles" });
   await storefront.content.collection.get({ id: ids.form });
   assert.deepEqual(calls.map((call) => call.href), [`${baseUrl}/v1/storefront/collections/articles`, `${baseUrl}/v1/storefront/collections/${ids.form}`]);
   for (const call of calls) {
-    assert.equal(call.headers.get("x-arky-store-id"), storefrontIdentity.storeId);
+    assert.equal(call.headers.get("x-arky-tenant-id"), storefrontIdentity.tenantId);
     assert.equal(call.headers.get("x-arky-sales-channel-id"), storefrontIdentity.salesChannelId);
     assert.equal(call.headers.get("x-arky-locale"), "en");
     assert.equal(call.headers.get("authorization"), null);
@@ -387,37 +387,37 @@ test("storefront collection lookup uses a keyless route with the store, sales-ch
 
 test("admin Product writes carry the app-picked id and version and InventoryLevel reads pass their filters", async (context) => {
   const create = { id: ids.product, key: "canonical-product", slugs: { en: "canonical-product" }, blocks: [{ id: "name-contract", key: "name", type: "localized_text", value: { en: "Product" } }], categories: [] };
-  const product = { ...create, store_id: storeId, status: { type: "active" }, created_at: 1, updated_at: 1 };
+  const product = { ...create, tenant_id: tenantId, status: { type: "active" }, created_at: 1, updated_at: 1 };
   const update = { id: ids.product, expected_updated_at: 1, slugs: { en: "canonical-product-updated" }, status: { type: "draft" } };
-  const inventory = [{ id: ids.variant, store_id: storeId, inventory_item_id: ids.order, store_location_id: ids.companyLocation, on_hand: 12, reserved: 13, set_aside: 2, available: -3, created_at: 1, updated_at: 2 }];
+  const inventory = [{ id: ids.variant, tenant_id: tenantId, inventory_item_id: ids.order, tenant_location_id: ids.companyLocation, on_hand: 12, reserved: 13, set_aside: 2, available: -3, created_at: 1, updated_at: 2 }];
   const responses = [product, { ...product, ...update }, { items: inventory, cursor: null }];
   const calls = recordFetch(context, () => responses.shift());
   const client = admin();
-  assert.deepEqual(await client.eshop.product.create({ store_id: storeId, ...create }), product);
-  await client.eshop.product.update({ store_id: storeId, ...update });
-  assert.deepEqual(await client.eshop.inventoryLevel.find({ store_id: storeId, inventory_item_ids: [ids.order], store_location_id: ids.companyLocation }), { items: inventory, cursor: null });
+  assert.deepEqual(await client.eshop.product.create({ tenant_id: tenantId, ...create }), product);
+  await client.eshop.product.update({ tenant_id: tenantId, ...update });
+  assert.deepEqual(await client.eshop.inventoryLevel.find({ tenant_id: tenantId, inventory_item_ids: [ids.order], tenant_location_id: ids.companyLocation }), { items: inventory, cursor: null });
   assert.deepEqual(calls.map((call) => [call.method, call.href, call.body]), [
-    ["POST", `${baseUrl}/v1/stores/${storeId}/products`, create],
-    ["PUT", `${baseUrl}/v1/stores/${storeId}/products/${ids.product}`, { expected_updated_at: 1, slugs: update.slugs, status: update.status }],
-    ["GET", `${baseUrl}/v1/stores/${storeId}/inventory-levels?inventory_item_ids=${encodeURIComponent(JSON.stringify([ids.order]))}&store_location_id=${ids.companyLocation}`, null],
+    ["POST", `${baseUrl}/v1/tenants/${tenantId}/products`, create],
+    ["PUT", `${baseUrl}/v1/tenants/${tenantId}/products/${ids.product}`, { expected_updated_at: 1, slugs: update.slugs, status: update.status }],
+    ["GET", `${baseUrl}/v1/tenants/${tenantId}/inventory-levels?inventory_item_ids=${encodeURIComponent(JSON.stringify([ids.order]))}&tenant_location_id=${ids.companyLocation}`, null],
   ]);
 });
 
 test("storefront variant read carries the exact product and buyer context", async (context) => {
   const calls = recordFetch(context, () => ({}));
-  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl, locale: "en" });
+  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl, locale: "en" });
   await storefront.eshop.productVariant.get({ product_id: "lean-product", id: "variant-one", package_id: ids.package, company_location_id: "location-one", include_price: true });
   await storefront.eshop.productVariant.get({ product_id: "lean-product", id: "variant-one", package_id: ids.package, company_id: "company-one" });
   assert.equal(calls[0].href, `${baseUrl}/v1/storefront/products/lean-product/variants/variant-one?package_id=${ids.package}&company_location_id=location-one&include_price=true`);
   assert.equal(calls[1].href, `${baseUrl}/v1/storefront/products/lean-product/variants/variant-one?package_id=${ids.package}&company_id=company-one`);
-  assert.equal(calls[0].headers.get("x-arky-store-id"), storefrontIdentity.storeId);
+  assert.equal(calls[0].headers.get("x-arky-tenant-id"), storefrontIdentity.tenantId);
     assert.equal(calls[0].headers.get("x-arky-sales-channel-id"), storefrontIdentity.salesChannelId);
 });
 
 test("storefront cart reads send the recovery credential only in the cart-token header", async (context) => {
   const recoveryToken = "cart-recovery-contract-token";
   const calls = recordFetch(context, () => ({ id: ids.cart }));
-  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl, sessionStorage: visitorStorage() });
+  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl, sessionStorage: visitorStorage() });
   await storefront.eshop.cart.get(
     { id: ids.cart, token: recoveryToken },
     {
@@ -433,7 +433,7 @@ test("storefront cart reads send the recovery credential only in the cart-token 
 });
 
 test("storefront money helpers preserve exact zero, need an explicit locale and reject invalid minor units", () => {
-  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl, market: "ita" });
+  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: baseUrl, market: "ita" });
   assert.equal("utils" in storefront, false);
   assert.equal("utils" in admin(), false);
   const price = { price_id: ids.price, tax_mode: "inclusive", unit_price: { amount: 0, currency: "eur" }, compare_at: null, priced_at: 1 };
@@ -451,7 +451,7 @@ test("storefront money helpers preserve exact zero, need an explicit locale and 
 test("SDK_VERSION equals the package version", async () => {
   const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
   assert.equal(SDK_VERSION, packageJson.version);
-  assert.equal(SDK_VERSION, "0.26.145");
+  assert.equal(SDK_VERSION, "0.26.146");
 });
 
 test("recursive storefront declarations never degrade to any", async () => {

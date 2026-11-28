@@ -4,7 +4,7 @@ import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { ids, recordFetch } from "./helpers/arky-fixtures.mjs";
 
-const STORE_ID = "6d2e8a14-b0c7-4f93-a5d1-3c9e7b0f2a48";
+const TENANT_ID = "6d2e8a14-b0c7-4f93-a5d1-3c9e7b0f2a48";
 
 test("FormSubmission answers are read-only and a submission leaves only through a versioned delete", async (context) => {
   const arky = createAdmin({ apiUrl: "https://api.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
@@ -12,10 +12,10 @@ test("FormSubmission answers are read-only and a submission leaves only through 
   assert.equal(typeof arky.forms.getSubmission, "function");
   assert.equal(typeof arky.forms.deleteSubmission, "function");
   const calls = recordFetch(context, () => ({ deleted: true }));
-  assert.deepEqual(await arky.forms.deleteSubmission({ store_id: STORE_ID, form_id: ids.form, id: ids.submission, expected_updated_at: 1_700_000_000_123 }), { deleted: true });
+  assert.deepEqual(await arky.forms.deleteSubmission({ tenant_id: TENANT_ID, form_id: ids.form, id: ids.submission, expected_updated_at: 1_700_000_000_123 }), { deleted: true });
   assert.deepEqual(calls.map(({ href, method, body }) => ({ href, method, body })), [
     {
-      href: `https://api.test/v1/stores/${STORE_ID}/forms/${ids.form}/submissions/${ids.submission}?expected_updated_at=1700000000123`,
+      href: `https://api.test/v1/tenants/${TENANT_ID}/forms/${ids.form}/submissions/${ids.submission}?expected_updated_at=1700000000123`,
       method: "DELETE",
       body: null,
     },

@@ -30,21 +30,21 @@ import type {
   OwnContactParams,
   OwnLinkRemoved,
   RemoveOwnContactParams,
-  StorefrontCustomer,
-  CustomerCodeResult,
-  CustomerMe,
-  CustomerSessionIssued,
-  CustomerSessionResult,
-  NetworkCustomerStoreKeyStatus,
-  StoreCustomerSignedInByEmailStatus,
-  StoreCustomerSignedInByPhoneStatus,
-  UpdateCustomerMeParams,
+  StorefrontUser,
+  UserCodeResult,
+  UserMe,
+  UserSessionIssued,
+  UserSessionResult,
+  NetworkUserTenantKeyStatus,
+  TenantUserSignedInByEmailStatus,
+  TenantUserSignedInByPhoneStatus,
+  UpdateUserMeParams,
   UpdateOwnContactParams,
   VerifyOwnContactParams,
   VisitorStatus,
-} from "./types/customer";
+} from "./types/user";
 import type { LoginAddress } from "./types/account";
-import type { NetworkCustomerStoreKey } from "./types/networkCustomer";
+import type { NetworkUserTenantKey } from "./types/networkUser";
 import { CartError } from "./types/cartSelection";
 import type { StorefrontMarket, StorefrontSetup } from "./types/storefront";
 import type { EmailContact } from "./types/common";
@@ -65,7 +65,7 @@ import {
 } from "./api/company";
 import { createCollectionApi, createEntryApi } from "./api/content";
 import { createPrivateCollectionApi, createPrivateEntryApi } from "./api/privateContent";
-import { createCustomersApi } from "./api/customers";
+import { createUsersApi } from "./api/users";
 import { createDigitalAssetApi } from "./api/digitalAsset";
 import { createExperimentsApi } from "./api/experiments";
 import { createFormsApi } from "./api/forms";
@@ -85,7 +85,7 @@ import { createMarketApi } from "./api/market";
 import { createMediaApi } from "./api/media";
 import {
   createCompanyNoteApi,
-  createCustomerNoteApi,
+  createUserNoteApi,
   createFormSubmissionNoteApi,
   createOrderNoteApi,
 } from "./api/note";
@@ -95,11 +95,11 @@ import {
   createNotificationApi,
   createOutgoingMessageApi,
   createOutgoingWebhookApi,
-  createStoreResendEventApi,
+  createTenantResendEventApi,
   createTemplateApi,
 } from "./api/notification";
 import { createOrderApi } from "./api/order";
-import { createInvoiceApi, createInvoiceCounterApi, createStoreInvoicingApi, createStoreSellerApi } from "./api/invoice";
+import { createInvoiceApi, createInvoiceCounterApi, createTenantInvoicingApi, createTenantSellerApi } from "./api/invoice";
 import { createFiscalDeviceApi } from "./api/fiscalDevice";
 import { createFiscalReceiptApi } from "./api/fiscalReceipt";
 import { createPackageAccessApi, createPackageApi, createPackageItemApi, createPackageItemPriceApi } from "./api/package";
@@ -117,18 +117,18 @@ import { createReturnApi } from "./api/return";
 import { createSalesChannelApi } from "./api/salesChannel";
 import { createShippingMethodApi } from "./api/shippingMethod";
 import { createShippingProfileApi } from "./api/shippingProfile";
-import { createStoreSimulatorApi } from "./api/simulator";
-import { createStoreApi } from "./api/store";
-import { createStoreProviderApi } from "./api/storeProvider";
-import { createCustomerRoleApi, createStoreAssistantMembershipApi, createStoreRoleApi } from "./api/storeRole";
+import { createTenantSimulatorApi } from "./api/simulator";
+import { createTenantApi } from "./api/tenant";
+import { createTenantProviderApi } from "./api/tenantProvider";
+import { createUserRoleApi, createTenantAssistantMembershipApi, createTenantRoleApi } from "./api/tenantRole";
 import { createSuppressionApi } from "./api/suppression";
 import {
   createStorefrontApi,
-  type CustomerSessionUpdater,
-  type RefreshCustomerSessionParams,
-  type IdentifyCustomerParams,
-  type RequestCustomerCodeParams,
-  type VerifyCustomerCodeParams,
+  type UserSessionUpdater,
+  type RefreshUserSessionParams,
+  type IdentifyUserParams,
+  type RequestUserCodeParams,
+  type VerifyUserCodeParams,
 } from "./api/storefront";
 import { createStorefrontPageViewsApi } from "./api/pageViews";
 import { createAdminSupportApi, createStorefrontSupportApi } from "./api/support";
@@ -141,16 +141,16 @@ export * from "./types";
 export type { AdminLogoutResult } from "./services/adminSession";
 export type { RecordNoteApi } from "./api/note";
 export type { FindAdminRentalReturnOptionsParams } from "./api/return";
-export { COMMON_CUSTOMER_ACTION_KEYS } from "./api/storefront";
+export { COMMON_USER_ACTION_KEYS } from "./api/storefront";
 export type {
-  CommonCustomerActionKey,
-  IdentifyCustomerParams,
+  CommonUserActionKey,
+  IdentifyUserParams,
   OrderFromLink,
   OrderFromLinkParams,
-  RefreshCustomerSessionParams,
-  RequestCustomerCodeParams,
+  RefreshUserSessionParams,
+  RequestUserCodeParams,
   StorefrontCheckoutCartRequest,
-  VerifyCustomerCodeParams,
+  VerifyUserCodeParams,
 } from "./api/storefront";
 export { ScheduledResultTimeoutError } from "./utils/scheduledResult";
 export { isValidKey, validateKey, toKey } from "./utils/keyValidation";
@@ -200,10 +200,10 @@ export { isSimulatedPayment, simulatePayment } from "./paymentSimulator";
 export type { PaymentSimulation, SimulatePaymentOptions, SimulatePaymentParams } from "./paymentSimulator";
 export { CheckoutFlowError, initialize } from "./storefrontStore";
 export type * from "./storefrontStore";
-export { createNetworkCustomer } from "./networkCustomer";
-export type { NetworkCustomerClient } from "./networkCustomer";
+export { createNetworkUser } from "./networkUser";
+export type { NetworkUserClient } from "./networkUser";
 
-export const SDK_VERSION = "0.26.145";
+export const SDK_VERSION = "0.26.146";
 
 export interface AdminSession {
   id: string;
@@ -215,15 +215,15 @@ export type StorefrontLogoutResult =
   | { type: "unconfirmed"; session_id: string }
   | { type: "local_only" };
 
-export type StorefrontCustomerSession = {
-  customer: StorefrontCustomer;
+export type StorefrontUserSession = {
+  user: StorefrontUser;
   id: string;
   signed_in_with: LoginAddress | null;
 } & (
   | { type: "visitor"; status: VisitorStatus }
-  | { type: "store_customer_signed_in_by_email"; status: StoreCustomerSignedInByEmailStatus }
-  | { type: "store_customer_signed_in_by_phone"; status: StoreCustomerSignedInByPhoneStatus }
-  | { type: "network_customer_store_key"; status: NetworkCustomerStoreKeyStatus }
+  | { type: "tenant_user_signed_in_by_email"; status: TenantUserSignedInByEmailStatus }
+  | { type: "tenant_user_signed_in_by_phone"; status: TenantUserSignedInByPhoneStatus }
+  | { type: "network_user_tenant_key"; status: NetworkUserTenantKeyStatus }
 );
 
 export type AuthStateListener<T> = (session: T | null) => void;
@@ -314,27 +314,27 @@ function createAdminClient(config: CreateAdminConfig) {
     },
     platform: createPlatformApi(apiConfig),
     network: createNetworkApi(apiConfig),
-    store: {
-      ...createStoreApi(apiConfig),
+    tenant: {
+      ...createTenantApi(apiConfig),
       country: createCountryApi(apiConfig),
-      role: createStoreRoleApi(apiConfig),
-      customerRole: createCustomerRoleApi(apiConfig),
-      assistantMembership: createStoreAssistantMembershipApi(apiConfig),
+      role: createTenantRoleApi(apiConfig),
+      userRole: createUserRoleApi(apiConfig),
+      assistantMembership: createTenantAssistantMembershipApi(apiConfig),
       webhook: createWebhookApi(apiConfig),
       location: createLocationApi(apiConfig),
       market: createMarketApi(apiConfig),
       salesChannel: createSalesChannelApi(apiConfig),
-      provider: createStoreProviderApi(apiConfig),
+      provider: createTenantProviderApi(apiConfig),
       phoneNumber: createPhoneNumberApi(apiConfig),
       auditLog: createAuditLogApi(apiConfig),
       paymentOption: createPaymentOptionApi(apiConfig),
-      simulator: createStoreSimulatorApi(apiConfig),
+      simulator: createTenantSimulatorApi(apiConfig),
       zone: createZoneApi(apiConfig),
       taxCategory: createTaxCategoryApi(apiConfig),
       shippingProfile: createShippingProfileApi(apiConfig),
       shippingMethod: createShippingMethodApi(apiConfig),
-      seller: createStoreSellerApi(apiConfig),
-      invoicing: createStoreInvoicingApi(apiConfig),
+      seller: createTenantSellerApi(apiConfig),
+      invoicing: createTenantInvoicingApi(apiConfig),
       invoiceCounter: createInvoiceCounterApi(apiConfig),
       fiscalDevice: createFiscalDeviceApi(apiConfig),
     },
@@ -346,7 +346,7 @@ function createAdminClient(config: CreateAdminConfig) {
       template: createTemplateApi(apiConfig),
       layout: createEmailLayoutApi(apiConfig),
       emailAddress: createEmailAddressApi(apiConfig),
-      resendEvent: createStoreResendEventApi(apiConfig),
+      resendEvent: createTenantResendEventApi(apiConfig),
     },
     broadcast: createBroadcastApi(apiConfig),
     support: supportApi,
@@ -370,10 +370,10 @@ function createAdminClient(config: CreateAdminConfig) {
       membership: createCompanyMembershipApi(apiConfig),
       notes: createCompanyNoteApi(apiConfig),
     },
-    customers: {
-      ...createCustomersApi(apiConfig),
+    users: {
+      ...createUsersApi(apiConfig),
       suppression: createSuppressionApi(apiConfig),
-      notes: createCustomerNoteApi(apiConfig),
+      notes: createUserNoteApi(apiConfig),
     },
     actions: createActionsApi(apiConfig),
     experiments: createExperimentsApi(apiConfig),
@@ -493,15 +493,15 @@ export interface StorefrontContext {
 }
 
 export interface StorefrontIdentity {
-  storeId: string;
+  tenantId: string;
   salesChannelId: string;
 }
 
 export interface StorefrontOptions extends StorefrontContext {
   apiUrl?: string;
   sessionStorage?: StorefrontSessionStorage;
-  visitorIdentity?: IdentifyCustomerParams;
-  createVisitorIdentity: () => IdentifyCustomerParams;
+  visitorIdentity?: IdentifyUserParams;
+  createVisitorIdentity: () => IdentifyUserParams;
   createSessionId: () => string;
   createId: () => string;
   createOrderToken: () => string;
@@ -537,29 +537,29 @@ function normalizeStorefrontApiUrl(value: string | undefined): string {
   return input.replace(/\/+$/, "");
 }
 
-function storefrontSessionStorageKey(apiUrl: string, storeId: string, salesChannelId: string): string {
-  return `arky_customer_session:v5:${encodeURIComponent(apiUrl)}:${storeId}:${salesChannelId}`;
+function storefrontSessionStorageKey(apiUrl: string, tenantId: string, salesChannelId: string): string {
+  return `arky_user_session:v5:${encodeURIComponent(apiUrl)}:${tenantId}:${salesChannelId}`;
 }
 
-type StoredCustomerSession = CustomerSessionResult & { version: 5 };
+type StoredUserSession = UserSessionResult & { version: 5 };
 
 function isSignedInByCode(value: Record<string, unknown>): boolean {
   return (
     typeof value.access_token === "string" &&
-    value.access_token.startsWith("customer_access_") &&
+    value.access_token.startsWith("user_access_") &&
     typeof value.refresh_token === "string" &&
-    value.refresh_token.startsWith("customer_refresh_") &&
+    value.refresh_token.startsWith("user_refresh_") &&
     isEpochMilliseconds(value.access_expires_at) &&
     isEpochMilliseconds(value.refresh_expires_at) &&
     isEpochMilliseconds(value.authenticated_at)
   );
 }
 
-function isIssuedCustomerSession(value: unknown): value is CustomerSessionIssued {
+function isIssuedUserSession(value: unknown): value is UserSessionIssued {
   if (!isRecord(value)) return false;
   if (
     typeof value.id !== "string" ||
-    typeof value.customer_id !== "string" ||
+    typeof value.user_id !== "string" ||
     !isRecord(value.status) ||
     value.status.type !== "active" ||
     Object.keys(value.status).length !== 1
@@ -569,16 +569,16 @@ function isIssuedCustomerSession(value: unknown): value is CustomerSessionIssued
   switch (value.type) {
     case "visitor":
       return (
-        typeof value.token === "string" && value.token.startsWith("customer_visitor_") && isEpochMilliseconds(value.expires_at)
+        typeof value.token === "string" && value.token.startsWith("user_visitor_") && isEpochMilliseconds(value.expires_at)
       );
-    case "store_customer_signed_in_by_email":
+    case "tenant_user_signed_in_by_email":
       return typeof value.email === "string" && isSignedInByCode(value);
-    case "store_customer_signed_in_by_phone":
+    case "tenant_user_signed_in_by_phone":
       return typeof value.number === "string" && isSignedInByCode(value);
-    case "network_customer_store_key":
+    case "network_user_tenant_key":
       return (
         typeof value.access_token === "string" &&
-        value.access_token.startsWith("customer_store_key_") &&
+        value.access_token.startsWith("user_tenant_key_") &&
         value.refresh_token === undefined
       );
     default:
@@ -586,33 +586,33 @@ function isIssuedCustomerSession(value: unknown): value is CustomerSessionIssued
   }
 }
 
-function publicSession({ customer, session }: CustomerSessionResult): StorefrontCustomerSession {
+function publicSession({ user, session }: UserSessionResult): StorefrontUserSession {
   switch (session.type) {
     case "visitor":
-      return { customer, id: session.id, type: session.type, status: session.status, signed_in_with: null };
-    case "store_customer_signed_in_by_email":
+      return { user, id: session.id, type: session.type, status: session.status, signed_in_with: null };
+    case "tenant_user_signed_in_by_email":
       return {
-        customer,
+        user,
         id: session.id,
         type: session.type,
         status: session.status,
         signed_in_with: { type: "email", email: session.email },
       };
-    case "store_customer_signed_in_by_phone":
+    case "tenant_user_signed_in_by_phone":
       return {
-        customer,
+        user,
         id: session.id,
         type: session.type,
         status: session.status,
         signed_in_with: { type: "phone", number: session.number },
       };
-    case "network_customer_store_key":
-      return { customer, id: session.id, type: session.type, status: session.status, signed_in_with: null };
+    case "network_user_tenant_key":
+      return { user, id: session.id, type: session.type, status: session.status, signed_in_with: null };
   }
 }
 
-function hasRefreshToken(session: CustomerSessionIssued): boolean {
-  return session.type === "store_customer_signed_in_by_email" || session.type === "store_customer_signed_in_by_phone";
+function hasRefreshToken(session: UserSessionIssued): boolean {
+  return session.type === "tenant_user_signed_in_by_email" || session.type === "tenant_user_signed_in_by_phone";
 }
 
 function isStoredName(value: unknown): boolean {
@@ -623,11 +623,11 @@ function isStoredOptionalId(value: unknown): boolean {
   return value === null || typeof value === "string";
 }
 
-function isStoredCustomer(value: unknown): value is StorefrontCustomer {
+function isStoredUser(value: unknown): value is StorefrontUser {
   return (
     isRecord(value) &&
     typeof value.id === "string" &&
-    typeof value.store_id === "string" &&
+    typeof value.tenant_id === "string" &&
     isStoredName(value.name) &&
     Array.isArray(value.links) &&
     Array.isArray(value.contacts) &&
@@ -640,20 +640,20 @@ function isStoredCustomer(value: unknown): value is StorefrontCustomer {
   );
 }
 
-function parseStoredCustomerSession(value: string | null): CustomerSessionResult | null {
+function parseStoredUserSession(value: string | null): UserSessionResult | null {
   if (!value) return null;
   try {
     const parsed: unknown = JSON.parse(value);
     if (
       !isRecord(parsed) ||
       parsed.version !== 5 ||
-      !isStoredCustomer(parsed.customer) ||
-      !isIssuedCustomerSession(parsed.session) ||
-      parsed.session.customer_id !== parsed.customer.id
+      !isStoredUser(parsed.user) ||
+      !isIssuedUserSession(parsed.session) ||
+      parsed.session.user_id !== parsed.user.id
     ) {
       return null;
     }
-    return { customer: parsed.customer, session: parsed.session };
+    return { user: parsed.user, session: parsed.session };
   } catch {
     return null;
   }
@@ -684,18 +684,18 @@ function sameEmail(left: string, right: string): boolean {
 }
 
 function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOptions: StorefrontOptions) {
-  const storeId = requireId(identity?.storeId, "store");
+  const tenantId = requireId(identity?.tenantId, "tenant");
   const salesChannelId = requireId(identity?.salesChannelId, "sales channel");
   const options = requireIdFactories(suppliedOptions);
   const apiUrl = normalizeStorefrontApiUrl(options.apiUrl);
   let locale = options.locale?.trim() ?? "";
   let market = contextKey(options.market, "market");
-  const listeners = new Set<AuthStateListener<StorefrontCustomerSession>>();
-  let automaticRefreshPromise: Promise<CustomerSessionResult> | null = null;
-  let identifyPromise: Promise<CustomerSessionResult> | null = null;
+  const listeners = new Set<AuthStateListener<StorefrontUserSession>>();
+  let automaticRefreshPromise: Promise<UserSessionResult> | null = null;
+  let identifyPromise: Promise<UserSessionResult> | null = null;
   let identifyKey: string | null = null;
   let pendingVerifySessionId: string | null = null;
-  let pendingVisitorIdentity: IdentifyCustomerParams | null = null;
+  let pendingVisitorIdentity: IdentifyUserParams | null = null;
   let visitorIdentityConsumed = false;
   let identityTail: Promise<void> = Promise.resolve();
   let setupRequest: SharedRequest<StorefrontSetup> | null = null;
@@ -709,8 +709,8 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
   const sharedWithOtherTabs = !explicitSessionStorage && defaultSessionStorage.type === "available";
   let storageUnavailable = defaultSessionStorage.type === "refused";
   const canCreateVisitorSession = typeof window !== "undefined" || Boolean(explicitSessionStorage);
-  const storageKey = storefrontSessionStorageKey(apiUrl, storeId, salesChannelId);
-  let memorySession: CustomerSessionResult | null = null;
+  const storageKey = storefrontSessionStorageKey(apiUrl, tenantId, salesChannelId);
+  let memorySession: UserSessionResult | null = null;
   let unsubscribeStorage: (() => void) | null = null;
 
   function readStoredText(): { type: "read"; value: string | null } | { type: "refused" } {
@@ -725,7 +725,7 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
 
   const startup = readStoredText();
   if (startup.type === "read") {
-    memorySession = parseStoredCustomerSession(startup.value);
+    memorySession = parseStoredUserSession(startup.value);
     if (startup.value && !memorySession && sessionStorage) {
       try {
         sessionStorage.removeItem(storageKey);
@@ -735,36 +735,36 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
     }
   }
 
-  function storedSession(): CustomerSessionResult | null {
+  function storedSession(): UserSessionResult | null {
     const read = readStoredText();
     if (read.type === "refused") return memorySession;
-    memorySession = parseStoredCustomerSession(read.value);
+    memorySession = parseStoredUserSession(read.value);
     return memorySession;
   }
 
   visitorIdentityConsumed = Boolean(memorySession && options.visitorIdentity && memorySession.session.id === options.visitorIdentity.session_id);
 
-  function authorizationToken(session: CustomerSessionResult | null = storedSession()): string | null {
+  function authorizationToken(session: UserSessionResult | null = storedSession()): string | null {
     if (!session || session.session.status.type !== "active") return null;
     return session.session.type === "visitor" ? session.session.token : session.session.access_token;
   }
 
-  function writeCustomerSession(session: CustomerSessionResult | null): void {
+  function writeUserSession(session: UserSessionResult | null): void {
     if (
       session &&
-      (!isIssuedCustomerSession(session.session) ||
-        !isStoredCustomer(session.customer) ||
-        session.session.customer_id !== session.customer.id)
+      (!isIssuedUserSession(session.session) ||
+        !isStoredUser(session.user) ||
+        session.session.user_id !== session.user.id)
     ) {
-      throw new RangeError("The customer session must be active, name its customer and carry epoch-millisecond times");
+      throw new RangeError("The user session must be active, name its user and carry epoch-millisecond times");
     }
     memorySession = session;
     if (!sessionStorage || storageUnavailable) return;
     try {
       if (session) {
-        const stored: StoredCustomerSession = {
+        const stored: StoredUserSession = {
           version: 5,
-          customer: session.customer,
+          user: session.user,
           session: session.session,
         };
         sessionStorage.setItem(storageKey, JSON.stringify(stored));
@@ -776,7 +776,7 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
     }
   }
 
-  function toPublic(value: CustomerSessionResult | null): StorefrontCustomerSession | null {
+  function toPublic(value: UserSessionResult | null): StorefrontUserSession | null {
     return value ? publicSession(value) : null;
   }
 
@@ -789,11 +789,11 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
     }
   }
 
-  const updateSession: CustomerSessionUpdater = (updater) => {
+  const updateSession: UserSessionUpdater = (updater) => {
     const previous = storedSession();
     const next = updater(previous);
     if (next === previous) return;
-    writeCustomerSession(next);
+    writeUserSession(next);
     emit();
   };
 
@@ -805,10 +805,10 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
       switch (issued.type) {
         case "visitor":
           return { access_token: issued.token };
-        case "store_customer_signed_in_by_email":
-        case "store_customer_signed_in_by_phone":
+        case "tenant_user_signed_in_by_email":
+        case "tenant_user_signed_in_by_phone":
           return { access_token: issued.access_token, refresh_token: issued.refresh_token };
-        case "network_customer_store_key":
+        case "network_user_tenant_key":
           return { access_token: issued.access_token };
       }
     },
@@ -835,7 +835,7 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
     const headerLocale = requestLocale(context.locale);
     const headerMarket = requestMarket(context.market);
     return {
-      "X-Arky-Store-Id": storeId,
+      "X-Arky-Tenant-Id": tenantId,
       "X-Arky-Sales-Channel-Id": salesChannelId,
       ...(headerLocale ? { "X-Arky-Locale": headerLocale } : {}),
       ...(headerMarket ? { "X-Arky-Market": headerMarket } : {}),
@@ -857,7 +857,7 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
     onUnauthorized: () => false,
   });
 
-  const apiConfig: StorefrontApiConfig = { httpClient, publicHttpClient, apiUrl, storeId, salesChannelId, authStorage };
+  const apiConfig: StorefrontApiConfig = { httpClient, publicHttpClient, apiUrl, tenantId, salesChannelId, authStorage };
 
   function requireVisitorSessionCapability(): void {
     if (!canCreateVisitorSession) {
@@ -937,16 +937,16 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
   }
 
   function pendingKey(flow: string, target: string): string {
-    const customerId = storedSession()?.customer.id;
-    if (!customerId) throw new ArkyError("no_session", "A retry-safe create needs the customer session first");
-    return durableCreateKey(storageKey, flow, customerId, target);
+    const userId = storedSession()?.user.id;
+    if (!userId) throw new ArkyError("no_session", "A retry-safe create needs the user session first");
+    return durableCreateKey(storageKey, flow, userId, target);
   }
 
   function verifiedContact(): EmailContact | null {
     const current = storedSession();
-    if (!current || current.session.type !== "store_customer_signed_in_by_email") return null;
+    if (!current || current.session.type !== "tenant_user_signed_in_by_email") return null;
     const signedInEmail = current.session.email;
-    for (const contact of current.customer.contacts) {
+    for (const contact of current.user.contacts) {
       if (contact.type === "confirmed_email" && sameEmail(contact.email, signedInEmail)) {
         return { email: contact.email, language: contact.language };
       }
@@ -957,7 +957,7 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
   function confirmedEmail(email: string): EmailContact | null {
     const current = storedSession();
     if (!current || current.session.type === "visitor" || current.session.status.type !== "active") return null;
-    for (const contact of current.customer.contacts) {
+    for (const contact of current.user.contacts) {
       if (contact.type === "confirmed_email" && sameEmail(contact.email, email)) {
         return { email: contact.email, language: contact.language };
       }
@@ -988,33 +988,33 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
       storageRefused: () => {
         storageUnavailable = true;
       },
-      customerId: () => storedSession()?.customer.id ?? null,
+      userId: () => storedSession()?.user.id ?? null,
       market: () => market || null,
       marketId,
     },
     flows,
   );
-  const customerApi = storefrontApi.customer;
+  const userApi = storefrontApi.user;
 
-  function pickVisitorIdentity(): IdentifyCustomerParams {
+  function pickVisitorIdentity(): IdentifyUserParams {
     if (pendingVisitorIdentity) return pendingVisitorIdentity;
     const picked = !visitorIdentityConsumed && options.visitorIdentity
       ? options.visitorIdentity
       : options.createVisitorIdentity();
     pendingVisitorIdentity = {
-      customer_id: requireId(picked.customer_id, "customer"),
-      session_id: requireId(picked.session_id, "customer session"),
+      user_id: requireId(picked.user_id, "user"),
+      session_id: requireId(picked.session_id, "user session"),
     };
     return pendingVisitorIdentity;
   }
 
-  async function identify(params: IdentifyCustomerParams = pickVisitorIdentity()): Promise<CustomerSessionResult> {
+  async function identify(params: IdentifyUserParams = pickVisitorIdentity()): Promise<UserSessionResult> {
     requireVisitorSessionCapability();
-    const key = `${params.customer_id}:${params.session_id}`;
+    const key = `${params.user_id}:${params.session_id}`;
     if (identifyPromise && identifyKey === key) return identifyPromise;
     const pending = () =>
-      pendingVisitorIdentity?.customer_id === params.customer_id && pendingVisitorIdentity.session_id === params.session_id;
-    const promise = identityTail.then(() => customerApi.identify(params)).then(
+      pendingVisitorIdentity?.user_id === params.user_id && pendingVisitorIdentity.session_id === params.session_id;
+    const promise = identityTail.then(() => userApi.identify(params)).then(
       (result) => {
         visitorIdentityConsumed = true;
         if (pending()) pendingVisitorIdentity = null;
@@ -1026,8 +1026,8 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
           visitorIdentityConsumed = true;
           const replacement = options.createVisitorIdentity();
           pendingVisitorIdentity = {
-            customer_id: requireId(replacement.customer_id, "customer"),
-            session_id: requireId(replacement.session_id, "customer session"),
+            user_id: requireId(replacement.user_id, "user"),
+            session_id: requireId(replacement.session_id, "user session"),
           };
         }
         throw error;
@@ -1052,12 +1052,12 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
     return promise;
   }
 
-  async function requestCode(params: RequestCustomerCodeParams): Promise<CustomerCodeResult> {
+  async function requestCode(params: RequestUserCodeParams): Promise<UserCodeResult> {
     requireVisitorSessionCapability();
     if (params.id !== undefined) requireId(params.id, "sign-in email");
     await ensureVisitorSession();
     const send = (id: string) =>
-      customerApi.requestCode({ id, contact: params.contact });
+      userApi.requestCode({ id, contact: params.contact });
     const result =
       params.id !== undefined
         ? await send(params.id)
@@ -1073,13 +1073,13 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
     return result;
   }
 
-  async function verify(params: VerifyCustomerCodeParams): Promise<CustomerSessionResult> {
+  async function verify(params: VerifyUserCodeParams): Promise<UserSessionResult> {
     requireVisitorSessionCapability();
     await ensureVisitorSession();
-    pendingVerifySessionId ??= requireId(options.createSessionId(), "customer session");
+    pendingVerifySessionId ??= requireId(options.createSessionId(), "user session");
     const sessionId = pendingVerifySessionId;
     try {
-      const result = await customerApi.verify({
+      const result = await userApi.verify({
         session_id: sessionId,
         code: params.code,
         email: params.email,
@@ -1094,51 +1094,51 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
     }
   }
 
-  async function verifyContact(params: VerifyOwnContactParams, options?: RequestOptions): Promise<CustomerMe> {
+  async function verifyContact(params: VerifyOwnContactParams, options?: RequestOptions): Promise<UserMe> {
     await ensureVisitorSession();
     const requested = storedSession();
-    const result = await customerApi.verifyContact(params, options);
-    applyAnsweredCustomer(requested, result);
+    const result = await userApi.verifyContact(params, options);
+    applyAnsweredUser(requested, result);
     identifyPromise = null;
     return result;
   }
 
-  async function addContact(params: AddOwnContactParams, options?: RequestOptions): Promise<CustomerMe> {
+  async function addContact(params: AddOwnContactParams, options?: RequestOptions): Promise<UserMe> {
     await ensureVisitorSession();
     const requested = storedSession();
-    const result = await customerApi.addContact(params, options);
-    applyAnsweredCustomer(requested, result);
+    const result = await userApi.addContact(params, options);
+    applyAnsweredUser(requested, result);
     return result;
   }
 
-  async function updateContact(params: UpdateOwnContactParams, options?: RequestOptions): Promise<CustomerMe> {
+  async function updateContact(params: UpdateOwnContactParams, options?: RequestOptions): Promise<UserMe> {
     await ensureVisitorSession();
     const requested = storedSession();
-    const result = await customerApi.updateContact(params, options);
-    applyAnsweredCustomer(requested, result);
+    const result = await userApi.updateContact(params, options);
+    applyAnsweredUser(requested, result);
     return result;
   }
 
-  async function removeContact(params: RemoveOwnContactParams, options?: RequestOptions): Promise<CustomerMe> {
+  async function removeContact(params: RemoveOwnContactParams, options?: RequestOptions): Promise<UserMe> {
     await ensureVisitorSession();
     const requested = storedSession();
-    const result = await customerApi.removeContact(params, options);
-    applyAnsweredCustomer(requested, result);
+    const result = await userApi.removeContact(params, options);
+    applyAnsweredUser(requested, result);
     return result;
   }
 
   async function removeLink(options?: RequestOptions): Promise<OwnLinkRemoved> {
     const current = storedSession();
     if (!current || current.session.type === "visitor" || !authorizationToken(current)) {
-      throw new ArkyError("no_session", "Removing the link needs a signed-in customer");
+      throw new ArkyError("no_session", "Removing the link needs a signed-in user");
     }
     identifyPromise = null;
-    return customerApi.removeLink(options);
+    return userApi.removeLink(options);
   }
 
-  function useStoreKey(key: NetworkCustomerStoreKey): CustomerSessionResult {
+  function useTenantKey(key: NetworkUserTenantKey): UserSessionResult {
     identifyPromise = null;
-    return customerApi.useStoreKey(key);
+    return userApi.useTenantKey(key);
   }
 
   function visitorToken(): string | null {
@@ -1148,55 +1148,55 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
       : null;
   }
 
-  async function refresh(params: RefreshCustomerSessionParams): Promise<CustomerSessionResult> {
+  async function refresh(params: RefreshUserSessionParams): Promise<UserSessionResult> {
     requireVisitorSessionCapability();
-    const result = await customerApi.refresh(params);
+    const result = await userApi.refresh(params);
     identifyPromise = null;
     return result;
   }
 
-  function applyAnsweredCustomer(requested: CustomerSessionResult | null, result: CustomerMe): void {
-    const customer = result.customer;
+  function applyAnsweredUser(requested: UserSessionResult | null, result: UserMe): void {
+    const user = result.user;
     const current = storedSession();
     if (
       !requested ||
       !current ||
       current.session.id !== requested.session.id ||
-      current.customer.id !== requested.customer.id ||
-      customer.id !== requested.customer.id ||
+      current.user.id !== requested.user.id ||
+      user.id !== requested.user.id ||
       result.session.id !== requested.session.id ||
-      result.session.customer_id !== requested.customer.id ||
-      result.session.store_id !== requested.customer.store_id
+      result.session.user_id !== requested.user.id ||
+      result.session.tenant_id !== requested.user.tenant_id
     ) {
       return;
     }
-    updateSession((previous) => (previous ? { ...previous, customer } : previous));
+    updateSession((previous) => (previous ? { ...previous, user } : previous));
   }
 
-  async function me(options?: RequestOptions): Promise<CustomerMe | null> {
+  async function me(options?: RequestOptions): Promise<UserMe | null> {
     if (!authorizationToken()) return null;
     const requested = storedSession();
-    const result = await customerApi.getMe(options);
-    applyAnsweredCustomer(requested, result);
+    const result = await userApi.getMe(options);
+    applyAnsweredUser(requested, result);
     return result;
   }
 
-  async function updateMe(params: UpdateCustomerMeParams, options?: RequestOptions): Promise<CustomerMe> {
+  async function updateMe(params: UpdateUserMeParams, options?: RequestOptions): Promise<UserMe> {
     await ensureVisitorSession();
     const requested = storedSession();
-    const result = await customerApi.updateMe(params, options);
-    applyAnsweredCustomer(requested, result);
+    const result = await userApi.updateMe(params, options);
+    applyAnsweredUser(requested, result);
     return result;
   }
 
-  async function resubscribe(params: OwnContactParams, options?: RequestOptions): Promise<CustomerMe> {
+  async function resubscribe(params: OwnContactParams, options?: RequestOptions): Promise<UserMe> {
     await ensureVisitorSession();
-    return customerApi.resubscribe(params, options);
+    return userApi.resubscribe(params, options);
   }
 
-  async function unsubscribe(params: OwnContactParams, options?: RequestOptions): Promise<CustomerMe> {
+  async function unsubscribe(params: OwnContactParams, options?: RequestOptions): Promise<UserMe> {
     await ensureVisitorSession();
-    return customerApi.unsubscribe(params, options);
+    return userApi.unsubscribe(params, options);
   }
 
   async function logout(): Promise<StorefrontLogoutResult> {
@@ -1207,7 +1207,7 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
       return { type: "local_only" };
     }
     try {
-      await customerApi.logout();
+      await userApi.logout();
       return { type: "revoked", session_id: requested.session.id };
     } catch {
       return { type: "unconfirmed", session_id: requested.session.id };
@@ -1227,7 +1227,7 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
   async function joinNewsletter(params: JoinNewsletterParams, requestOptions?: RequestOptions): Promise<JoinFreePackageResult> {
     if (params.code !== undefined) {
       const result = await verify({ code: params.code });
-      const email = result.session.type === "store_customer_signed_in_by_email" ? result.session.email : null;
+      const email = result.session.type === "tenant_user_signed_in_by_email" ? result.session.email : null;
       if (email === null || !sameEmail(email, params.email)) {
         throw new PackageJoinError("email_mismatch", "The code confirmed another email address; start again");
       }
@@ -1266,7 +1266,7 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
         await exclusive(`${storageKey}:refresh`, async () => {
           if (authorizationToken() !== failedAuthorizationToken) return;
           if (!automaticRefreshPromise) {
-            automaticRefreshPromise = refresh({ session_id: requireId(options.createSessionId(), "customer session") }).finally(() => {
+            automaticRefreshPromise = refresh({ session_id: requireId(options.createSessionId(), "user session") }).finally(() => {
               automaticRefreshPromise = null;
             });
           }
@@ -1285,8 +1285,8 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
     }
     if (!refusedByArky(response)) return false;
     if (authorizationToken() === failedAuthorizationToken) updateSession(() => null);
-    if (/\/customer\/identify$/.test(path)) return true;
-    if (/\/customer\/logout$/.test(path)) return false;
+    if (/\/user\/identify$/.test(path)) return true;
+    if (/\/user\/logout$/.test(path)) return false;
     const recovery = ensureVisitorSession();
     const trackedRecovery = recovery.finally(() => {
       if (visitorRecoveryPromise === trackedRecovery) visitorRecoveryPromise = null;
@@ -1306,7 +1306,7 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
   }
 
   return {
-    get session(): StorefrontCustomerSession | null {
+    get session(): StorefrontUserSession | null {
       return toPublic(storedSession());
     },
 
@@ -1323,7 +1323,7 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
       return storageUnavailable;
     },
 
-    onAuthStateChanged(listener: AuthStateListener<StorefrontCustomerSession>): () => void {
+    onAuthStateChanged(listener: AuthStateListener<StorefrontUserSession>): () => void {
       listeners.add(listener);
       watchOtherTabs();
       const current = toPublic(storedSession());
@@ -1341,18 +1341,18 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
       };
     },
 
-    store: {
-      ...storefrontApi.store,
-      market: { ...storefrontApi.store.market, getCurrent: currentMarket },
+    tenant: {
+      ...storefrontApi.tenant,
+      market: { ...storefrontApi.tenant.market, getCurrent: currentMarket },
     },
     category: storefrontApi.category,
     media: storefrontApi.media,
     content: storefrontApi.content,
-    customerEntries: storefrontApi.customerEntries,
+    userEntries: storefrontApi.userEntries,
     forms: storefrontApi.forms,
     eshop: storefrontApi.eshop,
     companies: storefrontApi.companies,
-    customer: {
+    user: {
       identify,
       ensureSession: ensureVisitorSession,
       requestCode,
@@ -1362,7 +1362,7 @@ function createStorefrontClientCore(identity: StorefrontIdentity, suppliedOption
       updateContact,
       removeContact,
       removeLink,
-      useStoreKey,
+      useTenantKey,
       get visitorToken(): string | null {
         return visitorToken();
       },

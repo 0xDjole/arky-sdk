@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
-import { SUPPORTED_STORE_CURRENCIES, convertToMajor, convertToMinor, formatMinor, getCurrencyMinorUnits } from "../dist/utils.js";
+import { SUPPORTED_TENANT_CURRENCIES, convertToMajor, convertToMinor, formatMinor, getCurrencyMinorUnits } from "../dist/utils.js";
 import { errorResponse, ids, recordFetch } from "./helpers/arky-fixtures.mjs";
 
-const STORE_ID = "4f2a9c61-7e3b-4d85-a0c9-1b6e8d3f5a27";
+const TENANT_ID = "4f2a9c61-7e3b-4d85-a0c9-1b6e8d3f5a27";
 const API = "https://api.example.test";
 
-const expectedStoreCurrencies = [
+const expectedTenantCurrencies = [
   "usd", "aed", "afn", "all", "amd", "ang", "aoa", "ars", "aud", "awg", "azn", "bam", "bbd", "bdt", "bhd", "bif", "bmd", "bnd", "bob", "brl",
   "bsd", "bwp", "byn", "bzd", "cad", "cdf", "chf", "clp", "cny", "cop", "crc", "cve", "czk", "djf", "dkk", "dop", "dzd", "egp", "etb", "eur",
   "fjd", "fkp", "gbp", "gel", "gip", "gmd", "gnf", "gtq", "gyd", "hkd", "hnl", "htg", "huf", "idr", "ils", "inr", "isk", "jmd", "jod", "jpy",
@@ -40,9 +40,9 @@ const adminSurface = {
   "content.entry": ["create", "delete", "find", "get", "getByKey", "update"],
   "content.privateCollection": ["create", "delete", "find", "get", "getByKey", "update"],
   "content.privateEntry": ["create", "delete", "fileLink", "find", "get", "print", "update"],
-  customers: ["addContact", "create", "erase", "export", "find", "findInvites", "findSessions", "get", "import", "inviteContact", "merge", "previewImport", "removeContact", "removeLink", "revokeAllSessions", "revokeSession", "update", "updateContact"],
-  "customers.suppression": ["blockEmail", "blockSms", "find", "get", "recordResubscribe", "recordUnsubscribe", "releaseSms", "unblockEmail"],
-  "customers.notes": ["create", "delete", "find", "update"],
+  users: ["addContact", "create", "erase", "export", "find", "findInvites", "findSessions", "get", "import", "inviteContact", "merge", "previewImport", "removeContact", "removeLink", "revokeAllSessions", "revokeSession", "update", "updateContact"],
+  "users.suppression": ["blockEmail", "blockSms", "find", "get", "recordResubscribe", "recordUnsubscribe", "releaseSms", "unblockEmail"],
+  "users.notes": ["create", "delete", "find", "update"],
   "eshop.bookingOffering": ["create", "delete", "find", "findAll", "findByResource", "findByService", "get", "update"],
   "eshop.bookingResource": ["create", "delete", "find", "findAll", "findByCategory", "get", "getByKey", "update"],
   "eshop.bookingService": ["create", "delete", "find", "findAll", "findByBlockTarget", "get", "getAvailability", "getByKey", "update"],
@@ -99,49 +99,49 @@ const adminSurface = {
   "platform.account": ["add", "delete", "find", "getMe", "resetSecondFactor"],
   "platform.networkSmsPost": ["find", "resolve"],
   "platform.resendEvent": ["find", "resolve"],
-  "platform.storePlanCharge": ["find", "settle"],
+  "platform.tenantPlanCharge": ["find", "settle"],
   "platform.stripeBillingEvent": ["find", "resolve"],
-  store: ["allowEmailSending", "create", "find", "get", "nameDefaultLocation", "pauseEmailSending", "requestDeletion", "resume", "suspend", "update", "wipe"],
-  "store.country": ["find", "get"],
-  "store.fiscalDevice": ["archive", "create", "find", "get", "release", "rename"],
-  "store.fiscalDevice.token": ["create", "find", "revoke"],
-  "store.invoiceCounter": ["confirm", "find"],
-  "store.invoicing": ["set"],
-  "store.location": ["create", "delete", "find", "get", "getByKey", "setFiscal", "update"],
-  "store.market": ["create", "delete", "find", "get", "getByKey", "update"],
-  "store.member": ["acceptInvite", "changeStatus", "find", "findDirectory", "findOwn", "findSessions", "getOwn", "invite", "remove", "resendInvite", "revokeSession", "updateRoles"],
-  "store.auditLog": ["find"],
-  "store.paymentOption": ["create", "createArkyMonri", "createArkyStripe", "createMonri", "createStripe", "find", "get", "getByKey", "update"],
-  "store.phoneNumber": ["create", "delete", "find", "get", "setUpAgain"],
-  "store.provider": ["checkResendSetup", "checkStripeSetup", "connectArkyCroatiaCis", "connectArkyElevenLabs", "connectArkyMonri", "connectArkyOfsCloud", "connectArkyResend", "connectArkyStripe", "connectArkyTwilio", "connectCroatiaCis", "connectElevenLabs", "connectMonri", "connectNetworkTwilio", "connectOfsCloud", "connectResend", "connectStripe", "connectTwilio", "delete", "find", "findLogins", "findNetworkLogins", "findResendDomains", "get", "refreshStripe", "replaceCroatiaCisCertificate", "replaceMonriMerchantKey", "replaceResendKey", "replaceStripeKeys", "replaceTwilioAuthToken", "saveStripeWebhookSecret", "setSmsSender", "setStatus", "setUpElevenLabsAgain"],
-  "store.seller": ["create", "delete", "get", "update"],
-  "store.role": ["create", "delete", "find", "get", "update"],
-  "store.customerRole": ["create", "delete", "get", "update"],
-  "store.assistantMembership": ["create", "delete", "find", "get", "update"],
-  "store.salesChannel": ["create", "delete", "find", "get", "getByKey", "update"],
-  "store.shippingMethod": ["create", "delete", "find", "get", "getByKey", "update"],
-  "store.shippingProfile": ["create", "delete", "find", "get", "getByKey", "update"],
-  "store.simulator.calls": ["callTool", "findConversations", "finishConversation", "get", "setStatus", "start"],
-  "store.simulator.emails": ["find"],
-  "store.simulator.payments": ["decline", "expire", "pay"],
-  "store.simulator.plannedOutcomes": ["create", "find", "remove"],
-  "store.simulator.sms": ["find"],
-  "store.subscription": ["cancel", "changePlan", "createCardSetup", "endGrant", "findCharges", "get", "grant", "pendingPayment", "reportPayment", "setCard"],
-  "store.taxCategory": ["create", "delete", "find", "get", "getByKey", "update"],
-  "store.usage": ["get"],
-  "store.plan": ["get"],
-  "store.agreement": ["get"],
-  "store.testStores": ["find", "findByLiveStores"],
+  tenant: ["allowEmailSending", "create", "find", "get", "nameDefaultLocation", "pauseEmailSending", "requestDeletion", "resume", "suspend", "update", "wipe"],
+  "tenant.country": ["find", "get"],
+  "tenant.fiscalDevice": ["archive", "create", "find", "get", "release", "rename"],
+  "tenant.fiscalDevice.token": ["create", "find", "revoke"],
+  "tenant.invoiceCounter": ["confirm", "find"],
+  "tenant.invoicing": ["set"],
+  "tenant.location": ["create", "delete", "find", "get", "getByKey", "setFiscal", "update"],
+  "tenant.market": ["create", "delete", "find", "get", "getByKey", "update"],
+  "tenant.member": ["acceptInvite", "changeStatus", "find", "findDirectory", "findOwn", "findSessions", "getOwn", "invite", "remove", "resendInvite", "revokeSession", "updateRoles"],
+  "tenant.auditLog": ["find"],
+  "tenant.paymentOption": ["create", "createArkyMonri", "createArkyStripe", "createMonri", "createStripe", "find", "get", "getByKey", "update"],
+  "tenant.phoneNumber": ["create", "delete", "find", "get", "setUpAgain"],
+  "tenant.provider": ["checkResendSetup", "checkStripeSetup", "connectArkyCroatiaCis", "connectArkyElevenLabs", "connectArkyMonri", "connectArkyOfsCloud", "connectArkyResend", "connectArkyStripe", "connectArkyTwilio", "connectCroatiaCis", "connectElevenLabs", "connectMonri", "connectNetworkTwilio", "connectOfsCloud", "connectResend", "connectStripe", "connectTwilio", "delete", "find", "findLogins", "findNetworkLogins", "findResendDomains", "get", "refreshStripe", "replaceCroatiaCisCertificate", "replaceMonriMerchantKey", "replaceResendKey", "replaceStripeKeys", "replaceTwilioAuthToken", "saveStripeWebhookSecret", "setSmsSender", "setStatus", "setUpElevenLabsAgain"],
+  "tenant.seller": ["create", "delete", "get", "update"],
+  "tenant.role": ["create", "delete", "find", "get", "update"],
+  "tenant.userRole": ["create", "delete", "get", "update"],
+  "tenant.assistantMembership": ["create", "delete", "find", "get", "update"],
+  "tenant.salesChannel": ["create", "delete", "find", "get", "getByKey", "update"],
+  "tenant.shippingMethod": ["create", "delete", "find", "get", "getByKey", "update"],
+  "tenant.shippingProfile": ["create", "delete", "find", "get", "getByKey", "update"],
+  "tenant.simulator.calls": ["callTool", "findConversations", "finishConversation", "get", "setStatus", "start"],
+  "tenant.simulator.emails": ["find"],
+  "tenant.simulator.payments": ["decline", "expire", "pay"],
+  "tenant.simulator.plannedOutcomes": ["create", "find", "remove"],
+  "tenant.simulator.sms": ["find"],
+  "tenant.subscription": ["cancel", "changePlan", "createCardSetup", "endGrant", "findCharges", "get", "grant", "pendingPayment", "reportPayment", "setCard"],
+  "tenant.taxCategory": ["create", "delete", "find", "get", "getByKey", "update"],
+  "tenant.usage": ["get"],
+  "tenant.plan": ["get"],
+  "tenant.agreement": ["get"],
+  "tenant.testTenants": ["find", "findByLiveTenants"],
   network: ["create", "delete", "find", "get", "update"],
-  "network.provider": ["connectElevenLabs", "connectResend", "connectStripe", "connectTwilio", "delete", "find", "get", "replaceEmailCustomerTexts", "replaceResendKey", "replaceSmsCustomerTexts", "replaceStripeKeys", "replaceTwilioAuthToken", "setStatus", "setUpElevenLabsAgain", "updateResend"],
+  "network.provider": ["connectElevenLabs", "connectResend", "connectStripe", "connectTwilio", "delete", "find", "get", "replaceEmailUserTexts", "replaceResendKey", "replaceSmsUserTexts", "replaceStripeKeys", "replaceTwilioAuthToken", "setStatus", "setUpElevenLabsAgain", "updateResend"],
   "network.plan": ["create", "delete", "find", "update"],
-  "network.store": ["find", "findSubscriptions", "get", "getAgreement", "nameOwner"],
+  "network.tenant": ["find", "findSubscriptions", "get", "getAgreement", "nameOwner"],
   "network.role": ["create", "delete", "find", "get", "update"],
   "network.member": ["acceptInvite", "changeStatus", "find", "getOwn", "invite", "remove", "resetSecondFactor", "updateRoles"],
-  "store.webhook": ["create", "delete", "find", "test", "update"],
-  "store.zone": ["create", "delete", "find", "get", "getByKey", "update"],
+  "tenant.webhook": ["create", "delete", "find", "test", "update"],
+  "tenant.zone": ["create", "delete", "find", "get", "getByKey", "update"],
   "support.call": ["find", "get", "getRecordingLink"],
-  "support.conversation": ["assign", "changeChatVisibility", "find", "findMessages", "get", "getAttachmentLink", "getMessage", "markRead", "markUnread", "reopen", "reply", "resolve", "selectReplyEmail", "sendCustomerSms", "sendSms", "startChat", "startEmail"],
+  "support.conversation": ["assign", "changeChatVisibility", "find", "findMessages", "get", "getAttachmentLink", "getMessage", "markRead", "markUnread", "reopen", "reply", "resolve", "selectReplyEmail", "sendSms", "sendUserSms", "startChat", "startEmail"],
   "support.conversation.notes": ["create", "delete", "find", "update"],
   "support.assistant": ["create", "delete", "find", "get", "update"],
   "support.elevenLabsPost": ["find", "resolve"],
@@ -166,9 +166,9 @@ function admin() {
   return createAdmin({ apiUrl: API, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
 }
 
-test("store currencies and minor units match the Server's currency table, in its order", () => {
-  assert.deepEqual([...SUPPORTED_STORE_CURRENCIES], expectedStoreCurrencies);
-  for (const currency of expectedStoreCurrencies) {
+test("tenant currencies and minor units match the Server's currency table, in its order", () => {
+  assert.deepEqual([...SUPPORTED_TENANT_CURRENCIES], expectedTenantCurrencies);
+  for (const currency of expectedTenantCurrencies) {
     assert.equal(getCurrencyMinorUnits(currency), minorUnitExceptions[currency] ?? 2, currency);
   }
   assert.equal(convertToMinor(1.234, "kwd"), 1234);
@@ -191,9 +191,9 @@ test("the Admin client exposes exactly the reviewed Domain5 surface", () => {
   assert.deepEqual(surfaceOf(admin()), adminSurface);
 });
 
-test("deleted features and store switching are absent from the Admin client", () => {
+test("deleted features and tenant switching are absent from the Admin client", () => {
   const client = admin();
-  for (const removed of ["setStoreId", "getStoreId", "social", "automations", "mailbox", "mailboxes", "campaign", "campaigns", "leadResearch", "cms", "crm", "customer", "commerce"]) {
+  for (const removed of ["setTenantId", "getTenantId", "social", "automations", "mailbox", "mailboxes", "campaign", "campaigns", "leadResearch", "cms", "crm", "user", "commerce"]) {
     assert.equal(removed in client, false, removed);
   }
   for (const removed of [
@@ -202,18 +202,18 @@ test("deleted features and store switching are absent from the Admin client", ()
   ]) {
     assert.equal(removed in client.eshop, false, removed);
   }
-  for (const removed of ["buildHook", "paymentTerms", "taxRule", "shippingRate", "marketZone", "storefrontClient"]) assert.equal(removed in client.store, false, removed);
+  for (const removed of ["buildHook", "paymentTerms", "taxRule", "shippingRate", "marketZone", "storefrontClient"]) assert.equal(removed in client.tenant, false, removed);
   for (const removed of ["stop", "emailSender", "emailProvider", "outgoingEmail"]) assert.equal(removed in client.notification, false, removed);
-  assert.equal("emails" in client.store, false);
+  assert.equal("emails" in client.tenant, false);
   assert.equal("entryAccess" in client.content, false);
   for (const removed of ["channel", "ai"]) assert.equal(removed in client.support, false, removed);
   assert.equal("category" in client.content, false);
   for (const removed of ["getCheckout", "retainSelection", "recoverSelection", "pendingSelection", "reactivate", "getPlans", "select", "createPortalSession"]) {
-    assert.equal(removed in client.store.subscription, false, removed);
+    assert.equal(removed in client.tenant.subscription, false, removed);
   }
-  for (const removed of ["stripe", "monri", "arkyStripe", "arkyMonri"]) assert.equal(removed in client.store.paymentOption, false, removed);
+  for (const removed of ["stripe", "monri", "arkyStripe", "arkyMonri"]) assert.equal(removed in client.tenant.paymentOption, false, removed);
   for (const removed of ["setup", "configure", "cancelConfiguration", "getConfigurationChange", "openDashboard", "getConnection", "createWebhook", "rotateWebhookSecret"]) {
-    assert.equal(removed in client.store.provider, false, removed);
+    assert.equal(removed in client.tenant.provider, false, removed);
   }
   assert.equal("decide" in client.eshop.fulfillmentJob, false);
   assert.equal("googleStart" in client.account.auth, false);
@@ -229,16 +229,16 @@ test("broadcasts are created under the app-picked id, scheduled, sent and tested
   const offeringAudience = { type: "package_members", include: [{ type: "package_offering", package_offering_id: "offering" }], exclude: [{ type: "package", package_id: "package" }], conditions: [{ type: "ordered_within", days: 30 }] };
   const emailType = { type: "email", email: { email_template_id: "8c1e5a93-2d47-4b06-9f3a-6e0b4d8c2a71", email_address_id: "3f7b0d26-9a41-4c85-b2e6-1d5a8f3c7e09", from_name: "Shop", reply_to_address_id: "3f7b0d26-9a41-4c85-b2e6-1d5a8f3c7e09" }, audience };
   const otherType = { ...emailType, email: { ...emailType.email, from_name: "Shop team" }, audience: offeringAudience };
-  await api.find({ store_id: STORE_ID, query: "spring", status: "draft", limit: 5 });
-  await api.create({ store_id: STORE_ID, id: broadcastId, key: "spring", type: emailType });
-  await api.update({ store_id: STORE_ID, id: broadcastId, expected_updated_at: 1, type: otherType });
-  await api.preview({ store_id: STORE_ID, id: broadcastId, language: "en" });
-  await api.test({ store_id: STORE_ID, id: broadcastId, outgoing_message_id: testId, language: "en" });
-  await api.schedule({ store_id: STORE_ID, id: broadcastId, expected_updated_at: 2, send_at: 1_900_000_000_000 });
-  await api.unschedule({ store_id: STORE_ID, id: broadcastId, expected_updated_at: 3 });
-  await api.send({ store_id: STORE_ID, id: broadcastId, expected_updated_at: 4 });
-  await api.delete({ store_id: STORE_ID, id: broadcastId, expected_updated_at: 5 });
-  const base = `/v1/stores/${STORE_ID}/broadcasts`;
+  await api.find({ tenant_id: TENANT_ID, query: "spring", status: "draft", limit: 5 });
+  await api.create({ tenant_id: TENANT_ID, id: broadcastId, key: "spring", type: emailType });
+  await api.update({ tenant_id: TENANT_ID, id: broadcastId, expected_updated_at: 1, type: otherType });
+  await api.preview({ tenant_id: TENANT_ID, id: broadcastId, language: "en" });
+  await api.test({ tenant_id: TENANT_ID, id: broadcastId, outgoing_message_id: testId, language: "en" });
+  await api.schedule({ tenant_id: TENANT_ID, id: broadcastId, expected_updated_at: 2, send_at: 1_900_000_000_000 });
+  await api.unschedule({ tenant_id: TENANT_ID, id: broadcastId, expected_updated_at: 3 });
+  await api.send({ tenant_id: TENANT_ID, id: broadcastId, expected_updated_at: 4 });
+  await api.delete({ tenant_id: TENANT_ID, id: broadcastId, expected_updated_at: 5 });
+  const base = `/v1/tenants/${TENANT_ID}/broadcasts`;
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
     ["GET", base, { query: "spring", status: "draft", limit: "5" }, null],
     ["POST", base, {}, { id: broadcastId, key: "spring", type: emailType }],
@@ -250,8 +250,8 @@ test("broadcasts are created under the app-picked id, scheduled, sent and tested
     ["POST", `${base}/${broadcastId}/send`, {}, { expected_updated_at: 4 }],
     ["DELETE", `${base}/${broadcastId}`, { expected_updated_at: "5" }, null],
   ]);
-  await assert.rejects(async () => api.create({ store_id: STORE_ID, id: "spring", key: "spring", type: emailType }), TypeError);
-  await assert.rejects(async () => api.test({ store_id: STORE_ID, id: broadcastId, outgoing_message_id: "test-1", language: "en" }), {
+  await assert.rejects(async () => api.create({ tenant_id: TENANT_ID, id: "spring", key: "spring", type: emailType }), TypeError);
+  await assert.rejects(async () => api.test({ tenant_id: TENANT_ID, id: broadcastId, outgoing_message_id: "test-1", language: "en" }), {
     name: "TypeError",
     message: "The test email id must be a canonical UUID v4 picked by the app",
   });
@@ -261,28 +261,28 @@ test("broadcasts are created under the app-picked id, scheduled, sent and tested
 test("sales channels are created under the app-picked id with their markets and edited by version", async (context) => {
   const channelId = "8d3f1b75-2a46-4c09-b7e2-5f9a1c3d6e40";
   const calls = recordFetch(context, (call) => call.method === "DELETE" ? { deleted: true } : { id: channelId });
-  const api = admin().store.salesChannel;
-  await api.create({ store_id: STORE_ID, id: channelId, key: "web", market_ids: ["market"], status: { type: "active" } });
-  await api.update({ store_id: STORE_ID, id: channelId, expected_updated_at: 2, market_ids: [], status: { type: "archived" } });
-  await api.delete({ store_id: STORE_ID, id: channelId, expected_updated_at: 3 });
+  const api = admin().tenant.salesChannel;
+  await api.create({ tenant_id: TENANT_ID, id: channelId, key: "web", market_ids: ["market"], status: { type: "active" } });
+  await api.update({ tenant_id: TENANT_ID, id: channelId, expected_updated_at: 2, market_ids: [], status: { type: "archived" } });
+  await api.delete({ tenant_id: TENANT_ID, id: channelId, expected_updated_at: 3 });
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
-    ["POST", `/v1/stores/${STORE_ID}/sales-channels`, {}, { id: channelId, key: "web", market_ids: ["market"], status: { type: "active" } }],
-    ["PUT", `/v1/stores/${STORE_ID}/sales-channels/${channelId}`, {}, { expected_updated_at: 2, market_ids: [], status: { type: "archived" } }],
-    ["DELETE", `/v1/stores/${STORE_ID}/sales-channels/${channelId}`, { expected_updated_at: "3" }, null],
+    ["POST", `/v1/tenants/${TENANT_ID}/sales-channels`, {}, { id: channelId, key: "web", market_ids: ["market"], status: { type: "active" } }],
+    ["PUT", `/v1/tenants/${TENANT_ID}/sales-channels/${channelId}`, {}, { expected_updated_at: 2, market_ids: [], status: { type: "archived" } }],
+    ["DELETE", `/v1/tenants/${TENANT_ID}/sales-channels/${channelId}`, { expected_updated_at: "3" }, null],
   ]);
-  await assert.rejects(async () => api.create({ store_id: STORE_ID, id: "web", key: "web", market_ids: [], status: { type: "active" } }), TypeError);
+  await assert.rejects(async () => api.create({ tenant_id: TENANT_ID, id: "web", key: "web", market_ids: [], status: { type: "active" } }), TypeError);
   assert.equal(calls.length, 3);
 });
 
-test("a sales channel delete that finds no channel, deleted or another store's, rejects with the Server's 404", async (context) => {
+test("a sales channel delete that finds no channel, deleted or another tenant's, rejects with the Server's 404", async (context) => {
   const channelId = "8d3f1b75-2a46-4c09-b7e2-5f9a1c3d6e40";
   const calls = recordFetch(context, () => errorResponse(404, "GENERAL.NOT_FOUND", "Not found"));
   await assert.rejects(
-    admin().store.salesChannel.delete({ store_id: STORE_ID, id: channelId, expected_updated_at: 3 }),
+    admin().tenant.salesChannel.delete({ tenant_id: TENANT_ID, id: channelId, expected_updated_at: 3 }),
     (error) => error.statusCode === 404 && error.code === "GENERAL.NOT_FOUND",
   );
   assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
-    ["DELETE", `/v1/stores/${STORE_ID}/sales-channels/${channelId}`, { expected_updated_at: "3" }],
+    ["DELETE", `/v1/tenants/${TENANT_ID}/sales-channels/${channelId}`, { expected_updated_at: "3" }],
   ]);
 });
 

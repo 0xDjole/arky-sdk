@@ -4,10 +4,10 @@ import type { IncomingWebhookResolution, IncomingWebhookStatusName } from "./pay
 
 export type OutgoingMessageTypeName =
   | "network_sign_in_email"
-  | "customer_sign_in_email"
-  | "customer_invite_email"
-  | "store_admin_sign_in_email"
-  | "store_admin_invite_email"
+  | "user_sign_in_email"
+  | "user_invite_email"
+  | "tenant_admin_sign_in_email"
+  | "tenant_admin_invite_email"
   | "event_email"
   | "event_sms"
   | "form_received_email"
@@ -25,22 +25,22 @@ export type OutgoingMessageTypeName =
   | "template_test_email"
   | "support_reply_email"
   | "support_reply_sms"
-  | "customer_sign_in_sms"
-  | "customer_invite_sms";
+  | "user_sign_in_sms"
+  | "user_invite_sms";
 
 export type OutgoingMessageType =
   | { type: "network_sign_in_email"; network_id: string; network_provider_id: string }
-  | { type: "customer_sign_in_email"; notification_id: string; email_address_id: string }
-  | { type: "customer_invite_email"; notification_id: string; email_address_id: string }
-  | { type: "store_admin_sign_in_email"; notification_id: string; email_address_id: string }
-  | { type: "store_admin_invite_email"; notification_id: string; email_address_id: string }
+  | { type: "user_sign_in_email"; notification_id: string; email_address_id: string }
+  | { type: "user_invite_email"; notification_id: string; email_address_id: string }
+  | { type: "tenant_admin_sign_in_email"; notification_id: string; email_address_id: string }
+  | { type: "tenant_admin_invite_email"; notification_id: string; email_address_id: string }
   | { type: "event_email"; notification_id: string; email_address_id: string; event_id: string }
   | {
       type: "event_sms";
       notification_id: string;
       event_id: string;
-      store_id: string;
-      customer_id: string;
+      tenant_id: string;
+      user_id: string;
       language: string;
     }
   | { type: "form_received_email"; form_id: string; email_address_id: string; event_id: string }
@@ -60,8 +60,8 @@ export type OutgoingMessageType =
       order_id: string;
       order_booking_line_item_id: string;
       starts_at: EpochMilliseconds;
-      store_id: string;
-      customer_id: string;
+      tenant_id: string;
+      user_id: string;
       language: string;
     }
   | {
@@ -76,8 +76,8 @@ export type OutgoingMessageType =
       notification_id: string;
       order_id: string;
       order_booking_line_item_id: string;
-      store_id: string;
-      customer_id: string;
+      tenant_id: string;
+      user_id: string;
       language: string;
     }
   | {
@@ -92,18 +92,18 @@ export type OutgoingMessageType =
       notification_id: string;
       order_id: string;
       order_booking_line_item_id: string;
-      store_id: string;
-      customer_id: string;
+      tenant_id: string;
+      user_id: string;
       language: string;
     }
   | { type: "receipt_resend_email"; notification_id: string; email_address_id: string; order_id: string }
   | { type: "broadcast_email"; broadcast_id: string; email_address_id: string }
-  | { type: "broadcast_sms"; broadcast_id: string; store_id: string; customer_id: string; language: string }
+  | { type: "broadcast_sms"; broadcast_id: string; tenant_id: string; user_id: string; language: string }
   | { type: "template_test_email"; email_address_id: string }
   | { type: "support_reply_email"; email_address_id: string }
-  | { type: "support_reply_sms"; store_id: string; customer_id: string; language: string }
-  | { type: "customer_sign_in_sms"; notification_id: string; store_id: string; customer_id: string; language: string }
-  | { type: "customer_invite_sms"; notification_id: string; store_id: string; customer_id: string; language: string };
+  | { type: "support_reply_sms"; tenant_id: string; user_id: string; language: string }
+  | { type: "user_sign_in_sms"; notification_id: string; tenant_id: string; user_id: string; language: string }
+  | { type: "user_invite_sms"; notification_id: string; tenant_id: string; user_id: string; language: string };
 
 export interface OutgoingEmailRecovery {
   retry_until: EpochMilliseconds;
@@ -121,7 +121,7 @@ export type SmsNotSentReason =
   | { type: "no_text" }
   | { type: "template_failed" }
   | { type: "sender_unavailable" }
-  | { type: "store_unavailable" }
+  | { type: "tenant_unavailable" }
   | { type: "expired" }
   | { type: "order_history_limit" }
   | { type: "provider_rejected"; code: string };
@@ -141,8 +141,8 @@ export type OutgoingMessageStatus =
 
 export type WebhookUnacknowledgedReason =
   | { type: "webhook_unavailable" }
-  | { type: "store_closing" }
-  | { type: "store_unavailable" }
+  | { type: "tenant_closing" }
+  | { type: "tenant_unavailable" }
   | { type: "refused"; message: string }
   | { type: "no_acknowledgement"; last_reason: string };
 
@@ -208,7 +208,7 @@ export interface OutgoingMessage {
 
 export interface OutgoingWebhook {
   id: string;
-  store_id: string;
+  tenant_id: string;
   webhook_id: string;
   event_id: string;
   event_type: string;
@@ -237,14 +237,14 @@ export interface Email {
 }
 
 export type AlertRecipient =
-  | { type: "store_role"; store_role_id: string; language: string }
+  | { type: "tenant_role"; tenant_role_id: string; language: string }
   | { type: "email"; email: string; language: string };
 
 export type EmailTemplateTypeName =
-  | "customer_sign_in"
-  | "customer_invite"
-  | "store_admin_sign_in"
-  | "customer_email_verification"
+  | "user_sign_in"
+  | "user_invite"
+  | "tenant_admin_sign_in"
+  | "user_email_verification"
   | "login_changed"
   | "order_received"
   | "first_order_placed"
@@ -263,7 +263,7 @@ export type EmailTemplateTypeName =
   | "offer_reminder"
   | "company_invite"
   | "company_access_notice"
-  | "store_admin_invite"
+  | "tenant_admin_invite"
   | "return_requested"
   | "return_approved"
   | "return_declined"
@@ -301,8 +301,8 @@ export type EmailTemplateTypeName =
 export type EmailTemplateType = { type: EmailTemplateTypeName };
 
 export type SmsTemplateTypeName =
-  | "customer_sign_in"
-  | "customer_invite"
+  | "user_sign_in"
+  | "user_invite"
   | "login_changed"
   | "booking_confirmed"
   | "booking_reminder"
@@ -329,7 +329,7 @@ export type TemplateType =
 
 export interface Template {
   id: string;
-  store_id: string;
+  tenant_id: string;
   key: string;
   name: string;
   type: TemplateType;
@@ -343,7 +343,7 @@ export type TemplateSummaryType =
 
 export interface TemplateSummary {
   id: string;
-  store_id: string;
+  tenant_id: string;
   key: string;
   name: string;
   type: TemplateSummaryType;
@@ -381,15 +381,15 @@ export type TemplateContentChange =
   | { type: "sms"; content: Record<string, string> };
 
 export type NotificationTypeName =
-  | "customer_sign_in_email"
-  | "customer_sign_in_sms"
-  | "customer_invite_email"
-  | "customer_invite_sms"
-  | "store_admin_sign_in"
-  | "customer_email_verification"
+  | "user_sign_in_email"
+  | "user_sign_in_sms"
+  | "user_invite_email"
+  | "user_invite_sms"
+  | "tenant_admin_sign_in"
+  | "user_email_verification"
   | "login_changed_email"
   | "login_changed_sms"
-  | "store_admin_invite"
+  | "tenant_admin_invite"
   | "company_invite"
   | "company_access_notice"
   | "order_received"
@@ -448,15 +448,15 @@ export type NotificationServices =
   | { type: "ids"; booking_service_ids: string[] };
 
 export type NotificationType =
-  | { type: "customer_sign_in_email"; email: Email }
-  | { type: "customer_sign_in_sms"; sms_template_id: string }
-  | { type: "customer_invite_email"; email: Email }
-  | { type: "customer_invite_sms"; sms_template_id: string }
-  | { type: "store_admin_sign_in"; email: Email }
-  | { type: "customer_email_verification"; email: Email }
+  | { type: "user_sign_in_email"; email: Email }
+  | { type: "user_sign_in_sms"; sms_template_id: string }
+  | { type: "user_invite_email"; email: Email }
+  | { type: "user_invite_sms"; sms_template_id: string }
+  | { type: "tenant_admin_sign_in"; email: Email }
+  | { type: "user_email_verification"; email: Email }
   | { type: "login_changed_email"; email: Email }
   | { type: "login_changed_sms"; sms_template_id: string }
-  | { type: "store_admin_invite"; email: Email }
+  | { type: "tenant_admin_invite"; email: Email }
   | { type: "company_invite"; email: Email }
   | { type: "company_access_notice"; email: Email }
   | { type: "order_received"; email: Email }
@@ -523,7 +523,7 @@ export type ReminderResult =
 export type NotificationSwitch = "active" | "paused";
 
 export interface SendBookingReminderParams {
-  store_id: string;
+  tenant_id: string;
   order_id: string;
   order_booking_item_id: string;
   notification_id: string;
@@ -531,7 +531,7 @@ export interface SendBookingReminderParams {
 
 export interface Notification {
   id: string;
-  store_id: string;
+  tenant_id: string;
   type: NotificationType;
   status: NotificationStatus;
   created_at: EpochMilliseconds;
@@ -540,7 +540,7 @@ export interface Notification {
 
 export interface EmailLayout {
   id: string;
-  store_id: string;
+  tenant_id: string;
   key: string;
   name: string;
   logo_media_id: string | null;
@@ -551,7 +551,7 @@ export interface EmailLayout {
 
 export interface EmailLayoutSummary {
   id: string;
-  store_id: string;
+  tenant_id: string;
   key: string;
   name: string;
   logo_media_id: string | null;
@@ -562,14 +562,14 @@ export interface EmailLayoutSummary {
 
 export interface EmailAddress {
   id: string;
-  store_id: string;
+  tenant_id: string;
   login: ProviderLogin;
   email: string;
 }
 
-export type ProviderLoginInput = { type: "store"; store_provider_id: string } | { type: "network" };
+export type ProviderLoginInput = { type: "tenant"; tenant_provider_id: string } | { type: "network" };
 
-export type NetworkStoreAddresses = { type: "off" } | { type: "domain"; domain: string };
+export type NetworkTenantAddresses = { type: "off" } | { type: "domain"; domain: string };
 
 export type EmailReadinessReason =
   | "domain_absent"
@@ -601,7 +601,7 @@ export interface EmailAddressReadiness {
 }
 
 interface FindOutgoingMessagesFilters {
-  store_id: string;
+  tenant_id: string;
   to?: string;
   broadcast_id?: string;
   limit?: number;
@@ -613,31 +613,31 @@ export type FindOutgoingMessagesParams =
   | (FindOutgoingMessagesFilters & { type: "receipt_resend_email"; order_id: string });
 
 export interface GetOutgoingMessageParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface FindOutgoingWebhooksParams {
-  store_id: string;
+  tenant_id: string;
   webhook_id?: string;
   limit?: number;
   cursor?: string | null;
 }
 
 export interface GetOutgoingWebhookParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 interface FindTemplatesPage {
-  store_id: string;
+  tenant_id: string;
   ids?: never;
   limit?: number;
   cursor?: string | null;
 }
 
 export interface FindTemplatesByIdsParams {
-  store_id: string;
+  tenant_id: string;
   ids: string[];
   type?: never;
   purpose?: never;
@@ -652,16 +652,16 @@ export type FindTemplatesParams =
   | FindTemplatesByIdsParams;
 
 export interface GetTemplateParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface FindTemplateDefaultsParams {
-  store_id: string;
+  tenant_id: string;
 }
 
 export interface CreateTemplateParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   key: string;
   name: string;
@@ -669,7 +669,7 @@ export interface CreateTemplateParams {
 }
 
 export interface UpdateTemplateParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   key?: string;
@@ -678,13 +678,13 @@ export interface UpdateTemplateParams {
 }
 
 export interface DeleteTemplateParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface PreviewTemplateParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   language: string;
   layout_id?: string;
@@ -692,7 +692,7 @@ export interface PreviewTemplateParams {
 }
 
 export interface SendEmailTemplateTestParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   outgoing_message_id: string;
   language: string;
@@ -702,26 +702,26 @@ export interface SendEmailTemplateTestParams {
 }
 
 export interface FindNotificationsParams {
-  store_id: string;
+  tenant_id: string;
   type?: NotificationTypeName;
   limit?: number;
   cursor?: string | null;
 }
 
 export interface GetNotificationParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface CreateNotificationParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   type: NotificationType;
   status: NotificationSwitch;
 }
 
 export interface UpdateNotificationParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   type: NotificationType;
@@ -729,24 +729,24 @@ export interface UpdateNotificationParams {
 }
 
 export interface DeleteNotificationParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface FindEmailLayoutsParams {
-  store_id: string;
+  tenant_id: string;
   limit?: number;
   cursor?: string | null;
 }
 
 export interface GetEmailLayoutParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface CreateEmailLayoutParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   key: string;
   name: string;
@@ -755,7 +755,7 @@ export interface CreateEmailLayoutParams {
 }
 
 export interface UpdateEmailLayoutParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   key: string;
@@ -765,56 +765,56 @@ export interface UpdateEmailLayoutParams {
 }
 
 export interface DeleteEmailLayoutParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface FindEmailAddressesParams {
-  store_id: string;
+  tenant_id: string;
   limit?: number;
   cursor?: string | null;
 }
 
 export interface GetEmailAddressParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface CreateEmailAddressParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   email: string;
   login: ProviderLoginInput;
 }
 
 export interface DeleteEmailAddressParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface GetEmailAddressReadinessParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface GetEmailAddressNetworkDomainParams {
-  store_id: string;
+  tenant_id: string;
 }
 
-interface FindStoreResendEventsFilters {
-  store_id: string;
+interface FindTenantResendEventsFilters {
+  tenant_id: string;
   status: IncomingWebhookStatusName;
   limit?: number;
   cursor?: string | null;
 }
 
-export type FindStoreResendEventsParams =
-  | (FindStoreResendEventsFilters & { store_provider_id: string; network_provider_id?: never })
-  | (FindStoreResendEventsFilters & { network_provider_id: string; store_provider_id?: never });
+export type FindTenantResendEventsParams =
+  | (FindTenantResendEventsFilters & { tenant_provider_id: string; network_provider_id?: never })
+  | (FindTenantResendEventsFilters & { network_provider_id: string; tenant_provider_id?: never });
 
-export interface ResolveStoreResendEventParams {
-  store_id: string;
+export interface ResolveTenantResendEventParams {
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   resolution: IncomingWebhookResolution;

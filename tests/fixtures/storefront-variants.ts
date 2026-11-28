@@ -69,6 +69,6 @@ export type StorefrontVariantContracts = [
   Assert<Equal<Awaited<ReturnType<Client["eshop"]["product"]["findByIds"]>>, PaginatedResponse<StorefrontProduct>>>,
   Assert<Equal<FindStorefrontProductsByIdsParams["ids"], string[]>>,
   Assert<Equal<FindProductVariantsParams["ids"], string[] | undefined>>,
-  Assert<Equal<{ store_id: string; ids: string[]; product_id: string } extends FindProductVariantsParams ? true : false, false>>,
-  Assert<Equal<{ store_id: string; ids: string[]; limit: number } extends FindProductVariantsParams ? true : false, false>>,
+  Assert<Equal<{ tenant_id: string; ids: string[]; product_id: string } extends FindProductVariantsParams ? true : false, false>>,
+  Assert<Equal<{ tenant_id: string; ids: string[]; limit: number } extends FindProductVariantsParams ? true : false, false>>,
 ];

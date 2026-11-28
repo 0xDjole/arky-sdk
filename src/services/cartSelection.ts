@@ -25,7 +25,7 @@ const closedStatuses = ["converted", "merged", "superseded", "expired"];
 const maxMergedHops = 4;
 
 export function cartBuyerKey(buyer: CartBuyer | undefined): string {
-  if (!buyer || buyer.type === "customer") return "customer";
+  if (!buyer || buyer.type === "user") return "user";
   if (buyer.type === "company_location") return `company_location:${buyer.company_location_id}`;
   return `${buyer.type}:${buyer.company_id}`;
 }
@@ -74,10 +74,10 @@ function readSignIn(value: string | null): string | null {
     !Array.isArray(parsed) &&
     "version" in parsed &&
     parsed.version === 1 &&
-    "from_customer_id" in parsed &&
-    isCanonicalId(parsed.from_customer_id)
+    "from_user_id" in parsed &&
+    isCanonicalId(parsed.from_user_id)
   ) {
-    return parsed.from_customer_id;
+    return parsed.from_user_id;
   }
   return null;
 }
@@ -99,28 +99,28 @@ export function createCartSelection(
     return context.storage;
   }
 
-  function requireCustomerId(): string {
-    const customerId = context.customerId();
-    if (!customerId) {
-      throw new CartError("no_session", "Selecting a cart requires a customer session");
+  function requireUserId(): string {
+    const userId = context.userId();
+    if (!userId) {
+      throw new CartError("no_session", "Selecting a cart requires a user session");
     }
-    return customerId;
+    return userId;
   }
 
-  function selectionKey(customerId: string, params: StorefrontCurrentCartParams): string {
+  function selectionKey(userId: string, params: StorefrontCurrentCartParams): string {
     requireId(params?.package_id, "package");
     return [
       "arky:selected-cart:v3",
       context.namespace,
-      encodeURIComponent(customerId),
+      encodeURIComponent(userId),
       encodeURIComponent(context.market() ?? ""),
       encodeURIComponent(cartBuyerKey(params.buyer)),
       encodeURIComponent(params.package_id),
     ].join(":");
   }
 
-  function signInKey(customerId: string): string {
-    return ["arky:cart-sign-in:v1", context.namespace, encodeURIComponent(customerId)].join(":");
+  function signInKey(userId: string): string {
+    return ["arky:cart-sign-in:v1", context.namespace, encodeURIComponent(userId)].join(":");
   }
 
   function tokenKey(cartId: string): string {
@@ -138,9 +138,9 @@ export function createCartSelection(
     }
   }
 
-  function otherCart(cart: StorefrontCart, customerId: string | null, params: StorefrontCurrentCartParams): CartError | null {
-    if (!cart || typeof cart.id !== "string" || cart.customer_id !== customerId || !sameBuyer(cart, params.buyer)) {
-      return new CartError("other_cart", "The cart does not belong to this customer and buyer");
+  function otherCart(cart: StorefrontCart, userId: string | null, params: StorefrontCurrentCartParams): CartError | null {
+    if (!cart || typeof cart.id !== "string" || cart.user_id !== userId || !sameBuyer(cart, params.buyer)) {
+      return new CartError("other_cart", "The cart does not belong to this user and buyer");
     }
     if (cart.package_id !== params.package_id) {
       return new CartError("other_cart", "The selected cart uses a different package");
@@ -148,8 +148,8 @@ export function createCartSelection(
     return null;
   }
 
-  function assertCart(cart: StorefrontCart, customerId: string | null, params: StorefrontCurrentCartParams): void {
-    const refusal = otherCart(cart, customerId, params);
+  function assertCart(cart: StorefrontCart, userId: string | null, params: StorefrontCurrentCartParams): void {
+    const refusal = otherCart(cart, userId, params);
     if (refusal) throw refusal;
   }
 
@@ -159,9 +159,9 @@ export function createCartSelection(
     }
   }
 
-  function usable(cart: StorefrontCart, customerId: string, params: StorefrontCurrentCartParams, marketId: string): boolean {
+  function usable(cart: StorefrontCart, userId: string, params: StorefrontCurrentCartParams, marketId: string): boolean {
     return (
-      cart.customer_id === customerId &&
+      cart.user_id === userId &&
       sameBuyer(cart, params.buyer) &&
       cart.package_id === params.package_id &&
       cart.market_id === marketId &&
@@ -188,10 +188,10 @@ export function createCartSelection(
     }
   }
 
-  function releaseSignIn(storage: SelectionStorage, customerId: string, params: StorefrontCurrentCartParams): void {
+  function releaseSignIn(storage: SelectionStorage, userId: string, params: StorefrontCurrentCartParams): void {
     try {
-      const signedInFrom = readSignIn(storage.getItem(signInKey(customerId)));
-      if (!signedInFrom || signedInFrom === customerId) return;
+      const signedInFrom = readSignIn(storage.getItem(signInKey(userId)));
+      if (!signedInFrom || signedInFrom === userId) return;
       const guestKey = selectionKey(signedInFrom, params);
       const guest = readSelection(storage.getItem(guestKey));
       release(storage, guestKey, guest ? [guest.id] : []);
@@ -200,17 +200,17 @@ export function createCartSelection(
     }
   }
 
-  function signedInFrom(customerId: string): string | null {
+  function signedInFrom(userId: string): string | null {
     if (!context.storage) return null;
     let value: string | null;
     try {
-      value = context.storage.getItem(signInKey(customerId));
+      value = context.storage.getItem(signInKey(userId));
     } catch {
       context.storageRefused();
       return null;
     }
     const from = readSignIn(value);
-    return from !== null && from !== customerId ? from : null;
+    return from !== null && from !== userId ? from : null;
   }
 
   async function read(id: string, options?: RequestOptions): Promise<StorefrontCart | null> {
@@ -244,20 +244,20 @@ export function createCartSelection(
 
   async function followSignIn(
     storage: SelectionStorage,
-    customerId: string,
+    userId: string,
     params: StorefrontCurrentCartParams,
     key: string,
     options?: RequestOptions,
   ): Promise<StorefrontCart | null> {
-    const signedInFrom = readSignIn(storage.getItem(signInKey(customerId)));
-    if (!signedInFrom || signedInFrom === customerId) return null;
+    const signedInFrom = readSignIn(storage.getItem(signInKey(userId)));
+    if (!signedInFrom || signedInFrom === userId) return null;
     const guestKey = selectionKey(signedInFrom, params);
     const guest = readSelection(storage.getItem(guestKey));
     if (!guest) return null;
     const start = await read(guest.id, options);
     const followed: FollowedCart = start ? await follow(start, options) : { cart: null, chain: [guest.id] };
     const cart = followed.cart;
-    if (cart && usable(cart, customerId, params, await context.marketId())) {
+    if (cart && usable(cart, userId, params, await context.marketId())) {
       const cartId = cart.id;
       if (select(storage, key, cartId)) {
         release(
@@ -274,9 +274,9 @@ export function createCartSelection(
 
   async function current(params: StorefrontCurrentCartParams, options?: RequestOptions): Promise<StorefrontCart | null> {
     const storage = requireStorage();
-    const customerId = requireCustomerId();
-    const key = selectionKey(customerId, params);
-    const signedIn = await followSignIn(storage, customerId, params, key, options);
+    const userId = requireUserId();
+    const key = selectionKey(userId, params);
+    const signedIn = await followSignIn(storage, userId, params, key, options);
     if (signedIn) return signedIn;
     const selection = readSelection(storage.getItem(key));
     if (!selection) return null;
@@ -285,14 +285,14 @@ export function createCartSelection(
       release(storage, key, [selection.id]);
       return null;
     }
-    const refusal = otherCart(start, customerId, params);
+    const refusal = otherCart(start, userId, params);
     if (refusal) {
       release(storage, key, [selection.id]);
       throw refusal;
     }
     const followed = await follow(start, options);
     const cart = followed.cart;
-    if (cart && usable(cart, customerId, params, await context.marketId())) {
+    if (cart && usable(cart, userId, params, await context.marketId())) {
       const cartId = cart.id;
       if (cartId !== selection.id && select(storage, key, cartId)) {
         release(
@@ -310,7 +310,7 @@ export function createCartSelection(
   function keep(
     storage: SelectionStorage,
     key: string,
-    customerId: string,
+    userId: string,
     params: StorefrontCurrentCartParams,
     created: StorefrontCreatedCart,
   ): void {
@@ -323,25 +323,25 @@ export function createCartSelection(
         "The cart was created but its selection could not be saved; retry with the same cart id",
       );
     }
-    releaseSignIn(storage, customerId, params);
+    releaseSignIn(storage, userId, params);
   }
 
   async function create(params: StorefrontCreateCartParams, options?: RequestOptions): Promise<StorefrontCreatedCart> {
     requireId(params.id, "cart");
     refusePerCallMarket(options);
     const storage = requireStorage();
-    const customerId = requireCustomerId();
+    const userId = requireUserId();
     const selected = { buyer: params.buyer, package_id: params.package_id };
-    const key = selectionKey(customerId, selected);
+    const key = selectionKey(userId, selected);
     return withCartMutation(checkoutScopes(), { type: "new_cart", slot: cartScopeKey(selected, context.market()) }, async () => {
       const marketId = await context.marketId();
       const created = await transport.create({ ...params, market_id: marketId }, options);
       if (!created || !created.cart || created.cart.id !== params.id) {
         throw new CartError("answer_mismatch", "Cart creation returned a different cart");
       }
-      assertCart(created.cart, customerId, selected);
+      assertCart(created.cart, userId, selected);
       assertMarket(created.cart, marketId);
-      keep(storage, key, customerId, selected, created);
+      keep(storage, key, userId, selected, created);
       return created;
     });
   }
@@ -350,9 +350,9 @@ export function createCartSelection(
     requireId(params.id, "cart");
     refusePerCallMarket(options);
     const storage = requireStorage();
-    const customerId = requireCustomerId();
+    const userId = requireUserId();
     const selected = { buyer: params.buyer, package_id: params.package_id };
-    const key = selectionKey(customerId, selected);
+    const key = selectionKey(userId, selected);
     return withCartMutation(checkoutScopes(), { type: "new_cart", slot: cartScopeKey(selected, context.market()) }, async () => {
       const marketId = await context.marketId();
       const reordered = await transport.reorder({ ...params, market_id: marketId }, options);
@@ -360,9 +360,9 @@ export function createCartSelection(
       if (!created || !created.cart || created.cart.id !== params.id) {
         throw new CartError("answer_mismatch", "The reorder returned a different cart");
       }
-      assertCart(created.cart, customerId, selected);
+      assertCart(created.cart, userId, selected);
       assertMarket(created.cart, marketId);
-      keep(storage, key, customerId, selected, created);
+      keep(storage, key, userId, selected, created);
       return reordered;
     });
   }
@@ -370,29 +370,29 @@ export function createCartSelection(
   function forget(params: StorefrontCurrentCartParams): void {
     const storage = context.storage;
     if (!storage) return;
-    const customerId = requireCustomerId();
-    const key = selectionKey(customerId, params);
+    const userId = requireUserId();
+    const key = selectionKey(userId, params);
     try {
       const selection = readSelection(storage.getItem(key));
       release(storage, key, selection ? [selection.id] : []);
     } catch {
       context.storageRefused();
     }
-    releaseSignIn(storage, customerId, params);
+    releaseSignIn(storage, userId, params);
   }
 
-  function signedIn(fromCustomerId: string | null, toCustomerId: string): void {
+  function signedIn(fromUserId: string | null, toUserId: string): void {
     const storage = context.storage;
     if (
       !storage ||
-      !isCanonicalId(fromCustomerId) ||
-      !isCanonicalId(toCustomerId) ||
-      fromCustomerId === toCustomerId
+      !isCanonicalId(fromUserId) ||
+      !isCanonicalId(toUserId) ||
+      fromUserId === toUserId
     ) {
       return;
     }
     try {
-      storage.setItem(signInKey(toCustomerId), JSON.stringify({ version: 1, from_customer_id: fromCustomerId }));
+      storage.setItem(signInKey(toUserId), JSON.stringify({ version: 1, from_user_id: fromUserId }));
     } catch {
       context.storageRefused();
     }

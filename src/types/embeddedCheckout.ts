@@ -1,6 +1,6 @@
 import type { StripeEmbeddedCheckout } from "@stripe/stripe-js";
 import type { CheckoutPaymentAction, StorefrontPaymentMethodSetupStart } from "./payment";
-import type { StoreCardSetup } from "./store";
+import type { TenantCardSetup } from "./tenant";
 import type { MonriBuyerDetails, MonriCheckoutError } from "./monriCheckout";
 
 export type StripeEmbeddedCheckoutAction = Extract<
@@ -48,7 +48,7 @@ export type EmbeddedCheckoutMount =
     };
 
 export interface MountPaymentMethodSetupParams {
-  setup: StorefrontPaymentMethodSetupStart | StoreCardSetup;
+  setup: StorefrontPaymentMethodSetupStart | TenantCardSetup;
   element: string | HTMLElement;
   simulator_texts?: SimulatorTexts;
 }

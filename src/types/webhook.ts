@@ -108,14 +108,14 @@ export const WEBHOOK_UNIT_EVENT_TYPES = [
   "category.created",
   "category.updated",
   "category.deleted",
-  "store.updated",
+  "tenant.updated",
   "package_offering.created",
   "package_offering.updated",
   "package_offering.deleted",
-  "customer.verified",
-  "customer.updated",
-  "customer.merged",
-  "customer.erased",
+  "user.verified",
+  "user.updated",
+  "user.merged",
+  "user.erased",
   "package_member.activated",
   "package_member.paused",
   "package_member.blocked",
@@ -164,7 +164,7 @@ export interface OrderPaymentFailed {
   amount: number;
 }
 
-export type StoreField =
+export type TenantField =
   | "name"
   | "timezone"
   | "languages"
@@ -174,12 +174,12 @@ export type StoreField =
   | "invoicing"
   | "default_location_id";
 
-export interface StoreUpdated {
+export interface TenantUpdated {
   id: string;
   name: string;
   timezone: string;
   languages: string[];
-  changed: StoreField[];
+  changed: TenantField[];
 }
 
 export interface OrderRefundCreated {
@@ -218,7 +218,7 @@ export type WebhookStatus = { type: "active" } | { type: "disabled" };
 
 export interface Webhook {
   id: string;
-  store_id: string;
+  tenant_id: string;
   url: string;
   events: WebhookEvent[];
   headers: Record<string, string>;
@@ -238,7 +238,7 @@ export interface WebhookEventMetadata {
 }
 
 export interface FindWebhooksParams {
-  store_id: string;
+  tenant_id: string;
   query?: string;
   status?: WebhookStatus["type"];
   sort_field?: "created_at" | "updated_at";
@@ -248,7 +248,7 @@ export interface FindWebhooksParams {
 }
 
 export interface CreateWebhookParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   url: string;
   events: WebhookEvent[];
@@ -258,7 +258,7 @@ export interface CreateWebhookParams {
 }
 
 export interface UpdateWebhookParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   url?: string;
@@ -269,13 +269,13 @@ export interface UpdateWebhookParams {
 }
 
 export interface DeleteWebhookParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface TestWebhookParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   webhook_id: string;
 }

@@ -2,7 +2,7 @@ export {
   createStorefront,
   initialize,
   CheckoutFlowError,
-  COMMON_CUSTOMER_ACTION_KEYS,
+  COMMON_USER_ACTION_KEYS,
   DEFAULT_STOREFRONT_API_URL,
   SDK_VERSION,
   ScheduledResultTimeoutError,
@@ -53,17 +53,17 @@ export {
 export type {
   StorefrontClient,
   StorefrontContext,
-  StorefrontCustomerSession,
+  StorefrontUserSession,
   StorefrontLogoutResult,
   StorefrontOptions,
   StorefrontIdentity,
   StorefrontSessionStorage,
   AuthStateListener,
-  CommonCustomerActionKey,
-  IdentifyCustomerParams,
+  CommonUserActionKey,
+  IdentifyUserParams,
   OrderFromLink,
   OrderFromLinkParams,
-  RefreshCustomerSessionParams,
+  RefreshUserSessionParams,
   DurableRequestErrorCode,
   PageRead,
   PaginateOptions,
@@ -71,11 +71,11 @@ export type {
   PaymentOutcome,
   PaymentRefundView,
   PaymentSimulation,
-  RequestCustomerCodeParams,
+  RequestUserCodeParams,
   SimulatePaymentOptions,
   SimulatePaymentParams,
   StorefrontCheckoutCartRequest,
-  VerifyCustomerCodeParams,
+  VerifyUserCodeParams,
   BlockReferences,
 } from "./index";
 export type * from "./types";
@@ -100,7 +100,7 @@ export {
   MonriCheckoutError,
 } from "./types";
 export type * from "./storefrontStore";
-export { createNetworkCustomer } from "./networkCustomer";
-export type { NetworkCustomerClient } from "./networkCustomer";
+export { createNetworkUser } from "./networkUser";
+export type { NetworkUserClient } from "./networkUser";
 export { toE164 } from "./utils/phone";
 export type { E164Conversion, E164Refusal } from "./utils/phone";

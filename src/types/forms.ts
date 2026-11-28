@@ -4,7 +4,7 @@ import type { CalendarDate, EpochMilliseconds } from "./time";
 import type {
   AccountActor,
   Coordinates,
-  CustomerAuthenticationSnapshot,
+  UserAuthenticationSnapshot,
   EmailContact,
   LocalizedText,
   SelectOption,
@@ -64,7 +64,7 @@ export interface FormEmails {
 
 export interface Form {
   id: string;
-  store_id: string;
+  tenant_id: string;
   key: string;
   type: FormType;
   emails: FormEmails;
@@ -87,8 +87,8 @@ export interface StorefrontForm {
 export type FormSubmissionSource =
   | {
       type: "storefront";
-      customer_session_id: string;
-      authentication: CustomerAuthenticationSnapshot;
+      user_session_id: string;
+      authentication: UserAuthenticationSnapshot;
     }
   | { type: "account"; actor: AccountActor };
 
@@ -160,8 +160,8 @@ export interface FormSubmissionStageChange {
 export interface FormSubmission {
   id: string;
   form_id: string;
-  store_id: string;
-  customer_id: string;
+  tenant_id: string;
+  user_id: string;
   source: FormSubmissionSource;
   language: string;
   email_contact: EmailContact | null;
@@ -203,7 +203,7 @@ export interface FormSubmissionSelectFilter {
 }
 
 export interface FindFormsParams {
-  store_id: string;
+  tenant_id: string;
   ids?: string[];
   key?: string;
   query?: string;
@@ -218,18 +218,18 @@ export interface FindFormsParams {
 }
 
 export interface GetFormParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface GetFormByKeyParams {
-  store_id: string;
+  tenant_id: string;
   key: string;
 }
 
 export interface CreateFormParams {
   emails?: FormEmails;
-  store_id: string;
+  tenant_id: string;
   id: string;
   key: string;
   type: FormType;
@@ -239,7 +239,7 @@ export interface CreateFormParams {
 
 export interface UpdateFormParams {
   emails?: FormEmails;
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   key?: string;
@@ -249,16 +249,16 @@ export interface UpdateFormParams {
 }
 
 export interface DeleteFormParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface FindFormSubmissionsParams {
-  store_id: string;
+  tenant_id: string;
   form_id?: string;
   form_ids?: string[];
-  customer_id?: string;
+  user_id?: string;
   stage?: string;
   select?: FormSubmissionSelectFilter[];
   query?: string;
@@ -271,22 +271,22 @@ export interface FindFormSubmissionsParams {
 }
 
 export interface GetFormSubmissionParams {
-  store_id: string;
+  tenant_id: string;
   form_id: string;
   id: string;
 }
 
 export interface CreateFormSubmissionParams {
-  store_id: string;
+  tenant_id: string;
   form_id: string;
   id: string;
-  customer_id: string;
+  user_id: string;
   language: string;
   answers: FormAnswerInput[];
 }
 
 export interface DeleteFormSubmissionParams {
-  store_id: string;
+  tenant_id: string;
   form_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
@@ -298,7 +298,7 @@ export interface FormSubmissionStageNote {
 }
 
 export interface ChangeFormSubmissionStageParams {
-  store_id: string;
+  tenant_id: string;
   form_id: string;
   id: string;
   expected_stage: FormSubmissionStage;
@@ -307,7 +307,7 @@ export interface ChangeFormSubmissionStageParams {
 }
 
 export interface GetFormSubmissionFileParams {
-  store_id: string;
+  tenant_id: string;
   form_id: string;
   id: string;
   sha256: string;

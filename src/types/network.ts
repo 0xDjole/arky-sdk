@@ -1,8 +1,8 @@
 import type { AccountActor, Currency, EmailContact, ProviderEffectError } from "./common";
 import type { Days, EpochMilliseconds } from "./time";
-import type { FeatureType, Store } from "./store";
-import type { NetworkStoreAddresses } from "./notification";
-import type { StripeSecretKeyType } from "./storeProvider";
+import type { FeatureType, Tenant } from "./tenant";
+import type { NetworkTenantAddresses } from "./notification";
+import type { StripeSecretKeyType } from "./tenantProvider";
 import type { AccountName } from "./account";
 import type { NetworkPermissionType, NetworkRolePermission } from "./permission";
 import type { AssistantTool } from "./support";
@@ -20,7 +20,7 @@ export interface Network {
   updated_at: EpochMilliseconds;
 }
 
-export interface NetworkCustomerEmailText {
+export interface NetworkUserEmailText {
   language: string;
   code_subject: string;
   code_body: string;
@@ -30,20 +30,20 @@ export interface NetworkCustomerEmailText {
   login_changed_body: string;
 }
 
-export type NetworkCustomerEmailTexts =
+export type NetworkUserEmailTexts =
   | { type: "off" }
-  | { type: "on"; texts: NetworkCustomerEmailText[] };
+  | { type: "on"; texts: NetworkUserEmailText[] };
 
-export interface NetworkCustomerSmsText {
+export interface NetworkUserSmsText {
   language: string;
   code_body: string;
   invite_body: string;
   login_changed_body: string;
 }
 
-export type NetworkCustomerSmsTexts =
+export type NetworkUserSmsTexts =
   | { type: "off" }
-  | { type: "on"; sender_name: string; texts: NetworkCustomerSmsText[] };
+  | { type: "on"; sender_name: string; texts: NetworkUserSmsText[] };
 
 export type NetworkProviderStatus = "active" | "disabled";
 
@@ -71,11 +71,11 @@ export type NetworkProviderType =
       sign_in_body: string;
       member_login_changed_subject: string;
       member_login_changed_body: string;
-      store_addresses: NetworkStoreAddresses;
-      customer_texts: NetworkCustomerEmailTexts;
+      tenant_addresses: NetworkTenantAddresses;
+      user_texts: NetworkUserEmailTexts;
     }
   | { type: "stripe"; account_id: string; publishable_key: string; secret_key: StripeSecretKeyType }
-  | { type: "twilio"; account_sid: string; customer_texts: NetworkCustomerSmsTexts }
+  | { type: "twilio"; account_sid: string; user_texts: NetworkUserSmsTexts }
   | { type: "eleven_labs"; region: NetworkElevenLabsRegion; setup: NetworkElevenLabsSetup };
 
 export interface NetworkProvider {
@@ -145,27 +145,27 @@ export interface UpdateNetworkPlanParams {
   features?: PlanFeatures;
 }
 export interface DeleteNetworkPlanParams extends DeleteNetworkParams { network_id: string }
-export interface FindNetworkStoresParams extends FindNetworksParams { network_id: string }
+export interface FindNetworkTenantsParams extends FindNetworksParams { network_id: string }
 
-export interface GetNetworkStoreParams { network_id: string; store_id: string }
+export interface GetNetworkTenantParams { network_id: string; tenant_id: string }
 
-export interface NameNetworkStoreOwnerParams {
+export interface NameNetworkTenantOwnerParams {
   network_id: string;
-  store_id: string;
+  tenant_id: string;
   email: string;
   language: string;
   expected_updated_at: EpochMilliseconds;
 }
 
-export interface NetworkStoreCounts {
+export interface NetworkTenantCounts {
   members: number;
-  customers: number;
+  users: number;
 }
 
-export interface NetworkStore extends Store {
+export interface NetworkTenant extends Tenant {
   owner_email: string;
   city: string | null;
-  counts: NetworkStoreCounts;
+  counts: NetworkTenantCounts;
 }
 
 export interface FindNetworkProvidersParams { network_id: string; limit?: number; cursor?: string | null }
@@ -191,20 +191,20 @@ export interface ConnectNetworkResendParams {
   sign_in_body: string;
   member_login_changed_subject: string;
   member_login_changed_body: string;
-  store_addresses: NetworkStoreAddresses;
-  customer_texts: NetworkCustomerEmailTexts;
+  tenant_addresses: NetworkTenantAddresses;
+  user_texts: NetworkUserEmailTexts;
 }
-export interface ReplaceNetworkEmailCustomerTextsParams {
+export interface ReplaceNetworkEmailUserTextsParams {
   network_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
-  customer_texts: NetworkCustomerEmailTexts;
+  user_texts: NetworkUserEmailTexts;
 }
-export interface ReplaceNetworkSmsCustomerTextsParams {
+export interface ReplaceNetworkSmsUserTextsParams {
   network_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
-  customer_texts: NetworkCustomerSmsTexts;
+  user_texts: NetworkUserSmsTexts;
 }
 export interface ReplaceNetworkResendKeyParams {
   network_id: string;
@@ -220,7 +220,7 @@ export interface UpdateNetworkResendParams {
   from_address: string;
   sign_in_subject: string;
   sign_in_body: string;
-  store_addresses: NetworkStoreAddresses;
+  tenant_addresses: NetworkTenantAddresses;
 }
 export interface ConnectNetworkStripeParams {
   network_id: string;
@@ -242,7 +242,7 @@ export interface ConnectNetworkTwilioParams {
   id: string;
   account_sid: string;
   auth_token: string;
-  customer_texts: NetworkCustomerSmsTexts;
+  user_texts: NetworkUserSmsTexts;
 }
 export interface ReplaceNetworkTwilioAuthTokenParams {
   network_id: string;
@@ -310,16 +310,16 @@ export interface NetworkMember {
   membership: NetworkMembership;
 }
 
-export interface StoreAgreement {
+export interface TenantAgreement {
   id: string;
   network_id: string;
-  store_id: string;
+  tenant_id: string;
   document: string;
   accepted_by: AccountActor;
   accepted_at: EpochMilliseconds;
 }
 
-export interface CreateStoreAgreementInput {
+export interface CreateTenantAgreementInput {
   id: string;
   document: string;
 }
@@ -364,5 +364,5 @@ export interface RemoveNetworkMemberParams { network_id: string; id: string; exp
 export interface GetOwnNetworkMembershipParams { network_id: string }
 export interface ResetNetworkMemberSecondFactorParams { network_id: string; id: string }
 export interface AcceptNetworkInviteParams { network_id: string; expected_updated_at: EpochMilliseconds }
-export interface GetNetworkStoreAgreementParams { network_id: string; store_id: string }
-export interface FindNetworkStoreSubscriptionsParams { network_id: string; ids: string[] }
+export interface GetNetworkTenantAgreementParams { network_id: string; tenant_id: string }
+export interface FindNetworkTenantSubscriptionsParams { network_id: string; ids: string[] }

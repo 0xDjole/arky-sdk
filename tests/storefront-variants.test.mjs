@@ -4,7 +4,7 @@ import { createStorefront } from "../dist/storefront.js";
 import { apiUrl, fixedIdFactories, ids, storefrontIdentity, recordFetch } from "./helpers/arky-fixtures.mjs";
 
 function storefront() {
-  return createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl });
+  return createStorefront(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl });
 }
 
 test("a product's prices page through its item and an exact variant read keeps the buyer context and encoded ids", async (context) => {
@@ -37,8 +37,8 @@ test("a product's prices page through its item and an exact variant read keeps t
     assert.equal("company_id" in call.query, false);
     assert.equal(call.query.company_location_id, ids.companyLocation);
     assert.equal(call.query.include_price, "true");
-    assert.equal("store_id" in call.query, false);
-    assert.equal(call.headers.get("x-arky-store-id"), storefrontIdentity.storeId);
+    assert.equal("tenant_id" in call.query, false);
+    assert.equal(call.headers.get("x-arky-tenant-id"), storefrontIdentity.tenantId);
     assert.equal(call.headers.get("x-arky-sales-channel-id"), storefrontIdentity.salesChannelId);
   }
   assert.equal("find" in client.eshop.productVariant, false);
@@ -105,6 +105,6 @@ test("a storefront reads the products of several ids in one request under its pa
   assert.deepEqual(JSON.parse(calls[0].query.ids), [ids.product, ids.otherPackage]);
   assert.equal(calls[0].query.package_id, ids.package);
   assert.equal(calls[0].query.company_id, ids.company);
-  assert.equal("store_id" in calls[0].query, false);
+  assert.equal("tenant_id" in calls[0].query, false);
   assert.equal("find" in client.eshop.product, false);
 });

@@ -14,25 +14,25 @@ test("Order tokens contain 256 random bits with canonical encoding", () => {
   assert.equal(isOrderToken("arky_ot_" + "B".repeat(43)), false);
 });
 
-test("Retained Order capability is bound to exact API, Store, and Order", () => {
+test("Retained Order capability is bound to exact API, Tenant, and Order", () => {
   const previous = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
   const storage = new Map();
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: { getItem: (key) => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) } });
   try {
     const token = createOrderToken();
-    retainOrderToken("https://api.test|store-a", ids.order, token);
-    assert.equal(readOrderToken("https://api.test|store-a", ids.order) === token, true);
-    assert.equal(readOrderToken("https://api.test|store-a", ids.otherOrder), null);
-    assert.equal(readOrderToken("https://api.test|store-b", ids.order), null);
-    assert.equal(readOrderToken("https://other.test|store-a", ids.order), null);
-    assert.throws(() => retainOrderToken("https://api.test|store-a", ids.order, createOrderToken()), /different retained token/);
+    retainOrderToken("https://api.test|tenant-a", ids.order, token);
+    assert.equal(readOrderToken("https://api.test|tenant-a", ids.order) === token, true);
+    assert.equal(readOrderToken("https://api.test|tenant-a", ids.otherOrder), null);
+    assert.equal(readOrderToken("https://api.test|tenant-b", ids.order), null);
+    assert.equal(readOrderToken("https://other.test|tenant-a", ids.order), null);
+    assert.throws(() => retainOrderToken("https://api.test|tenant-a", ids.order, createOrderToken()), /different retained token/);
     const followed = createOrderToken();
-    replaceOrderToken("https://api.test|store-a", ids.order, followed);
-    assert.equal(readOrderToken("https://api.test|store-a", ids.order) === followed, true);
-    assert.throws(() => replaceOrderToken("https://api.test|store-a", ids.order, "malformed"), /Invalid order token/);
-    assert.equal(readOrderToken("https://api.test|store-a", ids.order) === followed, true);
-    assert.equal(readOrderToken("https://api.test|store-b", ids.order), null);
-    assert.throws(() => retainOrderToken("https://api.test|store-a", ids.order, token), /different retained token/);
+    replaceOrderToken("https://api.test|tenant-a", ids.order, followed);
+    assert.equal(readOrderToken("https://api.test|tenant-a", ids.order) === followed, true);
+    assert.throws(() => replaceOrderToken("https://api.test|tenant-a", ids.order, "malformed"), /Invalid order token/);
+    assert.equal(readOrderToken("https://api.test|tenant-a", ids.order) === followed, true);
+    assert.equal(readOrderToken("https://api.test|tenant-b", ids.order), null);
+    assert.throws(() => retainOrderToken("https://api.test|tenant-a", ids.order, token), /different retained token/);
   } finally {
     if (previous) Object.defineProperty(globalThis, "localStorage", previous);
     else delete globalThis.localStorage;

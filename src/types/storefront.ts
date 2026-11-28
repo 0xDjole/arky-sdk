@@ -1,7 +1,7 @@
 import type { Currency, PostalAddress, SortDirection, TaxMode } from "./common";
 import type { StorefrontPaymentOption } from "./payment";
 
-export type StorefrontCustomerSignIn = { type: "store" } | { type: "network"; network_id: string };
+export type StorefrontUserSignIn = { type: "tenant" } | { type: "network"; network_id: string };
 
 export type StorefrontSeller = { type: "none" } | { type: "seller"; name: string; address: PostalAddress };
 
@@ -10,7 +10,7 @@ export interface StorefrontSetup {
   timezone: string;
   languages: string[];
   payment_options: StorefrontPaymentOption[];
-  customer_sign_in: StorefrontCustomerSignIn;
+  user_sign_in: StorefrontUserSignIn;
   seller: StorefrontSeller;
 }
 

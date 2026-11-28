@@ -25,7 +25,7 @@ export type ExactDefinitions = [
   Assert<Equal<Awaited<ReturnType<Admin["eshop"]["package"]["getByKey"]>>, PackageDetail>>,
   Assert<Missing<Admin["eshop"], "fulfillmentRoutingPolicy">>,
   Assert<Equal<Parameters<Admin["eshop"]["product"]["getByKey"]>[0], GetProductByKeyParams>>,
-  Assert<Equal<keyof GetProductByKeyParams, "store_id" | "key">>,
+  Assert<Equal<keyof GetProductByKeyParams, "tenant_id" | "key">>,
   Assert<Equal<Parameters<Admin["eshop"]["bookingService"]["getByKey"]>[0], GetBookingServiceByKeyParams>>,
   Assert<Equal<Parameters<Admin["eshop"]["bookingResource"]["getByKey"]>[0], GetBookingResourceByKeyParams>>,
   Assert<Missing<Admin["eshop"]["bookingOffering"], "getByServiceAndResource">>,
@@ -33,6 +33,6 @@ export type ExactDefinitions = [
   Assert<Equal<Awaited<ReturnType<Admin["eshop"]["bookingService"]["getByKey"]>>, BookingService>>,
   Assert<Equal<Awaited<ReturnType<Admin["eshop"]["bookingResource"]["getByKey"]>>, BookingResource>>,
   Assert<Equal<Parameters<Admin["eshop"]["bookingOffering"]["get"]>[0], GetBookingOfferingParams>>,
-  Assert<Equal<keyof GetBookingOfferingParams, "store_id" | "id">>,
+  Assert<Equal<keyof GetBookingOfferingParams, "tenant_id" | "id">>,
   Assert<Equal<Awaited<ReturnType<Admin["eshop"]["bookingOffering"]["get"]>>, BookingOffering>>,
 ];

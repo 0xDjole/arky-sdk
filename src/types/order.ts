@@ -59,7 +59,7 @@ export type OrderBuyerTax =
   | { type: "exempt"; reason: string; registrations: OrderTaxRegistration[] };
 
 export type OrderBuyer =
-  | { type: "customer" }
+  | { type: "user" }
   | {
       type: "company";
       company_id: string;
@@ -88,8 +88,8 @@ export type OrderCollection =
     };
 
 export type OrderCancellationReason =
-  | "store_cancelled"
-  | "customer_cancelled"
+  | "tenant_cancelled"
+  | "user_cancelled"
   | "payment_failed"
   | "expired";
 
@@ -290,7 +290,7 @@ export type OrderBookingChangeType =
       type: "line";
       previous_interval: TimeRange;
       previous_booking_resource_id: string;
-      previous_store_location_id: string;
+      previous_tenant_location_id: string;
     }
   | { type: "add_on"; booked_add_on_id: string; previous_interval: TimeRange; previous_booking_resource_id: string }
   | { type: "add_on_added"; booked_add_on_id: string }
@@ -304,7 +304,7 @@ export interface OrderBookingChange {
 
 export type BookingResponder =
   | { type: "link" }
-  | { type: "customer"; customer_session_id: string }
+  | { type: "user"; user_session_id: string }
   | { type: "account"; actor: AccountActor }
   | { type: "assistant"; conversation_message_id: string };
 
@@ -339,8 +339,8 @@ export interface OrderBookingLineItem {
   booking_offering_id: string;
   booking_service_id: string;
   booking_resource_id: string;
-  store_location_id: string;
-  customer_id: string;
+  tenant_location_id: string;
+  user_id: string;
   interval: TimeRange;
   total_interval: TimeRange;
   capacity_intervals: TimeRange[];
@@ -402,7 +402,7 @@ export type OrderLineItemType = OrderLineItem["type"];
 
 export type OrderDeliveryDestination =
   | { type: "delivery"; address: PostalAddress }
-  | { type: "pickup"; store_location_id: string; address: PostalAddress };
+  | { type: "pickup"; tenant_location_id: string; address: PostalAddress };
 
 export type DeliveryPricing =
   | { type: "rate"; rate_id: string }
@@ -444,7 +444,7 @@ export type OrderStatus = "pending" | "confirmed" | "partially_cancelled" | "can
 
 export type OrderPlaceOfSale =
   | { type: "none" }
-  | { type: "store_location"; store_location_id: string };
+  | { type: "tenant_location"; tenant_location_id: string };
 
 export interface MoneyTotals {
   subtotal: number;
@@ -477,9 +477,9 @@ export interface Order {
   id: string;
   blocks: Block[];
   number: string;
-  store_id: string;
+  tenant_id: string;
   source: OrderSource;
-  customer_id: string;
+  user_id: string;
   contact: OrderContact;
   buyer: OrderBuyer;
   market_id: string;
@@ -508,7 +508,7 @@ export type StorefrontOrderSource =
   | { type: "cart"; cart_id: string; placed_by: StorefrontOrderPlacer }
   | { type: "renewal"; recovery: RenewalRecovery | null };
 
-export type StorefrontOrderPlacer = { type: "customer"; customer_id: string } | { type: "account" };
+export type StorefrontOrderPlacer = { type: "user"; user_id: string } | { type: "account" };
 
 export type StorefrontOnAccountApproval = { type: "buyer_terms" } | { type: "account" };
 
@@ -627,7 +627,7 @@ export interface StorefrontOrderBookingLineItem {
   booking_offering_id: string;
   booking_service_id: string;
   booking_resource_id: string;
-  store_location_id: string;
+  tenant_location_id: string;
   interval: TimeRange;
   total_interval: TimeRange;
   capacity_intervals: TimeRange[];
@@ -750,9 +750,9 @@ export interface StorefrontOrder {
   invoices: StorefrontOrderInvoice[];
   receipts: StorefrontOrderReceipt[];
   credits: StorefrontOrderCredit[];
-  store_id: string;
+  tenant_id: string;
   source: StorefrontOrderSource;
-  customer_id: string;
+  user_id: string;
   contact: OrderContact;
   buyer: OrderBuyer;
   market_id: string;
@@ -773,10 +773,10 @@ export interface StorefrontOrder {
 }
 
 export interface OrderBookingItem {
-  store_id: string;
+  tenant_id: string;
   order_id: string;
   order_number: string;
-  customer_id: string;
+  user_id: string;
   contact: OrderContact;
   line: OrderBookingLineItem;
 }
@@ -798,8 +798,8 @@ export interface OrderBookingItemTakenResource {
 
 export interface OrderBookingItemTakenRow {
   type: "taken";
-  store_id: string;
-  store_location_id: string;
+  tenant_id: string;
+  tenant_location_id: string;
   interval: TimeRange;
   total_interval: TimeRange;
   resources: OrderBookingItemTakenResource[];
@@ -814,7 +814,7 @@ export interface OrderBookingLineReminder {
 }
 
 export interface FindOrderBookingRemindersParams {
-  store_id: string;
+  tenant_id: string;
   order_id: string;
   order_booking_item_id: string;
 }
@@ -824,7 +824,7 @@ export type OrderProduct =
   | { type: "gone"; id: string };
 
 export interface FindOrderProductsParams {
-  store_id: string;
+  tenant_id: string;
   order_id: string;
   ids: string[];
 }
@@ -848,9 +848,9 @@ export type OrderBookingStatusFilter =
   | "cancelled";
 
 export interface FindOrdersBySearchParams {
-  store_id: string;
+  tenant_id: string;
   ids?: never;
-  customer_id?: string;
+  user_id?: string;
   company_id?: string;
   company_location_id?: string;
   statuses?: OrderStatus[];
@@ -875,9 +875,9 @@ export interface FindOrdersBySearchParams {
 }
 
 export interface FindOrdersByIdsParams {
-  store_id: string;
+  tenant_id: string;
   ids: string[];
-  customer_id?: never;
+  user_id?: never;
   company_id?: never;
   company_location_id?: never;
   statuses?: never;
@@ -904,12 +904,12 @@ export interface FindOrdersByIdsParams {
 export type FindOrdersParams = FindOrdersBySearchParams | FindOrdersByIdsParams;
 
 export interface GetOrderParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface UpdateOrderParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   contact?: OrderContact;
@@ -917,7 +917,7 @@ export interface UpdateOrderParams {
 }
 
 export interface CorrectOrderDeliveryAddressParams {
-  store_id: string;
+  tenant_id: string;
   order_id: string;
   delivery_group_id: string;
   expected_updated_at: EpochMilliseconds;
@@ -925,9 +925,9 @@ export interface CorrectOrderDeliveryAddressParams {
 }
 
 export interface FindOrderBookingItemsParams {
-  store_id: string;
-  customer_id?: string;
-  store_location_id?: string;
+  tenant_id: string;
+  user_id?: string;
+  tenant_location_id?: string;
   not_invoiced?: boolean;
   booking_service_ids?: string[];
   booking_resource_ids?: string[];
@@ -941,7 +941,7 @@ export interface FindOrderBookingItemsParams {
 }
 
 export interface RevokeOrderAccessParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   line_item_id: string;
@@ -950,25 +950,25 @@ export interface RevokeOrderAccessParams {
 }
 
 export interface CancelOrderBookingItemParams {
-  store_id: string;
+  tenant_id: string;
   order_id: string;
   order_booking_item_id: string;
   credit_id: string;
   expected_updated_at: EpochMilliseconds;
-  notify_customer: boolean;
+  notify_user: boolean;
 }
 
 export interface RescheduleOrderBookingItemParams {
-  store_id: string;
+  tenant_id: string;
   order_id: string;
   order_booking_item_id: string;
   expected_updated_at: EpochMilliseconds;
   starts_at: EpochMilliseconds;
-  notify_customer: boolean;
+  notify_user: boolean;
 }
 
 export interface ResizeOrderBookingItemParams {
-  store_id: string;
+  tenant_id: string;
   order_id: string;
   order_booking_item_id: string;
   expected_updated_at: EpochMilliseconds;
@@ -982,23 +982,23 @@ export type OrderBookingResourcePick = { type: "any" } | { type: "resource"; boo
 export type OrderBookingItemUpdate =
   | { type: "start"; starts_at: EpochMilliseconds }
   | { type: "length"; ends_at: EpochMilliseconds }
-  | { type: "branch"; store_location_id: string }
+  | { type: "branch"; tenant_location_id: string }
   | { type: "offering"; booking_offering_id: string }
   | { type: "resource"; booking_resource_id: string }
   | { type: "add_on"; booked_add_on_id: string; starts_at: EpochMilliseconds; booking_resource_id: string }
   | { type: "add_add_on"; add_on_id: string; offering: OrderBookingAddOnOffering; resource: OrderBookingResourcePick };
 
 export interface UpdateOrderBookingItemParams {
-  store_id: string;
+  tenant_id: string;
   order_id: string;
   order_booking_item_id: string;
   expected_updated_at: EpochMilliseconds;
   update: OrderBookingItemUpdate;
-  notify_customer: boolean;
+  notify_user: boolean;
 }
 
 export interface TakeOffOrderBookingAddOnParams {
-  store_id: string;
+  tenant_id: string;
   order_id: string;
   order_booking_item_id: string;
   booked_add_on_id: string;
@@ -1007,24 +1007,24 @@ export interface TakeOffOrderBookingAddOnParams {
 }
 
 export interface CancelOrderProductItemParams {
-  store_id: string;
+  tenant_id: string;
   order_id: string;
   line_item_id: string;
   credit_id: string;
   expected_updated_at: EpochMilliseconds;
-  notify_customer: boolean;
+  notify_user: boolean;
   units: UnitSpan[];
 }
 
 export interface CancelOrderParams {
-  store_id: string;
+  tenant_id: string;
   order_id: string;
   expected_updated_at: EpochMilliseconds;
-  notify_customer: boolean;
+  notify_user: boolean;
 }
 
 export interface MarkOrderBookingItemParams {
-  store_id: string;
+  tenant_id: string;
   order_id: string;
   order_booking_item_id: string;
   expected_updated_at: EpochMilliseconds;
@@ -1039,7 +1039,7 @@ export type StepOrderBookingItemParams =
   | (SupplyOrderBookingItemParams & { step: "attended" | "no_show" });
 
 export interface AnswerOrderBookingItemParams {
-  store_id: string;
+  tenant_id: string;
   order_id: string;
   order_booking_item_id: string;
   expected_updated_at: EpochMilliseconds;
@@ -1047,14 +1047,14 @@ export interface AnswerOrderBookingItemParams {
 }
 
 export interface ResendOrderReceiptParams {
-  store_id: string;
+  tenant_id: string;
   order_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface GetOrderFinancialSummaryParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
@@ -1081,7 +1081,7 @@ export interface OrderFinancialSummary {
 }
 
 export interface FindOrderFinancialSummariesParams {
-  store_id: string;
+  tenant_id: string;
   order_ids: string[];
 }
 
@@ -1091,23 +1091,23 @@ export interface OrderFinancialSummaryOfOrder {
 }
 
 export interface GetOrderPaymentParams {
-  store_id: string;
+  tenant_id: string;
   order_id: string;
   payment_id: string;
 }
 
 export interface FindOrderPaymentsParams {
-  store_id: string;
+  tenant_id: string;
   order_id: string;
 }
 
 export interface ResumeOrderPaymentParams {
-  store_id: string;
+  tenant_id: string;
   order_id: string;
 }
 
 export type StorefrontFindOrdersParams = CompanyPartyQuery &
-  Omit<FindOrdersBySearchParams, "store_id" | "ids" | "customer_id" | "company_id" | "company_location_id" | "package_member_ids" | "delivery_steps">;
+  Omit<FindOrdersBySearchParams, "tenant_id" | "ids" | "user_id" | "company_id" | "company_location_id" | "package_member_ids" | "delivery_steps">;
 
 export interface StorefrontGetOrderParams {
   id: string;
@@ -1122,7 +1122,7 @@ export interface StorefrontCancelOrderBookingItemParams {
 
 export type StorefrontRescheduleOrderBookingItemParams = Omit<
   RescheduleOrderBookingItemParams,
-  "store_id" | "notify_customer"
+  "tenant_id" | "notify_user"
 >;
 
 export interface StorefrontAnswerOrderBookingItemParams {

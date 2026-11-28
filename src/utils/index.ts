@@ -18,7 +18,7 @@ export {
   convertToMinor,
   getCurrencyMinorUnits,
   isCurrency,
-  SUPPORTED_STORE_CURRENCIES,
+  SUPPORTED_TENANT_CURRENCIES,
 } from "./price";
 
 export {
@@ -76,15 +76,15 @@ export {
   selectFulfillmentMoveUnits,
 } from "./fulfillmentSelection";
 export {
-  storeAccessCovers,
-  storeAccessHolds,
-  storeAccessIsAdmin,
-  storeAccessLocations,
-  storeAccessPermits,
-  storeAccessReads,
-  storeAccessWithheld,
-  storePermissionNeedsSecondFactor,
-} from "./storeAccess";
+  tenantAccessCovers,
+  tenantAccessHolds,
+  tenantAccessIsAdmin,
+  tenantAccessLocations,
+  tenantAccessPermits,
+  tenantAccessReads,
+  tenantAccessWithheld,
+  tenantPermissionNeedsSecondFactor,
+} from "./tenantAccess";
 export { FulfillmentSelectionError } from "../types/fulfillmentSelection";
 export { copyPackagePriceRef } from "./cartInputs";
 export { isCanonicalId, requireId } from "./ids";

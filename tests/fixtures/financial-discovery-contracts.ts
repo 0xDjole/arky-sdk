@@ -51,9 +51,9 @@ type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
 type Admin = ReturnType<typeof createAdmin>;
 type Storefront = ReturnType<typeof createStorefront>;
 
-const store_id = "d2a64f1b-8c37-4e59-b0a1-6f3e9c7d2b84";
+const tenant_id = "d2a64f1b-8c37-4e59-b0a1-6f3e9c7d2b84";
 const payments: FindPaymentsParams = {
-  store_id,
+  tenant_id,
   order_ids: ["b17a2c94-5d3e-4f61-8a07-9c2e4b6d1f38"],
   status: "unknown",
   type: "monri_card",
@@ -67,9 +67,9 @@ const client = createAdmin({
   accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA",
 });
 void client.eshop.payment.find(payments);
-void client.eshop.order.findPayments({ store_id, order_id: "order" });
+void client.eshop.order.findPayments({ tenant_id, order_id: "order" });
 void client.eshop.order.getPayment({
-  store_id,
+  tenant_id,
   order_id: "order",
   payment_id: "payment",
 });
@@ -164,21 +164,21 @@ export type FinancialContracts = [
   Assert<RequiredField<PaymentHold, "id">>,
   Assert<Equal<Parameters<Admin["eshop"]["payment"]["void"]>[0], VoidPaymentParams>>,
   Assert<Equal<Awaited<ReturnType<Admin["eshop"]["payment"]["void"]>>, Payment>>,
-  Assert<Equal<keyof VoidPaymentParams, "store_id" | "payment_id" | "expected_updated_at" | "reason">>,
+  Assert<Equal<keyof VoidPaymentParams, "tenant_id" | "payment_id" | "expected_updated_at" | "reason">>,
   Assert<Equal<Parameters<Admin["eshop"]["payment"]["record"]>[0], RecordPaymentsParams>>,
   Assert<Equal<Awaited<ReturnType<Admin["eshop"]["payment"]["record"]>>, RecordedPayments>>,
   Assert<Equal<RecordedPayments, { payments: Payment[]; fiscal_receipts: FiscalReceipt[] }>>,
-  Assert<Equal<keyof RecordPaymentsParams, "store_id" | "order_id" | "fiscal_device_id" | "payments">>,
+  Assert<Equal<keyof RecordPaymentsParams, "tenant_id" | "order_id" | "fiscal_device_id" | "payments">>,
   Assert<Equal<RecordPaymentsParams["fiscal_device_id"], string | null>>,
   Assert<RequiredField<RecordPaymentsParams, "fiscal_device_id">>,
   Assert<Equal<RecordPaymentPart, { id: string; payment_option_id: string; money: Money; method: RecordedMethod; reference: string | null }>>,
   Assert<Equal<Parameters<Admin["eshop"]["payment"]["allocateRefund"]>[0], AllocatePaymentRefundParams>>,
-  Assert<Equal<keyof AllocatePaymentRefundParams, "store_id" | "payment_id" | "refund_id" | "expected_updated_at" | "application">>,
+  Assert<Equal<keyof AllocatePaymentRefundParams, "tenant_id" | "payment_id" | "refund_id" | "expected_updated_at" | "application">>,
   Assert<Equal<AllocatePaymentRefundParams["application"], RefundApplication>>,
   Assert<Missing<AllocatePaymentRefundParams, "allocations">>,
   Assert<Missing<Admin["eshop"]["payment"], "createManual" | "recordCollection" | "voidCollection" | "cancel">>,
-  Assert<RequiredField<CreatePaymentRefundParams, "notify_customer">>,
-  Assert<Equal<CreatePaymentRefundParams["notify_customer"], boolean>>,
+  Assert<RequiredField<CreatePaymentRefundParams, "notify_user">>,
+  Assert<Equal<CreatePaymentRefundParams["notify_user"], boolean>>,
   Assert<
     Equal<
       Parameters<Admin["eshop"]["payment"]["recordRefundReceipt"]>[0],
@@ -188,7 +188,7 @@ export type FinancialContracts = [
   Assert<
     Equal<
       keyof RecordRefundReceiptParams,
-      | "store_id"
+      | "tenant_id"
       | "payment_id"
       | "refund_id"
       | "expected_updated_at"
@@ -201,7 +201,7 @@ export type FinancialContracts = [
   Assert<
     Equal<
       keyof ResolvePaymentHoldParams,
-      "store_id" | "payment_id" | "expected_updated_at" | "hold_id" | "note"
+      "tenant_id" | "payment_id" | "expected_updated_at" | "hold_id" | "note"
     >
   >,
   Assert<RequiredField<VoidPaymentParams, "expected_updated_at">>,
@@ -217,7 +217,7 @@ export type FinancialContracts = [
       FindOrderFinancialSummariesParams
     >
   >,
-  Assert<Equal<keyof FindOrderFinancialSummariesParams, "store_id" | "order_ids">>,
+  Assert<Equal<keyof FindOrderFinancialSummariesParams, "tenant_id" | "order_ids">>,
   Assert<Equal<FindOrderFinancialSummariesParams["order_ids"], string[]>>,
   Assert<
     Equal<

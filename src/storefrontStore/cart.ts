@@ -51,7 +51,7 @@ import type {
 } from "./types";
 
 export interface CartScope {
-  customerId: string;
+  userId: string;
   isCurrent(): boolean;
   assertCurrent(): void;
 }
@@ -91,7 +91,7 @@ function quoteBody(id: string, params: ArkyCartQuoteParams): { id: string; conta
 
 function packageStartInput(start: StorefrontPackageStart): PackageStart {
   if (start.type === "amend") {
-    throw new CartError("not_ready", "The cart holds a store team's amendment, which only the store team changes");
+    throw new CartError("not_ready", "The cart holds a tenant team's amendment, which only the tenant team changes");
   }
   return start;
 }
@@ -106,7 +106,7 @@ function addOnInputs(addOns: readonly CartBookingLineAddOn[]): CartBookingLineAd
 }
 
 function buyerFitsScope(buyer: CartBuyer, scope: CartBuyer | undefined): boolean {
-  if (!scope || scope.type === "customer") return buyer.type === "customer";
+  if (!scope || scope.type === "user") return buyer.type === "user";
   if (scope.type === "company_location_selection") {
     return buyer.type === "company_location" || cartBuyerKey(buyer) === cartBuyerKey(scope);
   }
@@ -129,7 +129,7 @@ function cartLineInput(line: StorefrontCartLineItem): CartLineItemInput {
         type: "booking",
         id: line.id,
         booking_offering_id: line.booking_offering_id,
-        store_location_id: line.store_location_id,
+        tenant_location_id: line.tenant_location_id,
         resource: copyBookingLineResource(line.resource),
         requested_interval: { from: line.requested_interval.from, to: line.requested_interval.to },
         add_ons: addOnInputs(line.add_ons),
@@ -168,7 +168,7 @@ function cartMayHaveChanged(error: unknown): boolean {
 export function buyerParty(buyer: CartBuyer | undefined): CompanyPartyQuery {
   if (!buyer) return {};
   switch (buyer.type) {
-    case "customer":
+    case "user":
       return {};
     case "company":
     case "company_location_selection":
@@ -250,7 +250,7 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
 
   function applyCart(operation: CartScope, value: StorefrontCart, revision: number): StorefrontCart {
     operation.assertCurrent();
-    if (value.customer_id !== operation.customerId) throw new CartError("other_cart", "The cart belongs to another customer");
+    if (value.user_id !== operation.userId) throw new CartError("other_cart", "The cart belongs to another user");
     if (revision === cartRevision) {
       cart.set(value);
       quote.set(null);
@@ -333,7 +333,7 @@ export function createCartStore(context: CartStoreContext, scope: ArkyCartScope)
     try {
       const created = await client.eshop.cart.create({
         id,
-        buyer: scope.buyer ?? { type: "customer" },
+        buyer: scope.buyer ?? { type: "user" },
         package_id: scope.package_id,
         ...(params.place_of_sale !== undefined ? { place_of_sale: params.place_of_sale } : {}),
       });

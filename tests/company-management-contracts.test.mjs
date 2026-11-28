@@ -4,8 +4,8 @@ import { createAdmin } from "../dist/admin.js";
 import { createStorefront, initialize } from "../dist/storefront.js";
 import { apiUrl, fixedIdFactories, ids, recordFetch, storefrontIdentity, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
 
-const storeId = "3b21b61d-7162-414c-a73a-888ccbc57c3e";
-const selectedStoreId = "7f3a7a66-3403-4112-b5e5-d004a62d00b0";
+const tenantId = "3b21b61d-7162-414c-a73a-888ccbc57c3e";
+const selectedTenantId = "7f3a7a66-3403-4112-b5e5-d004a62d00b0";
 const id = "d65211c1-743f-45fb-ab24-07221b1e3a7c";
 const otherId = "9e7c5a3b-1d2f-4b6e-8a0c-4f6e8a2c4d5b";
 const now = 1788862721000;
@@ -50,38 +50,38 @@ const definitions = [
   {
     path: ["companies", "membership"],
     route: "company-memberships",
-    create: { company_id: selectedStoreId, contact: { email: "buyer@example.test", language: "en" }, role_ids: [otherId] },
-    update: { role_ids: [selectedStoreId, otherId], status: { type: "disabled" } },
-    query: { company_id: selectedStoreId, customer_id: otherId, role_id: otherId },
+    create: { company_id: selectedTenantId, contact: { email: "buyer@example.test", language: "en" }, role_ids: [otherId] },
+    update: { role_ids: [selectedTenantId, otherId], status: { type: "disabled" } },
+    query: { company_id: selectedTenantId, user_id: otherId, role_id: otherId },
     deletion: "deleted",
   },
   {
     path: ["companies", "role"],
     route: "company-roles",
     create: {
-      company_id: selectedStoreId,
+      company_id: selectedTenantId,
       key: "purchaser",
       permissions: [
-        { type: "company_place_orders", store_id: selectedStoreId, company_id: selectedStoreId, locations: { type: "all" } },
-        { type: "company_digital_products_read", store_id: selectedStoreId, company_id: selectedStoreId, locations: { type: "filtered", filters: [{ type: "ids", ids: [otherId] }] } },
-        { type: "company_join_packages", store_id: selectedStoreId, company_id: selectedStoreId, locations: { type: "all" } },
-        { type: "company_own_packages_read", store_id: selectedStoreId, company_id: selectedStoreId, locations: { type: "all" } },
+        { type: "company_place_orders", tenant_id: selectedTenantId, company_id: selectedTenantId, locations: { type: "all" } },
+        { type: "company_digital_products_read", tenant_id: selectedTenantId, company_id: selectedTenantId, locations: { type: "filtered", filters: [{ type: "ids", ids: [otherId] }] } },
+        { type: "company_join_packages", tenant_id: selectedTenantId, company_id: selectedTenantId, locations: { type: "all" } },
+        { type: "company_own_packages_read", tenant_id: selectedTenantId, company_id: selectedTenantId, locations: { type: "all" } },
       ],
     },
     response: {
       permissions: [
-        { id: otherId, role_id: id, type: { type: "company_place_orders", store_id: selectedStoreId, company_id: selectedStoreId, locations: { type: "all" } }, created_at: now },
+        { id: otherId, role_id: id, type: { type: "company_place_orders", tenant_id: selectedTenantId, company_id: selectedTenantId, locations: { type: "all" } }, created_at: now },
       ],
     },
     update: {
-      company_id: selectedStoreId,
+      company_id: selectedTenantId,
       permissions: [
-        { type: "company_write", store_id: selectedStoreId, company_id: selectedStoreId },
-        { type: "company_all_packages", store_id: selectedStoreId, company_id: selectedStoreId, action: "write", locations: { type: "all" } },
+        { type: "company_write", tenant_id: selectedTenantId, company_id: selectedTenantId },
+        { type: "company_all_packages", tenant_id: selectedTenantId, company_id: selectedTenantId, action: "write", locations: { type: "all" } },
       ],
     },
-    scope: { company_id: selectedStoreId },
-    query: { company_id: selectedStoreId, key: "purchaser" },
+    scope: { company_id: selectedTenantId },
+    query: { company_id: selectedTenantId, key: "purchaser" },
     deletion: "deleted",
   },
   {
@@ -92,9 +92,9 @@ const definitions = [
       purchasing: standardCheckout,
       fulfillment: { type: "routing" },
     },
-    create: { company_id: selectedStoreId, blocks: detailBlocks, name: "Depot", shipping_address: null, billing_address: null, status: { type: "active" } },
+    create: { company_id: selectedTenantId, blocks: detailBlocks, name: "Depot", shipping_address: null, billing_address: null, status: { type: "active" } },
     update: { name: "Depot 2", blocks: [], shipping_address: address, billing_address: null, status: { type: "archived" } },
-    query: { company_id: selectedStoreId },
+    query: { company_id: selectedTenantId },
     deletion: "deleted",
   },
   {
@@ -109,12 +109,12 @@ const definitions = [
     path: ["eshop", "packageOffering"],
     route: "package-offerings",
     create: { key: "members-club", blocks: [], package_ids: [otherId] },
-    update: { blocks: detailBlocks, package_ids: [otherId, selectedStoreId] },
+    update: { blocks: detailBlocks, package_ids: [otherId, selectedTenantId] },
     query: { key: "members-club", sort_field: "updated_at", sort_direction: "desc" },
     deletion: "empty",
   },
   {
-    path: ["store", "salesChannel"],
+    path: ["tenant", "salesChannel"],
     route: "sales-channels",
     create: { key: "trade", market_ids: [otherId], status: { type: "active" } },
     update: { market_ids: [], status: { type: "archived" } },
@@ -130,36 +130,36 @@ const response = (body, status = 200) => new Response(JSON.stringify(body), { st
 test("a company membership names the company's roles for an invited contact and survives exact reads", async (context) => {
   const role_ids = [otherId, id];
   const contact = { email: "buyer@example.test", language: "bs" };
-  const record = { id, store_id: storeId, company_id: selectedStoreId, role_ids, status: { type: "invited", contact }, created_at: now, updated_at: now };
+  const record = { id, tenant_id: tenantId, company_id: selectedTenantId, role_ids, status: { type: "invited", contact }, created_at: now, updated_at: now };
   const calls = [];
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     calls.push({ path: new URL(url).pathname, body: init.body ? JSON.parse(init.body) : null });
     return response(record);
   });
   const api = createClient().companies.membership;
-  assert.deepEqual(await api.create({ store_id: storeId, id, company_id: selectedStoreId, contact, role_ids }), record);
-  assert.deepEqual(calls[0].body, { id, company_id: selectedStoreId, contact, role_ids });
-  for (const removed of ["grants", "scope", "locations", "email", "language", "customer_id"]) assert.equal(removed in calls[0].body, false, removed);
-  assert.equal(calls[0].path, `/v1/stores/${storeId}/company-memberships`);
-  assert.deepEqual(await api.get({ store_id: storeId, id }), record);
-  assert.equal(calls[1].path, `/v1/stores/${storeId}/company-memberships/${id}`);
-  assert.deepEqual(await api.resendInvite({ store_id: storeId, id, expected_updated_at: now }), record);
-  assert.deepEqual(calls[2], { path: `/v1/stores/${storeId}/company-memberships/${id}/resend-invite`, body: { expected_updated_at: now } });
+  assert.deepEqual(await api.create({ tenant_id: tenantId, id, company_id: selectedTenantId, contact, role_ids }), record);
+  assert.deepEqual(calls[0].body, { id, company_id: selectedTenantId, contact, role_ids });
+  for (const removed of ["grants", "scope", "locations", "email", "language", "user_id"]) assert.equal(removed in calls[0].body, false, removed);
+  assert.equal(calls[0].path, `/v1/tenants/${tenantId}/company-memberships`);
+  assert.deepEqual(await api.get({ tenant_id: tenantId, id }), record);
+  assert.equal(calls[1].path, `/v1/tenants/${tenantId}/company-memberships/${id}`);
+  assert.deepEqual(await api.resendInvite({ tenant_id: tenantId, id, expected_updated_at: now }), record);
+  assert.deepEqual(calls[2], { path: `/v1/tenants/${tenantId}/company-memberships/${id}/resend-invite`, body: { expected_updated_at: now } });
   assert.equal(calls.length, 3);
 });
 
-test("a company location is served from a store location or by routing, set with its version", async (context) => {
+test("a company location is served from a tenant location or by routing, set with its version", async (context) => {
   const calls = [];
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     calls.push({ method: init.method, path: new URL(url).pathname, body: init.body ? JSON.parse(init.body) : null });
     return response({ id });
   });
   const api = createClient().companies.location;
-  await api.setFulfillment({ store_id: storeId, id, expected_updated_at: now, fulfillment: { type: "served_from", store_location_id: selectedStoreId } });
-  await api.setFulfillment({ store_id: storeId, id, expected_updated_at: now + 1, fulfillment: { type: "routing" } });
+  await api.setFulfillment({ tenant_id: tenantId, id, expected_updated_at: now, fulfillment: { type: "served_from", tenant_location_id: selectedTenantId } });
+  await api.setFulfillment({ tenant_id: tenantId, id, expected_updated_at: now + 1, fulfillment: { type: "routing" } });
   assert.deepEqual(calls, [
-    { method: "PUT", path: `/v1/stores/${storeId}/company-locations/${id}/served-from`, body: { expected_updated_at: now, fulfillment: { type: "served_from", store_location_id: selectedStoreId } } },
-    { method: "PUT", path: `/v1/stores/${storeId}/company-locations/${id}/served-from`, body: { expected_updated_at: now + 1, fulfillment: { type: "routing" } } },
+    { method: "PUT", path: `/v1/tenants/${tenantId}/company-locations/${id}/served-from`, body: { expected_updated_at: now, fulfillment: { type: "served_from", tenant_location_id: selectedTenantId } } },
+    { method: "PUT", path: `/v1/tenants/${tenantId}/company-locations/${id}/served-from`, body: { expected_updated_at: now + 1, fulfillment: { type: "routing" } } },
   ]);
   assert.equal("setServedFrom" in api, false);
 });
@@ -172,22 +172,22 @@ test("company and location tax registrations are submitted and reviewed with the
   });
   const client = createClient();
   const registration = { country: "BA", region: null, identifier: "4200000000000" };
-  await client.companies.location.submitTaxRegistration({ store_id: storeId, id, expected_updated_at: now, registration });
-  await client.companies.location.reviewTaxRegistration({ store_id: storeId, id, expected_updated_at: now + 1, registration, review: { type: "rejected", reason: "Unknown number" } });
-  await client.companies.submitTaxRegistration({ store_id: storeId, id: otherId, expected_updated_at: now + 2, registration });
-  await client.companies.reviewTaxRegistration({ store_id: storeId, id: otherId, expected_updated_at: now + 3, registration, review: { type: "verified" } });
+  await client.companies.location.submitTaxRegistration({ tenant_id: tenantId, id, expected_updated_at: now, registration });
+  await client.companies.location.reviewTaxRegistration({ tenant_id: tenantId, id, expected_updated_at: now + 1, registration, review: { type: "rejected", reason: "Unknown number" } });
+  await client.companies.submitTaxRegistration({ tenant_id: tenantId, id: otherId, expected_updated_at: now + 2, registration });
+  await client.companies.reviewTaxRegistration({ tenant_id: tenantId, id: otherId, expected_updated_at: now + 3, registration, review: { type: "verified" } });
   assert.deepEqual(calls, [
-    { method: "POST", path: `/v1/stores/${storeId}/company-locations/${id}/tax/registrations`, body: { expected_updated_at: now, registration } },
-    { method: "POST", path: `/v1/stores/${storeId}/company-locations/${id}/tax/registrations/review`, body: { expected_updated_at: now + 1, registration, review: { type: "rejected", reason: "Unknown number" } } },
-    { method: "POST", path: `/v1/stores/${storeId}/companies/${otherId}/tax/registrations`, body: { expected_updated_at: now + 2, registration } },
-    { method: "POST", path: `/v1/stores/${storeId}/companies/${otherId}/tax/registrations/review`, body: { expected_updated_at: now + 3, registration, review: { type: "verified" } } },
+    { method: "POST", path: `/v1/tenants/${tenantId}/company-locations/${id}/tax/registrations`, body: { expected_updated_at: now, registration } },
+    { method: "POST", path: `/v1/tenants/${tenantId}/company-locations/${id}/tax/registrations/review`, body: { expected_updated_at: now + 1, registration, review: { type: "rejected", reason: "Unknown number" } } },
+    { method: "POST", path: `/v1/tenants/${tenantId}/companies/${otherId}/tax/registrations`, body: { expected_updated_at: now + 2, registration } },
+    { method: "POST", path: `/v1/tenants/${tenantId}/companies/${otherId}/tax/registrations/review`, body: { expected_updated_at: now + 3, registration, review: { type: "verified" } } },
   ]);
 });
 
 for (const definition of definitions) {
   test(`${definition.path.join(".")} sends app-picked ids, versioned changes and the plan's deletion answer`, async (context) => {
     const calls = [];
-    const record = { id, store_id: selectedStoreId, ...definition.create, ...definition.response, status: { type: "active" }, created_at: now, updated_at: now };
+    const record = { id, tenant_id: selectedTenantId, ...definition.create, ...definition.response, status: { type: "active" }, created_at: now, updated_at: now };
     const updated = { ...record, ...definition.update, updated_at: now + 1 };
     const deletionAnswer = definition.deletion === "deleting"
       ? { ...record, status: { type: "deleting" }, updated_at: now + 2 }
@@ -206,42 +206,42 @@ for (const definition of definitions) {
     const api = getApi(createClient(), definition.path);
     const scope = definition.scope ?? {};
     const scopeSearch = Object.keys(scope).length ? `?${new URLSearchParams(scope)}` : "";
-    assert.deepEqual(await api.create({ ...definition.create, id, store_id: selectedStoreId }), record);
+    assert.deepEqual(await api.create({ ...definition.create, id, tenant_id: selectedTenantId }), record);
     assert.deepEqual(calls.at(-1).body, { ...definition.create, id });
-    assert.deepEqual(await api.get({ id, store_id: selectedStoreId, ...scope }), record);
+    assert.deepEqual(await api.get({ id, tenant_id: selectedTenantId, ...scope }), record);
     assert.equal(calls.at(-1).target.search, scopeSearch);
     const query = { ...definition.query, limit: 20, cursor: "previous-page" };
-    assert.deepEqual(await api.find({ store_id: selectedStoreId, ...query }), { items: [record], cursor: "next-page" });
+    assert.deepEqual(await api.find({ tenant_id: selectedTenantId, ...query }), { items: [record], cursor: "next-page" });
     for (const [key, value] of Object.entries(query)) {
       assert.equal(calls.at(-1).target.searchParams.get(key), typeof value === "object" ? JSON.stringify(value) : String(value));
     }
     if (definition.update) {
       const input = { ...definition.update, expected_updated_at: now };
-      assert.deepEqual(await api.update({ ...input, id, store_id: selectedStoreId }), updated);
+      assert.deepEqual(await api.update({ ...input, id, tenant_id: selectedTenantId }), updated);
       assert.deepEqual(calls.at(-1).body, input);
       assert.equal(calls.at(-1).method, "PUT");
     } else {
       assert.equal("update" in api, false);
     }
     assert.equal("usage" in api, false);
-    assert.deepEqual(await api.delete({ id, store_id: selectedStoreId, expected_updated_at: now, ...scope }), deletionAnswer);
+    assert.deepEqual(await api.delete({ id, tenant_id: selectedTenantId, expected_updated_at: now, ...scope }), deletionAnswer);
     assert.equal(calls.at(-1).method, "DELETE");
     assert.equal(calls.at(-1).body, null);
     assert.equal(calls.at(-1).target.searchParams.get("expected_updated_at"), String(now));
     for (const [key, value] of Object.entries(scope)) assert.equal(calls.at(-1).target.searchParams.get(key), value, key);
     for (const call of calls) {
-      assert.ok(call.target.pathname.startsWith(`/v1/stores/${selectedStoreId}/${definition.route}`));
+      assert.ok(call.target.pathname.startsWith(`/v1/tenants/${selectedTenantId}/${definition.route}`));
       assert.equal(call.headers.get("authorization"), "Bearer arky_at_ttttttttttttttttttttttttttttttttttttttttttA");
-      assert.equal(call.body?.store_id, undefined);
-      assert.equal(call.target.searchParams.has("store_id"), false);
+      assert.equal(call.body?.tenant_id, undefined);
+      assert.equal(call.target.searchParams.has("tenant_id"), false);
     }
     for (const invented of [undefined, "record-1", id.toUpperCase()]) {
-      await assert.rejects(async () => api.create({ ...definition.create, id: invented, store_id: selectedStoreId }), TypeError);
+      await assert.rejects(async () => api.create({ ...definition.create, id: invented, tenant_id: selectedTenantId }), TypeError);
     }
     const signal = new AbortController().signal;
     await assert.rejects(async () => api.get({ id: "one/segment?only" }), TypeError);
-    await api.get({ store_id: storeId, id: "one/segment?only", ...scope }, { signal, headers: { "x-client-trace": "company-contract" } });
-    assert.equal(calls.at(-1).target.pathname, `/v1/stores/${storeId}/${definition.route}/one%2Fsegment%3Fonly`);
+    await api.get({ tenant_id: tenantId, id: "one/segment?only", ...scope }, { signal, headers: { "x-client-trace": "company-contract" } });
+    assert.equal(calls.at(-1).target.pathname, `/v1/tenants/${tenantId}/${definition.route}/one%2Fsegment%3Fonly`);
     assert.equal(calls.at(-1).target.search, scopeSearch);
     assert.equal(calls.at(-1).headers.get("x-client-trace"), "company-contract");
     assert.equal(calls.at(-1).signal, signal);
@@ -250,31 +250,31 @@ for (const definition of definitions) {
 
 test("a company or one of its locations is assigned to a package under the app's member id", async (context) => {
   const calls = [];
-  const member = (subject) => ({ id, store_id: storeId, package_id: otherId, subject, renewal: { type: "never", access_end: { type: "never" } }, status: { type: "active" }, created_at: now, updated_at: now });
+  const member = (subject) => ({ id, tenant_id: tenantId, package_id: otherId, subject, renewal: { type: "never", access_end: { type: "never" } }, status: { type: "active" }, created_at: now, updated_at: now });
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     const call = { method: init.method, path: new URL(url).pathname, query: new URL(url).search, body: init.body ? JSON.parse(init.body) : null };
     calls.push(call);
     return response(call.method === "GET" ? { items: [], cursor: null } : member(call.body.subject));
   });
   const api = createClient().eshop.packageMember;
-  const company = { type: "company", company_id: selectedStoreId };
-  const location = { type: "company_location", company_location_id: selectedStoreId };
-  assert.deepEqual((await api.assign({ store_id: storeId, id, package_id: otherId, subject: company, access_end: { type: "never" } })).subject, company);
-  await api.assign({ store_id: storeId, id, package_id: otherId, subject: location, access_end: { type: "at", at: now } });
-  await api.find({ store_id: storeId, company_id: selectedStoreId, package_id: otherId, limit: 10 });
+  const company = { type: "company", company_id: selectedTenantId };
+  const location = { type: "company_location", company_location_id: selectedTenantId };
+  assert.deepEqual((await api.assign({ tenant_id: tenantId, id, package_id: otherId, subject: company, access_end: { type: "never" } })).subject, company);
+  await api.assign({ tenant_id: tenantId, id, package_id: otherId, subject: location, access_end: { type: "at", at: now } });
+  await api.find({ tenant_id: tenantId, company_id: selectedTenantId, package_id: otherId, limit: 10 });
   assert.deepEqual(calls, [
-    { method: "POST", path: `/v1/stores/${storeId}/package-members`, query: "", body: { id, package_id: otherId, subject: company, access_end: { type: "never" } } },
-    { method: "POST", path: `/v1/stores/${storeId}/package-members`, query: "", body: { id, package_id: otherId, subject: location, access_end: { type: "at", at: now } } },
-    { method: "GET", path: `/v1/stores/${storeId}/package-members`, query: `?company_id=${selectedStoreId}&package_id=${otherId}&limit=10`, body: null },
+    { method: "POST", path: `/v1/tenants/${tenantId}/package-members`, query: "", body: { id, package_id: otherId, subject: company, access_end: { type: "never" } } },
+    { method: "POST", path: `/v1/tenants/${tenantId}/package-members`, query: "", body: { id, package_id: otherId, subject: location, access_end: { type: "at", at: now } } },
+    { method: "GET", path: `/v1/tenants/${tenantId}/package-members`, query: `?company_id=${selectedTenantId}&package_id=${otherId}&limit=10`, body: null },
   ]);
   for (const removed of ["add", "remove", "join", "execute", "findCommands", "update", "delete"]) assert.equal(removed in api, false, removed);
-  await assert.rejects(async () => api.assign({ store_id: storeId, id: "member-1", package_id: otherId, subject: company, access_end: { type: "never" } }), TypeError);
+  await assert.rejects(async () => api.assign({ tenant_id: tenantId, id: "member-1", package_id: otherId, subject: company, access_end: { type: "never" } }), TypeError);
   assert.equal(calls.length, 3);
 });
 
 test("Market management sends explicit creation, a tax mode fixed at creation, payment option order and versioned deletion", async (context) => {
   const calls = [];
-  const record = { id, store_id: storeId, key: "bih", currency: "bam", tax_mode: "inclusive", payment_option_ids: [], status: { type: "active" }, created_at: now, updated_at: now };
+  const record = { id, tenant_id: tenantId, key: "bih", currency: "bam", tax_mode: "inclusive", payment_option_ids: [], status: { type: "active" }, created_at: now, updated_at: now };
   const updated = { ...record, payment_option_ids: [otherId], updated_at: now + 1 };
   const deleting = { ...updated, status: { type: "deleting" }, updated_at: now + 2 };
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
@@ -287,41 +287,41 @@ test("Market management sends explicit creation, a tax mode fixed at creation, p
     return response(record);
   });
   const client = createClient();
-  const api = client.store.market;
+  const api = client.tenant.market;
   const create = { id, key: "bih", currency: "bam", tax_mode: "inclusive" };
-  assert.deepEqual(await api.create({ store_id: storeId, ...create }), record);
+  assert.deepEqual(await api.create({ tenant_id: tenantId, ...create }), record);
   assert.equal(calls.at(-1).method, "POST");
   assert.deepEqual(calls.at(-1).body, create);
-  assert.deepEqual(await api.find({ store_id: storeId, currency: "bam", status: "active" }), { items: [record], cursor: null });
+  assert.deepEqual(await api.find({ tenant_id: tenantId, currency: "bam", status: "active" }), { items: [record], cursor: null });
   assert.deepEqual(Object.fromEntries(calls.at(-1).target.searchParams), { currency: "bam", status: "active" });
-  assert.deepEqual(await api.get({ store_id: storeId, id }), record);
-  await api.getByKey({ store_id: storeId, key: "bih" });
-  assert.equal(calls.at(-1).target.pathname, `/v1/stores/${storeId}/markets/by-key/bih`);
+  assert.deepEqual(await api.get({ tenant_id: tenantId, id }), record);
+  await api.getByKey({ tenant_id: tenantId, key: "bih" });
+  assert.equal(calls.at(-1).target.pathname, `/v1/tenants/${tenantId}/markets/by-key/bih`);
   const update = { expected_updated_at: now, payment_option_ids: [otherId] };
-  assert.deepEqual(await api.update({ store_id: storeId, id, ...update }), updated);
+  assert.deepEqual(await api.update({ tenant_id: tenantId, id, ...update }), updated);
   assert.deepEqual(calls.at(-1).body, update);
   assert.equal("tax_mode" in calls.at(-1).body, false);
   assert.equal(updated.tax_mode, "inclusive");
   assert.equal(calls.at(-1).method, "PUT");
-  assert.deepEqual(await api.delete({ store_id: storeId, id, expected_updated_at: now + 1 }), deleting);
+  assert.deepEqual(await api.delete({ tenant_id: tenantId, id, expected_updated_at: now + 1 }), deleting);
   assert.equal(calls.at(-1).method, "DELETE");
   assert.equal(calls.at(-1).body, null);
   assert.deepEqual([...calls.at(-1).target.searchParams], [["expected_updated_at", String(now + 1)]]);
   for (const call of calls) {
     assert.equal(call.headers.get("authorization"), "Bearer arky_at_ttttttttttttttttttttttttttttttttttttttttttA");
-    assert.equal(call.body?.store_id, undefined);
-    assert.equal(call.target.searchParams.has("store_id"), false);
+    assert.equal(call.body?.tenant_id, undefined);
+    assert.equal(call.target.searchParams.has("tenant_id"), false);
   }
   assert.equal("usage" in api, false);
-  assert.equal("setStoreId" in client, false);
+  assert.equal("setTenantId" in client, false);
   const before = calls.length;
   await assert.rejects(async () => api.find({}), TypeError);
-  await assert.rejects(async () => api.create({ store_id: storeId, ...create, id: "bih" }), TypeError);
+  await assert.rejects(async () => api.create({ tenant_id: tenantId, ...create, id: "bih" }), TypeError);
   assert.equal(calls.length, before);
 });
 
 test("B2B management keeps server denials and conflicts without replacing the mutation", async (context) => {
-  for (const definition of [...definitions, { path: ["store", "market"] }]) {
+  for (const definition of [...definitions, { path: ["tenant", "market"] }]) {
     for (const status of [400, 403, 404, 409]) {
       let calls = 0;
       context.mock.method(globalThis, "fetch", async () => {
@@ -330,7 +330,7 @@ test("B2B management keeps server denials and conflicts without replacing the mu
       });
       const api = getApi(createClient(), definition.path);
       await assert.rejects(
-        api.delete({ store_id: storeId, id, expected_updated_at: now }),
+        api.delete({ tenant_id: tenantId, id, expected_updated_at: now }),
         (error) => error.name === "ApiError" && error.statusCode === status && error.code === "GENERAL.CONFLICT" && error.message.includes("still referenced by"),
       );
       assert.equal(calls, 1);
@@ -340,11 +340,11 @@ test("B2B management keeps server denials and conflicts without replacing the mu
 
 test("a buyer reads their company access as the permissions of their roles, their memberships and the locations they may buy for", async (context) => {
   const access = {
-    company: { type: "company", id: selectedStoreId, store_id: storeId, name: "Buyer", contact: { email: "accounts@example.test", language: "en" }, tax: { type: "standard", registrations: [{ country: "BA", region: null, identifier: "4200000000000", status: { type: "rejected", rejected_at: now } }] }, purchasing: standardCheckout, status: { type: "active" }, created_at: now, updated_at: now },
+    company: { type: "company", id: selectedTenantId, tenant_id: tenantId, name: "Buyer", contact: { email: "accounts@example.test", language: "en" }, tax: { type: "standard", registrations: [{ country: "BA", region: null, identifier: "4200000000000", status: { type: "rejected", rejected_at: now } }] }, purchasing: standardCheckout, status: { type: "active" }, created_at: now, updated_at: now },
     permissions: [
-      { type: "company_place_orders", store_id: storeId, company_id: selectedStoreId, locations: { type: "all" } },
-      { type: "company_all_orders_read", store_id: storeId, company_id: selectedStoreId, locations: { type: "filtered", filters: [{ type: "ids", ids: [otherId] }] } },
-      { type: "company_all_packages", store_id: storeId, company_id: selectedStoreId, action: "write", locations: { type: "filtered", filters: [{ type: "ids", ids: [otherId] }] } },
+      { type: "company_place_orders", tenant_id: tenantId, company_id: selectedTenantId, locations: { type: "all" } },
+      { type: "company_all_orders_read", tenant_id: tenantId, company_id: selectedTenantId, locations: { type: "filtered", filters: [{ type: "ids", ids: [otherId] }] } },
+      { type: "company_all_packages", tenant_id: tenantId, company_id: selectedTenantId, action: "write", locations: { type: "filtered", filters: [{ type: "ids", ids: [otherId] }] } },
     ],
   };
   const calls = [];
@@ -355,20 +355,20 @@ test("a buyer reads their company access as the permissions of their roles, thei
     if (target.pathname.endsWith("/company-memberships") || target.pathname.endsWith("/company-locations")) return response({ items: [], cursor: null });
     return response({ id: otherId });
   });
-  const shop = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() }).companies;
-  assert.deepEqual(await shop.getAccess({ id: selectedStoreId }), access);
-  const locationsOnly = { company: { type: "locations", id: selectedStoreId, name: "Buyer", status: { type: "active" } }, permissions: access.permissions.slice(1) };
+  const shop = createStorefront(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() }).companies;
+  assert.deepEqual(await shop.getAccess({ id: selectedTenantId }), access);
+  const locationsOnly = { company: { type: "locations", id: selectedTenantId, name: "Buyer", status: { type: "active" } }, permissions: access.permissions.slice(1) };
   access.company = locationsOnly.company;
   access.permissions = locationsOnly.permissions;
-  assert.deepEqual(await shop.getAccess({ id: selectedStoreId }), locationsOnly);
+  assert.deepEqual(await shop.getAccess({ id: selectedTenantId }), locationsOnly);
   await shop.membership.find({ limit: 10 });
-  await shop.location.find({ company_id: selectedStoreId, limit: 5 });
+  await shop.location.find({ company_id: selectedTenantId, limit: 5 });
   await shop.location.get({ id: otherId });
   assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
-    ["GET", `/v1/storefront/companies/${selectedStoreId}/access`, {}],
-    ["GET", `/v1/storefront/companies/${selectedStoreId}/access`, {}],
+    ["GET", `/v1/storefront/companies/${selectedTenantId}/access`, {}],
+    ["GET", `/v1/storefront/companies/${selectedTenantId}/access`, {}],
     ["GET", "/v1/storefront/company-memberships", { limit: "10" }],
-    ["GET", "/v1/storefront/company-locations", { company_id: selectedStoreId, limit: "5" }],
+    ["GET", "/v1/storefront/company-locations", { company_id: selectedTenantId, limit: "5" }],
     ["GET", `/v1/storefront/company-locations/${otherId}`, {}],
   ]);
   for (const call of calls) assert.equal(call.headers.get("authorization"), `Bearer ${visitorToken}`);
@@ -376,7 +376,7 @@ test("a buyer reads their company access as the permissions of their roles, thei
 });
 
 function storefrontCompanies() {
-  return createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() }).companies;
+  return createStorefront(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() }).companies;
 }
 
 test("a company manager changes the company, its locations and its members through the storefront twins of the staff routes", async (context) => {
@@ -393,40 +393,40 @@ test("a company manager changes the company, its locations and its members throu
   const contact = { email: "buyer@example.test", language: "bs" };
   const role_ids = [id];
   const companyUpdate = { expected_updated_at: now, name: "Buyer 2", contact: null, billing_address: address };
-  const locationCreate = { id: otherId, company_id: selectedStoreId, name: "Depot", shipping_address: address, billing_address: null, status: { type: "active" }, blocks: [] };
+  const locationCreate = { id: otherId, company_id: selectedTenantId, name: "Depot", shipping_address: address, billing_address: null, status: { type: "active" }, blocks: [] };
   const locationUpdate = { expected_updated_at: now + 1, name: "Depot 2", shipping_address: null, billing_address: address, status: { type: "archived" } };
-  const membershipCreate = { id, company_id: selectedStoreId, contact, role_ids };
+  const membershipCreate = { id, company_id: selectedTenantId, contact, role_ids };
   const membershipUpdate = { expected_updated_at: now + 3, role_ids, status: { type: "disabled" } };
-  await shop.update({ id: selectedStoreId, ...companyUpdate });
+  await shop.update({ id: selectedTenantId, ...companyUpdate });
   await shop.location.create(locationCreate);
   await shop.location.update({ id: otherId, ...locationUpdate });
   assert.deepEqual(await shop.location.delete({ id: otherId, expected_updated_at: now + 2 }), { deleted: true });
-  await shop.membership.find({ company_id: selectedStoreId, limit: 10 });
+  await shop.membership.find({ company_id: selectedTenantId, limit: 10 });
   await shop.membership.create(membershipCreate);
   await shop.membership.update({ id, ...membershipUpdate });
   assert.deepEqual(await shop.membership.delete({ id, expected_updated_at: now + 4 }), { deleted: true });
   await shop.membership.resendInvite({ id: "membership/one", expected_updated_at: now + 5 });
-  await shop.role.find({ company_id: selectedStoreId, key: "purchaser" });
+  await shop.role.find({ company_id: selectedTenantId, key: "purchaser" });
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
-    ["PUT", `/v1/storefront/companies/${selectedStoreId}`, {}, companyUpdate],
+    ["PUT", `/v1/storefront/companies/${selectedTenantId}`, {}, companyUpdate],
     ["POST", "/v1/storefront/company-locations", {}, locationCreate],
     ["PUT", `/v1/storefront/company-locations/${otherId}`, {}, locationUpdate],
     ["DELETE", `/v1/storefront/company-locations/${otherId}`, { expected_updated_at: String(now + 2) }, null],
-    ["GET", "/v1/storefront/company-memberships", { company_id: selectedStoreId, limit: "10" }, null],
+    ["GET", "/v1/storefront/company-memberships", { company_id: selectedTenantId, limit: "10" }, null],
     ["POST", "/v1/storefront/company-memberships", {}, membershipCreate],
     ["PUT", `/v1/storefront/company-memberships/${id}`, {}, membershipUpdate],
     ["DELETE", `/v1/storefront/company-memberships/${id}`, { expected_updated_at: String(now + 4) }, null],
     ["POST", "/v1/storefront/company-memberships/membership%2Fone/resend-invite", {}, { expected_updated_at: now + 5 }],
-    ["GET", "/v1/storefront/company-roles", { company_id: selectedStoreId, key: "purchaser" }, null],
+    ["GET", "/v1/storefront/company-roles", { company_id: selectedTenantId, key: "purchaser" }, null],
   ]);
   for (const removed of ["blocks", "status"]) assert.equal(removed in calls[0].body, false, removed);
   assert.equal("blocks" in calls[2].body, false);
   assert.deepEqual(calls[1].body.blocks, []);
   for (const call of calls) {
     assert.equal(call.headers.get("authorization"), `Bearer ${visitorToken}`);
-    assert.equal(call.headers.get("x-arky-store-id"), storefrontIdentity.storeId);
+    assert.equal(call.headers.get("x-arky-tenant-id"), storefrontIdentity.tenantId);
     assert.equal(call.headers.get("x-arky-sales-channel-id"), storefrontIdentity.salesChannelId);
-    assert.equal(call.body?.store_id, undefined);
+    assert.equal(call.body?.tenant_id, undefined);
   }
   for (const index of [0, 2, 6]) assert.equal("id" in calls[index].body, false);
   assert.deepEqual(Object.keys(shop).sort(), ["getAccess", "location", "membership", "role", "update"]);
@@ -443,11 +443,11 @@ test("a storefront company location or membership is created only under the app'
   });
   const shop = storefrontCompanies();
   for (const invented of [undefined, "depot-1", otherId.toUpperCase()]) {
-    await assert.rejects(async () => shop.location.create({ id: invented, company_id: selectedStoreId, name: "Depot", shipping_address: null, billing_address: null, status: { type: "active" }, blocks: [] }), {
+    await assert.rejects(async () => shop.location.create({ id: invented, company_id: selectedTenantId, name: "Depot", shipping_address: null, billing_address: null, status: { type: "active" }, blocks: [] }), {
       name: "TypeError",
       message: "The company location id must be a canonical UUID v4 picked by the app",
     });
-    await assert.rejects(async () => shop.membership.create({ id: invented, company_id: selectedStoreId, contact: { email: "buyer@example.test", language: "bs" }, role_ids: [id] }), {
+    await assert.rejects(async () => shop.membership.create({ id: invented, company_id: selectedTenantId, contact: { email: "buyer@example.test", language: "bs" }, role_ids: [id] }), {
       name: "TypeError",
       message: "The company membership id must be a canonical UUID v4 picked by the app",
     });
@@ -455,11 +455,11 @@ test("a storefront company location or membership is created only under the app'
   assert.equal(calls.length, 0);
 });
 
-function storeCompanies() {
-  return initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() }).companies;
+function tenantCompanies() {
+  return initialize(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, sessionStorage: visitorStorage() }).companies;
 }
 
-test("the store's companies has the client's getAccess, update, location, membership and role, and each call reaches its /v1/storefront route", async (context) => {
+test("the tenant's companies has the client's getAccess, update, location, membership and role, and each call reaches its /v1/storefront route", async (context) => {
   const calls = [];
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     const target = new URL(url);
@@ -469,64 +469,64 @@ test("the store's companies has the client's getAccess, update, location, member
     if (call.method === "GET") return response({ items: [], cursor: null });
     return response({ id: otherId });
   });
-  const shop = storeCompanies();
+  const shop = tenantCompanies();
   assert.deepEqual(Object.keys(shop).sort(), ["getAccess", "location", "membership", "role", "update"]);
   assert.deepEqual(Object.keys(shop.location).sort(), ["create", "delete", "find", "get", "update"]);
   assert.deepEqual(Object.keys(shop.membership).sort(), ["create", "delete", "find", "resendInvite", "update"]);
   assert.deepEqual(Object.keys(shop.role), ["find"]);
   const companyUpdate = { expected_updated_at: now, name: "Buyer 2", contact: null, billing_address: address };
-  const locationCreate = { id: otherId, company_id: selectedStoreId, name: "Depot", shipping_address: address, billing_address: null, status: { type: "active" }, blocks: [] };
+  const locationCreate = { id: otherId, company_id: selectedTenantId, name: "Depot", shipping_address: address, billing_address: null, status: { type: "active" }, blocks: [] };
   const locationUpdate = { expected_updated_at: now + 1, name: "Depot 2", shipping_address: null, billing_address: address, status: { type: "archived" } };
-  const membershipCreate = { id, company_id: selectedStoreId, contact: { email: "buyer@example.test", language: "bs" }, role_ids: [otherId] };
+  const membershipCreate = { id, company_id: selectedTenantId, contact: { email: "buyer@example.test", language: "bs" }, role_ids: [otherId] };
   const membershipUpdate = { expected_updated_at: now + 3, role_ids: [otherId], status: { type: "disabled" } };
-  await shop.getAccess({ id: selectedStoreId });
-  await shop.update({ id: selectedStoreId, ...companyUpdate });
-  await shop.location.find({ company_id: selectedStoreId });
+  await shop.getAccess({ id: selectedTenantId });
+  await shop.update({ id: selectedTenantId, ...companyUpdate });
+  await shop.location.find({ company_id: selectedTenantId });
   await shop.location.get({ id: otherId });
   await shop.location.create(locationCreate);
   await shop.location.update({ id: otherId, ...locationUpdate });
   assert.deepEqual(await shop.location.delete({ id: otherId, expected_updated_at: now + 2 }), { deleted: true });
-  await shop.membership.find({ company_id: selectedStoreId });
+  await shop.membership.find({ company_id: selectedTenantId });
   await shop.membership.create(membershipCreate);
   await shop.membership.update({ id, ...membershipUpdate });
   assert.deepEqual(await shop.membership.delete({ id, expected_updated_at: now + 4 }), { deleted: true });
   await shop.membership.resendInvite({ id, expected_updated_at: now + 5 });
-  await shop.role.find({ company_id: selectedStoreId });
+  await shop.role.find({ company_id: selectedTenantId });
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
-    ["GET", `/v1/storefront/companies/${selectedStoreId}/access`, {}, null],
-    ["PUT", `/v1/storefront/companies/${selectedStoreId}`, {}, companyUpdate],
-    ["GET", "/v1/storefront/company-locations", { company_id: selectedStoreId }, null],
+    ["GET", `/v1/storefront/companies/${selectedTenantId}/access`, {}, null],
+    ["PUT", `/v1/storefront/companies/${selectedTenantId}`, {}, companyUpdate],
+    ["GET", "/v1/storefront/company-locations", { company_id: selectedTenantId }, null],
     ["GET", `/v1/storefront/company-locations/${otherId}`, {}, null],
     ["POST", "/v1/storefront/company-locations", {}, locationCreate],
     ["PUT", `/v1/storefront/company-locations/${otherId}`, {}, locationUpdate],
     ["DELETE", `/v1/storefront/company-locations/${otherId}`, { expected_updated_at: String(now + 2) }, null],
-    ["GET", "/v1/storefront/company-memberships", { company_id: selectedStoreId }, null],
+    ["GET", "/v1/storefront/company-memberships", { company_id: selectedTenantId }, null],
     ["POST", "/v1/storefront/company-memberships", {}, membershipCreate],
     ["PUT", `/v1/storefront/company-memberships/${id}`, {}, membershipUpdate],
     ["DELETE", `/v1/storefront/company-memberships/${id}`, { expected_updated_at: String(now + 4) }, null],
     ["POST", `/v1/storefront/company-memberships/${id}/resend-invite`, {}, { expected_updated_at: now + 5 }],
-    ["GET", "/v1/storefront/company-roles", { company_id: selectedStoreId }, null],
+    ["GET", "/v1/storefront/company-roles", { company_id: selectedTenantId }, null],
   ]);
   for (const call of calls) {
     assert.equal(call.headers.get("authorization"), `Bearer ${visitorToken}`);
-    assert.equal(call.headers.get("x-arky-store-id"), storefrontIdentity.storeId);
+    assert.equal(call.headers.get("x-arky-tenant-id"), storefrontIdentity.tenantId);
     assert.equal(call.headers.get("x-arky-sales-channel-id"), storefrontIdentity.salesChannelId);
   }
 });
 
-test("staff read companies and company locations by ids, companies by one tax registration, and one company membership by email or customer from Tito", async (context) => {
+test("staff read companies and company locations by ids, companies by one tax registration, and one company membership by email or user from Tito", async (context) => {
   const calls = recordFetch(context, () => ({ items: [], cursor: null }));
   const admin = createAdmin({ apiUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).companies;
-  await admin.find({ store_id: ids.store, ids: [ids.company] });
-  await admin.location.find({ store_id: ids.store, ids: [ids.companyLocation, ids.otherCompanyLocation] });
-  await admin.membership.find({ store_id: ids.store, company_id: ids.company, email: "buyer@example.test" });
-  await admin.membership.find({ store_id: ids.store, company_id: ids.company, customer_id: ids.customer });
-  await admin.find({ store_id: ids.store, tax_registration_country: "HR", tax_registration_identifier: "HR12345678901", limit: 2 });
+  await admin.find({ tenant_id: ids.tenant, ids: [ids.company] });
+  await admin.location.find({ tenant_id: ids.tenant, ids: [ids.companyLocation, ids.otherCompanyLocation] });
+  await admin.membership.find({ tenant_id: ids.tenant, company_id: ids.company, email: "buyer@example.test" });
+  await admin.membership.find({ tenant_id: ids.tenant, company_id: ids.company, user_id: ids.user });
+  await admin.find({ tenant_id: ids.tenant, tax_registration_country: "HR", tax_registration_identifier: "HR12345678901", limit: 2 });
   assert.deepEqual(calls.map((call) => [call.method, call.path, call.query]), [
-    ["GET", `/v1/stores/${ids.store}/companies`, { ids: JSON.stringify([ids.company]) }],
-    ["GET", `/v1/stores/${ids.store}/company-locations`, { ids: JSON.stringify([ids.companyLocation, ids.otherCompanyLocation]) }],
-    ["GET", `/v1/stores/${ids.store}/company-memberships`, { company_id: ids.company, email: "buyer@example.test" }],
-    ["GET", `/v1/stores/${ids.store}/company-memberships`, { company_id: ids.company, customer_id: ids.customer }],
-    ["GET", `/v1/stores/${ids.store}/companies`, { tax_registration_country: "HR", tax_registration_identifier: "HR12345678901", limit: "2" }],
+    ["GET", `/v1/tenants/${ids.tenant}/companies`, { ids: JSON.stringify([ids.company]) }],
+    ["GET", `/v1/tenants/${ids.tenant}/company-locations`, { ids: JSON.stringify([ids.companyLocation, ids.otherCompanyLocation]) }],
+    ["GET", `/v1/tenants/${ids.tenant}/company-memberships`, { company_id: ids.company, email: "buyer@example.test" }],
+    ["GET", `/v1/tenants/${ids.tenant}/company-memberships`, { company_id: ids.company, user_id: ids.user }],
+    ["GET", `/v1/tenants/${ids.tenant}/companies`, { tax_registration_country: "HR", tax_registration_identifier: "HR12345678901", limit: "2" }],
   ]);
 });

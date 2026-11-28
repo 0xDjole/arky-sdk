@@ -4,7 +4,7 @@ import { ArkyApiError, ArkyNetworkError, createAdmin, createFiscalDeviceAgent } 
 import { createStorefront } from "../dist/storefront.js";
 import { apiUrl as storefrontApiUrl, errorResponse, factoryOrderToken, fixedIdFactories, ids, recordFetch, storefrontIdentity, visitorStorage } from "./helpers/arky-fixtures.mjs";
 
-const storeId = "4f2a9c61-7e3b-4d85-a0c9-1b6e8d3f5a27";
+const tenantId = "4f2a9c61-7e3b-4d85-a0c9-1b6e8d3f5a27";
 const locationId = "9b3e1d57-2c84-4a06-8f1e-6d2a7c0b3e95";
 const deviceId = "2d7f9b14-6c38-4a05-9e21-8b4c0f6a3d57";
 const tokenId = "6a1c3e85-7b29-4d04-9f6e-2c8a0d4b6e13";
@@ -22,8 +22,8 @@ function admin() {
 function device(type = { type: "ofs_box", uid: "AB12CD34", environment: "production" }) {
   return {
     id: deviceId,
-    store_id: storeId,
-    store_location_id: locationId,
+    tenant_id: tenantId,
+    tenant_location_id: locationId,
     key: "reception",
     type,
     status: "active",
@@ -37,7 +37,7 @@ function device(type = { type: "ofs_box", uid: "AB12CD34", environment: "product
 function receipt(state = { type: "requested" }) {
   return {
     id: receiptId,
-    store_id: storeId,
+    tenant_id: tenantId,
     order_id: ids.order,
     fiscal_device_id: deviceId,
     type: { type: "sale", targets: [{ type: "booking", line_item_id: ids.line }], payments: [{ payment_id: ids.payment, amount: 5000 }] },
@@ -67,10 +67,10 @@ function receipt(state = { type: "requested" }) {
 
 test("fiscal devices are listed by place, type and status, read, made under the app's id, renamed and archived by version", async (context) => {
   const calls = recordFetch(context, (call) => (call.method === "GET" && call.path.endsWith("/fiscal-devices") ? { items: [device()], cursor: "devices" } : device()));
-  const api = admin().store.fiscalDevice;
-  assert.deepEqual(await api.find({ store_id: storeId, store_location_id: locationId, type: "ofs_box", status: "active", limit: 20 }), { items: [device()], cursor: "devices" });
-  await api.find({ store_id: storeId, cursor: "devices" });
-  assert.deepEqual(await api.get({ store_id: storeId, id: deviceId }), device());
+  const api = admin().tenant.fiscalDevice;
+  assert.deepEqual(await api.find({ tenant_id: tenantId, tenant_location_id: locationId, type: "ofs_box", status: "active", limit: 20 }), { items: [device()], cursor: "devices" });
+  await api.find({ tenant_id: tenantId, cursor: "devices" });
+  assert.deepEqual(await api.get({ tenant_id: tenantId, id: deviceId }), device());
   const types = [
     { type: "ofs_box", uid: "AB12CD34", environment: "production" },
     { type: "croatia_cis", provider_id: providerId, premises_mark: "POSL1", device_mark: "1" },
@@ -78,23 +78,23 @@ test("fiscal devices are listed by place, type and status, read, made under the 
     { type: "fbih_tring_printer", ibfm: "AB123456" },
     { type: "manual" },
   ];
-  for (const type of types) await api.create({ store_id: storeId, id: deviceId, store_location_id: locationId, key: "reception", type });
-  await api.rename({ store_id: storeId, id: deviceId, expected_updated_at: 2, key: "front-desk" });
-  await api.archive({ store_id: storeId, id: deviceId, expected_updated_at: 3 });
-  const base = `/v1/stores/${storeId}/fiscal-devices`;
+  for (const type of types) await api.create({ tenant_id: tenantId, id: deviceId, tenant_location_id: locationId, key: "reception", type });
+  await api.rename({ tenant_id: tenantId, id: deviceId, expected_updated_at: 2, key: "front-desk" });
+  await api.archive({ tenant_id: tenantId, id: deviceId, expected_updated_at: 3 });
+  const base = `/v1/tenants/${tenantId}/fiscal-devices`;
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
-    ["GET", base, { store_location_id: locationId, type: "ofs_box", status: "active", limit: "20" }, null],
+    ["GET", base, { tenant_location_id: locationId, type: "ofs_box", status: "active", limit: "20" }, null],
     ["GET", base, { cursor: "devices" }, null],
     ["GET", `${base}/${deviceId}`, {}, null],
-    ...types.map((type) => ["POST", base, {}, { id: deviceId, store_location_id: locationId, key: "reception", type }]),
+    ...types.map((type) => ["POST", base, {}, { id: deviceId, tenant_location_id: locationId, key: "reception", type }]),
     ["PUT", `${base}/${deviceId}`, {}, { expected_updated_at: 2, key: "front-desk" }],
     ["POST", `${base}/${deviceId}/archive`, {}, { expected_updated_at: 3 }],
   ]);
-  await assert.rejects(async () => api.create({ store_id: storeId, id: "reception", store_location_id: locationId, key: "reception", type: { type: "manual" } }), {
+  await assert.rejects(async () => api.create({ tenant_id: tenantId, id: "reception", tenant_location_id: locationId, key: "reception", type: { type: "manual" } }), {
     name: "TypeError",
     message: "The fiscal device id must be a canonical UUID v4 picked by the app",
   });
-  await assert.rejects(async () => api.find({ store_id: "store" }), TypeError);
+  await assert.rejects(async () => api.find({ tenant_id: "tenant" }), TypeError);
   assert.equal(calls.length, 10);
 });
 
@@ -102,19 +102,19 @@ test("a device's desk keys are listed as the plain array Arky answers, made unde
   const token = { id: tokenId, fiscal_device_id: deviceId, name: "Reception PC", token_hint: "arky_fd_dddd", readiness: { type: "ready" }, last_seen_at: 4, active: true, created_at: 1 };
   const answers = [[token], { token, secret: { type: "created", value: deviceToken } }, { token, secret: { type: "existing" } }, { ...token, active: false }];
   const calls = recordFetch(context, () => answers.shift());
-  const api = admin().store.fiscalDevice.token;
-  assert.deepEqual(await api.find({ store_id: storeId, fiscal_device_id: deviceId }), [token]);
-  assert.deepEqual(await api.create({ store_id: storeId, fiscal_device_id: deviceId, id: tokenId, name: "Reception PC" }), { token, secret: { type: "created", value: deviceToken } });
-  assert.deepEqual(await api.create({ store_id: storeId, fiscal_device_id: deviceId, id: tokenId, name: "Reception PC" }), { token, secret: { type: "existing" } });
-  assert.equal((await api.revoke({ store_id: storeId, fiscal_device_id: deviceId, id: tokenId })).active, false);
-  const base = `/v1/stores/${storeId}/fiscal-devices/${deviceId}/tokens`;
+  const api = admin().tenant.fiscalDevice.token;
+  assert.deepEqual(await api.find({ tenant_id: tenantId, fiscal_device_id: deviceId }), [token]);
+  assert.deepEqual(await api.create({ tenant_id: tenantId, fiscal_device_id: deviceId, id: tokenId, name: "Reception PC" }), { token, secret: { type: "created", value: deviceToken } });
+  assert.deepEqual(await api.create({ tenant_id: tenantId, fiscal_device_id: deviceId, id: tokenId, name: "Reception PC" }), { token, secret: { type: "existing" } });
+  assert.equal((await api.revoke({ tenant_id: tenantId, fiscal_device_id: deviceId, id: tokenId })).active, false);
+  const base = `/v1/tenants/${tenantId}/fiscal-devices/${deviceId}/tokens`;
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
     ["GET", base, null],
     ["POST", base, { id: tokenId, name: "Reception PC" }],
     ["POST", base, { id: tokenId, name: "Reception PC" }],
     ["POST", `${base}/${tokenId}/revoke`, null],
   ]);
-  await assert.rejects(async () => api.create({ store_id: storeId, fiscal_device_id: deviceId, id: "token", name: "Reception PC" }), {
+  await assert.rejects(async () => api.create({ tenant_id: tenantId, fiscal_device_id: deviceId, id: "token", name: "Reception PC" }), {
     name: "TypeError",
     message: "The fiscal device token id must be a canonical UUID v4 picked by the app",
   });
@@ -128,16 +128,16 @@ test("fiscal receipts are listed for several Orders or the open ones, read, copi
     return receipt();
   });
   const api = admin().eshop.order.fiscalReceipt;
-  assert.deepEqual(await api.find({ store_id: storeId, order_ids: [ids.order, ids.otherOrder] }), { items: [receipt()], cursor: null });
-  await api.find({ store_id: storeId, open: true, limit: 50, cursor: "next" });
-  assert.deepEqual(await api.get({ store_id: storeId, fiscal_receipt_id: receiptId }), receipt());
-  await api.copy({ store_id: storeId, fiscal_receipt_id: receiptId, id: copyId });
-  assert.equal((await api.correct({ store_id: storeId, fiscal_receipt_id: receiptId, id: correctionId, reason: "Wrong buyer", then: { type: "receipt_again" } })).length, 2);
-  await api.correct({ store_id: storeId, fiscal_receipt_id: receiptId, id: correctionId, reason: "Money not taken", then: { type: "wait_for_money" } });
-  await api.settle({ store_id: storeId, fiscal_receipt_id: receiptId, outcome: { type: "issued_on_other_device", number: "BLOCK-17", issued_at: 5 } });
-  await api.settle({ store_id: storeId, fiscal_receipt_id: receiptId, outcome: { type: "written_by_hand", hand_number: "17", written_at: 6 } });
-  await api.settle({ store_id: storeId, fiscal_receipt_id: receiptId, outcome: { type: "not_issued" } });
-  const base = `/v1/stores/${storeId}/fiscal-receipts`;
+  assert.deepEqual(await api.find({ tenant_id: tenantId, order_ids: [ids.order, ids.otherOrder] }), { items: [receipt()], cursor: null });
+  await api.find({ tenant_id: tenantId, open: true, limit: 50, cursor: "next" });
+  assert.deepEqual(await api.get({ tenant_id: tenantId, fiscal_receipt_id: receiptId }), receipt());
+  await api.copy({ tenant_id: tenantId, fiscal_receipt_id: receiptId, id: copyId });
+  assert.equal((await api.correct({ tenant_id: tenantId, fiscal_receipt_id: receiptId, id: correctionId, reason: "Wrong buyer", then: { type: "receipt_again" } })).length, 2);
+  await api.correct({ tenant_id: tenantId, fiscal_receipt_id: receiptId, id: correctionId, reason: "Money not taken", then: { type: "wait_for_money" } });
+  await api.settle({ tenant_id: tenantId, fiscal_receipt_id: receiptId, outcome: { type: "issued_on_other_device", number: "BLOCK-17", issued_at: 5 } });
+  await api.settle({ tenant_id: tenantId, fiscal_receipt_id: receiptId, outcome: { type: "written_by_hand", hand_number: "17", written_at: 6 } });
+  await api.settle({ tenant_id: tenantId, fiscal_receipt_id: receiptId, outcome: { type: "not_issued" } });
+  const base = `/v1/tenants/${tenantId}/fiscal-receipts`;
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
     ["GET", base, { order_ids: JSON.stringify([ids.order, ids.otherOrder]) }, null],
     ["GET", base, { open: "true", limit: "50", cursor: "next" }, null],
@@ -150,51 +150,51 @@ test("fiscal receipts are listed for several Orders or the open ones, read, copi
     ["POST", `${base}/${receiptId}/settle`, {}, { outcome: { type: "not_issued" } }],
   ]);
   for (const call of calls) assert.equal("cashier" in (call.body ?? {}), false, "the Server takes the cashier from the caller's account");
-  await assert.rejects(async () => api.copy({ store_id: storeId, fiscal_receipt_id: receiptId, id: "copy" }), {
+  await assert.rejects(async () => api.copy({ tenant_id: tenantId, fiscal_receipt_id: receiptId, id: "copy" }), {
     name: "TypeError",
     message: "The fiscal receipt id must be a canonical UUID v4 picked by the app",
   });
-  await assert.rejects(async () => api.correct({ store_id: storeId, fiscal_receipt_id: receiptId, id: "fix", reason: "x", then: { type: "receipt_again" } }), TypeError);
+  await assert.rejects(async () => api.correct({ tenant_id: tenantId, fiscal_receipt_id: receiptId, id: "fix", reason: "x", then: { type: "receipt_again" } }), TypeError);
   assert.equal(calls.length, 9);
 });
 
 test("the receipts an order owes now are issued on the order's issue route, naming only the desk device", async (context) => {
   const calls = recordFetch(context, () => [receipt()]);
   const api = admin().eshop.order.fiscalReceipt;
-  assert.deepEqual(await api.issue({ store_id: storeId, order_id: ids.order, fiscal_device_id: deviceId }), [receipt()]);
-  await api.issue({ store_id: storeId, order_id: "order/a", fiscal_device_id: deviceId });
+  assert.deepEqual(await api.issue({ tenant_id: tenantId, order_id: ids.order, fiscal_device_id: deviceId }), [receipt()]);
+  await api.issue({ tenant_id: tenantId, order_id: "order/a", fiscal_device_id: deviceId });
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
-    ["POST", `/v1/stores/${storeId}/orders/${ids.order}/fiscal-receipts/issue`, {}, { fiscal_device_id: deviceId }],
-    ["POST", `/v1/stores/${storeId}/orders/order%2Fa/fiscal-receipts/issue`, {}, { fiscal_device_id: deviceId }],
+    ["POST", `/v1/tenants/${tenantId}/orders/${ids.order}/fiscal-receipts/issue`, {}, { fiscal_device_id: deviceId }],
+    ["POST", `/v1/tenants/${tenantId}/orders/order%2Fa/fiscal-receipts/issue`, {}, { fiscal_device_id: deviceId }],
   ]);
   assert.equal("makeDue" in api, false);
-  await assert.rejects(async () => api.issue({ store_id: "store", order_id: ids.order, fiscal_device_id: deviceId }), TypeError);
+  await assert.rejects(async () => api.issue({ tenant_id: "tenant", order_id: ids.order, fiscal_device_id: deviceId }), TypeError);
   assert.equal(calls.length, 2);
 });
 
-test("a store location's fiscal setting is set with its version, naming the jurisdiction and the online device", async (context) => {
+test("a tenant location's fiscal setting is set with its version, naming the jurisdiction and the online device", async (context) => {
   const calls = recordFetch(context, (call) => ({ id: locationId, fiscal: call.body.fiscal }));
-  const api = admin().store.location;
+  const api = admin().tenant.location;
   const fiscal = { type: "republika_srpska", online_fiscal_device: { type: "device", fiscal_device_id: deviceId } };
-  assert.deepEqual(await api.setFiscal({ store_id: storeId, id: locationId, expected_updated_at: 4, fiscal }), { id: locationId, fiscal });
-  await api.setFiscal({ store_id: storeId, id: locationId, expected_updated_at: 5, fiscal: { type: "fbih2009" } });
-  await api.setFiscal({ store_id: storeId, id: locationId, expected_updated_at: 6, fiscal: { type: "not_fiscal" } });
+  assert.deepEqual(await api.setFiscal({ tenant_id: tenantId, id: locationId, expected_updated_at: 4, fiscal }), { id: locationId, fiscal });
+  await api.setFiscal({ tenant_id: tenantId, id: locationId, expected_updated_at: 5, fiscal: { type: "fbih2009" } });
+  await api.setFiscal({ tenant_id: tenantId, id: locationId, expected_updated_at: 6, fiscal: { type: "not_fiscal" } });
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
-    ["PUT", `/v1/stores/${storeId}/locations/${locationId}/fiscal`, { expected_updated_at: 4, fiscal }],
-    ["PUT", `/v1/stores/${storeId}/locations/${locationId}/fiscal`, { expected_updated_at: 5, fiscal: { type: "fbih2009" } }],
-    ["PUT", `/v1/stores/${storeId}/locations/${locationId}/fiscal`, { expected_updated_at: 6, fiscal: { type: "not_fiscal" } }],
+    ["PUT", `/v1/tenants/${tenantId}/locations/${locationId}/fiscal`, { expected_updated_at: 4, fiscal }],
+    ["PUT", `/v1/tenants/${tenantId}/locations/${locationId}/fiscal`, { expected_updated_at: 5, fiscal: { type: "fbih2009" } }],
+    ["PUT", `/v1/tenants/${tenantId}/locations/${locationId}/fiscal`, { expected_updated_at: 6, fiscal: { type: "not_fiscal" } }],
   ]);
 });
 
 test("Croatian CIS and OFS cloud logins connect under the app's id, a CIS certificate is replaced by version, and the twins connect keyless", async (context) => {
   const calls = recordFetch(context, () => ({ id: providerId }));
-  const api = admin().store.provider;
-  await api.connectCroatiaCis({ store_id: storeId, id: providerId, certificate_p12: "MIIK...base64", password: "certificate-password" });
-  await api.replaceCroatiaCisCertificate({ store_id: storeId, id: providerId, expected_updated_at: 2, certificate_p12: "MIIL...base64", password: "next-password" });
-  await api.connectArkyCroatiaCis({ store_id: storeId, id: providerId });
-  await api.connectOfsCloud({ store_id: storeId, id: providerId, api_key: "ofs-api-key" });
-  await api.connectArkyOfsCloud({ store_id: storeId, id: providerId });
-  const base = `/v1/stores/${storeId}/store-providers`;
+  const api = admin().tenant.provider;
+  await api.connectCroatiaCis({ tenant_id: tenantId, id: providerId, certificate_p12: "MIIK...base64", password: "certificate-password" });
+  await api.replaceCroatiaCisCertificate({ tenant_id: tenantId, id: providerId, expected_updated_at: 2, certificate_p12: "MIIL...base64", password: "next-password" });
+  await api.connectArkyCroatiaCis({ tenant_id: tenantId, id: providerId });
+  await api.connectOfsCloud({ tenant_id: tenantId, id: providerId, api_key: "ofs-api-key" });
+  await api.connectArkyOfsCloud({ tenant_id: tenantId, id: providerId });
+  const base = `/v1/tenants/${tenantId}/tenant-providers`;
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
     ["POST", `${base}/croatia-cis`, { id: providerId, certificate_p12: "MIIK...base64", password: "certificate-password" }],
     ["POST", `${base}/croatia-cis/${providerId}/replace-certificate`, { expected_updated_at: 2, certificate_p12: "MIIL...base64", password: "next-password" }],
@@ -203,7 +203,7 @@ test("Croatian CIS and OFS cloud logins connect under the app's id, a CIS certif
     ["POST", `${base}/arky-ofs-cloud`, { id: providerId }],
   ]);
   for (const connect of ["connectCroatiaCis", "connectArkyCroatiaCis", "connectOfsCloud", "connectArkyOfsCloud"]) {
-    await assert.rejects(async () => api[connect]({ store_id: storeId, id: "cis", certificate_p12: "x", password: "x", api_key: "x" }), TypeError, connect);
+    await assert.rejects(async () => api[connect]({ tenant_id: tenantId, id: "cis", certificate_p12: "x", password: "x", api_key: "x" }), TypeError, connect);
   }
   assert.equal(calls.length, 5);
 });
@@ -216,14 +216,14 @@ test("the desk agent reads its paired device, beats with its readiness, claims a
   const done = receipt({ type: "done", invoice_number: "AB12CD34-AB12CD34-17", verification_url: "https://tap.suf.purs.gov.rs/v/?vl=1", signed_at: 1_800_000_000_000, sdc_date_time: "2027-01-15T09:00:00.000+01:00" });
   const answers = [paired, beat, claim, done];
   const calls = recordFetch(context, () => answers.shift());
-  const agent = createFiscalDeviceAgent({ apiUrl: `${apiUrl}/`, storeId, token: deviceToken });
+  const agent = createFiscalDeviceAgent({ apiUrl: `${apiUrl}/`, tenantId, token: deviceToken });
   assert.deepEqual(await agent.getDevice(), paired);
   assert.deepEqual(await agent.heartbeat({ readiness: "ready" }), beat);
   assert.deepEqual(await agent.claim({ fiscal_receipt_id: receiptId }), claim);
   const reported = await agent.report({ fiscal_receipt_id: receiptId, outcome });
   assert.deepEqual(reported, done);
   assert.equal(reported.document.state.sdc_date_time, outcome.answer.sdc_date_time);
-  const base = `/v1/stores/${storeId}/fiscal-device`;
+  const base = `/v1/tenants/${tenantId}/fiscal-device`;
   assert.deepEqual(calls.map(({ method, href, body }) => [method, href, body]), [
     ["GET", `${apiUrl}${base}`, null],
     ["POST", `${apiUrl}${base}/heartbeat`, { readiness: "ready" }],
@@ -235,30 +235,30 @@ test("the desk agent reads its paired device, beats with its readiness, claims a
 
 test("the desk agent never refreshes its key: a refused key ends the call once with Arky's 401", async (context) => {
   const calls = recordFetch(context, () => errorResponse(401, "GENERAL.UNAUTHENTICATED", "The device key is revoked"));
-  const agent = createFiscalDeviceAgent({ apiUrl, storeId, token: deviceToken });
+  const agent = createFiscalDeviceAgent({ apiUrl, tenantId, token: deviceToken });
   await assert.rejects(agent.heartbeat({ readiness: "not_ready" }), (error) => error instanceof ArkyApiError && error.statusCode === 401 && error.code === "GENERAL.UNAUTHENTICATED");
   assert.equal(calls.length, 1);
 });
 
-test("the desk agent takes only a device key and an exact store", () => {
+test("the desk agent takes only a device key and an exact tenant", () => {
   for (const token of ["", "arky_at_ttttttttttttttttttttttttttttttttttttttttttA", ` ${deviceToken}`, `${deviceToken}\n`, undefined]) {
-    assert.throws(() => createFiscalDeviceAgent({ apiUrl, storeId, token }), {
+    assert.throws(() => createFiscalDeviceAgent({ apiUrl, tenantId, token }), {
       name: "TypeError",
       message: "A fiscal device agent needs the device token the owner created for this PC",
     });
   }
-  assert.throws(() => createFiscalDeviceAgent({ apiUrl, storeId: "store", token: deviceToken }), TypeError);
+  assert.throws(() => createFiscalDeviceAgent({ apiUrl, tenantId: "tenant", token: deviceToken }), TypeError);
 });
 
 test("a Croatian CIS device whose receipt numbers are held after a restore reads not ready with counter_held", async (context) => {
   const held = { ...device({ type: "croatia_cis", provider_id: providerId, premises_mark: "POSL1", device_mark: "1" }), readiness: { type: "not_ready", reason: "counter_held" } };
   const calls = recordFetch(context, (call) => (call.path.endsWith("/fiscal-devices") ? { items: [held], cursor: null } : held));
-  const api = admin().store.fiscalDevice;
-  assert.deepEqual(await api.get({ store_id: storeId, id: deviceId }), held);
-  assert.deepEqual((await api.find({ store_id: storeId, type: "croatia_cis" })).items.map((item) => item.readiness), [{ type: "not_ready", reason: "counter_held" }]);
+  const api = admin().tenant.fiscalDevice;
+  assert.deepEqual(await api.get({ tenant_id: tenantId, id: deviceId }), held);
+  assert.deepEqual((await api.find({ tenant_id: tenantId, type: "croatia_cis" })).items.map((item) => item.readiness), [{ type: "not_ready", reason: "counter_held" }]);
   assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
-    ["GET", `/v1/stores/${storeId}/fiscal-devices/${deviceId}`, {}],
-    ["GET", `/v1/stores/${storeId}/fiscal-devices`, { type: "croatia_cis" }],
+    ["GET", `/v1/tenants/${tenantId}/fiscal-devices/${deviceId}`, {}],
+    ["GET", `/v1/tenants/${tenantId}/fiscal-devices`, { type: "croatia_cis" }],
   ]);
 });
 
@@ -288,10 +288,10 @@ test("a Croatian receipt is read with what it froze when it was made: the seller
   const consumer = croatian(copyId, { type: "consumer" }, "Online", "other");
   const calls = recordFetch(context, (call) => (call.method === "GET" && call.path.endsWith("/fiscal-receipts") ? { items: [consumer, business], cursor: null } : business));
   const api = admin().eshop.order.fiscalReceipt;
-  const read = await api.get({ store_id: storeId, fiscal_receipt_id: receiptId });
+  const read = await api.get({ tenant_id: tenantId, fiscal_receipt_id: receiptId });
   assert.deepEqual(read, business);
   assert.deepEqual([read.document.seller, read.document.cashier, read.document.payment_method, read.document.buyer], [seller, "Ana Kovač", "card", { type: "business", oib: "98765432106" }]);
-  assert.deepEqual((await api.find({ store_id: storeId, order_ids: [ids.order] })).items.map((item) => [item.document.buyer, item.document.cashier, item.document.payment_method, item.document.seller.oib]), [
+  assert.deepEqual((await api.find({ tenant_id: tenantId, order_ids: [ids.order] })).items.map((item) => [item.document.buyer, item.document.cashier, item.document.payment_method, item.document.seller.oib]), [
     [{ type: "consumer" }, "Online", "other", "12345678903"],
     [{ type: "business", oib: "98765432106" }, "Ana Kovač", "card", "12345678903"],
   ]);
@@ -304,7 +304,7 @@ test("a buyer's order carries its fiscal receipts as light copies, oldest first,
     { id: copyId, type: "advance_settle", document: { type: "tax_core", state: { type: "done_on_other_device", invoice_number: "BLOCK-17" } }, created_at: 4 },
     { id: correctionId, type: "final", document: { type: "tax_core", state: { type: "requested" } }, created_at: 5 },
   ];
-  const order = { id: ids.order, number: "1001", store_id: ids.store, invoices: [], receipts, credits: [], created_at: 1, updated_at: 5 };
+  const order = { id: ids.order, number: "1001", tenant_id: ids.tenant, invoices: [], receipts, credits: [], created_at: 1, updated_at: 5 };
   const calls = recordFetch(context, (call) => (call.path === "/v1/storefront/orders" ? { items: [order], cursor: null } : order));
   const storefront = createStorefront(storefrontIdentity, { ...fixedIdFactories, apiUrl: storefrontApiUrl, sessionStorage: visitorStorage() });
   const read = await storefront.eshop.order.get({ id: ids.order }, { order_token: factoryOrderToken });
@@ -320,7 +320,7 @@ test("a buyer's order carries its fiscal receipts as light copies, oldest first,
     ["GET", "/v1/storefront/orders"],
   ]);
   assert.equal(calls[0].headers.get("x-arky-order-token"), factoryOrderToken);
-  for (const call of calls) assert.equal(call.headers.get("x-arky-store-id"), storefrontIdentity.storeId);
+  for (const call of calls) assert.equal(call.headers.get("x-arky-tenant-id"), storefrontIdentity.tenantId);
 });
 
 test("a restore holds a device until the owner releases it: the held device reads held_after_restore, is listed by that status and is released by version", async (context) => {
@@ -331,19 +331,19 @@ test("a restore holds a device until the owner releases it: the held device read
     if (call.path.endsWith("/release")) return released;
     return held;
   });
-  const api = admin().store.fiscalDevice;
-  assert.deepEqual(await api.get({ store_id: storeId, id: deviceId }), held);
-  assert.deepEqual((await api.find({ store_id: storeId, status: "held_after_restore" })).items.map((item) => [item.status, item.readiness]), [["held_after_restore", { type: "not_ready", reason: "held_after_restore" }]]);
-  assert.deepEqual(await api.release({ store_id: storeId, id: deviceId, expected_updated_at: 4 }), released);
-  await api.release({ store_id: storeId, id: "device/a", expected_updated_at: 5 });
-  const base = `/v1/stores/${storeId}/fiscal-devices`;
+  const api = admin().tenant.fiscalDevice;
+  assert.deepEqual(await api.get({ tenant_id: tenantId, id: deviceId }), held);
+  assert.deepEqual((await api.find({ tenant_id: tenantId, status: "held_after_restore" })).items.map((item) => [item.status, item.readiness]), [["held_after_restore", { type: "not_ready", reason: "held_after_restore" }]]);
+  assert.deepEqual(await api.release({ tenant_id: tenantId, id: deviceId, expected_updated_at: 4 }), released);
+  await api.release({ tenant_id: tenantId, id: "device/a", expected_updated_at: 5 });
+  const base = `/v1/tenants/${tenantId}/fiscal-devices`;
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
     ["GET", `${base}/${deviceId}`, {}, null],
     ["GET", base, { status: "held_after_restore" }, null],
     ["POST", `${base}/${deviceId}/release`, {}, { expected_updated_at: 4 }],
     ["POST", `${base}/device%2Fa/release`, {}, { expected_updated_at: 5 }],
   ]);
-  await assert.rejects(async () => api.release({ store_id: "store", id: deviceId, expected_updated_at: 4 }), TypeError);
+  await assert.rejects(async () => api.release({ tenant_id: "tenant", id: deviceId, expected_updated_at: 4 }), TypeError);
   assert.equal(calls.length, 4);
 });
 
@@ -351,14 +351,14 @@ test("a release Arky refuses ends with Arky's own code: an archived device, a st
   const refusals = [
     errorResponse(409, "FISCAL_DEVICE.ARCHIVED", "This fiscal device is archived and takes no new receipts"),
     errorResponse(409, "GENERAL.CONFLICT", "The fiscal device changed; reload it"),
-    errorResponse(403, "GENERAL.UNAUTHORIZED", "Only the store owner releases a fiscal device"),
+    errorResponse(403, "GENERAL.UNAUTHORIZED", "Only the tenant owner releases a fiscal device"),
   ];
   const calls = recordFetch(context, () => refusals.shift());
-  const api = admin().store.fiscalDevice;
+  const api = admin().tenant.fiscalDevice;
   for (const [statusCode, code] of [[409, "FISCAL_DEVICE.ARCHIVED"], [409, "GENERAL.CONFLICT"], [403, "GENERAL.UNAUTHORIZED"]]) {
-    await assert.rejects(api.release({ store_id: storeId, id: deviceId, expected_updated_at: 4 }), (error) => error instanceof ArkyApiError && error.statusCode === statusCode && error.code === code);
+    await assert.rejects(api.release({ tenant_id: tenantId, id: deviceId, expected_updated_at: 4 }), (error) => error instanceof ArkyApiError && error.statusCode === statusCode && error.code === code);
   }
-  assert.deepEqual(calls.map(({ method, path }) => [method, path]), Array.from({ length: 3 }, () => ["POST", `/v1/stores/${storeId}/fiscal-devices/${deviceId}/release`]));
+  assert.deepEqual(calls.map(({ method, path }) => [method, path]), Array.from({ length: 3 }, () => ["POST", `/v1/tenants/${tenantId}/fiscal-devices/${deviceId}/release`]));
 });
 
 test("an advance receipt is read with the chain its first advance recorded: the goods, or one target", async (context) => {
@@ -379,8 +379,8 @@ test("an advance receipt is read with the chain its first advance recorded: the 
   const goods = advance(copyId, { type: "goods" });
   const calls = recordFetch(context, (call) => (call.method === "GET" && call.path.endsWith("/fiscal-receipts") ? { items: [visit, goods], cursor: null } : visit));
   const api = admin().eshop.order.fiscalReceipt;
-  assert.deepEqual((await api.get({ store_id: storeId, fiscal_receipt_id: receiptId })).type.chain, { type: "target", target: { type: "booking", line_item_id: ids.line } });
-  const page = await api.find({ store_id: storeId, order_ids: [ids.order] });
+  assert.deepEqual((await api.get({ tenant_id: tenantId, fiscal_receipt_id: receiptId })).type.chain, { type: "target", target: { type: "booking", line_item_id: ids.line } });
+  const page = await api.find({ tenant_id: tenantId, order_ids: [ids.order] });
   assert.deepEqual(page.items.map((item) => [item.type.type, item.type.chain, item.print]), [
     ["advance", { type: "target", target: { type: "booking", line_item_id: ids.line } }, "not_printed"],
     ["advance", { type: "goods" }, "not_printed"],
@@ -389,7 +389,7 @@ test("an advance receipt is read with the chain its first advance recorded: the 
 });
 
 test("hand-path receipts read in the states Arky answers: TaxCore done on another device, and a printer's hand receipt from written to printed", async (context) => {
-  const by = { account_id: ids.customer, snapshot: { email: "ana@example.test", credential_type: { type: "session" } } };
+  const by = { account_id: ids.user, snapshot: { email: "ana@example.test", credential_type: { type: "session" } } };
   const printer = (state) => ({
     ...receipt(),
     document: { type: "fbih_printer_items", lines: [{ target: { type: "booking", line_item_id: ids.line }, name: "Pregled", unit: "kom", label: "E", quantity: 1, unit_price: 5000 }], state },
@@ -406,11 +406,11 @@ test("hand-path receipts read in the states Arky answers: TaxCore done on anothe
   const answers = [taxcore, ...states.map(printer)];
   const calls = recordFetch(context, () => answers.shift());
   const api = admin().eshop.order.fiscalReceipt;
-  assert.deepEqual((await api.get({ store_id: storeId, fiscal_receipt_id: receiptId })).document.state, { type: "done_on_other_device", invoice_number: "AB12CD34-AB12CD34-17", issued_at: 5, by });
+  assert.deepEqual((await api.get({ tenant_id: tenantId, fiscal_receipt_id: receiptId })).document.state, { type: "done_on_other_device", invoice_number: "AB12CD34-AB12CD34-17", issued_at: 5, by });
   const read = [];
-  for (let index = 0; index < states.length; index++) read.push((await api.get({ store_id: storeId, fiscal_receipt_id: receiptId })).document.state);
+  for (let index = 0; index < states.length; index++) read.push((await api.get({ tenant_id: tenantId, fiscal_receipt_id: receiptId })).document.state);
   assert.deepEqual(read, states);
-  assert.deepEqual(calls.map(({ method, path }) => [method, path]), Array.from({ length: 6 }, () => ["GET", `/v1/stores/${storeId}/fiscal-receipts/${receiptId}`]));
+  assert.deepEqual(calls.map(({ method, path }) => [method, path]), Array.from({ length: 6 }, () => ["GET", `/v1/tenants/${tenantId}/fiscal-receipts/${receiptId}`]));
 });
 
 test("a settle on the other hand path ends with HAND_PATH_MISMATCH, and a held device's claim with DEVICE_HELD", async (context) => {
@@ -419,12 +419,12 @@ test("a settle on the other hand path ends with HAND_PATH_MISMATCH, and a held d
     errorResponse(409, "FISCAL_RECEIPT.DEVICE_HELD", "The fiscal device is held after a restore until the owner releases it"),
   ];
   const calls = recordFetch(context, () => answers.shift());
-  await assert.rejects(admin().eshop.order.fiscalReceipt.settle({ store_id: storeId, fiscal_receipt_id: receiptId, outcome: { type: "issued_on_other_device", number: "BLOCK-17", issued_at: 5 } }), (error) => error instanceof ArkyApiError && error.statusCode === 409 && error.code === "FISCAL_RECEIPT.HAND_PATH_MISMATCH");
-  const agent = createFiscalDeviceAgent({ apiUrl, storeId, token: deviceToken });
+  await assert.rejects(admin().eshop.order.fiscalReceipt.settle({ tenant_id: tenantId, fiscal_receipt_id: receiptId, outcome: { type: "issued_on_other_device", number: "BLOCK-17", issued_at: 5 } }), (error) => error instanceof ArkyApiError && error.statusCode === 409 && error.code === "FISCAL_RECEIPT.HAND_PATH_MISMATCH");
+  const agent = createFiscalDeviceAgent({ apiUrl, tenantId, token: deviceToken });
   await assert.rejects(agent.claim({ fiscal_receipt_id: receiptId }), (error) => error instanceof ArkyApiError && error.statusCode === 409 && error.code === "FISCAL_RECEIPT.DEVICE_HELD");
   assert.deepEqual(calls.map(({ method, path }) => [method, path]), [
-    ["POST", `/v1/stores/${storeId}/fiscal-receipts/${receiptId}/settle`],
-    ["POST", `/v1/stores/${storeId}/fiscal-device/receipts/${receiptId}/claim`],
+    ["POST", `/v1/tenants/${tenantId}/fiscal-receipts/${receiptId}/settle`],
+    ["POST", `/v1/tenants/${tenantId}/fiscal-device/receipts/${receiptId}/claim`],
   ]);
 });
 
@@ -475,7 +475,7 @@ test("the desk agent's TaxCore claims carry the box body: invoiceRequest with it
   };
   const answers = [advance, settle, final, printer];
   const calls = recordFetch(context, () => answers.shift());
-  const agent = createFiscalDeviceAgent({ apiUrl, storeId, token: deviceToken });
+  const agent = createFiscalDeviceAgent({ apiUrl, tenantId, token: deviceToken });
   const advanceClaim = await agent.claim({ fiscal_receipt_id: receiptId });
   assert.deepEqual(advanceClaim, advance);
   assert.equal(advanceClaim.request.body.invoiceRequest.dateAndTimeOfIssue, "2027-01-15T01:00:00.000+01:00");
@@ -497,7 +497,7 @@ test("the desk agent's TaxCore claims carry the box body: invoiceRequest with it
   assert.deepEqual(printerClaim, printer);
   assert.deepEqual(printerClaim.request.printer_request.reference, { type: "other_device", number: "BLOCK-17" });
   assert.equal(printerClaim.buyer_present, printerClaim.receipt.print === "at_desk");
-  assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), Array.from({ length: 4 }, () => ["POST", `/v1/stores/${storeId}/fiscal-device/receipts/${receiptId}/claim`, {}]));
+  assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), Array.from({ length: 4 }, () => ["POST", `/v1/tenants/${tenantId}/fiscal-device/receipts/${receiptId}/claim`, {}]));
 });
 
 test("a buyer's order carries the hand-path receipt copies a printer and TaxCore answer, without the staff facts", async (context) => {
@@ -507,7 +507,7 @@ test("a buyer's order carries the hand-path receipt copies a printer and TaxCore
     { id: correctionId, type: "sale", document: { type: "fbih_printer", state: { type: "done_on_other_device", receipt_number: "BLOCK-17" } }, created_at: 5 },
     { id: tokenId, type: "sale", document: { type: "tax_core", state: { type: "done_on_other_device", invoice_number: "AB12CD34-AB12CD34-17" } }, created_at: 6 },
   ];
-  const order = { id: ids.order, number: "1001", store_id: ids.store, invoices: [], receipts, credits: [], created_at: 1, updated_at: 6 };
+  const order = { id: ids.order, number: "1001", tenant_id: ids.tenant, invoices: [], receipts, credits: [], created_at: 1, updated_at: 6 };
   recordFetch(context, () => order);
   const storefront = createStorefront(storefrontIdentity, { ...fixedIdFactories, apiUrl: storefrontApiUrl, sessionStorage: visitorStorage() });
   const read = await storefront.eshop.order.get({ id: ids.order }, { order_token: factoryOrderToken });
@@ -520,13 +520,13 @@ test("a Croatian receipt past its clearance deadline is delivered once more by h
   const receiptId = "3e5a7c9b-1d2f-4b6a-8c0e-2f4a6c8e0b1d";
   const receipt = { id: receiptId, status: { type: "done" } };
   const calls = recordFetch(context, () => receipt);
-  assert.deepEqual(await admin().eshop.order.fiscalReceipt.deliver({ store_id: storeId, fiscal_receipt_id: receiptId }), receipt);
+  assert.deepEqual(await admin().eshop.order.fiscalReceipt.deliver({ tenant_id: tenantId, fiscal_receipt_id: receiptId }), receipt);
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
-    ["POST", `/v1/stores/${storeId}/fiscal-receipts/${receiptId}/deliver`, {}],
+    ["POST", `/v1/tenants/${tenantId}/fiscal-receipts/${receiptId}/deliver`, {}],
   ]);
 });
 
-test("the store's receipts are listed within a creation-time range, never by the old order_id, and every staff answer says whether deliver takes the receipt now", async (context) => {
+test("the tenant's receipts are listed within a creation-time range, never by the old order_id, and every staff answer says whether deliver takes the receipt now", async (context) => {
   const triesEnded = { ...receipt(), deliverable: true };
   const done = { ...receipt({ type: "done", invoice_number: "AB12CD34-AB12CD34-17", verification_url: "https://tap.suf.purs.gov.rs/v/?vl=1", signed_at: 4, sdc_date_time: "2027-01-15T09:00:00.000+01:00" }), deliverable: false };
   const calls = recordFetch(context, (call) => {
@@ -535,19 +535,19 @@ test("the store's receipts are listed within a creation-time range, never by the
     return triesEnded;
   });
   const api = admin().eshop.order.fiscalReceipt;
-  const page = await api.find({ store_id: storeId, created_at_from: 1, created_at_to: 5, limit: 2 });
+  const page = await api.find({ tenant_id: tenantId, created_at_from: 1, created_at_to: 5, limit: 2 });
   assert.deepEqual(page.items.map((item) => item.deliverable), [true, false]);
-  await api.find({ store_id: storeId, open: true, created_at_from: 1 });
-  assert.equal((await api.get({ store_id: storeId, fiscal_receipt_id: receiptId })).deliverable, true);
-  assert.equal((await api.deliver({ store_id: storeId, fiscal_receipt_id: receiptId })).deliverable, true);
-  assert.deepEqual((await api.issue({ store_id: storeId, order_id: ids.order, fiscal_device_id: deviceId })).map((item) => item.deliverable), [false]);
-  const base = `/v1/stores/${storeId}/fiscal-receipts`;
+  await api.find({ tenant_id: tenantId, open: true, created_at_from: 1 });
+  assert.equal((await api.get({ tenant_id: tenantId, fiscal_receipt_id: receiptId })).deliverable, true);
+  assert.equal((await api.deliver({ tenant_id: tenantId, fiscal_receipt_id: receiptId })).deliverable, true);
+  assert.deepEqual((await api.issue({ tenant_id: tenantId, order_id: ids.order, fiscal_device_id: deviceId })).map((item) => item.deliverable), [false]);
+  const base = `/v1/tenants/${tenantId}/fiscal-receipts`;
   assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
     ["GET", base, { created_at_from: "1", created_at_to: "5", limit: "2" }],
     ["GET", base, { open: "true", created_at_from: "1" }],
     ["GET", `${base}/${receiptId}`, {}],
     ["POST", `${base}/${receiptId}/deliver`, {}],
-    ["POST", `/v1/stores/${storeId}/orders/${ids.order}/fiscal-receipts/issue`, {}],
+    ["POST", `/v1/tenants/${tenantId}/orders/${ids.order}/fiscal-receipts/issue`, {}],
   ]);
   for (const call of calls) assert.equal("order_id" in call.query, false, "the Server refuses the old order_id");
 });
@@ -559,17 +559,17 @@ test("the desk agent passes its redirect choice to every request, a refused redi
     if (seen.length === 3) throw new TypeError("fetch failed: redirect mode is set to error");
     return new Response(JSON.stringify(device()), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const refusing = createFiscalDeviceAgent({ apiUrl, storeId, token: deviceToken, redirect: "error" });
+  const refusing = createFiscalDeviceAgent({ apiUrl, tenantId, token: deviceToken, redirect: "error" });
   await refusing.getDevice();
   await refusing.heartbeat({ readiness: "ready" });
   await assert.rejects(refusing.getDevice(), (error) => error instanceof ArkyNetworkError && error.code === "network" && !(error instanceof ArkyApiError));
-  await createFiscalDeviceAgent({ apiUrl, storeId, token: deviceToken }).getDevice();
-  await admin().store.fiscalDevice.get({ store_id: storeId, id: deviceId });
+  await createFiscalDeviceAgent({ apiUrl, tenantId, token: deviceToken }).getDevice();
+  await admin().tenant.fiscalDevice.get({ tenant_id: tenantId, id: deviceId });
   assert.deepEqual(seen, [
-    [`/v1/stores/${storeId}/fiscal-device`, "error"],
-    [`/v1/stores/${storeId}/fiscal-device/heartbeat`, "error"],
-    [`/v1/stores/${storeId}/fiscal-device`, "error"],
-    [`/v1/stores/${storeId}/fiscal-device`, "follow"],
-    [`/v1/stores/${storeId}/fiscal-devices/${deviceId}`, "follow"],
+    [`/v1/tenants/${tenantId}/fiscal-device`, "error"],
+    [`/v1/tenants/${tenantId}/fiscal-device/heartbeat`, "error"],
+    [`/v1/tenants/${tenantId}/fiscal-device`, "error"],
+    [`/v1/tenants/${tenantId}/fiscal-device`, "follow"],
+    [`/v1/tenants/${tenantId}/fiscal-devices/${deviceId}`, "follow"],
   ]);
 });

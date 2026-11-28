@@ -4,7 +4,7 @@ import { createAdmin } from "../dist/admin.js";
 import { FulfillmentSelectionError, selectFulfillmentMoveUnits, selectFulfillmentUnits } from "../dist/utils.js";
 import { recordFetch } from "./helpers/arky-fixtures.mjs";
 
-const STORE_ID = "4e6a0c8d-2f19-4b37-a5e8-1d7c9b3f0a62";
+const TENANT_ID = "4e6a0c8d-2f19-4b37-a5e8-1d7c9b3f0a62";
 const actor = { account_id: "0e7d3b59-8a14-4c62-b9f0-3d6a2c8e1f47", snapshot: { email: "picker@example.test", credential_type: "session" } };
 const address = { name: null, company: null, street1: "1 Main Street", street2: null, city: "Sarajevo", state: null, postal_code: "71000", country: "BA", phone: null, email: null };
 const replacement = { predecessor_inventory_unit_id: "old-unit", predecessor_fulfillment_job_line_id: "delivered-line", predecessor_fulfillment_unit_index: 0, overlap_authorized: false };
@@ -21,14 +21,14 @@ test("order execution reads keep empty continuations, the order filter and exact
   ];
   const calls = recordFetch(context, () => replies.shift());
   const api = createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).eshop;
-  const scope = { store_id: STORE_ID, order_ids: ["accepted", "settled"], limit: 20 };
+  const scope = { tenant_id: TENANT_ID, order_ids: ["accepted", "settled"], limit: 20 };
   assert.deepEqual(await api.fulfillment.find(scope), { items: [], cursor });
   assert.equal(calls.length, 1);
   assert.deepEqual(await api.fulfillment.find({ ...scope, cursor }), { items: [], cursor: null });
-  assert.deepEqual((await api.fulfillment.get({ store_id: STORE_ID, fulfillment_id: "fulfillment/id" })).type.trackings, []);
+  assert.deepEqual((await api.fulfillment.get({ tenant_id: TENANT_ID, fulfillment_id: "fulfillment/id" })).type.trackings, []);
   assert.deepEqual(await api.fulfillmentJob.find(scope), { items: [], cursor });
-  assert.equal((await api.fulfillmentJob.get({ store_id: STORE_ID, fulfillment_job_id: "work/id" })).type.order_id, "accepted");
-  const items = await api.fulfillmentJob.findItems({ store_id: STORE_ID, fulfillment_job_id: "work/id" });
+  assert.equal((await api.fulfillmentJob.get({ tenant_id: TENANT_ID, fulfillment_job_id: "work/id" })).type.order_id, "accepted");
+  const items = await api.fulfillmentJob.findItems({ tenant_id: TENANT_ID, fulfillment_job_id: "work/id" });
   assert.equal(Array.isArray(items), true);
   assert.equal(items[0].product_key, "stock-item");
   assert.equal(items[0].order_number, "1042");
@@ -37,16 +37,16 @@ test("order execution reads keep empty continuations, the order filter and exact
   assert.deepEqual(calls[1].query, { order_ids: orders, limit: "20", cursor });
   assert.deepEqual(calls[3].query, { order_ids: orders, limit: "20" });
   assert.deepEqual(calls.map((call) => call.path), [
-    `/v1/stores/${STORE_ID}/fulfillments`,
-    `/v1/stores/${STORE_ID}/fulfillments`,
-    `/v1/stores/${STORE_ID}/fulfillments/fulfillment%2Fid`,
-    `/v1/stores/${STORE_ID}/fulfillment-jobs`,
-    `/v1/stores/${STORE_ID}/fulfillment-jobs/work%2Fid`,
-    `/v1/stores/${STORE_ID}/fulfillment-jobs/work%2Fid/items`,
+    `/v1/tenants/${TENANT_ID}/fulfillments`,
+    `/v1/tenants/${TENANT_ID}/fulfillments`,
+    `/v1/tenants/${TENANT_ID}/fulfillments/fulfillment%2Fid`,
+    `/v1/tenants/${TENANT_ID}/fulfillment-jobs`,
+    `/v1/tenants/${TENANT_ID}/fulfillment-jobs/work%2Fid`,
+    `/v1/tenants/${TENANT_ID}/fulfillment-jobs/work%2Fid/items`,
   ]);
   assert.ok([2, 4, 5].every((index) => calls[index].url.search === ""));
   assert.ok(calls.every((call) => call.method === "GET"));
-  await assert.rejects(async () => api.fulfillment.find({ ...scope, store_id: "selected/store" }), TypeError);
+  await assert.rejects(async () => api.fulfillment.find({ ...scope, tenant_id: "selected/tenant" }), TypeError);
   await assert.rejects(async () => api.fulfillmentJob.get({ fulfillment_job_id: "work/id" }), TypeError);
   assert.equal(calls.length, 6);
 });
@@ -77,13 +77,13 @@ function rentalLine(overrides = {}) {
 function job(method = "delivery") {
   return {
     id: "work",
-    store_id: "store",
+    tenant_id: "tenant",
     type: { type: "order_delivery", order_id: "order", order_delivery_group_id: "group", timing: { type: "asap" }, lines: [productLine()] },
     method: method === "pickup"
-      ? { type: "pickup", store_location_id: "location" }
-      : { type: "delivery", destination: address, store_location_id: "location", source: { type: "otherwise" } },
+      ? { type: "pickup", tenant_location_id: "location" }
+      : { type: "delivery", destination: address, tenant_location_id: "location", source: { type: "otherwise" } },
     holds: [],
-    contact: { email: null, name: null, phone: null, buyer: { type: "customer", customer_id: "customer" } },
+    contact: { email: null, name: null, phone: null, buyer: { type: "user", user_id: "user" } },
     status: "open",
     created_at: 1,
     updated_at: 1,
@@ -102,7 +102,7 @@ function handedOver(method = "delivery", lines = [selection(0, 2)]) {
   const execution = { executed_at: 1, actor, timing: { type: "on_time" } };
   return {
     id: "fulfillment",
-    store_id: "store",
+    tenant_id: "tenant",
     fulfillment_job_id: "work",
     created_by: actor,
     lines,
@@ -200,7 +200,7 @@ test("selection refuses incomplete or foreign history, invalid quantities and jo
   assert.throws(() => selectFulfillmentUnits(work, "line", 1, []), /Load or refresh fulfillment history/);
   assert.throws(() => selectFulfillmentUnits(work, "line", 6, [handedOver()]), /exceeds/);
   assert.throws(() => selectFulfillmentUnits(work, "line", 1, [handedOver(), handedOver()]), /overlapping/);
-  assert.throws(() => selectFulfillmentUnits(work, "line", 1, [{ ...handedOver(), store_id: "foreign" }]), /another store/);
+  assert.throws(() => selectFulfillmentUnits(work, "line", 1, [{ ...handedOver(), tenant_id: "foreign" }]), /another tenant/);
   assert.throws(() => selectFulfillmentUnits(work, "line", 1, [{ ...handedOver(), fulfillment_job_id: "foreign" }]), /Load or refresh fulfillment history/);
   assert.throws(() => selectFulfillmentUnits(work, "unknown-line", 1, [handedOver()]), FulfillmentSelectionError);
   assert.throws(() => selectFulfillmentUnits(work, "line", 1, [handedOver("delivery", [{ ...selection(0, 2), unit_spans: [] }])]), /nonempty/);

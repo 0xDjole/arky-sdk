@@ -17,7 +17,7 @@ export interface CartSelectionContext {
     removeItem(key: string): void;
   } | null;
   storageRefused(): void;
-  customerId(): string | null;
+  userId(): string | null;
   market(): string | null;
   marketId(): Promise<string>;
 }

@@ -11,27 +11,27 @@ import type {
 } from "../types/webhook";
 import type { OutgoingWebhook } from "../types/notification";
 import { requireId } from "../utils/ids";
-import { storePath, storeRecordPath } from "./paths";
+import { tenantPath, tenantRecordPath } from "./paths";
 
 export const createWebhookApi = (apiConfig: ApiConfig) => ({
   find(params: FindWebhooksParams, options?: RequestOptions): Promise<PaginatedResponse<Webhook>> {
-    const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<PaginatedResponse<Webhook>>(storePath(store_id, "webhooks"), { ...options, params: query });
+    const { tenant_id, ...query } = params;
+    return apiConfig.httpClient.get<PaginatedResponse<Webhook>>(tenantPath(tenant_id, "webhooks"), { ...options, params: query });
   },
 
   create(params: CreateWebhookParams, options?: RequestOptions): Promise<Webhook> {
     requireId(params.id, "webhook");
-    const { store_id, ...body } = params;
-    return apiConfig.httpClient.post<Webhook>(storePath(store_id, "webhooks"), body, options);
+    const { tenant_id, ...body } = params;
+    return apiConfig.httpClient.post<Webhook>(tenantPath(tenant_id, "webhooks"), body, options);
   },
 
   update(params: UpdateWebhookParams, options?: RequestOptions): Promise<Webhook> {
-    const { store_id, id, ...body } = params;
-    return apiConfig.httpClient.put<Webhook>(storeRecordPath(store_id, "webhooks", id), body, options);
+    const { tenant_id, id, ...body } = params;
+    return apiConfig.httpClient.put<Webhook>(tenantRecordPath(tenant_id, "webhooks", id), body, options);
   },
 
   delete(params: DeleteWebhookParams, options?: RequestOptions): Promise<DeletedResponse> {
-    return apiConfig.httpClient.delete<DeletedResponse>(storeRecordPath(params.store_id, "webhooks", params.id), {
+    return apiConfig.httpClient.delete<DeletedResponse>(tenantRecordPath(params.tenant_id, "webhooks", params.id), {
       ...options,
       params: { expected_updated_at: params.expected_updated_at },
     });
@@ -40,7 +40,7 @@ export const createWebhookApi = (apiConfig: ApiConfig) => ({
   test(params: TestWebhookParams, options?: RequestOptions): Promise<OutgoingWebhook> {
     requireId(params.id, "test post");
     return apiConfig.httpClient.post<OutgoingWebhook>(
-      storePath(params.store_id, "outgoing-webhooks/test"),
+      tenantPath(params.tenant_id, "outgoing-webhooks/test"),
       { id: params.id, webhook_id: params.webhook_id },
       options,
     );

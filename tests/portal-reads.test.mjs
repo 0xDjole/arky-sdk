@@ -28,7 +28,7 @@ function submission(id, created_at) {
   };
 }
 
-test("a signed-in customer pages their own form submissions, newest first, under their own session", async (context) => {
+test("a signed-in user pages their own form submissions, newest first, under their own session", async (context) => {
   const newer = submission(ids.submission, 9);
   const older = submission(ids.picked, 5);
   const calls = recordFetch(context, (_call, count) => (count === 1 ? { items: [newer], cursor: "next:+/=" } : { items: [older], cursor: null }));
@@ -42,7 +42,7 @@ test("a signed-in customer pages their own form submissions, newest first, under
   ]);
   for (const call of calls) {
     assert.equal(call.headers.get("authorization"), `Bearer ${accessToken}`);
-    for (const named of ["customer_id", "store_id", "form_id", "sort_field"]) assert.equal(named in call.query, false, named);
+    for (const named of ["user_id", "tenant_id", "form_id", "sort_field"]) assert.equal(named in call.query, false, named);
   }
 });
 

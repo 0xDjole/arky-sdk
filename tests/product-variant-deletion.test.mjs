@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 
-const SELECTED_STORE_ID = "1b9f4c7e-5a28-4d36-9e0b-7f3c2a8d6e51";
+const SELECTED_TENANT_ID = "1b9f4c7e-5a28-4d36-9e0b-7f3c2a8d6e51";
 
 test("variant discovery forwards combined parent, exact SKU, lifecycle and ordering with empty-page continuation", async () => {
   const original = globalThis.fetch;
@@ -14,20 +14,20 @@ test("variant discovery forwards combined parent, exact SKU, lifecycle and order
   try {
     const api = createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).eshop.productVariant;
     const input = { product_id: "product", sku: "a".repeat(255), status: "archived", sort_field: "updated_at", sort_direction: "asc", limit: 200, cursor: "previous" };
-    assert.deepEqual(await api.find({ store_id: SELECTED_STORE_ID, ...input }), { items: [], cursor: "continue-after-stale" });
+    assert.deepEqual(await api.find({ tenant_id: SELECTED_TENANT_ID, ...input }), { items: [], cursor: "continue-after-stale" });
     assert.equal(calls.length, 1);
-    assert.equal(calls[0].url.pathname, `/v1/stores/${SELECTED_STORE_ID}/product-variants`);
-    assert.equal(calls[0].url.searchParams.has("store_id"), false);
+    assert.equal(calls[0].url.pathname, `/v1/tenants/${SELECTED_TENANT_ID}/product-variants`);
+    assert.equal(calls[0].url.searchParams.has("tenant_id"), false);
     for (const [key, value] of Object.entries(input)) assert.equal(calls[0].url.searchParams.get(key), String(value));
   } finally { globalThis.fetch = original; }
 });
 
 test("variant deletion preserves the version and distinguishes accepted deletion from absence", async () => {
   const original = globalThis.fetch;
-  const storeId = "9d5fab61-155c-45a9-b350-ed604548b0bc";
+  const tenantId = "9d5fab61-155c-45a9-b350-ed604548b0bc";
   const id = "5b572371-c4fe-4a59-88c5-a8e704724b13";
   const expected = 1789822000000;
-  const value = { id, store_id: storeId, product_id: "467f22db-ff1f-4559-8558-2f27aa1a5aed", sku: null,
+  const value = { id, tenant_id: tenantId, product_id: "467f22db-ff1f-4559-8558-2f27aa1a5aed", sku: null,
     blocks: [], fulfillment: { type: "none" }, tax_category_id: "standard",
     status: { type: "deleting" }, created_at: expected - 1000, updated_at: expected + 1 };
   const calls = [];
@@ -38,7 +38,7 @@ test("variant deletion preserves the version and distinguishes accepted deletion
   };
   try {
     const api = createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).eshop.productVariant;
-    const params = { store_id: storeId, id, expected_updated_at: expected };
+    const params = { tenant_id: tenantId, id, expected_updated_at: expected };
     assert.deepEqual(await api.delete(params), value);
     assert.deepEqual(await api.delete(params), value);
     status = 404;
@@ -46,9 +46,9 @@ test("variant deletion preserves the version and distinguishes accepted deletion
     assert.equal(calls.length, 3);
     for (const { url, init } of calls) {
       assert.equal(init.method, "DELETE");
-      assert.equal(url.pathname, `/v1/stores/${storeId}/product-variants/${id}`);
+      assert.equal(url.pathname, `/v1/tenants/${tenantId}/product-variants/${id}`);
       assert.equal(url.searchParams.get("expected_updated_at"), String(expected));
-      assert.equal(url.searchParams.has("store_id"), false);
+      assert.equal(url.searchParams.has("tenant_id"), false);
       assert.equal(init.body, undefined);
     }
     for (const failure of [400, 403, 409, 503]) {

@@ -11,11 +11,11 @@ console.log(items.map((item) => getBlockTextValue(findBlock(item.content, "name"
 const calendar = arky.eshop.bookingCalendar({ buyer, package_id: shopPackage.id });
 calendar.state.subscribe((state) => console.log(state.loading, state.days.length, state.slots.length));
 
-const { items: branches } = await arky.store.location.find();
+const { items: branches } = await arky.tenant.location.find();
 const [service] = items;
 const [branch] = branches;
 if (service?.item.type === "booking_service" && branch) {
-  await calendar.select({ booking_service_id: service.item.booking_service_id, store_location_id: branch.id });
+  await calendar.select({ booking_service_id: service.item.booking_service_id, tenant_location_id: branch.id });
   const day = calendar.state.get().days.find((cell) => cell.available);
   if (!day) await calendar.nextMonth();
   calendar.selectFirstAvailableDate();

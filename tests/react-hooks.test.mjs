@@ -6,7 +6,7 @@ import { MutationObserver, QueryClient, useQueryClient } from "@tanstack/react-q
 
 import { ARKY_METHOD_TYPES, ARKY_METHODS_WITHOUT_PARAMS, createArkyReact } from "../dist/react.js";
 import { createAdmin } from "../dist/admin.js";
-import { createNetworkCustomer, createStorefront } from "../dist/storefront.js";
+import { createNetworkUser, createStorefront } from "../dist/storefront.js";
 import { apiUrl, factoryOrderToken, fixedIdFactories, ids, recordFetch, storefrontIdentity, visitorStorage } from "./helpers/arky-fixtures.mjs";
 import { MemoryStorage } from "./helpers/durable-request-fixtures.mjs";
 
@@ -33,8 +33,8 @@ function visitorStorefront() {
   return createStorefront(storefrontIdentity, { apiUrl, sessionStorage: visitorStorage(), ...fixedIdFactories });
 }
 
-function networkCustomer(sessionStorage = new MemoryStorage()) {
-  return createNetworkCustomer({ apiUrl, networkId: ids.network, sessionStorage });
+function networkUser(sessionStorage = new MemoryStorage()) {
+  return createNetworkUser({ apiUrl, networkId: ids.network, sessionStorage });
 }
 
 function hooksFor(client, queryClient = new QueryClient()) {
@@ -77,9 +77,9 @@ function at(tree, parts) {
   return parts.reduce((node, part) => node[part], tree);
 }
 
-test("every Admin, storefront and network customer method is a read or a write, by its get or find name or the explicit table", () => {
+test("every Admin, storefront and network user method is a read or a write, by its get or find name or the explicit table", () => {
   const classified = new Set();
-  for (const [label, client] of [["admin", admin()], ["storefront", storefront()], ["network customer", networkCustomer()]]) {
+  for (const [label, client] of [["admin", admin()], ["storefront", storefront()], ["network user", networkUser()]]) {
     const { hooks } = hooksFor(client);
     for (const parts of [[], ...groupPaths(client)]) {
       assert.deepEqual(Object.keys(at(hooks, parts)).sort(), [...mirroredMembers(at(client, parts)), "key"].sort(), `${label} ${parts.join(".")}`);
@@ -101,38 +101,38 @@ test("every Admin, storefront and network customer method is a read or a write, 
   }
   for (const [path, type] of Object.entries(ARKY_METHOD_TYPES)) {
     const name = path.split(".").at(-1);
-    assert.ok(classified.has(path), `${path} names no Admin, storefront or network customer method`);
+    assert.ok(classified.has(path), `${path} names no Admin, storefront or network user method`);
     const repeated = type === "read" ? nameRule(name) === "read" : nameRule(name) === "write" && reviewedWriteVerbs.has(verbOf(name));
     assert.equal(repeated, false, `${path} only repeats what its name says`);
   }
   for (const path of ARKY_METHODS_WITHOUT_PARAMS) {
-    assert.ok(classified.has(path), `${path} in ARKY_METHODS_WITHOUT_PARAMS names no Admin, storefront or network customer method`);
+    assert.ok(classified.has(path), `${path} in ARKY_METHODS_WITHOUT_PARAMS names no Admin, storefront or network user method`);
   }
 });
 
 test("keys are arky, the group path, the method and its params, and every group's key is its prefix", () => {
   const { hooks: arky } = hooksFor(admin());
-  const params = { store_id: ids.store, limit: 25 };
-  assert.deepEqual(arky.customers.find.key(params), ["arky", "customers", "find", params]);
-  assert.deepEqual(arky.eshop.order.notes.find.key({ store_id: ids.store, order_id: ids.order }), [
-    "arky", "eshop", "order", "notes", "find", { store_id: ids.store, order_id: ids.order },
+  const params = { tenant_id: ids.tenant, limit: 25 };
+  assert.deepEqual(arky.users.find.key(params), ["arky", "users", "find", params]);
+  assert.deepEqual(arky.eshop.order.notes.find.key({ tenant_id: ids.tenant, order_id: ids.order }), [
+    "arky", "eshop", "order", "notes", "find", { tenant_id: ids.tenant, order_id: ids.order },
   ]);
   assert.deepEqual(arky.account.getMe.key(), ["arky", "account", "getMe", undefined]);
   assert.deepEqual(arky.key(), ["arky"]);
-  assert.deepEqual(arky.customers.key(), ["arky", "customers"]);
+  assert.deepEqual(arky.users.key(), ["arky", "users"]);
   assert.deepEqual(arky.eshop.order.notes.key(), ["arky", "eshop", "order", "notes"]);
 
-  const options = arky.customers.find.query(params, { staleTime: 5_000, enabled: false });
-  assert.deepEqual(options.queryKey, arky.customers.find.key(params));
+  const options = arky.users.find.query(params, { staleTime: 5_000, enabled: false });
+  assert.deepEqual(options.queryKey, arky.users.find.key(params));
   assert.equal(options.staleTime, 5_000);
   assert.equal(options.enabled, false);
   assert.equal(typeof options.queryFn, "function");
-  assert.deepEqual(arky.customers.update.mutation().mutationKey, ["arky", "customers", "update"]);
+  assert.deepEqual(arky.users.update.mutation().mutationKey, ["arky", "users", "update"]);
 
   const { hooks: shop } = hooksFor(storefront());
   assert.deepEqual(shop.eshop.cart.quote.key({ id: ids.cart }), ["arky", "eshop", "cart", "quote", { id: ids.cart }]);
   assert.deepEqual(shop.getSetup.key(), ["arky", "getSetup", undefined]);
-  assert.deepEqual(shop.customer.key(), ["arky", "customer"]);
+  assert.deepEqual(shop.user.key(), ["arky", "user"]);
 });
 
 test("the request options that change the answer join the key, and the others stay out of it", () => {
@@ -142,8 +142,8 @@ test("the request options that change the answer join the key, and the others st
   assert.deepEqual(shop.eshop.order.get.key(order, { order_token: factoryOrderToken, headers: label }), [
     "arky", "eshop", "order", "get", order, { order_token: factoryOrderToken },
   ]);
-  assert.deepEqual(shop.store.country.find.key(undefined, { locale: "bs", market: "bih" }), [
-    "arky", "store", "country", "find", undefined, { locale: "bs", market: "bih" },
+  assert.deepEqual(shop.tenant.country.find.key(undefined, { locale: "bs", market: "bih" }), [
+    "arky", "tenant", "country", "find", undefined, { locale: "bs", market: "bih" },
   ]);
   assert.deepEqual(shop.eshop.order.get.key(order, { order_token: null, headers: label }), ["arky", "eshop", "order", "get", order]);
   assert.deepEqual(shop.eshop.order.get.key(order, {}), ["arky", "eshop", "order", "get", order]);
@@ -154,7 +154,7 @@ test("the request options that change the answer join the key, and the others st
   assert.equal("request" in options, false);
 
   const { hooks: arky } = hooksFor(admin());
-  assert.equal("request" in arky.customers.update.mutation({ request: { headers: label } }), false);
+  assert.equal("request" in arky.users.update.mutation({ request: { headers: label } }), false);
 });
 
 test("a storefront read's key names the client's language and market, so changing either reads again", () => {
@@ -167,31 +167,31 @@ test("a storefront read's key names the client's language and market, so changin
   ]);
   client.setContext({ locale: "hr" });
   assert.deepEqual(shop.eshop.order.get.key(order), ["arky", "eshop", "order", "get", order, { locale: "hr", market: "bih" }]);
-  assert.deepEqual(shop.store.country.find.key(undefined, { market: "hrv" }), ["arky", "store", "country", "find", undefined, { locale: "hr", market: "hrv" }]);
+  assert.deepEqual(shop.tenant.country.find.key(undefined, { market: "hrv" }), ["arky", "tenant", "country", "find", undefined, { locale: "hr", market: "hrv" }]);
   const { hooks: arky } = hooksFor(admin());
-  assert.deepEqual(arky.customers.find.key({ store_id: ids.store }), ["arky", "customers", "find", { store_id: ids.store }]);
+  assert.deepEqual(arky.users.find.key({ tenant_id: ids.tenant }), ["arky", "users", "find", { tenant_id: ids.tenant }]);
 });
 
 test("a read runs its SDK call under its key with TanStack's abort signal, also a read without params and one Arky takes as a POST", async (context) => {
-  const customer = { id: ids.customer, store_id: ids.store, updated_at: 1 };
+  const user = { id: ids.user, tenant_id: ids.tenant, updated_at: 1 };
   const quote = { blockers: [] };
   const account = { id: ids.account };
-  const calls = recordFetch(context, (call) => (call.path.endsWith("/quote") ? quote : call.path === "/v1/accounts/me" ? account : customer));
+  const calls = recordFetch(context, (call) => (call.path.endsWith("/quote") ? quote : call.path === "/v1/accounts/me" ? account : user));
   const queryClient = new QueryClient();
   const { hooks: arky } = hooksFor(admin(), queryClient);
-  const params = { store_id: ids.store, id: ids.customer };
+  const params = { tenant_id: ids.tenant, id: ids.user };
 
-  assert.deepEqual(await queryClient.fetchQuery(arky.customers.get.query(params)), customer);
-  assert.deepEqual(queryClient.getQueryData(arky.customers.get.key(params)), customer);
+  assert.deepEqual(await queryClient.fetchQuery(arky.users.get.query(params)), user);
+  assert.deepEqual(queryClient.getQueryData(arky.users.get.key(params)), user);
 
-  const quoteParams = { store_id: ids.store, id: ids.cart, language: "en" };
+  const quoteParams = { tenant_id: ids.tenant, id: ids.cart, language: "en" };
   assert.deepEqual(await queryClient.fetchQuery(arky.eshop.cart.quote.query(quoteParams)), quote);
   assert.deepEqual(await queryClient.fetchQuery(arky.account.getMe.query()), account);
   assert.deepEqual(queryClient.getQueryData(arky.account.getMe.key()), account);
 
   assert.deepEqual(calls.map((call) => [call.method, call.href, call.body]), [
-    ["GET", `${apiUrl}/v1/stores/${ids.store}/customers/${ids.customer}`, null],
-    ["POST", `${apiUrl}/v1/stores/${ids.store}/carts/${ids.cart}/quote`, { language: "en" }],
+    ["GET", `${apiUrl}/v1/tenants/${ids.tenant}/users/${ids.user}`, null],
+    ["POST", `${apiUrl}/v1/tenants/${ids.tenant}/carts/${ids.cart}/quote`, { language: "en" }],
     ["GET", `${apiUrl}/v1/accounts/me`, null],
   ]);
   for (const call of calls) assert.ok(call.signal instanceof AbortSignal, call.href);
@@ -207,7 +207,7 @@ test("a read sends its request options with the call, also an order token and a 
   assert.deepEqual(await queryClient.fetchQuery(shop.eshop.order.get.query(order, { request: { order_token: factoryOrderToken } })), order);
   assert.deepEqual(queryClient.getQueryData(shop.eshop.order.get.key(order, { order_token: factoryOrderToken })), order);
   assert.equal(queryClient.getQueryData(shop.eshop.order.get.key(order)), undefined);
-  assert.deepEqual(await queryClient.fetchQuery(shop.store.country.find.query(undefined, { request: { locale: "bs" } })), countries);
+  assert.deepEqual(await queryClient.fetchQuery(shop.tenant.country.find.query(undefined, { request: { locale: "bs" } })), countries);
 
   assert.deepEqual(calls.map((call) => [call.method, call.href]), [
     ["GET", `${apiUrl}/v1/storefront/orders/${ids.order}`],
@@ -226,28 +226,28 @@ test("a read sends its request options with the call, also an order token and a 
 });
 
 test("a write invalidates its group's prefix and the keys it names, then runs the caller's onSuccess", async (context) => {
-  const updated = { id: ids.customer, store_id: ids.store, updated_at: 2 };
+  const updated = { id: ids.user, tenant_id: ids.tenant, updated_at: 2 };
   const calls = recordFetch(context, () => updated);
   const queryClient = new QueryClient();
   const { hooks: arky, queryClient: provided } = hooksFor(admin(), queryClient);
   assert.equal(provided, queryClient);
-  const store_id = ids.store;
+  const tenant_id = ids.tenant;
   const keys = {
-    customer: arky.customers.get.key({ store_id, id: ids.customer }),
-    customers: arky.customers.find.key({ store_id }),
-    customerNotes: arky.customers.notes.find.key({ store_id, customer_id: ids.customer }),
-    order: arky.eshop.order.get.key({ store_id, id: ids.order }),
-    orderNotes: arky.eshop.order.notes.find.key({ store_id, order_id: ids.order }),
-    store: arky.store.get.key({ id: store_id }),
+    user: arky.users.get.key({ tenant_id, id: ids.user }),
+    users: arky.users.find.key({ tenant_id }),
+    userNotes: arky.users.notes.find.key({ tenant_id, user_id: ids.user }),
+    order: arky.eshop.order.get.key({ tenant_id, id: ids.order }),
+    orderNotes: arky.eshop.order.notes.find.key({ tenant_id, order_id: ids.order }),
+    tenant: arky.tenant.get.key({ id: tenant_id }),
   };
   for (const key of Object.values(keys)) queryClient.setQueryData(key, { seeded: true });
   const invalidated = () => Object.fromEntries(Object.entries(keys).map(([name, key]) => [name, queryClient.getQueryState(key).isInvalidated]));
 
-  const variables = { store_id, id: ids.customer, expected_updated_at: 1, name: { first_name: "Ana", last_name: "Kovač" } };
+  const variables = { tenant_id, id: ids.user, expected_updated_at: 1, name: { first_name: "Ana", last_name: "Kovač" } };
   const ran = [];
   const save = new MutationObserver(
     queryClient,
-    arky.customers.update.mutation({
+    arky.users.update.mutation({
       invalidates: [arky.eshop.order.key()],
       onSuccess: (data, received) => ran.push({ data, received, invalidated: invalidated() }),
     }),
@@ -257,11 +257,11 @@ test("a write invalidates its group's prefix and the keys it names, then runs th
     {
       data: updated,
       received: variables,
-      invalidated: { customer: true, customers: true, customerNotes: true, order: true, orderNotes: true, store: false },
+      invalidated: { user: true, users: true, userNotes: true, order: true, orderNotes: true, tenant: false },
     },
   ]);
   assert.deepEqual(calls.map((call) => [call.method, call.href, call.body]), [
-    ["PATCH", `${apiUrl}/v1/stores/${store_id}/customers/${ids.customer}`, { expected_updated_at: 1, name: { first_name: "Ana", last_name: "Kovač" } }],
+    ["PATCH", `${apiUrl}/v1/tenants/${tenant_id}/users/${ids.user}`, { expected_updated_at: 1, name: { first_name: "Ana", last_name: "Kovač" } }],
   ]);
 });
 
@@ -270,25 +270,25 @@ test("a write in a nested group invalidates only that group's prefix", async (co
   const calls = recordFetch(context, () => note);
   const queryClient = new QueryClient();
   const { hooks: arky } = hooksFor(admin(), queryClient);
-  const store_id = ids.store;
-  const customerKey = arky.customers.get.key({ store_id, id: ids.customer });
-  const notesKey = arky.customers.notes.find.key({ store_id, customer_id: ids.customer });
-  queryClient.setQueryData(customerKey, { seeded: true });
+  const tenant_id = ids.tenant;
+  const userKey = arky.users.get.key({ tenant_id, id: ids.user });
+  const notesKey = arky.users.notes.find.key({ tenant_id, user_id: ids.user });
+  queryClient.setQueryData(userKey, { seeded: true });
   queryClient.setQueryData(notesKey, { seeded: true });
 
-  const variables = { store_id, customer_id: ids.customer, id: ids.picked, body: "Called back" };
-  assert.deepEqual(await new MutationObserver(queryClient, arky.customers.notes.create.mutation()).mutate(variables), note);
+  const variables = { tenant_id, user_id: ids.user, id: ids.picked, body: "Called back" };
+  assert.deepEqual(await new MutationObserver(queryClient, arky.users.notes.create.mutation()).mutate(variables), note);
   assert.equal(queryClient.getQueryState(notesKey).isInvalidated, true);
-  assert.equal(queryClient.getQueryState(customerKey).isInvalidated, false);
+  assert.equal(queryClient.getQueryState(userKey).isInvalidated, false);
   assert.deepEqual(calls.map((call) => [call.method, call.href, call.body]), [
-    ["POST", `${apiUrl}/v1/stores/${store_id}/customers/${ids.customer}/notes`, { id: ids.picked, body: "Called back" }],
+    ["POST", `${apiUrl}/v1/tenants/${tenant_id}/users/${ids.user}/notes`, { id: ids.picked, body: "Called back" }],
   ]);
 });
 
 test("a write sends its request options with the call, also a write without params and an order token", async (context) => {
   const action = { type: "redirect", url: "https://pay.example.test" };
   const calls = recordFetch(context, (call) =>
-    call.path === "/v1/accounts" ? { id: ids.account } : call.path.endsWith("/payment-action") ? action : { id: ids.customer, updated_at: 2 },
+    call.path === "/v1/accounts" ? { id: ids.account } : call.path.endsWith("/payment-action") ? action : { id: ids.user, updated_at: 2 },
   );
   const queryClient = new QueryClient();
   const { hooks: arky } = hooksFor(admin(), queryClient);
@@ -297,8 +297,8 @@ test("a write sends its request options with the call, also a write without para
   const tokenKey = shop.eshop.order.get.key({ id: ids.order }, { order_token: factoryOrderToken });
   queryClient.setQueryData(tokenKey, { seeded: true });
 
-  const variables = { store_id: ids.store, id: ids.customer, expected_updated_at: 1 };
-  await new MutationObserver(queryClient, arky.customers.update.mutation({ request: { headers: label } })).mutate(variables);
+  const variables = { tenant_id: ids.tenant, id: ids.user, expected_updated_at: 1 };
+  await new MutationObserver(queryClient, arky.users.update.mutation({ request: { headers: label } })).mutate(variables);
   await new MutationObserver(queryClient, arky.account.delete.mutation({ request: { headers: label } })).mutate();
   const resume = new MutationObserver(queryClient, shop.eshop.order.resumePayment.mutation({ request: { order_token: factoryOrderToken } }));
   assert.deepEqual(await resume.mutate({ order_id: ids.order }), action);
@@ -306,7 +306,7 @@ test("a write sends its request options with the call, also a write without para
   assert.deepEqual(
     calls.map((call) => [call.method, call.href, call.body, call.headers.get("x-request-label"), call.headers.get("x-arky-order-token")]),
     [
-      ["PATCH", `${apiUrl}/v1/stores/${ids.store}/customers/${ids.customer}`, { expected_updated_at: 1 }, "staff page", null],
+      ["PATCH", `${apiUrl}/v1/tenants/${ids.tenant}/users/${ids.user}`, { expected_updated_at: 1 }, "staff page", null],
       ["DELETE", `${apiUrl}/v1/accounts`, null, "staff page", null],
       ["POST", `${apiUrl}/v1/storefront/orders/${ids.order}/payment-action`, null, null, factoryOrderToken],
     ],
@@ -343,30 +343,30 @@ test("the walk never runs a getter and mirrors only methods and groups", () => {
   });
 });
 
-test("a network customer's own reads and writes take no params, and the store key it opens is a write", async (context) => {
+test("a network user's own reads and writes take no params, and the tenant key it opens is a write", async (context) => {
   const token = {
     id: ids.session,
-    access_token: `network_customer_access_${"a".repeat(43)}`,
-    refresh_token: `network_customer_refresh_${"r".repeat(43)}`,
+    access_token: `network_user_access_${"a".repeat(43)}`,
+    refresh_token: `network_user_refresh_${"r".repeat(43)}`,
     access_expires_at: 1_900_000_000_000,
     refresh_expires_at: 1_900_000_600_000,
     authenticated_at: 1_700_000_000_000,
     reach: { type: "network" },
   };
   const storage = new MemoryStorage();
-  storage.seed(`arky_network_customer_session:v1:${encodeURIComponent(apiUrl)}:${ids.network}`, JSON.stringify({ version: 1, token }));
+  storage.seed(`arky_network_user_session:v1:${encodeURIComponent(apiUrl)}:${ids.network}`, JSON.stringify({ version: 1, token }));
   const me = { account_id: ids.account, logins: [], session: { id: ids.session, reach: { type: "network" }, signed_in_with: { type: "email", email: "ana@example.test" }, authenticated_at: 1, access_expires_at: 2, refresh_expires_at: 3 } };
   const calls = recordFetch(context, (call) => (call.method === "DELETE" ? { deleted: true } : me));
   const queryClient = new QueryClient();
-  const { hooks: portal } = hooksFor(networkCustomer(storage), queryClient);
+  const { hooks: portal } = hooksFor(networkUser(storage), queryClient);
   assert.deepEqual(portal.getMe.key(), ["arky", "getMe", undefined]);
   assert.deepEqual(await queryClient.fetchQuery(portal.getMe.query()), me);
-  assert.deepEqual(Object.keys(portal.store.openKey).sort(), ["mutation"]);
-  assert.deepEqual(Object.keys(portal.store.find).sort(), ["key", "query"]);
+  assert.deepEqual(Object.keys(portal.tenant.openKey).sort(), ["mutation"]);
+  assert.deepEqual(Object.keys(portal.tenant.find).sort(), ["key", "query"]);
   assert.deepEqual(await new MutationObserver(queryClient, portal.deleteAccount.mutation()).mutate(), { deleted: true });
   assert.deepEqual(calls.map((call) => [call.method, call.path]), [
-    ["GET", `/v1/networks/${ids.network}/customer/me`],
-    ["DELETE", `/v1/networks/${ids.network}/customer/me`],
+    ["GET", `/v1/networks/${ids.network}/user/me`],
+    ["DELETE", `/v1/networks/${ids.network}/user/me`],
   ]);
   assert.equal(calls[0].headers.get("authorization"), `Bearer ${token.access_token}`);
 });

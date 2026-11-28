@@ -14,7 +14,7 @@ import type {
   BookingOfferingTime,
   BookingWindow,
   BookingWindowOpening,
-  BookingCustomerChanges,
+  BookingUserChanges,
   BookingOfferingEditableStatus,
   BookingResourceAvailability,
   Block,
@@ -46,9 +46,9 @@ type Missing<T, K extends PropertyKey> = Extract<K, keyof T> extends never ? tru
 type Admin = ReturnType<typeof createAdmin>;
 
 type MoveRead = {
-  store_id: string;
+  tenant_id: string;
   booking_service_id: string;
-  store_location_id: string;
+  tenant_location_id: string;
   from: GetAvailabilityParams["from"];
   to: GetAvailabilityParams["to"];
 };
@@ -58,10 +58,10 @@ export type BookingDefinitionContracts = [
   Assert<Equal<(MoveRead & { moving_order_booking_line_item_id: string }) extends GetAvailabilityParams ? true : false, false>>,
   Assert<Equal<(MoveRead & { moving_order_id: string; moving_order_booking_line_item_id: string }) extends GetAvailabilityParams ? true : false, true>>,
   Assert<Equal<MoveRead extends GetAvailabilityParams ? true : false, true>>,
-  Assert<Equal<Omit<MoveRead, "store_location_id"> extends GetAvailabilityParams ? true : false, false>>,
+  Assert<Equal<Omit<MoveRead, "tenant_location_id"> extends GetAvailabilityParams ? true : false, false>>,
   Assert<Missing<GetStorefrontAvailabilityParams, "moving_order_id" | "moving_order_booking_line_item_id">>,
-  Assert<Required<GetStorefrontAvailabilityParams, "store_location_id">>,
-  Assert<Equal<BookingResourceAvailability["store_location_id"], string>>,
+  Assert<Required<GetStorefrontAvailabilityParams, "tenant_location_id">>,
+  Assert<Equal<BookingResourceAvailability["tenant_location_id"], string>>,
   Assert<Equal<BookingResourceAvailability["resource_blocks"], Block[]>>,
   Assert<Equal<Duration, number>>,
   Assert<Required<CreateBookingServiceParams, "length">>,
@@ -73,18 +73,18 @@ export type BookingDefinitionContracts = [
   Assert<Equal<BookingService["booking_window"], BookingWindow>>,
   Assert<Equal<BookingWindow, { opens: BookingWindowOpening; closes_before_start: Duration }>>,
   Assert<Equal<BookingWindowOpening, { type: "any_time" } | { type: "before_start"; period: Duration }>>,
-  Assert<Equal<BookingCustomerChanges, { type: "not_allowed" } | { type: "until_before_start"; period: Duration }>>,
+  Assert<Equal<BookingUserChanges, { type: "not_allowed" } | { type: "until_before_start"; period: Duration }>>,
   Assert<Required<CreateBookingServiceParams, "tax_category_id">>,
   Assert<Required<CreateBookingServiceParams, "document_item">>,
   Assert<Equal<CreateBookingServiceParams["document_item"], DocumentItem>>,
   Assert<Equal<Required<UpdateBookingServiceParams, "document_item">, false>>,
   Assert<Equal<BookingService["document_item"], DocumentItem>>,
   Assert<Equal<StorefrontBookingService["document_item"], DocumentItem>>,
-  Assert<Equal<BookingService["customer_changes"], BookingCustomerChanges>>,
+  Assert<Equal<BookingService["user_changes"], BookingUserChanges>>,
   Assert<Required<CreateBookingResourceParams, "hours">>,
   Assert<Equal<BookingResource["hours"], BookingResourceHours>>,
   Assert<Equal<StorefrontBookingResource["hours"], BookingResourceHours>>,
-  Assert<Equal<BookingResourceWindow, { store_location_id: string; from: Duration; to: Duration }>>,
+  Assert<Equal<BookingResourceWindow, { tenant_location_id: string; from: Duration; to: Duration }>>,
   Assert<Equal<WorkingWindow, { from: Duration; to: Duration }>>,
   Assert<Equal<BookingResource["daily_limits"], BookingResourceDailyLimit[]>>,
   Assert<Equal<BookingResourceDailyLimit, { booking_service_id: string; bookings: number }>>,
@@ -100,7 +100,7 @@ export type BookingDefinitionContracts = [
   Assert<Equal<BookingOffering["hours"], BookingOfferingHours>>,
   Assert<Equal<BookingOfferingHours, { type: "all" } | { type: "only"; hours: BookingHours }>>,
   Assert<Equal<BookingOfferingResources, { type: "category"; category_id: string } | { type: "ids"; booking_resource_ids: string[] }>>,
-  Assert<Equal<BookingOfferingLocations, { type: "all" } | { type: "ids"; store_location_ids: string[] } | { type: "elsewhere"; store_location_id: string }>>,
+  Assert<Equal<BookingOfferingLocations, { type: "all" } | { type: "ids"; tenant_location_ids: string[] } | { type: "elsewhere"; tenant_location_id: string }>>,
   Assert<Equal<BookingOfferingTime, { from: Duration; to: Duration }>>,
   Assert<Equal<BookingOfferingAddOn, { id: string; booking_service_id: string; resources: BookingOfferingAddOnResources; from: Duration }>>,
   Assert<Equal<BookingOfferingAddOnResources, { type: "all" } | { type: "category"; category_id: string } | { type: "ids"; booking_resource_ids: string[] }>>,
@@ -110,14 +110,14 @@ export type BookingDefinitionContracts = [
   Assert<Missing<UpdateBookingOfferingParams, "booking_service_id" | "booking_resource_id">>,
   Assert<Missing<Admin["eshop"]["bookingOffering"], "getByServiceAndResource">>,
   Assert<Required<GetStorefrontAvailabilityParams, "package_id">>,
-  Assert<Equal<{ store_id: string; ids: string[]; booking_service_id: string } extends FindBookingOfferingsParams ? true : false, false>>,
-  Assert<Equal<{ store_id: string; ids: string[]; cursor: string } extends FindBookingOfferingsParams ? true : false, false>>,
-  Assert<Equal<{ store_id: string; ids: string[]; limit: number } extends FindBookingOfferingsParams ? true : false, true>>,
-  Assert<Equal<{ store_id: string } extends FindBookingOfferingsParams ? true : false, true>>,
+  Assert<Equal<{ tenant_id: string; ids: string[]; booking_service_id: string } extends FindBookingOfferingsParams ? true : false, false>>,
+  Assert<Equal<{ tenant_id: string; ids: string[]; cursor: string } extends FindBookingOfferingsParams ? true : false, false>>,
+  Assert<Equal<{ tenant_id: string; ids: string[]; limit: number } extends FindBookingOfferingsParams ? true : false, true>>,
+  Assert<Equal<{ tenant_id: string } extends FindBookingOfferingsParams ? true : false, true>>,
   Assert<Equal<Awaited<ReturnType<Admin["eshop"]["bookingOffering"]["findByService"]>>, PaginatedResponse<BookingOffering>>>,
   Assert<Equal<Awaited<ReturnType<Admin["eshop"]["bookingOffering"]["findByResource"]>>, PaginatedResponse<BookingOffering>>>,
   Assert<Equal<Awaited<ReturnType<Admin["eshop"]["bookingOffering"]["findAll"]>>, PaginatedResponse<BookingOffering>>>,
-  Assert<Equal<Parameters<Admin["eshop"]["bookingOffering"]["findAll"]>[0], { store_id: string; limit?: number; cursor?: string | null }>>,
+  Assert<Equal<Parameters<Admin["eshop"]["bookingOffering"]["findAll"]>[0], { tenant_id: string; limit?: number; cursor?: string | null }>>,
   Assert<Equal<Awaited<ReturnType<Admin["eshop"]["bookingService"]["findAll"]>>, PaginatedResponse<BookingService>>>,
   Assert<Equal<Awaited<ReturnType<Admin["eshop"]["bookingService"]["findByBlockTarget"]>>, PaginatedResponse<BookingService>>>,
   Assert<Equal<Awaited<ReturnType<Admin["eshop"]["bookingResource"]["findAll"]>>, PaginatedResponse<BookingResource>>>,

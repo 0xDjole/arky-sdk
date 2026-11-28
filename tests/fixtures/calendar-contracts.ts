@@ -45,7 +45,7 @@ export type CalendarContracts = [
   Assert<Missing<CartBookingLineItem, "booking_type">>,
   Assert<Missing<CartBookingLineItemInput, "booking_type">>,
   Assert<Missing<QuoteBookingLine, "booking_type">>,
-  Assert<Equal<OrderBookingLineItem["store_location_id"], string>>,
+  Assert<Equal<OrderBookingLineItem["tenant_location_id"], string>>,
   Assert<Equal<OrderBookingLineItem["total_interval"], TimeRange>>,
   Assert<Equal<OrderBookingLineItem["add_ons"], OrderBookingLineAddOn[]>>,
   Assert<Equal<OrderBookingLineItem["changes"], OrderBookingChange[]>>,
@@ -53,7 +53,7 @@ export type CalendarContracts = [
   Assert<Equal<OrderBookingLineAddOnStatus["type"], "held" | "taken_off">>,
   Assert<Equal<OrderBookingChange["type"], OrderBookingChangeType>>,
   Assert<Equal<OrderBookingChangeType["type"], "line" | "add_on" | "add_on_added" | "offering_changed">>,
-  Assert<RequiredField<CartBookingLineItemInput, "store_location_id">>,
+  Assert<RequiredField<CartBookingLineItemInput, "tenant_location_id">>,
   Assert<RequiredField<CartBookingLineItemInput, "resource">>,
   Assert<RequiredField<CartBookingLineItemInput, "add_ons">>,
   Assert<Equal<CartBookingLineItemInput["resource"], CartBookingLineResource>>,
@@ -98,7 +98,7 @@ export type CalendarContracts = [
   Assert<Equal<Parameters<OrderApi["updateBookingItem"]>[0], UpdateOrderBookingItemParams>>,
   Assert<Equal<UpdateOrderBookingItemParams["update"], OrderBookingItemUpdate>>,
   Assert<Equal<OrderBookingItemUpdate["type"], "start" | "length" | "branch" | "offering" | "resource" | "add_on" | "add_add_on">>,
-  Assert<RequiredField<UpdateOrderBookingItemParams, "notify_customer">>,
+  Assert<RequiredField<UpdateOrderBookingItemParams, "notify_user">>,
   Assert<Equal<Parameters<OrderApi["takeOffBookingAddOn"]>[0], TakeOffOrderBookingAddOnParams>>,
   Assert<RequiredField<TakeOffOrderBookingAddOnParams, "credit_id">>,
   Assert<Equal<keyof Pick<OrderApi, "resizeBookingItem" | "cancelBookingSeries" | "rescheduleBookingSeries" | "stepBookingItem">, "resizeBookingItem" | "cancelBookingSeries" | "rescheduleBookingSeries" | "stepBookingItem">>,
@@ -109,7 +109,7 @@ export type CalendarContracts = [
       { action: "order_booking_line_item_reminder_requested"; order_id: string; order_booking_line_item_id: string; notification_id: string }
     >
   >,
-  Assert<Equal<Extract<AuditAction, { action: "store_plan_charge_settled" }>, { action: "store_plan_charge_settled"; store_plan_charge_id: string }>>,
+  Assert<Equal<Extract<AuditAction, { action: "tenant_plan_charge_settled" }>, { action: "tenant_plan_charge_settled"; tenant_plan_charge_id: string }>>,
   Assert<Equal<Extract<AuditAction, { action: "fiscal_receipt_delivery_requested" }>, { action: "fiscal_receipt_delivery_requested"; fiscal_receipt_id: string }>>,
   Assert<Equal<Extract<AuditAction, { action: "order_receipt_resend_requested" }>, { action: "order_receipt_resend_requested"; order_id: string }>>,
   Assert<
@@ -118,5 +118,5 @@ export type CalendarContracts = [
       { action: "invoice_reissued"; order_id: string; invoice_id: string; reversal_id: string; new_invoice_id: string }
     >
   >,
-  Assert<Equal<Extract<AuditSubjectType, "store_plan_charge">, "store_plan_charge">>,
+  Assert<Equal<Extract<AuditSubjectType, "tenant_plan_charge">, "tenant_plan_charge">>,
 ];

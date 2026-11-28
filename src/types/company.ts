@@ -45,7 +45,7 @@ export type StorefrontBuyerTax =
   | { type: "exempt"; reason: string; registrations: StorefrontTaxRegistration[] };
 
 export interface SetCompanyTaxParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   tax: BuyerTax;
@@ -67,7 +67,7 @@ export interface CompanyPurchasingPolicy {
 
 export interface StorefrontCompany {
   id: string;
-  store_id: string;
+  tenant_id: string;
   name: string;
   contact: EmailContact | null;
   tax: StorefrontBuyerTax;
@@ -84,7 +84,7 @@ export interface Company extends StorefrontCompany {
 
 export type CompanyLocationFulfillment =
   | { type: "routing" }
-  | { type: "served_from"; store_location_id: string };
+  | { type: "served_from"; tenant_location_id: string };
 
 export type CompanyLocationStatus =
   | { type: "active" }
@@ -94,7 +94,7 @@ export type CompanyLocationEditableStatus = CompanyLocationStatus;
 
 export interface StorefrontCompanyLocation {
   id: string;
-  store_id: string;
+  tenant_id: string;
   company_id: string;
   name: string;
   shipping_address: PostalAddress | null;
@@ -113,7 +113,7 @@ export interface CompanyLocation extends StorefrontCompanyLocation {
 
 export interface CompanyRole {
   id: string;
-  store_id: string;
+  tenant_id: string;
   company_id: string;
   key: string;
   permissions: CompanyRolePermission[];
@@ -123,12 +123,12 @@ export interface CompanyRole {
 
 export type CompanyMembershipStatus =
   | { type: "invited"; contact: EmailContact }
-  | { type: "active"; customer_id: string }
-  | { type: "disabled"; customer_id: string };
+  | { type: "active"; user_id: string }
+  | { type: "disabled"; user_id: string };
 
 export interface CompanyMembership {
   id: string;
-  store_id: string;
+  tenant_id: string;
   company_id: string;
   role_ids: string[];
   status: CompanyMembershipStatus;
@@ -140,13 +140,13 @@ export type StorefrontAccessCompany =
   | ({ type: "company" } & StorefrontCompany)
   | { type: "locations"; id: string; name: string; status: CompanyStatus };
 
-export interface CompanyCustomerAccess {
+export interface CompanyUserAccess {
   company: StorefrontAccessCompany;
   permissions: CompanyPermissionType[];
 }
 
 export interface CreateCompanyParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   name: string;
   contact?: EmailContact | null;
@@ -156,12 +156,12 @@ export interface CreateCompanyParams {
 }
 
 export interface GetCompanyParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface UpdateCompanyParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   name: string;
@@ -172,13 +172,13 @@ export interface UpdateCompanyParams {
 }
 
 export interface DeleteCompanyParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface FindCompaniesBySearchParams {
-  store_id: string;
+  tenant_id: string;
   ids?: never;
   tax_registration_country?: never;
   tax_registration_identifier?: never;
@@ -191,7 +191,7 @@ export interface FindCompaniesBySearchParams {
 }
 
 export interface FindCompaniesByIdsParams {
-  store_id: string;
+  tenant_id: string;
   ids: string[];
   tax_registration_country?: never;
   tax_registration_identifier?: never;
@@ -204,7 +204,7 @@ export interface FindCompaniesByIdsParams {
 }
 
 export interface FindCompaniesByTaxRegistrationParams {
-  store_id: string;
+  tenant_id: string;
   ids?: never;
   tax_registration_country: string;
   tax_registration_identifier: string;
@@ -219,7 +219,7 @@ export interface FindCompaniesByTaxRegistrationParams {
 export type FindCompaniesParams = FindCompaniesBySearchParams | FindCompaniesByIdsParams | FindCompaniesByTaxRegistrationParams;
 
 export interface CreateCompanyLocationParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   company_id: string;
   name: string;
@@ -230,12 +230,12 @@ export interface CreateCompanyLocationParams {
 }
 
 export interface GetCompanyLocationParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface UpdateCompanyLocationParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   name: string;
@@ -257,14 +257,14 @@ export type CompanyTaxRegistrationReview =
   | { type: "remove" };
 
 export interface SubmitCompanyTaxRegistrationParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   registration: CompanyTaxRegistrationInput;
 }
 
 export interface ReviewCompanyTaxRegistrationParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   registration: CompanyTaxRegistrationInput;
@@ -272,27 +272,27 @@ export interface ReviewCompanyTaxRegistrationParams {
 }
 
 export interface SetCompanyPurchasingParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   purchasing: CompanyPurchasingPolicy;
 }
 
 export interface SetCompanyLocationFulfillmentParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   fulfillment: CompanyLocationFulfillment;
 }
 
 export interface DeleteCompanyLocationParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface FindCompanyLocationsByCompanyParams {
-  store_id: string;
+  tenant_id: string;
   ids?: never;
   company_id?: string;
   limit?: number;
@@ -300,7 +300,7 @@ export interface FindCompanyLocationsByCompanyParams {
 }
 
 export interface FindCompanyLocationsByIdsParams {
-  store_id: string;
+  tenant_id: string;
   ids: string[];
   company_id?: never;
   limit?: never;
@@ -356,7 +356,7 @@ export interface StorefrontDeleteCompanyLocationParams {
 }
 
 export interface CreateCompanyRoleParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   company_id: string;
   key: string;
@@ -364,13 +364,13 @@ export interface CreateCompanyRoleParams {
 }
 
 export interface GetCompanyRoleParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   company_id: string;
 }
 
 export interface UpdateCompanyRoleParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   company_id: string;
   expected_updated_at: EpochMilliseconds;
@@ -378,14 +378,14 @@ export interface UpdateCompanyRoleParams {
 }
 
 export interface DeleteCompanyRoleParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   company_id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface FindCompanyRolesParams {
-  store_id: string;
+  tenant_id: string;
   company_id: string;
   key?: string;
   limit?: number;
@@ -393,7 +393,7 @@ export interface FindCompanyRolesParams {
 }
 
 export interface CreateCompanyMembershipParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   company_id: string;
   contact: EmailContact;
@@ -401,12 +401,12 @@ export interface CreateCompanyMembershipParams {
 }
 
 export interface GetCompanyMembershipParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface UpdateCompanyMembershipParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   role_ids: string[];
@@ -414,23 +414,23 @@ export interface UpdateCompanyMembershipParams {
 }
 
 export interface DeleteCompanyMembershipParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export type FindCompanyMembershipsBySearchParams = {
-  store_id: string;
+  tenant_id: string;
   email?: never;
   role_id?: string;
   limit?: number;
   cursor?: string | null;
-} & ({ company_id?: string; customer_id?: never } | { company_id?: never; customer_id?: string });
+} & ({ company_id?: string; user_id?: never } | { company_id?: never; user_id?: string });
 
-export interface FindCompanyMembershipByCustomerParams {
-  store_id: string;
+export interface FindCompanyMembershipByUserParams {
+  tenant_id: string;
   company_id: string;
-  customer_id: string;
+  user_id: string;
   email?: never;
   role_id?: never;
   limit?: never;
@@ -438,10 +438,10 @@ export interface FindCompanyMembershipByCustomerParams {
 }
 
 export interface FindCompanyMembershipByEmailParams {
-  store_id: string;
+  tenant_id: string;
   company_id: string;
   email: string;
-  customer_id?: never;
+  user_id?: never;
   role_id?: never;
   limit?: never;
   cursor?: never;
@@ -449,7 +449,7 @@ export interface FindCompanyMembershipByEmailParams {
 
 export type FindCompanyMembershipsParams =
   | FindCompanyMembershipsBySearchParams
-  | FindCompanyMembershipByCustomerParams
+  | FindCompanyMembershipByUserParams
   | FindCompanyMembershipByEmailParams;
 
 export interface StorefrontFindCompanyMembershipsParams {
@@ -490,7 +490,7 @@ export interface StorefrontFindCompanyRolesParams {
 }
 
 export interface ResendCompanyInviteParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }

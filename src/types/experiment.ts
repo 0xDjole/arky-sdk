@@ -8,7 +8,7 @@ export type ExperimentStatus =
 
 export interface Experiment {
   id: string;
-  store_id: string;
+  tenant_id: string;
   key: string;
   status: ExperimentStatus;
   goal_action_key: string;
@@ -24,7 +24,7 @@ export interface ExperimentVariantResult {
   eligible_assignments: number;
   converted_assignments: number;
   observed_conversion_rate: number | null;
-  excluded_conflicting_customers: number;
+  excluded_conflicting_users: number;
   open_windows: number;
   highest_observed: boolean;
 }
@@ -40,7 +40,7 @@ export type ExperimentUseResponse =
   | { type: "inactive" };
 
 export interface CreateExperimentParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   key: string;
   goal_action_key: string;
@@ -49,7 +49,7 @@ export interface CreateExperimentParams {
 }
 
 export interface UpdateExperimentParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   key: string;
@@ -59,24 +59,24 @@ export interface UpdateExperimentParams {
 }
 
 export interface ExperimentActionParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface DeleteExperimentParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface GetExperimentParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface FindExperimentsParams {
-  store_id: string;
+  tenant_id: string;
   status?: ExperimentStatus["type"];
   limit?: number;
   cursor?: string | null;

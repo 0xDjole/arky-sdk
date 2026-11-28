@@ -50,7 +50,7 @@ function firstOfMonth(date: Date): Date {
 function emptyState(): ArkyBookingCalendarState {
   return {
     booking_service: null,
-    store_location_id: null,
+    tenant_location_id: null,
     booking_choices: [],
     booking_choices_cursor: null,
     booking_resources: [],
@@ -116,7 +116,7 @@ function slotAvailability(
       (resource) =>
         resource.booking_resource_id === slot.booking_resource_id &&
         resource.booking_offering_id === slot.booking_offering_id &&
-        resource.store_location_id === slot.store_location_id,
+        resource.tenant_location_id === slot.tenant_location_id,
     ) ?? null
   );
 }
@@ -228,7 +228,7 @@ export function createBookingCalendar(context: BookingCalendarContext, cart: Car
         {
           id: `${slot.bookingOfferingId}-${slot.bookingResourceId}-${slot.from}-${index}`,
           booking_service_id: service.id,
-          store_location_id: slot.storeLocationId,
+          tenant_location_id: slot.tenantLocationId,
           booking_resource_id: slot.bookingResourceId,
           booking_offering_id: slot.bookingOfferingId,
           price_ref: priceRef,
@@ -271,8 +271,8 @@ export function createBookingCalendar(context: BookingCalendarContext, cart: Car
   async function loadMonth(): Promise<void> {
     const current = state.get();
     const service = current.booking_service;
-    const storeLocationId = current.store_location_id;
-    if (!service || !storeLocationId) return;
+    const tenantLocationId = current.tenant_location_id;
+    if (!service || !tenantLocationId) return;
     const requestRevision = ++availabilityRevision;
     const selection = selectionRevision;
     const stale = () => selection !== selectionRevision || requestRevision !== availabilityRevision;
@@ -286,7 +286,7 @@ export function createBookingCalendar(context: BookingCalendarContext, cart: Car
         const page: AvailabilityResponse = await readAvailability({
           ...shopPackage,
           booking_service_id: service.id,
-          store_location_id: storeLocationId,
+          tenant_location_id: tenantLocationId,
           from,
           to,
           limit: offeringsPerRead,
@@ -349,12 +349,12 @@ export function createBookingCalendar(context: BookingCalendarContext, cart: Car
     month_label,
 
     async select(params: ArkySelectBookingServiceParams): Promise<ArkyBookingCalendarState> {
-      const storeLocationId = requireId(params.store_location_id, "store location");
+      const tenantLocationId = requireId(params.tenant_location_id, "tenant location");
       const selection = ++selectionRevision;
       availabilityRevision += 1;
       patch({
         booking_service: null,
-        store_location_id: storeLocationId,
+        tenant_location_id: tenantLocationId,
         booking_choices: [],
         booking_choices_cursor: null,
         booking_resources: [],
@@ -473,7 +473,7 @@ export function createBookingCalendar(context: BookingCalendarContext, cart: Car
       const result = await cart.addBooking({
         ...(params.id !== undefined ? { id: params.id } : {}),
         booking_offering_id: slot.booking_offering_id,
-        store_location_id: slot.store_location_id,
+        tenant_location_id: slot.tenant_location_id,
         resource: current.selected_booking_resource_id
           ? { type: "resource", booking_resource_id: slot.booking_resource_id }
           : { type: "any" },

@@ -14,7 +14,7 @@ function omitStorefrontRouting(value: unknown): unknown {
   const prototype = Object.getPrototypeOf(value);
   if (prototype !== Object.prototype && prototype !== null) return value;
   const result = { ...value };
-  delete result.store_id;
+  delete result.tenant_id;
   delete result.market;
   return result;
 }

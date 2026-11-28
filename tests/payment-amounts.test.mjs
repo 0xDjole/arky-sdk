@@ -9,7 +9,7 @@ const actor = { type: "account", account_id: ids.account };
 const eur = (amount) => ({ amount, currency: "eur" });
 
 function payment(id, amount, type) {
-  return { id, store_id: ids.store, order_id: ids.order, payment_option_id: ids.paymentOption, payment_option_key: "desk", money: eur(amount), type, holds: [], status: "paid", created_at: 1, updated_at: 1 };
+  return { id, tenant_id: ids.tenant, order_id: ids.order, payment_option_id: ids.paymentOption, payment_option_key: "desk", money: eur(amount), type, holds: [], status: "paid", created_at: 1, updated_at: 1 };
 }
 
 const stripe = payment(ids.payment, 5000, {
@@ -136,7 +136,7 @@ test("a recorded payment counts its whole money while active and nothing once vo
 
 test("a staff payment adds up the same way, and a refund paid out in cash against an identity document counts once it is sent", () => {
   const identityDocument = { type: "cash_with_identity_document", number: "0123456789" };
-  const request = { actor, reason: "customer_request", application: { type: "excess_collection", reason: "Paid twice" }, notify_customer: false };
+  const request = { actor, reason: "user_request", application: { type: "excess_collection", reason: "Paid twice" }, notify_user: false };
   const paidOut = (reference) => ({ recorded_by: actor, reference, recorded_at: 2, method: identityDocument });
   const staffCash = {
     ...payment(ids.payment, 3000, {

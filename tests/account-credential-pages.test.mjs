@@ -7,7 +7,7 @@ const logoutBaseUrl = "https://logout.test";
 const logoutStorageKey = `arky_admin_session:${logoutBaseUrl}`;
 const loginSessionId = "5f3c9a21-7e46-4b08-9d2c-1a6e8b4f0c37";
 const laterSessionId = "8d1b6f47-2a93-4c05-b7e8-4f0a2c9d6e13";
-const loginStoreId = "2b7d4e90-6c15-4a38-8f2e-9d1c5b7a3e64";
+const loginTenantId = "2b7d4e90-6c15-4a38-8f2e-9d1c5b7a3e64";
 const loginNetworkId = "4e8a1c37-9b25-4d60-a3f7-1c5e9b2d7f48";
 
 function installWindow(context) {
@@ -84,11 +84,11 @@ test("own credential lists forward bounded pages and preserve tagged statuses wi
 
 test("an account token is made under the app's id, shown once, revoked and deleted by version", async (context) => {
   const tokenId = "3d8f1b62-7c49-4e05-a1d3-9b6e2f4c8a17";
-  const storeId = "c7e2a915-4d38-4b60-8f1e-2a5d9c3b7e46";
+  const tenantId = "c7e2a915-4d38-4b60-8f1e-2a5d9c3b7e46";
   const value = `arky_at_${"V".repeat(42)}A`;
   const token = {
     id: tokenId, account_id: "0f4c7a29-5e13-4d86-b2a7-6c9e1f3d5b80", email: "operator@example.test", name: "CI",
-    token_hint: value.slice(0, 16), stores: { type: "ids", store_ids: [storeId] },
+    token_hint: value.slice(0, 16), tenants: { type: "ids", tenant_ids: [tenantId] },
     expiry: { type: "never" }, status: { type: "active" }, created_at: 1, updated_at: 1,
   };
   const revoked = { ...token, status: { type: "revoked", revoked_at: 2 }, updated_at: 2 };
@@ -102,7 +102,7 @@ test("an account token is made under the app's id, shown once, revoked and delet
     return new Response(JSON.stringify(answer), { status: 200, headers: { "content-type": "application/json" } });
   });
   const api = createAdmin({ apiUrl: "https://credentials.test" }).account.token;
-  const request = { id: tokenId, name: "CI", stores: token.stores, expiry: { type: "never" } };
+  const request = { id: tokenId, name: "CI", tenants: token.tenants, expiry: { type: "never" } };
   assert.deepEqual(await api.create(request), { type: "secret_created", token, value });
   assert.deepEqual(await api.create(request), { type: "existing", token });
   assert.deepEqual(await api.revoke({ id: tokenId, expected_updated_at: 1 }), revoked);
@@ -118,8 +118,8 @@ test("an account token is made under the app's id, shown once, revoked and delet
   }
   assert.equal(calls.length, 4);
   await api.create({ ...request, expiry: { type: "at", expires_at: 1_900_000_000_000 } });
-  assert.deepEqual(calls[4].body, { id: tokenId, name: "CI", stores: token.stores, expiry: { type: "at", expires_at: 1_900_000_000_000 } });
-  await api.create({ id: tokenId, name: "CI", stores: token.stores, expires_at: null });
+  assert.deepEqual(calls[4].body, { id: tokenId, name: "CI", tenants: token.tenants, expiry: { type: "at", expires_at: 1_900_000_000_000 } });
+  await api.create({ id: tokenId, name: "CI", tenants: token.tenants, expires_at: null });
   assert.equal("expires_at" in calls[5].body, false, "a token's end is its expiry, so a bare expires_at is not sent");
   assert.equal("update" in api, false);
   assert.equal("apiToken" in createAdmin({ apiUrl: "https://credentials.test" }).account, false);
@@ -141,7 +141,7 @@ test("Admin logout revokes the exact persisted server Session with its current a
   const storage = installWindow(context);
   const calls = recordFetch(context, (call) => call.method === "DELETE" ? [200, true] : [200, issuedCredentials()]);
   const admin = createAdmin({ apiUrl: logoutBaseUrl });
-  await admin.account.auth.verify({ session_id: "pending-login", code: "123456", store_id: loginStoreId });
+  await admin.account.auth.verify({ session_id: "pending-login", code: "123456", tenant_id: loginTenantId });
   const persisted = JSON.parse(storage.getItem(logoutStorageKey));
   assert.equal(persisted.id, loginSessionId);
   assert.deepEqual(Object.keys(persisted).sort(), ["access_token", "id", "refresh_token"]);

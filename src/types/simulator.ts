@@ -108,12 +108,12 @@ export type SimulatorPlannedOutcome = SimulatorPlannedOperation & {
 };
 
 export interface SimulatorPaymentControlParams {
-  store_id: string;
+  tenant_id: string;
   payment_id: string;
 }
 
 export interface FindSimulatedEmailsParams {
-  store_id: string;
+  tenant_id: string;
   to?: string;
   limit?: number;
   cursor?: string | null;
@@ -130,7 +130,7 @@ export interface SimulatedSms {
 }
 
 export interface FindSimulatedSmsParams {
-  store_id: string;
+  tenant_id: string;
   to?: string;
   limit?: number;
   cursor?: string | null;
@@ -159,18 +159,18 @@ export interface SimulatedCall {
 }
 
 export interface StartSimulatedCallParams {
-  store_id: string;
+  tenant_id: string;
   to: string;
   from: string | null;
 }
 
 export interface GetSimulatedCallParams {
-  store_id: string;
+  tenant_id: string;
   call_sid: string;
 }
 
 export interface SetSimulatedCallStatusParams {
-  store_id: string;
+  tenant_id: string;
   call_sid: string;
   status: SimulatedCallStatus;
   duration_seconds: number | null;
@@ -188,7 +188,7 @@ export interface SimulatedCallConversation {
 }
 
 export interface FindSimulatedCallConversationsParams {
-  store_id: string;
+  tenant_id: string;
   call_id?: string;
   limit?: number;
   cursor?: string | null;
@@ -200,8 +200,8 @@ export type SimulatedAssistantTool =
   | "find-locations"
   | "find-entries"
   | "find-orders"
-  | "read-customer"
-  | "save-customer"
+  | "read-user"
+  | "save-user"
   | "save-entry"
   | "book"
   | "move"
@@ -219,7 +219,7 @@ export interface SimulatedSaidLine {
 }
 
 export interface SimulateToolCallParams {
-  store_id: string;
+  tenant_id: string;
   conversation_id: string;
   tool: SimulatedAssistantTool;
   parameters: Record<string, unknown>;
@@ -239,26 +239,26 @@ export interface SimulatedTranscriptLine {
 }
 
 export interface FinishSimulatedCallConversationParams {
-  store_id: string;
+  tenant_id: string;
   conversation_id: string;
   transcript: SimulatedTranscriptLine[];
 }
 
 export type CreateSimulatorPlannedOutcomeParams = SimulatorPlannedOperation & {
-  store_id: string;
+  tenant_id: string;
   id: string;
   matching: SimulatorPlannedMatching;
   outcome: SimulatorPlannedResult;
 };
 
 export interface FindSimulatorPlannedOutcomesParams {
-  store_id: string;
+  tenant_id: string;
   limit?: number;
   cursor?: string | null;
 }
 
 export interface RemoveSimulatorPlannedOutcomeParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 

@@ -58,7 +58,7 @@ test("package search sends the package, buyer context, price flag and JSON selec
   assert.equal(calls[0].query.limit, "24");
   assert.equal(calls[0].query.cursor, "previous-items");
   assert.deepEqual(JSON.parse(calls[0].query.selection), selection);
-  assert.equal(calls[0].headers.get("x-arky-store-id"), storefrontIdentity.storeId);
+  assert.equal(calls[0].headers.get("x-arky-tenant-id"), storefrontIdentity.tenantId);
     assert.equal(calls[0].headers.get("x-arky-sales-channel-id"), storefrontIdentity.salesChannelId);
   assert.equal(calls[0].headers.get("x-arky-market"), "eu");
   assert.equal(calls[0].headers.get("x-arky-locale"), "en");
@@ -118,7 +118,7 @@ test("an item's prices page under its encoded id, each carrying the reference a 
   assert.deepEqual(calls[0].query, { package_id: ids.package, include_price: "true", limit: "50", cursor: "previous-choices" });
 });
 
-test("the store exposes the same package item reads and every refused read surfaces its status", async (context) => {
+test("the tenant exposes the same package item reads and every refused read surfaces its status", async (context) => {
   const store = initialize(storefrontIdentity, { ...idFactories, apiUrl, locale: "en" });
   assert.equal(store.eshop.packageItem, store.client.eshop.packageItem);
   assert.deepEqual(Object.keys(store.eshop.packageItem), ["find", "getByParent", "findPrices"]);

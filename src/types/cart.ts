@@ -44,14 +44,14 @@ import type { ProductReference } from "./product";
 import type { DocumentItem } from "./invoice";
 
 export type CartBuyer =
-  | { type: "customer" }
+  | { type: "user" }
   | { type: "company"; company_id: string; purchase_order_number: string | null }
   | { type: "company_location"; company_location_id: string; purchase_order_number: string | null }
   | { type: "company_location_selection"; company_id: string; purchase_order_number: string | null };
 
 export type CartPlaceOfSale =
   | { type: "none" }
-  | { type: "store_location"; store_location_id: string };
+  | { type: "tenant_location"; tenant_location_id: string };
 
 export type CartStatus =
   | { type: "active" }
@@ -62,8 +62,8 @@ export type CartStatus =
   | { type: "expired" };
 
 export type CartOrigin =
-  | { type: "storefront"; customer_session_id: string }
-  | { type: "reorder"; customer_session_id: string; order_id: string }
+  | { type: "storefront"; user_session_id: string }
+  | { type: "reorder"; user_session_id: string; order_id: string }
   | { type: "account"; actor: AccountActor }
   | { type: "assistant"; conversation_message_id: string };
 
@@ -91,7 +91,7 @@ export interface CartBookingLineAddOn {
 export interface CartBookingLineItem {
   id: string;
   booking_offering_id: string;
-  store_location_id: string;
+  tenant_location_id: string;
   resource: CartBookingLineResource;
   requested_interval: TimeRange;
   add_ons: CartBookingLineAddOn[];
@@ -103,7 +103,7 @@ export interface CartBookingLineItem {
 
 export type CartDeliveryDestination =
   | { type: "delivery"; address: PostalAddress }
-  | { type: "pickup"; store_location_id: string };
+  | { type: "pickup"; tenant_location_id: string };
 
 export interface CartShipping {
   shipping_method_id: string;
@@ -180,8 +180,8 @@ export interface CartOffer {
 export interface Cart {
   id: string;
   blocks: Block[];
-  store_id: string;
-  customer_id: string;
+  tenant_id: string;
+  user_id: string;
   buyer: CartBuyer;
   sales_channel_id: string;
   package_id: string;
@@ -268,8 +268,8 @@ export interface StorefrontCartOffer {
 export interface StorefrontCart {
   id: string;
   blocks: Block[];
-  store_id: string;
-  customer_id: string;
+  tenant_id: string;
+  user_id: string;
   buyer: CartBuyer;
   sales_channel_id: string;
   package_id: string;
@@ -313,7 +313,7 @@ export interface CartBookingLineAddOnInput {
 export interface CartBookingLineItemInput {
   id: string;
   booking_offering_id: string;
-  store_location_id: string;
+  tenant_location_id: string;
   resource: CartBookingLineResource;
   requested_interval: TimeRange;
   add_ons: CartBookingLineAddOnInput[];
@@ -458,7 +458,7 @@ export interface QuoteBookingLine {
   line_item_id: string;
   booking_offering_id: string;
   booking_service_id: string;
-  store_location_id: string;
+  tenant_location_id: string;
   resource: CartBookingLineResource;
   requested_interval: TimeRange;
   add_ons: QuoteBookingAddOn[];
@@ -604,7 +604,7 @@ export type QuoteBlocker =
       code: string;
     }
   | { type: "place_of_sale_required" }
-  | { type: "place_of_sale_not_active"; store_location_id: string }
+  | { type: "place_of_sale_not_active"; tenant_location_id: string }
   | { type: "place_of_sale_jurisdiction"; line_item_id: string }
   | { type: "delivery_place_of_sale_jurisdiction"; delivery_group_id: string }
   | { type: "document_unavailable"; line_item_id: string; code: string }
@@ -632,8 +632,8 @@ export interface QuotePromotionCode {
 
 export interface CartQuote {
   cart_id: string | null;
-  store_id: string;
-  customer_id: string;
+  tenant_id: string;
+  user_id: string;
   buyer: CartBuyer;
   market_id: string;
   place_of_sale: CartPlaceOfSale;
@@ -676,8 +676,8 @@ export type StorefrontQuoteLine =
 
 export interface StorefrontCartQuote {
   cart_id: string | null;
-  store_id: string;
-  customer_id: string;
+  tenant_id: string;
+  user_id: string;
   buyer: CartBuyer;
   market_id: string;
   place_of_sale: CartPlaceOfSale;
@@ -779,9 +779,9 @@ export type CartStatusFilter = CartStatus["type"];
 export type CartOriginFilter = CartOrigin["type"];
 
 export interface CreateCartParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
-  customer_id: string;
+  user_id: string;
   buyer: CartBuyer;
   sales_channel_id: string;
   package_id: string;
@@ -795,7 +795,7 @@ export interface CreateCartParams {
 }
 
 export interface UpdateCartParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   buyer?: CartBuyer;
@@ -811,18 +811,18 @@ export interface UpdateCartParams {
 }
 
 export interface GetCartParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface GetCartOrderParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface FindCartsParams {
-  store_id: string;
-  customer_id?: string;
+  tenant_id: string;
+  user_id?: string;
   statuses?: CartStatusFilter[];
   origins?: CartOriginFilter[];
   has_offer?: boolean;
@@ -834,55 +834,55 @@ export interface FindCartsParams {
 }
 
 export interface AddCartProductParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   product: CartProductLineItemInput;
 }
 
 export interface AddCartBookingParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   booking: CartBookingLineItemInput;
 }
 
 export interface AddCartPackageParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   package: CartPackageLineItemInput;
 }
 
 export interface RemoveCartItemParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   line_item_id: string;
 }
 
 export interface ClearCartParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface SelectCartShippingMethodParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   shipping_method_id: string;
 }
 
 export interface SetCartFutureDeliveriesParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   packages: CartPackageDeliveries[];
 }
 
 export interface QuoteCartFutureDeliveriesParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   language: string;
   packages: PackageDeliveryChoices[];
@@ -890,16 +890,16 @@ export interface QuoteCartFutureDeliveriesParams {
 
 export interface QuoteCartParams {
   contact_email?: string;
-  store_id: string;
+  tenant_id: string;
   id: string;
   language: string;
 }
 
 export interface QuotePurchaseParams {
   contact_email?: string;
-  store_id: string;
+  tenant_id: string;
   language: string;
-  customer_id: string;
+  user_id: string;
   buyer: CartBuyer;
   sales_channel_id: string;
   package_id: string;
@@ -912,7 +912,7 @@ export interface QuotePurchaseParams {
 }
 
 export interface CreateCartOfferParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   contact: EmailContact;
   expected_updated_at: EpochMilliseconds;
@@ -922,14 +922,14 @@ export interface CreateCartOfferParams {
 }
 
 export interface QuoteCartOfferParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   language: string;
 }
 
 export interface SendCartOfferParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   expires_at: EpochMilliseconds | null;
@@ -937,17 +937,17 @@ export interface SendCartOfferParams {
 }
 
 export interface WithdrawCartOfferParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface CheckoutCartParams extends CheckoutCartInput {
-  store_id: string;
+  tenant_id: string;
 }
 
 export interface CheckoutCartOnAccountParams extends CheckoutCartOnAccountInput {
-  store_id: string;
+  tenant_id: string;
 }
 
 export interface StorefrontCartTarget {

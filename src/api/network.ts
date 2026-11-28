@@ -8,16 +8,16 @@ import type {
   SetNetworkProviderStatusParams, DeleteNetworkProviderParams, ConnectNetworkResendParams,
   ReplaceNetworkResendKeyParams, UpdateNetworkResendParams, ConnectNetworkStripeParams,
   ReplaceNetworkStripeKeysParams, ConnectNetworkTwilioParams, ReplaceNetworkTwilioAuthTokenParams,
-  ConnectNetworkElevenLabsParams, SetUpNetworkElevenLabsAgainParams, FindNetworkStoresParams,
-  ReplaceNetworkEmailCustomerTextsParams, ReplaceNetworkSmsCustomerTextsParams,
-  NetworkRole, NetworkMember, NetworkMembership, OwnNetworkMembership, StoreAgreement,
+  ConnectNetworkElevenLabsParams, SetUpNetworkElevenLabsAgainParams, FindNetworkTenantsParams,
+  ReplaceNetworkEmailUserTextsParams, ReplaceNetworkSmsUserTextsParams,
+  NetworkRole, NetworkMember, NetworkMembership, OwnNetworkMembership, TenantAgreement,
   FindNetworkRolesParams, GetNetworkRoleParams, CreateNetworkRoleParams, UpdateNetworkRoleParams,
   DeleteNetworkRoleParams, FindNetworkMembersParams, InviteNetworkMemberParams,
   UpdateNetworkMemberRolesParams, ChangeNetworkMemberStatusParams, RemoveNetworkMemberParams,
-  GetOwnNetworkMembershipParams, AcceptNetworkInviteParams, GetNetworkStoreAgreementParams, FindNetworkStoreSubscriptionsParams,
-  ResetNetworkMemberSecondFactorParams, NetworkStore, GetNetworkStoreParams, NameNetworkStoreOwnerParams,
+  GetOwnNetworkMembershipParams, AcceptNetworkInviteParams, GetNetworkTenantAgreementParams, FindNetworkTenantSubscriptionsParams,
+  ResetNetworkMemberSecondFactorParams, NetworkTenant, GetNetworkTenantParams, NameNetworkTenantOwnerParams,
 } from "../types/network";
-import type { Store, StoreSubscription } from "../types/store";
+import type { Tenant, TenantSubscription } from "../types/tenant";
 import type { ListedAccount } from "../types/account";
 import { requireId } from "../utils/ids";
 import { segment } from "./paths";
@@ -95,21 +95,21 @@ export const createNetworkApi = (apiConfig: ApiConfig) => ({
         sign_in_body: params.sign_in_body,
         member_login_changed_subject: params.member_login_changed_subject,
         member_login_changed_body: params.member_login_changed_body,
-        store_addresses: params.store_addresses,
-        customer_texts: params.customer_texts,
+        tenant_addresses: params.tenant_addresses,
+        user_texts: params.user_texts,
       }, options);
     },
-    replaceEmailCustomerTexts(params: ReplaceNetworkEmailCustomerTextsParams, options?: RequestOptions): Promise<NetworkProvider> {
+    replaceEmailUserTexts(params: ReplaceNetworkEmailUserTextsParams, options?: RequestOptions): Promise<NetworkProvider> {
       return apiConfig.httpClient.put<NetworkProvider>(
-        `${providerPath(params.network_id, params.id)}/email-customer-texts`,
-        { expected_updated_at: params.expected_updated_at, customer_texts: params.customer_texts },
+        `${providerPath(params.network_id, params.id)}/email-user-texts`,
+        { expected_updated_at: params.expected_updated_at, user_texts: params.user_texts },
         options,
       );
     },
-    replaceSmsCustomerTexts(params: ReplaceNetworkSmsCustomerTextsParams, options?: RequestOptions): Promise<NetworkProvider> {
+    replaceSmsUserTexts(params: ReplaceNetworkSmsUserTextsParams, options?: RequestOptions): Promise<NetworkProvider> {
       return apiConfig.httpClient.put<NetworkProvider>(
-        `${providerPath(params.network_id, params.id)}/sms-customer-texts`,
-        { expected_updated_at: params.expected_updated_at, customer_texts: params.customer_texts },
+        `${providerPath(params.network_id, params.id)}/sms-user-texts`,
+        { expected_updated_at: params.expected_updated_at, user_texts: params.user_texts },
         options,
       );
     },
@@ -127,7 +127,7 @@ export const createNetworkApi = (apiConfig: ApiConfig) => ({
         from_address: params.from_address,
         sign_in_subject: params.sign_in_subject,
         sign_in_body: params.sign_in_body,
-        store_addresses: params.store_addresses,
+        tenant_addresses: params.tenant_addresses,
       }, options);
     },
     connectStripe(params: ConnectNetworkStripeParams, options?: RequestOptions): Promise<NetworkProvider> {
@@ -153,7 +153,7 @@ export const createNetworkApi = (apiConfig: ApiConfig) => ({
         id: params.id,
         account_sid: params.account_sid,
         auth_token: params.auth_token,
-        customer_texts: params.customer_texts,
+        user_texts: params.user_texts,
       }, options);
     },
     replaceTwilioAuthToken(params: ReplaceNetworkTwilioAuthTokenParams, options?: RequestOptions): Promise<NetworkProvider> {
@@ -199,32 +199,32 @@ export const createNetworkApi = (apiConfig: ApiConfig) => ({
       });
     },
   },
-  store: {
-    find(params: FindNetworkStoresParams, options?: RequestOptions): Promise<PaginatedResponse<NetworkStore>> {
+  tenant: {
+    find(params: FindNetworkTenantsParams, options?: RequestOptions): Promise<PaginatedResponse<NetworkTenant>> {
       const { network_id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<NetworkStore>>(`${networkPath(network_id)}/stores`, { ...options, params: query });
+      return apiConfig.httpClient.get<PaginatedResponse<NetworkTenant>>(`${networkPath(network_id)}/tenants`, { ...options, params: query });
     },
-    get(params: GetNetworkStoreParams, options?: RequestOptions): Promise<NetworkStore> {
-      return apiConfig.httpClient.get<NetworkStore>(
-        `${networkPath(params.network_id)}/stores/${segment(requireId(params.store_id, "store"))}`,
+    get(params: GetNetworkTenantParams, options?: RequestOptions): Promise<NetworkTenant> {
+      return apiConfig.httpClient.get<NetworkTenant>(
+        `${networkPath(params.network_id)}/tenants/${segment(requireId(params.tenant_id, "tenant"))}`,
         options,
       );
     },
-    findSubscriptions(params: FindNetworkStoreSubscriptionsParams, options?: RequestOptions): Promise<StoreSubscription[]> {
-      return apiConfig.httpClient.get<StoreSubscription[]>(`${networkPath(params.network_id)}/store-subscriptions`, {
+    findSubscriptions(params: FindNetworkTenantSubscriptionsParams, options?: RequestOptions): Promise<TenantSubscription[]> {
+      return apiConfig.httpClient.get<TenantSubscription[]>(`${networkPath(params.network_id)}/tenant-subscriptions`, {
         ...options,
         params: { ids: params.ids },
       });
     },
-    getAgreement(params: GetNetworkStoreAgreementParams, options?: RequestOptions): Promise<StoreAgreement> {
-      return apiConfig.httpClient.get<StoreAgreement>(
-        `${networkPath(params.network_id)}/stores/${segment(requireId(params.store_id, "store"))}/agreement`,
+    getAgreement(params: GetNetworkTenantAgreementParams, options?: RequestOptions): Promise<TenantAgreement> {
+      return apiConfig.httpClient.get<TenantAgreement>(
+        `${networkPath(params.network_id)}/tenants/${segment(requireId(params.tenant_id, "tenant"))}/agreement`,
         options,
       );
     },
-    nameOwner(params: NameNetworkStoreOwnerParams, options?: RequestOptions): Promise<Store> {
-      return apiConfig.httpClient.put<Store>(
-        `${networkPath(params.network_id)}/stores/${segment(requireId(params.store_id, "store"))}/owner`,
+    nameOwner(params: NameNetworkTenantOwnerParams, options?: RequestOptions): Promise<Tenant> {
+      return apiConfig.httpClient.put<Tenant>(
+        `${networkPath(params.network_id)}/tenants/${segment(requireId(params.tenant_id, "tenant"))}/owner`,
         { email: params.email, language: params.language, expected_updated_at: params.expected_updated_at },
         options,
       );

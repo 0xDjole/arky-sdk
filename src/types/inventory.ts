@@ -29,7 +29,7 @@ export type InventoryItemStatus =
 
 export interface InventoryItem {
   id: string;
-  store_id: string;
+  tenant_id: string;
   key: string;
   sku: string | null;
   barcode: string | null;
@@ -43,9 +43,9 @@ export interface InventoryItem {
 
 export interface InventoryLevel {
   id: string;
-  store_id: string;
+  tenant_id: string;
   inventory_item_id: string;
-  store_location_id: string;
+  tenant_location_id: string;
   on_hand: number;
   reserved: number;
   unavailable: number;
@@ -73,15 +73,15 @@ export type InventoryMovementReason =
   | { type: "return_restock"; return_id: string }
   | { type: "set_aside"; actor: AccountActor; note: string }
   | { type: "made_available"; actor: AccountActor; note: string }
-  | { type: "moved_out"; actor: AccountActor; to_store_location_id: string }
-  | { type: "moved_in"; actor: AccountActor; from_store_location_id: string };
+  | { type: "moved_out"; actor: AccountActor; to_tenant_location_id: string }
+  | { type: "moved_in"; actor: AccountActor; from_tenant_location_id: string };
 
 export interface InventoryMovement {
   id: string;
-  store_id: string;
+  tenant_id: string;
   inventory_item_id: string;
   tracking: InventoryMovementTracking;
-  store_location_id: string;
+  tenant_location_id: string;
   delta: number;
   after: number;
   reason: InventoryMovementReason;
@@ -101,16 +101,16 @@ export interface InventoryUnitAllocation {
 }
 
 export type InventoryUnitStatus =
-  | { type: "available"; store_location_id: string }
-  | { type: "set_aside"; store_location_id: string }
-  | { type: "allocated"; store_location_id: string; allocation: InventoryUnitAllocation }
+  | { type: "available"; tenant_location_id: string }
+  | { type: "set_aside"; tenant_location_id: string }
+  | { type: "allocated"; tenant_location_id: string; allocation: InventoryUnitAllocation }
   | { type: "issued"; fulfillment_id: string }
   | { type: "rented"; rental_id: string; fulfillment_id: string }
   | { type: "returning"; rental_id: string; fulfillment_id: string; return_id: string }
-  | { type: "inspection"; store_location_id: string; return_id: string; received_at: EpochMilliseconds }
+  | { type: "inspection"; tenant_location_id: string; return_id: string; received_at: EpochMilliseconds }
   | {
       type: "written_off_at_warehouse";
-      store_location_id: string;
+      tenant_location_id: string;
       actor: AccountActor;
       reason: string;
       written_off_at: EpochMilliseconds;
@@ -126,7 +126,7 @@ export type InventoryUnitStatus =
   | {
       type: "written_off_at_return";
       return_id: string;
-      store_location_id: string;
+      tenant_location_id: string;
       actor: AccountActor;
       reason: string;
       written_off_at: EpochMilliseconds;
@@ -134,7 +134,7 @@ export type InventoryUnitStatus =
 
 export interface InventoryUnit {
   id: string;
-  store_id: string;
+  tenant_id: string;
   inventory_item_id: string;
   asset_tag: string;
   manufacturer_serial: string | null;
@@ -144,7 +144,7 @@ export interface InventoryUnit {
 }
 
 export interface CreateInventoryItemParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   key: string;
   sku: string | null;
@@ -156,7 +156,7 @@ export interface CreateInventoryItemParams {
 }
 
 export interface UpdateInventoryItemParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   sku: string | null;
@@ -168,17 +168,17 @@ export interface UpdateInventoryItemParams {
 }
 
 export interface GetInventoryItemParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface GetInventoryItemByKeyParams {
-  store_id: string;
+  tenant_id: string;
   key: string;
 }
 
 export interface FindInventoryItemsBySearchParams {
-  store_id: string;
+  tenant_id: string;
   ids?: never;
   query?: string;
   status?: InventoryItemStatus["type"];
@@ -190,7 +190,7 @@ export interface FindInventoryItemsBySearchParams {
 }
 
 export interface FindInventoryItemsByIdsParams {
-  store_id: string;
+  tenant_id: string;
   ids: string[];
   query?: never;
   status?: never;
@@ -204,33 +204,33 @@ export interface FindInventoryItemsByIdsParams {
 export type FindInventoryItemsParams = FindInventoryItemsBySearchParams | FindInventoryItemsByIdsParams;
 
 export interface DeleteInventoryItemParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface CreateInventoryLevelParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   inventory_item_id: string;
-  store_location_id: string;
+  tenant_location_id: string;
 }
 
 export interface GetInventoryLevelParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface RemoveInventoryLevelParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface FindInventoryLevelsParams {
-  store_id: string;
+  tenant_id: string;
   inventory_item_ids?: string[];
-  store_location_id?: string;
+  tenant_location_id?: string;
   sort_field?: "created_at" | "updated_at";
   sort_direction?: SortDirection;
   limit?: number;
@@ -238,7 +238,7 @@ export interface FindInventoryLevelsParams {
 }
 
 export interface ChangeSetAsideParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   action_id: string;
   quantity: number;
@@ -246,28 +246,28 @@ export interface ChangeSetAsideParams {
 }
 
 export interface MoveInventoryParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   action_id: string;
-  to_store_location_id: string;
+  to_tenant_location_id: string;
   quantity: number;
 }
 
 export type IncomingStock =
-  | { type: "counted"; from_store_location_id: string; quantity: number }
+  | { type: "counted"; from_tenant_location_id: string; quantity: number }
   | { type: "unit"; asset_tag: string };
 
 export interface ReceiveStockMoveParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   action_id: string;
   type: IncomingStock;
 }
 
 export interface RecordInventoryMovementParams {
-  store_id: string;
+  tenant_id: string;
   inventory_item_id: string;
-  store_location_id: string;
+  tenant_location_id: string;
   action_id: string;
   expected_level_id: string;
   delta: number;
@@ -276,14 +276,14 @@ export interface RecordInventoryMovementParams {
 }
 
 export interface GetInventoryMovementParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface FindInventoryMovementsParams {
-  store_id: string;
+  tenant_id: string;
   inventory_item_id?: string;
-  store_location_id?: string;
+  tenant_location_id?: string;
   inventory_unit_id?: string;
   action_id?: string;
   sort_field?: "created_at";
@@ -293,15 +293,15 @@ export interface FindInventoryMovementsParams {
 }
 
 export interface GetInventoryUnitParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface FindInventoryUnitsBySearchParams {
-  store_id: string;
+  tenant_id: string;
   ids?: never;
   inventory_item_id?: string;
-  store_location_id?: string;
+  tenant_location_id?: string;
   rental_id?: string;
   asset_tag?: string;
   status?: "available" | "set_aside" | "allocated" | "issued" | "rented" | "returning" | "inspection" | "written_off";
@@ -312,10 +312,10 @@ export interface FindInventoryUnitsBySearchParams {
 }
 
 export interface FindInventoryUnitsByIdsParams {
-  store_id: string;
+  tenant_id: string;
   ids: string[];
   inventory_item_id?: never;
-  store_location_id?: never;
+  tenant_location_id?: never;
   rental_id?: never;
   asset_tag?: never;
   status?: never;
@@ -328,10 +328,10 @@ export interface FindInventoryUnitsByIdsParams {
 export type FindInventoryUnitsParams = FindInventoryUnitsBySearchParams | FindInventoryUnitsByIdsParams;
 
 export interface ReceiveInventoryUnitParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   inventory_item_id: string;
-  store_location_id: string;
+  tenant_location_id: string;
   asset_tag: string;
   manufacturer_serial: string | null;
   expected_level_id: string;
@@ -357,7 +357,7 @@ export interface ChangeInventoryUnitSetAsideParams extends GetInventoryUnitParam
 export interface MoveInventoryUnitParams extends GetInventoryUnitParams {
   expected_updated_at: EpochMilliseconds;
   action_id: string;
-  to_store_location_id: string;
+  to_tenant_location_id: string;
 }
 
 export interface WriteOffInventoryUnitParams extends GetInventoryUnitParams {

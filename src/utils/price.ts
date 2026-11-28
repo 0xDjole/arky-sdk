@@ -2,7 +2,7 @@ import type { Currency, Money } from "../types/common";
 import { CURRENCY_MINOR_UNITS } from "../types/common";
 import type { StorefrontPrice } from "../types/package";
 
-export const SUPPORTED_STORE_CURRENCIES = Object.freeze(Object.keys(CURRENCY_MINOR_UNITS) as Currency[]);
+export const SUPPORTED_TENANT_CURRENCIES = Object.freeze(Object.keys(CURRENCY_MINOR_UNITS) as Currency[]);
 
 export function isCurrency(value: unknown): value is Currency {
   return typeof value === "string" && Object.prototype.hasOwnProperty.call(CURRENCY_MINOR_UNITS, value);

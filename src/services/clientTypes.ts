@@ -11,7 +11,7 @@ export interface StorefrontApiConfig {
   httpClient: HttpClient;
   publicHttpClient: HttpClient;
   apiUrl: string;
-  storeId: string;
+  tenantId: string;
   salesChannelId: string;
   authStorage: AuthStorage;
 }

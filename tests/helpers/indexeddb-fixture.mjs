@@ -3,19 +3,19 @@ function later(task) {
 }
 
 class FakeObjectStoreNames {
-  constructor(stores) {
-    this.stores = stores;
+  constructor(tenants) {
+    this.tenants = tenants;
   }
 
   contains(name) {
-    return this.stores.has(name);
+    return this.tenants.has(name);
   }
 }
 
 class FakeTransaction {
-  constructor(stores, storeName) {
-    this.stores = stores;
-    this.storeName = storeName;
+  constructor(tenants, tenantName) {
+    this.tenants = tenants;
+    this.tenantName = tenantName;
     this.aborted = false;
     this.oncomplete = null;
     this.onerror = null;
@@ -28,10 +28,10 @@ class FakeTransaction {
   }
 
   objectStore(name) {
-    if (name !== this.storeName || !this.stores.has(name)) {
+    if (name !== this.tenantName || !this.tenants.has(name)) {
       throw new Error(`Unknown fake IndexedDB object store ${name}`);
     }
-    const values = this.stores.get(name);
+    const values = this.tenants.get(name);
     const complete = () => later(() => this.oncomplete?.());
     return {
       get: (key) => {
@@ -75,17 +75,17 @@ class FakeTransaction {
 class FakeDatabaseConnection {
   constructor(database) {
     this.database = database;
-    this.objectStoreNames = new FakeObjectStoreNames(database.stores);
+    this.objectStoreNames = new FakeObjectStoreNames(database.tenants);
   }
 
   createObjectStore(name) {
-    if (this.database.stores.has(name)) throw new Error("Object store exists");
-    this.database.stores.set(name, new Map());
+    if (this.database.tenants.has(name)) throw new Error("Object store exists");
+    this.database.tenants.set(name, new Map());
     return {};
   }
 
   transaction(name) {
-    return new FakeTransaction(this.database.stores, name);
+    return new FakeTransaction(this.database.tenants, name);
   }
 
   close() {}
@@ -108,11 +108,11 @@ export class MemoryIndexedDbFactory {
     later(() => {
       let database = this.databases.get(name);
       const needsUpgrade = !database || database.version < version;
-      if (!database) database = { version, stores: new Map() };
+      if (!database) database = { version, tenants: new Map() };
       const connection = new FakeDatabaseConnection(database);
       request.result = connection;
       if (needsUpgrade) {
-        const upgrade = new FakeTransaction(database.stores, "media-create");
+        const upgrade = new FakeTransaction(database.tenants, "media-create");
         request.transaction = upgrade;
         request.onupgradeneeded?.();
         if (upgrade.aborted) return;
@@ -124,8 +124,8 @@ export class MemoryIndexedDbFactory {
     return request;
   }
 
-  peek(databaseName, storeName, key) {
-    const value = this.databases.get(databaseName)?.stores.get(storeName)?.get(key);
+  peek(databaseName, tenantName, key) {
+    const value = this.databases.get(databaseName)?.tenants.get(tenantName)?.get(key);
     return value === undefined ? null : structuredClone(value);
   }
 }

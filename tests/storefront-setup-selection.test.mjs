@@ -5,11 +5,11 @@ import { apiUrl, fixedIdFactories, ids, storefrontIdentity, recordFetch, visitor
 
 const market = (key, currency = "eur") => ({ id: `id-${key}`, key, currency, tax_mode: "exclusive", payment_option_ids: [`provider-${key}`] });
 const setup = () => ({
-  name: "Store",
+  name: "Tenant",
   timezone: "UTC",
   languages: ["en"],
   payment_options: [{ id: "provider-retail", key: "manual", type: "manual", blocks: [] }],
-  customer_sign_in: { type: "store" },
+  user_sign_in: { type: "tenant" },
   seller: { type: "none" },
 });
 
@@ -19,36 +19,36 @@ test("the setup carries no market, and the selected market is one exact read by 
     if (call.path === "/v1/storefront/markets/by-key/trade") return market("trade", "usd");
     throw new Error(`Unexpected request: ${call.path}`);
   }, { answerMarkets: false });
-  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "trade" });
-  const loaded = await store.store.load();
+  const tenant = initialize(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "trade" });
+  const loaded = await tenant.tenant.load();
   assert.deepEqual(loaded, setup());
   assert.equal("markets" in loaded, false);
   assert.equal("default_market" in loaded, false);
-  assert.equal(store.getMarket(), "trade");
-  assert.deepEqual(store.market.get(), market("trade", "usd"));
-  assert.equal(store.currency.get(), "usd");
-  assert.deepEqual(store.market.get().payment_option_ids, ["provider-trade"]);
-  assert.equal("allowed_payment_option_ids" in store, false);
+  assert.equal(tenant.getMarket(), "trade");
+  assert.deepEqual(tenant.market.get(), market("trade", "usd"));
+  assert.equal(tenant.currency.get(), "usd");
+  assert.deepEqual(tenant.market.get().payment_option_ids, ["provider-trade"]);
+  assert.equal("allowed_payment_option_ids" in tenant, false);
   assert.deepEqual(calls.map((call) => [call.method, call.path]), [
     ["GET", "/v1/storefront"],
     ["GET", "/v1/storefront/markets/by-key/trade"],
   ]);
-  await store.store.load();
-  assert.deepEqual(await store.client.store.market.getCurrent(), market("trade", "usd"));
+  await tenant.tenant.load();
+  assert.deepEqual(await tenant.client.tenant.market.getCurrent(), market("trade", "usd"));
   assert.deepEqual(calls.map((call) => call.path).slice(2), [], "the client keeps one read of the selected market");
 });
 
 test("without an explicit market the setup loads without inventing one, and a malformed market key is refused up front", async (context) => {
   const calls = recordFetch(context, () => setup());
-  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl });
-  assert.deepEqual(await store.store.load(), setup());
-  assert.equal(store.market.get(), null);
-  assert.equal(store.currency.get(), null);
-  assert.equal(store.getMarket(), "");
+  const tenant = initialize(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl });
+  assert.deepEqual(await tenant.tenant.load(), setup());
+  assert.equal(tenant.market.get(), null);
+  assert.equal(tenant.currency.get(), null);
+  assert.equal(tenant.getMarket(), "");
   assert.deepEqual(calls.map((call) => call.path), ["/v1/storefront"]);
   for (const selected of ["Retail", "retail market", "retail\tmarket"]) {
-    assert.throws(() => initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: selected }), /market must be a valid exact key/);
-    assert.throws(() => createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: selected }), /market must be a valid exact key/);
+    assert.throws(() => initialize(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: selected }), /market must be a valid exact key/);
+    assert.throws(() => createStorefront(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: selected }), /market must be a valid exact key/);
   }
 });
 
@@ -71,17 +71,17 @@ test("a late market read can't replace a newer market selection or its currency 
     if (call.path.endsWith("/new")) return market("new", "usd");
     throw new Error(`Unexpected request: ${call.path}`);
   }, { answerMarkets: false });
-  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "old" });
-  const rejected = assert.rejects(store.store.load(), /market changed while the store setup was loading/);
+  const tenant = initialize(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "old" });
+  const rejected = assert.rejects(tenant.tenant.load(), /market changed while the tenant setup was loading/);
   await requested;
-  store.setContext({ market: "new" });
-  assert.equal(store.market.get(), null);
-  await store.store.load();
+  tenant.setContext({ market: "new" });
+  assert.equal(tenant.market.get(), null);
+  await tenant.tenant.load();
   release();
   await rejected;
-  assert.equal(store.market.get().key, "new");
-  assert.equal(store.currency.get(), "usd");
-  assert.deepEqual(store.market.get().payment_option_ids, ["provider-new"]);
+  assert.equal(tenant.market.get().key, "new");
+  assert.equal(tenant.currency.get(), "usd");
+  assert.deepEqual(tenant.market.get().payment_option_ids, ["provider-new"]);
 });
 
 test("a failed or mismatched market read never falls back to another market", async (context) => {
@@ -95,20 +95,20 @@ test("a failed or mismatched market read never falls back to another market", as
     }
     throw new Error(`Unexpected request: ${call.path}`);
   }, { answerMarkets: false });
-  const store = initialize(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "trade" });
-  await assert.rejects(store.store.load(), (error) => error.statusCode === 503);
-  assert.equal(store.market.get(), null);
+  const tenant = initialize(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, market: "trade" });
+  await assert.rejects(tenant.tenant.load(), (error) => error.statusCode === 503);
+  assert.equal(tenant.market.get(), null);
   failure = false;
-  await assert.rejects(store.store.load(), /didn't confirm the selected key/);
-  assert.equal(store.market.get(), null);
-  assert.equal(store.currency.get(), null);
+  await assert.rejects(tenant.tenant.load(), /didn't confirm the selected key/);
+  assert.equal(tenant.market.get(), null);
+  assert.equal(tenant.currency.get(), null);
   assert.ok(calls.every((call) => call.path === "/v1/storefront" || call.path === "/v1/storefront/markets/by-key/trade"));
 });
 
 test("a market read by key encodes the key and creates no session", async (context) => {
   const calls = recordFetch(context, () => market("retail"), { answerMarkets: false });
-  const client = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl });
-  await client.store.market.getByKey({ key: "a/b" });
+  const client = createStorefront(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl });
+  await client.tenant.market.getByKey({ key: "a/b" });
   assert.equal(calls.length, 1);
   assert.equal(calls[0].path, "/v1/storefront/markets/by-key/a%2Fb");
   assert.equal(calls[0].method, "GET");
@@ -119,11 +119,11 @@ test("a market read by key encodes the key and creates no session", async (conte
 test("terms_changed_rereads_the_setup", async (context) => {
   let wording = "Save this card for renewals.";
   const setupWith = () => ({
-    name: "Store",
+    name: "Tenant",
     timezone: "UTC",
     languages: ["en"],
     payment_options: [{ id: ids.paymentOption, key: "card", blocks: [], type: "stripe", saved_card_terms: { en: wording } }],
-    customer_sign_in: { type: "network", network_id: ids.network },
+    user_sign_in: { type: "network", network_id: ids.network },
     seller: { type: "none" },
   });
   const calls = recordFetch(context, (call) => {
@@ -137,23 +137,23 @@ test("terms_changed_rereads_the_setup", async (context) => {
     }
     throw new Error(`Unexpected request: ${call.path}`);
   }, { answerMarkets: false });
-  const store = initialize(storefrontIdentity, { ...fixedIdFactories, apiUrl, market: "trade", sessionStorage: visitorStorage() });
-  const shown = (await store.store.load()).payment_options[0].saved_card_terms.en;
+  const tenant = initialize(storefrontIdentity, { ...fixedIdFactories, apiUrl, market: "trade", sessionStorage: visitorStorage() });
+  const shown = (await tenant.tenant.load()).payment_options[0].saved_card_terms.en;
   wording = "Save this card for renewals and owed charges.";
   const request = {
     id: ids.payment,
-    owner: { type: "customer", customer_id: ids.customer },
+    owner: { type: "user", user_id: ids.user },
     payment_option_id: ids.paymentOption,
     language: "en",
     terms: shown,
     accept_storage_and_off_session_use: true,
   };
-  await assert.rejects(store.eshop.paymentMethod.requestSetup(request), (error) => error.code === "PAYMENT_METHOD.TERMS_CHANGED");
-  const reloaded = await store.store.load();
+  await assert.rejects(tenant.eshop.paymentMethod.requestSetup(request), (error) => error.code === "PAYMENT_METHOD.TERMS_CHANGED");
+  const reloaded = await tenant.tenant.load();
   assert.equal(reloaded.payment_options[0].saved_card_terms.en, wording);
-  assert.equal(store.setup.get().payment_options[0].saved_card_terms.en, wording);
-  assert.deepEqual(await store.eshop.paymentMethod.requestSetup({ ...request, terms: reloaded.payment_options[0].saved_card_terms.en }), { id: ids.payment });
-  assert.deepEqual(await store.getSetup(), reloaded);
+  assert.equal(tenant.setup.get().payment_options[0].saved_card_terms.en, wording);
+  assert.deepEqual(await tenant.eshop.paymentMethod.requestSetup({ ...request, terms: reloaded.payment_options[0].saved_card_terms.en }), { id: ids.payment });
+  assert.deepEqual(await tenant.getSetup(), reloaded);
   assert.deepEqual(calls.map((call) => call.path), [
     "/v1/storefront",
     "/v1/storefront/markets/by-key/trade",
@@ -161,10 +161,10 @@ test("terms_changed_rereads_the_setup", async (context) => {
     "/v1/storefront",
     "/v1/storefront/payment-methods/setup",
   ]);
-  assert.deepEqual(store.market.get(), market("trade"), "the client's one market cache still answers the unchanged market");
+  assert.deepEqual(tenant.market.get(), market("trade"), "the client's one market cache still answers the unchanged market");
 });
 
-test("the setup names the store's seller by its legal name and postal address, or none, as Arky answers it", async (context) => {
+test("the setup names the tenant's seller by its legal name and postal address, or none, as Arky answers it", async (context) => {
   const address = {
     name: null,
     company: "Klinika Sinapsa d.o.o.",

@@ -40,8 +40,8 @@ function pendingCreate(request: DurableRequest, label: string): PendingCreate {
   return value as PendingCreate;
 }
 
-export function durableCreateKey(namespace: string, flow: string, customerId: string, target: string): string {
-  return ["arky:pending-create:v1", namespace, flow, encodeURIComponent(customerId), encodeURIComponent(target)].join(":");
+export function durableCreateKey(namespace: string, flow: string, userId: string, target: string): string {
+  return ["arky:pending-create:v1", namespace, flow, encodeURIComponent(userId), encodeURIComponent(target)].join(":");
 }
 
 export function runDurableCreate<T>(create: DurableCreate<T>): Promise<T> {

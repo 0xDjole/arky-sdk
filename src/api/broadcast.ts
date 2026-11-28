@@ -21,50 +21,50 @@ import type {
 } from "../types/broadcast";
 import type { OutgoingMessage } from "../types/notification";
 import { requireId } from "../utils/ids";
-import { storePath, storeRecordPath } from "./paths";
+import { tenantPath, tenantRecordPath } from "./paths";
 
 export const createBroadcastApi = (apiConfig: ApiConfig) => {
-  const broadcastPath = (storeId: string, id: string) => storeRecordPath(storeId, "broadcasts", id);
+  const broadcastPath = (tenantId: string, id: string) => tenantRecordPath(tenantId, "broadcasts", id);
 
   return {
     find(params: FindBroadcastsParams, options?: RequestOptions): Promise<PaginatedResponse<BroadcastSummary>> {
-      const { store_id, ...query } = params;
-      return apiConfig.httpClient.get<PaginatedResponse<BroadcastSummary>>(storePath(store_id, "broadcasts"), {
+      const { tenant_id, ...query } = params;
+      return apiConfig.httpClient.get<PaginatedResponse<BroadcastSummary>>(tenantPath(tenant_id, "broadcasts"), {
         ...options,
         params: query,
       });
     },
 
     get(params: GetBroadcastParams, options?: RequestOptions): Promise<Broadcast> {
-      return apiConfig.httpClient.get<Broadcast>(broadcastPath(params.store_id, params.id), options);
+      return apiConfig.httpClient.get<Broadcast>(broadcastPath(params.tenant_id, params.id), options);
     },
 
     create(params: CreateBroadcastParams, options?: RequestOptions): Promise<Broadcast> {
       requireId(params.id, "broadcast");
-      const { store_id, ...body } = params;
-      return apiConfig.httpClient.post<Broadcast>(storePath(store_id, "broadcasts"), body, options);
+      const { tenant_id, ...body } = params;
+      return apiConfig.httpClient.post<Broadcast>(tenantPath(tenant_id, "broadcasts"), body, options);
     },
 
     update(params: UpdateBroadcastParams, options?: RequestOptions): Promise<Broadcast> {
-      const { store_id, id, ...body } = params;
-      return apiConfig.httpClient.put<Broadcast>(broadcastPath(store_id, id), body, options);
+      const { tenant_id, id, ...body } = params;
+      return apiConfig.httpClient.put<Broadcast>(broadcastPath(tenant_id, id), body, options);
     },
 
     delete(params: DeleteBroadcastParams, options?: RequestOptions): Promise<DeletedResponse> {
-      return apiConfig.httpClient.delete<DeletedResponse>(broadcastPath(params.store_id, params.id), {
+      return apiConfig.httpClient.delete<DeletedResponse>(broadcastPath(params.tenant_id, params.id), {
         ...options,
         params: { expected_updated_at: params.expected_updated_at },
       });
     },
 
     schedule(params: ScheduleBroadcastParams, options?: RequestOptions): Promise<Broadcast> {
-      const { store_id, id, ...body } = params;
-      return apiConfig.httpClient.post<Broadcast>(`${broadcastPath(store_id, id)}/schedule`, body, options);
+      const { tenant_id, id, ...body } = params;
+      return apiConfig.httpClient.post<Broadcast>(`${broadcastPath(tenant_id, id)}/schedule`, body, options);
     },
 
     unschedule(params: UnscheduleBroadcastParams, options?: RequestOptions): Promise<Broadcast> {
       return apiConfig.httpClient.post<Broadcast>(
-        `${broadcastPath(params.store_id, params.id)}/unschedule`,
+        `${broadcastPath(params.tenant_id, params.id)}/unschedule`,
         { expected_updated_at: params.expected_updated_at },
         options,
       );
@@ -72,21 +72,21 @@ export const createBroadcastApi = (apiConfig: ApiConfig) => {
 
     send(params: SendBroadcastParams, options?: RequestOptions): Promise<Broadcast> {
       return apiConfig.httpClient.post<Broadcast>(
-        `${broadcastPath(params.store_id, params.id)}/send`,
+        `${broadcastPath(params.tenant_id, params.id)}/send`,
         { expected_updated_at: params.expected_updated_at },
         options,
       );
     },
 
     preview(params: PreviewBroadcastParams, options?: RequestOptions): Promise<BroadcastPreview> {
-      const { store_id, id, ...body } = params;
-      return apiConfig.httpClient.post<BroadcastPreview>(`${broadcastPath(store_id, id)}/preview`, body, options);
+      const { tenant_id, id, ...body } = params;
+      return apiConfig.httpClient.post<BroadcastPreview>(`${broadcastPath(tenant_id, id)}/preview`, body, options);
     },
 
     test(params: SendBroadcastTestParams, options?: RequestOptions): Promise<OutgoingMessage> {
       requireId(params.outgoing_message_id, "test email");
       return apiConfig.httpClient.post<OutgoingMessage>(
-        `${broadcastPath(params.store_id, params.id)}/test`,
+        `${broadcastPath(params.tenant_id, params.id)}/test`,
         { id: params.outgoing_message_id, language: params.language },
         options,
       );

@@ -4,7 +4,7 @@ import type { Tracking } from "./fulfillment";
 import type { ProductReference } from "./product";
 
 export type ReturnReason =
-  | "customer_request"
+  | "user_request"
   | "wrong_item"
   | "damaged"
   | "defective"
@@ -60,23 +60,23 @@ export type ReturnType =
 
 export type ReturnRequester =
   | { type: "system" }
-  | { type: "customer"; customer_id: string }
+  | { type: "user"; user_id: string }
   | { type: "account"; actor: AccountActor };
 
 export type ReturnDestination =
   | { type: "undecided" }
-  | { type: "decided"; store_location_id: string };
+  | { type: "decided"; tenant_location_id: string };
 
 export type ReturnStatus =
   | { type: "requested"; destination: ReturnDestination }
   | { type: "declined"; declined_at: EpochMilliseconds; reason: string }
-  | { type: "open"; store_location_id: string }
-  | { type: "closed"; closed_at: EpochMilliseconds; store_location_id: string }
+  | { type: "open"; tenant_location_id: string }
+  | { type: "closed"; closed_at: EpochMilliseconds; tenant_location_id: string }
   | { type: "cancelled"; cancelled_at: EpochMilliseconds };
 
 export interface Return {
   id: string;
-  store_id: string;
+  tenant_id: string;
   type: ReturnType;
   requested_by: ReturnRequester;
   trackings: Tracking[];
@@ -137,12 +137,12 @@ export type StorefrontReturnType =
 
 export type StorefrontReturnRequester =
   | { type: "system" }
-  | { type: "customer"; customer_id: string }
+  | { type: "user"; user_id: string }
   | { type: "account" };
 
 export interface StorefrontReturn {
   id: string;
-  store_id: string;
+  tenant_id: string;
   type: StorefrontReturnType;
   requested_by: StorefrontReturnRequester;
   trackings: Tracking[];
@@ -205,12 +205,12 @@ export interface RentalReturnUnitOption {
 
 export interface ReturnDestinationOptions {
   return_id: string;
-  suggested_store_location_id: string | null;
-  store_location_ids: string[];
+  suggested_tenant_location_id: string | null;
+  tenant_location_ids: string[];
 }
 
 export interface ReturnInspectionUnit {
-  store_id: string;
+  tenant_id: string;
   return_id: string;
   line_id: string;
   inventory_item_id: string;
@@ -232,9 +232,9 @@ export interface DisposeReturnItem extends ReceiveReturnItem {
 }
 
 export type ReturnCommand =
-  | { type: "approve"; destination: ReturnDestination; notify_customer: boolean }
-  | { type: "decide"; store_location_id: string }
-  | { type: "decline"; reason: string; notify_customer: boolean }
+  | { type: "approve"; destination: ReturnDestination; notify_user: boolean }
+  | { type: "decide"; tenant_location_id: string }
+  | { type: "decline"; reason: string; notify_user: boolean }
   | { type: "cancel" }
   | { type: "receive"; items: ReceiveReturnItem[] }
   | { type: "dispose"; action_id: string; items: DisposeReturnItem[] }
@@ -242,7 +242,7 @@ export type ReturnCommand =
   | { type: "tracking"; trackings: Tracking[] };
 
 export interface GetReturnParams {
-  store_id: string;
+  tenant_id: string;
   return_id: string;
 }
 
@@ -251,7 +251,7 @@ export interface GetReturnInspectionUnitParams extends GetReturnParams {
 }
 
 export interface CreateReturnParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   type: ReturnTypeRequest;
   destination: ReturnDestination;
@@ -268,10 +268,10 @@ export interface CreditReturnParams extends GetReturnParams {
 }
 
 export interface FindReturnsParams {
-  store_id: string;
+  tenant_id: string;
   order_id?: string;
   rental_id?: string;
-  destination_store_location_id?: string;
+  destination_tenant_location_id?: string;
   status?: ReturnStatus["type"];
   sort_field?: "created_at" | "updated_at";
   sort_direction?: SortDirection;
@@ -280,7 +280,7 @@ export interface FindReturnsParams {
 }
 
 export interface GetOrderReturnOptionsParams {
-  store_id: string;
+  tenant_id: string;
   order_id: string;
 }
 

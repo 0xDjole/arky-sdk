@@ -34,7 +34,7 @@ const storefrontMemberCalls = [
 test("the storefront reads packages, offerings and the shopper's own members under eshop, with no assign or email consent calls", () => {
   const client = createStorefront(storefrontIdentity, {
     visitorIdentity: {
-      customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58",
+      user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58",
       session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63",
     },
     ...fixedIdFactories,
@@ -43,7 +43,7 @@ test("the storefront reads packages, offerings and the shopper's own members und
   });
   const store = initialize(storefrontIdentity, {
     visitorIdentity: {
-      customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58",
+      user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58",
       session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63",
     },
     ...fixedIdFactories,
@@ -92,11 +92,11 @@ test("the storefront reads packages, offerings and the shopper's own members und
 });
 
 test("package and member transport keeps combined predicates, empty continuations and app-picked ids", async (context) => {
-  const store = "56c82765-4f5a-47e9-bd6d-dba7c6354919";
+  const tenant = "56c82765-4f5a-47e9-bd6d-dba7c6354919";
   const memberPackageId = "cf8a15f4-1489-40a1-a850-a98b7e311699";
   const offeringId = "a3d5f7b9-2c4e-4a6b-8d0f-1e3a5c7e9b2d";
   const memberId = "e245588f-0542-4bb3-97c8-23de326627d1";
-  const customerId = "70b5f662-f3d8-48c9-8c16-c60dd4ff1703";
+  const userId = "70b5f662-f3d8-48c9-8c16-c60dd4ff1703";
   const cursor = "opaque:/+==next";
   const packageFields = {
     key: "members",
@@ -110,15 +110,15 @@ test("package and member transport keeps combined predicates, empty continuation
   };
   const memberPackage = {
     id: memberPackageId,
-    store_id: store,
+    tenant_id: tenant,
     ...packageFields,
     created_at: 1,
     updated_at: 1,
   };
-  const subject = { type: "customer", customer_id: customerId };
+  const subject = { type: "user", user_id: userId };
   const member = {
     id: memberId,
-    store_id: store,
+    tenant_id: tenant,
     package_id: memberPackageId,
     subject,
     renewal: { type: "never", access_end: { type: "never" } },
@@ -156,7 +156,7 @@ test("package and member transport keeps combined predicates, empty continuation
     accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA",
   });
   const filter = {
-    store_id: store,
+    tenant_id: tenant,
     package_offering_id: offeringId,
     status: { type: "active" },
     query: "members",
@@ -177,23 +177,23 @@ test("package and member transport keeps combined predicates, empty continuation
   );
   assert.deepEqual(
     await admin.eshop.package.getByKey({
-      store_id: store,
+      tenant_id: tenant,
       key: memberPackage.key,
     }),
     memberPackage,
   );
   assert.deepEqual(
     await admin.eshop.package.create({
-      store_id: store,
+      tenant_id: tenant,
       id: memberPackageId,
       ...packageFields,
     }),
     memberPackage,
   );
   const members = {
-    store_id: store,
+    tenant_id: tenant,
     package_id: memberPackageId,
-    customer_id: customerId,
+    user_id: userId,
     status: "active",
     limit: 20,
   };
@@ -207,14 +207,14 @@ test("package and member transport keeps combined predicates, empty continuation
   );
   assert.deepEqual(
     await admin.eshop.packageMember.get({
-      store_id: store,
+      tenant_id: tenant,
       id: memberId,
     }),
     member,
   );
   assert.deepEqual(
     await admin.eshop.packageMember.assign({
-      store_id: store,
+      tenant_id: tenant,
       id: memberId,
       package_id: memberPackageId,
       subject,
@@ -224,7 +224,7 @@ test("package and member transport keeps combined predicates, empty continuation
   );
   assert.deepEqual(
     await admin.eshop.package.delete({
-      store_id: store,
+      tenant_id: tenant,
       id: memberPackageId,
       expected_updated_at: 1,
     }),
@@ -233,7 +233,7 @@ test("package and member transport keeps combined predicates, empty continuation
   assert.ok(
     calls.every(
       (call) =>
-        call.url.pathname.startsWith(`/v1/stores/${store}/`) &&
+        call.url.pathname.startsWith(`/v1/tenants/${tenant}/`) &&
         call.headers.get("authorization") === "Bearer arky_at_ttttttttttttttttttttttttttttttttttttttttttA",
     ),
   );
@@ -246,24 +246,24 @@ test("package and member transport keeps combined predicates, empty continuation
   });
   assert.equal(
     calls[2].url.pathname,
-    `/v1/stores/${store}/packages/by-key/members`,
+    `/v1/tenants/${tenant}/packages/by-key/members`,
   );
   assert.deepEqual(calls[3].body, { id: memberPackageId, ...packageFields });
   assert.deepEqual(Object.fromEntries(calls[5].url.searchParams), {
     package_id: memberPackageId,
-    customer_id: customerId,
+    user_id: userId,
     status: "active",
     limit: "20",
     cursor,
   });
   assert.equal(
     calls[6].url.pathname,
-    `/v1/stores/${store}/package-members/${memberId}`,
+    `/v1/tenants/${tenant}/package-members/${memberId}`,
   );
   assert.equal(calls[7].method, "POST");
   assert.equal(
     calls[7].url.pathname,
-    `/v1/stores/${store}/package-members`,
+    `/v1/tenants/${tenant}/package-members`,
   );
   assert.deepEqual(calls[7].body, {
     id: memberId,
@@ -274,14 +274,14 @@ test("package and member transport keeps combined predicates, empty continuation
   assert.equal(calls[8].method, "DELETE");
   assert.equal(
     calls[8].url.pathname,
-    `/v1/stores/${store}/packages/${memberPackageId}`,
+    `/v1/tenants/${tenant}/packages/${memberPackageId}`,
   );
   assert.equal(calls[8].url.search, "?expected_updated_at=1");
   assert.equal(calls.length, 9);
   await assert.rejects(
     async () =>
       admin.eshop.packageMember.assign({
-        store_id: store,
+        tenant_id: tenant,
         id: "member",
         package_id: memberPackageId,
         subject,
@@ -292,7 +292,7 @@ test("package and member transport keeps combined predicates, empty continuation
   await assert.rejects(
     async () =>
       admin.eshop.package.create({
-        store_id: store,
+        tenant_id: tenant,
         id: undefined,
         ...packageFields,
       }),
@@ -300,7 +300,7 @@ test("package and member transport keeps combined predicates, empty continuation
   );
   await assert.rejects(
     async () =>
-      admin.eshop.packageMember.find({ ...members, store_id: undefined }),
+      admin.eshop.packageMember.find({ ...members, tenant_id: undefined }),
     TypeError,
   );
   assert.equal(calls.length, 9);

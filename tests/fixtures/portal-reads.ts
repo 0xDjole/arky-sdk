@@ -12,15 +12,15 @@ type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ?
 type Missing<T, K extends PropertyKey> = Extract<K, keyof T> extends never ? true : false;
 type Assignable<A, B> = A extends B ? true : false;
 type StorefrontForms = ReturnType<typeof createStorefront>["forms"];
-type StoreForms = ReturnType<typeof initialize>["forms"];
+type TenantForms = ReturnType<typeof initialize>["forms"];
 
 export type PortalReadContracts = [
   Assert<Equal<keyof StorefrontFormSubmissionListItem, "id" | "form_id" | "form_key" | "language" | "answers" | "stage_id" | "created_at" | "updated_at">>,
   Assert<Assignable<StorefrontFormSubmissionListItem, StorefrontFormSubmission>>,
   Assert<Equal<StorefrontFormSubmissionListItem["form_key"], string>>,
-  Assert<Missing<StorefrontFormSubmissionListItem, "customer_id" | "source" | "email_contact" | "stage_history" | "snapshot">>,
+  Assert<Missing<StorefrontFormSubmissionListItem, "user_id" | "source" | "email_contact" | "stage_history" | "snapshot">>,
   Assert<Equal<keyof FindStorefrontFormSubmissionsParams, "limit" | "cursor">>,
   Assert<Equal<Awaited<ReturnType<StorefrontForms["findSubmissions"]>>, PaginatedResponse<StorefrontFormSubmissionListItem>>>,
-  Assert<Equal<Awaited<ReturnType<StoreForms["findSubmissions"]>>, PaginatedResponse<StorefrontFormSubmissionListItem>>>,
+  Assert<Equal<Awaited<ReturnType<TenantForms["findSubmissions"]>>, PaginatedResponse<StorefrontFormSubmissionListItem>>>,
   Assert<Equal<Parameters<StorefrontForms["findSubmissions"]>[0], FindStorefrontFormSubmissionsParams | undefined>>,
 ];

@@ -16,7 +16,7 @@ import {
   visitorStorage,
 } from "./helpers/arky-fixtures.mjs";
 
-const customer = { type: "customer" };
+const user = { type: "user" };
 const germany = "1f0a4c7e-8b32-4d59-a6e1-3c9d7b5f2e80";
 const austria = "7d2e9b41-6c05-4a38-9f7e-5b1c8d3a6f92";
 const marketIds = { de: germany, at: austria };
@@ -44,10 +44,10 @@ test("a storefront cart names the context market's id, read once per market key,
   const storage = visitorStorage();
   const calls = marketServer(context);
   const api = storefront(storage);
-  await api.eshop.cart.create({ id: ids.cart, buyer: customer, package_id: ids.package });
-  await api.eshop.cart.create({ id: ids.otherCart, buyer: customer, package_id: ids.otherPackage });
+  await api.eshop.cart.create({ id: ids.cart, buyer: user, package_id: ids.package });
+  await api.eshop.cart.create({ id: ids.otherCart, buyer: user, package_id: ids.otherPackage });
   api.setContext({ market: "at" });
-  await api.eshop.cart.create({ id: ids.thirdCart, buyer: customer, package_id: ids.package });
+  await api.eshop.cart.create({ id: ids.thirdCart, buyer: user, package_id: ids.package });
   assert.deepEqual(calls.map((call) => [call.method, call.path, call.body?.market_id ?? null, call.headers.get("x-arky-market")]), [
     ["GET", "/v1/storefront/markets/by-key/de", null, "de"],
     ["POST", "/v1/storefront/carts", germany, "de"],
@@ -57,8 +57,8 @@ test("a storefront cart names the context market's id, read once per market key,
   ]);
   const selected = storage.keys("arky:selected-cart:v3:");
   assert.equal(selected.length, 3);
-  assert.equal(selected.filter((key) => key.includes(`:de:customer:${ids.package}`)).length, 1);
-  assert.equal(selected.filter((key) => key.includes(`:at:customer:${ids.package}`)).length, 1);
+  assert.equal(selected.filter((key) => key.includes(`:de:user:${ids.package}`)).length, 1);
+  assert.equal(selected.filter((key) => key.includes(`:at:user:${ids.package}`)).length, 1);
 });
 
 test("two concurrent carts share one market read, and a failed read is tried again", async (context) => {
@@ -73,13 +73,13 @@ test("two concurrent carts share one market read, and a failed read is tried aga
     return { type: "created", cart: cartRecord({ id: call.body.id, package_id: call.body.package_id, market_id: call.body.market_id }), recovery_token: "token" };
   }, { answerMarkets: false });
   const api = storefront(visitorStorage());
-  await assert.rejects(api.eshop.cart.create({ id: ids.cart, buyer: customer, package_id: ids.package }), (error) => error.statusCode === 503);
+  await assert.rejects(api.eshop.cart.create({ id: ids.cart, buyer: user, package_id: ids.package }), (error) => error.statusCode === 503);
   assert.equal(calls.filter((call) => call.path === "/v1/storefront/carts").length, 0);
   refuse = false;
   reads = 0;
   await Promise.all([
-    api.eshop.cart.create({ id: ids.cart, buyer: customer, package_id: ids.package }),
-    api.eshop.cart.create({ id: ids.otherCart, buyer: customer, package_id: ids.otherPackage }),
+    api.eshop.cart.create({ id: ids.cart, buyer: user, package_id: ids.package }),
+    api.eshop.cart.create({ id: ids.otherCart, buyer: user, package_id: ids.otherPackage }),
   ]);
   assert.equal(reads, 1);
 });
@@ -87,13 +87,13 @@ test("two concurrent carts share one market read, and a failed read is tried aga
 test("a market read that answers another key, or a cart created in another market, is never selected", async (context) => {
   const storage = visitorStorage();
   recordFetch(context, () => marketRecord("other"), { answerMarkets: false });
-  await assert.rejects(storefront(storage).eshop.cart.create({ id: ids.cart, buyer: customer, package_id: ids.package }), (error) => error instanceof CartError && error.code === "answer_mismatch");
+  await assert.rejects(storefront(storage).eshop.cart.create({ id: ids.cart, buyer: user, package_id: ids.package }), (error) => error instanceof CartError && error.code === "answer_mismatch");
   context.mock.restoreAll();
   recordFetch(context, (call) => {
     if (call.path.startsWith("/v1/storefront/markets/by-key/")) return marketRecord("de", { id: germany });
     return { type: "created", cart: cartRecord({ id: call.body.id, market_id: austria }), recovery_token: "token" };
   }, { answerMarkets: false });
-  await assert.rejects(storefront(storage).eshop.cart.create({ id: ids.cart, buyer: customer, package_id: ids.package }), /different market/);
+  await assert.rejects(storefront(storage).eshop.cart.create({ id: ids.cart, buyer: user, package_id: ids.package }), /different market/);
   assert.deepEqual(storage.keys("arky:selected-cart:v3:"), []);
   assert.deepEqual(storage.keys("arky:cart-token:v1:"), []);
 });
@@ -101,16 +101,16 @@ test("a market read that answers another key, or a cart created in another marke
 test("a cart can't be made with no market in the context, and the request is never sent", async (context) => {
   const calls = marketServer(context);
   const api = storefront(visitorStorage(), { market: undefined });
-  await assert.rejects(api.eshop.cart.create({ id: ids.cart, buyer: customer, package_id: ids.package }), (error) => error instanceof CartError && error.code === "not_ready");
-  await assert.rejects(api.eshop.cart.reorder({ id: ids.cart, order_id: ids.order, buyer: customer, package_id: ids.package }), (error) => error instanceof CartError && error.code === "not_ready");
+  await assert.rejects(api.eshop.cart.create({ id: ids.cart, buyer: user, package_id: ids.package }), (error) => error instanceof CartError && error.code === "not_ready");
+  await assert.rejects(api.eshop.cart.reorder({ id: ids.cart, order_id: ids.order, buyer: user, package_id: ids.package }), (error) => error instanceof CartError && error.code === "not_ready");
   assert.equal(calls.length, 0);
 });
 
 test("a cart call refuses a per-call market before it reads anything", async (context) => {
   const calls = marketServer(context);
   const api = storefront(visitorStorage());
-  await assert.rejects(api.eshop.cart.create({ id: ids.cart, buyer: customer, package_id: ids.package }, { market: "at" }), /uses the storefront's market/);
-  await assert.rejects(api.eshop.cart.reorder({ id: ids.cart, order_id: ids.order, buyer: customer, package_id: ids.package }, { market: "at" }), /uses the storefront's market/);
+  await assert.rejects(api.eshop.cart.create({ id: ids.cart, buyer: user, package_id: ids.package }, { market: "at" }), /uses the storefront's market/);
+  await assert.rejects(api.eshop.cart.reorder({ id: ids.cart, order_id: ids.order, buyer: user, package_id: ids.package }, { market: "at" }), /uses the storefront's market/);
   assert.equal(calls.length, 0);
 });
 
@@ -119,8 +119,8 @@ test("a reorder builds its cart in the package it names and the context's market
     assert.equal(call.path, "/v1/storefront/carts/reorder");
     return { cart: { type: "created", cart: cartRecord({ id: call.body.id, package_id: call.body.package_id, market_id: call.body.market_id }), recovery_token: "token" }, left_out: [] };
   });
-  await storefront(visitorStorage()).eshop.cart.reorder({ id: ids.otherCart, order_id: ids.order, buyer: customer, package_id: ids.otherPackage });
-  assert.deepEqual(calls.at(-1).body, { id: ids.otherCart, order_id: ids.order, buyer: customer, package_id: ids.otherPackage, market_id: germany });
+  await storefront(visitorStorage()).eshop.cart.reorder({ id: ids.otherCart, order_id: ids.order, buyer: user, package_id: ids.otherPackage });
+  assert.deepEqual(calls.at(-1).body, { id: ids.otherCart, order_id: ids.order, buyer: user, package_id: ids.otherPackage, market_id: germany });
 });
 
 test("the current cart of one market is another market's empty slot, and a merged cart in another market is dropped", async (context) => {
@@ -128,15 +128,15 @@ test("the current cart of one market is another market's empty slot, and a merge
   const records = new Map();
   const calls = marketServer(context, (call) => records.get(call.path.split("/").at(-1)));
   const api = storefront(storage);
-  await api.eshop.cart.create({ id: ids.cart, buyer: customer, package_id: ids.package });
+  await api.eshop.cart.create({ id: ids.cart, buyer: user, package_id: ids.package });
   records.set(ids.cart, cartRecord({ id: ids.cart, market_id: germany }));
-  assert.equal((await api.eshop.cart.getCurrent({ buyer: customer, package_id: ids.package })).id, ids.cart);
+  assert.equal((await api.eshop.cart.getCurrent({ buyer: user, package_id: ids.package })).id, ids.cart);
   api.setContext({ market: "at" });
-  assert.equal(await api.eshop.cart.getCurrent({ buyer: customer, package_id: ids.package }), null);
+  assert.equal(await api.eshop.cart.getCurrent({ buyer: user, package_id: ids.package }), null);
   api.setContext({ market: "de" });
   records.set(ids.cart, cartRecord({ id: ids.cart, market_id: germany, status: { type: "merged", target_cart_id: ids.otherCart } }));
   records.set(ids.otherCart, cartRecord({ id: ids.otherCart, market_id: austria }));
-  assert.equal(await api.eshop.cart.getCurrent({ buyer: customer, package_id: ids.package }), null);
+  assert.equal(await api.eshop.cart.getCurrent({ buyer: user, package_id: ids.package }), null);
   assert.deepEqual(storage.keys("arky:selected-cart:v3:"), []);
   assert.equal(calls.filter((call) => call.path === `/v1/storefront/carts/${ids.otherCart}`).length, 1);
 });
@@ -159,10 +159,10 @@ test("a cart update names the market it moves to and carries the reference of ea
   });
 });
 
-test("the store makes its cart in the current market through the same read", async (context) => {
+test("the tenant makes its cart in the current market through the same read", async (context) => {
   const calls = marketServer(context);
   const arky = initialize(storefrontIdentity, { ...idFactories, apiUrl, locale: "en", market: "de", sessionStorage: visitorStorage() });
-  const scope = { buyer: customer, package_id: ids.package };
+  const scope = { buyer: user, package_id: ids.package };
   const german = arky.eshop.cart(scope);
   const created = await german.create({ id: ids.cart });
   assert.equal(created.market_id, germany);
@@ -187,25 +187,25 @@ test("a_market_change_during_identify_reuses_it", async (context) => {
     markStarted = resolve;
   });
   const calls = recordFetch(context, async (call) => {
-    if (call.path !== "/v1/storefront/customer/identify") throw new Error(`Unexpected request ${call.path}`);
+    if (call.path !== "/v1/storefront/user/identify") throw new Error(`Unexpected request ${call.path}`);
     markStarted();
     await held;
-    return sessionResult(ids.customer, visitorSession(ids.customer, ids.session));
+    return sessionResult(ids.user, visitorSession(ids.user, ids.session));
   });
   const api = storefront(new SessionStorage());
-  const first = api.customer.identify();
+  const first = api.user.identify();
   await started;
   api.setContext({ market: "at" });
-  const second = api.customer.identify();
+  const second = api.user.identify();
   release();
   const [answered, reused] = await Promise.all([first, second]);
   assert.equal(reused.session.id, answered.session.id);
   assert.equal(api.getMarket(), "at");
-  assert.deepEqual(calls.map((call) => [call.path, call.headers.get("authorization")]), [["/v1/storefront/customer/identify", null]]);
+  assert.deepEqual(calls.map((call) => [call.path, call.headers.get("authorization")]), [["/v1/storefront/user/identify", null]]);
 });
 
 test("a storefront cart names its place of sale only when the page names one, on create, reorder and update", async (context) => {
-  const place = { type: "store_location", store_location_id: "9b3e1d57-2c84-4a06-8f1e-6d2a7c0b3e95" };
+  const place = { type: "tenant_location", tenant_location_id: "9b3e1d57-2c84-4a06-8f1e-6d2a7c0b3e95" };
   const calls = marketServer(context, (call) => {
     if (call.path === "/v1/storefront/carts/reorder") {
       return { cart: { type: "created", cart: cartRecord({ id: call.body.id, market_id: call.body.market_id }), recovery_token: "token" }, left_out: [] };
@@ -213,9 +213,9 @@ test("a storefront cart names its place of sale only when the page names one, on
     return cartRecord({ updated_at: 1_700_000_000_002, place_of_sale: call.body.place_of_sale ?? { type: "none" } });
   });
   const api = storefront(visitorStorage());
-  await api.eshop.cart.create({ id: ids.cart, buyer: customer, package_id: ids.package, place_of_sale: place });
-  await api.eshop.cart.create({ id: ids.otherCart, buyer: customer, package_id: ids.otherPackage });
-  await api.eshop.cart.reorder({ id: ids.thirdCart, order_id: ids.order, buyer: customer, package_id: ids.package, place_of_sale: { type: "none" } });
+  await api.eshop.cart.create({ id: ids.cart, buyer: user, package_id: ids.package, place_of_sale: place });
+  await api.eshop.cart.create({ id: ids.otherCart, buyer: user, package_id: ids.otherPackage });
+  await api.eshop.cart.reorder({ id: ids.thirdCart, order_id: ids.order, buyer: user, package_id: ids.package, place_of_sale: { type: "none" } });
   await api.eshop.cart.update({ id: ids.cart, expected_updated_at: 1_700_000_000_001, place_of_sale: place });
   const writes = calls.filter((call) => call.method !== "GET");
   assert.deepEqual(writes.map((call) => [call.method, call.path]), [
@@ -224,8 +224,8 @@ test("a storefront cart names its place of sale only when the page names one, on
     ["POST", "/v1/storefront/carts/reorder"],
     ["PUT", `/v1/storefront/carts/${ids.cart}`],
   ]);
-  assert.deepEqual(writes[0].body, { id: ids.cart, buyer: customer, package_id: ids.package, market_id: germany, place_of_sale: place });
+  assert.deepEqual(writes[0].body, { id: ids.cart, buyer: user, package_id: ids.package, market_id: germany, place_of_sale: place });
   assert.equal("place_of_sale" in writes[1].body, false, "a cart that names no place takes the Server's default");
-  assert.deepEqual(writes[2].body, { id: ids.thirdCart, order_id: ids.order, buyer: customer, package_id: ids.package, market_id: germany, place_of_sale: { type: "none" } });
+  assert.deepEqual(writes[2].body, { id: ids.thirdCart, order_id: ids.order, buyer: user, package_id: ids.package, market_id: germany, place_of_sale: { type: "none" } });
   assert.deepEqual(writes[3].body, { expected_updated_at: 1_700_000_000_001, place_of_sale: place });
 });

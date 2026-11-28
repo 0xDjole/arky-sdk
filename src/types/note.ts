@@ -8,7 +8,7 @@ export type NoteTarget =
       form_submission_id: string;
       changed_at: EpochMilliseconds;
     }
-  | { type: "customer"; customer_id: string }
+  | { type: "user"; user_id: string }
   | { type: "company"; company_id: string }
   | { type: "order"; order_id: string }
   | { type: "conversation"; conversation_id: string };
@@ -17,7 +17,7 @@ export type NoteTargetType = NoteTarget["type"];
 
 export interface Note {
   id: string;
-  store_id: string;
+  tenant_id: string;
   target: NoteTarget;
   body: string;
   actor: AccountActor;
@@ -47,28 +47,28 @@ export interface NoteDeleteParams {
 }
 
 export interface OrderNoteTarget {
-  store_id: string;
+  tenant_id: string;
   order_id: string;
 }
 
-export interface CustomerNoteTarget {
-  store_id: string;
-  customer_id: string;
+export interface UserNoteTarget {
+  tenant_id: string;
+  user_id: string;
 }
 
 export interface CompanyNoteTarget {
-  store_id: string;
+  tenant_id: string;
   company_id: string;
 }
 
 export interface FormSubmissionNoteTarget {
-  store_id: string;
+  tenant_id: string;
   form_id: string;
   form_submission_id: string;
 }
 
 export interface ConversationNoteTarget {
-  store_id: string;
+  tenant_id: string;
   conversation_id: string;
 }
 

@@ -14,7 +14,7 @@ import type {
 } from "./common";
 import type { PackageMemberCard, PackageMemberSelfCard } from "./packageMember";
 import type { EmailFailure } from "./notification";
-import type { StoreProviderStatus } from "./storeProvider";
+import type { TenantProviderStatus } from "./tenantProvider";
 import type { FiscalReceipt } from "./fiscalReceipt";
 
 export type MonriEnvironment = "test" | "live";
@@ -57,7 +57,7 @@ export interface StripeSetup {
 
 export interface StripeConnection {
   provider_id: string;
-  provider_status: StoreProviderStatus;
+  provider_status: TenantProviderStatus;
   provider_updated_at: EpochMilliseconds;
   account_id: string;
   livemode: boolean;
@@ -70,7 +70,7 @@ export interface StripeConnection {
 
 export interface MonriConnection {
   provider_id: string;
-  provider_status: StoreProviderStatus;
+  provider_status: TenantProviderStatus;
   provider_updated_at: EpochMilliseconds;
   environment: MonriEnvironment;
   saved_card_terms: LocalizedMarkdown;
@@ -92,7 +92,7 @@ export type PaymentOptionStatus = "active" | "disabled";
 
 export interface PaymentOption {
   id: string;
-  store_id: string;
+  tenant_id: string;
   key: string;
   blocks: Block[];
   type: PaymentOptionType;
@@ -193,7 +193,7 @@ export type PaymentMethodType =
 
 export interface PaymentMethod {
   id: string;
-  store_id: string;
+  tenant_id: string;
   owner: CommerceParty;
   payment_option_id: string;
   consent: PaymentMethodConsent;
@@ -211,7 +211,7 @@ export interface PaymentMethodSetupStart {
 
 export interface StorefrontPaymentMethod {
   id: string;
-  store_id: string;
+  tenant_id: string;
   owner: CommerceParty;
   payment_option_id: string;
   consent: StorefrontPaymentMethodConsent;
@@ -289,7 +289,7 @@ export type CardReceiptDevice =
   | { type: "device"; fiscal_device_id: string };
 
 export type RefundReason =
-  "customer_request" | "duplicate" | "fraudulent" | "store_closure" | "other";
+  "user_request" | "duplicate" | "fraudulent" | "tenant_closure" | "other";
 
 export interface RefundAllocation {
   order_credit_id: string;
@@ -305,7 +305,7 @@ export interface RefundRequest {
   actor: AccountActor;
   reason: RefundReason;
   application: RefundApplication;
-  notify_customer: boolean;
+  notify_user: boolean;
 }
 
 export type StripeRefundStatus =
@@ -627,7 +627,7 @@ export type PaymentVoid =
 
 export interface Payment {
   id: string;
-  store_id: string;
+  tenant_id: string;
   order_id: string;
   payment_option_id: string;
   payment_option_key: string;
@@ -642,7 +642,7 @@ export interface Payment {
 
 export interface StorefrontPayment {
   id: string;
-  store_id: string;
+  tenant_id: string;
   order_id: string;
   payment_option_id: string;
   payment_option_key: string;
@@ -924,18 +924,18 @@ export type ElevenLabsCallEvent = { type: "transcription"; conversation_id: stri
 export type PaymentIncomingWebhookType =
   | {
       type: "stripe_payments";
-      store_id: string;
+      tenant_id: string;
       payment_option_id: string;
       event: StripeEvent;
     }
   | {
       type: "monri_payments";
-      store_id: string;
+      tenant_id: string;
       payment_option_id: string;
       transaction: MonriTransactionFact;
     };
 
-export type StoreResendIncomingWebhookType = { type: "store_resend"; store_id: string; login: ProviderLogin; event: ResendEvent };
+export type TenantResendIncomingWebhookType = { type: "tenant_resend"; tenant_id: string; login: ProviderLogin; event: ResendEvent };
 
 export type NetworkResendIncomingWebhookType = {
   type: "network_resend";
@@ -948,7 +948,7 @@ export type StripeBillingPaymentSucceededIncomingWebhookType = {
   type: "stripe_billing_payment_succeeded";
   network_id: string;
   network_provider_id: string;
-  store_plan_charge_id: string;
+  tenant_plan_charge_id: string;
   stripe_payment_intent_id: string;
   amount_received: number;
   currency: string;
@@ -958,7 +958,7 @@ export type StripeBillingPaymentCancelledIncomingWebhookType = {
   type: "stripe_billing_payment_cancelled";
   network_id: string;
   network_provider_id: string;
-  store_plan_charge_id: string;
+  tenant_plan_charge_id: string;
   stripe_payment_intent_id: string;
 };
 
@@ -973,7 +973,7 @@ export type TwilioSmsEvent =
 
 export type TwilioSmsIncomingWebhookType = {
   type: "twilio_sms";
-  store_id: string;
+  tenant_id: string;
   login: ProviderLogin;
   outgoing_message_id: string;
   event: TwilioSmsEvent;
@@ -989,7 +989,7 @@ export type NetworkTwilioSmsIncomingWebhookType = {
 
 export type TwilioCallIncomingWebhookType = {
   type: "twilio_call";
-  store_id: string;
+  tenant_id: string;
   login: ProviderLogin;
   phone_number_id: string;
   event: TwilioCallEvent;
@@ -997,7 +997,7 @@ export type TwilioCallIncomingWebhookType = {
 
 export type ElevenLabsCallIncomingWebhookType = {
   type: "eleven_labs_call";
-  store_id: string;
+  tenant_id: string;
   login: ProviderLogin;
   conversation_message_id: string;
   event: ElevenLabsCallEvent;
@@ -1005,7 +1005,7 @@ export type ElevenLabsCallIncomingWebhookType = {
 
 export type IncomingWebhookType =
   | NetworkResendIncomingWebhookType
-  | StoreResendIncomingWebhookType
+  | TenantResendIncomingWebhookType
   | PaymentIncomingWebhookType
   | StripeBillingPaymentSucceededIncomingWebhookType
   | StripeBillingPaymentCancelledIncomingWebhookType
@@ -1020,7 +1020,7 @@ export type IncomingWebhookTarget =
   | { type: "suppression"; suppression_id: string }
   | { type: "payment"; payment_id: string }
   | { type: "payment_method"; payment_method_id: string }
-  | { type: "store_plan_charge"; store_plan_charge_id: string };
+  | { type: "tenant_plan_charge"; tenant_plan_charge_id: string };
 
 export type IncomingWebhookWaitReason =
   | { type: "received" }
@@ -1055,7 +1055,7 @@ export type IncomingWebhook = IncomingWebhookOf<IncomingWebhookType>;
 
 export type PaymentIncomingWebhook = IncomingWebhookOf<PaymentIncomingWebhookType>;
 
-export type StoreResendIncomingWebhook = IncomingWebhookOf<StoreResendIncomingWebhookType>;
+export type TenantResendIncomingWebhook = IncomingWebhookOf<TenantResendIncomingWebhookType>;
 
 export type NetworkResendIncomingWebhook = IncomingWebhookOf<NetworkResendIncomingWebhookType>;
 
@@ -1070,7 +1070,7 @@ export type ElevenLabsCallIncomingWebhook = IncomingWebhookOf<ElevenLabsCallInco
 export type IncomingWebhookResolution = "apply" | "ignore";
 
 export interface FindPaymentOptionsParams {
-  store_id: string;
+  tenant_id: string;
   key?: string;
   type_name?: PaymentOptionTypeName;
   status?: PaymentOptionStatus;
@@ -1081,17 +1081,17 @@ export interface FindPaymentOptionsParams {
 }
 
 export interface GetPaymentOptionParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface GetPaymentOptionByKeyParams {
-  store_id: string;
+  tenant_id: string;
   key: string;
 }
 
 export interface CreatePaymentOptionParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   key: string;
   blocks: Block[];
@@ -1100,7 +1100,7 @@ export interface CreatePaymentOptionParams {
 }
 
 export interface CreateCardPaymentOptionParams {
-  store_id: string;
+  tenant_id: string;
   provider_id: string;
   id: string;
   key: string;
@@ -1110,7 +1110,7 @@ export interface CreateCardPaymentOptionParams {
 }
 
 export interface UpdatePaymentOptionParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   blocks: Block[];
@@ -1121,24 +1121,24 @@ export interface UpdatePaymentOptionParams {
 export type FindPaymentMethodsParams = (
   | (CommercePartyQuery & { payment_option_id?: never })
   | {
-      customer_id?: never;
+      user_id?: never;
       company_id?: never;
       company_location_id?: never;
       payment_option_id?: string;
     }
 ) & {
-  store_id: string;
+  tenant_id: string;
   limit?: number;
   cursor?: string | null;
 };
 
 export interface GetPaymentMethodParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface RequestPaymentMethodSetupParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   owner: CommerceParty;
   payment_option_id: string;
@@ -1148,13 +1148,13 @@ export interface RequestPaymentMethodSetupParams {
 }
 
 export interface CancelPaymentMethodSetupParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface RevokePaymentMethodParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
@@ -1188,7 +1188,7 @@ export interface StorefrontRevokePaymentMethodParams {
 }
 
 export interface FindPaymentsParams {
-  store_id: string;
+  tenant_id: string;
   order_ids?: string[];
   status?: PaymentStatusName;
   type?: PaymentTypeName;
@@ -1197,7 +1197,7 @@ export interface FindPaymentsParams {
   created_at_to?: EpochMilliseconds;
   method?: RecordedMethod["type"];
   cashier_account_id?: string;
-  store_location_id?: string;
+  tenant_location_id?: string;
   updated_at_from?: EpochMilliseconds;
   sort_field?: "created_at" | "updated_at";
   sort_direction?: SortDirection;
@@ -1206,7 +1206,7 @@ export interface FindPaymentsParams {
 }
 
 export interface GetPaymentParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
@@ -1219,7 +1219,7 @@ export interface RecordPaymentPart {
 }
 
 export interface RecordPaymentsParams {
-  store_id: string;
+  tenant_id: string;
   order_id: string;
   fiscal_device_id: string | null;
   payments: RecordPaymentPart[];
@@ -1231,14 +1231,14 @@ export interface RecordedPayments {
 }
 
 export interface VoidPaymentParams {
-  store_id: string;
+  tenant_id: string;
   payment_id: string;
   expected_updated_at: EpochMilliseconds;
   reason: string;
 }
 
 export interface AllocatePaymentRefundParams {
-  store_id: string;
+  tenant_id: string;
   payment_id: string;
   refund_id: string;
   expected_updated_at: EpochMilliseconds;
@@ -1246,23 +1246,23 @@ export interface AllocatePaymentRefundParams {
 }
 
 export interface CreatePaymentRefundParams {
-  store_id: string;
+  tenant_id: string;
   payment_id: string;
   id: string;
   money: Money;
   reason: RefundReason;
   application: RefundApplication;
-  notify_customer: boolean;
+  notify_user: boolean;
 }
 
 export interface RecordMadeRefundParams {
-  store_id: string;
+  tenant_id: string;
   payment_id: string;
   id: string;
   money: Money;
   reason: RefundReason;
   application: RefundApplication;
-  notify_customer: boolean;
+  notify_user: boolean;
   transaction_id: string;
 }
 
@@ -1271,7 +1271,7 @@ export type RefundReceiptInput =
   | { type: "returned"; reference: string };
 
 export interface RecordRefundReceiptParams {
-  store_id: string;
+  tenant_id: string;
   payment_id: string;
   refund_id: string;
   expected_updated_at: EpochMilliseconds;
@@ -1279,7 +1279,7 @@ export interface RecordRefundReceiptParams {
 }
 
 export interface CancelPaymentRefundParams {
-  store_id: string;
+  tenant_id: string;
   payment_id: string;
   refund_id: string;
   expected_updated_at: EpochMilliseconds;
@@ -1289,7 +1289,7 @@ export type MonriConfirmation =
   { type: "made"; transaction_id: string } | { type: "not_made" };
 
 export interface ResolvePaymentRefundParams {
-  store_id: string;
+  tenant_id: string;
   payment_id: string;
   refund_id: string;
   expected_updated_at: EpochMilliseconds;
@@ -1302,14 +1302,14 @@ export type ChargeResolution =
   | { type: "not_made" };
 
 export interface ResolvePaymentChargeParams {
-  store_id: string;
+  tenant_id: string;
   payment_id: string;
   expected_updated_at: EpochMilliseconds;
   outcome: ChargeResolution;
 }
 
 export interface ResolvePaymentHoldParams {
-  store_id: string;
+  tenant_id: string;
   payment_id: string;
   expected_updated_at: EpochMilliseconds;
   hold_id: string;
@@ -1317,7 +1317,7 @@ export interface ResolvePaymentHoldParams {
 }
 
 export interface FindIncomingWebhooksParams {
-  store_id: string;
+  tenant_id: string;
   payment_option_id: string;
   status: IncomingWebhookStatusName;
   limit?: number;
@@ -1325,12 +1325,12 @@ export interface FindIncomingWebhooksParams {
 }
 
 export interface GetIncomingWebhookParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface ResolveIncomingWebhookParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   resolution: IncomingWebhookResolution;

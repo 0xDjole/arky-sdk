@@ -127,7 +127,7 @@ export const createAccountApi = (apiConfig: ApiConfig) => ({
         {
           id: requireId(params.id, "account token"),
           name: params.name,
-          stores: params.stores,
+          tenants: params.tenants,
           expiry: params.expiry,
         },
         options,

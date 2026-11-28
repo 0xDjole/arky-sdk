@@ -191,7 +191,7 @@ export interface ArkyCalendarDay {
 export interface ArkyBookingSlot {
   id: string;
   booking_service_id: string;
-  store_location_id: string;
+  tenant_location_id: string;
   booking_resource_id: string;
   booking_offering_id: string;
   price_ref: PackagePriceRef;
@@ -213,7 +213,7 @@ export interface ArkyBookingCalendarResource {
 
 export interface ArkyBookingCalendarState {
   booking_service: StorefrontBookingService | null;
-  store_location_id: string | null;
+  tenant_location_id: string | null;
   booking_choices: StorefrontPackageItemPrice[];
   booking_choices_cursor: string | null;
   booking_resources: ArkyBookingCalendarResource[];
@@ -231,7 +231,7 @@ export interface ArkyBookingCalendarState {
 
 export interface ArkySelectBookingServiceParams {
   booking_service_id: string;
-  store_location_id: string;
+  tenant_location_id: string;
 }
 
 export interface ArkySelectBookingResourceParams {

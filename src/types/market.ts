@@ -6,7 +6,7 @@ export type MarketStatus = { type: "active" } | { type: "deleting" };
 
 export interface Market {
   id: string;
-  store_id: string;
+  tenant_id: string;
   key: string;
   currency: Currency;
   tax_mode: TaxMode;
@@ -20,7 +20,7 @@ export type SalesChannelStatus = { type: "active" } | { type: "archived" };
 
 export interface SalesChannel {
   id: string;
-  store_id: string;
+  tenant_id: string;
   key: string;
   market_ids: string[];
   status: SalesChannelStatus;
@@ -36,7 +36,7 @@ export type ZoneArea =
 
 export interface Zone {
   id: string;
-  store_id: string;
+  tenant_id: string;
   market_id: string;
   key: string;
   areas: ZoneArea[];
@@ -44,12 +44,12 @@ export interface Zone {
   updated_at: EpochMilliseconds;
 }
 
-export type StoreLocationStatus =
+export type TenantLocationStatus =
   | { type: "active" }
   | { type: "archived" }
   | { type: "deleting" };
 
-export type StoreLocationEditableStatus = Exclude<StoreLocationStatus, { type: "deleting" }>;
+export type TenantLocationEditableStatus = Exclude<TenantLocationStatus, { type: "deleting" }>;
 
 export type FiscalJurisdiction =
   | "croatia"
@@ -67,7 +67,7 @@ export type RepublikaSrpskaOnlineFiscalDevice =
   | { type: "none" }
   | { type: "device"; fiscal_device_id: string };
 
-export type StoreLocationFiscal =
+export type TenantLocationFiscal =
   | { type: "not_fiscal" }
   | { type: "croatia"; online_fiscal_device: CroatiaOnlineFiscalDevice }
   | { type: "republika_srpska"; online_fiscal_device: RepublikaSrpskaOnlineFiscalDevice }
@@ -76,31 +76,31 @@ export type StoreLocationFiscal =
   | { type: "fbih2026" }
   | { type: "brcko" };
 
-export interface StoreLocation {
+export interface TenantLocation {
   id: string;
-  store_id: string;
+  tenant_id: string;
   key: string;
   address: PostalAddress;
   timezone: string;
   blocks: Block[];
-  fiscal: StoreLocationFiscal;
-  status: StoreLocationStatus;
+  fiscal: TenantLocationFiscal;
+  status: TenantLocationStatus;
   created_at: EpochMilliseconds;
   updated_at: EpochMilliseconds;
 }
 
-export interface StoreRecordParams {
-  store_id: string;
+export interface TenantRecordParams {
+  tenant_id: string;
   id: string;
 }
 
-export interface StoreRecordByKeyParams {
-  store_id: string;
+export interface TenantRecordByKeyParams {
+  tenant_id: string;
   key: string;
 }
 
 export interface FindMarketsParams {
-  store_id: string;
+  tenant_id: string;
   key?: string;
   currency?: Currency;
   status?: MarketStatus["type"];
@@ -111,7 +111,7 @@ export interface FindMarketsParams {
 }
 
 export interface CreateMarketParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   key: string;
   currency: Currency;
@@ -119,20 +119,20 @@ export interface CreateMarketParams {
 }
 
 export interface UpdateMarketParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   payment_option_ids?: string[];
 }
 
 export interface DeleteMarketParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface FindSalesChannelsParams {
-  store_id: string;
+  tenant_id: string;
   key?: string;
   status?: SalesChannelStatus["type"];
   sort_field?: "created_at" | "updated_at";
@@ -142,7 +142,7 @@ export interface FindSalesChannelsParams {
 }
 
 export interface CreateSalesChannelParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   key: string;
   market_ids: string[];
@@ -150,7 +150,7 @@ export interface CreateSalesChannelParams {
 }
 
 export interface UpdateSalesChannelParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   market_ids: string[];
@@ -158,13 +158,13 @@ export interface UpdateSalesChannelParams {
 }
 
 export interface DeleteSalesChannelParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface FindZonesParams {
-  store_id: string;
+  tenant_id: string;
   market_id?: string;
   key?: string;
   sort_field?: "created_at" | "updated_at";
@@ -174,7 +174,7 @@ export interface FindZonesParams {
 }
 
 export interface CreateZoneParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   market_id: string;
   key: string;
@@ -182,7 +182,7 @@ export interface CreateZoneParams {
 }
 
 export interface UpdateZoneParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   key?: string;
@@ -190,51 +190,51 @@ export interface UpdateZoneParams {
 }
 
 export interface DeleteZoneParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
-export interface FindStoreLocationsParams {
-  store_id: string;
+export interface FindTenantLocationsParams {
+  tenant_id: string;
   key?: string;
-  status?: StoreLocationStatus["type"];
+  status?: TenantLocationStatus["type"];
   sort_field?: "created_at" | "updated_at";
   sort_direction?: SortDirection;
   limit?: number;
   cursor?: string | null;
 }
 
-export interface CreateStoreLocationParams {
-  store_id: string;
+export interface CreateTenantLocationParams {
+  tenant_id: string;
   id: string;
   key: string;
   address: PostalAddressInput;
   timezone: string;
   blocks?: Block[];
-  status?: StoreLocationEditableStatus;
+  status?: TenantLocationEditableStatus;
 }
 
-export interface UpdateStoreLocationParams {
-  store_id: string;
+export interface UpdateTenantLocationParams {
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   key?: string;
   address?: PostalAddressInput;
   timezone?: string;
   blocks?: Block[];
-  status?: StoreLocationEditableStatus;
+  status?: TenantLocationEditableStatus;
 }
 
-export interface SetStoreLocationFiscalParams {
-  store_id: string;
+export interface SetTenantLocationFiscalParams {
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
-  fiscal: StoreLocationFiscal;
+  fiscal: TenantLocationFiscal;
 }
 
-export interface DeleteStoreLocationParams {
-  store_id: string;
+export interface DeleteTenantLocationParams {
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }

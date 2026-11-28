@@ -1,6 +1,6 @@
 import { ArkyError } from "../types/apiError";
 import { requireId } from "../utils/ids";
-import { requireStoreId } from "../utils/storeTarget";
+import { requireTenantId } from "../utils/tenantTarget";
 import type {
   ApiConfig,
   AdminSessionInternal,
@@ -48,17 +48,17 @@ export const createAuthApi = (
   }
 
   function authPath(
-    storeId: string | undefined,
+    tenantId: string | undefined,
     path: "code" | "verify" | "second-factor" | "second-factor/setup" | "second-factor/confirm",
   ): string {
-    return storeId === undefined ? `/v1/auth/${path}` : `/v1/stores/${requireStoreId(storeId)}/auth/${path}`;
+    return tenantId === undefined ? `/v1/auth/${path}` : `/v1/tenants/${requireTenantId(tenantId)}/auth/${path}`;
   }
 
   function withNetwork<T extends object>(
-    params: { store_id?: string; network_id?: string },
+    params: { tenant_id?: string; network_id?: string },
     body: T,
   ): T | (T & { network_id: string }) {
-    return params.store_id === undefined ? { ...body, network_id: requireId(params.network_id, "network") } : body;
+    return params.tenant_id === undefined ? { ...body, network_id: requireId(params.network_id, "network") } : body;
   }
 
   function keepVerified(result: AuthToken, expectedSessionId: string | undefined, sessionId: string): AuthToken {
@@ -75,10 +75,10 @@ export const createAuthApi = (
       options?: RequestOptions,
     ): Promise<PendingAccountSession> {
       const sessionId = requireId(params.session_id, "sign-in session");
-      const body = params.store_id === undefined
+      const body = params.tenant_id === undefined
         ? { session_id: sessionId, email: params.email, network_id: requireId(params.network_id, "network"), language: params.language }
         : { session_id: sessionId, email: params.email, language: params.language };
-      const result = await apiConfig.httpClient.post<PendingAccountSession>(authPath(params.store_id, "code"), body, options);
+      const result = await apiConfig.httpClient.post<PendingAccountSession>(authPath(params.tenant_id, "code"), body, options);
       pendingEmails.set(result.session_id, params.email);
       return result;
     },
@@ -88,10 +88,10 @@ export const createAuthApi = (
       options?: RequestOptions,
     ): Promise<AuthToken> {
       const expectedSessionId = apiConfig.authStorage.getTokens()?.id;
-      const body = params.store_id === undefined
+      const body = params.tenant_id === undefined
         ? { network_id: requireId(params.network_id, "network"), session_id: params.session_id, code: params.code }
         : { session_id: params.session_id, code: params.code };
-      const result = await apiConfig.httpClient.post<AuthToken>(authPath(params.store_id, "verify"), body, options);
+      const result = await apiConfig.httpClient.post<AuthToken>(authPath(params.tenant_id, "verify"), body, options);
       return keepVerified(result, expectedSessionId, params.session_id);
     },
 
@@ -124,7 +124,7 @@ export const createAuthApi = (
     async verifySecondFactor(params: VerifySecondFactorParams, options?: RequestOptions): Promise<AuthToken> {
       const expectedSessionId = apiConfig.authStorage.getTokens()?.id;
       const result = await apiConfig.httpClient.post<AuthToken>(
-        authPath(params.store_id, "second-factor"),
+        authPath(params.tenant_id, "second-factor"),
         withNetwork(params, {
           session_id: params.session_id,
           code: params.code,
@@ -137,7 +137,7 @@ export const createAuthApi = (
 
     async setUpSecondFactor(params: SetUpSecondFactorParams, options?: RequestOptions): Promise<SecondFactorSetup> {
       return apiConfig.httpClient.post<SecondFactorSetup>(
-        authPath(params.store_id, "second-factor/setup"),
+        authPath(params.tenant_id, "second-factor/setup"),
         withNetwork(params, { session_id: params.session_id, code: params.code }),
         options,
       );
@@ -149,7 +149,7 @@ export const createAuthApi = (
     ): Promise<SecondFactorSignedIn> {
       const expectedSessionId = apiConfig.authStorage.getTokens()?.id;
       const result = await apiConfig.httpClient.post<SecondFactorSignedIn>(
-        authPath(params.store_id, "second-factor/confirm"),
+        authPath(params.tenant_id, "second-factor/confirm"),
         withNetwork(params, {
           session_id: params.session_id,
           code: params.code,

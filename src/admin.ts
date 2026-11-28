@@ -13,7 +13,7 @@ export {
   RESEND_WEBHOOK_PATH,
   STRIPE_WEBHOOK_EVENTS,
   STRIPE_WEBHOOK_PATH,
-  TYPED_CUSTOMER_ACTION_KEYS,
+  TYPED_USER_ACTION_KEYS,
   cartProductItems,
   cartBookingItems,
   cartPackageItems,

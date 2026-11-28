@@ -3,8 +3,8 @@ import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 import { errorResponse, recordFetch } from "./helpers/arky-fixtures.mjs";
 
-const STORE_ID = "c9e3a5f1-7b26-4d80-9a4e-1f6b8d2c0e75";
-const OTHER_STORE_ID = "5a1f8d3c-e642-4b97-8c05-9e2b7a4d1f63";
+const TENANT_ID = "c9e3a5f1-7b26-4d80-9a4e-1f6b8d2c0e75";
+const OTHER_TENANT_ID = "5a1f8d3c-e642-4b97-8c05-9e2b7a4d1f63";
 const actionId = (index) => `3f8a2c61-${String(1000 + index)}-4e7b-9d05-2c6e8a1f4b39`;
 const levelId = "8b2e6d14-3c97-4a05-b1f8-7e4c2a9d6f30";
 
@@ -18,7 +18,7 @@ test("inventory levels keep combined parent filters, ordering and empty-page con
     { items: [{ id: "level", on_hand: 10, reserved: 12, unavailable: 2, available: -4 }], cursor: null },
   ];
   const calls = recordFetch(context, () => responses.shift());
-  const query = { store_id: STORE_ID, inventory_item_ids: ["component", "spare"], store_location_id: "warehouse", sort_field: "updated_at", sort_direction: "desc", limit: 25 };
+  const query = { tenant_id: TENANT_ID, inventory_item_ids: ["component", "spare"], tenant_location_id: "warehouse", sort_field: "updated_at", sort_direction: "desc", limit: 25 };
   const first = await eshop().inventoryLevel.find(query);
   assert.deepEqual(first, { items: [], cursor: "next-projected-page" });
   assert.equal(calls.length, 1);
@@ -26,34 +26,34 @@ test("inventory levels keep combined parent filters, ordering and empty-page con
   assert.deepEqual(second.items[0].available, -4);
   for (const call of calls) {
     assert.equal(call.method, "GET");
-    assert.equal(call.path, `/v1/stores/${STORE_ID}/inventory-levels`);
+    assert.equal(call.path, `/v1/tenants/${TENANT_ID}/inventory-levels`);
     assert.equal(call.query.inventory_item_ids, JSON.stringify(["component", "spare"]));
     assert.equal("inventory_item_id" in call.query, false);
-    assert.equal(call.query.store_location_id, "warehouse");
+    assert.equal(call.query.tenant_location_id, "warehouse");
     assert.equal(call.query.sort_field, "updated_at");
     assert.equal(call.query.sort_direction, "desc");
     assert.equal(call.query.limit, "25");
-    assert.equal("store_id" in call.query, false);
+    assert.equal("tenant_id" in call.query, false);
   }
   assert.equal(calls[1].query.cursor, first.cursor);
 });
 
 test("an inventory index failure stays an error rather than zero stock", async (context) => {
   recordFetch(context, () => errorResponse(503, "GENERAL.UNAVAILABLE", "Search unavailable"));
-  await assert.rejects(eshop().inventoryLevel.find({ store_id: STORE_ID, inventory_item_ids: ["component"] }), (error) => error.statusCode === 503);
+  await assert.rejects(eshop().inventoryLevel.find({ tenant_id: TENANT_ID, inventory_item_ids: ["component"] }), (error) => error.statusCode === 503);
 });
 
 test("inventory history keeps combined filters, empty continuations and exact quantity changes", async (context) => {
-  const record = { id: "movement", inventory_item_id: "item", tracking: { type: "individual", inventory_unit_id: "unit" }, store_location_id: "location", delta: -1, after: 7, reason: { type: "dispatched" }, action_id: actionId(1) };
+  const record = { id: "movement", inventory_item_id: "item", tracking: { type: "individual", inventory_unit_id: "unit" }, tenant_location_id: "location", delta: -1, after: 7, reason: { type: "dispatched" }, action_id: actionId(1) };
   const responses = [{ items: [], cursor: "movement-next" }, { items: [record], cursor: null }];
   const calls = recordFetch(context, () => responses.shift());
-  const query = { inventory_item_id: "item", store_location_id: "location", inventory_unit_id: "unit", action_id: actionId(1), limit: 10, sort_field: "created_at", sort_direction: "desc" };
-  assert.deepEqual(await eshop().inventoryMovement.find({ store_id: STORE_ID, ...query }), { items: [], cursor: "movement-next" });
+  const query = { inventory_item_id: "item", tenant_location_id: "location", inventory_unit_id: "unit", action_id: actionId(1), limit: 10, sort_field: "created_at", sort_direction: "desc" };
+  assert.deepEqual(await eshop().inventoryMovement.find({ tenant_id: TENANT_ID, ...query }), { items: [], cursor: "movement-next" });
   assert.equal(calls.length, 1);
-  assert.deepEqual(await eshop().inventoryMovement.find({ store_id: STORE_ID, ...query, cursor: "movement-next" }), { items: [record], cursor: null });
+  assert.deepEqual(await eshop().inventoryMovement.find({ tenant_id: TENANT_ID, ...query, cursor: "movement-next" }), { items: [record], cursor: null });
   for (const call of calls) {
-    assert.equal(call.path, `/v1/stores/${STORE_ID}/inventory-movements`);
-    assert.equal("store_id" in call.query, false);
+    assert.equal(call.path, `/v1/tenants/${TENANT_ID}/inventory-movements`);
+    assert.equal("tenant_id" in call.query, false);
     for (const [key, value] of Object.entries(query)) assert.equal(call.query[key], String(value), key);
   }
   assert.equal(calls[1].query.cursor, "movement-next");
@@ -61,12 +61,12 @@ test("inventory history keeps combined filters, empty continuations and exact qu
 });
 
 test("stock reads keep unavailable and negative available quantities with the item's identity", async (context) => {
-  const record = { id: "level", inventory_item_id: "item", store_location_id: "location", on_hand: 2, reserved: 5, unavailable: 1, available: -4, item: { key: "stock-item", sku: null, tracking: { type: "tracked" } } };
+  const record = { id: "level", inventory_item_id: "item", tenant_location_id: "location", on_hand: 2, reserved: 5, unavailable: 1, available: -4, item: { key: "stock-item", sku: null, tracking: { type: "tracked" } } };
   const calls = recordFetch(context, () => ({ items: [record], cursor: null }));
-  const query = { store_id: OTHER_STORE_ID, inventory_item_ids: ["item"], store_location_id: "location", limit: 5, cursor: "" };
+  const query = { tenant_id: OTHER_TENANT_ID, inventory_item_ids: ["item"], tenant_location_id: "location", limit: 5, cursor: "" };
   assert.deepEqual(await eshop().inventoryLevel.findStock(query), { items: [record], cursor: null });
-  assert.equal(calls[0].path, `/v1/stores/${OTHER_STORE_ID}/inventory-levels/stock`);
-  assert.deepEqual(calls[0].query, { inventory_item_ids: JSON.stringify(["item"]), store_location_id: "location", limit: "5", cursor: "" });
+  assert.equal(calls[0].path, `/v1/tenants/${OTHER_TENANT_ID}/inventory-levels/stock`);
+  assert.deepEqual(calls[0].query, { inventory_item_ids: JSON.stringify(["item"]), tenant_location_id: "location", limit: "5", cursor: "" });
 });
 
 test("stock commands carry the app-picked action id and the exact incoming stock", async (context) => {
@@ -76,17 +76,17 @@ test("stock commands carry the app-picked action id and the exact incoming stock
   const cases = [
     ["setAside", "set-aside", { quantity: 3, note: "Awaiting inspection" }],
     ["makeAvailable", "make-available", { quantity: 2, note: "Inspection passed" }],
-    ["move", "move", { to_store_location_id: "destination", quantity: 4 }],
-    ["receiveMove", "incoming", { type: { type: "counted", from_store_location_id: "origin", quantity: 4 } }],
+    ["move", "move", { to_tenant_location_id: "destination", quantity: 4 }],
+    ["receiveMove", "incoming", { type: { type: "counted", from_tenant_location_id: "origin", quantity: 4 } }],
     ["receiveMove", "incoming", { type: { type: "unit", asset_tag: "UNIT-42" } }],
   ];
   for (const [index, [method, path, payload]] of cases.entries()) {
     const body = { action_id: actionId(index), ...payload };
-    const request = { store_id: OTHER_STORE_ID, id: levelId, ...body };
+    const request = { tenant_id: OTHER_TENANT_ID, id: levelId, ...body };
     const before = structuredClone(request);
     assert.deepEqual(await api[method](request), record);
     assert.deepEqual(request, before);
-    assert.deepEqual(calls.at(-1), { ...calls.at(-1), href: `https://api.example.test/v1/stores/${OTHER_STORE_ID}/inventory-levels/${levelId}/${path}`, method: "POST", body });
+    assert.deepEqual(calls.at(-1), { ...calls.at(-1), href: `https://api.example.test/v1/tenants/${OTHER_TENANT_ID}/inventory-levels/${levelId}/${path}`, method: "POST", body });
     assert.equal("expected_updated_at" in calls.at(-1).body, false);
     await assert.rejects(async () => api[method]({ ...request, action_id: `command-${index}` }), {
       name: "TypeError",
@@ -99,15 +99,15 @@ test("stock commands carry the app-picked action id and the exact incoming stock
 test("levels are created under an app-picked id and removed with their version", async (context) => {
   const calls = recordFetch(context, (call) => call.method === "DELETE" ? { deleted: true } : { id: levelId });
   const api = eshop().inventoryLevel;
-  await api.create({ store_id: STORE_ID, id: levelId, inventory_item_id: "item", store_location_id: "warehouse" });
-  await api.get({ store_id: STORE_ID, id: levelId });
-  assert.deepEqual(await api.remove({ store_id: STORE_ID, id: levelId, expected_updated_at: 9 }), { deleted: true });
+  await api.create({ tenant_id: TENANT_ID, id: levelId, inventory_item_id: "item", tenant_location_id: "warehouse" });
+  await api.get({ tenant_id: TENANT_ID, id: levelId });
+  assert.deepEqual(await api.remove({ tenant_id: TENANT_ID, id: levelId, expected_updated_at: 9 }), { deleted: true });
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
-    ["POST", `/v1/stores/${STORE_ID}/inventory-levels`, {}, { id: levelId, inventory_item_id: "item", store_location_id: "warehouse" }],
-    ["GET", `/v1/stores/${STORE_ID}/inventory-levels/${levelId}`, {}, null],
-    ["DELETE", `/v1/stores/${STORE_ID}/inventory-levels/${levelId}`, { expected_updated_at: "9" }, null],
+    ["POST", `/v1/tenants/${TENANT_ID}/inventory-levels`, {}, { id: levelId, inventory_item_id: "item", tenant_location_id: "warehouse" }],
+    ["GET", `/v1/tenants/${TENANT_ID}/inventory-levels/${levelId}`, {}, null],
+    ["DELETE", `/v1/tenants/${TENANT_ID}/inventory-levels/${levelId}`, { expected_updated_at: "9" }, null],
   ]);
-  await assert.rejects(async () => api.create({ store_id: STORE_ID, id: "warehouse-item", inventory_item_id: "item", store_location_id: "warehouse" }), TypeError);
+  await assert.rejects(async () => api.create({ tenant_id: TENANT_ID, id: "warehouse-item", inventory_item_id: "item", tenant_location_id: "warehouse" }), TypeError);
   assert.equal(calls.length, 3);
 });
 
@@ -115,7 +115,7 @@ test("a manual stock correction names the level and, for an adjustment, the coun
   const calls = recordFetch(context, () => ({ id: "movement" }));
   const body = {
     inventory_item_id: "stock-item",
-    store_location_id: "warehouse",
+    tenant_location_id: "warehouse",
     action_id: actionId(7),
     expected_level_id: levelId,
     delta: -2,
@@ -124,15 +124,15 @@ test("a manual stock correction names the level and, for an adjustment, the coun
   };
   const adjustment = {
     inventory_item_id: "stock-item",
-    store_location_id: "warehouse",
+    tenant_location_id: "warehouse",
     action_id: actionId(8),
     expected_level_id: levelId,
     delta: -3,
     from_set_aside: false,
     reason: { type: "adjustment", note: "Counted", expected_count: 55 },
   };
-  const request = { store_id: OTHER_STORE_ID, ...body };
-  const adjustmentRequest = { store_id: OTHER_STORE_ID, ...adjustment };
+  const request = { tenant_id: OTHER_TENANT_ID, ...body };
+  const adjustmentRequest = { tenant_id: OTHER_TENANT_ID, ...adjustment };
   const before = structuredClone(request);
   const adjustmentBefore = structuredClone(adjustmentRequest);
   await eshop().inventoryMovement.record(request);
@@ -140,8 +140,8 @@ test("a manual stock correction names the level and, for an adjustment, the coun
   assert.deepEqual(request, before);
   assert.deepEqual(adjustmentRequest, adjustmentBefore);
   assert.deepEqual(calls.map(({ href, method, body: sent }) => ({ href, method, body: sent })), [
-    { href: `https://api.example.test/v1/stores/${OTHER_STORE_ID}/inventory-movements`, method: "POST", body },
-    { href: `https://api.example.test/v1/stores/${OTHER_STORE_ID}/inventory-movements`, method: "POST", body: adjustment },
+    { href: `https://api.example.test/v1/tenants/${OTHER_TENANT_ID}/inventory-movements`, method: "POST", body },
+    { href: `https://api.example.test/v1/tenants/${OTHER_TENANT_ID}/inventory-movements`, method: "POST", body: adjustment },
   ]);
   assert.deepEqual(calls[1].body.reason, { type: "adjustment", note: "Counted", expected_count: 55 });
   for (const call of calls) assert.equal("expected_level_updated_at" in call.body, false);
@@ -154,16 +154,16 @@ test("inventory item search sends its text and filters, and a key read is one ex
   const responses = [{ items: [], cursor: "next" }, { items: [record], cursor: null }, { id: "item", key: "steel/string" }];
   const calls = recordFetch(context, () => responses.shift());
   const query = { query: "cobalt", status: "archived", tracking: "untracked", sort_field: "updated_at", sort_direction: "asc", limit: 20 };
-  const first = await eshop().inventoryItem.find({ store_id: STORE_ID, ...query });
+  const first = await eshop().inventoryItem.find({ tenant_id: TENANT_ID, ...query });
   assert.deepEqual(first, { items: [], cursor: "next" });
-  assert.deepEqual(await eshop().inventoryItem.find({ store_id: STORE_ID, ...query, cursor: first.cursor }), { items: [record], cursor: null });
+  assert.deepEqual(await eshop().inventoryItem.find({ tenant_id: TENANT_ID, ...query, cursor: first.cursor }), { items: [record], cursor: null });
   for (const call of calls) {
-    assert.equal(call.path, `/v1/stores/${STORE_ID}/inventory-items`);
+    assert.equal(call.path, `/v1/tenants/${TENANT_ID}/inventory-items`);
     for (const [key, value] of Object.entries(query)) assert.equal(call.query[key], String(value), key);
   }
   assert.equal(calls[1].query.cursor, "next");
-  assert.deepEqual(await eshop().inventoryItem.getByKey({ store_id: STORE_ID, key: "steel/string" }), { id: "item", key: "steel/string" });
-  assert.equal(calls[2].path, `/v1/stores/${STORE_ID}/inventory-items/by-key/steel%2Fstring`);
+  assert.deepEqual(await eshop().inventoryItem.getByKey({ tenant_id: TENANT_ID, key: "steel/string" }), { id: "item", key: "steel/string" });
+  assert.equal(calls[2].path, `/v1/tenants/${TENANT_ID}/inventory-items/by-key/steel%2Fstring`);
   assert.equal(calls[2].url.search, "");
 });
 
@@ -171,11 +171,11 @@ test("an inventory item delete answers nothing after removal and when it is alre
   const itemId = "6b2d9f41-3a85-4c07-9e1d-5f8a2c0b7e36";
   const calls = recordFetch(context, () => new Response(null, { status: 204 }));
   const api = eshop().inventoryItem;
-  assert.equal(await api.delete({ store_id: STORE_ID, id: itemId, expected_updated_at: 7 }), undefined);
-  assert.equal(await api.delete({ store_id: STORE_ID, id: itemId, expected_updated_at: 7 }), undefined);
+  assert.equal(await api.delete({ tenant_id: TENANT_ID, id: itemId, expected_updated_at: 7 }), undefined);
+  assert.equal(await api.delete({ tenant_id: TENANT_ID, id: itemId, expected_updated_at: 7 }), undefined);
   assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
-    ["DELETE", `/v1/stores/${STORE_ID}/inventory-items/${itemId}`, { expected_updated_at: "7" }],
-    ["DELETE", `/v1/stores/${STORE_ID}/inventory-items/${itemId}`, { expected_updated_at: "7" }],
+    ["DELETE", `/v1/tenants/${TENANT_ID}/inventory-items/${itemId}`, { expected_updated_at: "7" }],
+    ["DELETE", `/v1/tenants/${TENANT_ID}/inventory-items/${itemId}`, { expected_updated_at: "7" }],
   ]);
 });
 
@@ -183,10 +183,10 @@ test("stock items and stock units are read by ids alone from one list request ea
   const calls = recordFetch(context, () => ({ items: [], cursor: null }));
   const itemIds = ["8c1e3a5f-7b9d-4f2a-8c4e-6a8b0d2f4a6c", "1d3f5b7a-9c2e-4a6b-9d1f-3b5d7f9a1c3e"];
   const unitIds = ["2e4a6c8b-0d1f-4b3c-8e5a-7c9e1b3d5f7a"];
-  assert.deepEqual(await eshop().inventoryItem.find({ store_id: STORE_ID, ids: itemIds }), { items: [], cursor: null });
-  assert.deepEqual(await eshop().inventoryUnit.find({ store_id: STORE_ID, ids: unitIds }), { items: [], cursor: null });
+  assert.deepEqual(await eshop().inventoryItem.find({ tenant_id: TENANT_ID, ids: itemIds }), { items: [], cursor: null });
+  assert.deepEqual(await eshop().inventoryUnit.find({ tenant_id: TENANT_ID, ids: unitIds }), { items: [], cursor: null });
   assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
-    ["GET", `/v1/stores/${STORE_ID}/inventory-items`, { ids: JSON.stringify(itemIds) }],
-    ["GET", `/v1/stores/${STORE_ID}/inventory-units`, { ids: JSON.stringify(unitIds) }],
+    ["GET", `/v1/tenants/${TENANT_ID}/inventory-items`, { ids: JSON.stringify(itemIds) }],
+    ["GET", `/v1/tenants/${TENANT_ID}/inventory-units`, { ids: JSON.stringify(unitIds) }],
   ]);
 });

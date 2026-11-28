@@ -10,13 +10,13 @@ export type CollectionStatus =
 
 export type CollectionEditableStatus = Exclude<CollectionStatus, { type: "deleting" }>;
 
-export type CollectionType = "public" | "private" | "customer";
+export type CollectionType = "public" | "private" | "user";
 
-export type PrivateCollectionType = "private" | "customer";
+export type PrivateCollectionType = "private" | "user";
 
 export interface Collection {
   id: string;
-  store_id: string;
+  tenant_id: string;
   key: string;
   type: CollectionType;
   schema: BlockSchema[];
@@ -32,7 +32,7 @@ export interface PublicCollection extends Collection {
 
 export interface StorefrontCollection {
   id: string;
-  store_id: string;
+  tenant_id: string;
   key: string;
   type: "public";
   schema: BlockSchema[];
@@ -70,9 +70,9 @@ export type PublicEntryType = { type: "public"; key: string; slugs: Record<strin
 
 export type PrivateEntryType = { type: "private" };
 
-export type CustomerEntryType = { type: "customer"; customer_id: string };
+export type UserEntryType = { type: "user"; user_id: string };
 
-export type EntryType = PublicEntryType | PrivateEntryType | CustomerEntryType;
+export type EntryType = PublicEntryType | PrivateEntryType | UserEntryType;
 
 export type PrivateEntryStatus = Exclude<EntryStatus, { type: "scheduled" }>;
 
@@ -80,7 +80,7 @@ export type PrivateEntryEditableStatus = Exclude<PrivateEntryStatus, { type: "de
 
 export interface Entry {
   id: string;
-  store_id: string;
+  tenant_id: string;
   collection_id: string;
   type: EntryType;
   blocks: Block[];
@@ -95,13 +95,13 @@ export interface PublicEntry extends Entry {
 }
 
 export interface PrivateEntry extends Entry {
-  type: PrivateEntryType | CustomerEntryType;
+  type: PrivateEntryType | UserEntryType;
   status: PrivateEntryStatus;
 }
 
 export interface StorefrontEntry {
   id: string;
-  store_id: string;
+  tenant_id: string;
   collection_id: string;
   type: PublicEntryType;
   blocks: Block[];
@@ -111,11 +111,11 @@ export interface StorefrontEntry {
   validation_errors: { field: string; error: string }[];
 }
 
-export interface StorefrontCustomerEntry {
+export interface StorefrontUserEntry {
   id: string;
-  store_id: string;
+  tenant_id: string;
   collection_id: string;
-  type: CustomerEntryType;
+  type: UserEntryType;
   blocks: Block[];
   status: PrivateEntryStatus;
   created_at: EpochMilliseconds;
@@ -177,7 +177,7 @@ export interface CategoryQuery {
 
 export interface Category {
   id: string;
-  store_id: string;
+  tenant_id: string;
   key: string;
   parent_id: string | null;
   slugs: Record<string, string>;
@@ -232,7 +232,7 @@ export type MediaVisibility = "public" | "private";
 
 export interface Media {
   id: string;
-  store_id: string;
+  tenant_id: string;
   file_name: string;
   alt: LocalizedText | null;
   generation_id: string;
@@ -244,7 +244,7 @@ export interface Media {
 }
 
 export interface FindCollectionsParams {
-  store_id: string;
+  tenant_id: string;
   ids?: string[];
   key?: string;
   query?: string;
@@ -258,24 +258,24 @@ export interface FindCollectionsParams {
 }
 
 export interface GetCollectionParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface GetCollectionByKeyParams {
-  store_id: string;
+  tenant_id: string;
   key: string;
 }
 
 export interface FindCollectionEntryPageParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   limit?: number;
   cursor?: string | null;
 }
 
 export interface GetCollectionCleanupParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
@@ -288,7 +288,7 @@ export interface StorefrontGetCollectionByKeyParams {
 }
 
 export interface CreateCollectionParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   key: string;
   schema: BlockSchema[];
@@ -297,7 +297,7 @@ export interface CreateCollectionParams {
 }
 
 export interface UpdateCollectionParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   key?: string;
@@ -307,13 +307,13 @@ export interface UpdateCollectionParams {
 }
 
 export interface DeleteCollectionParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface FindCollectionEntriesParams {
-  store_id: string;
+  tenant_id: string;
   collection_id: string;
   key?: string;
   slug?: string;
@@ -330,7 +330,7 @@ export interface FindCollectionEntriesParams {
 }
 
 export interface FindEntriesByIdsParams {
-  store_id: string;
+  tenant_id: string;
   ids: string[];
   limit?: number;
   cursor?: never;
@@ -374,18 +374,18 @@ export interface StorefrontFindMediaParams {
 }
 
 export interface GetEntryParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface GetEntryByKeyParams {
-  store_id: string;
+  tenant_id: string;
   collection_id: string;
   key: string;
 }
 
 export interface CreateEntryParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   collection_id: string;
   key: string;
@@ -395,7 +395,7 @@ export interface CreateEntryParams {
 }
 
 export interface UpdateEntryParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   key?: string;
@@ -405,7 +405,7 @@ export interface UpdateEntryParams {
 }
 
 export interface DeleteEntryParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
@@ -427,25 +427,25 @@ export interface UpdatePrivateCollectionParams extends UpdateCollectionParams {}
 export interface DeletePrivateCollectionParams extends DeleteCollectionParams {}
 
 export interface FindPrivateEntriesParams {
-  store_id: string;
+  tenant_id: string;
   collection_id: string;
-  customer_id?: string;
+  user_id?: string;
   status?: PrivateEntryStatus["type"];
   limit?: number;
   cursor?: string | null;
 }
 
 export interface GetPrivateEntryParams {
-  store_id: string;
+  tenant_id: string;
   collection_id: string;
   id: string;
 }
 
 export interface CreatePrivateEntryParams {
-  store_id: string;
+  tenant_id: string;
   collection_id: string;
   id: string;
-  type: PrivateEntryType | CustomerEntryType;
+  type: PrivateEntryType | UserEntryType;
   blocks: Block[];
   status?: PrivateEntryEditableStatus;
 }
@@ -467,23 +467,23 @@ export interface PrivateEntryFileLinkParams extends GetPrivateEntryParams {
   variant: MediaImageSize;
 }
 
-export interface StorefrontFindCustomerEntriesParams {
+export interface StorefrontFindUserEntriesParams {
   collection_id?: string;
   limit?: number;
   cursor?: string | null;
 }
 
-export interface StorefrontGetCustomerEntryParams {
+export interface StorefrontGetUserEntryParams {
   id: string;
 }
 
-export interface StorefrontCustomerEntryFileLinkParams extends StorefrontGetCustomerEntryParams {
+export interface StorefrontUserEntryFileLinkParams extends StorefrontGetUserEntryParams {
   media_id: string;
   variant: MediaImageSize;
 }
 
 export interface FindCategoriesParams {
-  store_id: string;
+  tenant_id: string;
   ids?: string[];
   parent_id?: string;
   key?: string;
@@ -498,12 +498,12 @@ export interface FindCategoriesParams {
 }
 
 export interface GetCategoryParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface GetCategoryByKeyParams {
-  store_id: string;
+  tenant_id: string;
   key: string;
 }
 
@@ -520,14 +520,14 @@ export interface StorefrontFindCategoryChildrenParams {
 }
 
 export interface FindCategoryChildrenParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   limit?: number;
   cursor?: string | null;
 }
 
 export interface CreateCategoryParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   key: string;
   parent_id: string | null;
@@ -537,7 +537,7 @@ export interface CreateCategoryParams {
 }
 
 export interface UpdateCategoryParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   key?: string;
@@ -549,14 +549,14 @@ export interface UpdateCategoryParams {
 }
 
 export interface DeleteCategoryParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export type CreateMediaParams =
   | {
-      store_id: string;
+      tenant_id: string;
       id: string;
       file: File;
       visibility: MediaVisibility;
@@ -564,7 +564,7 @@ export type CreateMediaParams =
       source_url?: never;
     }
   | {
-      store_id: string;
+      tenant_id: string;
       id: string;
       source_url: string;
       visibility: MediaVisibility;
@@ -573,12 +573,12 @@ export type CreateMediaParams =
     };
 
 export interface GetMediaParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
 }
 
 export interface FindMediaParams {
-  store_id: string;
+  tenant_id: string;
   ids?: string[];
   query?: string;
   type?: MediaContentType;
@@ -589,21 +589,21 @@ export interface FindMediaParams {
 }
 
 export interface UpdateMediaParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   alt: LocalizedText | null;
 }
 
 export interface ReplaceMediaContentParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
   file: File;
 }
 
 export interface DeleteMediaParams {
-  store_id: string;
+  tenant_id: string;
   id: string;
   expected_updated_at: EpochMilliseconds;
 }

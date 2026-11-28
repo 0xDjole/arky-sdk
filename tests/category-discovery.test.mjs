@@ -3,9 +3,9 @@ import test from "node:test";
 import { createAdmin, createStorefront } from "../dist/index.js";
 import { fixedIdFactories, SessionStorage } from "./helpers/arky-fixtures.mjs";
 
-const STORE_ID = "4b6e2a91-0c5d-4f37-8a2e-1d9c7b3f5e08";
+const TENANT_ID = "4b6e2a91-0c5d-4f37-8a2e-1d9c7b3f5e08";
 const CATEGORY_ID = "1f3b5d7e-9a2c-4e6b-8d0f-2a4c6e8b0d1f";
-const storefrontIdentity = { storeId: "5e9b3d71-c826-4a04-b7f5-0d2a8e6c4f19", salesChannelId: "e5a8c2d7-3b91-4f06-9d4e-1c7b6a0f3e28" };
+const storefrontIdentity = { tenantId: "5e9b3d71-c826-4a04-b7f5-0d2a8e6c4f19", salesChannelId: "e5a8c2d7-3b91-4f06-9d4e-1c7b6a0f3e28" };
 
 test("Category discovery keeps native filters and paged children across both clients", async (context) => {
   const calls = [];
@@ -14,37 +14,37 @@ test("Category discovery keeps native filters and paged children across both cli
     return new Response(JSON.stringify({ items: [], cursor: "category:+/=" }), { headers: { "content-type": "application/json" } });
   });
   const admin = createAdmin({ apiUrl: "https://category.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
-  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories,
+  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories,
     apiUrl: "https://category.test", market: "market-contract", sessionStorage: new SessionStorage(),
   });
   const filters = { parent_id: "parent", ids: ["first", "second"], key: "topics", status: "active", query: "topics", limit: 1, sort_field: "key", sort_direction: "asc", created_at_from: 0, created_at_to: 2 };
-  const page = await admin.category.find({ store_id: STORE_ID, ...filters });
+  const page = await admin.category.find({ tenant_id: TENANT_ID, ...filters });
   assert.deepEqual(page, { items: [], cursor: "category:+/=" });
-  await admin.category.find({ store_id: STORE_ID, ...filters, cursor: page.cursor });
-  assert.equal(calls[0].url.pathname, `/v1/stores/${STORE_ID}/categories`);
-  assert.equal(calls[0].url.searchParams.has("store_id"), false);
+  await admin.category.find({ tenant_id: TENANT_ID, ...filters, cursor: page.cursor });
+  assert.equal(calls[0].url.pathname, `/v1/tenants/${TENANT_ID}/categories`);
+  assert.equal(calls[0].url.searchParams.has("tenant_id"), false);
   assert.deepEqual(JSON.parse(calls[0].url.searchParams.get("ids")), filters.ids);
   for (const [key, value] of Object.entries(filters).filter(([key]) => key !== "ids")) {
     assert.equal(calls[0].url.searchParams.get(key), String(value));
   }
   assert.equal(calls[1].url.searchParams.get("cursor"), page.cursor);
-  for (const [client, target] of [[admin, { store_id: STORE_ID }], [storefront, {}]]) {
+  for (const [client, target] of [[admin, { tenant_id: TENANT_ID }], [storefront, {}]]) {
     const children = await client.category.findChildren({ ...target, id: "parent", limit: 1 });
     assert.deepEqual(children, { items: [], cursor: "category:+/=" });
     await client.category.findChildren({ ...target, id: "parent", limit: 1, cursor: children.cursor });
     assert.equal(calls.at(-1).url.searchParams.get("cursor"), children.cursor);
     assert.equal(calls.at(-1).url.searchParams.get("limit"), "1");
     assert.equal(calls.at(-1).url.searchParams.has("id"), false);
-    assert.equal(calls.at(-1).url.searchParams.has("store_id"), false);
+    assert.equal(calls.at(-1).url.searchParams.has("tenant_id"), false);
   }
-  assert.equal(calls[2].url.pathname, `/v1/stores/${STORE_ID}/categories/parent/children`);
+  assert.equal(calls[2].url.pathname, `/v1/tenants/${TENANT_ID}/categories/parent/children`);
   assert.equal(calls[4].url.pathname, "/v1/storefront/categories/parent/children");
   assert.ok(calls.every((call) => call.method === "GET" && call.body === undefined));
 });
 
 test("Category writes carry the app-picked id, tagged statuses and the version, keeping path identities out of the body", async (context) => {
   const calls = [];
-  const root = { id: CATEGORY_ID, store_id: STORE_ID, key: "topics", parent_id: null, slugs: { en: "topics" }, blocks: [], schema: [], status: { type: "active" }, created_at: 1, updated_at: 1 };
+  const root = { id: CATEGORY_ID, tenant_id: TENANT_ID, key: "topics", parent_id: null, slugs: { en: "topics" }, blocks: [], schema: [], status: { type: "active" }, created_at: 1, updated_at: 1 };
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     const body = init.body ? JSON.parse(init.body) : undefined;
     calls.push({ url: new URL(url), method: init.method, body });
@@ -53,19 +53,19 @@ test("Category writes carry the app-picked id, tagged statuses and the version, 
   });
   const api = createAdmin({ apiUrl: "https://category.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" }).category;
   const create = { id: CATEGORY_ID, key: "topics", parent_id: null, slugs: { en: "topics" }, blocks: [], schema: [] };
-  assert.deepEqual(await api.create({ store_id: STORE_ID, ...create }), root);
-  assert.equal(calls[0].url.pathname, `/v1/stores/${STORE_ID}/categories`);
+  assert.deepEqual(await api.create({ tenant_id: TENANT_ID, ...create }), root);
+  assert.equal(calls[0].url.pathname, `/v1/tenants/${TENANT_ID}/categories`);
   assert.deepEqual(calls[0].body, create);
-  const updated = await api.update({ id: CATEGORY_ID, store_id: STORE_ID, expected_updated_at: 1, status: { type: "archived" } });
+  const updated = await api.update({ id: CATEGORY_ID, tenant_id: TENANT_ID, expected_updated_at: 1, status: { type: "archived" } });
   assert.deepEqual(updated.status, { type: "archived" });
   assert.deepEqual(calls[1].body, { expected_updated_at: 1, status: { type: "archived" } });
-  assert.equal(calls[1].url.pathname, `/v1/stores/${STORE_ID}/categories/${CATEGORY_ID}`);
-  const deleting = await api.delete({ store_id: STORE_ID, id: CATEGORY_ID, expected_updated_at: 2 });
+  assert.equal(calls[1].url.pathname, `/v1/tenants/${TENANT_ID}/categories/${CATEGORY_ID}`);
+  const deleting = await api.delete({ tenant_id: TENANT_ID, id: CATEGORY_ID, expected_updated_at: 2 });
   assert.deepEqual(deleting.status, { type: "deleting" });
   assert.equal(calls[2].url.search, "?expected_updated_at=2");
   assert.equal(calls[2].body, undefined);
   for (const id of [undefined, "topics", CATEGORY_ID.toUpperCase()]) {
-    await assert.rejects(async () => api.create({ store_id: STORE_ID, ...create, id }), TypeError);
+    await assert.rejects(async () => api.create({ tenant_id: TENANT_ID, ...create, id }), TypeError);
   }
   assert.equal(calls.length, 3);
 });
@@ -76,7 +76,7 @@ test("storefront category reads go by id or slug on the plain route and by key o
     calls.push({ url: new URL(url), headers: new Headers(init.headers) });
     return new Response(JSON.stringify({ id: CATEGORY_ID }), { headers: { "content-type": "application/json" } });
   });
-  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: "https://category.test", locale: "bs" });
+  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: "https://category.test", locale: "bs" });
   await storefront.category.get({ id: CATEGORY_ID });
   await storefront.category.get({ slug: "teme/sve" });
   await storefront.category.getByKey({ key: "topics" });
@@ -101,7 +101,7 @@ test("a missing category on the plain route is a 404 and the SDK does not retry 
     calls.push(new URL(url).pathname);
     return new Response(JSON.stringify({ message: "Category not found", error: "CATEGORY.NOT_FOUND", status_code: 404 }), { status: 404, headers: { "content-type": "application/json" } });
   });
-  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: "https://category.test", locale: "bs" });
+  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl: "https://category.test", locale: "bs" });
   await assert.rejects(storefront.category.get({ slug: "topics" }), (error) => error.statusCode === 404 && error.code === "CATEGORY.NOT_FOUND");
   assert.deepEqual(calls, ["/v1/storefront/categories/topics"]);
 });
@@ -124,11 +124,11 @@ test("category answers on a record name each schema field by its id, never by it
       { type: "geo_location", field_id: "f-origin", value: { lat: 43.8563, lon: 18.4131 } },
     ],
   }];
-  await admin.eshop.product.update({ store_id: STORE_ID, id: productId, expected_updated_at: 1, categories });
-  await admin.customers.update({ store_id: STORE_ID, id: productId, expected_updated_at: 2, categories });
+  await admin.eshop.product.update({ tenant_id: TENANT_ID, id: productId, expected_updated_at: 1, categories });
+  await admin.users.update({ tenant_id: TENANT_ID, id: productId, expected_updated_at: 2, categories });
   assert.deepEqual(calls.map(({ method, url, body }) => [method, url.pathname, body]), [
-    ["PUT", `/v1/stores/${STORE_ID}/products/${productId}`, { expected_updated_at: 1, categories }],
-    ["PATCH", `/v1/stores/${STORE_ID}/customers/${productId}`, { expected_updated_at: 2, categories }],
+    ["PUT", `/v1/tenants/${TENANT_ID}/products/${productId}`, { expected_updated_at: 1, categories }],
+    ["PATCH", `/v1/tenants/${TENANT_ID}/users/${productId}`, { expected_updated_at: 2, categories }],
   ]);
   for (const call of calls) {
     for (const field of call.body.categories[0].fields) {

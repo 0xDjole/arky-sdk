@@ -75,22 +75,22 @@ import type {
   OwnContactParams,
   OwnLinkRemoved,
   RemoveOwnContactParams,
-  StorefrontCustomer,
-  CustomerCodeResult,
-  CustomerMe,
-  CustomerSessionIssued,
-  CustomerSessionResult,
-  UpdateCustomerMeParams,
+  StorefrontUser,
+  UserCodeResult,
+  UserMe,
+  UserSessionIssued,
+  UserSessionResult,
+  UpdateUserMeParams,
   UpdateOwnContactParams,
   VerifyOwnContactParams,
-} from "../types/customer";
+} from "../types/user";
 import type { LoginContact } from "../types/account";
-import type { NetworkCustomerStoreKey } from "../types/networkCustomer";
-import type { TrackCustomerActionParams } from "../types/customerAction";
+import type { NetworkUserTenantKey } from "../types/networkUser";
+import type { TrackUserActionParams } from "../types/userAction";
 import type { ExperimentUseResponse, UseExperimentParams } from "../types/experiment";
 import type {
-  CustomerOrderFulfillment,
-  FindCustomerOrderFulfillmentsParams,
+  UserOrderFulfillment,
+  FindUserOrderFulfillmentsParams,
   MinimumProgress,
   StorefrontGetMinimumProgressParams,
 } from "../types/fulfillment";
@@ -154,7 +154,7 @@ import type {
   StorefrontProduct,
   StorefrontProductVariant,
 } from "../types/product";
-import type { CustomerRental, FindCustomerRentalsParams, GetCustomerRentalParams } from "../types/rental";
+import type { UserRental, FindUserRentalsParams, GetUserRentalParams } from "../types/rental";
 import type {
   FindRentalReturnOptionsParams,
   OrderReturnOptions,
@@ -204,12 +204,12 @@ import { createStorefrontCompanyApi } from "./company";
 import { createStorefrontFormsApi } from "./forms";
 import { createStorefrontPackageApi } from "./packageMember";
 import { createStorefrontPaymentMethodApi } from "./paymentMethod";
-import { createCustomerEntriesApi } from "./privateContent";
+import { createUserEntriesApi } from "./privateContent";
 import { segment, storefrontBase } from "./paths";
 import { createCountryApi } from "./location";
 
-export type CustomerSessionUpdater = (
-  updater: (previous: CustomerSessionResult | null) => CustomerSessionResult | null,
+export type UserSessionUpdater = (
+  updater: (previous: UserSessionResult | null) => UserSessionResult | null,
 ) => void;
 
 export interface StorefrontLifecycle {
@@ -218,19 +218,19 @@ export interface StorefrontLifecycle {
   getSetup(options?: RequestOptions): Promise<StorefrontSetup>;
 }
 
-export interface IdentifyCustomerParams {
-  customer_id: string;
+export interface IdentifyUserParams {
+  user_id: string;
   session_id: string;
 }
 
-export interface RequestCustomerCodeRequest {
+export interface RequestUserCodeRequest {
   id: string;
   contact: LoginContact;
 }
 
-export type RequestCustomerCodeParams = Omit<RequestCustomerCodeRequest, "id"> & { id?: string };
+export type RequestUserCodeParams = Omit<RequestUserCodeRequest, "id"> & { id?: string };
 
-export interface VerifyCustomerCodeParams {
+export interface VerifyUserCodeParams {
   code: string;
   email?: string;
   number?: string;
@@ -252,9 +252,9 @@ export interface OrderFromLink {
   order_token: string | null;
 }
 
-export interface RefreshCustomerSessionParams { session_id: string }
+export interface RefreshUserSessionParams { session_id: string }
 
-export const COMMON_CUSTOMER_ACTION_KEYS = [
+export const COMMON_USER_ACTION_KEYS = [
   "product.view",
   "booking_service.view",
   "booking_resource.view",
@@ -267,7 +267,7 @@ export const COMMON_CUSTOMER_ACTION_KEYS = [
   "wishlist.added",
 ] as const;
 
-export type CommonCustomerActionKey = (typeof COMMON_CUSTOMER_ACTION_KEYS)[number];
+export type CommonUserActionKey = (typeof COMMON_USER_ACTION_KEYS)[number];
 
 const mediaIdsPerRead = 100;
 
@@ -307,19 +307,19 @@ function packageQuery(params: PackageReadOptions) {
 
 export const createStorefrontApi = (
   apiConfig: StorefrontApiConfig,
-  updateCustomerSession: CustomerSessionUpdater,
+  updateUserSession: UserSessionUpdater,
   lifecycle: StorefrontLifecycle,
   cartSelectionContext: CartSelectionContext,
   flows: StorefrontFlowContext,
 ) => {
   const { httpClient } = apiConfig;
-  const checkoutScope = `storefront:${apiConfig.apiUrl}:${apiConfig.storeId}:${apiConfig.salesChannelId}`;
+  const checkoutScope = `storefront:${apiConfig.apiUrl}:${apiConfig.tenantId}:${apiConfig.salesChannelId}`;
   const cartPath = (id: string) => `${storefrontBase}/carts/${segment(id)}`;
   const keptCheckoutScopes = (): readonly string[] => {
-    const customerId = cartSelectionContext.customerId();
-    if (!customerId) throw new ArkyError("no_session", "A cart change or a kept checkout needs the customer session first");
-    const signedInFrom = cartSelection.signedInFrom(customerId);
-    const own = `${checkoutScope}:${customerId}`;
+    const userId = cartSelectionContext.userId();
+    if (!userId) throw new ArkyError("no_session", "A cart change or a kept checkout needs the user session first");
+    const signedInFrom = cartSelection.signedInFrom(userId);
+    const own = `${checkoutScope}:${userId}`;
     return signedInFrom === null ? [own] : [own, `${checkoutScope}:${signedInFrom}`];
   };
   const cartSelection = createCartSelection(cartSelectionContext, keptCheckoutScopes, {
@@ -572,99 +572,99 @@ export const createStorefrontApi = (
     return { order, url: link.toString(), order_token: retained };
   }
 
-  function persistIssuedSession<T extends CustomerSessionResult>(result: T): T {
-    updateCustomerSession(() => ({ customer: result.customer, session: result.session }));
+  function persistIssuedSession<T extends UserSessionResult>(result: T): T {
+    updateUserSession(() => ({ user: result.user, session: result.session }));
     return result;
   }
 
-  function persistCustomerRead(result: CustomerMe): CustomerMe {
-    if (result.session.customer_id !== result.customer.id ||
-        result.session.store_id !== result.customer.store_id) {
-      throw new ArkyError("answer_mismatch", "The customer answer does not match its customer session");
+  function persistUserRead(result: UserMe): UserMe {
+    if (result.session.user_id !== result.user.id ||
+        result.session.tenant_id !== result.user.tenant_id) {
+      throw new ArkyError("answer_mismatch", "The user answer does not match its user session");
     }
-    updateCustomerSession((previous) => {
+    updateUserSession((previous) => {
       if (!previous || previous.session.id !== result.session.id ||
-          previous.session.customer_id !== result.session.customer_id ||
-          previous.customer.id !== result.customer.id ||
-          previous.customer.store_id !== result.customer.store_id) {
+          previous.session.user_id !== result.session.user_id ||
+          previous.user.id !== result.user.id ||
+          previous.user.tenant_id !== result.user.tenant_id) {
         return previous;
       }
-      return { ...previous, customer: result.customer };
+      return { ...previous, user: result.user };
     });
     return result;
   }
 
   return {
-    customerEntries: createCustomerEntriesApi(httpClient),
-    customer: {
-      async identify(params: IdentifyCustomerParams, options?: RequestOptions): Promise<CustomerSessionResult> {
-        requireId(params.customer_id, "customer");
-        requireId(params.session_id, "customer session");
-        const result = await httpClient.post<CustomerSessionResult>(
-          `${storefrontBase}/customer/identify`,
-          { customer_id: params.customer_id, session_id: params.session_id },
+    userEntries: createUserEntriesApi(httpClient),
+    user: {
+      async identify(params: IdentifyUserParams, options?: RequestOptions): Promise<UserSessionResult> {
+        requireId(params.user_id, "user");
+        requireId(params.session_id, "user session");
+        const result = await httpClient.post<UserSessionResult>(
+          `${storefrontBase}/user/identify`,
+          { user_id: params.user_id, session_id: params.session_id },
           options,
         );
         return persistIssuedSession(result);
       },
 
-      async requestCode(params: RequestCustomerCodeRequest, options?: RequestOptions): Promise<CustomerCodeResult> {
+      async requestCode(params: RequestUserCodeRequest, options?: RequestOptions): Promise<UserCodeResult> {
         requireId(params.id, "sign-in email");
-        const result = await httpClient.post<CustomerCodeResult>(
-          `${storefrontBase}/customer/request-code`,
+        const result = await httpClient.post<UserCodeResult>(
+          `${storefrontBase}/user/request-code`,
           { id: params.id, contact: params.contact },
           options,
         );
-        updateCustomerSession((previous) => {
+        updateUserSession((previous) => {
           if (
             !previous ||
             previous.session.id !== result.session.id ||
-            previous.session.customer_id !== result.session.customer_id
+            previous.session.user_id !== result.session.user_id
           ) {
-            throw new ArkyError("answer_mismatch", "The code answer does not match the active customer session");
+            throw new ArkyError("answer_mismatch", "The code answer does not match the active user session");
           }
-          return { ...previous, customer: result.customer };
+          return { ...previous, user: result.user };
         });
         return result;
       },
 
-      async verifyContact(params: VerifyOwnContactParams, options?: RequestOptions): Promise<CustomerMe> {
-        const result = await httpClient.post<CustomerMe>(
-          `${storefrontBase}/customer/me/contacts/verify`,
+      async verifyContact(params: VerifyOwnContactParams, options?: RequestOptions): Promise<UserMe> {
+        const result = await httpClient.post<UserMe>(
+          `${storefrontBase}/user/me/contacts/verify`,
           { address: params.address, code: params.code },
           options,
         );
-        updateCustomerSession((previous) => {
+        updateUserSession((previous) => {
           if (!previous || previous.session.id !== result.session.id ||
-              previous.session.customer_id !== result.session.customer_id ||
-              previous.customer.id !== result.customer.id ||
-              previous.customer.store_id !== result.customer.store_id ||
-              result.session.store_id !== result.customer.store_id) {
-            throw new ArkyError("answer_mismatch", "The contact answer does not match the active customer session");
+              previous.session.user_id !== result.session.user_id ||
+              previous.user.id !== result.user.id ||
+              previous.user.tenant_id !== result.user.tenant_id ||
+              result.session.tenant_id !== result.user.tenant_id) {
+            throw new ArkyError("answer_mismatch", "The contact answer does not match the active user session");
           }
-          return { ...previous, customer: result.customer };
+          return { ...previous, user: result.user };
         });
         return result;
       },
 
-      async addContact(params: AddOwnContactParams, options?: RequestOptions): Promise<CustomerMe> {
-        return persistCustomerRead(
-          await httpClient.post<CustomerMe>(
-            `${storefrontBase}/customer/me/contacts`,
+      async addContact(params: AddOwnContactParams, options?: RequestOptions): Promise<UserMe> {
+        return persistUserRead(
+          await httpClient.post<UserMe>(
+            `${storefrontBase}/user/me/contacts`,
             { expected_updated_at: params.expected_updated_at, contact: params.contact, sms: params.sms ?? null },
             options,
           ),
         );
       },
 
-      async updateContact(params: UpdateOwnContactParams, options?: RequestOptions): Promise<CustomerMe> {
-        return persistCustomerRead(await httpClient.patch<CustomerMe>(`${storefrontBase}/customer/me/contacts`, params, options));
+      async updateContact(params: UpdateOwnContactParams, options?: RequestOptions): Promise<UserMe> {
+        return persistUserRead(await httpClient.patch<UserMe>(`${storefrontBase}/user/me/contacts`, params, options));
       },
 
-      async removeContact(params: RemoveOwnContactParams, options?: RequestOptions): Promise<CustomerMe> {
-        return persistCustomerRead(
-          await httpClient.post<CustomerMe>(
-            `${storefrontBase}/customer/me/contacts/remove`,
+      async removeContact(params: RemoveOwnContactParams, options?: RequestOptions): Promise<UserMe> {
+        return persistUserRead(
+          await httpClient.post<UserMe>(
+            `${storefrontBase}/user/me/contacts/remove`,
             { expected_updated_at: params.expected_updated_at, address: params.address },
             options,
           ),
@@ -672,19 +672,19 @@ export const createStorefrontApi = (
       },
 
       async removeLink(options?: RequestOptions): Promise<OwnLinkRemoved> {
-        const result = await httpClient.delete<OwnLinkRemoved>(`${storefrontBase}/customer/me/link`, options);
-        updateCustomerSession(() => null);
+        const result = await httpClient.delete<OwnLinkRemoved>(`${storefrontBase}/user/me/link`, options);
+        updateUserSession(() => null);
         return result;
       },
 
-      async verify(params: VerifyCustomerCodeParams & { session_id: string }, options?: RequestOptions): Promise<CustomerSessionResult> {
+      async verify(params: VerifyUserCodeParams & { session_id: string }, options?: RequestOptions): Promise<UserSessionResult> {
         if (params.email !== undefined && params.number !== undefined) {
           throw new TypeError("A code check names an email or a number, not both");
         }
-        const signedInFrom = cartSelectionContext.customerId();
-        const sessionId = requireId(params.session_id, "customer session");
-        const result = await httpClient.post<CustomerSessionResult>(
-          `${storefrontBase}/customer/verify`,
+        const signedInFrom = cartSelectionContext.userId();
+        const sessionId = requireId(params.session_id, "user session");
+        const result = await httpClient.post<UserSessionResult>(
+          `${storefrontBase}/user/verify`,
           params.email !== undefined
             ? { session_id: sessionId, code: params.code, email: params.email }
             : params.number !== undefined
@@ -693,29 +693,29 @@ export const createStorefrontApi = (
           options,
         );
         persistIssuedSession(result);
-        cartSelection.signedIn(signedInFrom, result.customer.id);
+        cartSelection.signedIn(signedInFrom, result.user.id);
         return result;
       },
 
-      useStoreKey(key: NetworkCustomerStoreKey): CustomerSessionResult {
-        if (key.session.type !== "network_customer_store_key") {
-          throw new TypeError("A store key comes from the network customer sign-in's openKey or acceptInvite");
+      useTenantKey(key: NetworkUserTenantKey): UserSessionResult {
+        if (key.session.type !== "network_user_tenant_key") {
+          throw new TypeError("A tenant key comes from the network user sign-in's openKey or acceptInvite");
         }
-        if (key.customer.store_id !== apiConfig.storeId || key.session.customer_id !== key.customer.id) {
-          throw new ArkyError("answer_mismatch", "The store key names another store or another customer");
+        if (key.user.tenant_id !== apiConfig.tenantId || key.session.user_id !== key.user.id) {
+          throw new ArkyError("answer_mismatch", "The tenant key names another tenant or another user");
         }
-        const signedInFrom = cartSelectionContext.customerId();
+        const signedInFrom = cartSelectionContext.userId();
         persistIssuedSession(key);
-        cartSelection.signedIn(signedInFrom, key.customer.id);
-        return { customer: key.customer, session: key.session };
+        cartSelection.signedIn(signedInFrom, key.user.id);
+        return { user: key.user, session: key.session };
       },
 
-      async refresh(params: RefreshCustomerSessionParams, options?: RequestOptions): Promise<CustomerSessionResult> {
+      async refresh(params: RefreshUserSessionParams, options?: RequestOptions): Promise<UserSessionResult> {
         const refreshToken = apiConfig.authStorage.getTokens()?.refresh_token;
-        if (!refreshToken) throw new ArkyError("no_session", "Only a store sign-in by email or phone has a refresh token");
-        const result = await apiConfig.publicHttpClient.post<CustomerSessionResult>(
-          `${storefrontBase}/customer/refresh`,
-          { session_id: requireId(params.session_id, "customer session"), refresh_token: refreshToken },
+        if (!refreshToken) throw new ArkyError("no_session", "Only a tenant sign-in by email or phone has a refresh token");
+        const result = await apiConfig.publicHttpClient.post<UserSessionResult>(
+          `${storefrontBase}/user/refresh`,
+          { session_id: requireId(params.session_id, "user session"), refresh_token: refreshToken },
           options,
         );
         return persistIssuedSession(result);
@@ -723,34 +723,34 @@ export const createStorefrontApi = (
 
       async logout(options?: RequestOptions): Promise<void> {
         try {
-          await httpClient.post<void>(`${storefrontBase}/customer/logout`, undefined, options);
+          await httpClient.post<void>(`${storefrontBase}/user/logout`, undefined, options);
         } finally {
-          updateCustomerSession(() => null);
+          updateUserSession(() => null);
         }
       },
 
-      async getMe(options?: RequestOptions): Promise<CustomerMe> {
-        return persistCustomerRead(await httpClient.get<CustomerMe>(`${storefrontBase}/customer/me`, options));
+      async getMe(options?: RequestOptions): Promise<UserMe> {
+        return persistUserRead(await httpClient.get<UserMe>(`${storefrontBase}/user/me`, options));
       },
 
-      async updateMe(params: UpdateCustomerMeParams, options?: RequestOptions): Promise<CustomerMe> {
-        return persistCustomerRead(await httpClient.patch<CustomerMe>(`${storefrontBase}/customer/me`, params, options));
+      async updateMe(params: UpdateUserMeParams, options?: RequestOptions): Promise<UserMe> {
+        return persistUserRead(await httpClient.patch<UserMe>(`${storefrontBase}/user/me`, params, options));
       },
 
-      async resubscribe(params: OwnContactParams, options?: RequestOptions): Promise<CustomerMe> {
-        return persistCustomerRead(
-          await httpClient.post<CustomerMe>(
-            `${storefrontBase}/customer/me/contacts/resubscribe`,
+      async resubscribe(params: OwnContactParams, options?: RequestOptions): Promise<UserMe> {
+        return persistUserRead(
+          await httpClient.post<UserMe>(
+            `${storefrontBase}/user/me/contacts/resubscribe`,
             { address: params.address },
             options,
           ),
         );
       },
 
-      async unsubscribe(params: OwnContactParams, options?: RequestOptions): Promise<CustomerMe> {
-        return persistCustomerRead(
-          await httpClient.post<CustomerMe>(
-            `${storefrontBase}/customer/me/contacts/unsubscribe`,
+      async unsubscribe(params: OwnContactParams, options?: RequestOptions): Promise<UserMe> {
+        return persistUserRead(
+          await httpClient.post<UserMe>(
+            `${storefrontBase}/user/me/contacts/unsubscribe`,
             { address: params.address },
             options,
           ),
@@ -758,7 +758,7 @@ export const createStorefrontApi = (
       },
     },
 
-    store: {
+    tenant: {
       country: createCountryApi({ httpClient }),
       location: {
         find(params: FindStorefrontLocationsParams = {}, options?: RequestOptions): Promise<PaginatedResponse<StorefrontLocation>> {
@@ -898,7 +898,7 @@ export const createStorefrontApi = (
             params: {
               ...packageContextQuery(params),
               booking_service_id: params.booking_service_id,
-              store_location_id: params.store_location_id,
+              tenant_location_id: params.tenant_location_id,
               booking_resource_id: params.booking_resource_id,
               from: params.from,
               to: params.to,
@@ -1131,11 +1131,11 @@ export const createStorefrontApi = (
         },
 
         async findFulfillments(
-          params: FindCustomerOrderFulfillmentsParams,
+          params: FindUserOrderFulfillmentsParams,
           options?: RequestOptions,
-        ): Promise<PaginatedResponse<CustomerOrderFulfillment>> {
+        ): Promise<PaginatedResponse<UserOrderFulfillment>> {
           await lifecycle.ensureVisitorSession();
-          return httpClient.get<PaginatedResponse<CustomerOrderFulfillment>>(
+          return httpClient.get<PaginatedResponse<UserOrderFulfillment>>(
             `${storefrontBase}/orders/${segment(params.order_id)}/fulfillments`,
             { ...orderTokenOptions(options), params: { limit: params.limit, cursor: params.cursor } },
           );
@@ -1308,14 +1308,14 @@ export const createStorefrontApi = (
       },
 
       rental: {
-        async find(params: FindCustomerRentalsParams, options?: RequestOptions): Promise<PaginatedResponse<CustomerRental>> {
+        async find(params: FindUserRentalsParams, options?: RequestOptions): Promise<PaginatedResponse<UserRental>> {
           await lifecycle.ensureVisitorSession();
-          return httpClient.get<PaginatedResponse<CustomerRental>>(`${storefrontBase}/rentals`, { ...options, params });
+          return httpClient.get<PaginatedResponse<UserRental>>(`${storefrontBase}/rentals`, { ...options, params });
         },
 
-        async get(params: GetCustomerRentalParams, options?: RequestOptions): Promise<CustomerRental> {
+        async get(params: GetUserRentalParams, options?: RequestOptions): Promise<UserRental> {
           await lifecycle.ensureVisitorSession();
-          return httpClient.get<CustomerRental>(`${storefrontBase}/rentals/${segment(params.id)}`, options);
+          return httpClient.get<UserRental>(`${storefrontBase}/rentals/${segment(params.id)}`, options);
         },
       },
 
@@ -1358,7 +1358,7 @@ export const createStorefrontApi = (
     companies: createStorefrontCompanyApi(httpClient, lifecycle.ensureVisitorSession),
 
     actions: {
-      async track(params: TrackCustomerActionParams, options?: RequestOptions): Promise<void> {
+      async track(params: TrackUserActionParams, options?: RequestOptions): Promise<void> {
         const post = (id: string) =>
           httpClient.post<void>(
             `${storefrontBase}/actions/track`,
@@ -1366,17 +1366,17 @@ export const createStorefrontApi = (
             options,
           );
         if (params.id !== undefined) {
-          requireId(params.id, "customer action");
+          requireId(params.id, "user action");
           await lifecycle.ensureVisitorSession();
           await post(params.id);
           return;
         }
         await lifecycle.ensureVisitorSession();
         await runDurableCreate({
-          key: flows.pendingKey("customer-action", params.key),
-          label: "customer action",
+          key: flows.pendingKey("user-action", params.key),
+          label: "user action",
           input: { key: params.key, data: params.data ?? null },
-          appId: () => flows.appId("customer action"),
+          appId: () => flows.appId("user action"),
           send: (id) => post(id),
           confirms: () => true,
         });

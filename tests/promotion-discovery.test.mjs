@@ -4,7 +4,7 @@ import { createAdmin } from "../dist/admin.js";
 import { createStorefront } from "../dist/storefront.js";
 import { apiUrl, fixedIdFactories, storefrontIdentity, recordFetch, visitorStorage } from "./helpers/arky-fixtures.mjs";
 
-const store = "75669224-5b13-4994-a4a7-98b0d3d90d89";
+const tenant = "75669224-5b13-4994-a4a7-98b0d3d90d89";
 const id = "52718a47-c06b-49aa-b3a7-1ac29f9756a3";
 const codeId = "d31aa72d-5d0e-4b7f-b757-aab89c610d27";
 
@@ -14,8 +14,8 @@ function eshop() {
 
 test("promotion discovery keeps scoped filters, the opaque continuation and exact reads by key or code", async (context) => {
   const cursor = "opaque:/+=page";
-  const policy = { id, store_id: store, key: "winter-sale", limit: { type: "unlimited" }, uses: 7, status: { type: "active" } };
-  const code = { id: codeId, store_id: store, promotion_id: id, code: "WINTER_10", limit: { type: "limited", max_uses: 100 }, uses: 3, status: { type: "active" } };
+  const policy = { id, tenant_id: tenant, key: "winter-sale", limit: { type: "unlimited" }, uses: 7, status: { type: "active" } };
+  const code = { id: codeId, tenant_id: tenant, promotion_id: id, code: "WINTER_10", limit: { type: "limited", max_uses: 100 }, uses: 3, status: { type: "active" } };
   const replies = [
     { items: [], cursor }, { items: [policy], cursor: null }, policy,
     { items: [], cursor }, { items: [code], cursor: null }, code,
@@ -26,32 +26,32 @@ test("promotion discovery keeps scoped filters, the opaque continuation and exac
   ];
   const calls = recordFetch(context, () => replies.shift());
   const api = eshop();
-  const policyQuery = { store_id: store, key: policy.key, status: "active", limit: 20 };
+  const policyQuery = { tenant_id: tenant, key: policy.key, status: "active", limit: 20 };
   const first = await api.promotion.find(policyQuery);
   assert.deepEqual(first, { items: [], cursor });
   assert.equal(calls.length, 1);
   assert.deepEqual(await api.promotion.find({ ...policyQuery, cursor: first.cursor }), { items: [policy], cursor: null });
-  assert.deepEqual(await api.promotion.getByKey({ store_id: store, key: policy.key }), policy);
-  const codeQuery = { store_id: store, promotion_id: id, code: code.code, status: "active", limit: 20 };
+  assert.deepEqual(await api.promotion.getByKey({ tenant_id: tenant, key: policy.key }), policy);
+  const codeQuery = { tenant_id: tenant, promotion_id: id, code: code.code, status: "active", limit: 20 };
   const codePage = await api.promotionCode.find(codeQuery);
   assert.deepEqual(codePage, { items: [], cursor });
   assert.deepEqual(await api.promotionCode.find({ ...codeQuery, cursor: codePage.cursor }), { items: [code], cursor: null });
-  assert.deepEqual(await api.promotionCode.getByCode({ store_id: store, code: "WINTER/10" }), code);
-  assert.equal((await api.promotion.delete({ store_id: store, id, expected_updated_at: 123 })).status.type, "deleting");
-  await assert.rejects(api.promotion.delete({ store_id: store, id, expected_updated_at: 123 }), (error) => error.statusCode === 404 && error.code === "GENERAL.NOT_FOUND");
-  assert.equal((await api.promotionCode.delete({ store_id: store, id: codeId, expected_updated_at: 456 })).status.type, "deleting");
-  await assert.rejects(api.promotionCode.delete({ store_id: store, id: codeId, expected_updated_at: 456 }), (error) => error.statusCode === 404 && error.code === "GENERAL.NOT_FOUND");
+  assert.deepEqual(await api.promotionCode.getByCode({ tenant_id: tenant, code: "WINTER/10" }), code);
+  assert.equal((await api.promotion.delete({ tenant_id: tenant, id, expected_updated_at: 123 })).status.type, "deleting");
+  await assert.rejects(api.promotion.delete({ tenant_id: tenant, id, expected_updated_at: 123 }), (error) => error.statusCode === 404 && error.code === "GENERAL.NOT_FOUND");
+  assert.equal((await api.promotionCode.delete({ tenant_id: tenant, id: codeId, expected_updated_at: 456 })).status.type, "deleting");
+  await assert.rejects(api.promotionCode.delete({ tenant_id: tenant, id: codeId, expected_updated_at: 456 }), (error) => error.statusCode === 404 && error.code === "GENERAL.NOT_FOUND");
   assert.equal(calls.length, 10);
-  assert.ok(calls.every((call) => call.path.startsWith(`/v1/stores/${store}/`) && call.headers.get("authorization") === "Bearer arky_at_ttttttttttttttttttttttttttttttttttttttttttA"));
+  assert.ok(calls.every((call) => call.path.startsWith(`/v1/tenants/${tenant}/`) && call.headers.get("authorization") === "Bearer arky_at_ttttttttttttttttttttttttttttttttttttttttttA"));
   assert.deepEqual(calls[1].query, { key: policy.key, status: "active", limit: "20", cursor });
   assert.deepEqual(calls[4].query, { promotion_id: id, code: code.code, status: "active", limit: "20", cursor });
-  assert.equal(calls[2].path, `/v1/stores/${store}/promotions/by-key/${policy.key}`);
-  assert.equal(calls[5].path, `/v1/stores/${store}/promotion-codes/by-code/WINTER%2F10`);
+  assert.equal(calls[2].path, `/v1/tenants/${tenant}/promotions/by-key/${policy.key}`);
+  assert.equal(calls[5].path, `/v1/tenants/${tenant}/promotion-codes/by-code/WINTER%2F10`);
   assert.equal(calls[2].url.search, "");
   assert.ok(calls.slice(6).every((call) => call.method === "DELETE"));
   assert.deepEqual(calls[6].query, { expected_updated_at: "123" });
   assert.deepEqual(calls[8].query, { expected_updated_at: "456" });
-  assert.deepEqual(policyQuery, { store_id: store, key: policy.key, status: "active", limit: 20 });
+  assert.deepEqual(policyQuery, { tenant_id: tenant, key: policy.key, status: "active", limit: 20 });
 });
 
 test("a promotion is created under the app-picked id and may target whole categories on a schedule", async (context) => {
@@ -67,24 +67,24 @@ test("a promotion is created under the app-picked id and may target whole catego
     stacking: { type: "continue" },
     priority: 0,
     limit: { type: "limited", max_uses: 100 },
-    customer_limit: { type: "limited", max_uses: 1 },
+    user_limit: { type: "limited", max_uses: 1 },
     schedule: { type: "scheduled", starts_at: 1_800_000_000_000, ends_at: null },
     status: { type: "active" },
   };
   const { activation: _activation, ...editable } = create;
-  await eshop().promotion.create({ store_id: store, ...create });
-  await eshop().promotion.update({ store_id: store, ...editable, expected_updated_at: 2, limit: { type: "limited", max_uses: 200 }, customer_limit: { type: "unlimited" }, stacking: { type: "stop_after" }, schedule: { type: "always" } });
-  const { id: _id, ...updateBody } = { ...editable, expected_updated_at: 2, limit: { type: "limited", max_uses: 200 }, customer_limit: { type: "unlimited" }, stacking: { type: "stop_after" }, schedule: { type: "always" } };
+  await eshop().promotion.create({ tenant_id: tenant, ...create });
+  await eshop().promotion.update({ tenant_id: tenant, ...editable, expected_updated_at: 2, limit: { type: "limited", max_uses: 200 }, user_limit: { type: "unlimited" }, stacking: { type: "stop_after" }, schedule: { type: "always" } });
+  const { id: _id, ...updateBody } = { ...editable, expected_updated_at: 2, limit: { type: "limited", max_uses: 200 }, user_limit: { type: "unlimited" }, stacking: { type: "stop_after" }, schedule: { type: "always" } };
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
-    ["POST", `/v1/stores/${store}/promotions`, create],
-    ["PUT", `/v1/stores/${store}/promotions/${id}`, updateBody],
+    ["POST", `/v1/tenants/${tenant}/promotions`, create],
+    ["PUT", `/v1/tenants/${tenant}/promotions/${id}`, updateBody],
   ]);
   assert.deepEqual(calls[0].body.activation, { type: "codes" });
   assert.equal("activation" in calls[1].body, false);
-  assert.deepEqual(calls[0].body.customer_limit, { type: "limited", max_uses: 1 });
-  assert.deepEqual(calls[1].body.customer_limit, { type: "unlimited" });
-  assert.ok(calls.every((call) => !("max_uses_per_customer" in call.body)));
-  await assert.rejects(async () => eshop().promotion.create({ store_id: store, ...create, id: "warm-drinks" }), {
+  assert.deepEqual(calls[0].body.user_limit, { type: "limited", max_uses: 1 });
+  assert.deepEqual(calls[1].body.user_limit, { type: "unlimited" });
+  assert.ok(calls.every((call) => !("max_uses_per_user" in call.body)));
+  await assert.rejects(async () => eshop().promotion.create({ tenant_id: tenant, ...create, id: "warm-drinks" }), {
     name: "TypeError",
     message: "The promotion id must be a canonical UUID v4 picked by the app",
   });
@@ -105,11 +105,11 @@ test("an item quantity condition sends its target and both bounds, with an open 
     stacking: { type: "stop_after" },
     priority: 0,
     limit: { type: "unlimited" },
-    customer_limit: { type: "unlimited" },
+    user_limit: { type: "unlimited" },
     schedule: { type: "always" },
     status: { type: "active" },
   };
-  await eshop().promotion.create({ store_id: store, ...create });
+  await eshop().promotion.create({ tenant_id: tenant, ...create });
   assert.equal(calls.length, 1);
   assert.deepEqual(calls[0].body, create);
   assert.deepEqual(calls[0].body.conditions[1], { type: "item_quantity", target: { type: "categories", category_ids: ["kitchen"] }, min_quantity: 3, max_quantity: null });
@@ -117,13 +117,13 @@ test("an item quantity condition sends its target and both bounds, with an open 
 
 test("a promotion code is created under the app-picked id and edited by version", async (context) => {
   const calls = recordFetch(context, () => ({ id: codeId }));
-  await eshop().promotionCode.create({ store_id: store, id: codeId, promotion_id: id, code: "WINTER_10", limit: { type: "limited", max_uses: 100 }, status: { type: "active" } });
-  await eshop().promotionCode.update({ store_id: store, id: codeId, expected_updated_at: 3, code: "WINTER_10", limit: { type: "limited", max_uses: 200 }, status: { type: "archived" } });
+  await eshop().promotionCode.create({ tenant_id: tenant, id: codeId, promotion_id: id, code: "WINTER_10", limit: { type: "limited", max_uses: 100 }, status: { type: "active" } });
+  await eshop().promotionCode.update({ tenant_id: tenant, id: codeId, expected_updated_at: 3, code: "WINTER_10", limit: { type: "limited", max_uses: 200 }, status: { type: "archived" } });
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
-    ["POST", `/v1/stores/${store}/promotion-codes`, { id: codeId, promotion_id: id, code: "WINTER_10", limit: { type: "limited", max_uses: 100 }, status: { type: "active" } }],
-    ["PUT", `/v1/stores/${store}/promotion-codes/${codeId}`, { expected_updated_at: 3, code: "WINTER_10", limit: { type: "limited", max_uses: 200 }, status: { type: "archived" } }],
+    ["POST", `/v1/tenants/${tenant}/promotion-codes`, { id: codeId, promotion_id: id, code: "WINTER_10", limit: { type: "limited", max_uses: 100 }, status: { type: "active" } }],
+    ["PUT", `/v1/tenants/${tenant}/promotion-codes/${codeId}`, { expected_updated_at: 3, code: "WINTER_10", limit: { type: "limited", max_uses: 200 }, status: { type: "archived" } }],
   ]);
-  await assert.rejects(async () => eshop().promotionCode.create({ store_id: store, id: "WINTER_10", promotion_id: id, code: "WINTER_10", limit: { type: "unlimited" }, status: { type: "active" } }), TypeError);
+  await assert.rejects(async () => eshop().promotionCode.create({ tenant_id: tenant, id: "WINTER_10", promotion_id: id, code: "WINTER_10", limit: { type: "unlimited" }, status: { type: "active" } }), TypeError);
   assert.equal(calls.length, 2);
 });
 
@@ -131,15 +131,15 @@ test("a promotion code is created under the app-picked id and edited by version"
 test("fixed promotion transports currency alternatives, explicit item scope and the activation it was made with", async (context) => {
   const calls = recordFetch(context, () => ({ id }));
   const params = {
-    store_id: store, id, key: "two-currencies", blocks: [], activation: { type: "codes" },
+    tenant_id: tenant, id, key: "two-currencies", blocks: [], activation: { type: "codes" },
     conditions: [{ type: "minimum_subtotal", amounts: [{ amount: 100, currency: "eur" }, { amount: 200, currency: "bam" }] }],
     effects: [{ type: "item_fixed", id: codeId, target: { type: "product_variants", variant_ids: [codeId] },
       amounts: [{ amount: 10, currency: "eur" }, { amount: 20, currency: "bam" }], scope: { type: "once_per_order" } }],
-    stacking: { type: "continue" }, priority: 1, limit: { type: "unlimited" }, customer_limit: { type: "unlimited" },
+    stacking: { type: "continue" }, priority: 1, limit: { type: "unlimited" }, user_limit: { type: "unlimited" },
     schedule: { type: "always" }, status: { type: "active" },
   };
   await eshop().promotion.create(params);
-  const { store_id, ...body } = params;
+  const { tenant_id, ...body } = params;
   assert.deepEqual(calls[0].body, body);
   assert.deepEqual(calls[0].body.activation, { type: "codes" });
   assert.equal("money" in calls[0].body.effects[0], false);
@@ -150,7 +150,7 @@ test("fixed promotion transports currency alternatives, explicit item scope and 
 test("a storefront reads a promotion's key and blocks by id with one request and no conditions or counters", async (context) => {
   const shown = { id, key: "winter-sale", blocks: [{ id: "8e2c4a61-7b39-4d05-9f1a-3c6e8b0d2f47", key: "headline", type: "text", value: "Winter sale" }] };
   const calls = recordFetch(context, () => shown);
-  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "bs", sessionStorage: visitorStorage() });
+  const storefront = createStorefront(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "bs", sessionStorage: visitorStorage() });
   assert.deepEqual(await storefront.eshop.promotion.get({ id }), shown);
   await storefront.eshop.promotion.get({ id: "promotion/one" });
   assert.deepEqual(calls.map((call) => [call.method, call.path, call.body]), [
@@ -158,23 +158,23 @@ test("a storefront reads a promotion's key and blocks by id with one request and
     ["GET", "/v1/storefront/promotions/promotion%2Fone", null],
   ]);
   for (const call of calls) {
-    assert.equal(call.headers.get("x-arky-store-id"), storefrontIdentity.storeId);
+    assert.equal(call.headers.get("x-arky-tenant-id"), storefrontIdentity.tenantId);
     assert.equal(call.headers.get("x-arky-sales-channel-id"), storefrontIdentity.salesChannelId);
     assert.equal(call.headers.get("x-arky-locale"), "bs");
   }
   assert.deepEqual(Object.keys(storefront.eshop.promotion), ["get"]);
 });
 
-test("promotion conditions name their lists as customer_ids, market_ids and the like, and promotions and codes are read by ids alone", async (context) => {
+test("promotion conditions name their lists as user_ids, market_ids and the like, and promotions and codes are read by ids alone", async (context) => {
   const calls = recordFetch(context, () => ({ items: [], cursor: null }));
-  const customers = { type: "customer", customer_ids: ["0e2a4c6e-8b1d-4f3a-9c5e-7d9b1f3a5c7e"] };
+  const users = { type: "user", user_ids: ["0e2a4c6e-8b1d-4f3a-9c5e-7d9b1f3a5c7e"] };
   const markets = { type: "market", market_ids: ["1f3b5d7f-9c2e-4a4b-8d6f-8e0a2c4e6a8b"] };
-  await eshop().promotion.update({ store_id: store, id, expected_updated_at: 4, conditions: [customers, markets] });
-  await eshop().promotion.find({ store_id: store, ids: [id] });
-  await eshop().promotionCode.find({ store_id: store, ids: [codeId] });
-  assert.deepEqual(calls[0].body.conditions, [customers, markets]);
+  await eshop().promotion.update({ tenant_id: tenant, id, expected_updated_at: 4, conditions: [users, markets] });
+  await eshop().promotion.find({ tenant_id: tenant, ids: [id] });
+  await eshop().promotionCode.find({ tenant_id: tenant, ids: [codeId] });
+  assert.deepEqual(calls[0].body.conditions, [users, markets]);
   assert.deepEqual(calls.slice(1).map(({ method, path, query }) => [method, path, query]), [
-    ["GET", `/v1/stores/${store}/promotions`, { ids: JSON.stringify([id]) }],
-    ["GET", `/v1/stores/${store}/promotion-codes`, { ids: JSON.stringify([codeId]) }],
+    ["GET", `/v1/tenants/${tenant}/promotions`, { ids: JSON.stringify([id]) }],
+    ["GET", `/v1/tenants/${tenant}/promotion-codes`, { ids: JSON.stringify([codeId]) }],
   ]);
 });

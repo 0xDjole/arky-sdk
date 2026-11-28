@@ -6,7 +6,7 @@ type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ?
 type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
 
 declare const admin: ReturnType<typeof createAdmin>;
-const webhooks: Promise<{ items: Webhook[]; cursor: string | null }> = admin.store.webhook.find({ store_id: 'store', query: 'entry.updated', status: 'disabled' });
+const webhooks: Promise<{ items: Webhook[]; cursor: string | null }> = admin.tenant.webhook.find({ tenant_id: 'tenant', query: 'entry.updated', status: 'disabled' });
 const scoped: WebhookEvent = { type: 'entry.updated', collections: { type: 'all' }, entries: { type: 'keys', keys: ['guide'] } };
 const forms: WebhookEvent = { type: 'form_submission.created', forms: { form_ids: ['form'] } };
 const staged: WebhookEvent = { type: 'form_submission.stage_changed', forms: { form_ids: ['form'] } };
@@ -17,10 +17,10 @@ const packageItem: WebhookEvent = { type: 'package_item.updated' };
 void [webhooks, scoped, forms, staged, removed, member, conversation, packageItem];
 
 export type HookDiscoveryContracts = [
-  True<'buildHook' extends keyof typeof admin.store ? false : true>,
+  True<'buildHook' extends keyof typeof admin.tenant ? false : true>,
   True<Missing<FindWebhooksParams, 'url'>>,
   True<Equal<FindWebhooksParams['status'], 'active' | 'disabled' | undefined>>,
-  True<Equal<keyof typeof admin.store.webhook, 'find' | 'create' | 'update' | 'delete' | 'test'>>,
+  True<Equal<keyof typeof admin.tenant.webhook, 'find' | 'create' | 'update' | 'delete' | 'test'>>,
   True<'event' extends keyof WebhookEvent ? false : true>,
   True<Equal<Extract<WebhookEvent, { type: 'form_submission.created' }>['forms'], { form_ids: string[] }>>,
   True<Equal<Extract<WebhookEvent, { type: 'form_submission.stage_changed' }>['forms'], { form_ids: string[] }>>,

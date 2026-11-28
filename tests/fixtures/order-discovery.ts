@@ -31,7 +31,7 @@ type AdminOrders = ReturnType<typeof createAdmin>["eshop"]["order"];
 type StorefrontOrders = ReturnType<typeof createStorefront>["eshop"]["order"];
 
 const filters: FindOrdersParams = {
-  store_id: "9d3e7b50-1a26-4f8c-b74e-0c5a2d9f6e13",
+  tenant_id: "9d3e7b50-1a26-4f8c-b74e-0c5a2d9f6e13",
   query: "ORD-2026",
   statuses: ["confirmed"],
   delivery_steps: ["ready", "sent"],
@@ -53,10 +53,10 @@ export type OrderDiscoveryContracts = [
   Assert<Equal<OrderBookingItemRow["type"], "full" | "taken">>,
   Assert<Equal<Extract<OrderBookingItemRow, { type: "full" }>["live_invoice"], Invoice | null>>,
   Assert<Equal<Extract<OrderBookingItemRow, { type: "full" }>["booking_line_count"], number>>,
-  Assert<Equal<keyof OrderBookingItemTakenRow, "type" | "store_id" | "store_location_id" | "interval" | "total_interval" | "resources">>,
+  Assert<Equal<keyof OrderBookingItemTakenRow, "type" | "tenant_id" | "tenant_location_id" | "interval" | "total_interval" | "resources">>,
   Assert<Equal<OrderBookingItemTakenRow["resources"], OrderBookingItemTakenResource[]>>,
   Assert<Equal<OrderBookingItemTakenResource, { booking_resource_id: string; interval: TimeRange; capacity_intervals: TimeRange[] }>>,
-  Assert<Missing<OrderBookingItemTakenRow, "order_id" | "customer_id" | "contact" | "line" | "live_invoice">>,
+  Assert<Missing<OrderBookingItemTakenRow, "order_id" | "user_id" | "contact" | "line" | "live_invoice">>,
   Assert<Equal<Awaited<ReturnType<AdminOrders["findBookingReminders"]>>, OrderBookingLineReminder[]>>,
   Assert<Equal<OrderBookingLineReminder["result"], ReminderResult | null>>,
   Assert<Equal<OrderBookingLineReminder["sent_at"], EpochMilliseconds | null>>,
@@ -72,7 +72,7 @@ export type OrderDiscoveryContracts = [
   Assert<Equal<OrderStatus, "pending" | "confirmed" | "partially_cancelled" | "cancelled">>,
   Assert<Equal<Order["delivery_step"], OrderDeliveryStep>>,
   Assert<Equal<FindOrdersParams["delivery_steps"], OrderDeliveryStep[] | undefined>>,
-  Assert<Equal<{ store_id: string; ids: string[]; delivery_steps: OrderDeliveryStep[] } extends FindOrdersParams ? true : false, false>>,
+  Assert<Equal<{ tenant_id: string; ids: string[]; delivery_steps: OrderDeliveryStep[] } extends FindOrdersParams ? true : false, false>>,
   Assert<Missing<StorefrontOrder, "delivery_step">>,
   Assert<Missing<StorefrontFindOrdersParams, "delivery_steps">>,
   Assert<Equal<OrderSourceFilter, "cart" | "renewal">>,
@@ -81,10 +81,10 @@ export type OrderDiscoveryContracts = [
   Assert<Equal<NonNullable<FindOrdersParams["query"]>, string>>,
   Assert<Equal<FindOrdersParams["package_member_ids"], string[] | undefined>>,
   Assert<Equal<FindOrdersParams["ids"], string[] | undefined>>,
-  Assert<Equal<{ store_id: string; ids: string[]; query: string } extends FindOrdersParams ? true : false, false>>,
-  Assert<Equal<{ store_id: string; ids: string[]; limit: number } extends FindOrdersParams ? true : false, false>>,
+  Assert<Equal<{ tenant_id: string; ids: string[]; query: string } extends FindOrdersParams ? true : false, false>>,
+  Assert<Equal<{ tenant_id: string; ids: string[]; limit: number } extends FindOrdersParams ? true : false, false>>,
   Assert<Missing<StorefrontFindOrdersParams, "ids">>,
-  Assert<Missing<StorefrontFindOrdersParams, "store_id" | "customer_id" | "subscription_id" | "package_member_id" | "package_member_ids">>,
+  Assert<Missing<StorefrontFindOrdersParams, "tenant_id" | "user_id" | "subscription_id" | "package_member_id" | "package_member_ids">>,
   Assert<Equal<NonNullable<Parameters<StorefrontOrders["find"]>[0]>, StorefrontFindOrdersParams>>,
 ];
 

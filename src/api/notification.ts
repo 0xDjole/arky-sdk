@@ -1,7 +1,7 @@
 import type { ApiConfig } from "../services/clientTypes";
 import type { RequestOptions } from "../types/api";
 import type { PaginatedResponse } from "../types/common";
-import type { StoreResendIncomingWebhook } from "../types/payment";
+import type { TenantResendIncomingWebhook } from "../types/payment";
 import type {
   CreateEmailAddressParams,
   CreateEmailLayoutParams,
@@ -20,7 +20,7 @@ import type {
   FindNotificationsParams,
   FindOutgoingMessagesParams,
   FindOutgoingWebhooksParams,
-  FindStoreResendEventsParams,
+  FindTenantResendEventsParams,
   FindTemplateDefaultsParams,
   FindTemplatesParams,
   GetEmailAddressNetworkDomainParams,
@@ -31,14 +31,14 @@ import type {
   GetOutgoingMessageParams,
   GetOutgoingWebhookParams,
   GetTemplateParams,
-  NetworkStoreAddresses,
+  NetworkTenantAddresses,
   Notification,
   OutgoingMessage,
   OutgoingMessageSummary,
   OutgoingWebhook,
   PreviewTemplateParams,
   ReminderResult,
-  ResolveStoreResendEventParams,
+  ResolveTenantResendEventParams,
   SendBookingReminderParams,
   SendEmailTemplateTestParams,
   Template,
@@ -50,67 +50,67 @@ import type {
   UpdateTemplateParams,
 } from "../types/notification";
 import { requireId } from "../utils/ids";
-import { segment, storePath, storeRecordPath } from "./paths";
+import { segment, tenantPath, tenantRecordPath } from "./paths";
 
 export const createOutgoingMessageApi = (apiConfig: ApiConfig) => ({
   find(params: FindOutgoingMessagesParams, options?: RequestOptions): Promise<PaginatedResponse<OutgoingMessageSummary>> {
-    const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<PaginatedResponse<OutgoingMessageSummary>>(storePath(store_id, "outgoing-messages"), { ...options, params: query });
+    const { tenant_id, ...query } = params;
+    return apiConfig.httpClient.get<PaginatedResponse<OutgoingMessageSummary>>(tenantPath(tenant_id, "outgoing-messages"), { ...options, params: query });
   },
   get(params: GetOutgoingMessageParams, options?: RequestOptions): Promise<OutgoingMessage> {
-    return apiConfig.httpClient.get<OutgoingMessage>(storeRecordPath(params.store_id, "outgoing-messages", params.id), options);
+    return apiConfig.httpClient.get<OutgoingMessage>(tenantRecordPath(params.tenant_id, "outgoing-messages", params.id), options);
   },
 });
 
 export const createOutgoingWebhookApi = (apiConfig: ApiConfig) => ({
   find(params: FindOutgoingWebhooksParams, options?: RequestOptions): Promise<PaginatedResponse<OutgoingWebhook>> {
-    const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<PaginatedResponse<OutgoingWebhook>>(storePath(store_id, "outgoing-webhooks"), { ...options, params: query });
+    const { tenant_id, ...query } = params;
+    return apiConfig.httpClient.get<PaginatedResponse<OutgoingWebhook>>(tenantPath(tenant_id, "outgoing-webhooks"), { ...options, params: query });
   },
   get(params: GetOutgoingWebhookParams, options?: RequestOptions): Promise<OutgoingWebhook> {
-    return apiConfig.httpClient.get<OutgoingWebhook>(storeRecordPath(params.store_id, "outgoing-webhooks", params.id), options);
+    return apiConfig.httpClient.get<OutgoingWebhook>(tenantRecordPath(params.tenant_id, "outgoing-webhooks", params.id), options);
   },
 });
 
 export const createTemplateApi = (apiConfig: ApiConfig) => ({
   find(params: FindTemplatesParams, options?: RequestOptions): Promise<PaginatedResponse<TemplateSummary>> {
-    const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<PaginatedResponse<TemplateSummary>>(storePath(store_id, "email-templates"), {
+    const { tenant_id, ...query } = params;
+    return apiConfig.httpClient.get<PaginatedResponse<TemplateSummary>>(tenantPath(tenant_id, "email-templates"), {
       ...options,
       params: query,
     });
   },
 
   get(params: GetTemplateParams, options?: RequestOptions): Promise<Template> {
-    return apiConfig.httpClient.get<Template>(storeRecordPath(params.store_id, "email-templates", params.id), options);
+    return apiConfig.httpClient.get<Template>(tenantRecordPath(params.tenant_id, "email-templates", params.id), options);
   },
 
   findDefaults(params: FindTemplateDefaultsParams, options?: RequestOptions): Promise<TemplateDefault[]> {
-    return apiConfig.httpClient.get<TemplateDefault[]>(storePath(params.store_id, "email-templates/defaults"), options);
+    return apiConfig.httpClient.get<TemplateDefault[]>(tenantPath(params.tenant_id, "email-templates/defaults"), options);
   },
 
   create(params: CreateTemplateParams, options?: RequestOptions): Promise<Template> {
     requireId(params.id, "template");
-    const { store_id, ...body } = params;
-    return apiConfig.httpClient.post<Template>(storePath(store_id, "email-templates"), body, options);
+    const { tenant_id, ...body } = params;
+    return apiConfig.httpClient.post<Template>(tenantPath(tenant_id, "email-templates"), body, options);
   },
 
   update(params: UpdateTemplateParams, options?: RequestOptions): Promise<Template> {
-    const { store_id, id, ...body } = params;
-    return apiConfig.httpClient.put<Template>(storeRecordPath(store_id, "email-templates", id), body, options);
+    const { tenant_id, id, ...body } = params;
+    return apiConfig.httpClient.put<Template>(tenantRecordPath(tenant_id, "email-templates", id), body, options);
   },
 
   delete(params: DeleteTemplateParams, options?: RequestOptions): Promise<boolean> {
-    return apiConfig.httpClient.delete<boolean>(storeRecordPath(params.store_id, "email-templates", params.id), {
+    return apiConfig.httpClient.delete<boolean>(tenantRecordPath(params.tenant_id, "email-templates", params.id), {
       ...options,
       params: { expected_updated_at: params.expected_updated_at },
     });
   },
 
   preview(params: PreviewTemplateParams, options?: RequestOptions): Promise<TemplatePreview> {
-    const { store_id, id, ...body } = params;
+    const { tenant_id, id, ...body } = params;
     return apiConfig.httpClient.post<TemplatePreview>(
-      `${storeRecordPath(store_id, "email-templates", id)}/preview`,
+      `${tenantRecordPath(tenant_id, "email-templates", id)}/preview`,
       body,
       options,
     );
@@ -119,7 +119,7 @@ export const createTemplateApi = (apiConfig: ApiConfig) => ({
   test(params: SendEmailTemplateTestParams, options?: RequestOptions): Promise<OutgoingMessage> {
     requireId(params.outgoing_message_id, "test email");
     return apiConfig.httpClient.post<OutgoingMessage>(
-      `${storeRecordPath(params.store_id, "email-templates", params.id)}/test`,
+      `${tenantRecordPath(params.tenant_id, "email-templates", params.id)}/test`,
       {
         id: params.outgoing_message_id,
         language: params.language,
@@ -134,21 +134,21 @@ export const createTemplateApi = (apiConfig: ApiConfig) => ({
 
 export const createNotificationApi = (apiConfig: ApiConfig) => ({
   find(params: FindNotificationsParams, options?: RequestOptions): Promise<PaginatedResponse<Notification>> {
-    const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<PaginatedResponse<Notification>>(storePath(store_id, "notifications"), {
+    const { tenant_id, ...query } = params;
+    return apiConfig.httpClient.get<PaginatedResponse<Notification>>(tenantPath(tenant_id, "notifications"), {
       ...options,
       params: query,
     });
   },
 
   get(params: GetNotificationParams, options?: RequestOptions): Promise<Notification> {
-    return apiConfig.httpClient.get<Notification>(storeRecordPath(params.store_id, "notifications", params.id), options);
+    return apiConfig.httpClient.get<Notification>(tenantRecordPath(params.tenant_id, "notifications", params.id), options);
   },
 
   create(params: CreateNotificationParams, options?: RequestOptions): Promise<Notification> {
     requireId(params.id, "notification");
     return apiConfig.httpClient.post<Notification>(
-      storePath(params.store_id, "notifications"),
+      tenantPath(params.tenant_id, "notifications"),
       { id: params.id, type: params.type, status: params.status },
       options,
     );
@@ -156,14 +156,14 @@ export const createNotificationApi = (apiConfig: ApiConfig) => ({
 
   update(params: UpdateNotificationParams, options?: RequestOptions): Promise<Notification> {
     return apiConfig.httpClient.put<Notification>(
-      storeRecordPath(params.store_id, "notifications", params.id),
+      tenantRecordPath(params.tenant_id, "notifications", params.id),
       { expected_updated_at: params.expected_updated_at, type: params.type, status: params.status },
       options,
     );
   },
 
   delete(params: DeleteNotificationParams, options?: RequestOptions): Promise<boolean> {
-    return apiConfig.httpClient.delete<boolean>(storeRecordPath(params.store_id, "notifications", params.id), {
+    return apiConfig.httpClient.delete<boolean>(tenantRecordPath(params.tenant_id, "notifications", params.id), {
       ...options,
       params: { expected_updated_at: params.expected_updated_at },
     });
@@ -171,8 +171,8 @@ export const createNotificationApi = (apiConfig: ApiConfig) => ({
 
   sendBookingReminder(params: SendBookingReminderParams, options?: RequestOptions): Promise<ReminderResult> {
     return apiConfig.httpClient.post<ReminderResult>(
-      storePath(
-        params.store_id,
+      tenantPath(
+        params.tenant_id,
         `orders/${segment(params.order_id)}/booking-items/${segment(params.order_booking_item_id)}/reminder`,
       ),
       { notification_id: params.notification_id },
@@ -183,30 +183,30 @@ export const createNotificationApi = (apiConfig: ApiConfig) => ({
 
 export const createEmailLayoutApi = (apiConfig: ApiConfig) => ({
   find(params: FindEmailLayoutsParams, options?: RequestOptions): Promise<PaginatedResponse<EmailLayoutSummary>> {
-    const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<PaginatedResponse<EmailLayoutSummary>>(storePath(store_id, "email-layouts"), {
+    const { tenant_id, ...query } = params;
+    return apiConfig.httpClient.get<PaginatedResponse<EmailLayoutSummary>>(tenantPath(tenant_id, "email-layouts"), {
       ...options,
       params: query,
     });
   },
 
   get(params: GetEmailLayoutParams, options?: RequestOptions): Promise<EmailLayout> {
-    return apiConfig.httpClient.get<EmailLayout>(storeRecordPath(params.store_id, "email-layouts", params.id), options);
+    return apiConfig.httpClient.get<EmailLayout>(tenantRecordPath(params.tenant_id, "email-layouts", params.id), options);
   },
 
   create(params: CreateEmailLayoutParams, options?: RequestOptions): Promise<EmailLayout> {
     requireId(params.id, "email layout");
-    const { store_id, ...body } = params;
-    return apiConfig.httpClient.post<EmailLayout>(storePath(store_id, "email-layouts"), body, options);
+    const { tenant_id, ...body } = params;
+    return apiConfig.httpClient.post<EmailLayout>(tenantPath(tenant_id, "email-layouts"), body, options);
   },
 
   update(params: UpdateEmailLayoutParams, options?: RequestOptions): Promise<EmailLayout> {
-    const { store_id, id, ...body } = params;
-    return apiConfig.httpClient.put<EmailLayout>(storeRecordPath(store_id, "email-layouts", id), body, options);
+    const { tenant_id, id, ...body } = params;
+    return apiConfig.httpClient.put<EmailLayout>(tenantRecordPath(tenant_id, "email-layouts", id), body, options);
   },
 
   delete(params: DeleteEmailLayoutParams, options?: RequestOptions): Promise<boolean> {
-    return apiConfig.httpClient.delete<boolean>(storeRecordPath(params.store_id, "email-layouts", params.id), {
+    return apiConfig.httpClient.delete<boolean>(tenantRecordPath(params.tenant_id, "email-layouts", params.id), {
       ...options,
       params: { expected_updated_at: params.expected_updated_at },
     });
@@ -215,52 +215,52 @@ export const createEmailLayoutApi = (apiConfig: ApiConfig) => ({
 
 export const createEmailAddressApi = (apiConfig: ApiConfig) => ({
   find(params: FindEmailAddressesParams, options?: RequestOptions): Promise<PaginatedResponse<EmailAddress>> {
-    const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<PaginatedResponse<EmailAddress>>(storePath(store_id, "email-addresses"), {
+    const { tenant_id, ...query } = params;
+    return apiConfig.httpClient.get<PaginatedResponse<EmailAddress>>(tenantPath(tenant_id, "email-addresses"), {
       ...options,
       params: query,
     });
   },
 
   get(params: GetEmailAddressParams, options?: RequestOptions): Promise<EmailAddress> {
-    return apiConfig.httpClient.get<EmailAddress>(storeRecordPath(params.store_id, "email-addresses", params.id), options);
+    return apiConfig.httpClient.get<EmailAddress>(tenantRecordPath(params.tenant_id, "email-addresses", params.id), options);
   },
 
   create(params: CreateEmailAddressParams, options?: RequestOptions): Promise<EmailAddress> {
     requireId(params.id, "email address");
-    const { store_id, ...body } = params;
-    return apiConfig.httpClient.post<EmailAddress>(storePath(store_id, "email-addresses"), body, options);
+    const { tenant_id, ...body } = params;
+    return apiConfig.httpClient.post<EmailAddress>(tenantPath(tenant_id, "email-addresses"), body, options);
   },
 
   delete(params: DeleteEmailAddressParams, options?: RequestOptions): Promise<boolean> {
-    return apiConfig.httpClient.delete<boolean>(storeRecordPath(params.store_id, "email-addresses", params.id), options);
+    return apiConfig.httpClient.delete<boolean>(tenantRecordPath(params.tenant_id, "email-addresses", params.id), options);
   },
 
   getReadiness(params: GetEmailAddressReadinessParams, options?: RequestOptions): Promise<EmailAddressReadiness> {
     return apiConfig.httpClient.get<EmailAddressReadiness>(
-      `${storeRecordPath(params.store_id, "email-addresses", params.id)}/readiness`,
+      `${tenantRecordPath(params.tenant_id, "email-addresses", params.id)}/readiness`,
       options,
     );
   },
 
-  getNetworkDomain(params: GetEmailAddressNetworkDomainParams, options?: RequestOptions): Promise<NetworkStoreAddresses> {
-    return apiConfig.httpClient.get<NetworkStoreAddresses>(storePath(params.store_id, "email-addresses/network-domain"), options);
+  getNetworkDomain(params: GetEmailAddressNetworkDomainParams, options?: RequestOptions): Promise<NetworkTenantAddresses> {
+    return apiConfig.httpClient.get<NetworkTenantAddresses>(tenantPath(params.tenant_id, "email-addresses/network-domain"), options);
   },
 });
 
-export const createStoreResendEventApi = (apiConfig: ApiConfig) => ({
-  find(params: FindStoreResendEventsParams, options?: RequestOptions): Promise<PaginatedResponse<StoreResendIncomingWebhook>> {
-    const { store_id, ...query } = params;
-    return apiConfig.httpClient.get<PaginatedResponse<StoreResendIncomingWebhook>>(storePath(store_id, "incoming-webhooks/resend"), {
+export const createTenantResendEventApi = (apiConfig: ApiConfig) => ({
+  find(params: FindTenantResendEventsParams, options?: RequestOptions): Promise<PaginatedResponse<TenantResendIncomingWebhook>> {
+    const { tenant_id, ...query } = params;
+    return apiConfig.httpClient.get<PaginatedResponse<TenantResendIncomingWebhook>>(tenantPath(tenant_id, "incoming-webhooks/resend"), {
       ...options,
       params: query,
     });
   },
 
-  resolve(params: ResolveStoreResendEventParams, options?: RequestOptions): Promise<StoreResendIncomingWebhook> {
-    const { store_id, id, ...body } = params;
-    return apiConfig.httpClient.post<StoreResendIncomingWebhook>(
-      `${storeRecordPath(store_id, "incoming-webhooks/resend", id)}/resolve`,
+  resolve(params: ResolveTenantResendEventParams, options?: RequestOptions): Promise<TenantResendIncomingWebhook> {
+    const { tenant_id, id, ...body } = params;
+    return apiConfig.httpClient.post<TenantResendIncomingWebhook>(
+      `${tenantRecordPath(tenant_id, "incoming-webhooks/resend", id)}/resolve`,
       body,
       options,
     );

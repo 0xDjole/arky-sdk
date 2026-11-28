@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createAdmin } from '../dist/admin.js';
 
-const STORE_ID = '2d9b7c14-6e03-4f5a-a1b8-9c0e3f7d2a61';
+const TENANT_ID = '2d9b7c14-6e03-4f5a-a1b8-9c0e3f7d2a61';
 
 for (const [owner, path] of [['package', 'packages']]) {
   test(`${owner} discovery preserves combined filters and empty-page continuation; exact identity is separate`, async () => {
@@ -15,18 +15,18 @@ for (const [owner, path] of [['package', 'packages']]) {
     try {
       const api = createAdmin({ apiUrl: 'https://api.example.test', accountToken: 'arky_at_ttttttttttttttttttttttttttttttttttttttttttA' }).eshop[owner];
       const filters = { key: 'a'.repeat(255), status: 'archived', sort_field: 'updated_at', sort_direction: 'asc', limit: 200, cursor: 'previous', market_id: 'market' };
-      assert.deepEqual(await api.find({ store_id: STORE_ID, ...filters }), { items: [], cursor: 'after-stale' });
-      assert.equal(calls[0].url.pathname, `/v1/stores/${STORE_ID}/${path}`);
-      assert.equal(calls[0].url.searchParams.has('store_id'), false);
+      assert.deepEqual(await api.find({ tenant_id: TENANT_ID, ...filters }), { items: [], cursor: 'after-stale' });
+      assert.equal(calls[0].url.pathname, `/v1/tenants/${TENANT_ID}/${path}`);
+      assert.equal(calls[0].url.searchParams.has('tenant_id'), false);
       for (const [key, value] of Object.entries(filters)) assert.equal(calls[0].url.searchParams.get(key), String(value));
-      await api.getByKey({ store_id: STORE_ID, key: 'key/with spaces' });
-      assert.equal(calls[1].url.pathname, `/v1/stores/${STORE_ID}/${path}/by-key/key%2Fwith%20spaces`);
+      await api.getByKey({ tenant_id: TENANT_ID, key: 'key/with spaces' });
+      assert.equal(calls[1].url.pathname, `/v1/tenants/${TENANT_ID}/${path}/by-key/key%2Fwith%20spaces`);
       assert.equal(calls[1].url.search, '');
       assert.equal(calls[1].init.method, 'GET');
       for (const status of [404, 403, 503]) {
         let count = 0;
         globalThis.fetch = async () => { count += 1; return new Response(JSON.stringify({ message: 'read failed' }), { status }); };
-        await assert.rejects(api.getByKey({ store_id: STORE_ID, key: 'missing' }), (error) => error.statusCode === status);
+        await assert.rejects(api.getByKey({ tenant_id: TENANT_ID, key: 'missing' }), (error) => error.statusCode === status);
         assert.equal(count, 1);
       }
     } finally { globalThis.fetch = original; }

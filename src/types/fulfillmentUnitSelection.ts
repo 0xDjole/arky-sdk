@@ -8,7 +8,7 @@ export interface FulfillmentUnitSelection {
 }
 
 export interface GetFulfillmentUnitSlotsParams {
-  store_id: string;
+  tenant_id: string;
   fulfillment_job_id: string;
   expected_updated_at: EpochMilliseconds;
   lines: FulfillmentUnitSelection[];
@@ -24,7 +24,7 @@ export interface FulfillmentUnitSlotDetail {
 
 export interface FulfillmentUnitSlots {
   fulfillment_job_id: string;
-  store_location_id: string;
+  tenant_location_id: string;
   updated_at: EpochMilliseconds;
   slots: FulfillmentUnitSlotDetail[];
 }

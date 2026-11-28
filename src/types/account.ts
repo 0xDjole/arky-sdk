@@ -28,8 +28,8 @@ export type PlatformLogin = { type: "email"; email: string; since: EpochMillisec
 
 export type NetworkLogin =
   | { type: "member_email"; email: string; language: string; since: EpochMilliseconds }
-  | { type: "customer_email"; email: string; language: string; since: EpochMilliseconds }
-  | { type: "customer_phone"; number: string; language: string; since: EpochMilliseconds };
+  | { type: "user_email"; email: string; language: string; since: EpochMilliseconds }
+  | { type: "user_phone"; number: string; language: string; since: EpochMilliseconds };
 
 export type AccountType =
   | {
@@ -157,7 +157,7 @@ export type AccountSessionStatus =
 export type AccountSessionScope =
   | { type: "platform" }
   | { type: "network"; network_id: string }
-  | { type: "store"; store_id: string };
+  | { type: "tenant"; tenant_id: string };
 
 export interface AccountSession {
   id: string;
@@ -187,9 +187,9 @@ export interface RevokeAccountSessionParams {
   id: string;
 }
 
-export type AccountTokenStores =
+export type AccountTokenTenants =
   | { type: "all" }
-  | { type: "ids"; store_ids: string[] };
+  | { type: "ids"; tenant_ids: string[] };
 
 export type AccountTokenStatus = { type: "active" } | { type: "revoked"; revoked_at: EpochMilliseconds };
 
@@ -201,7 +201,7 @@ export interface AccountToken {
   email: string;
   name: string;
   token_hint: string;
-  stores: AccountTokenStores;
+  tenants: AccountTokenTenants;
   expiry: AccountTokenExpiry;
   status: AccountTokenStatus;
   created_at: EpochMilliseconds;
@@ -215,7 +215,7 @@ export type AccountTokenCreated =
 export interface CreateAccountTokenParams {
   id: string;
   name: string;
-  stores: AccountTokenStores;
+  tenants: AccountTokenTenants;
   expiry: AccountTokenExpiry;
 }
 

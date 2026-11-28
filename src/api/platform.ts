@@ -21,7 +21,7 @@ import type {
   StripeBillingIncomingWebhook,
   ResolveStripeBillingEventParams,
 } from "../types/payment";
-import type { FindWaitingStorePlanChargesParams, SettleStorePlanChargeParams, StorePlanCharge } from "../types/store";
+import type { FindWaitingTenantPlanChargesParams, SettleTenantPlanChargeParams, TenantPlanCharge } from "../types/tenant";
 import { requireId } from "../utils/ids";
 import { segment } from "./paths";
 
@@ -83,15 +83,15 @@ export const createPlatformApi = (apiConfig: ApiConfig) => ({
       );
     },
   },
-  storePlanCharge: {
-    find(params: FindWaitingStorePlanChargesParams, options?: RequestOptions): Promise<PaginatedResponse<StorePlanCharge>> {
-      return apiConfig.httpClient.get<PaginatedResponse<StorePlanCharge>>("/v1/platform/store-plan-charges", { ...options, params });
+  tenantPlanCharge: {
+    find(params: FindWaitingTenantPlanChargesParams, options?: RequestOptions): Promise<PaginatedResponse<TenantPlanCharge>> {
+      return apiConfig.httpClient.get<PaginatedResponse<TenantPlanCharge>>("/v1/platform/tenant-plan-charges", { ...options, params });
     },
 
-    settle(params: SettleStorePlanChargeParams, options?: RequestOptions): Promise<StorePlanCharge> {
-      return apiConfig.httpClient.post<StorePlanCharge>(
-        `/v1/platform/store-plan-charges/${segment(params.id)}/settle`,
-        { store_id: params.store_id, expected_updated_at: params.expected_updated_at, outcome: params.outcome },
+    settle(params: SettleTenantPlanChargeParams, options?: RequestOptions): Promise<TenantPlanCharge> {
+      return apiConfig.httpClient.post<TenantPlanCharge>(
+        `/v1/platform/tenant-plan-charges/${segment(params.id)}/settle`,
+        { tenant_id: params.tenant_id, expected_updated_at: params.expected_updated_at, outcome: params.outcome },
         options,
       );
     },

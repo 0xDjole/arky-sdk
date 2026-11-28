@@ -58,7 +58,7 @@ function installBrowserState(
 test("durable requests persist the immutable request and reuse it after a module remount", async () => {
   const { storage } = installBrowserState();
   const firstModule = await importDurableRequests();
-  const storageKey = "arky:order-refund:store-1:order-1";
+  const storageKey = "arky:order-refund:tenant-1:order-1";
   const request = { order_id: "order-1", refund_id: "refund-1", amount: 1250 };
 
   const first = await firstModule.withDurableRequestLock(
@@ -315,7 +315,7 @@ test("unavailable or contended Web Locks execute zero protected tasks", async (t
 test("the exact saved Fulfillment request survives a changed selection and can be resumed", async () => {
   const { storage } = installBrowserState();
   const operations = await importDurableRequests();
-  const storageKey = "arky:fulfillment:store-1:order-1";
+  const storageKey = "arky:fulfillment:tenant-1:order-1";
   const originalRequest = {
     fulfillment_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
     fulfillment_job_id: "6ba7b813-9dad-41d1-80b4-00c04fd430c8",
@@ -408,7 +408,7 @@ test("a_403_keeps_the_kept_request", async (context) => {
   const windowDescriptor = Object.getOwnPropertyDescriptor(globalThis, "window");
   installGlobal("window", globalThis);
   context.after(() => (windowDescriptor ? Object.defineProperty(globalThis, "window", windowDescriptor) : delete globalThis.window));
-  const keptKey = `arky:cart-checkout:v6:${encodeURIComponent(`storefront:${apiUrl}:${storefrontIdentity.storeId}:${storefrontIdentity.salesChannelId}:${ids.customer}`)}`;
+  const keptKey = `arky:cart-checkout:v6:${encodeURIComponent(`storefront:${apiUrl}:${storefrontIdentity.tenantId}:${storefrontIdentity.salesChannelId}:${ids.user}`)}`;
   for (const [status, code, keeps] of [
     [403, "GENERAL.FORBIDDEN", true],
     [401, "CART.TOKEN_REFUSED", true],

@@ -5,7 +5,7 @@ import { createAdmin } from "../dist/admin.js";
 import { createStorefront } from "../dist/storefront.js";
 import { accessToken, apiUrl, errorResponse, fixedIdFactories, ids, signedInStorage, storefrontIdentity, recordFetch, visitorStorage, visitorToken } from "./helpers/arky-fixtures.mjs";
 
-const STORE_ID = "7d4b2e90-5c16-4a83-bf07-3e9a1c6d8f25";
+const TENANT_ID = "7d4b2e90-5c16-4a83-bf07-3e9a1c6d8f25";
 const conversationId = "7c2e9a41-5b3d-4f86-a1e0-3d4c2b9f6e18";
 const messageId = "2a6d8f13-9c47-4e05-b1a8-6f3e0c2d7b95";
 const promptId = "8b3e5d71-2c96-4f04-a7d1-9e2c4b6a8f30";
@@ -22,25 +22,25 @@ function support() {
 }
 
 function storefront() {
-  return createStorefront(storefrontIdentity, { visitorIdentity: { customer_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "bs", sessionStorage: visitorStorage() });
+  return createStorefront(storefrontIdentity, { visitorIdentity: { user_id: "6c1f4e2a-9b37-4d85-a0c6-2e7b9d1f3a58", session_id: "8f2b6d41-3c95-4e07-b1a8-7d4c0e9f2b63" }, ...fixedIdFactories, apiUrl, locale: "bs", sessionStorage: visitorStorage() });
 }
 
 function storefrontConversation(state = "flow") {
-  return { id: conversationId, type: { type: "chat", language: "bs", subject: "" }, state, next_message_sequence: 1, customer_read: { type: "unread" }, created_at: 1, updated_at: 1 };
+  return { id: conversationId, type: { type: "chat", language: "bs", subject: "" }, state, next_message_sequence: 1, user_read: { type: "unread" }, created_at: 1, updated_at: 1 };
 }
 
 test("staff starts an email conversation for a contact with a reply selection and retained caller-picked IDs", async (context) => {
   const answer = {
-    conversation: { id: conversationId, state: { type: "waiting_for_store", reason: "message", flow: { type: "none" } }, type: { type: "email", email: { contact, reply }, subject: "Delivery" } },
+    conversation: { id: conversationId, state: { type: "waiting_for_tenant", reason: "message", flow: { type: "none" } }, type: { type: "email", email: { contact, reply }, subject: "Delivery" } },
     message: { id: messageId },
   };
   const calls = recordFetch(context, () => answer);
-  const params = { store_id: STORE_ID, id: conversationId, message_id: messageId, customer_id: ids.customer, contact, subject: "Delivery", reply, text: "We can help." };
+  const params = { tenant_id: TENANT_ID, id: conversationId, message_id: messageId, user_id: ids.user, contact, subject: "Delivery", reply, text: "We can help." };
   assert.deepEqual(await support().conversation.startEmail(params), answer);
   assert.deepEqual(await support().conversation.startEmail(params), answer);
   assert.equal(calls.length, 2);
-  assert.equal(calls[0].path, `/v1/stores/${STORE_ID}/conversations`);
-  const { store_id, ...body } = params;
+  assert.equal(calls[0].path, `/v1/tenants/${TENANT_ID}/conversations`);
+  const { tenant_id, ...body } = params;
   assert.deepEqual(calls[0].body, body);
   assert.deepEqual(calls[1].body, body);
   for (const removed of ["email", "language", "sending_address_id", "email_template_id"]) assert.equal(removed in calls[0].body, false, removed);
@@ -51,11 +51,11 @@ test("staff choose the conversation's reply email, and a reply sends its own tex
   const calls = recordFetch(context, (call) => call.path.endsWith("/reply-email") ? { id: conversationId } : answer);
   const api = support().conversation;
   const other = { ...reply, from_name: "Returns", reply_to_address_id: returnsAddressId };
-  assert.deepEqual(await api.selectReplyEmail({ store_id: STORE_ID, conversation_id: conversationId, expected_reply: reply, reply: other }), { id: conversationId });
-  await api.reply({ store_id: STORE_ID, conversation_id: conversationId, id: promptId, newest_message_sequence: 6, text: "Your parcel ships today.", delivery: "email" });
+  assert.deepEqual(await api.selectReplyEmail({ tenant_id: TENANT_ID, conversation_id: conversationId, expected_reply: reply, reply: other }), { id: conversationId });
+  await api.reply({ tenant_id: TENANT_ID, conversation_id: conversationId, id: promptId, newest_message_sequence: 6, text: "Your parcel ships today.", delivery: "email" });
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
-    ["POST", `/v1/stores/${STORE_ID}/conversations/${conversationId}/reply-email`, { expected_reply: reply, reply: other }],
-    ["POST", `/v1/stores/${STORE_ID}/conversations/${conversationId}/messages`, { id: promptId, newest_message_sequence: 6, text: "Your parcel ships today.", delivery: "email" }],
+    ["POST", `/v1/tenants/${TENANT_ID}/conversations/${conversationId}/reply-email`, { expected_reply: reply, reply: other }],
+    ["POST", `/v1/tenants/${TENANT_ID}/conversations/${conversationId}/messages`, { id: promptId, newest_message_sequence: 6, text: "Your parcel ships today.", delivery: "email" }],
   ]);
   assert.equal("expected_updated_at" in calls[0].body, false);
   assert.equal("expected_updated_at" in calls[1].body, false);
@@ -63,16 +63,16 @@ test("staff choose the conversation's reply email, and a reply sends its own tex
 });
 
 test("staff show or hide a received email in the chat with the message version they read", async (context) => {
-  const message = { id: messageId, store_id: STORE_ID, conversation_id: conversationId, sequence: 3, type: { type: "received_email", visible_in_chat: true }, created_at: 1, updated_at: 7 };
+  const message = { id: messageId, tenant_id: TENANT_ID, conversation_id: conversationId, sequence: 3, type: { type: "received_email", visible_in_chat: true }, created_at: 1, updated_at: 7 };
   const calls = recordFetch(context, () => message);
   const api = support().conversation;
-  assert.deepEqual(await api.changeChatVisibility({ store_id: STORE_ID, conversation_id: conversationId, message_id: messageId, expected_updated_at: 6, visible_in_chat: true }), message);
-  await api.changeChatVisibility({ store_id: STORE_ID, conversation_id: conversationId, message_id: "message/one", expected_updated_at: 7, visible_in_chat: false });
+  assert.deepEqual(await api.changeChatVisibility({ tenant_id: TENANT_ID, conversation_id: conversationId, message_id: messageId, expected_updated_at: 6, visible_in_chat: true }), message);
+  await api.changeChatVisibility({ tenant_id: TENANT_ID, conversation_id: conversationId, message_id: "message/one", expected_updated_at: 7, visible_in_chat: false });
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
-    ["POST", `/v1/stores/${STORE_ID}/conversations/${conversationId}/messages/${messageId}/chat-visibility`, { expected_updated_at: 6, visible_in_chat: true }],
-    ["POST", `/v1/stores/${STORE_ID}/conversations/${conversationId}/messages/message%2Fone/chat-visibility`, { expected_updated_at: 7, visible_in_chat: false }],
+    ["POST", `/v1/tenants/${TENANT_ID}/conversations/${conversationId}/messages/${messageId}/chat-visibility`, { expected_updated_at: 6, visible_in_chat: true }],
+    ["POST", `/v1/tenants/${TENANT_ID}/conversations/${conversationId}/messages/message%2Fone/chat-visibility`, { expected_updated_at: 7, visible_in_chat: false }],
   ]);
-  await assert.rejects(async () => api.changeChatVisibility({ store_id: STORE_ID, conversation_id: conversationId, message_id: messageId, expected_updated_at: 7 }), {
+  await assert.rejects(async () => api.changeChatVisibility({ tenant_id: TENANT_ID, conversation_id: conversationId, message_id: messageId, expected_updated_at: 7 }), {
     name: "TypeError",
     message: "Chat visibility needs an explicit choice",
   });
@@ -82,10 +82,10 @@ test("staff show or hide a received email in the chat with the message version t
 test("the conversation inbox keeps native multi-status filters, the contact filter and its opaque continuation", async (context) => {
   const calls = recordFetch(context, () => ({ items: [], cursor: "next:+/=" }));
   const filters = {
-    store_id: STORE_ID,
-    statuses: ["flow", "waiting_for_store"],
+    tenant_id: TENANT_ID,
+    statuses: ["flow", "waiting_for_tenant"],
     contact: "email",
-    customer_id: ids.customer,
+    user_id: ids.user,
     assigned_account_id: ids.account,
     query: "refund",
     sort_field: "created_at",
@@ -99,10 +99,10 @@ test("the conversation inbox keeps native multi-status filters, the contact filt
   for (const call of calls) {
     assert.equal(call.method, "GET");
     assert.equal(call.body, null);
-    assert.equal(call.path, `/v1/stores/${STORE_ID}/conversations`);
-    for (const removed of ["status", "store_id", "channel_id", "channel_type"]) assert.equal(removed in call.query, false, removed);
+    assert.equal(call.path, `/v1/tenants/${TENANT_ID}/conversations`);
+    for (const removed of ["status", "tenant_id", "channel_id", "channel_type"]) assert.equal(removed in call.query, false, removed);
     assert.deepEqual(JSON.parse(call.query.statuses), filters.statuses);
-    for (const [key, value] of Object.entries(filters).filter(([key]) => key !== "statuses" && key !== "store_id")) {
+    for (const [key, value] of Object.entries(filters).filter(([key]) => key !== "statuses" && key !== "tenant_id")) {
       assert.equal(call.query[key], String(value), key);
     }
   }
@@ -114,13 +114,13 @@ test("the conversation inbox keeps native multi-status filters, the contact filt
 
 test("support flows send their filters before paging", async (context) => {
   const calls = recordFetch(context, () => ({ items: [], cursor: "next:+/=" }));
-  const params = { store_id: STORE_ID, key: "welcome", query: "Bravo", sort_field: "updated_at", sort_direction: "asc", limit: 1 };
+  const params = { tenant_id: TENANT_ID, key: "welcome", query: "Bravo", sort_field: "updated_at", sort_direction: "asc", limit: 1 };
   const first = await support().flow.find(params);
   await support().flow.find({ ...params, cursor: first.cursor });
   const [initial, continued] = calls;
-  assert.equal(initial.path, `/v1/stores/${STORE_ID}/support-flows`);
-  assert.equal("store_id" in initial.query, false);
-  for (const [key, value] of Object.entries(params).filter(([key]) => key !== "store_id")) {
+  assert.equal(initial.path, `/v1/tenants/${TENANT_ID}/support-flows`);
+  assert.equal("tenant_id" in initial.query, false);
+  for (const [key, value] of Object.entries(params).filter(([key]) => key !== "tenant_id")) {
     assert.equal(initial.query[key], String(value), key);
     assert.equal(continued.query[key], String(value), key);
   }
@@ -132,34 +132,34 @@ test("support flows send their filters before paging", async (context) => {
 test("conversation history pages its messages with the empty-page continuation, reads one message exactly and links attachments", async (context) => {
   const conversation = {
     id: conversationId,
-    store_id: STORE_ID,
-    customer_id: ids.customer,
+    tenant_id: TENANT_ID,
+    user_id: ids.user,
     assigned_account_id: null,
     type: { type: "chat_and_email", chat_language: "bs", email: { contact, reply }, subject: "Chat follow-up" },
-    state: { type: "waiting_for_store", reason: "message", flow: { type: "none" } },
+    state: { type: "waiting_for_tenant", reason: "message", flow: { type: "none" } },
     next_message_sequence: 2,
-    customer_read: { type: "through", sequence: 1 },
-    store_read: { type: "unread" },
+    user_read: { type: "through", sequence: 1 },
+    tenant_read: { type: "unread" },
     unread: true,
     created_at: 0,
     updated_at: 2,
   };
-  const message = { id: messageId, store_id: STORE_ID, conversation_id: conversationId, sequence: 1, type: { type: "customer_chat", text: "Help", assistant: { type: "none" } }, created_at: 0, updated_at: 2 };
+  const message = { id: messageId, tenant_id: TENANT_ID, conversation_id: conversationId, sequence: 1, type: { type: "user_chat", text: "Help", assistant: { type: "none" } }, created_at: 0, updated_at: 2 };
   const calls = recordFetch(context, (_call, count) => count === 1
     ? conversation
     : count === 2 ? { items: [], cursor: "older:+/=" }
     : count === 3 ? { items: [message], cursor: null }
     : count === 4 ? message : { url: "https://files.example.test/a", expires_at: 9 });
   const api = support().conversation;
-  assert.deepEqual(await api.get({ store_id: STORE_ID, conversation_id: conversationId }), conversation);
-  const first = await api.findMessages({ store_id: STORE_ID, conversation_id: conversationId, limit: 1 });
+  assert.deepEqual(await api.get({ tenant_id: TENANT_ID, conversation_id: conversationId }), conversation);
+  const first = await api.findMessages({ tenant_id: TENANT_ID, conversation_id: conversationId, limit: 1 });
   assert.deepEqual(first, { items: [], cursor: "older:+/=" });
-  assert.deepEqual(await api.findMessages({ store_id: STORE_ID, conversation_id: conversationId, limit: 1, cursor: first.cursor }), { items: [message], cursor: null });
-  assert.deepEqual(await api.getMessage({ store_id: STORE_ID, conversation_id: conversationId, message_id: messageId }), message);
-  assert.deepEqual(await api.getAttachmentLink({ store_id: STORE_ID, conversation_id: conversationId, message_id: messageId, sha256: "e".repeat(64) }), { url: "https://files.example.test/a", expires_at: 9 });
+  assert.deepEqual(await api.findMessages({ tenant_id: TENANT_ID, conversation_id: conversationId, limit: 1, cursor: first.cursor }), { items: [message], cursor: null });
+  assert.deepEqual(await api.getMessage({ tenant_id: TENANT_ID, conversation_id: conversationId, message_id: messageId }), message);
+  assert.deepEqual(await api.getAttachmentLink({ tenant_id: TENANT_ID, conversation_id: conversationId, message_id: messageId, sha256: "e".repeat(64) }), { url: "https://files.example.test/a", expires_at: 9 });
   assert.equal(calls.length, 5);
   assert.ok(calls.every((call) => call.method === "GET" && call.body === null));
-  const base = `/v1/stores/${STORE_ID}/conversations/${conversationId}`;
+  const base = `/v1/tenants/${TENANT_ID}/conversations/${conversationId}`;
   assert.deepEqual(calls.map(({ path, query }) => [path, query]), [
     [base, {}],
     [`${base}/messages`, { limit: "1" }],
@@ -177,13 +177,13 @@ test("support writes carry the app-picked id, the conversation version or, for a
     start: { type: "chat_choice", text: { en: "How can we help?" }, buttons: [{ label: { en: "Talk to a person" }, next_step_key: "contact" }] },
     contact: { type: "collect_email_contact", text: { en: "Your email?" }, subject: { en: "Chat follow-up" }, reply, next_step_key: "thanks" },
     thanks: { type: "send_email", email: { ...reply, email_template_id: "2c4e6a8c-0e1f-4b3d-9f5a-7c9e1b3d5f7a" }, next_step_key: "team" },
-    team: { type: "hand_to_store" },
+    team: { type: "hand_to_tenant" },
   };
   const entries = [
     { type: "chat", start_step_key: "start" },
     { type: "incoming_email", email_address_id: addressId, reply_language: "en", reply, start_step_key: "team" },
   ];
-  const assistant = { status: { type: "active" }, login: { type: "store", store_provider_id: ids.picked }, languages: ["bs"], instructions: "Book check-ups only.", tools: ["find_slots", "book", "move", "cancel", "confirm_attendance"], sales_channel_id: ids.channel, market_id: ids.market, package_id: ids.package, place_of_sale: { type: "none" } };
+  const assistant = { status: { type: "active" }, login: { type: "tenant", tenant_provider_id: ids.picked }, languages: ["bs"], instructions: "Book check-ups only.", tools: ["find_slots", "book", "move", "cancel", "confirm_attendance"], sales_channel_id: ids.channel, market_id: ids.market, package_id: ids.package, place_of_sale: { type: "none" } };
   const phoneSteps = {
     hours: { type: "open_hours", hours: { weekly_availability: { monday: [{ from: 28_800_000, to: 57_600_000 }] }, date_overrides: {} }, open_step_key: "menu", closed_step_key: "closed" },
     menu: { type: "phone_menu", prompt: { type: "play", media_id: "6c1e9a47-2b58-4f03-8d6a-1e7c3b9f5a20" }, options: [{ digit: 1, next_step_key: "assistant" }], no_answer_step_key: "ring" },
@@ -191,23 +191,23 @@ test("support writes carry the app-picked id, the conversation version or, for a
     ring: { type: "phone_ring", number: "+38733000000", ring: 30_000, next_step_key: "closed" },
     closed: { type: "phone_say", prompt: { type: "speak", text: { bs: "Nazovite kasnije." } }, next_step_key: "team" },
     chat: { type: "chat_assistant", assistant_id: messageId, hand_over_step_key: "team" },
-    team: { type: "hand_to_store" },
+    team: { type: "hand_to_tenant" },
   };
   const phoneEntries = [{ type: "phone", phone_number_id: phoneNumberId, language: "bs", start_step_key: "hours" }, { type: "chat", start_step_key: "chat" }];
-  await api.flow.create({ store_id: STORE_ID, id: flowId, key: "welcome", entries, steps });
-  await api.flow.create({ store_id: STORE_ID, id: proposalId, key: "phone", entries: phoneEntries, steps: phoneSteps });
-  await api.flow.update({ store_id: STORE_ID, id: flowId, expected_updated_at: 3, key: "hello", entries, steps });
-  await api.flow.delete({ store_id: STORE_ID, id: flowId, expected_updated_at: 4 });
-  await api.conversation.resolve({ store_id: STORE_ID, conversation_id: conversationId, newest_message_sequence: 7 });
-  await api.conversation.resolve({ store_id: STORE_ID, conversation_id: conversationId, newest_message_sequence: null });
-  await api.conversation.assign({ store_id: STORE_ID, conversation_id: conversationId, expected_account_id: ids.account, account_id: null });
-  await api.conversation.assign({ store_id: STORE_ID, conversation_id: conversationId, expected_account_id: null, account_id: ids.account });
-  const base = `/v1/stores/${STORE_ID}/conversations/${conversationId}`;
+  await api.flow.create({ tenant_id: TENANT_ID, id: flowId, key: "welcome", entries, steps });
+  await api.flow.create({ tenant_id: TENANT_ID, id: proposalId, key: "phone", entries: phoneEntries, steps: phoneSteps });
+  await api.flow.update({ tenant_id: TENANT_ID, id: flowId, expected_updated_at: 3, key: "hello", entries, steps });
+  await api.flow.delete({ tenant_id: TENANT_ID, id: flowId, expected_updated_at: 4 });
+  await api.conversation.resolve({ tenant_id: TENANT_ID, conversation_id: conversationId, newest_message_sequence: 7 });
+  await api.conversation.resolve({ tenant_id: TENANT_ID, conversation_id: conversationId, newest_message_sequence: null });
+  await api.conversation.assign({ tenant_id: TENANT_ID, conversation_id: conversationId, expected_account_id: ids.account, account_id: null });
+  await api.conversation.assign({ tenant_id: TENANT_ID, conversation_id: conversationId, expected_account_id: null, account_id: ids.account });
+  const base = `/v1/tenants/${TENANT_ID}/conversations/${conversationId}`;
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
-    ["POST", `/v1/stores/${STORE_ID}/support-flows`, {}, { id: flowId, key: "welcome", entries, steps }],
-    ["POST", `/v1/stores/${STORE_ID}/support-flows`, {}, { id: proposalId, key: "phone", entries: phoneEntries, steps: phoneSteps }],
-    ["PUT", `/v1/stores/${STORE_ID}/support-flows/${flowId}`, {}, { expected_updated_at: 3, key: "hello", entries, steps }],
-    ["DELETE", `/v1/stores/${STORE_ID}/support-flows/${flowId}`, { expected_updated_at: "4" }, null],
+    ["POST", `/v1/tenants/${TENANT_ID}/support-flows`, {}, { id: flowId, key: "welcome", entries, steps }],
+    ["POST", `/v1/tenants/${TENANT_ID}/support-flows`, {}, { id: proposalId, key: "phone", entries: phoneEntries, steps: phoneSteps }],
+    ["PUT", `/v1/tenants/${TENANT_ID}/support-flows/${flowId}`, {}, { expected_updated_at: 3, key: "hello", entries, steps }],
+    ["DELETE", `/v1/tenants/${TENANT_ID}/support-flows/${flowId}`, { expected_updated_at: "4" }, null],
     ["POST", `${base}/resolve`, {}, { newest_message_sequence: 7 }],
     ["POST", `${base}/resolve`, {}, { newest_message_sequence: null }],
     ["POST", `${base}/assign`, {}, { expected_account_id: ids.account, account_id: null }],
@@ -215,7 +215,7 @@ test("support writes carry the app-picked id, the conversation version or, for a
   ]);
   for (const body of [calls[0].body, calls[1].body, calls[2].body]) assert.equal("start_step_key" in body, false);
   for (const write of calls.slice(4)) assert.equal("expected_updated_at" in write.body, false);
-  await assert.rejects(async () => api.flow.create({ store_id: STORE_ID, id: "welcome", key: "welcome", entries, steps }), TypeError);
+  await assert.rejects(async () => api.flow.create({ tenant_id: TENANT_ID, id: "welcome", key: "welcome", entries, steps }), TypeError);
   assert.equal(calls.length, 8);
 });
 
@@ -224,13 +224,13 @@ test("an account reply is one write of the app-picked message id, its text and i
   const calls = recordFetch(context, () => answer);
   const admin = createAdmin({ apiUrl: apiUrl, accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
   assert.equal("sendConversationMessage" in admin.support.conversation, false);
-  assert.deepEqual(await admin.support.conversation.reply({ store_id: ids.store, conversation_id: conversationId, id: messageId, newest_message_sequence: 4, text: "I can help from here.", delivery: "chat_and_email", resolve: false }), answer);
-  await admin.support.conversation.reply({ store_id: ids.store, conversation_id: conversationId, id: promptId, newest_message_sequence: null, text: "Done.", delivery: "email" });
+  assert.deepEqual(await admin.support.conversation.reply({ tenant_id: ids.tenant, conversation_id: conversationId, id: messageId, newest_message_sequence: 4, text: "I can help from here.", delivery: "chat_and_email", resolve: false }), answer);
+  await admin.support.conversation.reply({ tenant_id: ids.tenant, conversation_id: conversationId, id: promptId, newest_message_sequence: null, text: "Done.", delivery: "email" });
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
-    ["POST", `/v1/stores/${ids.store}/conversations/${conversationId}/messages`, { id: messageId, newest_message_sequence: 4, text: "I can help from here.", delivery: "chat_and_email", resolve: false }],
-    ["POST", `/v1/stores/${ids.store}/conversations/${conversationId}/messages`, { id: promptId, newest_message_sequence: null, text: "Done.", delivery: "email" }],
+    ["POST", `/v1/tenants/${ids.tenant}/conversations/${conversationId}/messages`, { id: messageId, newest_message_sequence: 4, text: "I can help from here.", delivery: "chat_and_email", resolve: false }],
+    ["POST", `/v1/tenants/${ids.tenant}/conversations/${conversationId}/messages`, { id: promptId, newest_message_sequence: null, text: "Done.", delivery: "email" }],
   ]);
-  await assert.rejects(async () => admin.support.conversation.reply({ store_id: ids.store, conversation_id: conversationId, id: "reply-1", newest_message_sequence: 4, text: "x", delivery: "chat", resolve: true }), {
+  await assert.rejects(async () => admin.support.conversation.reply({ tenant_id: ids.tenant, conversation_id: conversationId, id: "reply-1", newest_message_sequence: 4, text: "x", delivery: "chat", resolve: true }), {
     name: "TypeError",
     message: "The conversation message id must be a canonical UUID v4 picked by the app",
   });
@@ -247,7 +247,7 @@ test("a chat start without a valid flow key is refused before anything is sent",
   assert.equal(calls.length, 0);
 });
 
-test("storefront support starts with an app-picked id and uses its real customer session", async (context) => {
+test("storefront support starts with an app-picked id and uses its real user session", async (context) => {
   const started = { conversation: storefrontConversation(), messages: [] };
   const calls = recordFetch(context, (call) => call.method === "POST" ? started : storefrontConversation());
   const client = storefront();
@@ -274,7 +274,7 @@ test("a storefront chat message is one write with the app-picked id, the input a
   const flowReply = {
     conversation: storefrontConversation("flow"),
     messages: [
-      { id: messageId, conversation_id: conversationId, sequence: 2, type: { type: "customer_chat", text: "Talk to a person" }, created_at: 2, updated_at: 2 },
+      { id: messageId, conversation_id: conversationId, sequence: 2, type: { type: "user_chat", text: "Talk to a person" }, created_at: 2, updated_at: 2 },
       { id: "flow-reply", conversation_id: conversationId, sequence: 3, type: { type: "flow_email_contact", text: "Your email?" }, created_at: 2, updated_at: 2 },
     ],
   };
@@ -297,7 +297,7 @@ test("a storefront chat message is one write with the app-picked id, the input a
   }
 });
 
-test("support uses the actual customer session and refuses a noncanonical message id before any request", async (context) => {
+test("support uses the actual user session and refuses a noncanonical message id before any request", async (context) => {
   const calls = recordFetch(context, () => ({ items: [], cursor: null }));
   const client = storefront().support.conversation;
   await client.findMessages({ conversation_id: conversationId, limit: 20, cursor: "older" });
@@ -316,35 +316,35 @@ test("staff send an SMS and move their read mark with the newest message they re
   const answer = { conversation: { id: conversationId }, message: { id: messageId } };
   const calls = recordFetch(context, (call) => call.path.endsWith("/sms") ? answer : { id: conversationId });
   const api = support().conversation;
-  assert.deepEqual(await api.sendSms({ store_id: STORE_ID, conversation_id: conversationId, id: messageId, newest_message_sequence: 3, text: "See you at 10." }), answer);
-  await api.sendSms({ store_id: STORE_ID, conversation_id: conversationId, id: promptId, newest_message_sequence: null, text: "Done.", resolve: true });
-  await api.markRead({ store_id: STORE_ID, conversation_id: conversationId, sequence: 4 });
-  await api.markUnread({ store_id: STORE_ID, conversation_id: conversationId, sequence: 2 });
-  const base = `/v1/stores/${STORE_ID}/conversations/${conversationId}`;
+  assert.deepEqual(await api.sendSms({ tenant_id: TENANT_ID, conversation_id: conversationId, id: messageId, newest_message_sequence: 3, text: "See you at 10." }), answer);
+  await api.sendSms({ tenant_id: TENANT_ID, conversation_id: conversationId, id: promptId, newest_message_sequence: null, text: "Done.", resolve: true });
+  await api.markRead({ tenant_id: TENANT_ID, conversation_id: conversationId, sequence: 4 });
+  await api.markUnread({ tenant_id: TENANT_ID, conversation_id: conversationId, sequence: 2 });
+  const base = `/v1/tenants/${TENANT_ID}/conversations/${conversationId}`;
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
     ["POST", `${base}/sms`, { id: messageId, newest_message_sequence: 3, text: "See you at 10.", resolve: false }],
     ["POST", `${base}/sms`, { id: promptId, newest_message_sequence: null, text: "Done.", resolve: true }],
     ["POST", `${base}/read`, { sequence: 4 }],
     ["POST", `${base}/unread`, { sequence: 2 }],
   ]);
-  await assert.rejects(async () => api.sendSms({ store_id: STORE_ID, conversation_id: conversationId, id: "sms-1", newest_message_sequence: 3, text: "x" }), TypeError);
+  await assert.rejects(async () => api.sendSms({ tenant_id: TENANT_ID, conversation_id: conversationId, id: "sms-1", newest_message_sequence: 3, text: "x" }), TypeError);
   assert.equal(calls.length, 4);
 });
 
 test("calls are listed with their filters, and a call's transcript and recording are read through the call routes", async (context) => {
-  const item = { call: { id: messageId, type: { type: "call" } }, customer_id: ids.customer, customer_name: "Ana Anić", waiting_callback: true };
+  const item = { call: { id: messageId, type: { type: "call" } }, user_id: ids.user, user_name: "Ana Anić", waiting_callback: true };
   const link = { url: "https://recordings.example.test/call.mp3?signature=x", expires_at: 1_900_000_300_000 };
   const calls = recordFetch(context, (call) => call.path.endsWith("/calls") ? { items: [item], cursor: "next" } : call.path.endsWith("/recording") ? link : item.call);
   const api = support().call;
   assert.deepEqual(Object.keys(api).sort(), ["find", "get", "getRecordingLink"]);
-  assert.deepEqual(await api.find({ store_id: STORE_ID, outcomes: ["missed", "booked"], waiting_callback: true, phone_number_id: phoneNumberId, query: "Ana", limit: 20, cursor: "page" }), { items: [item], cursor: "next" });
-  await api.find({ store_id: STORE_ID });
-  assert.deepEqual(await api.get({ store_id: STORE_ID, conversation_id: conversationId, message_id: messageId }), item.call);
-  assert.deepEqual(await api.getRecordingLink({ store_id: STORE_ID, conversation_id: conversationId, message_id: messageId }), link);
-  const messages = `/v1/stores/${STORE_ID}/conversations/${conversationId}/messages/${messageId}`;
+  assert.deepEqual(await api.find({ tenant_id: TENANT_ID, outcomes: ["missed", "booked"], waiting_callback: true, phone_number_id: phoneNumberId, query: "Ana", limit: 20, cursor: "page" }), { items: [item], cursor: "next" });
+  await api.find({ tenant_id: TENANT_ID });
+  assert.deepEqual(await api.get({ tenant_id: TENANT_ID, conversation_id: conversationId, message_id: messageId }), item.call);
+  assert.deepEqual(await api.getRecordingLink({ tenant_id: TENANT_ID, conversation_id: conversationId, message_id: messageId }), link);
+  const messages = `/v1/tenants/${TENANT_ID}/conversations/${conversationId}/messages/${messageId}`;
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
-    ["GET", `/v1/stores/${STORE_ID}/calls`, { outcomes: JSON.stringify(["missed", "booked"]), waiting_callback: "true", phone_number_id: phoneNumberId, query: "Ana", limit: "20", cursor: "page" }, null],
-    ["GET", `/v1/stores/${STORE_ID}/calls`, {}, null],
+    ["GET", `/v1/tenants/${TENANT_ID}/calls`, { outcomes: JSON.stringify(["missed", "booked"]), waiting_callback: "true", phone_number_id: phoneNumberId, query: "Ana", limit: "20", cursor: "page" }, null],
+    ["GET", `/v1/tenants/${TENANT_ID}/calls`, {}, null],
     ["GET", `${messages}/call`, {}, null],
     ["GET", `${messages}/recording`, {}, null],
   ]);
@@ -359,13 +359,13 @@ test("a call read keeps a recording that is starting or failed and a proposal re
   const answers = [starting, failed];
   const calls = recordFetch(context, () => answers.shift());
   const api = support().call;
-  const read = { store_id: STORE_ID, conversation_id: conversationId, message_id: messageId };
+  const read = { tenant_id: TENANT_ID, conversation_id: conversationId, message_id: messageId };
   assert.deepEqual(await api.get(read), starting);
   assert.deepEqual(await api.get(read), failed);
   assert.equal(calls.length, 2);
 });
 
-test("a storefront chat answers the assistant's proposal with a bodiless confirm or decline under the customer's session", async (context) => {
+test("a storefront chat answers the assistant's proposal with a bodiless confirm or decline under the user's session", async (context) => {
   const answered = { id: messageId, conversation_id: conversationId, sequence: 4, type: { type: "assistant_reply", text: "Booked.", proposal: { id: proposalId, command: { type: "cancel", order_id: ids.order, order_booking_line_item_id: ids.line }, state: { type: "closed", reason: "declined", at: 2 } } }, created_at: 1, updated_at: 2 };
   const calls = recordFetch(context, () => answered);
   const client = storefront().support.conversation;
@@ -379,12 +379,12 @@ test("a storefront chat answers the assistant's proposal with a bodiless confirm
   for (const call of calls) assert.equal(call.headers.get("authorization"), `Bearer ${visitorToken}`);
 });
 
-test("a storefront chat starts with its subject and moves the customer's read mark", async (context) => {
+test("a storefront chat starts with its subject and moves the user's read mark", async (context) => {
   const started = { conversation: { ...storefrontConversation(), subject: "Order 42" }, messages: [] };
-  const calls = recordFetch(context, (call) => call.path.endsWith("/read") ? { ...started.conversation, customer_read: { type: "through", sequence: 3 } } : started);
+  const calls = recordFetch(context, (call) => call.path.endsWith("/read") ? { ...started.conversation, user_read: { type: "through", sequence: 3 } } : started);
   const client = storefront().support.conversation;
   assert.deepEqual(await client.start({ id: conversationId, language: "bs", flow_key: "default", subject: "Order 42" }), started);
-  assert.deepEqual((await client.markRead({ conversation_id: conversationId, sequence: 3 })).customer_read, { type: "through", sequence: 3 });
+  assert.deepEqual((await client.markRead({ conversation_id: conversationId, sequence: 3 })).user_read, { type: "through", sequence: 3 });
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
     ["POST", "/v1/storefront/conversations", { id: conversationId, language: "bs", flow_key: "default", subject: "Order 42" }],
     ["POST", `/v1/storefront/conversations/${conversationId}/read`, { sequence: 3 }],
@@ -392,9 +392,9 @@ test("a storefront chat starts with its subject and moves the customer's read ma
   for (const call of calls) assert.equal(call.headers.get("authorization"), `Bearer ${visitorToken}`);
 });
 
-test("a signed-in customer pages their own chats, newest message first, under their own session", async (context) => {
-  const newer = { ...storefrontConversation("waiting_for_store"), newest_message_at: 9, unread: true };
-  const older = { ...storefrontConversation("resolved"), id: promptId, customer_read: { type: "through", sequence: 4 }, newest_message_at: 5, unread: false };
+test("a signed-in user pages their own chats, newest message first, under their own session", async (context) => {
+  const newer = { ...storefrontConversation("waiting_for_tenant"), newest_message_at: 9, unread: true };
+  const older = { ...storefrontConversation("resolved"), id: promptId, user_read: { type: "through", sequence: 4 }, newest_message_at: 5, unread: false };
   const calls = recordFetch(context, (_call, count) => count === 1 ? { items: [newer], cursor: "next:+/=" } : { items: [older], cursor: null });
   const client = createStorefront(storefrontIdentity, { ...fixedIdFactories, apiUrl, locale: "bs", sessionStorage: signedInStorage() }).support.conversation;
   const first = await client.find({ limit: 1 });
@@ -406,7 +406,7 @@ test("a signed-in customer pages their own chats, newest message first, under th
   ]);
   for (const call of calls) {
     assert.equal(call.headers.get("authorization"), `Bearer ${accessToken}`);
-    for (const named of ["customer_id", "store_id", "contact", "sort_field"]) assert.equal(named in call.query, false, named);
+    for (const named of ["user_id", "tenant_id", "contact", "sort_field"]) assert.equal(named in call.query, false, named);
   }
 });
 
@@ -418,24 +418,24 @@ test("a visitor's chat list is refused with 403 and keeps the visitor's session"
   assert.equal(calls[0].headers.get("authorization"), `Bearer ${visitorToken}`);
 });
 
-test("staff start a chat with a customer, with or without files, and a reply carries files as multipart", async (context) => {
+test("staff start a chat with a user, with or without files, and a reply carries files as multipart", async (context) => {
   const answer = { conversation: { id: conversationId }, message: { id: messageId } };
   const calls = recordFetch(context, () => answer);
   const api = support().conversation;
-  const start = { store_id: STORE_ID, id: conversationId, message_id: messageId, customer_id: ids.customer, language: "bs", subject: "Nalaz", text: "Nalaz je stigao." };
+  const start = { tenant_id: TENANT_ID, id: conversationId, message_id: messageId, user_id: ids.user, language: "bs", subject: "Nalaz", text: "Nalaz je stigao." };
   assert.deepEqual(await api.startChat(start), answer);
   const scan = new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], "scan.png", { type: "image/png" });
   const report = new File(["%PDF-1.4 %%EOF"], "report.pdf", { type: "application/pdf" });
   await api.startChat({ ...start, files: [scan, report] });
-  await api.reply({ store_id: STORE_ID, conversation_id: conversationId, id: promptId, newest_message_sequence: 2, text: "Evo slike.", delivery: "chat", files: [scan] });
-  await api.reply({ store_id: STORE_ID, conversation_id: conversationId, id: promptId, newest_message_sequence: 2, text: "Bez datoteka.", delivery: "chat", files: [] });
+  await api.reply({ tenant_id: TENANT_ID, conversation_id: conversationId, id: promptId, newest_message_sequence: 2, text: "Evo slike.", delivery: "chat", files: [scan] });
+  await api.reply({ tenant_id: TENANT_ID, conversation_id: conversationId, id: promptId, newest_message_sequence: 2, text: "Bez datoteka.", delivery: "chat", files: [] });
   assert.deepEqual(calls.map(({ method, path }) => [method, path]), [
-    ["POST", `/v1/stores/${STORE_ID}/conversations/chats`],
-    ["POST", `/v1/stores/${STORE_ID}/conversations/chats`],
-    ["POST", `/v1/stores/${STORE_ID}/conversations/${conversationId}/messages`],
-    ["POST", `/v1/stores/${STORE_ID}/conversations/${conversationId}/messages`],
+    ["POST", `/v1/tenants/${TENANT_ID}/conversations/chats`],
+    ["POST", `/v1/tenants/${TENANT_ID}/conversations/chats`],
+    ["POST", `/v1/tenants/${TENANT_ID}/conversations/${conversationId}/messages`],
+    ["POST", `/v1/tenants/${TENANT_ID}/conversations/${conversationId}/messages`],
   ]);
-  const { store_id, ...chat } = start;
+  const { tenant_id, ...chat } = start;
   assert.deepEqual(calls[0].body, chat);
   assert.ok(calls[1].body instanceof FormData, "a chat start with files is one multipart request");
   assert.deepEqual(JSON.parse(calls[1].body.get("chat")), chat);
@@ -445,28 +445,28 @@ test("staff start a chat with a customer, with or without files, and a reply car
   assert.deepEqual(JSON.parse(calls[2].body.get("reply")), { id: promptId, newest_message_sequence: 2, text: "Evo slike.", delivery: "chat" });
   assert.equal(calls[2].body.get("file-0").name, "scan.png");
   assert.deepEqual(calls[3].body, { id: promptId, newest_message_sequence: 2, text: "Bez datoteka.", delivery: "chat" });
-  await assert.rejects(async () => api.reply({ store_id: STORE_ID, conversation_id: conversationId, id: promptId, newest_message_sequence: 2, text: "Prazno.", delivery: "chat", files: [new File([], "empty.pdf")] }), {
+  await assert.rejects(async () => api.reply({ tenant_id: TENANT_ID, conversation_id: conversationId, id: promptId, newest_message_sequence: 2, text: "Prazno.", delivery: "chat", files: [new File([], "empty.pdf")] }), {
     name: "TypeError",
     message: "The file 'empty.pdf' is empty",
   });
   assert.equal(calls.length, 4);
 });
 
-test("staff text a customer straight into their Phone thread and reopen a resolved conversation", async (context) => {
+test("staff text a user straight into their Phone thread and reopen a resolved conversation", async (context) => {
   const calls = recordFetch(context, (call) => call.path.endsWith("/reopen") ? { id: conversationId } : { conversation: { id: conversationId }, message: { id: messageId } });
   const api = support().conversation;
-  await api.sendCustomerSms({ store_id: STORE_ID, customer_id: ids.customer, id: messageId, text: "Vrijeme je za kontrolu." });
-  await api.sendCustomerSms({ store_id: STORE_ID, customer_id: ids.customer, id: promptId, text: "Vidimo se.", resolve: true });
-  assert.deepEqual(await api.reopen({ store_id: STORE_ID, conversation_id: conversationId, newest_message_sequence: 4 }), { id: conversationId });
+  await api.sendUserSms({ tenant_id: TENANT_ID, user_id: ids.user, id: messageId, text: "Vrijeme je za kontrolu." });
+  await api.sendUserSms({ tenant_id: TENANT_ID, user_id: ids.user, id: promptId, text: "Vidimo se.", resolve: true });
+  assert.deepEqual(await api.reopen({ tenant_id: TENANT_ID, conversation_id: conversationId, newest_message_sequence: 4 }), { id: conversationId });
   assert.deepEqual(calls.map(({ method, path, body }) => [method, path, body]), [
-    ["POST", `/v1/stores/${STORE_ID}/customers/${ids.customer}/sms`, { id: messageId, text: "Vrijeme je za kontrolu.", resolve: false }],
-    ["POST", `/v1/stores/${STORE_ID}/customers/${ids.customer}/sms`, { id: promptId, text: "Vidimo se.", resolve: true }],
-    ["POST", `/v1/stores/${STORE_ID}/conversations/${conversationId}/reopen`, { newest_message_sequence: 4 }],
+    ["POST", `/v1/tenants/${TENANT_ID}/users/${ids.user}/sms`, { id: messageId, text: "Vrijeme je za kontrolu.", resolve: false }],
+    ["POST", `/v1/tenants/${TENANT_ID}/users/${ids.user}/sms`, { id: promptId, text: "Vidimo se.", resolve: true }],
+    ["POST", `/v1/tenants/${TENANT_ID}/conversations/${conversationId}/reopen`, { newest_message_sequence: 4 }],
   ]);
-  assert.equal("newest_message_sequence" in calls[0].body, false, "a staff SMS to a customer names no message");
+  assert.equal("newest_message_sequence" in calls[0].body, false, "a staff SMS to a user names no message");
 });
 
-test("a customer opens a file of the store's reply through their own session", async (context) => {
+test("a user opens a file of the tenant's reply through their own session", async (context) => {
   const sha256 = "a".repeat(64);
   const link = { url: "https://files.test/report.pdf", expires_at: 300_000 };
   const calls = recordFetch(context, () => link);
@@ -482,17 +482,17 @@ test("a customer opens a file of the store's reply through their own session", a
 test("reusable assistants keep their caller-picked identity, flat settings and edit version", async (context) => {
   const calls = recordFetch(context, (call) => call.method === "DELETE" ? { deleted: true } : call.method === "GET" && call.path.endsWith("support-assistants") ? { items: [], cursor: "next:+/=" } : { id: proposalId });
   const api = support().assistant;
-  const settings = { status: { type: "active" }, login: { type: "store", store_provider_id: ids.picked }, languages: ["bs"], instructions: "Book check-ups only.", tools: ["find_items", "order"], sales_channel_id: ids.channel, market_id: ids.market, package_id: ids.package, place_of_sale: { type: "store_location", store_location_id: "3f8b1d6a-7c24-4e59-a0d3-9b6e2c4f8a17" } };
+  const settings = { status: { type: "active" }, login: { type: "tenant", tenant_provider_id: ids.picked }, languages: ["bs"], instructions: "Book check-ups only.", tools: ["find_items", "order"], sales_channel_id: ids.channel, market_id: ids.market, package_id: ids.package, place_of_sale: { type: "tenant_location", tenant_location_id: "3f8b1d6a-7c24-4e59-a0d3-9b6e2c4f8a17" } };
   const body = { id: proposalId, key: "reception", ...settings };
-  await api.create({ store_id: STORE_ID, ...body });
-  await api.create({ store_id: STORE_ID, ...body });
-  await api.update({ store_id: STORE_ID, ...body, status: { type: "paused" }, expected_updated_at: 7 });
-  await api.get({ store_id: STORE_ID, id: proposalId });
-  const page = await api.find({ store_id: STORE_ID, limit: 1 });
-  await api.find({ store_id: STORE_ID, limit: 1, cursor: page.cursor });
-  await api.find({ store_id: STORE_ID, key: "reception" });
-  await api.delete({ store_id: STORE_ID, id: proposalId, expected_updated_at: 8 });
-  const base = `/v1/stores/${STORE_ID}/support-assistants`;
+  await api.create({ tenant_id: TENANT_ID, ...body });
+  await api.create({ tenant_id: TENANT_ID, ...body });
+  await api.update({ tenant_id: TENANT_ID, ...body, status: { type: "paused" }, expected_updated_at: 7 });
+  await api.get({ tenant_id: TENANT_ID, id: proposalId });
+  const page = await api.find({ tenant_id: TENANT_ID, limit: 1 });
+  await api.find({ tenant_id: TENANT_ID, limit: 1, cursor: page.cursor });
+  await api.find({ tenant_id: TENANT_ID, key: "reception" });
+  await api.delete({ tenant_id: TENANT_ID, id: proposalId, expected_updated_at: 8 });
+  const base = `/v1/tenants/${TENANT_ID}/support-assistants`;
   assert.deepEqual(calls[0].body, body);
   assert.deepEqual(calls[1].body, body);
   assert.deepEqual(calls[2].body, { key: "reception", ...settings, status: { type: "paused" }, expected_updated_at: 7 });
@@ -501,7 +501,7 @@ test("reusable assistants keep their caller-picked identity, flat settings and e
   assert.deepEqual(calls[6].query, { key: "reception" });
   assert.deepEqual(calls[7].query, { expected_updated_at: "8" });
   assert.equal("settings" in calls[0].body, false);
-  assert.equal("store_id" in calls[0].body, false);
+  assert.equal("tenant_id" in calls[0].body, false);
 });
 
 test("a call's provider posts are paged for one login and resolved under their version", async (context) => {
@@ -509,35 +509,35 @@ test("a call's provider posts are paged for one login and resolved under their v
   const calls = recordFetch(context, (call) => call.method === "GET" ? { items: [post], cursor: null } : post);
   const api = support();
   const networkProviderId = "1d3f5b7a-9c2e-4f6a-8b0d-2e4f6a8c0e1b";
-  await api.twilioPost.find({ store_id: STORE_ID, store_provider_id: ids.picked, status: "review", limit: 10 });
-  await api.elevenLabsPost.find({ store_id: STORE_ID, network_provider_id: networkProviderId, status: "unmatched", cursor: "next" });
-  await api.twilioPost.resolve({ store_id: STORE_ID, id: messageId, expected_updated_at: 3, resolution: "apply" });
-  await api.elevenLabsPost.resolve({ store_id: STORE_ID, id: messageId, expected_updated_at: 3, resolution: "ignore", reason: "Test call" });
+  await api.twilioPost.find({ tenant_id: TENANT_ID, tenant_provider_id: ids.picked, status: "review", limit: 10 });
+  await api.elevenLabsPost.find({ tenant_id: TENANT_ID, network_provider_id: networkProviderId, status: "unmatched", cursor: "next" });
+  await api.twilioPost.resolve({ tenant_id: TENANT_ID, id: messageId, expected_updated_at: 3, resolution: "apply" });
+  await api.elevenLabsPost.resolve({ tenant_id: TENANT_ID, id: messageId, expected_updated_at: 3, resolution: "ignore", reason: "Test call" });
   assert.deepEqual(calls.map(({ method, path, query, body }) => [method, path, query, body]), [
-    ["GET", `/v1/stores/${STORE_ID}/incoming-webhooks/twilio`, { store_provider_id: ids.picked, status: "review", limit: "10" }, null],
-    ["GET", `/v1/stores/${STORE_ID}/incoming-webhooks/elevenlabs`, { network_provider_id: networkProviderId, status: "unmatched", cursor: "next" }, null],
-    ["POST", `/v1/stores/${STORE_ID}/incoming-webhooks/twilio/${messageId}/resolve`, {}, { expected_updated_at: 3, resolution: "apply" }],
-    ["POST", `/v1/stores/${STORE_ID}/incoming-webhooks/elevenlabs/${messageId}/resolve`, {}, { expected_updated_at: 3, resolution: "ignore", reason: "Test call" }],
+    ["GET", `/v1/tenants/${TENANT_ID}/incoming-webhooks/twilio`, { tenant_provider_id: ids.picked, status: "review", limit: "10" }, null],
+    ["GET", `/v1/tenants/${TENANT_ID}/incoming-webhooks/elevenlabs`, { network_provider_id: networkProviderId, status: "unmatched", cursor: "next" }, null],
+    ["POST", `/v1/tenants/${TENANT_ID}/incoming-webhooks/twilio/${messageId}/resolve`, {}, { expected_updated_at: 3, resolution: "apply" }],
+    ["POST", `/v1/tenants/${TENANT_ID}/incoming-webhooks/elevenlabs/${messageId}/resolve`, {}, { expected_updated_at: 3, resolution: "ignore", reason: "Test call" }],
   ]);
-  for (const login of [{}, { store_provider_id: ids.picked, network_provider_id: networkProviderId }, { store_provider_id: "twilio" }]) {
-    await assert.rejects(async () => api.twilioPost.find({ store_id: STORE_ID, status: "review", ...login }), TypeError);
+  for (const login of [{}, { tenant_provider_id: ids.picked, network_provider_id: networkProviderId }, { tenant_provider_id: "twilio" }]) {
+    await assert.rejects(async () => api.twilioPost.find({ tenant_id: TENANT_ID, status: "review", ...login }), TypeError);
   }
   assert.equal(calls.length, 4);
 });
 
 test("the inbox lists unread or unassigned threads, and a history reads the messages after a sequence oldest first", async (context) => {
   const calls = recordFetch(context, () => ({ items: [], cursor: null }));
-  await support().conversation.find({ store_id: STORE_ID, unread: true, unassigned: true, limit: 20 });
-  await support().conversation.find({ store_id: STORE_ID, unread: false, assigned_account_id: ids.account });
-  await support().conversation.findMessages({ store_id: STORE_ID, conversation_id: conversationId, after_sequence: 41, limit: 50 });
+  await support().conversation.find({ tenant_id: TENANT_ID, unread: true, unassigned: true, limit: 20 });
+  await support().conversation.find({ tenant_id: TENANT_ID, unread: false, assigned_account_id: ids.account });
+  await support().conversation.findMessages({ tenant_id: TENANT_ID, conversation_id: conversationId, after_sequence: 41, limit: 50 });
   assert.deepEqual(calls.map(({ method, path, query }) => [method, path, query]), [
-    ["GET", `/v1/stores/${STORE_ID}/conversations`, { unread: "true", unassigned: "true", limit: "20" }],
-    ["GET", `/v1/stores/${STORE_ID}/conversations`, { unread: "false", assigned_account_id: ids.account }],
-    ["GET", `/v1/stores/${STORE_ID}/conversations/${conversationId}/messages`, { after_sequence: "41", limit: "50" }],
+    ["GET", `/v1/tenants/${TENANT_ID}/conversations`, { unread: "true", unassigned: "true", limit: "20" }],
+    ["GET", `/v1/tenants/${TENANT_ID}/conversations`, { unread: "false", assigned_account_id: ids.account }],
+    ["GET", `/v1/tenants/${TENANT_ID}/conversations/${conversationId}/messages`, { after_sequence: "41", limit: "50" }],
   ]);
 });
 
-test("a signed-in customer pages her chats and phone thread from Arky's own records, newest created first", async (context) => {
+test("a signed-in user pages her chats and phone thread from Arky's own records, newest created first", async (context) => {
   const calls = recordFetch(context, () => ({ items: [], cursor: null }));
   assert.deepEqual(await storefront().support.conversation.findAll({ limit: 20, cursor: "threads:2" }), { items: [], cursor: null });
   assert.deepEqual(await storefront().support.conversation.findMessages({ conversation_id: conversationId, after_sequence: 7 }), { items: [], cursor: null });

@@ -102,7 +102,7 @@ export function storefrontCartBooking(item: CartBookingLineItemInput): CartBooki
   return {
     id: item.id,
     booking_offering_id: item.booking_offering_id,
-    store_location_id: requireId(item.store_location_id, "store location"),
+    tenant_location_id: requireId(item.tenant_location_id, "tenant location"),
     resource: copyBookingLineResource(item.resource),
     requested_interval: { from: item.requested_interval.from, to: item.requested_interval.to },
     add_ons: copyBookingAddOns(item.add_ons),

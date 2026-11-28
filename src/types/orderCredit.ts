@@ -73,7 +73,7 @@ export type OrderCreditStatus =
 
 export interface OrderCredit {
   id: string;
-  store_id: string;
+  tenant_id: string;
   order_id: string;
   source: OrderCreditSource;
   allocations: OrderCreditAllocation[];
@@ -97,7 +97,7 @@ export type StorefrontOrderCreditStatus =
 
 export interface StorefrontOrderCredit {
   id: string;
-  store_id: string;
+  tenant_id: string;
   order_id: string;
   source: StorefrontOrderCreditSource;
   status: StorefrontOrderCreditStatus;
@@ -108,7 +108,7 @@ export interface StorefrontOrderCredit {
 }
 
 export interface CreateOrderCreditParams {
-  store_id: string;
+  tenant_id: string;
   order_id: string;
   id: string;
   targets: OrderCreditRequestTarget[];
@@ -117,21 +117,21 @@ export interface CreateOrderCreditParams {
 }
 
 export interface GetOrderCreditParams {
-  store_id: string;
+  tenant_id: string;
   order_id: string;
   credit_id: string;
 }
 
 export interface VoidOrderCreditParams {
   reason: string;
-  store_id: string;
+  tenant_id: string;
   order_id: string;
   credit_id: string;
   expected_updated_at: EpochMilliseconds;
 }
 
 export interface FindOrderCreditsParams {
-  store_id: string;
+  tenant_id: string;
   order_id?: string;
   updated_at_from?: EpochMilliseconds;
   sort_field?: "created_at" | "updated_at";

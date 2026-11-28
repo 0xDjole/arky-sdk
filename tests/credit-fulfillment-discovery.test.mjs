@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdmin } from "../dist/admin.js";
 
-const selectedStoreId = "74f46c74-7776-47f4-a249-a57b80af62bb";
+const selectedTenantId = "74f46c74-7776-47f4-a249-a57b80af62bb";
 const orderId = "030a5ec0-eccf-430c-8c0a-3a68c842de1f";
 const creditId = "6a8c0e2f-4b5d-4e7a-9c1f-3e5a7c9e1b2d";
 const cursor = "opaque:page/+=binding";
@@ -11,12 +11,12 @@ for (const definition of [
   {
     name: "order credits",
     find: (admin, query) => admin.eshop.order.credit.find(query), limit: 25,
-    pathname: `/v1/stores/${selectedStoreId}/credits`, scope: { order_id: orderId },
+    pathname: `/v1/tenants/${selectedTenantId}/credits`, scope: { order_id: orderId },
   },
   {
     name: "fulfillment jobs",
     find: (admin, query) => admin.eshop.fulfillmentJob.find(query), limit: 100,
-    pathname: `/v1/stores/${selectedStoreId}/fulfillment-jobs`, scope: { order_id: orderId },
+    pathname: `/v1/tenants/${selectedTenantId}/fulfillment-jobs`, scope: { order_id: orderId },
   },
 ]) {
   test(`${definition.name} keep exact Order scope and empty-page continuation`, async (context) => {
@@ -26,7 +26,7 @@ for (const definition of [
       return new Response(JSON.stringify({ items: [], cursor: calls.length === 1 ? cursor : null }), { status: 200, headers: { "content-type": "application/json" } });
     });
     const admin = createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
-    const query = { store_id: selectedStoreId, order_id: orderId };
+    const query = { tenant_id: selectedTenantId, order_id: orderId };
     const first = await definition.find(admin, query);
     assert.deepEqual(first, { items: [], cursor });
     assert.equal(calls.length, 1);
@@ -38,18 +38,18 @@ for (const definition of [
     }
     assert.deepEqual(Object.fromEntries(calls[0].url.searchParams), definition.scope);
     assert.deepEqual(Object.fromEntries(calls[1].url.searchParams), { ...definition.scope, limit: String(definition.limit), cursor });
-    assert.deepEqual(query, { store_id: selectedStoreId, order_id: orderId });
+    assert.deepEqual(query, { tenant_id: selectedTenantId, order_id: orderId });
   });
 }
 
-test("store-wide credit history needs no order, lists by last change, and credits are created under the app's id", async (context) => {
+test("tenant-wide credit history needs no order, lists by last change, and credits are created under the app's id", async (context) => {
   const calls = [];
   context.mock.method(globalThis, "fetch", async (url, init = {}) => {
     calls.push({ url: new URL(url), method: init.method ?? "GET", body: init.body ? JSON.parse(init.body) : null });
     return new Response(JSON.stringify(init.method === "GET" ? { items: [], cursor: null } : { id: creditId }), { status: 200, headers: { "content-type": "application/json" } });
   });
   const admin = createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
-  await admin.eshop.order.credit.find({ store_id: selectedStoreId, sort_field: "updated_at", sort_direction: "desc", limit: 10 });
+  await admin.eshop.order.credit.find({ tenant_id: selectedTenantId, sort_field: "updated_at", sort_direction: "desc", limit: 10 });
   const create = {
     id: creditId,
     reason: "Damaged in transit",
@@ -59,20 +59,20 @@ test("store-wide credit history needs no order, lists by last change, and credit
     ],
     fiscal_device_id: "2d7f9b14-6c38-4a05-9e21-8b4c0f6a3d57",
   };
-  await admin.eshop.order.credit.create({ store_id: selectedStoreId, order_id: orderId, ...create });
-  await admin.eshop.order.credit.get({ store_id: selectedStoreId, order_id: orderId, credit_id: creditId });
-  await admin.eshop.order.credit.void({ store_id: selectedStoreId, order_id: orderId, credit_id: creditId, expected_updated_at: 5, reason: "Credit entered by mistake" });
+  await admin.eshop.order.credit.create({ tenant_id: selectedTenantId, order_id: orderId, ...create });
+  await admin.eshop.order.credit.get({ tenant_id: selectedTenantId, order_id: orderId, credit_id: creditId });
+  await admin.eshop.order.credit.void({ tenant_id: selectedTenantId, order_id: orderId, credit_id: creditId, expected_updated_at: 5, reason: "Credit entered by mistake" });
   assert.deepEqual(calls.map(({ method, url, body }) => [method, url.pathname, url.search, body]), [
-    ["GET", `/v1/stores/${selectedStoreId}/credits`, "?sort_field=updated_at&sort_direction=desc&limit=10", null],
-    ["POST", `/v1/stores/${selectedStoreId}/orders/${orderId}/credits`, "", create],
-    ["GET", `/v1/stores/${selectedStoreId}/orders/${orderId}/credits/${creditId}`, "", null],
-    ["POST", `/v1/stores/${selectedStoreId}/orders/${orderId}/credits/${creditId}/void`, "", { expected_updated_at: 5, reason: "Credit entered by mistake" }],
+    ["GET", `/v1/tenants/${selectedTenantId}/credits`, "?sort_field=updated_at&sort_direction=desc&limit=10", null],
+    ["POST", `/v1/tenants/${selectedTenantId}/orders/${orderId}/credits`, "", create],
+    ["GET", `/v1/tenants/${selectedTenantId}/orders/${orderId}/credits/${creditId}`, "", null],
+    ["POST", `/v1/tenants/${selectedTenantId}/orders/${orderId}/credits/${creditId}/void`, "", { expected_updated_at: 5, reason: "Credit entered by mistake" }],
   ]);
   assert.deepEqual(calls[1].body.targets[0], { target: { type: "delivery", delivery_group_id: "4d2b8f61-9c37-4a05-b1e8-6f3a0c7d5e92" }, amount: { type: "part", subtotal_reduction: 500 } });
   assert.deepEqual(calls[1].body.targets[1].amount, { type: "remaining" });
-  await admin.eshop.order.credit.create({ store_id: selectedStoreId, order_id: orderId, id: creditId, reason: "Goodwill", targets: [], fiscal_device_id: null });
+  await admin.eshop.order.credit.create({ tenant_id: selectedTenantId, order_id: orderId, id: creditId, reason: "Goodwill", targets: [], fiscal_device_id: null });
   assert.deepEqual(calls[4].body, { id: creditId, reason: "Goodwill", targets: [], fiscal_device_id: null });
-  await assert.rejects(async () => admin.eshop.order.credit.create({ store_id: selectedStoreId, order_id: orderId, ...create, id: "credit-1" }), TypeError);
+  await assert.rejects(async () => admin.eshop.order.credit.create({ tenant_id: selectedTenantId, order_id: orderId, ...create, id: "credit-1" }), TypeError);
   assert.equal(calls.length, 5);
   assert.equal("orderCredit" in admin.eshop, false);
 });
@@ -92,10 +92,10 @@ test("the staff order read carries the money left to credit and refund, as the c
     return new Response(JSON.stringify(answers[calls.length - 1]), { status: 200, headers: { "content-type": "application/json" } });
   });
   const admin = createAdmin({ apiUrl: "https://api.example.test", accountToken: "arky_at_ttttttttttttttttttttttttttttttttttttttttttA" });
-  assert.deepEqual((await admin.eshop.order.get({ store_id: selectedStoreId, id: orderId })).money_left, shown);
-  assert.deepEqual((await admin.eshop.order.get({ store_id: selectedStoreId, id: orderId })).money_left, { type: "not_shown" });
+  assert.deepEqual((await admin.eshop.order.get({ tenant_id: selectedTenantId, id: orderId })).money_left, shown);
+  assert.deepEqual((await admin.eshop.order.get({ tenant_id: selectedTenantId, id: orderId })).money_left, { type: "not_shown" });
   assert.deepEqual(calls.map(({ method, url }) => [method, url.pathname, url.search]), [
-    ["GET", `/v1/stores/${selectedStoreId}/orders/${orderId}`, ""],
-    ["GET", `/v1/stores/${selectedStoreId}/orders/${orderId}`, ""],
+    ["GET", `/v1/tenants/${selectedTenantId}/orders/${orderId}`, ""],
+    ["GET", `/v1/tenants/${selectedTenantId}/orders/${orderId}`, ""],
   ]);
 });

@@ -15,7 +15,7 @@ import type {
   ShippingMethodType,
   ShippingRate,
   ShippingRatePricing,
-  StoreRecordByKeyParams,
+  TenantRecordByKeyParams,
   TaxCategory,
   TaxRule,
   TaxTreatment,
@@ -30,7 +30,7 @@ type Assert<T extends true> = T;
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Missing<T, K extends PropertyKey> = K extends keyof T ? false : true;
 type RequiredField<T, K extends keyof T> = {} extends Pick<T, K> ? false : true;
-type Api = ReturnType<typeof createAdmin>["store"];
+type Api = ReturnType<typeof createAdmin>["tenant"];
 
 export type ShippingTaxContract = [
   Assert<Missing<Api, "taxRule" | "shippingRate" | "marketZone" | "marketSalesChannel">>,
@@ -48,20 +48,20 @@ export type ShippingTaxContract = [
   Assert<Equal<Extract<ShippingRatePricing, { type: "flat" }>["free_above_subtotal"], { type: "never" } | { type: "above"; amount: number }>>,
   Assert<Equal<NonNullable<ShippingRate["delivery_estimate"]>, { min: BusinessDays; max: BusinessDays }>>,
   Assert<Equal<ShippingRatePricing["type"], "flat" | "weight_tiered">>,
-  Assert<Equal<ShippingMethodType, { type: "delivery" } | { type: "pickup"; store_location_id: string }>>,
+  Assert<Equal<ShippingMethodType, { type: "delivery" } | { type: "pickup"; tenant_location_id: string }>>,
   Assert<Equal<CreateShippingMethodParams["rates"], ShippingRate[]>>,
   Assert<Missing<UpdateShippingMethodParams, "type">>,
   Assert<Equal<ShippingMethod["document_item"], DocumentItem>>,
   Assert<RequiredField<CreateShippingMethodParams, "document_item">>,
   Assert<Equal<UpdateShippingMethodParams["document_item"], DocumentItem | undefined>>,
-  Assert<Equal<keyof Zone, "id" | "store_id" | "market_id" | "key" | "areas" | "created_at" | "updated_at">>,
+  Assert<Equal<keyof Zone, "id" | "tenant_id" | "market_id" | "key" | "areas" | "created_at" | "updated_at">>,
   Assert<Equal<CreateZoneParams["areas"], ZoneArea[]>>,
   Assert<Equal<ZoneArea["type"], "country" | "state" | "postal_code" | "postal_code_prefix">>,
   Assert<Equal<Parameters<Api["zone"]["find"]>[0], FindZonesParams>>,
   Assert<Equal<Parameters<Api["shippingMethod"]["find"]>[0], FindShippingMethodsParams>>,
   Assert<Equal<Parameters<Api["shippingProfile"]["find"]>[0], FindShippingProfilesParams>>,
   Assert<Equal<Parameters<Api["taxCategory"]["find"]>[0], FindTaxCategoriesParams>>,
-  Assert<Equal<Parameters<Api["shippingMethod"]["getByKey"]>[0], StoreRecordByKeyParams>>,
+  Assert<Equal<Parameters<Api["shippingMethod"]["getByKey"]>[0], TenantRecordByKeyParams>>,
   Assert<Equal<Awaited<ReturnType<Api["zone"]["delete"]>>, DeletedResponse>>,
   Assert<Equal<Awaited<ReturnType<Api["shippingMethod"]["delete"]>>, DeletedResponse>>,
   Assert<Equal<Awaited<ReturnType<Api["taxCategory"]["delete"]>>, DeletedResponse>>,

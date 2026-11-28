@@ -4,7 +4,7 @@ import type { SendPageViewParams } from "../types/pageView";
 
 export const PAGE_VIEW_PATH = "/v1/storefront/page-views";
 
-export const createStorefrontPageViewsApi = (apiConfig: Pick<StorefrontApiConfig, "apiUrl" | "storeId" | "salesChannelId">) => ({
+export const createStorefrontPageViewsApi = (apiConfig: Pick<StorefrontApiConfig, "apiUrl" | "tenantId" | "salesChannelId">) => ({
   send(params: SendPageViewParams): void {
     if (typeof params?.path !== "string" || !params.path.startsWith("/")) {
       throw new TypeError("A page view needs the page path, starting with /");
@@ -16,7 +16,7 @@ export const createStorefrontPageViewsApi = (apiConfig: Pick<StorefrontApiConfig
       throw new TypeError("Page views are sent from a browser that supports navigator.sendBeacon");
     }
     const body = JSON.stringify({
-      store_id: apiConfig.storeId,
+      tenant_id: apiConfig.tenantId,
       sales_channel_id: apiConfig.salesChannelId,
       path: params.path,
       referrer: params.referrer || null,
